@@ -373,7 +373,7 @@ function boundaryViolations(
   return violations;
 }
 
-describe('Station has no local inference runtime', () => {
+describe('Nilo has no local inference runtime', () => {
   it('positive control: every forbidden boundary has a fixture that the gate catches', () => {
     const providerSdk = ['@ai-sdk', 'openai'].join('/');
     const mongoPackage = ['mongo', 'db'].join('');
@@ -512,7 +512,7 @@ describe('Station has no local inference runtime', () => {
         [
           {
             path: '.github/workflows/deploy.yml',
-            source: 'https://api.cloudflare.com/client/v4/accounts/account/pages/projects/station',
+            source: 'https://api.cloudflare.com/client/v4/accounts/account/pages/projects/nilo',
           },
         ],
         [],
@@ -568,7 +568,7 @@ describe('Station has no local inference runtime', () => {
 
   it('allows an Oxy inference request that carries only an exact opaque routing id', () => {
     const source =
-      "fetch(`${oxyOrigin}/inference/station/summarize`, { body: JSON.stringify({ routingProfileId }) });";
+      "fetch(`${oxyOrigin}/inference/nilo/summarize`, { body: JSON.stringify({ routingProfileId }) });";
 
     expect(
       boundaryViolations(

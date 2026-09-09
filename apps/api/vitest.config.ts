@@ -3,7 +3,7 @@ import { configDefaults, defineConfig } from 'vitest/config';
 /**
  * `*.pgdb.test.ts` needs a real Postgres and is NOT part of the default run.
  *
- * Those files refuse to run without `STATION_TEST_DATABASE_URL` rather than
+ * Those files refuse to run without `NILO_TEST_DATABASE_URL` rather than
  * skipping, because a suite that silently skips reports exactly what a passing
  * suite reports — so they cannot simply be left in a run that has no database.
  * `bun run test:pgdb` is how they are run.

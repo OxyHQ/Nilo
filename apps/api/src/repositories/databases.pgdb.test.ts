@@ -28,7 +28,7 @@ import {
   writeDatabaseSchema,
   type InsertDatabaseInput,
   type InsertDatabaseViewInput,
-  type StationHandle,
+  type NiloHandle,
 } from './databases.js';
 
 /**
@@ -605,7 +605,7 @@ describe('transaction handles', () => {
 
     await expect(
       db.transaction(async (tx) => {
-        const handle: StationHandle = tx;
+        const handle: NiloHandle = tx;
         expect(await deleteViewsByDatabase(handle, record.id)).toBe(1);
         expect(await deleteDatabase(handle, record.id)).toBe(true);
         throw new Error('roll back');

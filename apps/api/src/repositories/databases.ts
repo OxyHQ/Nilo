@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, ne } from 'drizzle-orm';
 import type { PgUpdateSetSource } from 'drizzle-orm/pg-core';
-import type { StationDatabase } from '../db/client.js';
+import type { NiloDatabase } from '../db/client.js';
 import {
   databases,
   databaseViews,
@@ -32,7 +32,7 @@ import {
  * The hard-delete path (`:760-776`) is a genuine cross-domain coupling: pages,
  * blocks, database_views and databases are removed together, so at cutover
  * those four deletes must share ONE transaction and the two halves of the port
- * must switch together. Every function here takes a {@link StationHandle}
+ * must switch together. Every function here takes a {@link NiloHandle}
  * precisely so the caller can pass that transaction in.
  *
  * ## Filtering and sorting of rows stays in JS
@@ -48,14 +48,14 @@ import {
  * A pool handle or a transaction handle — anything a repository function can
  * run on.
  *
- * Derived from `StationDatabase['transaction']` rather than spelled as
+ * Derived from `NiloDatabase['transaction']` rather than spelled as
  * `PgTransaction<…>`, so it cannot drift from whatever `createDatabase()`
  * actually hands back.
  */
-export type StationTransaction = Parameters<
-  Parameters<StationDatabase['transaction']>[0]
+export type NiloTransaction = Parameters<
+  Parameters<NiloDatabase['transaction']>[0]
 >[0];
-export type StationHandle = StationDatabase | StationTransaction;
+export type NiloHandle = NiloDatabase | NiloTransaction;
 
 /** The `databases` row as the rest of the application sees it. */
 export interface DatabaseRecord {
@@ -145,7 +145,7 @@ function toViewRecord(row: DatabaseViewRow): DatabaseViewRecord {
  * monotonic within a millisecond.
  */
 export async function listDatabasesByWorkspace(
-  handle: StationHandle,
+  handle: NiloHandle,
   input: { workspaceId: string; includeArchived: boolean },
 ): Promise<DatabaseRecord[]> {
   const where = input.includeArchived
@@ -163,7 +163,7 @@ export async function listDatabasesByWorkspace(
 
 /** `Database.findById(id)` — `routes/databases.ts:599, 720, 752, 798, 840, 887, 929, 1024`. */
 export async function findDatabaseById(
-  handle: StationHandle,
+  handle: NiloHandle,
   id: string,
 ): Promise<DatabaseRecord | null> {
   const [row] = await handle.select().from(databases).where(eq(databases.id, id)).limit(1);
@@ -176,7 +176,7 @@ export async function findDatabaseById(
  * run the membership check.
  */
 export async function findDatabaseWorkspaceId(
-  handle: StationHandle,
+  handle: NiloHandle,
   id: string,
 ): Promise<{ id: string; workspaceId: string } | null> {
   const [row] = await handle
@@ -201,7 +201,7 @@ export interface InsertDatabaseInput {
 
 /** `Database.create({...})` — `routes/databases.ts:679-691`. */
 export async function insertDatabase(
-  handle: StationHandle,
+  handle: NiloHandle,
   input: InsertDatabaseInput,
 ): Promise<DatabaseRecord> {
   const [row] = await handle
@@ -246,7 +246,7 @@ export interface UpdateDatabaseInput {
  * port rather than particular to any one field.
  */
 export async function updateDatabase(
-  handle: StationHandle,
+  handle: NiloHandle,
   id: string,
   patch: UpdateDatabaseInput,
 ): Promise<DatabaseRecord | null> {
@@ -274,7 +274,7 @@ export async function updateDatabase(
  * whole-value write is the faithful port rather than a simplification.
  */
 export async function writeDatabaseSchema(
-  handle: StationHandle,
+  handle: NiloHandle,
   id: string,
   propertiesSchema: DatabaseSchema,
 ): Promise<DatabaseRecord | null> {
@@ -296,7 +296,7 @@ export async function writeDatabaseSchema(
  * `database_views` rows go with it through `ON DELETE CASCADE`. The route also
  * deletes them explicitly first, which stays correct.
  */
-export async function deleteDatabase(handle: StationHandle, id: string): Promise<boolean> {
+export async function deleteDatabase(handle: NiloHandle, id: string): Promise<boolean> {
   const deleted = await handle.delete(databases).where(eq(databases.id, id)).returning({
     id: databases.id,
   });
@@ -323,7 +323,7 @@ const VIEW_ORDER = [asc(databaseViews.order), asc(databaseViews.createdAt), asc(
 
 /** `DatabaseView.find({ databaseId }).sort({ order: 1, createdAt: 1 })`. */
 export async function listViewsByDatabase(
-  handle: StationHandle,
+  handle: NiloHandle,
   databaseId: string,
 ): Promise<DatabaseViewRecord[]> {
   const rows = await handle
@@ -343,7 +343,7 @@ export async function listViewsByDatabase(
  * remember to reject.
  */
 export async function findViewById(
-  handle: StationHandle,
+  handle: NiloHandle,
   viewId: string,
   databaseId: string,
 ): Promise<DatabaseViewRecord | null> {
@@ -366,7 +366,7 @@ export async function findViewById(
  * ordering, so the same database always resolves to the same default.
  */
 export async function findDefaultView(
-  handle: StationHandle,
+  handle: NiloHandle,
   databaseId: string,
 ): Promise<DatabaseViewRecord | null> {
   const [row] = await handle
@@ -384,7 +384,7 @@ export async function findDefaultView(
  * current default is deleted.
  */
 export async function findFirstViewByOrder(
-  handle: StationHandle,
+  handle: NiloHandle,
   databaseId: string,
 ): Promise<DatabaseViewRecord | null> {
   const [row] = await handle
@@ -405,7 +405,7 @@ export async function findFirstViewByOrder(
  * column `last.order + 1` would be string concatenation.
  */
 export async function nextViewOrder(
-  handle: StationHandle,
+  handle: NiloHandle,
   databaseId: string,
 ): Promise<number> {
   const [row] = await handle
@@ -437,7 +437,7 @@ export interface InsertDatabaseViewInput {
  * default view every new database gets at `:520-533`.
  */
 export async function insertDatabaseView(
-  handle: StationHandle,
+  handle: NiloHandle,
   input: InsertDatabaseViewInput,
 ): Promise<DatabaseViewRecord> {
   const [row] = await handle.insert(databaseViews).values(input).returning();
@@ -466,7 +466,7 @@ export interface UpdateDatabaseViewInput {
  * collapsed.
  */
 export async function updateDatabaseView(
-  handle: StationHandle,
+  handle: NiloHandle,
   viewId: string,
   patch: UpdateDatabaseViewInput,
 ): Promise<DatabaseViewRecord | null> {
@@ -510,7 +510,7 @@ export async function updateDatabaseView(
  * changed.
  */
 export async function demoteOtherDefaultViews(
-  handle: StationHandle,
+  handle: NiloHandle,
   databaseId: string,
   keepViewId: string,
 ): Promise<number> {
@@ -536,7 +536,7 @@ export async function demoteOtherDefaultViews(
  * latter comes back from postgres.js as a STRING, because `count(*)` is
  * `bigint`, while the column would still be typed `number`.
  */
-export async function countViews(handle: StationHandle, databaseId: string): Promise<number> {
+export async function countViews(handle: NiloHandle, databaseId: string): Promise<number> {
   const [row] = await handle
     .select({ total: count() })
     .from(databaseViews)
@@ -546,7 +546,7 @@ export async function countViews(handle: StationHandle, databaseId: string): Pro
 
 /** `DatabaseView.deleteOne({ _id })` — `routes/databases.ts:1274`. */
 export async function deleteDatabaseView(
-  handle: StationHandle,
+  handle: NiloHandle,
   viewId: string,
 ): Promise<boolean> {
   const deleted = await handle
@@ -561,7 +561,7 @@ export async function deleteDatabaseView(
  * of the hard-delete cascade. Returns how many were removed.
  */
 export async function deleteViewsByDatabase(
-  handle: StationHandle,
+  handle: NiloHandle,
   databaseId: string,
 ): Promise<number> {
   const deleted = await handle

@@ -1,21 +1,21 @@
-# Oxy Station
+# Nilo
 
-Oxy Station is Oxy's cross-platform workspace for pages, blocks, typed
+Nilo is Oxy's cross-platform workspace for pages, blocks, typed
 databases, comments, sharing, and real-time collaboration.
 
 ## Workspaces
 
 | Package | Path | Responsibility |
 |---|---|---|
-| `@oxystation/app` | `apps/app/` | Expo client for web, iOS, and Android |
-| `@oxystation/api` | `apps/api/` | Express API backed by PostgreSQL/Drizzle |
+| `@nilo/app` | `apps/app/` | Expo client for web, iOS, and Android |
+| `@nilo/api` | `apps/api/` | Express API backed by PostgreSQL/Drizzle |
 
 Oxy sessions are handled by `@oxyhq/services` on the client and
-`@oxyhq/core/server` on the API. Station does not store provider credentials or
+`@oxyhq/core/server` on the API. Nilo does not store provider credentials or
 run inference providers. One-shot product operations use
-`Station -> Oxy -> Kaana`; conversations, memory, tools and agents use
-`Station -> Alia -> Oxy -> Kaana`. Provider credentials remain solely in
-Kaana's encrypted PostgreSQL store, and Station never calls Kaana directly.
+`Nilo -> Oxy -> Kaana`; conversations, memory, tools and agents use
+`Nilo -> Alia -> Oxy -> Kaana`. Provider credentials remain solely in
+Kaana's encrypted PostgreSQL store, and Nilo never calls Kaana directly.
 
 ## Quick start
 
@@ -32,10 +32,10 @@ Use Bun for dependency and script execution.
 ## Verification
 
 ```bash
-bun run --filter @oxystation/api lint
-bun run --filter @oxystation/api test
-STATION_TEST_DATABASE_URL=postgres://station:station@127.0.0.1:5439/postgres \
-  bun run --filter @oxystation/api test:pgdb
+bun run --filter @nilo/api lint
+bun run --filter @nilo/api test
+NILO_TEST_DATABASE_URL=postgres://nilo:nilo@127.0.0.1:5439/postgres \
+  bun run --filter @nilo/api test:pgdb
 bun run build:api
 EXPO_PUBLIC_API_URL=https://api.example.test bun run build:app
 ```

@@ -35,7 +35,7 @@ function mongoImports(): string[] {
     );
 }
 
-describe('the Station runtime stays PostgreSQL-only', () => {
+describe('the Nilo runtime stays PostgreSQL-only', () => {
   it('detects real package imports before asserting the Mongo importer set is empty', () => {
     const sourceFiles = trackedFiles('apps/api/src').filter((file) => /\.[cm]?[jt]sx?$/.test(file));
     const drizzleImporters = sourceFiles.filter((file) =>
@@ -85,15 +85,15 @@ describe('the checked-in public surfaces describe routes that exist', () => {
     );
 
     expect(config).toContain("process.env.NODE_ENV === 'production'");
-    expect(config).not.toContain('api.station.oxy.so');
+    expect(config).not.toContain('api.nilo.so');
     expect(validator).toContain('EXPO_PUBLIC_API_URL is required');
-    expect(validator).not.toContain('api.station.oxy.so');
-    expect(deploy).toContain('EXPO_PUBLIC_API_URL: ${{ vars.STATION_API_URL }}');
+    expect(validator).not.toContain('api.nilo.so');
+    expect(deploy).toContain('EXPO_PUBLIC_API_URL: ${{ vars.NILO_API_URL }}');
     expect(deploy).toContain('bun run build:production');
-    expect(deploy).not.toContain('api.station.oxy.so');
+    expect(deploy).not.toContain('api.nilo.so');
     expect(
       readFileSync(resolve(REPOSITORY_ROOT, 'apps/api/src/routes/share-links.ts'), 'utf8'),
-    ).not.toContain("|| 'https://station.oxy.so'");
+    ).not.toContain("|| 'https://nilo.so'");
   });
 
   it('binds notification sockets to the server-validated Oxy session', () => {
@@ -113,7 +113,7 @@ describe('the checked-in public surfaces describe routes that exist', () => {
     expect(clientSocket).not.toContain("socket.emit('subscribe-notifications'");
   });
 
-  it('generates a sitemap containing only Station routes that are present', () => {
+  it('generates a sitemap containing only Nilo routes that are present', () => {
     const generator = readFileSync(
       resolve(REPOSITORY_ROOT, 'apps/app/scripts/generate-sitemap.ts'),
       'utf8',
@@ -128,10 +128,10 @@ describe('the checked-in public surfaces describe routes that exist', () => {
       .map((match) => match[1]);
 
     expect(generatedRoutes).toEqual(['/']);
-    expect(sitemapUrls).toEqual(['https://station.oxy.so/']);
+    expect(sitemapUrls).toEqual(['https://nilo.so/']);
   });
 
-  it('does not advertise Alia or nonexistent Station pages in robots.txt', () => {
+  it('does not advertise Alia or nonexistent Nilo pages in robots.txt', () => {
     const robots = readFileSync(
       resolve(REPOSITORY_ROOT, 'apps/app/public/robots.txt'),
       'utf8',
@@ -142,7 +142,7 @@ describe('the checked-in public surfaces describe routes that exist', () => {
 
     expect(robots).not.toContain('alia.onl');
     expect(robots).not.toContain('/developers/');
-    expect(sitemapLines).toEqual(['Sitemap: https://station.oxy.so/sitemap.xml']);
+    expect(sitemapLines).toEqual(['Sitemap: https://nilo.so/sitemap.xml']);
   });
 
   it('does not mount or advertise the catch-all webhook router that always returned 404', () => {

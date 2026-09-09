@@ -21,7 +21,7 @@
 
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { ExpirySweepTarget } from '@oxyhq/db/expiry';
-import type { StationDatabase } from '../db/client.js';
+import type { NiloDatabase } from '../db/client.js';
 import {
   NOTIFICATION_DISMISSED_RETENTION_SECONDS,
   NOTIFICATION_UNREAD_STATUSES,
@@ -113,7 +113,7 @@ function listFilter(filter: ListNotificationsFilter) {
  * here.
  */
 export async function listNotifications(
-  db: StationDatabase,
+  db: NiloDatabase,
   filter: ListNotificationsFilter,
   limit: number,
   offset: number,
@@ -130,7 +130,7 @@ export async function listNotifications(
 
 /** Total matching the same filter as `listNotifications`. */
 export async function countNotifications(
-  db: StationDatabase,
+  db: NiloDatabase,
   filter: ListNotificationsFilter,
 ): Promise<number> {
   const rows = await db
@@ -148,7 +148,7 @@ export async function countNotifications(
  * a string where every client expects a number.
  */
 export async function countUnreadNotifications(
-  db: StationDatabase,
+  db: NiloDatabase,
   oxyUserId: string,
 ): Promise<number> {
   const rows = await db
@@ -164,7 +164,7 @@ export async function countUnreadNotifications(
 }
 
 export async function findNotificationById(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
 ): Promise<NotificationRow | null> {
   const rows = await db.select().from(notifications).where(eq(notifications.id, id)).limit(1);
@@ -182,7 +182,7 @@ export async function findNotificationById(
  * for an update.
  */
 export async function createNotification(
-  db: StationDatabase,
+  db: NiloDatabase,
   input: CreateNotificationInput,
 ): Promise<NotificationRow> {
   const rows = await db
@@ -211,7 +211,7 @@ export async function createNotification(
  * `notification.markModified('deliveryStatus'); save()` did.
  */
 export async function updateNotificationDeliveryStatus(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
   deliveryStatus: NotificationDeliveryStatus,
 ): Promise<NotificationRow | null> {
@@ -232,7 +232,7 @@ export async function updateNotificationDeliveryStatus(
  * header for why that is `modifiedCount` and not merely `matchedCount`.
  */
 export async function markNotificationRead(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
   oxyUserId: string,
   readAt: Date,
@@ -247,7 +247,7 @@ export async function markNotificationRead(
 
 /** Mark every unread notification read, and report how many moved. */
 export async function markAllNotificationsRead(
-  db: StationDatabase,
+  db: NiloDatabase,
   oxyUserId: string,
   readAt: Date,
 ): Promise<number> {
@@ -272,7 +272,7 @@ export async function markAllNotificationsRead(
  * the source: dismissing without reading leaves `readAt` null.
  */
 export async function dismissNotification(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
   oxyUserId: string,
 ): Promise<number> {

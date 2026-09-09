@@ -9,7 +9,7 @@
  */
 
 import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
-import type { StationDatabase } from '../db/client.js';
+import type { NiloDatabase } from '../db/client.js';
 import { comments } from '../db/schema/collab.js';
 
 /** Inline reference inside comment content. */
@@ -97,7 +97,7 @@ function toCommentRow(row: typeof comments.$inferSelect): CommentRow {
  * only makes the result STABLE, which is what the thread grouping needs.
  */
 export async function listCommentsByPage(
-  db: StationDatabase,
+  db: NiloDatabase,
   pageId: string,
 ): Promise<CommentRow[]> {
   const rows = await db
@@ -110,7 +110,7 @@ export async function listCommentsByPage(
 
 /** Every comment anchored to one block, oldest first. */
 export async function listCommentsByBlock(
-  db: StationDatabase,
+  db: NiloDatabase,
   blockId: string,
 ): Promise<CommentRow[]> {
   const rows = await db
@@ -122,7 +122,7 @@ export async function listCommentsByBlock(
 }
 
 export async function findCommentById(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
 ): Promise<CommentRow | null> {
   const rows = await db.select().from(comments).where(eq(comments.id, id)).limit(1);
@@ -131,7 +131,7 @@ export async function findCommentById(
 }
 
 export async function createComment(
-  db: StationDatabase,
+  db: NiloDatabase,
   input: CreateCommentInput,
 ): Promise<CommentRow> {
   const rows = await db
@@ -160,7 +160,7 @@ export async function createComment(
  * second read.
  */
 export async function updateCommentContent(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
   content: CommentContent,
   editedAt: Date,
@@ -187,7 +187,7 @@ export async function updateCommentContent(
  * stays at the route, where `findCommentById` gives it the parent it needs.
  */
 export async function setCommentResolvedAt(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
   resolvedAt: Date | null,
 ): Promise<CommentRow | null> {
@@ -210,7 +210,7 @@ export async function setCommentResolvedAt(
  * has no children) goes through the same call with the same meaning.
  */
 export async function deleteCommentThread(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
 ): Promise<number> {
   const rows = await db
@@ -221,7 +221,7 @@ export async function deleteCommentThread(
 }
 
 /** Delete exactly one comment by id. */
-export async function deleteComment(db: StationDatabase, id: string): Promise<number> {
+export async function deleteComment(db: NiloDatabase, id: string): Promise<number> {
   const rows = await db.delete(comments).where(eq(comments.id, id)).returning({
     id: comments.id,
   });
@@ -237,7 +237,7 @@ export async function deleteComment(db: StationDatabase, id: string): Promise<nu
  * only need the roots — it is not wired in by this change.
  */
 export async function listOpenThreadRoots(
-  db: StationDatabase,
+  db: NiloDatabase,
   pageId: string,
 ): Promise<CommentRow[]> {
   const rows = await db
@@ -263,7 +263,7 @@ export async function listOpenThreadRoots(
  * rather than a guard against a wrong answer.
  */
 export async function findCommentsByIds(
-  db: StationDatabase,
+  db: NiloDatabase,
   ids: readonly string[],
 ): Promise<CommentRow[]> {
   if (ids.length === 0) return [];

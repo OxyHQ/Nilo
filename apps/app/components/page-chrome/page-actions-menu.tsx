@@ -63,7 +63,7 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
     const origin =
       Platform.OS === "web" && typeof window !== "undefined"
         ? window.location.origin
-        : "https://station.oxy.so";
+        : "https://nilo.so";
     const url = `${origin}/p/${page._id}`;
     await Clipboard.setStringAsync(url);
     toast.success("Link copied");

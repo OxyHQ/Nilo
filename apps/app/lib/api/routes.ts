@@ -1,4 +1,4 @@
-/** Routes consumed by the Station workspace client. */
+/** Routes consumed by the Nilo workspace client. */
 export const API_ROUTES = {
   pages: {
     list: '/pages',

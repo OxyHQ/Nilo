@@ -1,7 +1,7 @@
 {
-  "name": "@oxystation/api",
+  "name": "@nilo/api",
   "version": "1.0.0",
-  "description": "Oxy Station API - Express backend for the Oxy Station workspace",
+  "description": "Nilo API - Express backend for the Nilo workspace",
   "private": true,
   "type": "module",
   "main": "dist/index.js",

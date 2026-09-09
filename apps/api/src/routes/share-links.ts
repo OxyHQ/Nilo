@@ -27,9 +27,9 @@ function generateToken(): string {
 }
 
 function shareLinkPublicUrl(token: string): string {
-  const configuredOrigin = process.env.OXYSTATION_PUBLIC_URL;
+  const configuredOrigin = process.env.OXYNILO_PUBLIC_URL;
   if (!configuredOrigin) {
-    throw new Error('OXYSTATION_PUBLIC_URL is required to create share links');
+    throw new Error('OXYNILO_PUBLIC_URL is required to create share links');
   }
   const origin = new URL(configuredOrigin);
   if (
@@ -40,7 +40,7 @@ function shareLinkPublicUrl(token: string): string {
     origin.search ||
     origin.hash
   ) {
-    throw new Error('OXYSTATION_PUBLIC_URL must be an HTTP(S) origin');
+    throw new Error('OXYNILO_PUBLIC_URL must be an HTTP(S) origin');
   }
   return `${origin.origin}/share/${token}`;
 }

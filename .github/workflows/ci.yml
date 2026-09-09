@@ -19,13 +19,13 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_USER: station
-          POSTGRES_PASSWORD: station
+          POSTGRES_USER: nilo
+          POSTGRES_PASSWORD: nilo
           POSTGRES_DB: postgres
         ports:
           - 5439:5432
         options: >-
-          --health-cmd "pg_isready -U station -d postgres"
+          --health-cmd "pg_isready -U nilo -d postgres"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -45,15 +45,15 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Lint API
-        run: bun run --filter @oxystation/api lint
+        run: bun run --filter @nilo/api lint
 
       - name: Run API tests
-        run: bun run --filter @oxystation/api test
+        run: bun run --filter @nilo/api test
 
       - name: Run API tests against PostgreSQL
         env:
-          STATION_TEST_DATABASE_URL: postgres://station:station@127.0.0.1:5439/postgres
-        run: bun run --filter @oxystation/api test:pgdb
+          NILO_TEST_DATABASE_URL: postgres://nilo:nilo@127.0.0.1:5439/postgres
+        run: bun run --filter @nilo/api test:pgdb
 
   build-api:
     name: Build API

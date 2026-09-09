@@ -443,7 +443,7 @@ export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
       { emoji: "🚆", keywords: "train" },
       { emoji: "🚇", keywords: "metro subway" },
       { emoji: "🚊", keywords: "tram" },
-      { emoji: "🚉", keywords: "station" },
+      { emoji: "🚉", keywords: "nilo" },
       { emoji: "✈️", keywords: "airplane" },
       { emoji: "🛫", keywords: "airplane departure" },
       { emoji: "🛬", keywords: "airplane arrival" },

@@ -6,8 +6,8 @@ export default function NotFoundScreen() {
   return (
     <>
       <Head>
-        <title>404 - Page Not Found | Oxy Station</title>
-        <meta name="description" content="The page you're looking for doesn't exist. Return to Oxy Station to continue working in your workspace." />
+        <title>404 - Page Not Found | Nilo</title>
+        <meta name="description" content="The page you're looking for doesn't exist. Return to Nilo to continue working in your workspace." />
         <meta name="robots" content="noindex, nofollow" />
       </Head>
       <Stack.Screen options={{ title: 'Oops!' }} />

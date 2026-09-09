@@ -23,7 +23,7 @@ import { SettingsSidebar } from "@/components/settings/settings-sidebar";
 import { UserAvatar } from "@/components/user-avatar";
 import { useOxy, openAccountDialog } from "@oxyhq/services";
 import * as DropdownMenu from "@/components/ui/dropdown-menu";
-import { OxyStationWordmark } from "@/components/ui/oxy-station-wordmark";
+import { NiloWordmark } from "@/components/ui/nilo-wordmark";
 import { WorkspaceSwitcher } from "@/components/workspace/workspace-switcher";
 import { useColorScheme } from "@/lib/useColorScheme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -146,7 +146,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
               className="h-14 items-center justify-center"
               accessibilityLabel="Home"
             >
-              <OxyStationWordmark width={20} color={colors.foreground} />
+              <NiloWordmark width={20} color={colors.foreground} />
             </Pressable>
           )}
         </View>
@@ -205,7 +205,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
             className="p-1 mx-0.5 shrink-0 rounded-xl hover:bg-muted"
             accessibilityLabel="Home"
           >
-            <OxyStationWordmark
+            <NiloWordmark
               height={24}
               width={62}
               color={colors.foreground}

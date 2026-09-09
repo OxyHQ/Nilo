@@ -60,7 +60,7 @@ initSocket(server);
 
 // Internal routes - restricted to known origins
 const PRODUCTION_ORIGINS = [
-  'https://station.oxy.so',
+  'https://nilo.so',
 ];
 
 const DEV_ORIGINS = [
@@ -124,7 +124,7 @@ app.use('/uploads', express.static(LOCAL_UPLOAD_ROOT, { fallthrough: true }));
 // Root route
 app.get('/', (_req, res) => {
   res.json({
-    message: 'Oxy Station API',
+    message: 'Nilo API',
     version: '1.0.0',
     endpoints: [
       '/health',

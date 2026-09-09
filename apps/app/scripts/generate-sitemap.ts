@@ -1,5 +1,5 @@
 /**
- * Auto-generated sitemap.xml for Oxy Station
+ * Auto-generated sitemap.xml for Nilo
  * Run: bun run generate-sitemap
  */
 
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SITE_URL = 'https://station.oxy.so';
+const SITE_URL = 'https://nilo.so';
 const CURRENT_DATE = new Date().toISOString().split('T')[0];
 
 interface SitemapURL {
@@ -48,7 +48,7 @@ function generateSitemapXML(urls: SitemapURL[]): string {
 }
 
 async function generateSitemap() {
-  console.log('Generating sitemap.xml for Oxy Station...');
+  console.log('Generating sitemap.xml for Nilo...');
 
   const sitemapXML = generateSitemapXML(staticRoutes);
 

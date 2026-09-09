@@ -13,25 +13,25 @@
 import { createDatabase, type OxyDatabase } from '@oxyhq/db';
 import * as schema from './schema/index.js';
 
-export type StationDatabase = OxyDatabase<typeof schema>;
+export type NiloDatabase = OxyDatabase<typeof schema>;
 
 /**
  * What a repository function accepts: the pool handle, or the transaction
  * handle `db.transaction(cb)` hands its callback.
  *
- * Derived from `StationDatabase['transaction']` rather than written out as
+ * Derived from `NiloDatabase['transaction']` rather than written out as
  * `PgTransaction<PostgresJsQueryResultHKT, typeof schema, ...>`, so it cannot
  * drift from the handle it has to accept. It matters that both are accepted:
  * once a write and a read-back have to commit together, the caller opens one
  * transaction and passes it down — a repository typed to the pool alone
  * silently escapes the caller's transaction.
  */
-export type PgHandle = StationDatabase | Parameters<Parameters<StationDatabase['transaction']>[0]>[0];
+export type PgHandle = NiloDatabase | Parameters<Parameters<NiloDatabase['transaction']>[0]>[0];
 
-let handle: { db: StationDatabase; client: ReturnType<typeof createDatabase>['client'] } | null =
+let handle: { db: NiloDatabase; client: ReturnType<typeof createDatabase>['client'] } | null =
   null;
 
-export function getDb(): StationDatabase {
+export function getDb(): NiloDatabase {
   if (handle) return handle.db;
 
   const databaseUrl = process.env.DATABASE_URL;

@@ -5,10 +5,13 @@ on:
     branches: [main]
 
 env:
-  # Named once. The rename from `oxyspace` is what made the bootstrap step
-  # below necessary: `wrangler pages deploy` does NOT create a missing project,
-  # it fails with `Project not found [code: 8000007]` after a successful build.
-  CF_PAGES_PROJECT: oxystation
+  # Named once, and renamed twice: `oxyspace` -> `oxystation` -> `nilo`. That
+  # is what makes the bootstrap step below necessary. Cloudflare has no project
+  # rename, and `wrangler pages deploy` does NOT create a missing project — it
+  # fails with `Project not found [code: 8000007]` after a successful build.
+  # Each rename therefore starts an empty project; the previous one keeps
+  # serving its last deployment until it is deleted by hand.
+  CF_PAGES_PROJECT: nilo
 
 jobs:
   deploy-frontend:
@@ -26,7 +29,7 @@ jobs:
 
       - name: Build web
         env:
-          EXPO_PUBLIC_API_URL: ${{ vars.STATION_API_URL }}
+          EXPO_PUBLIC_API_URL: ${{ vars.NILO_API_URL }}
         run: cd apps/app && bun run build:production
 
       # Idempotent, and deliberately not `|| true`: a 200 means the project is

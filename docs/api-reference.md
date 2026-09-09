@@ -1,4 +1,4 @@
-# Oxy Station API reference
+# Nilo API reference
 
 Last verified against `apps/api/src/index.ts`: 2026-09-02.
 
@@ -27,7 +27,7 @@ is the source of truth.
 
 There is no local provider administration, provider-key, billing/credits,
 Clarity compatibility, conversation, model catalogue, or chat-completion
-route. Station is a workspace API, not an inference data plane.
+route. Nilo is a workspace API, not an inference data plane.
 
 ## Health
 

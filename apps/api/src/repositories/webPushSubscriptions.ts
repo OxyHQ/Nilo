@@ -14,7 +14,7 @@
  */
 
 import { and, eq, sql } from 'drizzle-orm';
-import type { StationDatabase } from '../db/client.js';
+import type { NiloDatabase } from '../db/client.js';
 import { webPushSubscriptions } from '../db/schema/collab.js';
 
 export interface WebPushKeys {
@@ -62,7 +62,7 @@ function toWebPushSubscriptionRow(
  * the correct one.
  */
 export async function upsertWebPushSubscription(
-  db: StationDatabase,
+  db: NiloDatabase,
   input: UpsertWebPushSubscriptionInput,
 ): Promise<WebPushSubscriptionRow> {
   const rows = await db
@@ -94,7 +94,7 @@ export async function upsertWebPushSubscription(
  * route 404s on zero, matching Mongo's `matchedCount === 0`.
  */
 export async function deactivateWebPushSubscription(
-  db: StationDatabase,
+  db: NiloDatabase,
   oxyUserId: string,
   endpoint: string,
 ): Promise<number> {
@@ -113,7 +113,7 @@ export async function deactivateWebPushSubscription(
 
 /** Deactivate one row by primary key — the 410/404-from-the-push-service path. */
 export async function deactivateWebPushSubscriptionById(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
 ): Promise<number> {
   const rows = await db
@@ -126,7 +126,7 @@ export async function deactivateWebPushSubscriptionById(
 
 /** Every active subscription for a user, with `keys` reassembled. */
 export async function listActiveWebPushSubscriptions(
-  db: StationDatabase,
+  db: NiloDatabase,
   oxyUserId: string,
 ): Promise<WebPushSubscriptionRow[]> {
   const rows = await db
@@ -143,7 +143,7 @@ export async function listActiveWebPushSubscriptions(
 
 /** Whether a user has any active browser subscription. */
 export async function hasActiveWebPushSubscription(
-  db: StationDatabase,
+  db: NiloDatabase,
   oxyUserId: string,
 ): Promise<boolean> {
   const rows = await db

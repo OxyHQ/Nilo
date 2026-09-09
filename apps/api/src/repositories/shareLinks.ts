@@ -4,7 +4,7 @@
  */
 
 import { and, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
-import type { StationDatabase } from '../db/client.js';
+import type { NiloDatabase } from '../db/client.js';
 import { type ShareLinkScope, shareLinks } from '../db/schema/collab.js';
 
 export interface ShareLinkRow {
@@ -45,7 +45,7 @@ function toShareLinkRow(row: typeof shareLinks.$inferSelect): ShareLinkRow {
  * failure still propagates as an exception.
  */
 export async function createShareLink(
-  db: StationDatabase,
+  db: NiloDatabase,
   input: CreateShareLinkInput,
 ): Promise<ShareLinkRow | null> {
   const rows = await db
@@ -71,7 +71,7 @@ export async function createShareLink(
  * instant, and so this reads the same way as the route's own boundary check.
  */
 export async function listActiveShareLinksByPage(
-  db: StationDatabase,
+  db: NiloDatabase,
   pageId: string,
   now: Date,
 ): Promise<ShareLinkRow[]> {
@@ -90,7 +90,7 @@ export async function listActiveShareLinksByPage(
 }
 
 export async function findShareLinkById(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
 ): Promise<ShareLinkRow | null> {
   const rows = await db.select().from(shareLinks).where(eq(shareLinks.id, id)).limit(1);
@@ -107,7 +107,7 @@ export async function findShareLinkById(
  * would collapse all three into one silent miss.
  */
 export async function findShareLinkByToken(
-  db: StationDatabase,
+  db: NiloDatabase,
   token: string,
 ): Promise<ShareLinkRow | null> {
   const rows = await db.select().from(shareLinks).where(eq(shareLinks.token, token)).limit(1);
@@ -125,7 +125,7 @@ export async function findShareLinkByToken(
  * tell those apart.
  */
 export async function revokeShareLink(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
   revokedAt: Date,
 ): Promise<ShareLinkRow | null> {
@@ -147,7 +147,7 @@ export async function revokeShareLink(
  * arithmetic on it becomes string concatenation.
  */
 export async function countShareLinksByPage(
-  db: StationDatabase,
+  db: NiloDatabase,
   pageId: string,
 ): Promise<number> {
   const rows = await db

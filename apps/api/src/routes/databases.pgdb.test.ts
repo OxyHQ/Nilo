@@ -204,7 +204,7 @@ beforeAll(async () => {
   // DATABASE_URL. Pointed at the same database the fixtures are seeded in, and
   // restored afterwards — `process.env` is shared with every sibling file.
   originalDatabaseUrl = process.env.DATABASE_URL;
-  process.env.DATABASE_URL = process.env.STATION_TEST_DATABASE_URL;
+  process.env.DATABASE_URL = process.env.NILO_TEST_DATABASE_URL;
 
   ctx.workspaceId = await seedWorkspace(db, 'route-databases');
   otherWorkspaceId = await seedWorkspace(db, 'route-databases-other');

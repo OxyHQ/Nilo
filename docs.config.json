@@ -1,11 +1,11 @@
 {
-  "package": "oxystation",
-  "displayName": "Oxy Station",
-  "shortName": "oxystation",
-  "repo": "https://github.com/OxyHQ/Station",
+  "package": "nilo",
+  "displayName": "Nilo",
+  "shortName": "nilo",
+  "repo": "https://github.com/OxyHQ/Nilo",
   "category": "app",
   "versions": ["main"],
   "defaultVersion": "main",
   "docsPath": "docs/",
-  "description": "Oxy Station — your workspace for docs, databases, and AI."
+  "description": "Nilo — your workspace for docs, databases, and AI."
 }

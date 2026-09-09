@@ -1,6 +1,6 @@
-# Oxy Station API
+# Nilo API
 
-Express and TypeScript API for the Station workspace.
+Express and TypeScript API for the Nilo workspace.
 
 ## Runtime
 
@@ -10,7 +10,7 @@ Express and TypeScript API for the Station workspace.
 - S3-compatible storage and browser push are optional.
 - Oxy session verification comes from `@oxyhq/core/server`.
 
-Station has no provider runtime, provider-key storage, model routing, billing
+Nilo has no provider runtime, provider-key storage, model routing, billing
 credits, or chat-completion endpoints. Provider credentials belong only to
 Kaana's encrypted PostgreSQL database.
 
@@ -20,7 +20,7 @@ Kaana's encrypted PostgreSQL database.
 bun run dev
 bun run lint
 bun run test
-STATION_TEST_DATABASE_URL=postgres://station:station@127.0.0.1:5439/postgres \
+NILO_TEST_DATABASE_URL=postgres://nilo:nilo@127.0.0.1:5439/postgres \
   bun run test:pgdb
 bun run build
 ```

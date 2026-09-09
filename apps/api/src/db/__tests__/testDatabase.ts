@@ -40,7 +40,7 @@ import * as schema from '../schema/index.js';
  * that race.
  */
 
-const ADMIN_URL_VARIABLE = 'STATION_TEST_DATABASE_URL';
+const ADMIN_URL_VARIABLE = 'NILO_TEST_DATABASE_URL';
 
 /**
  * A fixed key for `pg_advisory_lock`, so concurrent vitest workers apply the
@@ -50,7 +50,7 @@ const ADMIN_URL_VARIABLE = 'STATION_TEST_DATABASE_URL';
 const SCHEMA_LOCK_KEY = 4_120_250_812;
 
 /** Where the fingerprint of the currently-applied DDL is recorded. */
-const FINGERPRINT_TABLE = 'station_test_schema_fingerprint';
+const FINGERPRINT_TABLE = 'nilo_test_schema_fingerprint';
 
 export function testDatabaseUrl(): string {
   const url = process.env[ADMIN_URL_VARIABLE];
@@ -60,7 +60,7 @@ export function testDatabaseUrl(): string {
         'tests; they are not skipped when it is unset, because a suite that silently ' +
         'skips reports exactly what a passing suite reports. Point it at a Postgres ' +
         'database this may DROP AND RECREATE every table in, e.g. ' +
-        'postgres://station:station@127.0.0.1:5439/station_databases',
+        'postgres://nilo:nilo@127.0.0.1:5439/nilo_databases',
     );
   }
   return url;

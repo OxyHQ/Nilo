@@ -1,8 +1,8 @@
 {
-  "name": "oxystation-monorepo",
+  "name": "nilo-monorepo",
   "version": "1.0.0",
   "license": "SEE LICENSE IN LICENSE",
-  "description": "Oxy Station - workspace for documents and databases",
+  "description": "Nilo - workspace for documents and databases",
   "private": true,
   "workspaces": [
     "apps/api",
@@ -11,24 +11,24 @@
   "packageManager": "bun@1.3.14",
   "scripts": {
     "dev": "bun run --filter '*' dev",
-    "dev:app": "bun run --filter @oxystation/app dev -- --clear --tunnel",
-    "dev:api": "bun run --filter @oxystation/api dev",
+    "dev:app": "bun run --filter @nilo/app dev -- --clear --tunnel",
+    "dev:api": "bun run --filter @nilo/api dev",
     "build": "bun run --filter '*' build",
-    "build:app": "bun run --filter @oxystation/app build",
-    "build:api": "bun run --filter @oxystation/api build",
-    "start:app": "bun run --filter @oxystation/app start",
-    "start:api": "bun run --filter @oxystation/api start",
+    "build:app": "bun run --filter @nilo/app build",
+    "build:api": "bun run --filter @nilo/api build",
+    "start:app": "bun run --filter @nilo/app start",
+    "start:api": "bun run --filter @nilo/api start",
     "lint": "bun run --filter '*' lint",
-    "android": "bun run --filter @oxystation/app android",
-    "ios": "bun run --filter @oxystation/app ios",
-    "web": "bun run --filter @oxystation/app web"
+    "android": "bun run --filter @nilo/app android",
+    "ios": "bun run --filter @nilo/app ios",
+    "web": "bun run --filter @nilo/app web"
   },
   "keywords": [
     "monorepo",
     "workspace",
     "expo",
     "api",
-    "oxystation"
+    "nilo"
   ],
   "author": "",
   "devDependencies": {

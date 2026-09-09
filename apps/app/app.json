@@ -1,16 +1,16 @@
 {
   "expo": {
     "owner": "oxyhq",
-    "name": "Oxy Station",
-    "slug": "oxystation",
+    "name": "Nilo",
+    "slug": "nilo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon-512.png",
-    "scheme": "oxystation",
+    "scheme": "nilo",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "so.oxy.station",
+      "bundleIdentifier": "so.oxy.nilo",
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification"
@@ -24,7 +24,7 @@
         "backgroundColor": "#FFFFFF"
       },
       "googleServicesFile": "./google-services.json",
-      "package": "so.oxy.station",
+      "package": "so.oxy.nilo",
       "predictiveBackGestureEnabled": false
     },
     "web": {

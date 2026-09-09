@@ -1,6 +1,6 @@
-# Contributing to Oxy Station
+# Contributing to Nilo
 
-Oxy Station is a workspace for documents and databases by Oxy: pages made of blocks, typed databases with views, comments and sharing, on every platform.
+Nilo is a workspace for documents and databases by Oxy: pages made of blocks, typed databases with views, comments and sharing, on every platform.
 
 **The contribution process lives in the [Oxy organisation CONTRIBUTING guide](https://github.com/OxyHQ/.github/blob/main/CONTRIBUTING.md)**: reporting an issue, filing a feature request, opening a pull request, code review, licensing. It applies here unchanged. This file layers on top of it the same way `AGENTS.md` files layer, so it is short on purpose: it carries only what is different about this repository.
 
@@ -15,14 +15,14 @@ Branch from `main`, and target `main` with your pull request.
 - **PostgreSQL 17**, local or remote, to run the API and its real-database suite.
 - **Redis or Valkey**, optional. Caching falls back gracefully without it.
 
-Station contains no inference provider runtime or provider-key store. One-shot
-AI operations belong on `Station -> Oxy -> Kaana`; conversations, memory,
-tools and agents belong on `Station -> Alia -> Oxy -> Kaana`.
+Nilo contains no inference provider runtime or provider-key store. One-shot
+AI operations belong on `Nilo -> Oxy -> Kaana`; conversations, memory,
+tools and agents belong on `Nilo -> Alia -> Oxy -> Kaana`.
 
 ## Setup
 
 ```bash
-git clone https://github.com/OxyHQ/Station.git && cd Station
+git clone https://github.com/OxyHQ/Nilo.git && cd Nilo
 bun install
 cp apps/api/.env.example apps/api/.env   # fill in your values
 bun run dev                              # both apps at once
@@ -39,22 +39,22 @@ bun run dev:app    # Expo app only (runs with --clear --tunnel)
 
 ## Layout
 
-A bun workspaces monorepo. **Oxy Station uses `apps/`, not the `packages/` layout every other Oxy repository uses**, so paths you remember from a sibling repository will not resolve here.
+A bun workspaces monorepo. **Nilo uses `apps/`, not the `packages/` layout every other Oxy repository uses**, so paths you remember from a sibling repository will not resolve here.
 
 | Workspace | Stack | Purpose |
 | --- | --- | --- |
-| `apps/api` (`@oxystation/api`) | Express + TypeScript | Core API runtime |
-| `apps/app` (`@oxystation/app`) | Expo (React Native and Web) | Main app: web, iOS, Android |
+| `apps/api` (`@nilo/api`) | Express + TypeScript | Core API runtime |
+| `apps/app` (`@nilo/app`) | Expo (React Native and Web) | Main app: web, iOS, Android |
 
 ## Vocabulary
 
-Oxy Station replaced a legacy AI chat product, and its code and copy carry the vocabulary of the new one. A **page** is a document, made of **blocks**, optionally a row in a **database**, rendered through a **view**, inside a **workspace** that has **members**. Do not reintroduce chat vocabulary (conversation, message, thread, persona, agent, skill, deep research, follow-up) in anything user facing. Do not add provider routing, provider keys or an end-user model picker to Station.
+Nilo replaced a legacy AI chat product, and its code and copy carry the vocabulary of the new one. A **page** is a document, made of **blocks**, optionally a row in a **database**, rendered through a **view**, inside a **workspace** that has **members**. Do not reintroduce chat vocabulary (conversation, message, thread, persona, agent, skill, deep research, follow-up) in anything user facing. Do not add provider routing, provider keys or an end-user model picker to Nilo.
 
 ## Tests
 
 ```bash
-bun run --filter @oxystation/api test
-bun run --filter @oxystation/api test:pgdb
+bun run --filter @nilo/api test
+bun run --filter @nilo/api test:pgdb
 ```
 
 Vitest. Place test files next to the source as `*.test.ts`. The default suite
@@ -67,8 +67,8 @@ unrelated test runner.
 CI runs the following on every pull request, and each line runs locally as written:
 
 ```bash
-bun run --filter @oxystation/api lint
-bun run --filter @oxystation/api test
+bun run --filter @nilo/api lint
+bun run --filter @nilo/api test
 bun run build:api
 ```
 

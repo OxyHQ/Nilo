@@ -6,7 +6,7 @@
 
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { sqlColumnName } from '@oxyhq/db';
-import type { StationDatabase } from '../db/client.js';
+import type { NiloDatabase } from '../db/client.js';
 import { type PushPlatform, pushTokens } from '../db/schema/collab.js';
 
 export interface PushTokenRow {
@@ -50,7 +50,7 @@ function toPushTokenRow(row: typeof pushTokens.$inferSelect): PushTokenRow {
  * `deviceId` would render as `excluded.deviceid` and fail with 42703 at runtime.
  */
 export async function upsertPushToken(
-  db: StationDatabase,
+  db: NiloDatabase,
   input: UpsertPushTokenInput,
 ): Promise<PushTokenRow> {
   const excludedDeviceId = sql.identifier(sqlColumnName(pushTokens.deviceId));
@@ -88,7 +88,7 @@ export async function upsertPushToken(
  * analogue, so the mapping is direct rather than incidental here.
  */
 export async function deactivatePushToken(
-  db: StationDatabase,
+  db: NiloDatabase,
   oxyUserId: string,
   token: string,
 ): Promise<number> {
@@ -113,7 +113,7 @@ export async function deactivatePushToken(
  * for everyone, so every row naming it is stale.
  */
 export async function deactivatePushTokenEverywhere(
-  db: StationDatabase,
+  db: NiloDatabase,
   token: string,
 ): Promise<number> {
   const rows = await db
@@ -126,7 +126,7 @@ export async function deactivatePushTokenEverywhere(
 
 /** Deactivate one row by primary key — the malformed-token path. */
 export async function deactivatePushTokenById(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
 ): Promise<number> {
   const rows = await db
@@ -139,7 +139,7 @@ export async function deactivatePushTokenById(
 
 /** Every active token for a user — the push fan-out's input. */
 export async function listActivePushTokens(
-  db: StationDatabase,
+  db: NiloDatabase,
   oxyUserId: string,
 ): Promise<PushTokenRow[]> {
   const rows = await db
@@ -158,7 +158,7 @@ export async function listActivePushTokens(
  * handed.
  */
 export async function hasActivePushToken(
-  db: StationDatabase,
+  db: NiloDatabase,
   oxyUserId: string,
 ): Promise<boolean> {
   const rows = await db
@@ -177,7 +177,7 @@ export async function hasActivePushToken(
  * correct without it.
  */
 export async function touchPushTokensLastUsed(
-  db: StationDatabase,
+  db: NiloDatabase,
   ids: readonly string[],
   lastUsedAt: Date,
 ): Promise<number> {

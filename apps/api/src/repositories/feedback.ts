@@ -9,7 +9,7 @@
  */
 
 import { and, desc, eq } from 'drizzle-orm';
-import type { StationDatabase } from '../db/client.js';
+import type { NiloDatabase } from '../db/client.js';
 import { feedback } from '../db/schema/feedback.js';
 
 export type FeedbackRow = typeof feedback.$inferSelect;
@@ -24,7 +24,7 @@ export type FeedbackRow = typeof feedback.$inferSelect;
  * that the source discarded.
  */
 export async function createFeedback(
-  db: StationDatabase,
+  db: NiloDatabase,
   values: {
     oxyUserId: string;
     type: string;
@@ -54,7 +54,7 @@ export async function createFeedback(
 
 /** `routes/feedback.ts:68` — a user's own history, newest first, capped at 50. */
 export async function listFeedbackByUser(
-  db: StationDatabase,
+  db: NiloDatabase,
   oxyUserId: string,
   limit = 50,
 ): Promise<FeedbackRow[]> {
@@ -74,7 +74,7 @@ export async function listFeedbackByUser(
  * remember to reject.
  */
 export async function findFeedbackByIdForUser(
-  db: StationDatabase,
+  db: NiloDatabase,
   id: string,
   oxyUserId: string,
 ): Promise<FeedbackRow | null> {

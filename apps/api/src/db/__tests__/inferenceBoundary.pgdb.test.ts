@@ -37,7 +37,7 @@ beforeAll(async () => {
 
 afterAll(closeTestDb);
 
-describe('the live Station schema contains workspace data only', () => {
+describe('the live Nilo schema contains workspace data only', () => {
   it('does not declare or create retired inference, provider-key or AI-billing tables', async () => {
     const declared = schemaTableNames();
     const liveRows = await executeRows<{ table_name: string }>(

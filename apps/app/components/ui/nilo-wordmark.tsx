@@ -2,18 +2,18 @@ import React from "react";
 import { Text, View } from "react-native";
 import { useColorScheme } from "@/lib/useColorScheme";
 
-export interface OxyStationWordmarkProps {
+export interface NiloWordmarkProps {
   width?: number;
   height?: number;
   color?: string;
 }
 
 /**
- * Simple text wordmark for Oxy Station.
+ * Simple text wordmark for Nilo.
  * `width` controls the rendered font size so call sites can keep the
  * same numeric scale used by the previous SVG wordmark.
  */
-export function OxyStationWordmark({ width = 256, height, color }: OxyStationWordmarkProps) {
+export function NiloWordmark({ width = 256, height, color }: NiloWordmarkProps) {
   const { colors } = useColorScheme();
   const fill = color ?? colors.foreground;
 
@@ -38,7 +38,7 @@ export function OxyStationWordmark({ width = 256, height, color }: OxyStationWor
           lineHeight: fontSize * 1.1,
         }}
       >
-        Oxy Station
+        Nilo
       </Text>
     </View>
   );

@@ -1,6 +1,6 @@
-# Oxy Station — Project Conventions
+# Nilo — Project Conventions
 
-Oxy Station is Oxy's document and database workspace. The monorepo contains
+Nilo is Oxy's document and database workspace. The monorepo contains
 the Expo app in `apps/app/` and the Express API in `apps/api/`.
 
 Universal standards live in `~/AGENTS.md`, and Oxy-wide gotchas live in
@@ -13,14 +13,14 @@ in issues. This file holds only rules, commands, and pointers. Budget: under
 - PostgreSQL through Drizzle is the only application database. `DATABASE_URL`
   is required and the API verifies it before listening. Never add MongoDB,
   Mongoose, an in-memory database fallback, or a second persistence path.
-- Station owns workspace documents, databases, collaboration, uploads,
+- Nilo owns workspace documents, databases, collaboration, uploads,
   notifications, and feedback. It does not own inference routing, provider
   adapters, provider health, model catalogues, or provider credentials.
 - Provider credentials live only in Kaana's encrypted PostgreSQL store. They
-  must never enter Station source, environment variables, database tables,
+  must never enter Nilo source, environment variables, database tables,
   logs, bundles, or deploy configuration.
-- One-shot product operations use `Station -> Oxy -> Kaana`. Conversations,
-  memory, tools and agents use `Station -> Alia -> Oxy -> Kaana`. Station never
+- One-shot product operations use `Nilo -> Oxy -> Kaana`. Conversations,
+  memory, tools and agents use `Nilo -> Alia -> Oxy -> Kaana`. Nilo never
   calls Kaana directly. Kaana's canonical signed origin is exclusively
   `https://kaana.ai`.
 - Do not add local chat-completion, Clarity compatibility, provider execution,
@@ -36,10 +36,10 @@ reuse legacy chat vocabulary for workspace concepts.
 
 ```bash
 bun install
-bun run --filter @oxystation/api lint
-bun run --filter @oxystation/api test
-STATION_TEST_DATABASE_URL=postgres://station:station@127.0.0.1:5439/postgres \
-  bun run --filter @oxystation/api test:pgdb
+bun run --filter @nilo/api lint
+bun run --filter @nilo/api test
+NILO_TEST_DATABASE_URL=postgres://nilo:nilo@127.0.0.1:5439/postgres \
+  bun run --filter @nilo/api test:pgdb
 bun run build:api
 EXPO_PUBLIC_API_URL=https://api.example.test bun run build:app
 ```

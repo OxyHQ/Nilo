@@ -29,12 +29,12 @@
     "tryAgain": "Try Again"
   },
   "welcome": {
-    "title": "Oxy Station",
+    "title": "Nilo",
     "subtitle": "Your workspace is empty. Pages and databases land in Phase 1."
   },
   "login": {
     "title": "Sign in or sign up",
-    "subtitle": "to continue to Oxy Station",
+    "subtitle": "to continue to Nilo",
     "continueWithGoogle": "Continue with Google",
     "continueWithMicrosoft": "Continue with Microsoft",
     "continueWithApple": "Continue with Apple",
@@ -46,7 +46,7 @@
     "signingIn": "Signing in...",
     "footerText": "Don't have an account?",
     "footerLink": "Sign up",
-    "termsPrefix": "By continuing, you agree to Oxy Station's ",
+    "termsPrefix": "By continuing, you agree to Nilo's ",
     "termsOfService": "Terms of Service",
     "termsAnd": " and ",
     "privacyPolicy": "Privacy Policy"
@@ -114,7 +114,7 @@
   },
   "feedback": {
     "title": "Send Feedback",
-    "subtitle": "Help us improve Oxy Station",
+    "subtitle": "Help us improve Nilo",
     "typeQuestion": "What type of feedback?",
     "bugReport": "Bug Report",
     "bugDescription": "Something is broken or not working",
@@ -138,7 +138,7 @@
     "characterCount": "{{count}}/1000 characters",
     "submitButton": "Submit Feedback",
     "submitting": "Submitting...",
-    "footerText": "Your feedback helps us improve Oxy Station. Thank you for taking the time to share your thoughts.",
+    "footerText": "Your feedback helps us improve Nilo. Thank you for taking the time to share your thoughts.",
     "selectType": "Please select a feedback type",
     "enterMessage": "Please enter your feedback message",
     "moreDetails": "Please provide more details (at least 10 characters)",

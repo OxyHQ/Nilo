@@ -1,4 +1,4 @@
-# Oxy Station
+# Nilo
 
 User-agent: AhrefsBot
 User-agent: SemrushBot
@@ -16,4 +16,4 @@ Disallow: /p/
 Disallow: /settings/
 Disallow: /trash
 
-Sitemap: https://station.oxy.so/sitemap.xml
+Sitemap: https://nilo.so/sitemap.xml

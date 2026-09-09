@@ -25,10 +25,10 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
 
         {/* Primary Meta Tags */}
-        <meta name="title" content="Oxy Station" />
+        <meta name="title" content="Nilo" />
         <meta
           name="description"
-          content="Oxy Station — your workspace for docs, databases, and AI."
+          content="Nilo — your workspace for docs, databases, and AI."
         />
         <meta
           name="keywords"
@@ -37,21 +37,21 @@ export default function Root({ children }: PropsWithChildren) {
 
         {/* Open Graph / Facebook Meta Tags for social sharing */}
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://station.oxy.so/" />
-        <meta property="og:title" content="Oxy Station" />
+        <meta property="og:url" content="https://nilo.so/" />
+        <meta property="og:title" content="Nilo" />
         <meta
           property="og:description"
-          content="Oxy Station — your workspace for docs, databases, and AI."
+          content="Nilo — your workspace for docs, databases, and AI."
         />
         <meta property="og:image" content="/og-image.png" />
 
         {/* Twitter Card Meta Tags */}
         <meta property="twitter:card" content="summary_large_image" />
-        <meta property="twitter:url" content="https://station.oxy.so/" />
-        <meta property="twitter:title" content="Oxy Station" />
+        <meta property="twitter:url" content="https://nilo.so/" />
+        <meta property="twitter:title" content="Nilo" />
         <meta
           property="twitter:description"
-          content="Oxy Station — your workspace for docs, databases, and AI."
+          content="Nilo — your workspace for docs, databases, and AI."
         />
         <meta property="twitter:image" content="/og-image.png" />
 
@@ -74,7 +74,7 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="apple-touch-icon" sizes="120x120" href="/icon-192.png" />
 
         {/* Apple Mobile Web App */}
-        <meta name="apple-mobile-web-app-title" content="Oxy Station" />
+        <meta name="apple-mobile-web-app-title" content="Nilo" />
 
         {/* Disable body scrolling for native-like feel on web */}
         <ScrollViewStyleReset />
@@ -90,10 +90,10 @@ export default function Root({ children }: PropsWithChildren) {
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'WebApplication',
-              name: 'Oxy Station',
-              url: 'https://station.oxy.so',
+              name: 'Nilo',
+              url: 'https://nilo.so',
               description:
-                'Oxy Station — your workspace for docs, databases, and AI.',
+                'Nilo — your workspace for docs, databases, and AI.',
               applicationCategory: 'BusinessApplication',
               operatingSystem: 'Web, iOS, Android',
               offers: {

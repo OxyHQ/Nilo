@@ -1,6 +1,6 @@
-# Oxy Station App
+# Nilo App
 
-Expo client for the Station workspace on web, iOS, and Android.
+Expo client for the Nilo workspace on web, iOS, and Android.
 
 ## Development
 
@@ -14,7 +14,7 @@ bun run android
 
 `EXPO_PUBLIC_API_URL` is required and must name an HTTPS API origin for an
 export. Local development may use an explicit HTTP origin.
-There is no checked-in production fallback because no public Station API is
+There is no checked-in production fallback because no public Nilo API is
 currently deployed.
 
 The app contains workspace pages, databases, comments, sharing, notifications,
