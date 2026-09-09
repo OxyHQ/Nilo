@@ -1,0 +1,33 @@
+# The Nilo web app is a Worker, not a Pages project.
+#
+# WHY: a Pages project ALWAYS serves `<project>.pages.dev` and Cloudflare offers
+# no way to switch it off — `wrangler pages project` has only `list`, `create`
+# and `delete`. Alia measured the consequence before migrating: `alia.onl` and
+# `alia-app.pages.dev` served byte-identical deployments, and the second was in
+# no CORS allowlist, so it rendered the shell and failed every call it made.
+# `workers_dev = false` leaves `nilo.so` as the only name that reaches this.
+#
+# It also settles the rename. Cloudflare cannot rename a project, so the
+# `oxystation` -> `nilo` move would otherwise have created a third empty Pages
+# project after `oxyspace` -> `oxystation` already created the second.
+name = "nilo"
+main = "worker/index.js"
+compatibility_date = "2026-09-09"
+
+workers_dev = false
+
+# `expo export --platform web` emits ONE index.html plus hashed assets — a
+# client-routed SPA — so deep links need the fallback. The Worker script above
+# is what stops that fallback answering a stale `.js` URL with `text/html`.
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# The only way in. `nilo.so` is the zone apex; Cloudflare writes the flattened
+# record for a custom domain, so no CNAME is declared by hand. This is why the
+# apex must carry no pre-existing DNS record: a Worker custom domain refuses a
+# hostname that already has externally managed records.
+[[routes]]
+pattern = "nilo.so"
+custom_domain = true

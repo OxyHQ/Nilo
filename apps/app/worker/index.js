@@ -1,13 +1,15 @@
 /**
- * Cloudflare Pages Worker -- SPA routing with proper MIME-type handling.
+ * Nilo web Worker -- SPA routing with proper MIME-type handling.
  *
- * Cloudflare Pages' asset pipeline (env.ASSETS.fetch) returns index.html for
- * any path that doesn't match a static file, regardless of _redirects settings.
- * This causes browsers to reject stale hashed CSS/JS URLs because the response
- * has text/html MIME type instead of the expected type.
+ * Moved here from `public/_worker.js` when the app left Cloudflare Pages for a
+ * Worker. The behaviour it exists for is unchanged, and so is the reason:
+ * `not_found_handling = "single-page-application"` serves index.html for ANY
+ * miss, including a stale hashed bundle. A browser asked for `.js` and handed
+ * `text/html` rejects it, so this returns a real 404 for asset extensions
+ * instead, and marks content-addressed assets immutable.
  *
- * This worker intercepts asset responses and returns a proper 404 when the
- * platform returns HTML for a URL with a static-asset file extension.
+ * It must keep running as a Worker script rather than becoming Pages Advanced
+ * Mode again: `public/_worker.js` was only ever loaded by Pages.
  */
 
 const STATIC_EXTENSIONS = new Set([

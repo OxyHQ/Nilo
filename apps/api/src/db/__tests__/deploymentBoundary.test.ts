@@ -77,10 +77,24 @@ describe('the web export fails closed before bundling', () => {
     expect(loadRuntimeConfig('http://api.example.test', 'production').status).not.toBe(0);
   });
 
-  it('keeps the retired chat avatar and realtime voice processor out of the web export', () => {
+  it('serves the web app from a Worker that owns only nilo.so', () => {
     const publicRoot = resolve(APP_ROOT, 'public');
+    const wrangler = readFileSync(resolve(APP_ROOT, 'wrangler.toml'), 'utf8');
 
-    expect(existsSync(resolve(publicRoot, '_worker.js'))).toBe(true);
+    // The SPA/MIME script must stay a Worker entry point. Back in `public/` it
+    // would be Pages Advanced Mode again: inert here, and shipped as a public
+    // asset rather than run.
+    expect(existsSync(resolve(APP_ROOT, 'worker', 'index.js'))).toBe(true);
+    expect(existsSync(resolve(publicRoot, '_worker.js'))).toBe(false);
+    expect(existsSync(resolve(publicRoot, '_redirects'))).toBe(false);
+    expect(wrangler).toContain('main = "worker/index.js"');
+
+    // A Pages project cannot stop serving `<project>.pages.dev`; a Worker can,
+    // and must, or a second CORS-less copy of Nilo goes on the internet.
+    expect(wrangler).toContain('workers_dev = false');
+    expect(wrangler).toContain('pattern = "nilo.so"');
+    expect(wrangler).toContain('custom_domain = true');
+
     expect(existsSync(resolve(publicRoot, 'agent-avatar-reference.png'))).toBe(false);
     expect(existsSync(resolve(publicRoot, 'audio-processor.js'))).toBe(false);
   });

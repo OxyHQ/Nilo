@@ -4,18 +4,9 @@ on:
   push:
     branches: [main]
 
-env:
-  # Named once, and renamed twice: `oxyspace` -> `oxystation` -> `nilo`. That
-  # is what makes the bootstrap step below necessary. Cloudflare has no project
-  # rename, and `wrangler pages deploy` does NOT create a missing project — it
-  # fails with `Project not found [code: 8000007]` after a successful build.
-  # Each rename therefore starts an empty project; the previous one keeps
-  # serving its last deployment until it is deleted by hand.
-  CF_PAGES_PROJECT: nilo
-
 jobs:
   deploy-frontend:
-    name: Deploy Frontend to Cloudflare Pages
+    name: Deploy the web app to Cloudflare
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,61 +23,14 @@ jobs:
           EXPO_PUBLIC_API_URL: ${{ vars.NILO_API_URL }}
         run: cd apps/app && bun run build:production
 
-      # Idempotent, and deliberately not `|| true`: a 200 means the project is
-      # there and this is a no-op, a 404 means create it, and ANY other status
-      # fails the job rather than being read as "missing". Swallowing the error
-      # would turn an expired token into a spurious create attempt and then into
-      # a deploy failure two steps later, blamed on the wrong thing.
-      - name: Ensure the Cloudflare Pages project exists
-        env:
-          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          set -euo pipefail
-          api="https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/pages/projects"
-
-          status=$(curl -sS -o /dev/null -w '%{http_code}' \
-            -H "Authorization: Bearer ${CF_API_TOKEN}" \
-            "${api}/${CF_PAGES_PROJECT}")
-
-          case "${status}" in
-            200)
-              # The project exists, but its production branch is a stored
-              # setting: after the rename to `main` an untouched project would
-              # still call `master` production and publish every deploy below as
-              # a PREVIEW. Realign it here rather than in a dashboard nobody
-              # remembers to open.
-              curl -sS --fail-with-body -X PATCH "${api}/${CF_PAGES_PROJECT}" \
-                -H "Authorization: Bearer ${CF_API_TOKEN}" \
-                -H 'Content-Type: application/json' \
-                -d '{"production_branch":"main"}' > /dev/null
-              echo "Pages project '${CF_PAGES_PROJECT}' exists; production branch pinned to main."
-              exit 0
-              ;;
-            404)
-              echo "Pages project '${CF_PAGES_PROJECT}' not found — creating it."
-              ;;
-            *)
-              echo "Unexpected HTTP ${status} from the Cloudflare API." >&2
-              echo "Not treating this as 'missing'. Check the token and account id." >&2
-              exit 1
-              ;;
-          esac
-
-          # `--fail-with-body` so a 4xx prints Cloudflare's reason instead of an
-          # empty non-zero exit, and the success flag is asserted separately:
-          # the API answers 200 with "success": false for some rejections.
-          body=$(curl -sS --fail-with-body -X POST "${api}" \
-            -H "Authorization: Bearer ${CF_API_TOKEN}" \
-            -H 'Content-Type: application/json' \
-            -d "{\"name\":\"${CF_PAGES_PROJECT}\",\"production_branch\":\"main\"}")
-
-          echo "${body}" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0) if d.get("success") else (print(json.dumps(d.get("errors"), indent=2), file=sys.stderr) or sys.exit(1))'
-          echo "Created Pages project '${CF_PAGES_PROJECT}'."
-
-      - name: Deploy to Cloudflare Pages
+      # A WORKER, not a Pages project. A Pages project always serves
+      # `<project>.pages.dev` with no way to turn it off, which would put a
+      # second, CORS-less copy of Nilo on the internet. `workers_dev = false`
+      # in apps/app/wrangler.toml leaves `nilo.so` as the only way in.
+      - name: Deploy the Worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/app/dist --project-name ${{ env.CF_PAGES_PROJECT }} --branch main
+          workingDirectory: apps/app
+          command: deploy

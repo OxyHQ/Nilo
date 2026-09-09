@@ -5,7 +5,9 @@ import { Text } from "@/components/ui/text";
 import { useColorScheme } from "@/lib/useColorScheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { LanguageSelector } from "@/components/language-selector";
-import { APP_COLOR_PRESETS, APP_COLOR_NAMES, getPresetVars, useBloomTheme, type AppColorName } from "@oxyhq/bloom/theme";
+import { APP_COLOR_PRESETS, APP_COLOR_NAMES, useBloomTheme, type AppColorName } from "@oxyhq/bloom/theme";
+// Bloom moved `getPresetVars` out of `theme` into its own entry point.
+import { getPresetVars } from "@oxyhq/bloom/preset-vars";
 import { cn } from "@/lib/utils";
 
 /** Miniature app layout using real theme tokens via NativeWind vars() */
