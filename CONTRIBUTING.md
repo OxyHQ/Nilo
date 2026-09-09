@@ -4,9 +4,9 @@ Oxy Station is a workspace for documents and databases by Oxy: pages made of blo
 
 **The contribution process lives in the [Oxy organisation CONTRIBUTING guide](https://github.com/OxyHQ/.github/blob/main/CONTRIBUTING.md)**: reporting an issue, filing a feature request, opening a pull request, code review, licensing. It applies here unchanged. This file layers on top of it the same way `AGENTS.md` files layer, so it is short on purpose: it carries only what is different about this repository.
 
-## The default branch is `master`
+## The default branch is `main`
 
-Oxy Station has not been renamed to `main`. Branch from `master`, and target `master` with your pull request.
+Branch from `main`, and target `main` with your pull request.
 
 ## Prerequisites
 

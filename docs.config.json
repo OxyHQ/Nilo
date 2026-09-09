@@ -4,8 +4,8 @@
   "shortName": "oxystation",
   "repo": "https://github.com/OxyHQ/Station",
   "category": "app",
-  "versions": ["master"],
-  "defaultVersion": "master",
+  "versions": ["main"],
+  "defaultVersion": "main",
   "docsPath": "docs/",
   "description": "Oxy Station — your workspace for docs, databases, and AI."
 }

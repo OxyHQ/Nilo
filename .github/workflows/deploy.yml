@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [master]
+    branches: [main]
 
 env:
   # Named once. The rename from `oxyspace` is what made the bootstrap step
@@ -48,7 +48,16 @@ jobs:
 
           case "${status}" in
             200)
-              echo "Pages project '${CF_PAGES_PROJECT}' already exists."
+              # The project exists, but its production branch is a stored
+              # setting: after the rename to `main` an untouched project would
+              # still call `master` production and publish every deploy below as
+              # a PREVIEW. Realign it here rather than in a dashboard nobody
+              # remembers to open.
+              curl -sS --fail-with-body -X PATCH "${api}/${CF_PAGES_PROJECT}" \
+                -H "Authorization: Bearer ${CF_API_TOKEN}" \
+                -H 'Content-Type: application/json' \
+                -d '{"production_branch":"main"}' > /dev/null
+              echo "Pages project '${CF_PAGES_PROJECT}' exists; production branch pinned to main."
               exit 0
               ;;
             404)
@@ -67,7 +76,7 @@ jobs:
           body=$(curl -sS --fail-with-body -X POST "${api}" \
             -H "Authorization: Bearer ${CF_API_TOKEN}" \
             -H 'Content-Type: application/json' \
-            -d "{\"name\":\"${CF_PAGES_PROJECT}\",\"production_branch\":\"master\"}")
+            -d "{\"name\":\"${CF_PAGES_PROJECT}\",\"production_branch\":\"main\"}")
 
           echo "${body}" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0) if d.get("success") else (print(json.dumps(d.get("errors"), indent=2), file=sys.stderr) or sys.exit(1))'
           echo "Created Pages project '${CF_PAGES_PROJECT}'."
@@ -77,4 +86,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy apps/app/dist --project-name ${{ env.CF_PAGES_PROJECT }} --branch master
+          command: pages deploy apps/app/dist --project-name ${{ env.CF_PAGES_PROJECT }} --branch main
