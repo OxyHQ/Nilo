@@ -27,10 +27,21 @@ jobs:
       # `<project>.pages.dev` with no way to turn it off, which would put a
       # second, CORS-less copy of Nilo on the internet. `workers_dev = false`
       # in apps/app/wrangler.toml leaves `nilo.so` as the only way in.
+      #
+      # `bunx wrangler` DIRECTLY, never `cloudflare/wrangler-action`. The action
+      # installs its own wrangler and picks the package manager by looking for a
+      # lockfile beside `workingDirectory` — there is none in `apps/app`, the
+      # lockfile is at the repo root — so it falls back to npm and chokes on
+      # `workspace:*`. Homiio took a production outage from exactly this on
+      # 2026-08-09 (run 31292337344: `Fail extracting tarball for "wrangler"`,
+      # published nothing, left a stale bundle against a changed API), Mercaria's
+      # AGENTS.md forbids the action for the same reason, and Clarity's frontend
+      # deploy hit the identical error this week. Do not "modernise" this back.
+      #
+      # `wrangler@4` is PINNED: an unpinned `bunx wrangler` re-resolves the
+      # latest major on every deploy, changing the deploy path with no diff.
       - name: Deploy the Worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: apps/app
-          command: deploy
+        run: cd apps/app && bunx wrangler@4 deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
