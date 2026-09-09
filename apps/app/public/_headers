@@ -1,6 +1,7 @@
-# Caching headers for Cloudflare Pages
-# Note: When _worker.js (Advanced Mode) is active, these headers are set by the
-# worker. This file serves as documentation and fallback if the worker is removed.
+# Caching headers, honoured by Cloudflare Workers static assets.
+# These are NOT documentation or a fallback: `run_worker_first` is unset, so the
+# asset router answers an existing file without invoking worker/index.js. This
+# file is what actually sets these headers in production.
 
 /index.html
   Cache-Control: public, max-age=0, must-revalidate

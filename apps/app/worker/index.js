@@ -6,7 +6,13 @@
  * `not_found_handling = "single-page-application"` serves index.html for ANY
  * miss, including a stale hashed bundle. A browser asked for `.js` and handed
  * `text/html` rejects it, so this returns a real 404 for asset extensions
- * instead, and marks content-addressed assets immutable.
+ * instead.
+ *
+ * It runs ONLY on a miss. `run_worker_first` is unset, so the asset router
+ * serves anything matching a real file without invoking this script — which is
+ * why the immutable-caching branch that used to live here was removed rather
+ * than kept: it could never fire for an asset that exists. `public/_headers`
+ * sets those headers, and Workers static assets honours it.
  *
  * It must keep running as a Worker script rather than becoming Pages Advanced
  * Mode again: `public/_worker.js` was only ever loaded by Pages.
@@ -63,17 +69,6 @@ export default {
     // deploy). Return a clean 404 instead of HTML with the wrong MIME type.
     if (STATIC_EXTENSIONS.has(extension) && contentType.includes("text/html")) {
       return new Response("Not Found", { status: 404 });
-    }
-
-    // For existing static assets under /_expo/static/, set immutable caching
-    // since these filenames are content-addressed (hash in the filename).
-    if (pathname.startsWith("/_expo/static/") && !contentType.includes("text/html")) {
-      const headers = new Headers(assetResponse.headers);
-      headers.set("Cache-Control", "public, max-age=31536000, immutable");
-      return new Response(assetResponse.body, {
-        status: assetResponse.status,
-        headers,
-      });
     }
 
     // For non-asset paths (SPA navigation routes), the platform's index.html
