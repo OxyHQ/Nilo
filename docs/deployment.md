@@ -6,10 +6,16 @@ Last verified: 2026-09-09.
 
 - The product was renamed from Oxy Station to Nilo, and the repository from
   `OxyHQ/Station` to `OxyHQ/Nilo`.
-- `nilo.so` has been registered and added to Cloudflare. It is not delegated
-  yet: as of this date the domain returns NXDOMAIN from public resolvers and
-  has no visible NS record, so neither `nilo.so` nor `api.nilo.so` resolves.
-  Nothing here may assume a reachable origin until it does.
+- `nilo.so` is registered and **delegated to Cloudflare**: `dig NS nilo.so`
+  answers `alec.ns.cloudflare.com` / `deb.ns.cloudflare.com`, and the zone
+  serves its own SOA. Delegation landed the same day it was bought; an earlier
+  check that morning still returned NXDOMAIN with no NS.
+- The zone is live but **empty at the apex**: `dig A nilo.so` returns nothing,
+  so neither `nilo.so` nor `api.nilo.so` resolves. That is the correct state to
+  be in, not a gap to fill by hand — a Worker custom domain writes the apex
+  record itself and refuses a hostname that already carries externally managed
+  records, so the apex must stay clear until the first deploy claims it.
+- Nothing here may assume a reachable origin until a real fetch proves one.
 - Frontend artifacts published so far went to the PREVIOUS Cloudflare Pages
   project, `oxystation.pages.dev`. Cloudflare cannot rename a project, so the
   bootstrap step below creates `nilo` on the next deploy and the old project
