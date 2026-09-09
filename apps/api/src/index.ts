@@ -91,7 +91,7 @@ app.use((req, res, next) => {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Device-Info', 'X-Workspace-Id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Device-Info', 'X-Workspace-Id', 'X-Oxy-Edge-Region'],
     optionsSuccessStatus: 200,
   })(req, res, next);
 });
