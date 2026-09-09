@@ -6,8 +6,10 @@ Last verified: 2026-09-09.
 
 - The product was renamed from Oxy Station to Nilo, and the repository from
   `OxyHQ/Station` to `OxyHQ/Nilo`.
-- `nilo.so` is being acquired. Neither it nor `api.nilo.so` resolves, and no
-  DNS record has been created for either.
+- `nilo.so` has been registered and added to Cloudflare. It is not delegated
+  yet: as of this date the domain returns NXDOMAIN from public resolvers and
+  has no visible NS record, so neither `nilo.so` nor `api.nilo.so` resolves.
+  Nothing here may assume a reachable origin until it does.
 - Frontend artifacts published so far went to the PREVIOUS Cloudflare Pages
   project, `oxystation.pages.dev`. Cloudflare cannot rename a project, so the
   bootstrap step below creates `nilo` on the next deploy and the old project
