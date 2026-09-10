@@ -1,0 +1,72 @@
+name: Deploy Nilo API to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-nilo-api
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-west-2
+  ECR_REGISTRY: 237343248947.dkr.ecr.us-west-2.amazonaws.com
+  APP: nilo
+  CLUSTER: oxy-cluster
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # New Oxy repositories use GitHub's ID-qualified subject. Printing only
+      # that claim gives infra the exact trust-policy value without exposing
+      # the signed token itself.
+      - name: Report OIDC subject
+        shell: bash
+        run: |
+          set -euo pipefail
+          token=$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          payload=$(printf '%s' "$token" | cut -d. -f2 | tr '_-' '/+')
+          case $((${#payload} % 4)) in 2) payload="${payload}==";; 3) payload="${payload}=";; esac
+          printf 'OIDC subject: %s\n' "$(printf '%s' "$payload" | base64 -d | jq -r .sub)"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::237343248947:role/oxy-github-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push immutable ARM64 image
+        env:
+          IMAGE: ${{ env.ECR_REGISTRY }}/oxy/${{ env.APP }}
+        run: |
+          set -euo pipefail
+          docker build -f apps/api/Dockerfile -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      - name: Deploy when the ECS service exists
+        env:
+          IMAGE: ${{ env.ECR_REGISTRY }}/oxy/${{ env.APP }}@${{ github.sha }}
+        run: |
+          set -euo pipefail
+          status=$(aws ecs describe-services --cluster "$CLUSTER" --services "$APP" \
+            --query 'services[0].status' --output text 2>/dev/null || true)
+          if [ "$status" != ACTIVE ]; then
+            echo "ECS service not provisioned yet; image bootstrap is complete."
+            exit 0
+          fi
+          echo "::error::The service exists but the migration-aware rollout script has not been installed."
+          exit 1
