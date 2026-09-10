@@ -49,6 +49,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and push immutable ARM64 image
+        id: image
         env:
           IMAGE: ${{ env.ECR_REGISTRY }}/oxy/${{ env.APP }}
         run: |
@@ -56,17 +57,11 @@ jobs:
           docker build -f apps/api/Dockerfile -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
           docker push "$IMAGE:${{ github.sha }}"
           docker push "$IMAGE:latest"
+          digest=$(aws ecr describe-images --repository-name "oxy/$APP" \
+            --image-ids imageTag="${{ github.sha }}" --query 'imageDetails[0].imageDigest' --output text)
+          echo "uri=$IMAGE@$digest" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy when the ECS service exists
+      - name: Migrate and deploy to ECS
         env:
-          IMAGE: ${{ env.ECR_REGISTRY }}/oxy/${{ env.APP }}@${{ github.sha }}
-        run: |
-          set -euo pipefail
-          status=$(aws ecs describe-services --cluster "$CLUSTER" --services "$APP" \
-            --query 'services[0].status' --output text 2>/dev/null || true)
-          if [ "$status" != ACTIVE ]; then
-            echo "ECS service not provisioned yet; image bootstrap is complete."
-            exit 0
-          fi
-          echo "::error::The service exists but the migration-aware rollout script has not been installed."
-          exit 1
+          IMAGE_URI: ${{ steps.image.outputs.uri }}
+        run: bash .github/scripts/deploy-ecs.sh
