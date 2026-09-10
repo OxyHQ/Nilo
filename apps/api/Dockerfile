@@ -38,8 +38,10 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/api/package.json ./apps/api/
 
-# Install production dependencies only
-RUN bun install --frozen-lockfile --production
+# Optional native accelerators have JavaScript fallbacks and are not part of
+# Nilo's runtime contract. Skipping lifecycle scripts keeps the production
+# dependency layer deterministic across clean ARM64 builders.
+RUN bun install --frozen-lockfile --production --ignore-scripts
 
 # --- Stage 3: Production runtime ---
 FROM node:22-bookworm-slim AS runtime
