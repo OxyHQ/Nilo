@@ -2,7 +2,7 @@ import * as React from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import { Plus } from "lucide-react-native";
 import { Redirect, useRouter } from "expo-router";
-import { useOxy } from "@oxyhq/services";
+import { useOxy } from "@oxy.so/services";
 import { Text } from "@/components/ui/text";
 import { useColorScheme } from "@/lib/useColorScheme";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";

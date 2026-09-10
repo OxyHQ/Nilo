@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
-import { CHECK_VIOLATION, constraintNameOf, sqlStateOf } from '@oxyhq/db';
+import { CHECK_VIOLATION, constraintNameOf, sqlStateOf } from '@oxy.so/db';
 import type postgres from 'postgres';
 import {
   closeTestDb,

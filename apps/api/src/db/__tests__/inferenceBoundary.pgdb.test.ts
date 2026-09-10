@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { executeRows } from '@oxyhq/db';
+import { executeRows } from '@oxy.so/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { closeTestDb, getTestDb, schemaTableNames, type TestDatabase } from './testDatabase.js';
 

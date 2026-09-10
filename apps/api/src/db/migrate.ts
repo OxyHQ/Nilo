@@ -39,7 +39,7 @@ import {
   type MigrationRun,
   readTargetDatabase,
   runMigrations,
-} from '@oxyhq/db/migrate';
+} from '@oxy.so/db/migrate';
 import { log } from '../lib/logger.js';
 
 /**
@@ -106,7 +106,7 @@ async function main(): Promise<void> {
     throw new Error('DATABASE_URL is required.');
   }
 
-  // Required here, not optional as `@oxyhq/db` allows: this service adopts the
+  // Required here, not optional as `@oxy.so/db` allows: this service adopts the
   // guard from day one, so there is no legacy invocation to protect. A
   // DATABASE_URL pointing somewhere unexpected must fail loudly rather than
   // migrate another tenant's database on the shared instance.

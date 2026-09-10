@@ -1,5 +1,5 @@
 import { eq, like } from 'drizzle-orm';
-import { constraintNameOf, isCheckViolation } from '@oxyhq/db';
+import { constraintNameOf, isCheckViolation } from '@oxy.so/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
 import {

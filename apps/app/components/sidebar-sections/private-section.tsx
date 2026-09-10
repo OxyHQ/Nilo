@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useOxy } from '@oxyhq/services';
+import { useOxy } from '@oxy.so/services';
 import { Text } from '@/components/ui/text';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { useCreatePage, usePages } from '@/lib/hooks/use-pages';

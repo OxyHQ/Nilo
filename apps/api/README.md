@@ -8,7 +8,7 @@ Express and TypeScript API for the Nilo workspace.
 - Socket.IO provides real-time workspace updates.
 - Redis/Valkey is optional for Socket.IO scale-out.
 - S3-compatible storage and browser push are optional.
-- Oxy session verification comes from `@oxyhq/core/server`.
+- Oxy session verification comes from `@oxy.so/core/server`.
 
 Nilo has no provider runtime, provider-key storage, model routing, billing
 credits, or chat-completion endpoints. Provider credentials belong only to

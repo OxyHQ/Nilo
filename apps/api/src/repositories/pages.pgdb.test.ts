@@ -11,7 +11,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
-import { isCheckViolation, isForeignKeyViolation, sqlColumnName, uuidv7 } from '@oxyhq/db';
+import { isCheckViolation, isForeignKeyViolation, sqlColumnName, uuidv7 } from '@oxy.so/db';
 import {
   closeTestDb,
   getTestDb,

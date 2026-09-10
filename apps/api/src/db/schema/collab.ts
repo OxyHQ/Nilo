@@ -9,7 +9,7 @@ import {
   text,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { createdAt, generatedId, inList, textArrayLiteral, timestamptz, updatedAt } from '@oxyhq/db';
+import { createdAt, generatedId, inList, textArrayLiteral, timestamptz, updatedAt } from '@oxy.so/db';
 import { blocks, pages } from './pages.js';
 import { workspaces } from './workspaces.js';
 
@@ -272,7 +272,7 @@ export const notifications = pgTable(
      * The TTL replacement, and the reason it is a GENERATED column.
      *
      * Mongo declared a PARTIAL TTL index: delete 90 days after `createdAt`, but
-     * only while `status = 'dismissed'`. `@oxyhq/db`'s `ExpirySweepTarget`
+     * only while `status = 'dismissed'`. `@oxy.so/db`'s `ExpirySweepTarget`
      * carries `{ table, column, retentionSeconds }` and has no predicate, so a
      * naive entry pointed at `createdAt` would delete every notification older
      * than 90 days including read and pending ones — a silent history wipe, and

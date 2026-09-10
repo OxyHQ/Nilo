@@ -14,7 +14,7 @@
 
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { executeRows } from '@oxyhq/db';
+import { executeRows } from '@oxy.so/db';
 import { closeTestDb, getTestDb, type TestDatabase, testScope } from './testDatabase.js';
 
 let db: TestDatabase;

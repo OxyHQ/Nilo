@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { check, index, integer, pgTable, text } from 'drizzle-orm/pg-core';
-import { createdAt, generatedId, inList, updatedAt } from '@oxyhq/db';
+import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
 
 export const FEEDBACK_TYPES = ['bug', 'feature', 'improvement', 'other'] as const;
 export type FeedbackType = (typeof FEEDBACK_TYPES)[number];

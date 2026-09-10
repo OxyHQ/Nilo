@@ -1,4 +1,4 @@
-import { isLiveEntityId } from '@oxyhq/db';
+import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import type { DatabasePropertyType } from '../../db/schema/databases.js';
 

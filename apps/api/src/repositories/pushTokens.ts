@@ -5,7 +5,7 @@
  */
 
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import { sqlColumnName } from '@oxyhq/db';
+import { sqlColumnName } from '@oxy.so/db';
 import type { NiloDatabase } from '../db/client.js';
 import { type PushPlatform, pushTokens } from '../db/schema/collab.js';
 

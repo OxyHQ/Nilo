@@ -21,7 +21,7 @@ import { useUIStore } from "@/lib/stores/ui-store";
 import { useRouter, usePathname } from "expo-router";
 import { SettingsSidebar } from "@/components/settings/settings-sidebar";
 import { UserAvatar } from "@/components/user-avatar";
-import { useOxy, openAccountDialog } from "@oxyhq/services";
+import { useOxy, openAccountDialog } from "@oxy.so/services";
 import * as DropdownMenu from "@/components/ui/dropdown-menu";
 import { NiloWordmark } from "@/components/ui/nilo-wordmark";
 import { WorkspaceSwitcher } from "@/components/workspace/workspace-switcher";

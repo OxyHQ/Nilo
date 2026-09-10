@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { generateDrizzleJson, generateMigration } from 'drizzle-kit/api';
-import { createDatabase, DATABASE_CASING, type OxyDatabase } from '@oxyhq/db';
+import { createDatabase, DATABASE_CASING, type OxyDatabase } from '@oxy.so/db';
 import type postgres from 'postgres';
 import * as schema from '../schema/index.js';
 

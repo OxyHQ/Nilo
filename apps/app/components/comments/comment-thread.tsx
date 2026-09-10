@@ -10,7 +10,7 @@ import {
 } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { useColorScheme } from "@/lib/useColorScheme";
-import { useOxy } from "@oxyhq/services";
+import { useOxy } from "@oxy.so/services";
 import {
   useDeleteComment,
   useResolveComment,

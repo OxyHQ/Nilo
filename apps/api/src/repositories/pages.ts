@@ -11,7 +11,7 @@
  */
 
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
-import { sqlColumnName } from '@oxyhq/db';
+import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
 import { pages, type PageProperties } from '../db/schema/pages.js';
 

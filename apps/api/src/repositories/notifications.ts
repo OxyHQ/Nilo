@@ -20,7 +20,7 @@
  */
 
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
-import type { ExpirySweepTarget } from '@oxyhq/db/expiry';
+import type { ExpirySweepTarget } from '@oxy.so/db/expiry';
 import type { NiloDatabase } from '../db/client.js';
 import {
   NOTIFICATION_DISMISSED_RETENTION_SECONDS,
@@ -286,7 +286,7 @@ export async function dismissNotification(
 
 /**
  * The replacement for the Mongo TTL index, expressed in the one shape
- * `@oxyhq/db`'s sweep understands.
+ * `@oxy.so/db`'s sweep understands.
  *
  * The source index is PARTIAL — `{ createdAt: 1 }`, `expireAfterSeconds:
  * 90 days`, `partialFilterExpression: { status: 'dismissed' }` — and

@@ -10,7 +10,7 @@
  */
 
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
-import { isUniqueViolation } from '@oxyhq/db';
+import { isUniqueViolation } from '@oxy.so/db';
 import {
   workspaceMembers,
   workspaces,

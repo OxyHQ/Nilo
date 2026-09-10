@@ -6,7 +6,7 @@
  */
 
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
-import { qualified, sqlColumnName, uuidv7 } from '@oxyhq/db';
+import { qualified, sqlColumnName, uuidv7 } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
 import { blocks, type BlockContent, type BlockType } from '../db/schema/pages.js';
 

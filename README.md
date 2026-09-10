@@ -10,8 +10,8 @@ databases, comments, sharing, and real-time collaboration.
 | `@nilo/app` | `apps/app/` | Expo client for web, iOS, and Android |
 | `@nilo/api` | `apps/api/` | Express API backed by PostgreSQL/Drizzle |
 
-Oxy sessions are handled by `@oxyhq/services` on the client and
-`@oxyhq/core/server` on the API. Nilo does not store provider credentials or
+Oxy sessions are handled by `@oxy.so/services` on the client and
+`@oxy.so/core/server` on the API. Nilo does not store provider credentials or
 run inference providers. One-shot product operations use
 `Nilo -> Oxy -> Kaana`; conversations, memory, tools and agents use
 `Nilo -> Alia -> Oxy -> Kaana`. Provider credentials remain solely in

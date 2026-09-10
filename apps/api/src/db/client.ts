@@ -1,7 +1,7 @@
 /**
  * The one Postgres handle for the service.
  *
- * `casing` is passed from `@oxyhq/db` — the same value `drizzle.config.ts`
+ * `casing` is passed from `@oxy.so/db` — the same value `drizzle.config.ts`
  * gives drizzle-kit — so what the DDL CREATES and what these queries REFERENCE
  * are derived from one setting rather than two copies that can disagree.
  *
@@ -10,7 +10,7 @@
  * database is reachable.
  */
 
-import { createDatabase, type OxyDatabase } from '@oxyhq/db';
+import { createDatabase, type OxyDatabase } from '@oxy.so/db';
 import * as schema from './schema/index.js';
 
 export type NiloDatabase = OxyDatabase<typeof schema>;

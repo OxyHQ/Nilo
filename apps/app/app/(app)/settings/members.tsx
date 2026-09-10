@@ -1,6 +1,6 @@
 import React from "react";
 import { View, ScrollView } from "react-native";
-import { useOxy } from "@oxyhq/services";
+import { useOxy } from "@oxy.so/services";
 import { useRouter } from "expo-router";
 import { Text } from "@/components/ui/text";
 import { SettingsHeader } from "@/components/settings/settings-header";

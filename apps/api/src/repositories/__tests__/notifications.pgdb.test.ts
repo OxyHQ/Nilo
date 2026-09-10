@@ -1,7 +1,7 @@
 import { eq, like, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { executeRows } from '@oxyhq/db';
-import { sweepExpiredRows } from '@oxyhq/db/expiry';
+import { executeRows } from '@oxy.so/db';
+import { sweepExpiredRows } from '@oxy.so/db/expiry';
 import { closeTestDb, getTestDb, type TestDatabase, testScope } from '../../db/__tests__/testDatabase.js';
 import {
   NOTIFICATION_DISMISSED_RETENTION_SECONDS,

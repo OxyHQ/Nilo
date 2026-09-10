@@ -1,12 +1,12 @@
 import React from "react";
 import { View, Pressable, Platform, ActivityIndicator } from "react-native";
-import { useOxy } from "@oxyhq/services";
+import { useOxy } from "@oxy.so/services";
 import { Image } from "expo-image";
 import { UserPlus, Trash2, MoreHorizontal } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import * as DropdownMenu from "@/components/ui/dropdown-menu";
-import { toast } from "@oxyhq/bloom/toast";
+import { toast } from "@oxy.so/bloom/toast";
 import { useColorScheme } from "@/lib/useColorScheme";
 import { useWorkspaces } from "@/lib/hooks/use-workspaces";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";

@@ -4,7 +4,7 @@ import {
   useQueryClient,
   type UseQueryOptions,
 } from "@tanstack/react-query";
-import { useOxy } from "@oxyhq/services";
+import { useOxy } from "@oxy.so/services";
 import apiClient from "../api/client";
 import { workspaceMemberKeys } from "./workspace-keys";
 import type { WorkspaceRole } from "./use-workspaces";
