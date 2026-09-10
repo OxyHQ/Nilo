@@ -7,7 +7,7 @@
 FROM node:22-bookworm-slim AS builder
 
 # Install Bun
-RUN apt-get update && apt-get install -y --no-install-recommends curl unzip && \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl unzip && \
     curl -fsSL https://bun.sh/install | bash && \
     ln -s /root/.bun/bin/bun /usr/local/bin/bun && \
     rm -rf /var/lib/apt/lists/*
@@ -32,7 +32,7 @@ FROM node:22-bookworm-slim AS runtime
 
 # Install curl for health checks and Bun for dependency install
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl unzip && \
+    apt-get install -y --no-install-recommends ca-certificates curl unzip && \
     curl -fsSL https://bun.sh/install | bash && \
     ln -s /root/.bun/bin/bun /usr/local/bin/bun && \
     apt-get clean && \
