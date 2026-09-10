@@ -78,6 +78,18 @@ jobs:
       - name: Build API
         run: bun run build:api
 
+  build-production-image:
+    name: Build Production Image
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    needs: lint-and-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ARM64 API image
+        run: docker build -f apps/api/Dockerfile -t nilo-api:ci .
+
   build-web:
     name: Build Web
     runs-on: ubuntu-latest

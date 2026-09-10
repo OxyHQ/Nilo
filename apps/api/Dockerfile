@@ -1,15 +1,14 @@
 # ============================================
 # Nilo API - Production Dockerfile
 # ============================================
-# Multi-stage build: Bun for installs, Node for runtime
+# Multi-stage build: pinned Bun for installs, minimal Node for runtime.
 
 # --- Stage 1: Builder ---
-FROM node:22-bookworm-slim AS builder
+FROM oven/bun:1.4.2-slim AS builder
 
-# Install Bun
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl unzip && \
-    curl -fsSL https://bun.sh/install | bash && \
-    ln -s /root/.bun/bin/bun /usr/local/bin/bun && \
+# Optional WebSocket accelerators compile on ARM64 when no prebuilt binary is
+# available. Keep the toolchain in build-only stages, never in the final image.
+RUN apt-get update && apt-get install -y --no-install-recommends g++ make python3 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -27,15 +26,10 @@ COPY apps/api/ ./apps/api/
 # Build the API
 RUN bun run --filter @nilo/api build
 
-# --- Stage 2: Production Runtime ---
-FROM node:22-bookworm-slim AS runtime
+# --- Stage 2: Production dependencies ---
+FROM oven/bun:1.4.2-slim AS production-deps
 
-# Install curl for health checks and Bun for dependency install
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates curl unzip && \
-    curl -fsSL https://bun.sh/install | bash && \
-    ln -s /root/.bun/bin/bun /usr/local/bin/bun && \
-    apt-get clean && \
+RUN apt-get update && apt-get install -y --no-install-recommends g++ make python3 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -47,6 +41,18 @@ COPY apps/api/package.json ./apps/api/
 # Install production dependencies only
 RUN bun install --frozen-lockfile --production
 
+# --- Stage 3: Production runtime ---
+FROM node:22-bookworm-slim AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=production-deps /app/node_modules ./node_modules
+COPY package.json ./
+COPY apps/api/package.json ./apps/api/
+
 # Copy built output from builder
 COPY --from=builder /build/apps/api/dist ./apps/api/dist
 
@@ -57,10 +63,10 @@ RUN chown -R node:node /app
 USER node
 
 ENV NODE_ENV=production
-EXPOSE 3000
+EXPOSE 4001
 
 # Health check for orchestrators (k8s, DO App Platform)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000/health/live || exit 1
+  CMD curl -f http://localhost:4001/health/live || exit 1
 
 CMD ["node", "apps/api/dist/index.js"]
