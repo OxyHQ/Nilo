@@ -21,7 +21,8 @@
     "lint": "bun run --filter '*' lint",
     "android": "bun run --filter @nilo/app android",
     "ios": "bun run --filter @nilo/app ios",
-    "web": "bun run --filter @nilo/app web"
+    "web": "bun run --filter @nilo/app web",
+    "test:edge": "bun test scripts/edge-activity.test.ts"
   },
   "keywords": [
     "monorepo",
@@ -58,17 +59,21 @@
     "@react-native/metro-babel-transformer": "0.85.3",
     "@react-native/metro-config": "0.85.3",
     "@oxy.so/bloom": "1.0.7",
-    "@oxy.so/contracts": "1.0.1",
-    "@oxy.so/core": "1.0.0",
+    "@oxy.so/contracts": "^1.1.1",
+    "@oxy.so/core": "^1.1.2",
     "@oxy.so/services": "1.0.3",
     "lightningcss": "1.30.1",
     "lightningcss-linux-x64-gnu": "1.30.1",
-    "lightningcss-linux-x64-musl": "1.30.1"
+    "lightningcss-linux-x64-musl": "1.30.1",
+    "@oxy.so/telemetry": "^1.1.1"
   },
   "dependencies": {
     "@oxy.so/bloom": "1.0.7",
-    "@oxy.so/contracts": "1.0.1",
-    "@oxy.so/core": "1.0.0",
+    "@oxy.so/contracts": "^1.1.1",
+    "@oxy.so/core": "^1.1.2",
     "@oxy.so/services": "1.0.3"
+  },
+  "resolutions": {
+    "@oxy.so/telemetry": "^1.1.1"
   }
 }

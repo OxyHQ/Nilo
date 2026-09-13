@@ -1,3 +1,4 @@
+import { ecosystemActivityMiddleware, startEcosystemActivity, stopEcosystemActivity } from './ecosystemActivity';
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
@@ -33,6 +34,7 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '../.env') });
 
 const app = express();
+app.use(ecosystemActivityMiddleware);
 const PORT = parseInt(process.env.PORT || '4001', 10);
 
 // Create the HTTP server.
@@ -56,6 +58,7 @@ server.on('connection', (socket) => {
   socket.setKeepAlive(true, 60000);
 });
 
+startEcosystemActivity(() => server.listening);
 initSocket(server);
 
 // Internal routes - restricted to known origins
@@ -241,6 +244,7 @@ getDb()
         log.general.info('Postgres pool closed');
 
         clearTimeout(forceTimeout);
+        await stopEcosystemActivity();
         log.general.info('Graceful shutdown complete');
         process.exit(0);
       } catch (error) {

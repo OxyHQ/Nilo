@@ -1,3 +1,4 @@
+import { observeEcosystemSocket } from './ecosystemActivity';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import type http from 'http';
@@ -38,6 +39,7 @@ export function initSocket(server: http.Server): Server {
   }
 
   io.on('connection', (socket) => {
+    observeEcosystemSocket(socket);
     const userId: unknown = socket.data.userId;
     if (typeof userId === 'string') {
       socket.join(`user:${userId}`);
