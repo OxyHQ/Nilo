@@ -1,3 +1,5 @@
+import { observeEdgeRequest } from '@oxy.so/telemetry/edge';
+
 /**
  * Nilo web Worker -- SPA routing with proper MIME-type handling.
  *
@@ -53,7 +55,7 @@ function getExtension(pathname) {
   return lastDot === -1 ? "" : pathname.slice(lastDot).toLowerCase();
 }
 
-export default {
+const assetWorker = {
   async fetch(request, env) {
     const url = new URL(request.url);
     const pathname = url.pathname;
@@ -74,5 +76,11 @@ export default {
     // For non-asset paths (SPA navigation routes), the platform's index.html
     // fallback is correct behavior. Return the response as-is.
     return assetResponse;
+  },
+};
+
+export default {
+  fetch(request, env, ctx) {
+    return observeEdgeRequest({ service: 'nilo', request, env, ctx, next: () => assetWorker.fetch(request, env, ctx) });
   },
 };

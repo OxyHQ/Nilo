@@ -21,7 +21,8 @@
     "lint": "bun run --filter '*' lint",
     "android": "bun run --filter @nilo/app android",
     "ios": "bun run --filter @nilo/app ios",
-    "web": "bun run --filter @nilo/app web"
+    "web": "bun run --filter @nilo/app web",
+    "test:edge": "bun test scripts/edge-activity.test.ts"
   },
   "keywords": [
     "monorepo",
