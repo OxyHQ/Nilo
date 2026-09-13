@@ -1,6 +1,6 @@
 # Deployment status
 
-Last verified: 2026-09-09.
+Last verified: 2026-09-13.
 
 ## Verified state
 
@@ -10,19 +10,14 @@ Last verified: 2026-09-09.
   answers `alec.ns.cloudflare.com` / `deb.ns.cloudflare.com`, and the zone
   serves its own SOA. Delegation landed the same day it was bought; an earlier
   check that morning still returned NXDOMAIN with no NS.
-- The zone is live but **empty at the apex**: `dig A nilo.so` returns nothing,
-  so neither `nilo.so` nor `api.nilo.so` resolves. That is the correct state to
-  be in, not a gap to fill by hand — a Worker custom domain writes the apex
-  record itself and refuses a hostname that already carries externally managed
-  records, so the apex must stay clear until the first deploy claims it.
-- Nothing here may assume a reachable origin until a real fetch proves one.
-- Frontend artifacts published so far went to the PREVIOUS Cloudflare Pages
-  project, `oxystation.pages.dev`. Cloudflare cannot rename a project, so the
-  bootstrap step below creates `nilo` on the next deploy and the old project
-  keeps serving its last build until someone deletes it. Exact immutable
-  deployment URLs are recorded by the corresponding GitHub Actions run.
-- There is no public Nilo API deployment. The web artifact therefore is not
-  evidence of a working end-to-end production service.
+- The September 13 live audit found two running Nilo API ECS tasks.
+  `api.nilo.so` resolves and its HTTPS `/health` endpoint returned 200.
+- `nilo.so` now resolves through Cloudflare. The HTTPS `/health` probe returned
+  403; that is not evidence of a working authenticated frontend flow. Verify
+  deployment IDs and actual application routes before claiming readiness.
+- Historical frontend artifacts used `oxystation.pages.dev`; the current
+  repository deploys the `nilo` Worker. Immutable deployment URLs remain in
+  the corresponding GitHub Actions runs.
 - The obsolete hosting specifications were removed because they
   described a retired database/runtime and were not an apply-ready source of
   truth.
@@ -39,7 +34,7 @@ Last verified: 2026-09-09.
 - Nilo deployment configuration contains no provider credentials, provider
   runtime, inference route, or MongoDB binding.
 
-## Before an API deployment
+## Before a new API release
 
 1. Provision or identify the intended PostgreSQL database and secret binding.
 2. Choose the API hosting target and verify its release branch and health
