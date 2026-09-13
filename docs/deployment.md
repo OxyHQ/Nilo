@@ -23,7 +23,7 @@ Last verified: 2026-09-09.
   deployment URLs are recorded by the corresponding GitHub Actions run.
 - There is no public Nilo API deployment. The web artifact therefore is not
   evidence of a working end-to-end production service.
-- The obsolete DigitalOcean and SST specifications were removed because they
+- The obsolete hosting specifications were removed because they
   described a retired database/runtime and were not an apply-ready source of
   truth.
 
