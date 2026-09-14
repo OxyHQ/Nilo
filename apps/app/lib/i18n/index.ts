@@ -17,6 +17,24 @@ const i18n = new I18n({
 });
 
 /**
+ * The region-specific locales with a real catalog registered above (the bare
+ * `en`/`es` fallbacks are not selectable locales in their own right). This is
+ * what `OxyProvider`'s `language.supportedLocales` is built from: Oxy owns
+ * resolving which of these the app should show (the signed-in account's
+ * locale, or the device/guest locale when signed out) and calls `onChange`
+ * whenever that resolution changes. This app keeps ownership only of the
+ * catalogs themselves.
+ */
+export const SUPPORTED_LOCALES = [
+  'en-US',
+  'en-GB',
+  'en-CA',
+  'es-ES',
+  'es-MX',
+  'es-AR',
+] as const;
+
+/**
  * Get the device's current locale
  * Returns full locale code (e.g., "en-US") or falls back to language code (e.g., "en")
  */
@@ -45,6 +63,7 @@ i18n.enableFallback = true;
 i18n.missingBehavior = 'guess';
 
 // Default locale
-i18n.defaultLocale = 'en-US';
+export const DEFAULT_LOCALE = 'en-US';
+i18n.defaultLocale = DEFAULT_LOCALE;
 
 export default i18n;
