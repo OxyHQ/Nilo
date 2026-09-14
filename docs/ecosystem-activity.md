@@ -4,11 +4,12 @@ The backend publishes aggregate traffic and its infrastructure heartbeat to the
 Oxy API, which broadcasts changes to the website dashboard. Collection runs in
 the service process regardless of whether somebody opens the dashboard.
 
-Enable with `OXY_ECOSYSTEM_ACTIVITY_ENABLED=true`, `AWS_REGION`, and a registered
-Oxy application credential (`OXY_SERVICE_API_KEY` and `OXY_SERVICE_API_SECRET`).
-An invalid activation value or missing required configuration fails at boot.
-Disabled collection emits a warning; it must not be interpreted as zero traffic.
-Provision credentials and enable the flag in the deployment before claiming coverage.
+Enable by provisioning a registered Oxy application credential
+(`OXY_SERVICE_API_KEY` and `OXY_SERVICE_API_SECRET`) and `AWS_REGION`; the
+publisher starts as soon as both credential values are present and non-blank.
+Missing either credential emits a warning and starts no publisher; that must
+not be interpreted as zero traffic. Provision credentials in the deployment
+before claiming coverage.
 
 HTTP middleware is mounted before body parsers and routers, including public
 routes, webhooks, failures and authenticated internal calls. Outgoing fetch and
