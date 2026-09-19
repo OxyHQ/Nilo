@@ -14,9 +14,10 @@ import { KeyboardProvider } from '@/lib/keyboard';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { setTokenGetter } from '@/lib/api/client';
 import { BLOOM_THEME_PERSIST_KEY, BLOOM_THEME_STORAGE } from '@/lib/themePersistence';
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/lib/i18n';
+import { useI18nStore } from '@/lib/stores/i18n-store';
 import 'react-native-reanimated';
 import '../global.css';
-import '@/lib/i18n';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -100,6 +101,13 @@ function RootLayout() {
             baseURL={OXY_API_URL}
             clientId={process.env.EXPO_PUBLIC_OXY_CLIENT_ID}
             authRedirectUri={Platform.OS !== 'web' ? AUTH_REDIRECT_URI : undefined}
+            language={{
+              supportedLocales: SUPPORTED_LOCALES,
+              fallbackLocale: DEFAULT_LOCALE,
+              onChange: (locale) => useI18nStore.getState().setLocale(locale),
+              onError: (error, locale) =>
+                console.error('Failed to follow the Oxy-resolved language', error, locale),
+            }}
           >
             <AppContent />
           </OxyProvider>
