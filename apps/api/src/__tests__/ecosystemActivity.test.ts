@@ -5,7 +5,8 @@ const publisher = vi.hoisted(() => ({
   installFetch: vi.fn(), observeSocket: vi.fn(), stop: vi.fn(async () => {}),
 }));
 const create = vi.hoisted(() => vi.fn((_options: unknown) => publisher));
-vi.mock('@oxy.so/core/server', () => ({ createEcosystemTraffic: create }));
+const canAttest = vi.hoisted(() => vi.fn(() => false));
+vi.mock('@oxy.so/core/server', () => ({ createEcosystemTraffic: create, canAttestWorkloadIdentity: canAttest }));
 import { ecosystemActivityMiddleware, observeEcosystemSocket, startEcosystemActivity, stopEcosystemActivity } from '../ecosystemActivity';
 
 describe('ecosystem activity lifecycle', () => {
@@ -14,10 +15,12 @@ describe('ecosystem activity lifecycle', () => {
     vi.stubEnv('OXY_SERVICE_API_SECRET', 'test-secret');
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.clearAllMocks();
+    // A laptop cannot attest; the ECS case is asserted on its own below.
+    canAttest.mockReturnValue(false);
   });
   afterEach(async () => { await stopEcosystemActivity(); vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
-  it('does not start or publish when the credential key is missing', () => {
+  it('does not start or publish when the credential key is missing and nothing can be attested', () => {
     vi.stubEnv('OXY_SERVICE_API_KEY', undefined);
     startEcosystemActivity(() => true);
     expect(create).not.toHaveBeenCalled();
@@ -29,7 +32,7 @@ describe('ecosystem activity lifecycle', () => {
     expect(publisher.observeSocket).not.toHaveBeenCalled();
   });
 
-  it('does not start or publish when the credential secret is missing', () => {
+  it('does not start or publish when the credential secret is missing and nothing can be attested', () => {
     vi.stubEnv('OXY_SERVICE_API_SECRET', undefined);
     startEcosystemActivity(() => true);
     expect(create).not.toHaveBeenCalled();
@@ -41,6 +44,22 @@ describe('ecosystem activity lifecycle', () => {
     startEcosystemActivity(() => true);
     expect(create).not.toHaveBeenCalled();
     expect(console.warn).toHaveBeenCalled();
+  });
+
+  /**
+   * The case the migration off the key pair turns into the NORMAL one: a task
+   * with no credential in its environment, which can still prove what it is.
+   * Gating on the pair here would have left nilo silently absent from the
+   * dashboard the moment the secret was dropped from its task definition.
+   */
+  it('starts on an attestable workload with no key pair at all', () => {
+    vi.stubEnv('OXY_SERVICE_API_KEY', undefined);
+    vi.stubEnv('OXY_SERVICE_API_SECRET', undefined);
+    canAttest.mockReturnValue(true);
+    startEcosystemActivity(() => true);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(publisher.installFetch).toHaveBeenCalledTimes(1);
+    expect(console.warn).not.toHaveBeenCalled();
   });
 
   it('fails boot when the shared collector rejects its configuration', () => {
