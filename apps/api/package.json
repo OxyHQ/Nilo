@@ -21,7 +21,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "~3.1055",
     "@aws-sdk/s3-request-presigner": "~3.1055",
-    "@oxy.so/core": "^1.16.0",
+    "@oxy.so/core": "^1.18.0",
     "@oxy.so/db": "1.0.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "cors": "^2.8.5",
