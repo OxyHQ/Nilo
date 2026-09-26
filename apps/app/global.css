@@ -3,6 +3,11 @@
 @import "tailwindcss/utilities.css";
 @import "nativewind/theme";
 
+/* Bloom's design tokens: the SDK's sign-in screens and Bloom 4 controls are
+   NativeWind className, and their utilities resolve from these. Nilo's own
+   @theme below runs after, so its aliases win on any overlap. */
+@import "@oxy.so/bloom/design-tokens/theme.css";
+
 @source "./app/**/*.{js,jsx,ts,tsx}";
 @source "./components/**/*.{js,jsx,ts,tsx}";
 @source "./lib/**/*.{js,jsx,ts,tsx}";
