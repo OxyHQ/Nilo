@@ -6,19 +6,17 @@
 # --- Stage 1: Builder ---
 FROM oven/bun:1.4.2-slim AS builder
 
-# Optional WebSocket accelerators compile on ARM64 when no prebuilt binary is
-# available. Keep the toolchain in build-only stages, never in the final image.
-RUN apt-get update && apt-get install -y --no-install-recommends g++ make python3 && \
-    rm -rf /var/lib/apt/lists/*
-
 WORKDIR /build
 
 # Copy root workspace files
 COPY package.json bun.lock ./
 COPY apps/api/package.json ./apps/api/
 
-# Install all dependencies (including devDependencies for build)
-RUN bun install --frozen-lockfile
+# Install all dependencies (including devDependencies for build). Lifecycle
+# scripts are skipped here too: the only ones are the optional WebSocket
+# accelerators' node-gyp builds (bufferutil, utf-8-validate), which have
+# JavaScript fallbacks, need a toolchain, and fail when node-gyp@latest does.
+RUN bun install --frozen-lockfile --ignore-scripts
 
 # Copy API source
 COPY apps/api/ ./apps/api/
@@ -28,9 +26,6 @@ RUN bun run --filter @nilo/api build
 
 # --- Stage 2: Production dependencies ---
 FROM oven/bun:1.4.2-slim AS production-deps
-
-RUN apt-get update && apt-get install -y --no-install-recommends g++ make python3 && \
-    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
