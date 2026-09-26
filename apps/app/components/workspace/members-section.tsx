@@ -55,7 +55,7 @@ function memberInitial(member: WorkspaceMember): string {
 function MemberAvatar({ member }: { member: WorkspaceMember }) {
   const { oxyServices } = useOxy();
   const avatarUrl = member.user?.avatar
-    ? oxyServices.getFileDownloadUrl(member.user.avatar, "thumb")
+    ? oxyServices.assets.publicUrl(member.user.avatar, "thumb")
     : null;
 
   return (

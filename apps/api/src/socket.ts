@@ -23,7 +23,7 @@ export function initSocket(server: http.Server): Server {
     transports: ['websocket', 'polling'],
   });
 
-  io.use(oxyClient.authSocket());
+  io.use(oxyClient.middleware.socket());
 
   const pubClient = getRedisClient();
   const subClient = getRedisSubClient();
