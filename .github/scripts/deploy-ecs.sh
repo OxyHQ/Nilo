@@ -57,10 +57,18 @@ run_migration pre
 
 aws ecs update-service --cluster "$CLUSTER" --service "$APP" \
   --task-definition "$RELEASE_TASK_DEFINITION" >/dev/null
-aws ecs wait services-stable --cluster "$CLUSTER" --services "$APP" || true
-
-read -r PRIMARY STATE <<<"$(aws ecs describe-services --cluster "$CLUSTER" --services "$APP" \
-  --query 'services[0].deployments[?status==`PRIMARY`].[taskDefinition,rolloutState] | [0]' --output text)"
+# `aws ecs wait services-stable` gives up after 10 minutes, which a Fargate
+# rollout with a health-check grace period and connection draining can exceed.
+# Follow the primary deployment itself until it settles (30 minutes at most).
+DEADLINE=$((SECONDS + 1800))
+while :; do
+  read -r PRIMARY STATE <<<"$(aws ecs describe-services --cluster "$CLUSTER" --services "$APP" \
+    --query 'services[0].deployments[?status==`PRIMARY`].[taskDefinition,rolloutState] | [0]' --output text)"
+  if [ "$STATE" != IN_PROGRESS ] || [ "$SECONDS" -ge "$DEADLINE" ]; then
+    break
+  fi
+  sleep 15
+done
 if [ "$PRIMARY" != "$RELEASE_TASK_DEFINITION" ] || [ "$STATE" != COMPLETED ]; then
   echo "::error::release rolled back or did not complete (primary=$PRIMARY state=$STATE)"
   exit 1
