@@ -1,13 +1,13 @@
-import { OxyServices } from '@oxy.so/core';
 import {
   createOxyAuthMiddleware,
+  OxyServer,
   type OxyRequestUser,
 } from '@oxy.so/core/server';
 import type { WorkspaceRole } from '../db/schema/workspaces.js';
 import type { WorkspaceMemberRow, WorkspaceRow } from '../repositories/workspaces.js';
 
 const OXY_API_URL = process.env.OXY_API_URL || 'https://api.oxy.so';
-export const oxyClient = new OxyServices({
+export const oxyClient = new OxyServer({
   baseURL: OXY_API_URL,
 });
 

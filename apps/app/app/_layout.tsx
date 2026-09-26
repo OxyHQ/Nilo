@@ -33,7 +33,7 @@ const AUTH_REDIRECT_URI = Linking.createURL('/');
 function AuthSetup({ children }: { children: React.ReactNode }) {
   const { oxyServices } = useOxy();
 
-  setTokenGetter(() => oxyServices.getAccessToken() || null);
+  setTokenGetter(() => oxyServices.session.accessToken || null);
 
   return <>{children}</>;
 }
