@@ -46,15 +46,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 
 WORKDIR /app
 
-COPY --from=production-deps /app/node_modules ./node_modules
-COPY package.json ./
-COPY apps/api/package.json ./apps/api/
+# The non-root user owns /app (it writes temp files there) and everything
+# copied into it. Each COPY sets the owner itself: a trailing `chown -R`
+# rewrote every file into a second layer and shipped node_modules twice.
+RUN chown node:node /app
+
+COPY --from=production-deps --chown=node:node /app/node_modules ./node_modules
+COPY --chown=node:node package.json ./
+COPY --chown=node:node apps/api/package.json ./apps/api/
 
 # Copy built output from builder
-COPY --from=builder /build/apps/api/dist ./apps/api/dist
-
-# Allow non-root user to write temp files
-RUN chown -R node:node /app
+COPY --from=builder --chown=node:node /build/apps/api/dist ./apps/api/dist
 
 # Security hardening: Run as non-root user
 USER node
