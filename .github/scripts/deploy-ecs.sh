@@ -55,8 +55,18 @@ run_migration() {
 
 run_migration pre
 
+# Start every replacement task at once, next to the old ones: 200% with a 100%
+# healthy floor. At 150% the two tasks were replaced one at a time, two waves
+# of start, health checks and a 60 s drain (404 s on 2026-09-30). Migrations
+# are the one-shots above and below, never on boot, so four copies side by
+# side is safe. Same value as oxy-infra's app-service module declares.
 aws ecs update-service --cluster "$CLUSTER" --service "$APP" \
-  --task-definition "$RELEASE_TASK_DEFINITION" >/dev/null
+  --task-definition "$RELEASE_TASK_DEFINITION" \
+  --deployment-configuration '{
+    "deploymentCircuitBreaker": {"enable": true, "rollback": true},
+    "minimumHealthyPercent": 100,
+    "maximumPercent": 200
+  }' >/dev/null
 # `aws ecs wait services-stable` gives up after 10 minutes, which a Fargate
 # rollout with a health-check grace period and connection draining can exceed.
 # Follow the primary deployment itself until it settles (30 minutes at most).
