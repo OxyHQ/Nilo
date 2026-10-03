@@ -1,0 +1,6 @@
+$ bun build.ts
+
+  dist/index.js       911.5kb
+  dist/db/migrate.js   18.3kb
+
+⚡ Done in 214ms
