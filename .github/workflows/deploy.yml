@@ -28,6 +28,8 @@ jobs:
       - name: Build web
         env:
           EXPO_PUBLIC_API_URL: ${{ vars.NILO_API_URL }}
+          # Public registered client ID; missing configuration leaves Oxy sign-in unavailable.
+          EXPO_PUBLIC_OXY_CLIENT_ID: ${{ vars.EXPO_PUBLIC_OXY_CLIENT_ID }}
         run: cd apps/app && bun run build:production
 
       # A WORKER, not a Pages project. A Pages project always serves
