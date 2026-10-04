@@ -1,0 +1,21 @@
+$ vitest run -t "validates receiver identity and revocation in an isolated loopback process"
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90m/home/nate/Oxy/Nilo/.worktrees/1519-final-sdk-adoption-20261003/apps/api[39m
+
+ [2m[90m↓[39m[22m src/db/__tests__/deploymentBoundary.test.ts [2m([22m[2m16 tests[22m[2m | [22m[33m16 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m src/__tests__/ecosystemActivity.test.ts [2m([22m[2m6 tests[22m[2m | [22m[33m6 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m src/routes/__tests__/comments.test.ts [2m([22m[2m11 tests[22m[2m | [22m[33m11 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m src/db/__tests__/postgresOnlyRuntime.test.ts [2m([22m[2m8 tests[22m[2m | [22m[33m8 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m src/db/__tests__/inferenceBoundary.test.ts [2m([22m[2m71 tests[22m[2m | [22m[33m71 skipped[39m[2m)[22m
+ [32m✓[39m src/__tests__/receiverSdk.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 262[2mms[22m[39m
+ [2m[90m↓[39m[22m src/socket.test.ts [2m([22m[2m2 tests[22m[2m | [22m[33m2 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m src/routes/__tests__/workspaces.test.ts [2m([22m[2m13 tests[22m[2m | [22m[33m13 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m src/routes/__tests__/databases.test.ts [2m([22m[2m17 tests[22m[2m | [22m[33m17 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m src/routes/__tests__/blocks.phase3.test.ts [2m([22m[2m11 tests[22m[2m | [22m[33m11 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m src/routes/__tests__/embed.test.ts [2m([22m[2m3 tests[22m[2m | [22m[33m3 skipped[39m[2m)[22m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[2m | [22m[33m10 skipped[39m[90m (11)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[2m | [22m[33m158 skipped[39m[90m (159)[39m
+[2m   Start at [22m 04:34:18
+[2m   Duration [22m 748ms[2m (transform 1.20s, setup 0ms, import 3.64s, tests 262ms, environment 1ms)[22m
+

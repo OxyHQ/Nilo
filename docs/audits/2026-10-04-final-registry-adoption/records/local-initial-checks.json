@@ -1,0 +1,26 @@
+[
+  {
+    "name": "receiver",
+    "cwd": "apps/api",
+    "argv": [
+      "bun",
+      "run",
+      "test",
+      "-t",
+      "validates receiver identity and revocation in an isolated loopback process"
+    ],
+    "exitCode": 0,
+    "seconds": 0.967
+  },
+  {
+    "name": "backend-build",
+    "cwd": ".",
+    "argv": [
+      "bun",
+      "run",
+      "build:api"
+    ],
+    "exitCode": 0,
+    "seconds": 0.115
+  }
+]
