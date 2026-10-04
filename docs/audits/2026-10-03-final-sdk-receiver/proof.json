@@ -1,0 +1,93 @@
+{
+  "repository": "Nilo",
+  "base": "a8d903d0da2a8c8fd409bf97998424273c372f85",
+  "sourceCommit": "c5d671b2b2c2c274cbf71c06c71e6f5c06301fd4",
+  "sources": [
+    {
+      "path": "apps/api/src/__tests__/receiverSdk.test.ts",
+      "bytes": 4088,
+      "sha256": "01863ed2f023095d41982c9fb2a9ecf189bbe002a61ef6ce6a358a1007c9085e"
+    }
+  ],
+  "installed": [
+    {
+      "name": "@oxy.so/core",
+      "version": "4.2.0",
+      "path": "/home/nate/Oxy/.agent-evidence/i04-consumer-frozen-1b-packs/oxy.so-core-4.2.0.tgz",
+      "source": "1b50557ccfe28b382f5b219405a616b332036d42",
+      "sourceTree": "3937031b8c95a6b8feff65720905de1ad651689d",
+      "sha256": "83059583068cf96d8dc7e4335fe226126cb795f7c6cfba469f8cec4ef9c6a385",
+      "published": false,
+      "resolved": "/home/nate/Oxy/Nilo/.worktrees/1519-final-sdk-adoption-20261003/node_modules/@oxy.so/core",
+      "filesByteEqual": 581
+    },
+    {
+      "name": "@oxy.so/contracts",
+      "version": "4.9.0",
+      "path": "/home/nate/Oxy/.agent-evidence/i04-consumer-frozen-1b-packs/oxy.so-contracts-4.9.0.tgz",
+      "source": "1b50557ccfe28b382f5b219405a616b332036d42",
+      "sourceTree": "6ff8352ea7920065590dceda3fff3ca420b94b69",
+      "sha256": "6b1e6a8da92341871d2832834ad063df1a1e84a46dc367786599fdd26be6e635",
+      "published": false,
+      "resolved": "/home/nate/Oxy/Nilo/.worktrees/1519-final-sdk-adoption-20261003/node_modules/@oxy.so/contracts",
+      "filesByteEqual": 198
+    },
+    {
+      "name": "@oxy.so/protocol",
+      "version": "1.2.2",
+      "path": "/home/nate/Oxy/.agent-evidence/i04-consumer-frozen-1b-packs/oxy.so-protocol-1.2.2.tgz",
+      "source": "1b50557ccfe28b382f5b219405a616b332036d42",
+      "sourceTree": "77ed4e428f59cff076fd44daf42e18a1b39f7fdb",
+      "sha256": "325b20125f1cf5159c36ca7a75f32c83a4560cf41c55526828b1718595acc843",
+      "published": false,
+      "resolved": "/home/nate/Oxy/Nilo/.worktrees/1519-final-sdk-adoption-20261003/node_modules/@oxy.so/protocol",
+      "filesByteEqual": 145
+    }
+  ],
+  "records": [
+    {
+      "path": "docs/audits/2026-10-03-final-sdk-receiver/logs/i04-nilo-candidate-install.log",
+      "bytes": 502,
+      "sha256": "8cb7d38a540f7df5d0a9a60144e93714f7a4c76209472d6bc1b252c6b165d37a"
+    },
+    {
+      "path": "docs/audits/2026-10-03-final-sdk-receiver/logs/i04-nilo-backend-candidate-build.log",
+      "bytes": 95,
+      "sha256": "37719aea279426df99c3a8883389db8d40405f359127e8a610376bf67fdcbdfd"
+    },
+    {
+      "path": "docs/audits/2026-10-03-final-sdk-receiver/logs/i04-nilo-receiver-http.log",
+      "bytes": 2830,
+      "sha256": "b4b81de119ac10d9e7d723af8a4836f32dc776cb63d0af8ccc648fbd6d7396a2"
+    },
+    {
+      "path": "docs/audits/2026-10-03-final-sdk-receiver/logs/i04-nilo-receiver-final-checks.log",
+      "bytes": 2830,
+      "sha256": "984db00aaeb9bd970d4f2cca1462b5f5d732fe01d94f492550428f8098edfbd4"
+    }
+  ],
+  "candidateInputs": [
+    {
+      "path": "docs/audits/2026-10-03-final-sdk-receiver/inputs/package.json",
+      "bytes": 2861,
+      "sha256": "ab84f2bb2f513911ecba9e4431e5aae0ad1b56ebd02a92bc8e22d10b9433f472"
+    },
+    {
+      "path": "docs/audits/2026-10-03-final-sdk-receiver/inputs/bun.lock",
+      "bytes": 438026,
+      "sha256": "214219e797313efdc4701ba272fe4fecf1c310a9b227a741bc6dd9ee378cf0fa"
+    },
+    {
+      "path": "docs/audits/2026-10-03-final-sdk-receiver/inputs/apps__api__package.json",
+      "bytes": 1722,
+      "sha256": "a4627ce2b4c9a4597668873d988a96522ed7841c62ebd3c871629f41f45e7d8f"
+    }
+  ],
+  "limits": [
+    "Candidate source1b505; subsequent SDK fix/refreeze and published registry adoption remain pending. Package manifests and lockfile are local file candidates, not committed as adoption.",
+    "Real loopback HTTP and installed SDK; issuer session validation is synthetic, no signing-authority proof, product SQL or domain effects.",
+    "Willo uses its actual createOxyClient factory and canonical auth helper on an owned fixture route; other repos import their actual middleware binding.",
+    "No production configuration, deployment, scopes, grants, schemas or credentials changed.",
+    "Initial Bun fixture cleanup order caused ERR_SERVER_NOT_RUNNING; close then closeAllConnections now passes. Willo initial script selected all src; DB hooks reached only the explicit unused port1 config and failed. Final name filter excludes46 domain tests."
+  ]
+}

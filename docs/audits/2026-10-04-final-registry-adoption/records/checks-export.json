@@ -1,0 +1,19 @@
+{
+  "worktree": "/home/nate/Oxy/Nilo/.worktrees/1519-final-sdk-adoption-20261003",
+  "output": "/home/nate/Oxy/.agent-evidence/i04-consumer-final-prs/registry-Nilo-20261004",
+  "receipt": "local-export-check.json",
+  "jobs": [
+    {
+      "name": "frontend-export",
+      "argv": [
+        "env",
+        "EXPO_PUBLIC_API_URL=https://api.nilo.so",
+        "EXPO_PUBLIC_OXY_CLIENT_ID=oxy_dk_5a97e4ebc00e5268de90ee19490954b202ecd3ea2117f0e7",
+        "EXPO_NO_DOTENV=1",
+        "bun",
+        "run",
+        "build:app"
+      ]
+    }
+  ]
+}

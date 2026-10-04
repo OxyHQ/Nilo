@@ -1,0 +1,7 @@
+bun install v1.3.14 (0d9b296a)
+Resolving dependencies
+Resolved, downloaded and extracted [52]
+warn: incorrect peer dependency "@react-native/metro-config@0.86.0"
+Saved lockfile
+
+Checked 1662 installs across 1567 packages (no changes) [876.00ms]

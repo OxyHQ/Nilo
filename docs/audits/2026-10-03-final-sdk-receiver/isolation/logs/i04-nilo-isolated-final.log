@@ -1,0 +1,11 @@
+$ vitest run src/__tests__/receiverSdk.test.ts
+
+ RUN  v4.0.18 /home/nate/Oxy/Nilo/.worktrees/1519-final-sdk-adoption-20261003/apps/api
+
+ ✓ src/__tests__/receiverSdk.test.ts (1 test) 209ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  20:18:42
+   Duration  311ms (transform 17ms, setup 0ms, import 24ms, tests 209ms, environment 0ms)
+
