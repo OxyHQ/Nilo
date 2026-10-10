@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { compareRoles, hasRole, WORKSPACE_ROLES } from '../../db/schema/workspaces.js';
+import type { ZodType } from 'zod';
 
 describe('workspace role helpers', () => {
   it('orders roles viewer < commenter < editor < admin < owner', () => {
@@ -41,7 +42,7 @@ describe('workspace role helpers', () => {
 });
 
 describe('workspace create input validation', () => {
-  let createWorkspaceSchema: any;
+  let createWorkspaceSchema: ZodType;
 
   beforeEach(async () => {
     // Re-import inside beforeEach so the mocks above take effect even

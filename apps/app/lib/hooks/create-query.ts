@@ -6,7 +6,7 @@ import apiClient from '../api/client';
 export function useAuthQuery<T>(
   queryKey: readonly unknown[],
   url: string,
-  params?: Record<string, any>,
+  params?: Record<string, unknown>,
   options?: Partial<UseQueryOptions<T>>,
 ) {
   const { isAuthenticated } = useOxy();
