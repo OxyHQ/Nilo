@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { NextFunction, Request, Response } from 'express';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { getDb, type PgHandle } from '../db/client.js';

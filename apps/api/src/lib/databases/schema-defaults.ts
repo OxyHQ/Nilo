@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import type { DatabaseProperty, DatabaseSchema } from '../../db/schema/databases.js';
 
 /**

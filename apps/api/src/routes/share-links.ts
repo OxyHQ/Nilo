@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { z } from 'zod';
 import { authenticateToken } from '../middleware/auth.js';
 import { getDb } from '../db/client.js';
