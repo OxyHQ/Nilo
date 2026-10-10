@@ -33,6 +33,9 @@ export function EquationBlock({ block, onChangeContent }: BlockComponentProps) {
           const rendered = mod.default.renderToString(latex, {
             throwOnError: false,
             displayMode: true,
+            // KaTeX's default, stated because the HTML below is only safe with it:
+            // untrusted commands (\href, \url, \htmlClass, ...) are refused.
+            trust: false,
           });
           setHtml(rendered);
         } catch {
@@ -75,6 +78,7 @@ export function EquationBlock({ block, onChangeContent }: BlockComponentProps) {
       />
       {Platform.OS === 'web' && html ? (
         <div
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: KaTeX renderToString output with trust: false, which escapes the user's LaTeX
           dangerouslySetInnerHTML={{ __html: html }}
           style={{
             color: colors.foreground,

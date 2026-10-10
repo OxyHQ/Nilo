@@ -12,7 +12,10 @@ function loadMermaid(): Promise<typeof import('mermaid')> {
   }
   if (!mermaidLoader) {
     mermaidLoader = import('mermaid').then((mod) => {
-      mod.default.initialize({ startOnLoad: false, securityLevel: 'loose' });
+      // 'strict' (Mermaid's default) sanitizes link URLs and runs DOMPurify over
+      // the rendered SVG. 'loose' skipped both, so a diagram written by any
+      // collaborator could carry a `javascript:` link into every viewer's DOM.
+      mod.default.initialize({ startOnLoad: false, securityLevel: 'strict' });
       return mod;
     });
   }
@@ -81,6 +84,7 @@ export function MermaidBlock({ block, onChangeContent }: BlockComponentProps) {
         numberOfLines={4}
       />
       {Platform.OS === 'web' && svg ? (
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid's render output under securityLevel 'strict', which DOMPurify-sanitizes the SVG
         <div dangerouslySetInnerHTML={{ __html: svg }} style={{ overflowX: 'auto' }} />
       ) : null}
       {Platform.OS === 'web' && renderError ? (
