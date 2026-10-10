@@ -42,44 +42,8 @@
     "enabled": true,
     "rules": {
       "preset": "recommended",
-      "a11y": {
-        "noAutofocus": "warn",
-        "noStaticElementInteractions": "warn",
-        "noSvgWithoutTitle": "warn",
-        "useKeyWithClickEvents": "warn",
-        "useMediaCaption": "warn"
-      },
-      "complexity": {
-        "noUselessContinue": "warn",
-        "noUselessEmptyExport": "warn",
-        "noUselessSwitchCase": "warn",
-        "noUselessUndefinedInitialization": "warn",
-        "useArrowFunction": "warn",
-        "useLiteralKeys": "warn",
-        "useOptionalChain": "warn"
-      },
       "correctness": {
-        "noUnusedFunctionParameters": "warn",
-        "noUnusedImports": "warn",
-        "noUnusedVariables": { "level": "warn", "options": { "ignoreRestSiblings": true } },
-        "useExhaustiveDependencies": "warn",
         "useHookAtTopLevel": "error"
-      },
-      "security": {
-        "noDangerouslySetInnerHtml": "warn"
-      },
-      "style": {
-        "noNonNullAssertion": "warn",
-        "useExponentiationOperator": "warn",
-        "useImportType": "warn",
-        "useNodejsImportProtocol": "warn",
-        "useTemplate": "warn"
-      },
-      "suspicious": {
-        "noArrayIndexKey": "warn",
-        "noConfusingVoidType": "warn",
-        "noExplicitAny": "warn",
-        "noTemplateCurlyInString": "warn"
       }
     }
   }
