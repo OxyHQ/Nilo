@@ -46,5 +46,11 @@
         "useHookAtTopLevel": "error"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["apps/app/**"],
+      "plugins": ["./biome-plugins/expo-env-vars.grit"]
+    }
+  ]
 }
