@@ -146,11 +146,7 @@ async function checkWorkspaceMembership(
 /**
  * The wire shape of a page.
  *
- * `_id` is gone. It was a Mongo artefact that this serializer emitted BESIDE
- * `id`, holding the same value, and the storage layer that produced it no
- * longer exists — so it is deleted rather than carried forward as an alias.
- * Every consumer of it is listed in the rewiring PR; `apps/app` reads
- * `page._id` in twenty-odd files and has to move to `page.id`.
+ * `id` is the only id on the wire; there is no `_id` alias.
  *
  * Every column is already the right JavaScript type coming out of drizzle, so
  * there is nothing here to coerce: `String(...)` around each id was undoing
@@ -307,8 +303,8 @@ router.post(
       // deliberately NOT wrapped in a transaction: under READ COMMITTED one
       // would take no lock and two concurrent creates would still read the same
       // maximum, so it would buy nothing while implying the race was closed.
-      // The race is the one Mongo had, and `order` is a client-writable
-      // `double precision` that `PATCH /api/pages/:id` renumbers anyway.
+      // The race is accepted: `order` is a client-writable `double precision`
+      // that `PATCH /api/pages/:id` renumbers anyway.
       const order = await nextSiblingOrder(db, {
         workspaceId,
         parentId: body.parentId ?? null,
@@ -524,8 +520,7 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
     }
 
     // The new page and its copied blocks are ONE logical write, so they commit
-    // together. The two-statement version this replaces could leave a page with
-    // no blocks behind a 500, and Mongo had no way to promise otherwise.
+    // together, so a failure cannot leave a page with no blocks behind a 500.
     //
     // The transaction does NOT close the sibling-order race — `nextSiblingOrder`
     // takes no lock under READ COMMITTED — it is here for the page/blocks pair.

@@ -117,7 +117,7 @@ async function main(): Promise<void> {
     },
     {
       type: 'quote',
-      content: { text: 'No Mongoose anywhere: the API reads and writes PostgreSQL only.' },
+      content: { text: 'The API reads and writes PostgreSQL only.' },
     },
     { type: 'divider', content: {} },
   ];
@@ -145,7 +145,7 @@ async function main(): Promise<void> {
   await createBlock(db, {
     pageId: child.id,
     type: 'paragraph' as never,
-    content: { text: 'The API moved from MongoDB to PostgreSQL. Nothing reads Mongo any more.' } as never,
+    content: { text: 'Pages, blocks and databases are stored in PostgreSQL through Drizzle.' } as never,
     order: 1000,
   });
   console.log(`  sub-page "${child.title}"`);

@@ -209,10 +209,9 @@ describe('findDatabaseById / findDatabaseWorkspaceId', () => {
 
 describe('updateDatabase', () => {
   /**
-   * The `$set: { x: undefined }` divergence: a no-op in Mongo, a NULL write in
-   * Postgres. `icon` and `cover` are nullable in the request schema, so
-   * `undefined` and `null` are two different instructions and collapsing them
-   * silently erases a value.
+   * An `undefined` field must be skipped, never written as NULL. `icon` and
+   * `cover` are nullable in the request schema, so `undefined` and `null` are
+   * two different instructions and collapsing them silently erases a value.
    */
   it('leaves an omitted nullable field alone and writes an explicit null', async () => {
     const record = await insertDatabase(db, databaseInput({ icon: '📋', cover: 'c.png' }));
@@ -229,12 +228,11 @@ describe('updateDatabase', () => {
   });
 
   /**
-   * Two-way, and stored as the boolean Mongo stores. `PATCH /databases/:id`
-   * un-archives (`routes/databases.ts:731`), so a one-way timestamp stamp
-   * would not describe this field — and there is no true `archived_at` for a
-   * row the backfill finds already archived.
+   * Two-way, and stored as a boolean. `PATCH /databases/:id` un-archives
+   * (`routes/databases.ts`), so a one-way timestamp stamp would not describe
+   * this field.
    */
-  it('archives and un-archives, storing the flag Mongo stored', async () => {
+  it('archives and un-archives, storing a boolean flag', async () => {
     const record = await insertDatabase(db, databaseInput());
     expect(record.archived).toBe(false);
 
@@ -253,8 +251,8 @@ describe('updateDatabase', () => {
     const record = await insertDatabase(db, databaseInput());
     const unchanged = await updateDatabase(db, record.id, { name: undefined });
     expect(unchanged).toEqual(record);
-    // Mongoose's `save()` with no modified path does not write, so `updatedAt`
-    // must not move either.
+    // A patch with no defined keys does not write, so `updatedAt` must not
+    // move either.
     expect(unchanged?.updatedAt.getTime()).toBe(record.updatedAt.getTime());
   });
 
@@ -485,9 +483,8 @@ describe('default views', () => {
 
   /**
    * Two defaults ARE reachable today — `POST /:id/views` honours
-   * `isDefault: true` without demoting the existing default. Mongo's
-   * `findOne` returned an arbitrary one of them; this returns the first in the
-   * view ordering, every time.
+   * `isDefault: true` without demoting the existing default. This returns the
+   * first in the view ordering, every time, rather than an arbitrary one.
    *
    * The ids are explicit and the two rows agree on `order` and `createdAt`, so
    * the ONLY thing that can decide the answer is the `id` tiebreak in the

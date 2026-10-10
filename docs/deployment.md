@@ -32,7 +32,7 @@ Last verified: 2026-09-13.
   missing or is not a valid HTTPS origin; it never falls back to an invented
   production host.
 - Nilo deployment configuration contains no provider credentials, provider
-  runtime, inference route, or MongoDB binding.
+  runtime, or inference route.
 
 ## Before a new API release
 

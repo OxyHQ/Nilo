@@ -16,5 +16,5 @@
 
 - [ ] TypeScript compiles (`tsc --noEmit`)
 - [ ] Unit and real-PostgreSQL tests pass
-- [ ] Inference-boundary gates pass (no provider env, keys, SDKs, execution, legacy routes, or Mongo runtime)
+- [ ] Inference-boundary gates pass (no provider env, keys, SDKs, execution, or legacy routes)
 - [ ] Lint passes

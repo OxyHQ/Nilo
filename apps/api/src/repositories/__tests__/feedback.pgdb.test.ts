@@ -40,12 +40,11 @@ describe('createFeedback', () => {
   });
 
   /**
-   * The Mongoose schema declares exactly three metadata keys, so strict mode
-   * DROPPED everything else — and the route passes `metadata` straight out of
-   * the request body. Storing the object wholesale in a `jsonb` column would
-   * start persisting arbitrary unvalidated user input the source discarded, so
-   * the three columns are the faithful port. This asserts the extra keys go
-   * nowhere.
+   * Feedback declares exactly three metadata keys and drops everything else —
+   * and the route passes `metadata` straight out of the request body. Storing
+   * the object wholesale in a `jsonb` column would persist arbitrary
+   * unvalidated user input, so there are three columns. This asserts the extra
+   * keys go nowhere.
    */
   it('discards metadata keys the schema never declared', async () => {
     const userId = testScope('fb-strict');
@@ -166,9 +165,8 @@ describe('reading feedback back', () => {
   });
 
   /**
-   * `oxyUserId` is `text`, not an ObjectId, because the only writer stores an
-   * opaque Oxy user id. A non-hex id must therefore round-trip rather than
-   * raising the CastError Mongoose would have thrown.
+   * `oxyUserId` is `text` because the only writer stores an opaque Oxy user
+   * id. A non-hex id must therefore round-trip rather than raising an error.
    */
   it('round-trips an Oxy user id that is not ObjectId-shaped', async () => {
     const userId = 'oxy-user-not-hex-at-all';

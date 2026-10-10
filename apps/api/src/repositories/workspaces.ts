@@ -4,9 +4,9 @@
  * This is the domain every other one sits on: `middleware/workspace.ts`
  * resolves a workspace and a membership on behalf of `routes/pages.ts`,
  * `routes/blocks.ts`, `routes/databases.ts`, `routes/comments.ts` and
- * `routes/share-links.ts`. If that middleware still read Mongo while any of
- * them read Postgres, it would receive a Postgres uuid, look it up in Mongo,
- * find nothing and return 403 on every request — no throw, no log line.
+ * `routes/share-links.ts`. If that middleware read a different store from any
+ * of them, it would look up an id it cannot find and return 403 on every
+ * request — no throw, no log line.
  */
 
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
@@ -231,12 +231,11 @@ export async function addMember(
 /**
  * Patch a workspace from the fields the caller actually supplied.
  *
- * Built from DEFINED keys only. `$set: { x: undefined }` is a no-op in Mongo
- * and writes NULL in Postgres, so a patch that touches one field and leaves a
- * sibling `undefined` would erase the sibling. drizzle's `.set()` drops
- * undefined itself, so this guard is about the EMPTY patch: with no defined
- * keys there is nothing to write, and an empty `.set()` is a syntax error
- * rather than a no-op.
+ * Built from DEFINED keys only. Writing an `undefined` key writes NULL, so a
+ * patch that touches one field and leaves a sibling `undefined` would erase the
+ * sibling. drizzle's `.set()` drops undefined itself, so this guard is about
+ * the EMPTY patch: with no defined keys there is nothing to write, and an empty
+ * `.set()` is a syntax error rather than a no-op.
  */
 export async function updateWorkspace(
   db: PgHandle,
@@ -289,9 +288,8 @@ export async function updateMemberRole(
  * Remove a member.
  *
  * Returns whether a row was removed, read off `RETURNING` rather than
- * `rowCount`. Mongo reported `deletedCount` and callers branch on it; Postgres
- * gives only `rowCount`, and reading `rows.length` on a bare DELETE returns 0
- * whether or not anything was deleted.
+ * `rowCount`. Callers branch on it, and reading `rows.length` on a bare DELETE
+ * returns 0 whether or not anything was deleted.
  */
 export async function removeMember(
   db: PgHandle,

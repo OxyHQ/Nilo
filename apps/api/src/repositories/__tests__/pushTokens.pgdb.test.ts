@@ -113,9 +113,9 @@ describe('pushTokens repository', () => {
     });
 
     /**
-     * The route 404s on zero, which is Mongo's `matchedCount === 0`. Postgres's
-     * row count is the `matchedCount` analogue, so a token belonging to someone
-     * else must report zero rather than silently succeeding.
+     * The route 404s on zero. The row count is the number of matched rows, so
+     * a token belonging to someone else must report zero rather than silently
+     * succeeding.
      */
     it('reports zero for a token this user never registered', async () => {
       const token = `${scope}-not-mine`;
@@ -123,7 +123,7 @@ describe('pushTokens repository', () => {
       expect(await deactivatePushToken(db, userId, token)).toBe(0);
     });
 
-    it('a second deactivation still reports one row, as mongoose did', async () => {
+    it('a second deactivation still reports one row', async () => {
       const token = `${scope}-twice`;
       await upsertPushToken(db, { oxyUserId: userId, token });
       expect(await deactivatePushToken(db, userId, token)).toBe(1);
@@ -131,12 +131,10 @@ describe('pushTokens repository', () => {
     });
 
     /**
-     * DIVERGENCE, pinned. Mongo's `updateOne({ token })` deactivated ONE
-     * arbitrary matching document; this deactivates every registration of the
-     * device. The caller is handling a `DeviceNotRegistered` receipt, so the
-     * device is gone for everyone — porting the arbitrariness would leave one
-     * user still being pushed to a dead device, chosen by whichever document
-     * the query reached first.
+     * Pinned: this deactivates every registration of the device. The caller is
+     * handling a `DeviceNotRegistered` receipt, so the device is gone for
+     * everyone — deactivating only one row would leave another user still
+     * being pushed to a dead device.
      */
     it('deactivating by token alone reaches every user that registered it', async () => {
       const token = `${scope}-device-gone`;

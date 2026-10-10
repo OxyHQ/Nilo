@@ -392,8 +392,7 @@ describe('PATCH /pages/:id', () => {
     expect(res.status).toBe(200);
     const updated = res.json.page as Record<string, unknown>;
     expect(updated.icon).toBeNull();
-    // `undefined` means "leave alone" and `null` means "write NULL" — the two
-    // are the same statement in Mongo and opposite ones here.
+    // `undefined` means "leave alone" and `null` means "write NULL".
     expect(updated.cover).toBe('blue');
     expect(updated.title).toBe('keep');
   });
@@ -739,8 +738,8 @@ describe('blocks', () => {
       );
       expect(res.status).toBe(200);
       expect(res.json.matched).toBe(3);
-      // `b` is already at index 1 and does not move — Mongo reported 3 here
-      // because it rewrote every matched document to stamp `updatedAt`.
+      // `b` is already at index 1 and does not move, so it is matched but not
+      // modified.
       expect(res.json.modified).toBe(2);
 
       const after = await db

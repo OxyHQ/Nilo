@@ -1,11 +1,9 @@
 /**
  * Feedback — user-submitted bug reports, feature requests and ratings.
  *
- * The one divergence worth knowing is in the schema, not here: `oxyUserId` is
- * `text`, though Mongoose declared it `Schema.Types.ObjectId, ref: 'User'`.
- * The declaration never matched what the writer stores — `routes/feedback.ts:36`
- * passes the opaque Oxy user id — so the cast Mongoose performed was incidental
- * and both sides of every comparison here are the same unconverted string.
+ * The one detail worth knowing is in the schema, not here: `oxyUserId` is
+ * `text`, because the writer (`routes/feedback.ts`) stores the opaque Oxy user
+ * id, so both sides of every comparison here are the same unconverted string.
  */
 
 import { and, desc, eq } from 'drizzle-orm';
@@ -18,10 +16,9 @@ export type FeedbackRow = typeof feedback.$inferSelect;
  * `new Feedback({...}); await feedback.save()` — `routes/feedback.ts:35-45`.
  *
  * The `metadata` sub-document arrives straight from the request body and is
- * destructured into its three declared fields. That reproduces Mongo's strict
- * mode, which silently DROPPED every other key: passing the object through to
- * a `jsonb` column would start persisting arbitrary unvalidated user input
- * that the source discarded.
+ * destructured into its three declared fields, and every other key is DROPPED:
+ * passing the object through to a `jsonb` column would persist arbitrary
+ * unvalidated user input.
  */
 export async function createFeedback(
   db: NiloDatabase,

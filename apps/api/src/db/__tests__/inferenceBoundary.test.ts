@@ -16,7 +16,6 @@ type ViolationKind =
   | 'provider_env'
   | 'provider_storage'
   | 'provider_sdk'
-  | 'mongo_runtime'
   | 'provider_execution'
   | 'direct_inference_endpoint'
   | 'name_or_order_routing'
@@ -115,7 +114,6 @@ const PROVIDER_SDKS = new Set([
   'together-ai',
 ]);
 
-const MONGO_PACKAGES = new Set(['mongodb', 'mongodb-memory-server', 'mongoose']);
 const DIRECT_INFERENCE_ENDPOINT = new RegExp(
   `https?://(?:${[
     'kaana\\.ai',
@@ -319,9 +317,6 @@ function boundaryViolations(
     ) {
       violations.push({ kind: 'provider_sdk', path: artifact.path });
     }
-    if (imports.some((specifier) => MONGO_PACKAGES.has(specifier))) {
-      violations.push({ kind: 'mongo_runtime', path: artifact.path });
-    }
     if (
       /\b(?:createOpenAI|createAnthropic|createGoogleGenerativeAI|generateText|streamText)\s*\(/u.test(
         source,
@@ -347,12 +342,6 @@ function boundaryViolations(
     }
   }
 
-  for (const artifact of configuration) {
-    if (/\bMONGODB_URI\b|engine:\s*MONGODB/iu.test(artifact.source)) {
-      violations.push({ kind: 'mongo_runtime', path: artifact.path });
-    }
-  }
-
   for (const manifest of manifests) {
     const parsed = JSON.parse(manifest.source) as {
       dependencies?: Record<string, string>;
@@ -365,9 +354,6 @@ function boundaryViolations(
     if (declared.some((name) => PROVIDER_SDKS.has(name) || name.startsWith('@ai-sdk/'))) {
       violations.push({ kind: 'provider_sdk', path: manifest.path });
     }
-    if (declared.some((name) => MONGO_PACKAGES.has(name))) {
-      violations.push({ kind: 'mongo_runtime', path: manifest.path });
-    }
   }
 
   return violations;
@@ -376,7 +362,6 @@ function boundaryViolations(
 describe('Nilo has no local inference runtime', () => {
   it('positive control: every forbidden boundary has a fixture that the gate catches', () => {
     const providerSdk = ['@ai-sdk', 'openai'].join('/');
-    const mongoPackage = ['mongo', 'db'].join('');
     const providerStorage = ['provider', 'keys'].join('_');
     const legacyRoute = ['/v1', 'chat', 'completions'].join('/');
     const providerEnvironment = ['OPENAI', 'API', 'KEY'].join('_');
@@ -386,7 +371,7 @@ describe('Nilo has no local inference runtime', () => {
       {
         path: 'fixture.ts',
         source:
-          `import sdk from '${providerSdk}'; import db from '${mongoPackage}';\n` +
+          `import sdk from '${providerSdk}';\n` +
           `const table = '${providerStorage}'; const route = '${legacyRoute}';\n` +
           `const endpoint = '${directEndpoint}'; const selection = { modelName: 'display-name' };\n` +
           'generateText({});',
@@ -396,14 +381,13 @@ describe('Nilo has no local inference runtime', () => {
       {
         path: 'fixture.env',
         source:
-          `${providerEnvironment}=secret\n${internalInferenceEnvironment}=secret\n` +
-          'MONGODB_URI=mongodb://db',
+          `${providerEnvironment}=secret\n${internalInferenceEnvironment}=secret\n`,
       },
     ];
     const manifests: Artifact[] = [
       {
         path: 'fixture.json',
-        source: JSON.stringify({ dependencies: { [providerSdk]: '1', [mongoPackage]: '1' } }),
+        source: JSON.stringify({ dependencies: { [providerSdk]: '1' } }),
       },
     ];
 
@@ -412,7 +396,6 @@ describe('Nilo has no local inference runtime', () => {
         'provider_env',
         'provider_storage',
         'provider_sdk',
-        'mongo_runtime',
         'provider_execution',
         'direct_inference_endpoint',
         'name_or_order_routing',

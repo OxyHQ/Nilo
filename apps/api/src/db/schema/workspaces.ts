@@ -69,10 +69,9 @@ export const workspaces = pgTable(
     /**
      * At most one personal workspace per owner.
      *
-     * This predicate is REAL and must be ported — it is not the `sparse: true`
-     * case. A Mongo sparse unique does not exclude a stored null and needs a
-     * partial predicate to behave; a Postgres unique is NULLS DISTINCT by
-     * default and needs none. Here the predicate carries meaning: a user may
+     * This predicate is REAL, not a null-collision workaround: a Postgres
+     * unique is NULLS DISTINCT by default and needs none for that. Here the
+     * predicate carries meaning: a user may
      * own many non-personal workspaces, so the uniqueness applies only to the
      * personal one.
      */
@@ -80,11 +79,8 @@ export const workspaces = pgTable(
       .on(t.ownerId)
       .where(sql`${t.isPersonal}`),
     /**
-     * The Mongoose `maxlength: 200` on this field genuinely ran — workspaces
-     * are written through `new Workspace(...).save()` and `ws.name = ...;
-     * save()`, never through `updateOne`/`findOneAndUpdate`, which skip
-     * validators. So it becomes a live constraint rather than being dropped as
-     * a validator that never fired.
+     * Workspace names are capped at `WORKSPACE_NAME_MAX` characters as a live
+     * constraint.
      */
     check('workspaces_name_length', sql`char_length(${t.name}) <= ${sql.raw(String(WORKSPACE_NAME_MAX))}`),
   ],
@@ -95,9 +91,8 @@ export const workspaceMembers = pgTable(
   {
     id: generatedId(),
     /**
-     * The port is where this stops being a convention and becomes structural:
-     * a member row pointing at a workspace that does not exist was always
-     * garbage, and Mongo simply could not say so. Cascade covers the hard
+     * A member row pointing at a workspace that does not exist is garbage,
+     * and the foreign key makes that structural. Cascade covers the hard
      * delete; the ordinary path soft-deletes the workspace and leaves members
      * in place.
      */

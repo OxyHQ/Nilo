@@ -138,11 +138,10 @@ function toViewRecord(row: DatabaseViewRow): DatabaseViewRecord {
 /**
  * `GET /databases?workspaceId=` — `routes/databases.ts:575-582`.
  *
- * `id` is a third sort key that Mongo's `sort({ updatedAt: -1 })` did not
- * have. Two databases touched in the same millisecond came back in an
- * arbitrary order there; porting that arbitrariness is not an option, so the
- * order is made total. It is stable rather than meaningful — a uuid v7 is not
- * monotonic within a millisecond.
+ * `id` is a third sort key. Two databases touched in the same millisecond would
+ * otherwise come back in an arbitrary order, so the order is made total. It is
+ * stable rather than meaningful — a uuid v7 is not monotonic within a
+ * millisecond.
  */
 export async function listDatabasesByWorkspace(
   handle: NiloHandle,
@@ -233,17 +232,14 @@ export interface UpdateDatabaseInput {
  *
  * The SET clause is built from DEFINED keys only. `icon` and `cover` are
  * explicitly nullable in the request schema, so `null` must be written and
- * `undefined` must not: in Mongo `$set: { icon: undefined }` is a no-op, while
- * the same statement in Postgres writes NULL and erases the value.
+ * `undefined` must not: writing an `undefined` key would write NULL and erase
+ * the value.
  *
  * A patch that sets nothing reads the row back rather than issuing an empty
- * UPDATE — which matches Mongoose, where `save()` with no modified path writes
- * nothing at all.
+ * UPDATE, so it writes nothing at all.
  *
  * Note that `updatedAt` moves on any UPDATE that reaches the database,
- * including one writing a field its current value — Mongoose's `save()`
- * skipped the write entirely in that case. That difference is general to this
- * port rather than particular to any one field.
+ * including one writing a field its current value.
  */
 export async function updateDatabase(
   handle: NiloHandle,
@@ -289,9 +285,9 @@ export async function writeDatabaseSchema(
 /**
  * `Database.deleteOne({ _id })` — `routes/databases.ts:774`.
  *
- * Returns whether a row was removed, read off the driver's row count. Mongo
- * reported `deletedCount`; the caller consumes neither, but "did this exist"
- * is the only useful answer a delete can give.
+ * Returns whether a row was removed, read off the driver's row count. The
+ * caller does not consume it, but "did this exist" is the only useful answer a
+ * delete can give.
  *
  * `database_views` rows go with it through `ON DELETE CASCADE`. The route also
  * deletes them explicitly first, which stays correct.
@@ -312,12 +308,11 @@ export async function deleteDatabase(handle: NiloHandle, id: string): Promise<bo
  * `routes/databases.ts:607-609, 695-697, 1110-1112` and the fallback promotion
  * at `:1276-1277`.
  *
- * `id` is a tiebreaker Mongo's `sort({ order: 1, createdAt: 1 })` did not
- * have. It matters more here than for databases: `created_at` defaults to
- * `date_trunc('milliseconds', now())`, so the two views a request creates back
- * to back routinely share a timestamp, and a uuid v7 is not monotonic within a
- * millisecond. Stable, not meaningful — but a list that reshuffles between two
- * identical requests is worse.
+ * `id` is a tiebreaker after `order` and `createdAt`. It matters more here than
+ * for databases: `created_at` defaults to `date_trunc('milliseconds', now())`,
+ * so the two views a request creates back to back routinely share a timestamp,
+ * and a uuid v7 is not monotonic within a millisecond. Stable, not meaningful —
+ * but a list that reshuffles between two identical requests is worse.
  */
 const VIEW_ORDER = [asc(databaseViews.order), asc(databaseViews.createdAt), asc(databaseViews.id)];
 
@@ -359,11 +354,11 @@ export async function findViewById(
  * `DatabaseView.findOne({ databaseId, isDefault: true })` —
  * `routes/databases.ts:946-949`.
  *
- * Mongo returned an arbitrary one of several defaults, and several ARE
- * reachable today: `POST /:id/views` (`:1149-1167`) honours `isDefault: true`
- * without demoting the existing default, unlike the PATCH route (`:1206-1213`).
- * Rather than port the arbitrariness this returns the first in the view
- * ordering, so the same database always resolves to the same default.
+ * Several defaults ARE reachable today: `POST /:id/views` (`:1149-1167`)
+ * honours `isDefault: true` without demoting the existing default, unlike the
+ * PATCH route (`:1206-1213`). Rather than return an arbitrary one, this returns
+ * the first in the view ordering, so the same database always resolves to the
+ * same default.
  */
 export async function findDefaultView(
   handle: NiloHandle,
@@ -504,10 +499,9 @@ export async function updateDatabaseView(
  * `DatabaseView.updateMany({ databaseId, _id: { $ne }, isDefault: true },
  * { $set: { isDefault: false } })` — `routes/databases.ts:1206-1213`.
  *
- * Returns the number of views demoted. Mongo reported both `matchedCount` and
- * `modifiedCount` and the route consumed neither; the two agree here anyway,
- * because `isDefault: true` is in the predicate, so every matched row is
- * changed.
+ * Returns the number of views demoted. The route does not consume it; matched
+ * and modified agree here anyway, because `isDefault: true` is in the
+ * predicate, so every matched row is changed.
  */
 export async function demoteOtherDefaultViews(
   handle: NiloHandle,

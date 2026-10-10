@@ -16,16 +16,15 @@ export type BlockRow = typeof blocks.$inferSelect;
  * `GET /api/pages/:pageId/blocks` — `routes/blocks.ts:426`, sorted
  * `{ parentBlockId: 1, order: 1, createdAt: 1 }`.
  *
- * `NULLS FIRST` is required and is not a stylistic choice. MongoDB's BSON type
- * ordering puts Null before ObjectId, so an ascending sort on `parentBlockId`
- * listed the page's top-level blocks first; Postgres orders ASC `NULLS LAST` by
- * default, which would put every top-level block at the END of the response.
+ * `NULLS FIRST` is required and is not a stylistic choice. The page's top-level
+ * blocks are listed first; Postgres orders ASC `NULLS LAST` by default, which
+ * would put every top-level block at the END of the response.
  * The client nests by `parentBlockId` and does not re-sort, so the difference
  * is visible in the editor.
  *
  * `id` is appended as a final tiebreak — `created_at` is millisecond-precision,
- * so blocks created in the same millisecond at the same order tied and the
- * resulting sequence was the storage engine's to choose.
+ * so blocks created in the same millisecond at the same order would otherwise
+ * tie and the resulting sequence would be the storage engine's to choose.
  */
 export async function listBlocksForPage(db: PgHandle, pageId: string): Promise<BlockRow[]> {
   return db
@@ -212,12 +211,8 @@ export interface ReorderResult {
   /**
    * Rows whose `order` actually changed.
    *
-   * This is NARROWER than the number the Mongo route reported, and the
-   * difference is deliberate. Mongoose stamps `updatedAt` onto every operation
-   * of a `bulkWrite`, so `Block.bulkWrite` (`routes/blocks.ts:661`) rewrote
-   * every matched document and its `modifiedCount` equalled `matchedCount`
-   * whether or not any block moved. Reporting that number here would mean
-   * rewriting rows that did not move purely to keep a count company, and
+   * Deliberately narrower than `matched`: reporting every matched row would
+   * mean rewriting rows that did not move purely to keep a count company, and
    * bumping their `updatedAt` — signal a collab layer reads. Nothing consumes
    * either field: the single caller discards the response body
    * (`apps/app/lib/hooks/use-blocks.ts:164`).
@@ -228,13 +223,9 @@ export interface ReorderResult {
 /**
  * `POST /api/pages/:pageId/blocks/reorder` — `routes/blocks.ts:654-667`.
  *
- * The route assigns each block its index in the submitted array. It validates
- * every input up front and says why: "Without MongoDB transactions (which
- * require a replica set and aren't assumed available), the inputs are fully
- * validated up-front to minimize the chance of a partial-write outcome"
- * (`routes/blocks.ts:613-617`). Postgres has the transaction, so the count and
- * the write happen inside one — the partial-write outcome the route could only
- * make unlikely is now impossible.
+ * The route assigns each block its index in the submitted array. The count and
+ * the write happen inside one transaction, so a partial-write outcome is
+ * impossible.
  *
  * Both counts are read with an explicit `::int`. `count(*)` is `bigint`, which
  * postgres.js decodes as a STRING while drizzle types it `number`; without the

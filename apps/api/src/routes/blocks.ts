@@ -395,12 +395,10 @@ const reorderSchema = z.object({
    *
    * Distinctness is enforced rather than left unspecified. The payload means
    * "this is the sequence", and a sequence cannot hold the same block twice —
-   * but both storage engines answered a duplicate ARBITRARILY, so neither
-   * behaviour is one to port. Mongo issued two `updateOne`s under
-   * `ordered: false`; Postgres joins against `(values ...)` and, where two rows
-   * match one block, applies an unspecified one of them. A 400 replaces an
-   * unspecified outcome with a stated one, and rejects nothing the editor
-   * sends — a repeated id there would mean an already-corrupted block list.
+   * Postgres joins against `(values ...)` and, where two rows match one block,
+   * would apply an unspecified one of them. A 400 replaces an unspecified
+   * outcome with a stated one, and rejects nothing the editor sends — a
+   * repeated id there would mean an already-corrupted block list.
    */
   blockIds: z
     .array(entityIdSchema)
@@ -664,12 +662,8 @@ router.delete('/blocks/:id', async (req: Request, res: Response) => {
  * Bulk reorder. All items must already belong to `pageId` — we verify
  * before issuing writes.
  *
- * The up-front validation used to carry a second job: "without MongoDB
- * transactions (which require a replica set and aren't assumed available), the
- * inputs are fully validated up-front to minimize the chance of a partial-write
- * outcome". That is no longer why it is here. `blocksRepository.reorderBlocks`
- * counts and writes inside one transaction, so the partial write this could
- * only make unlikely is now impossible; the validation survives to produce the
+ * `blocksRepository.reorderBlocks` counts and writes inside one transaction, so
+ * a partial write is impossible; the up-front validation exists to produce the
  * 404 and 400, not to narrow a window.
  */
 router.post('/pages/:pageId/blocks/reorder', async (req: Request, res: Response) => {
@@ -701,11 +695,8 @@ router.post('/pages/:pageId/blocks/reorder', async (req: Request, res: Response)
 
     // Order from frontend = index in blockIds array.
     //
-    // `modified` is NARROWER than the number the Mongo route reported, and the
-    // difference is deliberate — Mongoose stamped `updatedAt` onto every
-    // operation of the `bulkWrite`, so its `modifiedCount` equalled
-    // `matchedCount` whether or not a block had actually moved. `matched` keeps
-    // Mongo's `matchedCount` meaning, which is what Postgres's row count is.
+    // `matched` is the row count of submitted blocks on the page; `modified` is
+    // deliberately narrower — only the blocks whose `order` actually changed.
     // Neither field is read: the only caller discards the response body.
     const result = await reorderBlocks(db, page.id, body.blockIds);
 

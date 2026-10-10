@@ -23,7 +23,7 @@ import {
  * real server.
  *
  * Everything here is about a failure that CANNOT surface functionally: a CHECK
- * that admits what it exists to reject, a default that differs from Mongoose's,
+ * that admits what it exists to reject, a default that differs from the intended one,
  * an index that is simply absent. A route test would pass in every one of those
  * cases.
  */
@@ -225,7 +225,7 @@ describe('database_views_sorts_shape', () => {
 });
 
 describe('column defaults', () => {
-  it('reproduces every Mongoose default', async () => {
+  it('applies every column default', async () => {
     const [database] = await db
       .insert(databases)
       .values({ workspaceId, ownerId: 'owner-defaults' })
@@ -289,12 +289,12 @@ describe('columns', () => {
    * A `pgTable` can omit a column its writer writes with every other gate
    * green: `tsc` never mentions it (the insert simply does not name it), the
    * table exists so no read errors, and the symptom is a route returning an
-   * empty list. The expected sets below are read off `IDatabase` /
-   * `IDatabaseView` in the Mongoose models plus the two timestamp columns, so
-   * they are an INDEPENDENT statement of the field list rather than a
-   * restatement of the schema file.
+   * empty list. The expected sets below are written out by hand from the API's
+   * database and view fields plus the two timestamp columns, so they are an
+   * INDEPENDENT statement of the field list rather than a restatement of the
+   * schema file.
    */
-  it('databases has exactly the columns the Mongo document had', async () => {
+  it('databases has exactly the expected columns', async () => {
     const rows = await client.unsafe<{ column_name: string }[]>(
       `select column_name from information_schema.columns
        where table_schema = 'public' and table_name = 'databases'`,
@@ -317,7 +317,7 @@ describe('columns', () => {
     );
   });
 
-  it('database_views has exactly the columns the Mongo document had', async () => {
+  it('database_views has exactly the expected columns', async () => {
     const rows = await client.unsafe<{ column_name: string }[]>(
       `select column_name from information_schema.columns
        where table_schema = 'public' and table_name = 'database_views'`,
@@ -349,7 +349,7 @@ describe('indexes and foreign keys', () => {
    * An absent index is the one defect no functional test can detect — the rows
    * come back correct, by sequential scan.
    */
-  it('creates every index the Mongo model declared', async () => {
+  it('creates every expected index', async () => {
     const rows = await client.unsafe<{ indexname: string }[]>(
       `select indexname from pg_indexes
        where schemaname = 'public' and tablename in ('databases', 'database_views')`,

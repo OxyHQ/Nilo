@@ -177,9 +177,8 @@ describe('patching', () => {
     const ws = await createWorkspace(db, { name: 'Before', icon: 'x', ownerId: `${scope}-patch` });
 
     const updated = await updateWorkspace(db, ws.id, { name: 'After' });
-    // `$set: { icon: undefined }` is a no-op in Mongo and writes NULL in
-    // Postgres. This is the assertion that the port did not quietly erase a
-    // sibling field on every patch.
+    // An `undefined` field must be skipped, not written as NULL. This is the
+    // assertion that a patch does not quietly erase a sibling field.
     expect(updated).toMatchObject({ name: 'After', icon: 'x' });
   });
 

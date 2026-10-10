@@ -226,9 +226,8 @@ describe('comments repository', () => {
     });
 
     /**
-     * Deleting a PAGE takes its comments. Nothing in Mongo did this — all four
-     * hard-delete paths touched only Block and Page — but an orphan was
-     * unreachable through either list query, so collecting it changes nothing
+     * Deleting a PAGE takes its comments. An orphan would be unreachable
+     * through either list query, so collecting it changes nothing
      * observable.
      */
     it('deleting a page takes its comments', async () => {

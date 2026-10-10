@@ -15,19 +15,18 @@ import { workspaces } from './workspaces.js';
 /**
  * Pages and blocks — the document primitive and its content units.
  *
- * Ported from `src/models/page.ts` and `src/models/block.ts`. The conventions
+ * The conventions
  * (uuidv7 text ids, `text` + CHECK instead of `pgEnum`, `inList` rendering the
  * literal side without parentheses, column names derived by `DATABASE_CASING`)
  * are stated once in `workspaces.ts` and are not repeated here. What IS stated
- * here is every place the Mongo and Postgres semantics differ, because each one
- * is a decision somebody has to be able to check.
+ * here is every non-obvious storage decision, because each one is a decision
+ * somebody has to be able to check.
  */
 
 /**
  * Per-property value on a database row. The shape depends on the property's
  * declared type and is validated at the route boundary by
- * `lib/databases/property-values.ts`, never by the storage layer — the same
- * split the Mongoose `Map<string, Mixed>` had.
+ * `lib/databases/property-values.ts`, never by the storage layer.
  */
 export type PageProperties = Record<string, unknown>;
 
@@ -54,18 +53,16 @@ export const pages = pgTable(
      * every ARCHIVED page in the workspace, and archiving a page
      * (`routes/pages.ts:485`) stamps only that page — its children stay
      * `archived: false`. Under CASCADE, emptying the trash would destroy live
-     * descendants of an archived parent; under Mongo it left them in place with
-     * a dangling `parentId`. That is data loss introduced by the FK alone, and
-     * it is reachable today.
+     * descendants of an archived parent. That is data loss introduced by the
+     * FK alone, and it would be reachable.
      *
      * NO ACTION was the other candidate and is worse still: the same
      * trash-empty would abort with 23503, breaking a route that works.
      *
      * SET NULL keeps the row and surfaces it — the orphan becomes a root page
      * of its workspace instead of a child of a page that no longer exists,
-     * which is what a client tree-builder can actually render. It is a
-     * behaviour change against Mongo, in the direction of visibility rather
-     * than loss; `pagesRepository.deletePageTree` is unaffected because it
+     * which is what a client tree-builder can actually render — visibility
+     * rather than loss. `pagesRepository.deletePageTree` is unaffected because it
      * deletes the whole recursive set in ONE statement, so the referential
      * action finds no surviving child to null out (asserted, not assumed —
      * `pages.pgdb.test.ts`).
@@ -87,10 +84,9 @@ export const pages = pgTable(
      * /api/pages/:id` accepts `z.number().finite()`, so a client may write a
      * fractional order to insert between two neighbours without renumbering.
      *
-     * No `isfinite` CHECK. The Mongoose schema had no validator on this field,
-     * so a constraint here would be a NEW rule applied to rows nobody has
-     * checked — the opposite call from `coverPosition` below, whose `min`/`max`
-     * genuinely ran.
+     * No `isfinite` CHECK: the route's zod schema is the only validator on
+     * this field — the opposite call from `coverPosition` below, whose bounds
+     * are a storage constraint.
      */
     order: doublePrecision().notNull().default(0),
     /**
@@ -107,8 +103,7 @@ export const pages = pgTable(
     /**
      * Typed property values for a database row, keyed by propertyId.
      *
-     * The Mongoose field was `Map<string, Mixed>` defaulting to an empty Map,
-     * which serialises to `{}` — so `not null default '{}'`, never nullable.
+     * Defaults to an empty object — `not null default '{}'`, never nullable.
      * Writers must merge rather than replace: `PATCH /api/pages/:id` sets
      * individual keys on the existing map (`routes/pages.ts:413-424`), which is
      * `properties || $1::jsonb` here, and `DELETE
@@ -121,11 +116,10 @@ export const pages = pgTable(
   },
   (t) => [
     /**
-     * Ported from `PageSchema.index({ workspaceId: 1, parentId: 1, order: 1 })`.
-     * Serves the tree listing, and its `workspaceId` prefix subsumes the
-     * standalone `workspaceId: index: true` the Mongoose schema also declared —
-     * a leading-column prefix is a usable access path in Postgres, so the
-     * single-column index would only cost writes.
+     * Serves the tree listing, and its `workspaceId` prefix subsumes a
+     * standalone `workspaceId` index — a leading-column prefix is a usable
+     * access path in Postgres, so a single-column index would only cost
+     * writes.
      */
     index('pages_workspace_parent_order_idx').on(t.workspaceId, t.parentId, t.order),
     /** Ported from `PageSchema.index({ workspaceId: 1, archived: 1 })`. */
@@ -136,16 +130,10 @@ export const pages = pgTable(
      */
     index('pages_database_archived_created_idx').on(t.databaseId, t.archived, t.createdAt),
     /**
-     * NOT in the Mongoose schema, and required by this schema rather than
-     * inherited from it.
-     *
-     * `parentId` is now both a foreign key and the recursion column of every
+     * `parentId` is both a foreign key and the recursion column of every
      * tree walk (`deletePageTree`, `findPageAncestry`). An unindexed FK
      * referencing column makes each parent DELETE a sequential scan to run the
-     * SET NULL action, and each level of a recursive CTE another one. Mongo had
-     * neither obligation — its own descendant BFS
-     * (`routes/pages.ts:506`) queries `parentId` with no `workspaceId`, so it
-     * matched no index there either and simply scanned.
+     * SET NULL action, and each level of a recursive CTE another one.
      */
     index('pages_parent_idx').on(t.parentId),
     /**
@@ -164,16 +152,12 @@ export const pages = pgTable(
      * loads a database's rows and filters them in JS
      * (`routes/databases.ts:955-980`). This index exists for the property
      * filtering that replaces that scan, and is the one entry here that is
-     * ahead of its reader rather than ported from Mongo.
+     * ahead of its reader.
      */
     index('pages_properties_gin_idx').using('gin', t.properties),
     /**
-     * The Mongoose `min: 0, max: 100` on `coverPosition` genuinely ran: the only
-     * writer is `page.coverPosition = ...; await page.save()`
-     * (`routes/pages.ts:387,439`), and `save()` runs validators. So it becomes a
-     * live constraint rather than being dropped as a validator that never
-     * fired. `between` also rejects `'NaN'::double precision`, which the
-     * Mongoose validator did not.
+     * `coverPosition` is bounded to 0..100 as a live constraint. `between`
+     * also rejects `'NaN'::double precision`.
      */
     check(
       'pages_cover_position_range',
@@ -184,12 +168,6 @@ export const pages = pgTable(
 
 /**
  * Every block type the editor persists.
- *
- * Declared here rather than imported from `src/models/block.ts`: the Mongoose
- * model is what this schema replaces, and pulling it into the drizzle schema
- * graph would make `drizzle-kit` load mongoose. The two lists must agree for as
- * long as both exist, which is asserted by `blocks.pgdb.test.ts` — a drift gate
- * that retires with the model file.
  */
 export const BLOCK_TYPES = [
   'paragraph',
@@ -230,7 +208,7 @@ export type BlockType = (typeof BLOCK_TYPES)[number];
 /**
  * Block payload. Per-type shape lives in `routes/blocks.ts`, which normalises
  * every write through Zod — the storage layer holds the object and validates
- * nothing about it, exactly as the Mongoose `Mixed` did.
+ * nothing about it.
  */
 export type BlockContent = Record<string, unknown>;
 
@@ -287,23 +265,18 @@ export const blocks = pgTable(
   },
   (t) => [
     /**
-     * Ported from `BlockSchema.index({ pageId: 1, parentBlockId: 1, order: 1 })`.
-     * Its `pageId` prefix subsumes the standalone `pageId: index: true` the
-     * Mongoose schema also declared.
+     * Its `pageId` prefix subsumes a standalone `pageId` index.
      */
     index('blocks_page_parent_order_idx').on(t.pageId, t.parentBlockId, t.order),
     /**
-     * NOT in the Mongoose schema. Same argument as `pages_parent_idx`:
-     * `parentBlockId` is now a foreign key with a referential action and the
+     * Same argument as `pages_parent_idx`:
+     * `parentBlockId` is a foreign key with a referential action and the
      * recursion column of `deleteBlockTree`.
      */
     index('blocks_parent_block_idx').on(t.parentBlockId),
     /**
-     * The Mongoose `enum: BLOCK_TYPES` genuinely ran — every write is
-     * `Block.create()`, `block.save()` or `Block.insertMany()`
-     * (`routes/blocks.ts:485,563`, `routes/pages.ts:580`), all of which run
-     * validators. The one write that does not, the reorder `bulkWrite`
-     * (`routes/blocks.ts:661`), sets only `order`.
+     * Every block's `type` is one of `BLOCK_TYPES`. The reorder write
+     * (`routes/blocks.ts`) sets only `order` and never touches it.
      */
     check('blocks_type', sql`${t.type} in (${sql.raw(inList(BLOCK_TYPES))})`),
   ],

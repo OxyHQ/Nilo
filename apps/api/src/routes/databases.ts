@@ -363,9 +363,8 @@ interface RowSerializationOpts {
 }
 
 /**
- * A row is a page. `id` is the only id on the wire — the `_id` this used to
- * emit alongside it was the Mongo primary key under its storage name, and
- * carrying it forward would publish a field no row has.
+ * A row is a page. `id` is the only id on the wire; there is no `_id` field,
+ * because no row has one.
  */
 function serializeRow(row: PageRow, opts?: RowSerializationOpts) {
   const properties: Record<string, unknown> = { ...row.properties };
@@ -485,9 +484,9 @@ async function resolveDerivedProperties(
  * The view every new database is created with.
  *
  * Takes a handle rather than reaching for the pool: `POST /databases` creates
- * the database and this view in ONE transaction. Under Mongo they were two
- * independent writes, so a failure between them left a database with no views
- * at all — a state the rest of the route refuses to produce (`DELETE
+ * the database and this view in ONE transaction, so a failure between them
+ * cannot leave a database with no views at all — a state the rest of the route
+ * refuses to produce (`DELETE
  * /:id/views/:viewId` will not remove the last one). This makes the storage
  * uphold an invariant the code already tried to hold; it does not invent one.
  */
@@ -740,11 +739,10 @@ router.delete('/:id', async (req: Request, res: Response) => {
         res.status(403).json({ error: 'Hard delete requires workspace owner role' });
         return;
       }
-      // Rows, views and the database leave together. Under Mongo these were
-      // four independent `deleteMany` calls, so a failure part-way left rows
-      // pointing at a database that no longer existed. Blocks go with their
-      // rows through `blocks.pageId ON DELETE CASCADE`, which is why the
-      // route's explicit `Block.deleteMany` has no counterpart.
+      // Rows, views and the database leave together, so a failure part-way
+      // cannot leave rows pointing at a database that no longer exists. Blocks
+      // go with their rows through `blocks.pageId ON DELETE CASCADE`, so there
+      // is no explicit block delete.
       await handle.transaction(async (tx) => {
         await deleteDatabaseRows(tx, db.id);
         await deleteViewsByDatabase(tx, db.id);
@@ -1174,8 +1172,8 @@ router.patch(
       }
 
       // Promoting a view and demoting the previous default(s) commit
-      // together — Mongo demoted first and saved the target afterwards, so a
-      // failure between the two left the database with no default at all.
+      // together, so a failure between the two cannot leave the database with
+      // no default at all.
       const updated = await handle.transaction(async (tx) => {
         if (body.isDefault) {
           await demoteOtherDefaultViews(tx, db.id, view.id);

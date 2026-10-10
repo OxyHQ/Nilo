@@ -42,8 +42,8 @@ function toPushTokenRow(row: typeof pushTokens.$inferSelect): PushTokenRow {
  * `routes/notifications.ts:139-147`): a request that omits `deviceId` must not
  * erase the one recorded when the device first registered. `coalesce(excluded.…,
  * push_tokens.…)` is that rule in SQL — an omitted field arrives as NULL and the
- * stored value wins. As in Mongo, there is consequently no way to CLEAR either
- * field through this path.
+ * stored value wins. There is consequently no way to CLEAR either field through
+ * this path.
  *
  * `excluded.<column>` is spelled through `sqlColumnName`, not by interpolating
  * the column object: drizzle would emit the JavaScript PROPERTY name, so
@@ -83,9 +83,7 @@ export async function upsertPushToken(
 /**
  * Deactivate one user's registration of a token.
  *
- * Returns the row count. The route 404s on zero, which is Mongo's
- * `matchedCount === 0` — and Postgres's row count is the `matchedCount`
- * analogue, so the mapping is direct rather than incidental here.
+ * Returns the row count — the number of matched rows. The route 404s on zero.
  */
 export async function deactivatePushToken(
   db: NiloDatabase,
@@ -103,14 +101,9 @@ export async function deactivatePushToken(
 /**
  * Deactivate EVERY registration of a token, across users.
  *
- * DIVERGENCE, chosen deliberately. The source is
- * `PushToken.updateOne({ token }, { $set: { active: false } })`
- * (`lib/notification-service.ts:168`), and Mongo's `updateOne` touches at most
- * ONE document — so when two users had registered the same device, which of them
- * lost the token depended on which document the query happened to reach first.
- * That arbitrariness cannot be ported faithfully and should not be: the caller
- * is handling a `DeviceNotRegistered` receipt, which means the device is gone
- * for everyone, so every row naming it is stale.
+ * Chosen deliberately: the caller (`lib/notification-service.ts`) is handling a
+ * `DeviceNotRegistered` receipt, which means the device is gone for everyone,
+ * so every row naming it is stale.
  */
 export async function deactivatePushTokenEverywhere(
   db: NiloDatabase,
@@ -152,8 +145,7 @@ export async function listActivePushTokens(
 /**
  * Whether a user has any active token — the channel-resolution check.
  *
- * `PushToken.exists(...)` in Mongo returned a document stub or null; this
- * returns a boolean. A permission-shaped question is answered with a boolean
+ * Returns a boolean. A permission-shaped question is answered with a boolean
  * rather than a row on purpose: nothing downstream can leak a value it was never
  * handed.
  */

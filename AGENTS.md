@@ -11,8 +11,8 @@ in issues. This file holds only rules, commands, and pointers. Budget: under
 ## Runtime boundaries
 
 - PostgreSQL through Drizzle is the only application database. `DATABASE_URL`
-  is required and the API verifies it before listening. Never add MongoDB,
-  Mongoose, an in-memory database fallback, or a second persistence path.
+  is required and the API verifies it before listening. Never add another
+  database, an in-memory database fallback, or a second persistence path.
 - Nilo owns workspace documents, databases, collaboration, uploads,
   notifications, and feedback. It does not own inference routing, provider
   adapters, provider health, model catalogues, or provider credentials.

@@ -120,7 +120,7 @@ describe('blocks repository (real database)', () => {
   });
 
   describe('createBlock', () => {
-    it('round-trips content and applies the Mongoose defaults', async () => {
+    it('round-trips content and applies the column defaults', async () => {
       const content = { text: 'hello', segments: [{ text: 'hello', bold: true }], color: 'blue' };
       const block = await createBlock(db, { pageId, type: 'paragraph', content, order: 2 });
       expect(block.parentBlockId).toBeNull();
@@ -137,11 +137,9 @@ describe('blocks repository (real database)', () => {
 
   describe('listBlocksForPage', () => {
     /**
-     * The MongoDB→Postgres null-ordering divergence, pinned. BSON orders Null
-     * before ObjectId, so `sort({ parentBlockId: 1 })` listed top-level blocks
-     * FIRST; Postgres ASC is NULLS LAST by default and would list them last.
-     * Dropping `nulls first` from the repository moves both roots to the end of
-     * this array.
+     * Null ordering, pinned. Top-level blocks are listed FIRST; Postgres ASC is
+     * NULLS LAST by default and would list them last. Dropping `nulls first`
+     * from the repository moves both roots to the end of this array.
      */
     it('lists top-level blocks before nested ones, then by order', async () => {
       const page = await seedPage();
@@ -366,9 +364,8 @@ describe('blocks repository (real database)', () => {
       const settled = await reorderBlocks(db, page, [first.id, second.id]);
       expect(settled).toEqual({ matched: 2, modified: 0 });
 
-      // A row that did not move keeps its `updatedAt`. Mongoose stamped one on
-      // every operation of a bulkWrite; this port does not rewrite a row it did
-      // not change.
+      // A row that did not move keeps its `updatedAt`: the reorder does not
+      // rewrite a row it did not change.
       const after = await findBlockById(db, first.id);
       expect(after?.updatedAt.getTime()).toBe(before?.updatedAt.getTime());
 

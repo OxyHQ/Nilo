@@ -105,12 +105,11 @@ describe('shareLinks repository', () => {
 
   describe('token collisions', () => {
     /**
-     * The route retries with a fresh token. Mongo signalled a collision by
-     * throwing `code: 11000`; catching the Postgres exception instead cannot
-     * tell a duplicate key from a dropped connection, so a network failure
-     * would be silently retried as if the token were taken. `on conflict do
-     * nothing returning` makes the empty result the signal and lets a genuine
-     * failure propagate.
+     * The route retries with a fresh token. Catching a unique-violation
+     * exception cannot tell a duplicate key from a dropped connection, so a
+     * network failure would be silently retried as if the token were taken.
+     * `on conflict do nothing returning` makes the empty result the signal and
+     * lets a genuine failure propagate.
      */
     it('returns null rather than throwing', async () => {
       const token = `${scope}-collide`;
