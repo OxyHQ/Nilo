@@ -350,7 +350,7 @@ function RichEditableWeb(props: RichEditableProps, ref: React.Ref<unknown>) {
       getSelection: getSelectionRange,
       setSelection: setSelectionRange,
     }),
-    [getSelectionRange, setSelectionRange, handleRef],
+    [getSelectionRange, setSelectionRange],
   );
 
   // Initial DOM render — runs once because lastRenderedRef is empty.
@@ -593,7 +593,7 @@ function RichEditableNative(props: RichEditableProps, ref: React.Ref<unknown>) {
         selectionRef.current = range;
       },
     }),
-    [handleRef],
+    [],
   );
 
   const setRef = (i: TextInput | null) => {

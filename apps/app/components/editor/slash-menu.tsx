@@ -260,6 +260,7 @@ export function SlashMenu({ open, query, onSelect, onClose }: SlashMenuProps) {
   }, [filtered]);
 
   const [activeIndex, setActiveIndex] = React.useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: query is the trigger, not an input; the highlight resets to the first match whenever the typed query changes
   React.useEffect(() => {
     setActiveIndex(0);
   }, [query]);

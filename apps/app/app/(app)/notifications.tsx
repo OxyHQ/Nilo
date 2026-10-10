@@ -59,8 +59,9 @@ export default function NotificationsScreen() {
     if (!isAuthenticated) {
       router.replace('/(app)');
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, router]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a mount-only permission check; checkPermissions is recreated every render and sets state, so depending on it would re-run it on every render
   useEffect(() => {
     checkPermissions();
   }, []);
