@@ -240,12 +240,9 @@ describe('notifications repository', () => {
     });
 
     /**
-     * A REPEATED call is the discriminator between Mongo's `matchedCount` and
-     * its `modifiedCount`, and the two answers differ here: 1 is `matchedCount`,
-     * 0 would be `modifiedCount` under the reading where an unchanged document
-     * is not modified. 1 is correct, because mongoose adds `updatedAt` to every
-     * `updateOne` on a `{ timestamps: true }` schema, so the source document IS
-     * modified on the second dismiss too.
+     * A REPEATED call reports the matched row, not zero: the update stamps
+     * `updatedAt` every time, so the row IS modified on the second dismiss
+     * too.
      */
     it('a second dismiss still reports one matched row', async () => {
       const created = await newNotification({ status: 'sent' });
@@ -291,9 +288,9 @@ describe('notifications repository', () => {
 
     /**
      * The containment CHECK is vacuously true for an empty array. Accepted
-     * deliberately — Mongo's `channels` was not `required` and accepted `[]`
-     * too — and asserted so that a later "tighten it to require at least one"
-     * has to be a decision rather than a drive-by.
+     * deliberately — `channels` is not required — and asserted so that a later
+     * "tighten it to require at least one" has to be a decision rather than a
+     * drive-by.
      */
     it('accepts an empty channel list', async () => {
       const created = await newNotification({ channels: [] });
@@ -363,10 +360,10 @@ describe('notifications repository', () => {
     });
 
     /**
-     * Mongo's TTL measured from `createdAt` and reaped as soon as the document
-     * was dismissed, however old it already was. The generated column keeps
-     * that clock: dismissing a 100-day-old notification makes it immediately
-     * eligible, rather than starting a fresh 90 days.
+     * Retention is measured from `createdAt`, and a notification is reaped as
+     * soon as it is dismissed, however old it already was. The generated column
+     * keeps that clock: dismissing a 100-day-old notification makes it
+     * immediately eligible, rather than starting a fresh 90 days.
      */
     it('reaps an already-old notification as soon as it is dismissed', async () => {
       const sweepUser = `${scope}-sweep-clock`;

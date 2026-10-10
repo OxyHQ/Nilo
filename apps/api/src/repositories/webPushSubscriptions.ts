@@ -6,8 +6,8 @@
  * named for one table that quietly writes another is exactly what makes a later
  * writer-versus-columns audit miss something.
  *
- * The reassembly is the part that matters. `keys` was a Mongo sub-document and
- * is two columns here, so `webPush.sendNotification({ endpoint, keys })`
+ * The reassembly is the part that matters. `keys` is an object on the wire and
+ * two columns here, so `webPush.sendNotification({ endpoint, keys })`
  * (`lib/notification-service.ts:253-256`) gets `keys` rebuilt below. Hand it a
  * raw row instead and `sub.keys` is `undefined` — which surfaces as a malformed
  * subscription from the web-push library, not as a missing column.
@@ -91,7 +91,7 @@ export async function upsertWebPushSubscription(
 
 /**
  * Deactivate a user's subscription to one endpoint. Returns the row count; the
- * route 404s on zero, matching Mongo's `matchedCount === 0`.
+ * route 404s on zero.
  */
 export async function deactivateWebPushSubscription(
   db: NiloDatabase,

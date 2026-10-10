@@ -26,15 +26,14 @@ import type { WorkspaceRole } from '../db/schema/workspaces.js';
  *
  * ## What is mocked, and what that costs
  *
- * The two middlewares and the logger — nothing that touches Postgres.
- * `authenticateToken` reaches Oxy and `requireWorkspaceMember` reads the Mongo
- * `Workspace` / `WorkspaceMember` models; the logger is mocked for the reason
- * given at its `vi.mock`. Membership is the workspaces domain and is still
- * on Mongo, so it is not under test here — but the mock does resolve the
- * workspace id the same way the real middleware does (param, then query, then
- * the `X-Workspace-Id` header) and refuses a workspace the caller is not a
- * member of, because several route paths depend on `checkWorkspaceMembership`
- * rejecting rather than passing.
+ * The two middlewares and the logger. `authenticateToken` reaches Oxy and
+ * `requireWorkspaceMember` resolves membership; the logger is mocked for the
+ * reason given at its `vi.mock`. Membership is the workspaces domain, so it is
+ * not under test here — but the mock does resolve the workspace id the same way
+ * the real middleware does (param, then query, then the `X-Workspace-Id`
+ * header) and refuses a workspace the caller is not a member of, because
+ * several route paths depend on `checkWorkspaceMembership` rejecting rather
+ * than passing.
  *
  * Every assertion is scoped to a workspace, database or page id this file
  * created: the suite shares one database with every other `*.pgdb.test.ts`.

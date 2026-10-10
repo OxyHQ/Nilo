@@ -162,12 +162,9 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
     const userId = req.user.id;
     const { name, icon } = parsed.data;
 
-    // ONE transaction, replacing a two-step create with a hand-rolled
-    // rollback. That rollback existed because Mongo transactions need a
-    // replica set the dev environment does not assume — but it leaves a real
-    // window: if the process dies between the two saves, the workspace exists
-    // with no owner and nobody can reach it or delete it. Postgres has real
-    // transactions, so the window closes rather than narrows.
+    // ONE transaction: if the process died between the two writes, the
+    // workspace would exist with no owner and nobody could reach it or delete
+    // it. The transaction closes that window.
     const db = getDb();
     const workspace = await db.transaction(async (tx) => {
       const created = await createWorkspace(tx, {
@@ -583,9 +580,8 @@ router.delete(
         return;
       }
 
-      // `removeMember` reports off RETURNING. Mongo gave `deletedCount`;
-      // Postgres gives only `rowCount`, and `rows.length` on a bare DELETE is
-      // 0 whether or not anything went.
+      // `removeMember` reports off RETURNING: `rows.length` on a bare DELETE
+      // is 0 whether or not anything went.
       const removed = await removeMember(getDb(), req.workspaceDoc.id, targetUserId);
       if (!removed) {
         res.status(404).json({ error: 'Member not found' });

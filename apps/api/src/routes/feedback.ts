@@ -19,10 +19,7 @@ const VALID_TYPES = ['bug', 'feature', 'improvement', 'other'];
 /**
  * The wire shape. `id`, never `_id` — and `metadata` is reassembled from the
  * three columns the sub-document became, so a client keeps reading one object
- * rather than three sibling keys.
- *
- * The list and detail routes used to `res.json(doc)` a Mongoose document, which
- * emitted `_id` and `__v` as well. Both are gone; this is the clean cut.
+ * rather than three sibling keys. No `_id` or `__v` is emitted.
  */
 function serializeFeedback(row: FeedbackRow) {
   return {
@@ -66,10 +63,9 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    // The repository destructures `metadata` into its three declared fields,
-    // reproducing Mongoose strict mode, which silently DROPPED every other key.
-    // This body is unvalidated user input; passing it through whole would start
-    // persisting what the source discarded.
+    // The repository destructures `metadata` into its three declared fields
+    // and silently DROPS every other key. This body is unvalidated user input;
+    // passing it through whole would persist it.
     const feedback = await createFeedback(getDb(), {
       oxyUserId: req.user!.id,
       type,
@@ -118,10 +114,8 @@ router.get('/:id', async (req, res) => {
     // The owner is part of the WHERE clause, so another user's feedback is a
     // miss rather than a row this handler has to remember to reject.
     //
-    // An id of the wrong SHAPE now 404s where Mongoose raised a CastError and
-    // the catch turned it into a 500. `id` is a `text` column, so there is no
-    // cast to fail — loud becomes quiet, and 404 is the right answer for
-    // "no such feedback".
+    // An id of the wrong SHAPE 404s. `id` is a `text` column, so there is no
+    // cast to fail, and 404 is the right answer for "no such feedback".
     const feedback = await findFeedbackByIdForUser(getDb(), req.params.id, req.user!.id);
 
     if (!feedback) {

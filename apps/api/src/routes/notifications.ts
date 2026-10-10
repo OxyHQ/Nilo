@@ -31,11 +31,9 @@ const MAX_PAGE_SIZE = 100;
 /**
  * A finite, non-negative integer, or the fallback.
  *
- * The source passed `Number(req.query.limit)` straight into `.limit()`, and
- * `Number('abc')` is `NaN`. Mongo treated a `NaN` limit as "no limit" and a
- * `NaN` skip as zero; Postgres rejects `LIMIT NaN` outright, so the same request
- * that quietly returned the whole table would now 500. Neither is the intent —
- * a malformed page parameter should fall back to the default it already has.
+ * `Number('abc')` is `NaN`, and Postgres rejects `LIMIT NaN` outright, so
+ * passing `Number(req.query.limit)` straight through would 500. A malformed
+ * page parameter falls back to the default it already has instead.
  */
 function pageParam(value: unknown, fallback: number, max?: number): number {
   const parsed = Number(value);
@@ -167,8 +165,7 @@ router.post('/push-token', async (req: Request, res: Response) => {
 
     // Upsert: if user already registered this token, just reactivate it.
     // An omitted `deviceId` or `platform` leaves the stored value alone, which
-    // is what the source's conditional spread did — there is no way to CLEAR
-    // either through this path, in Mongo or here.
+    // so there is no way to CLEAR either through this path.
     const pushToken = await upsertPushToken(getDb(), {
       oxyUserId: userId,
       token,
@@ -195,8 +192,7 @@ router.delete('/push-token', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Push token is required' });
     }
 
-    // Row count, which is Mongo's `matchedCount` analogue — the count this
-    // route has always branched on.
+    // Row count — the number of matched rows, which this route branches on.
     const matched = await deactivatePushToken(getDb(), userId, token);
 
     if (matched === 0) {

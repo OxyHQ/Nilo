@@ -35,10 +35,10 @@ function toShareLinkRow(row: typeof shareLinks.$inferSelect): ShareLinkRow {
  * Insert a share link, or report a token collision by returning null.
  *
  * The route retries with a freshly generated token up to five times
- * (`routes/share-links.ts:144-155`). Mongo signalled the collision by THROWING
- * `code: 11000`, and the naive port — catching the Postgres exception — cannot
- * tell a duplicate key from a dropped connection, so a network blip would be
- * read as "that token is taken, try another" and the real failure would vanish.
+ * (`routes/share-links.ts:144-155`). The naive approach — catching the
+ * unique-violation exception — cannot tell a duplicate key from a dropped
+ * connection, so a network blip would be read as "that token is taken, try
+ * another" and the real failure would vanish.
  *
  * `on conflict do nothing returning` makes the empty result the answer instead:
  * a collision returns null and the caller retries, while an infrastructure

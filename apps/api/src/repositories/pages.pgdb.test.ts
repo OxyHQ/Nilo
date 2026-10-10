@@ -153,7 +153,7 @@ describe('pages repository (real database)', () => {
       ).rejects.toSatisfy(isForeignKeyViolation);
     });
 
-    it('enforces the coverPosition bounds the Mongoose validator enforced', async () => {
+    it('enforces the coverPosition bounds', async () => {
       const withinBounds = await seedPage();
       await expect(updatePage(db, withinBounds.id, { coverPosition: 0 })).resolves.toBeDefined();
       await expect(
@@ -165,7 +165,7 @@ describe('pages repository (real database)', () => {
       await expect(updatePage(db, withinBounds.id, { coverPosition: -1 })).rejects.toSatisfy(
         isCheckViolation,
       );
-      // `between` rejects NaN, which the Mongoose min/max pair did not.
+      // `between` rejects NaN as well.
       await expect(
         updatePage(db, withinBounds.id, { coverPosition: Number.NaN }),
       ).rejects.toSatisfy(isCheckViolation);
@@ -174,7 +174,7 @@ describe('pages repository (real database)', () => {
   });
 
   describe('createPage', () => {
-    it('applies the defaults the Mongoose schema applied', async () => {
+    it('applies the column defaults', async () => {
       const page = await seedPage();
       expect(page.title).toBe('');
       expect(page.icon).toBeNull();
@@ -314,13 +314,12 @@ describe('pages repository (real database)', () => {
 
       const renamed = await updatePage(db, page.id, { title: 'after', icon: undefined });
       expect(renamed?.title).toBe('after');
-      // The Mongo hazard as a CONTRACT: `$set: { icon: undefined }` was a no-op
-      // and the same statement in Postgres writes NULL, so `undefined` must not
-      // erase. Measured caveat, so this is not read as more than it is: drizzle
-      // drops undefined values from `.set()` on its own, so this assertion
-      // holds with or without the repository's explicit guards. The guard is
-      // pinned instead by the empty-patch assertion below, which asserts the
-      // repository's OWN message.
+      // The hazard as a CONTRACT: writing an `undefined` key would write NULL,
+      // so `undefined` must not erase. Measured caveat, so this is not read as
+      // more than it is: drizzle drops undefined values from `.set()` on its
+      // own, so this assertion holds with or without the repository's explicit
+      // guards. The guard is pinned instead by the empty-patch assertion below,
+      // which asserts the repository's OWN message.
       expect(renamed?.icon).toBe('star');
       expect(renamed?.cover).toBe('gradient');
 

@@ -20,32 +20,21 @@ import { workspaces } from './workspaces.js';
  *
  * ## The domain types live here
  *
- * `DatabaseProperty`, `Filter`, `DATABASE_PROPERTY_TYPES` and the rest were
- * declared in `src/models/database.ts` / `src/models/database-view.ts` and are
+ * `DatabaseProperty`, `Filter`, `DATABASE_PROPERTY_TYPES` and the rest are
  * imported — type-only — by `src/lib/databases/{filters,sorts,formula,rollups,
  * property-values,schema-defaults}.ts`, which are pure functions over parsed
- * values and carry over unchanged. Those importers break the build the moment
- * the Mongoose model files are deleted, so the declarations move HERE rather
- * than being duplicated or re-exported: the jsonb columns need them for
- * `$type<>()` anyway, so this file is where they are structurally required, and
- * one declaration with one owner is what makes the cutover a clean cut. At
- * cutover each importer's path changes from `../../models/database.js` to
- * `../../db/schema/databases.js` and the model files are deleted; nothing else
- * about those modules changes.
+ * values. They are declared HERE rather than duplicated or re-exported: the
+ * jsonb columns need them for `$type<>()` anyway, so this file is where they
+ * are structurally required, and each has one declaration with one owner.
  *
  * ## What became a CHECK and what did not
  *
- * A Mongoose validator that never RAN must not become a constraint that does,
- * and the discriminator here is mechanical: fields declared
- * `Schema.Types.Mixed` (`filters`, `groupBy`, `config`, and a property's
- * `config`) carried NO validator at all, so they get no CHECK. Fields declared
- * with a typed sub-schema (`propertiesSchema`, `sorts`) and the top-level
- * `type` enum were written exclusively through `.create()` and `doc.save()` —
- * never `updateOne`/`findOneAndUpdate`, which skip validators — so those
- * genuinely fired and are ported. `name`/`icon`/`cover` lengths are capped by
- * zod at the route boundary but had no Mongoose `maxlength`, so unlike
- * `workspaces.name` they get no CHECK; adding one would invent an invariant
- * the running system does not hold.
+ * Free-form fields (`filters`, `groupBy`, `config`, and a property's
+ * `config`) are validated at the route boundary only, so they get no CHECK.
+ * Fields with a typed structure (`propertiesSchema`, `sorts`) and the
+ * top-level `type` enum are constrained here. `name`/`icon`/`cover` lengths
+ * are capped by zod at the route boundary only, so unlike `workspaces.name`
+ * they get no CHECK.
  */
 
 // ---------------------------------------------------------------------------
@@ -131,8 +120,8 @@ export interface DatabaseProperty {
 
 /**
  * Stored as `properties_schema`, not `schema`: the field is named
- * `propertiesSchema` throughout because on a Mongoose document `schema` is the
- * collection's Schema. The wire format still exposes it as `schema`, which is
+ * `propertiesSchema` throughout so it cannot be confused with a database
+ * schema. The wire format still exposes it as `schema`, which is
  * the route's serializer's business and not this table's.
  */
 export interface DatabaseSchema {
@@ -154,10 +143,8 @@ export const DATABASE_VIEW_TYPES = [
 export type DatabaseViewType = (typeof DATABASE_VIEW_TYPES)[number];
 
 /**
- * Declared as a tuple, unlike the union the Mongoose model wrote by hand, so
- * the CHECK below and the TypeScript type are derived from one list. The
- * Mongoose sub-schema spelled `enum: ['asc', 'desc']` separately from the
- * `SortDirection` union; that is exactly the drift this avoids.
+ * Declared as a tuple so the CHECK below and the TypeScript type are derived
+ * from one list and cannot drift.
  */
 export const SORT_DIRECTIONS = ['asc', 'desc'] as const;
 export type SortDirection = (typeof SORT_DIRECTIONS)[number];
@@ -173,8 +160,7 @@ export interface ViewSort {
  *  - `group`: branch — combines child filters via AND/OR.
  *
  * Persisted as plain JSON; validation happens at the route boundary
- * (`src/lib/databases/filters.ts`). The column carries no CHECK because the
- * Mongoose field was `Schema.Types.Mixed` and validated nothing.
+ * (`src/lib/databases/filters.ts`). The column carries no CHECK.
  */
 export interface FilterCondition {
   kind: 'condition';
@@ -220,7 +206,7 @@ export const EMPTY_FILTER_GROUP: FilterGroup = {
   filters: [],
 };
 
-/** Mongoose's `pageSize` default. */
+/** The default `pageSize` of a view. */
 export const DEFAULT_VIEW_PAGE_SIZE = 50;
 
 // ---------------------------------------------------------------------------
@@ -334,16 +320,12 @@ export const databases = pgTable(
      */
     parentPageId: text(),
     /**
-     * Soft delete — a boolean, matching `models/database.ts:194`.
+     * Soft delete — a boolean.
      *
      * NOT `archivedAt`, despite `workspaces.archivedAt` sitting next door.
-     * That column is a faithful port of a field Mongo genuinely stores as a
-     * Date (`models/workspace.ts:43`), not a house convention about how soft
-     * deletes are represented. This model has a boolean and no companion
-     * timestamp anywhere, so a timestamp here would be a fact the backfill
-     * cannot supply: an already-archived row has no true `archived_at`, only
-     * the migration instant or `updatedAt`, and both are lies that a future
-     * trash auto-purge would act on.
+     * That column is not a house convention about how soft deletes are
+     * represented. An already-archived database has no true `archived_at`,
+     * only `updatedAt`, which a future trash auto-purge would misread.
      *
      * It is also two-way rather than a one-way stamp — `PATCH /databases/:id`
      * accepts `archived: false` and un-archives (`routes/databases.ts:731`),
@@ -359,9 +341,7 @@ export const databases = pgTable(
      * `GET /databases?workspaceId=` filters on workspace + not-archived and
      * sorts `updatedAt` DESC, so all three columns are in the index.
      *
-     * Mongo carried TWO indexes here — a single-column `workspaceId` from the
-     * field-level `index: true` and the compound `{workspaceId, archived}`.
-     * The single-column one is not ported: a btree on
+     * There is no separate single-column `workspaceId` index: a btree on
      * `(workspace_id, archived_at, ...)` serves every query that could use a
      * `workspace_id` index on its own, so a second index would be maintained
      * on every write and read by nothing.
@@ -403,8 +383,8 @@ export const databases = pgTable(
     ),
     /**
      * Ports the sub-schema's structure: `properties` is an array, and every
-     * element carries a non-empty string `id` and `name` (Mongoose `required`
-     * on a String rejects `''` as well as absent) and a `type` key at all.
+     * element carries a non-empty string `id` and `name` (`''` is rejected as
+     * well as absent) and a `type` key at all.
      *
      * `coalesce(..., 'null'::jsonb)` is load-bearing: without it a document
      * with no `properties` key at all yields NULL, and a CHECK rejects only
@@ -432,7 +412,7 @@ export const databaseViews = pgTable(
     isDefault: boolean().notNull().default(false),
     filters: jsonb().$type<FilterGroup>().notNull().default(EMPTY_FILTER_GROUP),
     sorts: jsonb().$type<ViewSort[]>().notNull().default([]),
-    /** `null` when the view is ungrouped — the Mongoose default. */
+    /** `null` when the view is ungrouped — the default. */
     groupBy: jsonb().$type<ViewGroupBy>(),
     hiddenProperties: text().array().notNull().default([]),
     frozenProperties: text().array().notNull().default([]),
@@ -454,12 +434,12 @@ export const databaseViews = pgTable(
     /**
      * Every view listing is `where database_id = ? order by "order", created_at`
      * (`routes/databases.ts:607-609, 695-697, 1110-1112, 1276-1277`), and
-     * "next order" is the same index read backwards (`:1134-1137`). Widens
-     * Mongo's `{databaseId: 1, order: 1}` with `created_at` so the sort is
-     * covered rather than only the filter.
+     * "next order" is the same index read backwards (`:1134-1137`).
+     * `created_at` is included so the sort is covered rather than only the
+     * filter.
      *
-     * Mongo's separate single-column `databaseId` index is not ported, for the
-     * same reason as on `databases`: it is a strict prefix of this one.
+     * There is no separate single-column `databaseId` index, for the same
+     * reason as on `databases`: it would be a strict prefix of this one.
      *
      * `findOne({databaseId, isDefault: true})` gets no index of its own — a
      * database holds a handful of views, so the prefix scan is the whole set.

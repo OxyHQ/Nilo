@@ -90,11 +90,11 @@ function toCommentRow(row: typeof comments.$inferSelect): CommentRow {
 /**
  * Every comment on a page, oldest first.
  *
- * `id` is the tiebreak Mongo did not have. `sort({ createdAt: 1 })` alone is not
- * a total order, and two comments written in the same millisecond came back in
- * an arbitrary order that could differ between calls. The tiebreak does not
- * order by creation time — uuidv7 is not monotonic within a millisecond — it
- * only makes the result STABLE, which is what the thread grouping needs.
+ * `id` is the tiebreak. `createdAt` alone is not a total order, and two
+ * comments written in the same millisecond would come back in an arbitrary
+ * order that could differ between calls. The tiebreak does not order by
+ * creation time — uuidv7 is not monotonic within a millisecond — it only makes
+ * the result STABLE, which is what the thread grouping needs.
  */
 export async function listCommentsByPage(
   db: NiloDatabase,
@@ -204,10 +204,10 @@ export async function setCommentResolvedAt(
  * Delete a top-level comment and its replies, and report how many rows went.
  *
  * The `ON DELETE CASCADE` on `comments.parentCommentId` removes the replies, so
- * this is one statement where Mongo needed `deleteMany({ $or: [...] })`. The
- * predicate is still written out in full rather than relying on the cascade
- * alone: the count then covers the whole thread, and deleting a REPLY (which
- * has no children) goes through the same call with the same meaning.
+ * this is one statement. The predicate is still written out in full rather than
+ * relying on the cascade alone: the count then covers the whole thread, and
+ * deleting a REPLY (which has no children) goes through the same call with the
+ * same meaning.
  */
 export async function deleteCommentThread(
   db: NiloDatabase,

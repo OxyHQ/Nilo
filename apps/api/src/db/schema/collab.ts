@@ -21,8 +21,7 @@ import { workspaces } from './workspaces.js';
  *
  * - `oxyUserId` / `authorId` / `createdBy` are `text`: Oxy user ids are opaque
  *   identifiers issued by the Oxy auth service and there is no users table to
- *   point at. The Mongo models typed three of them as `ObjectId` with
- *   `ref: 'User'`, which is a DIVERGENCE, not a simplification — see the note on
+ *   point at, so no format is imposed on them — see the note on
  *   `notifications.oxyUserId`.
  */
 
@@ -38,12 +37,11 @@ export const comments = pgTable(
     /**
      * CASCADE, because a comment on a hard-deleted page is unreachable.
      *
-     * Nothing deleted comments alongside a page in Mongo — all four hard-delete
-     * paths (`routes/pages.ts:478-479`, `routes/workspaces.ts:617-618`,
-     * `routes/blocks.ts:598`, `routes/databases.ts:770-771`) touch only Block
-     * and Page — so the rows survived, orphaned. Both list queries reach a
-     * comment through its page or its block, so an orphan was already invisible
-     * garbage; the cascade collects it and changes nothing observable.
+     * None of the four hard-delete paths (`routes/pages.ts`,
+     * `routes/workspaces.ts`, `routes/blocks.ts`, `routes/databases.ts`)
+     * deletes comments itself. Both list queries reach a comment through its
+     * page or its block, so an orphan would be invisible garbage; the cascade
+     * collects it and changes nothing observable.
      *
      * NOT `restrict`: that would make all four of those deletes fail with a
      * foreign-key violation the moment a page carried a comment.
@@ -81,13 +79,10 @@ export const comments = pgTable(
     parentCommentId: text(),
     authorId: text().notNull(),
     /**
-     * Comment content, flattened out of the Mongo `content` sub-document.
+     * Comment content, flattened into two columns.
      *
-     * Two columns rather than one `jsonb` blob because the Mongoose schema
-     * declares BOTH halves `required: true`, and comments are written through
-     * `Comment.create()` and `comment.save()` (`routes/comments.ts:523,597`) —
-     * paths where validators genuinely run. A single blob could not carry
-     * either constraint.
+     * Two columns rather than one `jsonb` blob because BOTH halves are
+     * required, and a single blob could not carry either constraint.
      *
      * Anything reading these must go through `repositories/comments.ts`, which
      * reassembles `{ segments, plainText }`. A caller reaching for
@@ -126,18 +121,15 @@ export const comments = pgTable(
       name: 'comments_parent_comment_id_fk',
     }).onDelete('cascade'),
     /**
-     * The Mongo model also carried a standalone `{ pageId: 1 }` from
-     * `index: true`. Deliberately NOT ported: it is a strict prefix of
+     * No standalone `pageId` index: it would be a strict prefix of
      * `comments_page_resolved_created_idx`, which Postgres uses for a bare
-     * `pageId` lookup. Same for the standalone `{ blockId: 1 }`, which the
-     * model did not declare but the compound covers.
+     * `pageId` lookup. Same for a standalone `blockId` index, which the
+     * compound covers.
      */
     /**
-     * `segments` is `Schema.Types.Mixed` in Mongo only because Mongoose cannot
-     * discriminate a union schema — the declared TypeScript type is
-     * `CommentSegment[]` and the route validates it with Zod before every
-     * write. This is the storage-level half of that claim, and it cannot reject
-     * anything the writer produces.
+     * The declared TypeScript type of `segments` is `CommentSegment[]` and the
+     * route validates it with Zod before every write. This is the storage-level
+     * half of that claim, and it cannot reject anything the writer produces.
      */
     check('comments_segments_is_array', sql`jsonb_typeof(${t.contentSegments}) = 'array'`),
   ],
@@ -179,10 +171,10 @@ export const shareLinks = pgTable(
      * Optional expiry; null = never expires.
      *
      * APPLICATION-level expiry, checked on read at `routes/share-links.ts:311`
-     * and filtered in the list query at `:201`. It is NOT a TTL index in Mongo
-     * and gets no expiry-sweep entry here: an expired share link stops granting
-     * access but the row survives, so revoking and expiring stay
-     * distinguishable and the audit trail is not silently destroyed.
+     * and filtered in the list query at `:201`. It gets no expiry-sweep entry:
+     * an expired share link stops granting access but the row survives, so
+     * revoking and expiring stay distinguishable and the audit trail is not
+     * silently destroyed.
      */
     expiresAt: timestamptz(),
     /** Set when revoked. null = still active. */
@@ -194,8 +186,8 @@ export const shareLinks = pgTable(
     /**
      * Public lookup by token. Unique so a single-row read is sound.
      *
-     * NO partial predicate. The Mongo index is not `sparse` and `token` is
-     * required, but the reflex to add one is worth naming: a Postgres unique is
+     * NO partial predicate. `token` is required, and the reflex to add one is
+     * worth naming anyway: a Postgres unique is
      * NULLS DISTINCT by default, so a predicate would only ever be about
      * meaning, never about null collisions.
      */
@@ -229,7 +221,7 @@ export const NOTIFICATION_UNREAD_STATUSES = ['pending', 'sent'] as const;
 export const NOTIFICATION_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
 export type NotificationPriority = (typeof NOTIFICATION_PRIORITIES)[number];
 
-/** 90 days, the `expireAfterSeconds` the Mongo TTL index declared. */
+/** 90 days: how long a dismissed notification is kept. */
 export const NOTIFICATION_DISMISSED_RETENTION_SECONDS = 90 * 24 * 60 * 60;
 
 export const notifications = pgTable(
@@ -237,15 +229,13 @@ export const notifications = pgTable(
   {
     id: generatedId(),
     /**
-     * Oxy user id — `text`, where Mongo declared `ObjectId` with `ref: 'User'`.
+     * Oxy user id — opaque `text`.
      *
-     * DIVERGENCE, and it runs loud → quiet. Every writer coerced the id with
-     * `new mongoose.Types.ObjectId(userId)`, which THROWS on anything that is
-     * not 24 hex characters; a `text` comparison simply matches no rows. An
-     * id that used to produce a 500 now produces an empty notification list.
-     * `repositories/notifications.ts` therefore does not re-add a format guard
-     * — there is no users table to validate against and inventing one would be
-     * a new constraint — but the divergence is pinned by a test.
+     * An id of any shape is accepted; one that matches no rows produces an
+     * empty notification list rather than an error.
+     * `repositories/notifications.ts` therefore adds no format guard — there
+     * is no users table to validate against — and the behaviour is pinned by a
+     * test.
      */
     oxyUserId: text().notNull(),
     type: text().notNull(),
@@ -257,7 +247,7 @@ export const notifications = pgTable(
      * Channels this notification was fanned out to.
      *
      * The CHECK is containment, which is trivially true for `{}` — accepted,
-     * because Mongo accepted an empty array too (the field is not `required`).
+     * because the field is not required.
      * `sendNotification` always writes at least `['in_app']`.
      */
     channels: text().array().notNull().default([]),
@@ -271,7 +261,7 @@ export const notifications = pgTable(
     /**
      * The TTL replacement, and the reason it is a GENERATED column.
      *
-     * Mongo declared a PARTIAL TTL index: delete 90 days after `createdAt`, but
+     * The retention rule is PARTIAL: delete 90 days after `createdAt`, but
      * only while `status = 'dismissed'`. `@oxy.so/db`'s `ExpirySweepTarget`
      * carries `{ table, column, retentionSeconds }` and has no predicate, so a
      * naive entry pointed at `createdAt` would delete every notification older
@@ -279,11 +269,10 @@ export const notifications = pgTable(
      * the cheapest way to make a "TTL is registered" gate go green.
      *
      * Moving the predicate into the column keeps the shared sweep as the ONE
-     * expiry mechanism and reproduces the source exactly: null while the row is
+     * expiry mechanism and states the rule exactly: null while the row is
      * not dismissed (and `null <= now() - interval` is null, so the row is never
      * selected), `createdAt` once it is. A notification created 100 days ago and
-     * dismissed today is reaped on the next sweep, which is what Mongo's TTL
-     * monitor did.
+     * dismissed today is reaped on the next sweep.
      */
     dismissedReapAt: timestamptz().generatedAlwaysAs(
       (): SQL =>
@@ -295,8 +284,8 @@ export const notifications = pgTable(
     index('notifications_user_status_created_idx').on(t.oxyUserId, t.status, t.createdAt.desc()),
     /**
      * Unread count. The predicate is GENUINE — it is the `$in` from
-     * `getUnreadCount` (`lib/notification-service.ts:352-357`), not the
-     * null-collision workaround a Mongo `sparse` unique needs.
+     * `getUnreadCount` (`lib/notification-service.ts`), not a null-collision
+     * workaround.
      */
     index('notifications_user_unread_idx')
       .on(t.oxyUserId, t.status)
@@ -342,11 +331,9 @@ export const pushTokens = pgTable(
     token: text().notNull(),
     deviceId: text(),
     /**
-     * The Mongoose `enum` on this field NEVER FIRED — the only writer is a
-     * `findOneAndUpdate` upsert (`routes/notifications.ts:133`), and Mongoose
-     * skips validators there. The CHECK is still faithful rather than new: the
-     * same route rejects any other value with a 400 four lines earlier
-     * (`:128`), so no row outside this set can have been written. A NULL is
+     * The CHECK matches the route: `routes/notifications.ts` rejects any other
+     * value with a 400 before the upsert, so no row outside this set can be
+     * written. A NULL is
      * admitted, because `null in (...)` is NULL and a CHECK rejects only FALSE
      * — `platform` is optional and rows without one are legitimate.
      */
@@ -381,7 +368,7 @@ export const webPushSubscriptions = pgTable(
     /** Browser push endpoint URL — matched on, stored verbatim. */
     endpoint: text().notNull(),
     /**
-     * The Mongo `keys: { p256dh, auth }` sub-document, flattened.
+     * The subscription's `keys: { p256dh, auth }` object, flattened.
      *
      * `web-push` needs them reassembled as `{ p256dh, auth }`
      * (`lib/notification-service.ts:254`), which
@@ -389,9 +376,8 @@ export const webPushSubscriptions = pgTable(
      * `sub.keys` is `undefined`, which `webPush.sendNotification` reports as a
      * malformed subscription rather than as a missing column.
      *
-     * Stored in plaintext, as Mongo stored them: they are the client's own
-     * public key and auth secret for a single browser endpoint, and encrypting
-     * them here would be a new decision, not a port.
+     * Stored in plaintext: they are the client's own public key and auth
+     * secret for a single browser endpoint.
      */
     keyP256dh: text().notNull(),
     keyAuth: text().notNull(),

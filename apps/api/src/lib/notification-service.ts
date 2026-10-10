@@ -6,16 +6,13 @@
  * - push: Expo push notifications (mobile)
  * Each notification is persisted and can be delivered to multiple channels simultaneously.
  *
- * ## The id coercion that used to guard every query here is gone
+ * ## User ids are not format-checked
  *
- * Every read and write below wrapped the caller's id in
- * `new mongoose.Types.ObjectId(userId)`, which THROWS on anything that is not 24
- * hex characters. `notifications.oxyUserId` is `text`, so the same id now simply
- * matches no rows. That is a LOUD-to-QUIET change: an id that produced a 500
- * produces an empty notification list. No format guard is re-added — there is no
- * users table to validate against and inventing one would be a new constraint —
- * but it is stated here because it is the kind of divergence that is invisible
- * until someone asks why a user sees nothing.
+ * `notifications.oxyUserId` is opaque `text`, so an id of an unexpected shape
+ * simply matches no rows and produces an empty notification list rather than
+ * an error. No format guard is added — there is no users table to validate
+ * against — but it is stated here because it is invisible until someone asks
+ * why a user sees nothing.
  */
 
 import Expo, { type ExpoPushMessage, type ExpoPushReceiptId } from 'expo-server-sdk';
@@ -195,12 +192,9 @@ async function deliverPush(userId: string, notification: NotificationRow): Promi
 
           // Deactivate tokens that are permanently invalid.
           //
-          // DIVERGENCE: this deactivates EVERY row naming the token, where
-          // Mongo's `updateOne({ token })` touched at most one — so with two
-          // users on one device, which of them lost the token depended on
-          // whichever document the query happened to reach first. That
-          // arbitrariness has no Postgres equivalent and should not get one:
-          // `DeviceNotRegistered` means the device is gone for everybody.
+          // This deactivates EVERY row naming the token, for every user on the
+          // device: `DeviceNotRegistered` means the device is gone for
+          // everybody.
           if (errorDetail.details?.error === 'DeviceNotRegistered') {
             await deactivatePushTokenEverywhere(db, messageToken);
           }
@@ -266,10 +260,9 @@ async function deliverWebPush(userId: string, notification: NotificationRow): Pr
   if (!VAPID_PUBLIC_KEY) return false;
 
   const db = getDb();
-  // `keys` is reassembled by the repository out of the two columns the Mongo
-  // sub-document became. A raw row would carry `keys: undefined`, which
-  // `webPush.sendNotification` reports as a malformed subscription rather than
-  // as a missing column.
+  // `keys` is reassembled by the repository out of its two columns. A raw row
+  // would carry `keys: undefined`, which `webPush.sendNotification` reports as
+  // a malformed subscription rather than as a missing column.
   const subscriptions = await listActiveWebPushSubscriptions(db, userId);
 
   if (subscriptions.length === 0) return false;
@@ -393,13 +386,9 @@ export async function getUnreadCount(userId: string): Promise<number> {
 }
 
 /**
- * Mongo reported `modifiedCount` here and Postgres reports only a row count,
- * which is the `matchedCount` analogue. The two Mongo counts were always equal
- * for this statement — `{ timestamps: true }` makes mongoose add `updatedAt` to
- * every `updateOne`, so a matched document is always a modified one — so the row
- * count reproduces the source exactly. See the header of
- * `repositories/notifications.ts`, where that equality is measured rather than
- * assumed.
+ * True when the row count is non-zero: every matched row is also modified,
+ * because the update always stamps `updatedAt`. See the header of
+ * `repositories/notifications.ts`.
  */
 export async function markAsRead(notificationId: string, userId: string): Promise<boolean> {
   return (await markNotificationRead(getDb(), notificationId, userId, new Date())) > 0;

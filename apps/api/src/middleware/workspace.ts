@@ -94,11 +94,9 @@ export async function requireWorkspaceMember(
       return;
     }
 
-    // No id-SHAPE gate. The Mongoose version rejected anything that was not a
-    // 24-character ObjectId, which rejects every uuidv7 this schema produces.
-    // A malformed id now simply matches no row and falls through to the 404
-    // below -- the same answer, reached by asking the database rather than by
-    // guessing from the string.
+    // No id-SHAPE gate. A malformed id simply matches no row and falls
+    // through to the 404 below -- the same answer, reached by asking the
+    // database rather than by guessing from the string.
     const db = getDb();
     const [workspace, member] = await Promise.all([
       findLiveWorkspaceById(db, workspaceId),
@@ -246,11 +244,11 @@ export async function ensurePersonalWorkspace(
 
     const name = defaultPersonalWorkspaceName(displayUser);
 
-    // Two parallel requests for a brand-new user race here. The Mongo version
-    // caught error code 11000 on each insert; on Postgres that would be wrong
-    // twice over -- a failed statement aborts the surrounding transaction, and
-    // an exception cannot tell a duplicate from a dropped connection, so the
-    // catch would report "already provisioned" for an infrastructure failure.
+    // Two parallel requests for a brand-new user race here. Catching a
+    // unique-violation on each insert would be wrong twice over -- a failed
+    // statement aborts the surrounding transaction, and an exception cannot
+    // tell a duplicate from a dropped connection, so the catch would report
+    // "already provisioned" for an infrastructure failure.
     // `ON CONFLICT ... DO NOTHING RETURNING` makes the EMPTY RESULT the answer
     // instead, and a real failure still propagates.
     const created = await createPersonalWorkspaceIfAbsent(db, { name, ownerId: userId });

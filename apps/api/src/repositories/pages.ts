@@ -5,9 +5,9 @@
  * repository. Each function below names its route-level use so a function
  * nobody calls remains visible as one.
  *
- * Where Mongo and Postgres disagree, the divergence is stated at the function
- * that carries it. The schema-level decisions (the `parentId` referential
- * action above all) live in `../db/schema/pages.ts`.
+ * Where a query has a non-obvious storage behaviour, it is stated at the
+ * function that carries it. The schema-level decisions (the `parentId`
+ * referential action above all) live in `../db/schema/pages.ts`.
  */
 
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
@@ -60,11 +60,11 @@ export interface ListPagesFilter {
 /**
  * `GET /api/pages` — `routes/pages.ts:233`.
  *
- * Mongo sorted `{ order: 1, createdAt: 1 }`. `id` is appended as a final
- * tiebreak: `created_at` is stored at millisecond precision, so two pages
- * created in the same millisecond at the same order tied, and the resulting
- * sequence was whatever the storage engine returned. Porting that
- * arbitrariness is not an option — the client renders this list in order.
+ * Sorted by `order`, then `createdAt`, with `id` appended as a final tiebreak:
+ * `created_at` is stored at millisecond precision, so two pages created in the
+ * same millisecond at the same order would tie, and the resulting sequence
+ * would be whatever the storage engine returned. The client renders this list
+ * in order, so it must be total.
  */
 export async function listPages(db: PgHandle, filter: ListPagesFilter): Promise<PageRow[]> {
   const predicates = [eq(pages.workspaceId, filter.workspaceId)];
@@ -238,8 +238,8 @@ export interface UpdatePageInput {
  * The SET clause is built from DEFINED keys only, and the distinction between
  * `undefined` and `null` is the whole point: `icon`, `cover` and `parentId` are
  * nullable and the route accepts an explicit `null` for each, so `undefined`
- * has to mean "leave it alone" while `null` means "write NULL". `$set: { x:
- * undefined }` was a no-op in Mongo and is an erasure in Postgres.
+ * has to mean "leave it alone" while `null` means "write NULL"; writing an
+ * `undefined` key would be an erasure.
  *
  * Measured, so the comment does not overclaim: drizzle's own `.set()` ALREADY
  * drops `undefined` values, so removing these guards does not reintroduce the
@@ -283,9 +283,8 @@ export async function updatePage(
  * `DELETE /api/databases/:id/properties/:propertyId` — `routes/databases.ts:906`,
  * which drops one property from every row of a database.
  *
- * Returns the number of rows the statement matched. Postgres reports only
- * `rowCount`, which behaves like Mongo's `matchedCount`, not its
- * `modifiedCount`; the route consumes neither, so nothing turns on the
+ * Returns the number of rows the statement matched (Postgres `rowCount`), not
+ * the number changed; the route does not consume it, so nothing turns on the
  * difference here.
  */
 export async function removePropertyFromDatabaseRows(
@@ -342,8 +341,8 @@ export async function deleteDatabaseRows(db: PgHandle, databaseId: string): Prom
  * This is the route the `pages.parentId` referential action is chosen for. A
  * live child of an archived page is NOT in the delete set, so under `ON DELETE
  * SET NULL` it survives with `parent_id = NULL` and becomes a root page of the
- * workspace. Under Mongo it survived with a `parentId` pointing at a row that
- * no longer existed. Under CASCADE it would be destroyed — see the schema.
+ * workspace rather than keeping a `parentId` pointing at a row that no longer
+ * exists. Under CASCADE it would be destroyed — see the schema.
  */
 export async function deleteArchivedPages(db: PgHandle, workspaceId: string): Promise<number> {
   const deleted = await db
@@ -360,8 +359,7 @@ export async function deleteArchivedPages(db: PgHandle, workspaceId: string): Pr
  * of the collected set.
  *
  * One statement, for two reasons beyond speed. The page and its descendants
- * leave together or not at all, which the Mongo version could not promise
- * across two `deleteMany` calls. And because every descendant is inside the
+ * leave together or not at all. And because every descendant is inside the
  * same statement, the `ON DELETE SET NULL` action finds no surviving child to
  * detach — the referential action covers only a child that appeared after this
  * statement's snapshot, where it is strictly better than the 23503 a NO ACTION
