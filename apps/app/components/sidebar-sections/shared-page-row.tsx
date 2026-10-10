@@ -1,13 +1,7 @@
 import * as React from 'react';
 import { View, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import {
-  ChevronDown,
-  ChevronRight,
-  FileText,
-  MoreHorizontal,
-  Plus,
-} from 'lucide-react-native';
+import { ChevronDown, ChevronRight, FileText, MoreHorizontal, Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
 import * as DropdownMenu from '@/components/ui/dropdown-menu';
@@ -184,9 +178,7 @@ export function SharedPageRow({
             </DropdownMenu.Trigger>
             <DropdownMenu.Content>
               <DropdownMenu.Item key="favorite" onSelect={handleToggleFavorite}>
-                <DropdownMenu.ItemIcon
-                  ios={{ name: isFavorite ? 'star.slash' : 'star' }}
-                />
+                <DropdownMenu.ItemIcon ios={{ name: isFavorite ? 'star.slash' : 'star' }} />
                 <DropdownMenu.ItemTitle>
                   {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                 </DropdownMenu.ItemTitle>

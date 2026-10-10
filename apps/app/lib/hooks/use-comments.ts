@@ -1,34 +1,31 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useOxy } from "@oxy.so/services";
-import apiClient from "../api/client";
-import { API_ROUTES } from "../api/routes";
-import { queryKeys } from "./query-keys";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOxy } from '@oxy.so/services';
+import apiClient from '../api/client';
+import { API_ROUTES } from '../api/routes';
+import { queryKeys } from './query-keys';
 import type {
   Comment,
   CommentContent,
   CommentResponse,
   CommentsListResponse,
-} from "../types/comments";
+} from '../types/comments';
 
 /**
  * Page-level comment query. Pass `includeResolved=true` to fetch resolved
  * threads alongside open ones. Defaults to open only so the right-side panel
  * can render the "Open" filter without a second fetch.
  */
-export function usePageComments(
-  pageId: string | undefined,
-  includeResolved = false,
-) {
+export function usePageComments(pageId: string | undefined, includeResolved = false) {
   const { isAuthenticated } = useOxy();
   return useQuery<CommentsListResponse>({
     queryKey: pageId
       ? queryKeys.comments.page(pageId, includeResolved)
-      : ["comments", "page", "none", includeResolved],
+      : ['comments', 'page', 'none', includeResolved],
     queryFn: async () => {
-      if (!pageId) throw new Error("Page id required");
+      if (!pageId) throw new Error('Page id required');
       const res = await apiClient.get<CommentsListResponse>(
         API_ROUTES.comments.listForPage(pageId),
-        { params: includeResolved ? { includeResolved: "true" } : undefined },
+        { params: includeResolved ? { includeResolved: 'true' } : undefined },
       );
       return res.data;
     },
@@ -44,14 +41,10 @@ export function usePageComments(
 export function useBlockComments(blockId: string | undefined) {
   const { isAuthenticated } = useOxy();
   return useQuery<CommentsListResponse>({
-    queryKey: blockId
-      ? queryKeys.comments.block(blockId)
-      : ["comments", "block", "none"],
+    queryKey: blockId ? queryKeys.comments.block(blockId) : ['comments', 'block', 'none'],
     queryFn: async () => {
-      if (!blockId) throw new Error("Block id required");
-      const res = await apiClient.get<CommentsListResponse>(
-        API_ROUTES.blocks.comments(blockId),
-      );
+      if (!blockId) throw new Error('Block id required');
+      const res = await apiClient.get<CommentsListResponse>(API_ROUTES.blocks.comments(blockId));
       return res.data;
     },
     enabled: isAuthenticated && Boolean(blockId),
@@ -63,22 +56,19 @@ interface CreateCommentInput {
   pageId: string;
   blockId?: string | null;
   parentCommentId?: string | null;
-  content: { segments: CommentContent["segments"] };
+  content: { segments: CommentContent['segments'] };
 }
 
 export function useCreateComment() {
   const queryClient = useQueryClient();
   return useMutation<Comment, Error, CreateCommentInput>({
     mutationFn: async ({ pageId, ...input }) => {
-      const res = await apiClient.post<CommentResponse>(
-        API_ROUTES.comments.create(pageId),
-        input,
-      );
+      const res = await apiClient.post<CommentResponse>(API_ROUTES.comments.create(pageId), input);
       return res.data.comment;
     },
     onSuccess: (comment) => {
       queryClient.invalidateQueries({
-        queryKey: ["comments", "page", comment.pageId],
+        queryKey: ['comments', 'page', comment.pageId],
       });
       if (comment.blockId) {
         queryClient.invalidateQueries({
@@ -93,22 +83,21 @@ interface UpdateCommentInput {
   id: string;
   pageId: string;
   blockId: string | null;
-  content: { segments: CommentContent["segments"] };
+  content: { segments: CommentContent['segments'] };
 }
 
 export function useUpdateComment() {
   const queryClient = useQueryClient();
   return useMutation<Comment, Error, UpdateCommentInput>({
     mutationFn: async ({ id, content }) => {
-      const res = await apiClient.patch<CommentResponse>(
-        API_ROUTES.comments.update(id),
-        { content },
-      );
+      const res = await apiClient.patch<CommentResponse>(API_ROUTES.comments.update(id), {
+        content,
+      });
       return res.data.comment;
     },
     onSuccess: (comment) => {
       queryClient.invalidateQueries({
-        queryKey: ["comments", "page", comment.pageId],
+        queryKey: ['comments', 'page', comment.pageId],
       });
       if (comment.blockId) {
         queryClient.invalidateQueries({
@@ -128,14 +117,12 @@ export function useResolveComment() {
   const queryClient = useQueryClient();
   return useMutation<Comment, Error, ResolveCommentInput>({
     mutationFn: async ({ id }) => {
-      const res = await apiClient.post<CommentResponse>(
-        API_ROUTES.comments.resolve(id),
-      );
+      const res = await apiClient.post<CommentResponse>(API_ROUTES.comments.resolve(id));
       return res.data.comment;
     },
     onSuccess: (comment) => {
       queryClient.invalidateQueries({
-        queryKey: ["comments", "page", comment.pageId],
+        queryKey: ['comments', 'page', comment.pageId],
       });
       if (comment.blockId) {
         queryClient.invalidateQueries({
@@ -150,14 +137,12 @@ export function useUnresolveComment() {
   const queryClient = useQueryClient();
   return useMutation<Comment, Error, ResolveCommentInput>({
     mutationFn: async ({ id }) => {
-      const res = await apiClient.post<CommentResponse>(
-        API_ROUTES.comments.unresolve(id),
-      );
+      const res = await apiClient.post<CommentResponse>(API_ROUTES.comments.unresolve(id));
       return res.data.comment;
     },
     onSuccess: (comment) => {
       queryClient.invalidateQueries({
-        queryKey: ["comments", "page", comment.pageId],
+        queryKey: ['comments', 'page', comment.pageId],
       });
       if (comment.blockId) {
         queryClient.invalidateQueries({
@@ -182,7 +167,7 @@ export function useDeleteComment() {
     },
     onSuccess: (_data, { pageId, blockId }) => {
       queryClient.invalidateQueries({
-        queryKey: ["comments", "page", pageId],
+        queryKey: ['comments', 'page', pageId],
       });
       if (blockId) {
         queryClient.invalidateQueries({
@@ -218,8 +203,7 @@ export function groupIntoThreads(comments: Comment[]): CommentThread[] {
   return roots.map((root) => ({
     root,
     replies: (byParent.get(root.id) ?? []).sort(
-      (a, b) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     ),
   }));
 }

@@ -1,13 +1,13 @@
-import * as React from "react";
-import { Platform, Pressable, TextInput, View } from "react-native";
-import { Wand2 } from "lucide-react-native";
-import { router } from "expo-router";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import apiClient from "@/lib/api/client";
-import { API_ROUTES } from "@/lib/api/routes";
-import type { ButtonAction } from "@/lib/types/pages";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Wand2 } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import apiClient from '@/lib/api/client';
+import { API_ROUTES } from '@/lib/api/routes';
+import type { ButtonAction } from '@/lib/types/pages';
+import type { BlockComponentProps } from './types';
 
 /**
  * Configurable button block. Renders a styled button + a small inline form
@@ -22,13 +22,10 @@ import type { BlockComponentProps } from "./types";
  */
 export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const label =
-    typeof block.content.label === "string" ? block.content.label : "Button";
-  const action: ButtonAction =
-    (block.content.action as ButtonAction | undefined) ?? "navigate";
-  const targetUrl = typeof block.content.url === "string" ? block.content.url : "";
-  const webhookUrl =
-    typeof block.content.webhookUrl === "string" ? block.content.webhookUrl : "";
+  const label = typeof block.content.label === 'string' ? block.content.label : 'Button';
+  const action: ButtonAction = (block.content.action as ButtonAction | undefined) ?? 'navigate';
+  const targetUrl = typeof block.content.url === 'string' ? block.content.url : '';
+  const webhookUrl = typeof block.content.webhookUrl === 'string' ? block.content.webhookUrl : '';
 
   const [editing, setEditing] = React.useState(false);
   const [status, setStatus] = React.useState<string | null>(null);
@@ -38,47 +35,44 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
     setStatus(null);
     setBusy(true);
     try {
-      if (action === "navigate" && targetUrl) {
-        if (Platform.OS === "web") {
-          window.open(targetUrl, "_blank", "noopener,noreferrer");
+      if (action === 'navigate' && targetUrl) {
+        if (Platform.OS === 'web') {
+          window.open(targetUrl, '_blank', 'noopener,noreferrer');
         } else {
-          const mod = await import("expo-web-browser");
+          const mod = await import('expo-web-browser');
           await mod.openBrowserAsync(targetUrl);
         }
-      } else if (action === "new-page") {
-        const res = await apiClient.post<{ page: { _id: string } }>(
-          API_ROUTES.pages.create,
-          { title: "Untitled" },
-        );
+      } else if (action === 'new-page') {
+        const res = await apiClient.post<{ page: { _id: string } }>(API_ROUTES.pages.create, {
+          title: 'Untitled',
+        });
         router.push(`/p/${res.data.page._id}`);
-      } else if (action === "duplicate-template") {
+      } else if (action === 'duplicate-template') {
         const templateId =
-          typeof block.content.templateId === "string"
-            ? block.content.templateId
-            : "";
+          typeof block.content.templateId === 'string' ? block.content.templateId : '';
         if (!templateId) {
-          setStatus("Set a template page first.");
+          setStatus('Set a template page first.');
         } else {
           // Backend currently doesn't expose /pages/:id/duplicate — use create
           // as a fallback so the action still produces a new page.
-          const res = await apiClient.post<{ page: { _id: string } }>(
-            API_ROUTES.pages.create,
-            { title: "Copy", parentId: templateId },
-          );
+          const res = await apiClient.post<{ page: { _id: string } }>(API_ROUTES.pages.create, {
+            title: 'Copy',
+            parentId: templateId,
+          });
           router.push(`/p/${res.data.page._id}`);
         }
-      } else if (action === "webhook") {
+      } else if (action === 'webhook') {
         if (!webhookUrl) {
-          setStatus("Set a webhook URL first.");
+          setStatus('Set a webhook URL first.');
         } else {
-          await fetch(webhookUrl, { method: "POST" });
-          setStatus("Webhook fired.");
+          await fetch(webhookUrl, { method: 'POST' });
+          setStatus('Webhook fired.');
         }
       } else {
-        setStatus("Configure the action below.");
+        setStatus('Configure the action below.');
       }
     } catch (err) {
-      setStatus(err instanceof Error ? err.message : "Action failed");
+      setStatus(err instanceof Error ? err.message : 'Action failed');
     } finally {
       setBusy(false);
     }
@@ -93,20 +87,15 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
           className="flex-row items-center gap-1 rounded-md bg-primary px-3 py-1.5"
         >
           <Wand2 size={14} color={colors.primaryForeground} />
-          <Text
-            className="text-sm font-medium"
-            style={{ color: colors.primaryForeground }}
-          >
-            {busy ? "Working…" : label}
+          <Text className="text-sm font-medium" style={{ color: colors.primaryForeground }}>
+            {busy ? 'Working…' : label}
           </Text>
         </Pressable>
         <Pressable
           onPress={() => setEditing((v) => !v)}
           className="rounded-md px-2 py-1 hover:bg-muted"
         >
-          <Text className="text-xs text-muted-foreground">
-            {editing ? "Done" : "Edit"}
-          </Text>
+          <Text className="text-xs text-muted-foreground">{editing ? 'Done' : 'Edit'}</Text>
         </Pressable>
       </View>
       {editing ? (
@@ -120,28 +109,19 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
           />
           <View className="flex-row gap-1 flex-wrap">
             {(
-              [
-                "navigate",
-                "new-page",
-                "duplicate-template",
-                "webhook",
-              ] as readonly ButtonAction[]
+              ['navigate', 'new-page', 'duplicate-template', 'webhook'] as readonly ButtonAction[]
             ).map((a) => (
               <Pressable
                 key={a}
                 onPress={() => onChangeContent({ ...block.content, action: a })}
                 className={
                   a === action
-                    ? "rounded-md px-2 py-1 bg-primary"
-                    : "rounded-md px-2 py-1 bg-background border border-input"
+                    ? 'rounded-md px-2 py-1 bg-primary'
+                    : 'rounded-md px-2 py-1 bg-background border border-input'
                 }
               >
                 <Text
-                  className={
-                    a === action
-                      ? "text-xs font-medium"
-                      : "text-xs text-muted-foreground"
-                  }
+                  className={a === action ? 'text-xs font-medium' : 'text-xs text-muted-foreground'}
                   style={a === action ? { color: colors.primaryForeground } : undefined}
                 >
                   {a}
@@ -149,23 +129,19 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
               </Pressable>
             ))}
           </View>
-          {action === "navigate" ? (
+          {action === 'navigate' ? (
             <TextInput
               value={targetUrl}
-              onChangeText={(t) =>
-                onChangeContent({ ...block.content, url: t.trim() })
-              }
+              onChangeText={(t) => onChangeContent({ ...block.content, url: t.trim() })}
               placeholder="https://…"
               placeholderTextColor={colors.mutedForeground}
               className="rounded bg-background px-2 py-1 text-sm text-foreground border border-input"
             />
           ) : null}
-          {action === "webhook" ? (
+          {action === 'webhook' ? (
             <TextInput
               value={webhookUrl}
-              onChangeText={(t) =>
-                onChangeContent({ ...block.content, webhookUrl: t.trim() })
-              }
+              onChangeText={(t) => onChangeContent({ ...block.content, webhookUrl: t.trim() })}
               placeholder="https://… (POST)"
               placeholderTextColor={colors.mutedForeground}
               className="rounded bg-background px-2 py-1 text-sm text-foreground border border-input"
@@ -173,9 +149,7 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
           ) : null}
         </View>
       ) : null}
-      {status ? (
-        <Text className="text-xs text-muted-foreground">{status}</Text>
-      ) : null}
+      {status ? <Text className="text-xs text-muted-foreground">{status}</Text> : null}
     </View>
   );
 }

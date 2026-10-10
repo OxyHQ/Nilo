@@ -1,8 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useOxy } from "@oxy.so/services";
-import apiClient from "../api/client";
-import { API_ROUTES } from "../api/routes";
-import { queryKeys } from "./query-keys";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOxy } from '@oxy.so/services';
+import apiClient from '../api/client';
+import { API_ROUTES } from '../api/routes';
+import { queryKeys } from './query-keys';
 import type {
   DatabaseView,
   DatabaseViewResponse,
@@ -11,7 +11,7 @@ import type {
   FilterGroup,
   ViewConfig,
   ViewSort,
-} from "../types/databases";
+} from '../types/databases';
 
 interface CreateViewInput {
   databaseId: string;
@@ -52,11 +52,9 @@ interface DeleteViewInput {
 export function useDatabaseViews(databaseId: string | undefined) {
   const { isAuthenticated } = useOxy();
   return useQuery<DatabaseViewsResponse>({
-    queryKey: databaseId
-      ? queryKeys.databases.views(databaseId)
-      : ["database", "none", "views"],
+    queryKey: databaseId ? queryKeys.databases.views(databaseId) : ['database', 'none', 'views'],
     queryFn: async () => {
-      if (!databaseId) throw new Error("Database id required");
+      if (!databaseId) throw new Error('Database id required');
       const res = await apiClient.get<DatabaseViewsResponse>(
         API_ROUTES.databases.listViews(databaseId),
       );
@@ -105,7 +103,7 @@ export function useUpdateView() {
         queryKey: queryKeys.databases.views(databaseId),
       });
       queryClient.invalidateQueries({
-        queryKey: ["database", databaseId, "rows"],
+        queryKey: ['database', databaseId, 'rows'],
       });
     },
   });
@@ -115,9 +113,7 @@ export function useDeleteView() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, DeleteViewInput>({
     mutationFn: async ({ databaseId, viewId }) => {
-      await apiClient.delete(
-        API_ROUTES.databases.deleteView(databaseId, viewId),
-      );
+      await apiClient.delete(API_ROUTES.databases.deleteView(databaseId, viewId));
     },
     onSettled: (_data, _err, { databaseId }) => {
       queryClient.invalidateQueries({

@@ -138,9 +138,7 @@ async function api(
 }
 
 /** `POST /pages` with this file's workspace, returning the created page. */
-async function createPage(
-  input: Record<string, unknown> = {},
-): Promise<Record<string, unknown>> {
+async function createPage(input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
   const res = await api('POST', '/pages', { workspaceId, ...input });
   expect(res.status).toBe(201);
   return res.json.page as Record<string, unknown>;
@@ -274,8 +272,7 @@ describe('GET /pages — the three-valued archived filter', () => {
     await api('PATCH', `/pages/${favorite}`, { favorited: true });
   });
 
-  const ids = (res: ApiResponse) =>
-    (res.json.pages as { id: string }[]).map((p) => p.id).sort();
+  const ids = (res: ApiResponse) => (res.json.pages as { id: string }[]).map((p) => p.id).sort();
 
   it('excludes archived by default', async () => {
     const res = await api('GET', `/pages?workspaceId=${listWorkspace}`);
@@ -283,18 +280,12 @@ describe('GET /pages — the three-valued archived filter', () => {
   });
 
   it('returns only archived under archivedOnly', async () => {
-    const res = await api(
-      'GET',
-      `/pages?workspaceId=${listWorkspace}&archivedOnly=true`,
-    );
+    const res = await api('GET', `/pages?workspaceId=${listWorkspace}&archivedOnly=true`);
     expect(ids(res)).toEqual([archived]);
   });
 
   it('returns both under includeArchived — the case that has no predicate at all', async () => {
-    const res = await api(
-      'GET',
-      `/pages?workspaceId=${listWorkspace}&includeArchived=true`,
-    );
+    const res = await api('GET', `/pages?workspaceId=${listWorkspace}&includeArchived=true`);
     expect(ids(res)).toEqual([live, archived, favorite].sort());
   });
 
@@ -307,10 +298,7 @@ describe('GET /pages — the three-valued archived filter', () => {
   });
 
   it('adds favorited=true without ever adding favorited=false', async () => {
-    const res = await api(
-      'GET',
-      `/pages?workspaceId=${listWorkspace}&favoritedOnly=true`,
-    );
+    const res = await api('GET', `/pages?workspaceId=${listWorkspace}&favoritedOnly=true`);
     expect(ids(res)).toEqual([favorite]);
   });
 
@@ -322,41 +310,28 @@ describe('GET /pages — the three-valued archived filter', () => {
     expect(child.status).toBe(201);
     const childId = (child.json.page as { id: string }).id;
 
-    const asRoot = await api(
-      'GET',
-      `/pages?workspaceId=${listWorkspace}&parentId=root`,
-    );
-    const asNull = await api(
-      'GET',
-      `/pages?workspaceId=${listWorkspace}&parentId=null`,
-    );
+    const asRoot = await api('GET', `/pages?workspaceId=${listWorkspace}&parentId=root`);
+    const asNull = await api('GET', `/pages?workspaceId=${listWorkspace}&parentId=null`);
     expect(ids(asRoot)).toEqual(ids(asNull));
     // The point of the alias: a root filter must be `IS NULL`, not `= NULL`,
     // which matches nothing and returns an empty list with no error.
     expect(ids(asRoot).length).toBeGreaterThan(0);
     expect(ids(asRoot)).not.toContain(childId);
 
-    const byParent = await api(
-      'GET',
-      `/pages?workspaceId=${listWorkspace}&parentId=${live}`,
-    );
+    const byParent = await api('GET', `/pages?workspaceId=${listWorkspace}&parentId=${live}`);
     expect(ids(byParent)).toEqual([childId]);
   });
 
   it('403s a workspace mismatch between the query and the membership context', async () => {
-    const res = await api(
-      'GET',
-      `/pages?workspaceId=${listWorkspace}`,
-      undefined,
-      { 'x-workspace-id': listWorkspace },
-    );
+    const res = await api('GET', `/pages?workspaceId=${listWorkspace}`, undefined, {
+      'x-workspace-id': listWorkspace,
+    });
     expect(res.status).toBe(200);
     // `requireWorkspaceMember` resolves from the query first, so to get a
     // mismatch the two must disagree at the route's own check.
-    const mismatch = await fetch(
-      `${base}/pages?workspaceId=${listWorkspace}`,
-      { headers: { 'x-workspace-id': otherWorkspaceId } },
-    );
+    const mismatch = await fetch(`${base}/pages?workspaceId=${listWorkspace}`, {
+      headers: { 'x-workspace-id': otherWorkspaceId },
+    });
     expect(mismatch.status).toBe(200);
   });
 });
@@ -486,8 +461,9 @@ describe('PATCH /pages/:id', () => {
         properties: { nosuch: { text: 'ignored' } },
       });
       expect(res.status).toBe(200);
-      expect((res.json.page as { properties: Record<string, unknown> }).properties)
-        .not.toHaveProperty('nosuch');
+      expect(
+        (res.json.page as { properties: Record<string, unknown> }).properties,
+      ).not.toHaveProperty('nosuch');
     });
   });
 });
@@ -498,7 +474,10 @@ describe('DELETE /pages/:id', () => {
     const res = await api('DELETE', `/pages/${page.id}`);
     expect(res.status).toBe(200);
     expect((res.json.page as { archived: boolean }).archived).toBe(true);
-    const [row] = await db.select().from(pages).where(eq(pages.id, page.id as string));
+    const [row] = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.id, page.id as string));
     expect(row).toBeDefined();
   });
 
@@ -515,7 +494,10 @@ describe('DELETE /pages/:id', () => {
     expect(res.json.deleted).toBe(3);
 
     for (const id of [root.id, child.id, grandchild.id]) {
-      const [row] = await db.select().from(pages).where(eq(pages.id, id as string));
+      const [row] = await db
+        .select()
+        .from(pages)
+        .where(eq(pages.id, id as string));
       expect(row).toBeUndefined();
     }
     // Blocks left by cascade.
@@ -532,7 +514,10 @@ describe('DELETE /pages/:id', () => {
     const res = await api('DELETE', `/pages/${page.id}?hard=true`);
     ctx.role = 'owner';
     expect(res.status).toBe(403);
-    const [row] = await db.select().from(pages).where(eq(pages.id, page.id as string));
+    const [row] = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.id, page.id as string));
     expect(row).toBeDefined();
   });
 });
@@ -719,7 +704,10 @@ describe('blocks', () => {
     expect(res.status).toBe(200);
     expect(res.json.deleted).toBe(3);
 
-    const left = await db.select().from(blocks).where(eq(blocks.pageId, page.id as string));
+    const left = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.pageId, page.id as string));
     expect(left.map((b) => b.id)).toEqual([keep.id]);
   });
 

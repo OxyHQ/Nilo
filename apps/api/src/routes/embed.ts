@@ -48,7 +48,8 @@ function detectSource(url: string): string | undefined {
     if (host === 'youtu.be' || host.endsWith('youtube.com')) return 'youtube';
     if (host === 'vimeo.com' || host.endsWith('.vimeo.com')) return 'vimeo';
     if (host.endsWith('loom.com')) return 'loom';
-    if (host === 'twitter.com' || host === 'x.com' || host.endsWith('.twitter.com')) return 'twitter';
+    if (host === 'twitter.com' || host === 'x.com' || host.endsWith('.twitter.com'))
+      return 'twitter';
     if (host.endsWith('figma.com')) return 'figma';
     if (host.endsWith('codepen.io')) return 'codepen';
     if (host === 'gist.github.com') return 'github-gist';
@@ -69,8 +70,7 @@ async function fetchWithTimeout(url: string): Promise<{ body: string; finalUrl: 
       redirect: 'follow',
       signal: controller.signal,
       headers: {
-        'user-agent':
-          'Mozilla/5.0 (compatible; NiloBot/1.0; +https://nilo.so/bot)',
+        'user-agent': 'Mozilla/5.0 (compatible; NiloBot/1.0; +https://nilo.so/bot)',
         accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
     });
@@ -126,7 +126,9 @@ function parseOpenGraph(html: string, finalUrl: string): PreviewResult {
 
   const iconHref =
     doc
-      .querySelector('link[rel~="icon" i][href], link[rel="shortcut icon" i][href], link[rel="apple-touch-icon" i][href]')
+      .querySelector(
+        'link[rel~="icon" i][href], link[rel="shortcut icon" i][href], link[rel="apple-touch-icon" i][href]',
+      )
       ?.getAttribute('href') || undefined;
 
   const fallbackFavicon = `${new URL(finalUrl).origin}/favicon.ico`;

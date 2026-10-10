@@ -1,4 +1,4 @@
-import * as React from "react";
+import * as React from 'react';
 import {
   ActivityIndicator,
   NativeSyntheticEvent,
@@ -8,15 +8,12 @@ import {
   TextInputKeyPressEventData,
   TextInputSelectionChangeEventData,
   View,
-} from "react-native";
-import { Send } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { MentionPicker } from "./mention-picker";
-import type {
-  CommentSegment,
-  MentionSegment,
-} from "@/lib/types/comments";
+} from 'react-native';
+import { Send } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { MentionPicker } from './mention-picker';
+import type { CommentSegment, MentionSegment } from '@/lib/types/comments';
 
 interface CommentComposerProps {
   workspaceId: string;
@@ -53,10 +50,10 @@ function segmentsToText(segments: CommentSegment[]): {
   anchored: Anchored[];
 } {
   let cursor = 0;
-  let text = "";
+  let text = '';
   const anchored: Anchored[] = [];
   for (const seg of segments) {
-    if ("type" in seg && seg.type === "mention") {
+    if ('type' in seg && seg.type === 'mention') {
       const start = cursor;
       text += seg.originalText;
       cursor += seg.originalText.length;
@@ -69,28 +66,23 @@ function segmentsToText(segments: CommentSegment[]): {
   return { text, anchored };
 }
 
-function buildSegmentsFromAnchored(
-  text: string,
-  anchored: Anchored[],
-): CommentSegment[] {
+function buildSegmentsFromAnchored(text: string, anchored: Anchored[]): CommentSegment[] {
   // Anchored ranges must not overlap and are sorted by start.
   const sorted = [...anchored].sort((a, b) => a.start - b.start);
   const out: CommentSegment[] = [];
   let cursor = 0;
   for (const a of sorted) {
     if (a.start > cursor) {
-      out.push({ type: "text", text: text.slice(cursor, a.start) });
+      out.push({ type: 'text', text: text.slice(cursor, a.start) });
     }
     out.push(a.mention);
     cursor = a.end;
   }
   if (cursor < text.length) {
-    out.push({ type: "text", text: text.slice(cursor) });
+    out.push({ type: 'text', text: text.slice(cursor) });
   }
   // Strip empty text segments.
-  return out.filter(
-    (s) => ("type" in s && s.type === "mention") || s.text.length > 0,
-  );
+  return out.filter((s) => ('type' in s && s.type === 'mention') || s.text.length > 0);
 }
 
 /**
@@ -98,11 +90,7 @@ function buildSegmentsFromAnchored(
  * at their `originalText`. If an edit overlaps a mention range, the mention
  * is dropped (the user typed through it).
  */
-function reanchor(
-  prevText: string,
-  prevAnchored: Anchored[],
-  nextText: string,
-): Anchored[] {
+function reanchor(prevText: string, prevAnchored: Anchored[], nextText: string): Anchored[] {
   // Common-prefix / common-suffix diff to localize the edit.
   let prefix = 0;
   const prevLen = prevText.length;
@@ -137,7 +125,7 @@ function reanchor(
   return result;
 }
 
-const MENTION_TRIGGER = "@";
+const MENTION_TRIGGER = '@';
 
 interface DraftMentionState {
   /** Index in `text` where the `@` lives. */
@@ -153,7 +141,7 @@ interface DraftMentionState {
  */
 export function CommentComposer({
   workspaceId,
-  placeholder = "Add a comment…",
+  placeholder = 'Add a comment…',
   submitting,
   autoFocus,
   onSubmit,
@@ -163,7 +151,7 @@ export function CommentComposer({
   const { colors } = useColorScheme();
   const inputRef = React.useRef<TextInput>(null);
   const initial = React.useMemo(
-    () => (initialSegments ? segmentsToText(initialSegments) : { text: "", anchored: [] }),
+    () => (initialSegments ? segmentsToText(initialSegments) : { text: '', anchored: [] }),
     [initialSegments],
   );
   const [text, setText] = React.useState<string>(initial.text);
@@ -174,12 +162,9 @@ export function CommentComposer({
   });
   const [mentionDraft, setMentionDraft] = React.useState<DraftMentionState | null>(null);
 
-  const isEmpty =
-    text.trim().length === 0 && anchored.length === 0;
+  const isEmpty = text.trim().length === 0 && anchored.length === 0;
 
-  const handleSelectionChange = (
-    e: NativeSyntheticEvent<TextInputSelectionChangeEventData>,
-  ) => {
+  const handleSelectionChange = (e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
     selectionRef.current = e.nativeEvent.selection;
     // Recompute mention draft state from caret position.
     if (mentionDraft) {
@@ -190,7 +175,7 @@ export function CommentComposer({
         return;
       }
       const next = text.slice(mentionDraft.triggerIndex + 1, caret);
-      if (next.includes(" ") || next.includes("\n")) {
+      if (next.includes(' ') || next.includes('\n')) {
         setMentionDraft(null);
         return;
       }
@@ -212,7 +197,7 @@ export function CommentComposer({
         return;
       }
       const q = nextText.slice(mentionDraft.triggerIndex + 1, caret);
-      if (q.includes(" ") || q.includes("\n")) {
+      if (q.includes(' ') || q.includes('\n')) {
         setMentionDraft(null);
         return;
       }
@@ -223,18 +208,16 @@ export function CommentComposer({
     // before it is start-of-input or whitespace.
     const idx = caret - 1;
     if (idx >= 0 && nextText[idx] === MENTION_TRIGGER) {
-      const prev = idx > 0 ? nextText[idx - 1] : "";
-      if (idx === 0 || prev === " " || prev === "\n") {
-        setMentionDraft({ triggerIndex: idx, query: "" });
+      const prev = idx > 0 ? nextText[idx - 1] : '';
+      if (idx === 0 || prev === ' ' || prev === '\n') {
+        setMentionDraft({ triggerIndex: idx, query: '' });
       }
     }
   };
 
-  const handleKeyPress = (
-    e: NativeSyntheticEvent<TextInputKeyPressEventData>,
-  ) => {
+  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
     const key = e.nativeEvent.key;
-    if (key === "Escape" && mentionDraft) {
+    if (key === 'Escape' && mentionDraft) {
       setMentionDraft(null);
     }
   };
@@ -278,23 +261,24 @@ export function CommentComposer({
     const segments = buildSegmentsFromAnchored(text, anchored);
     if (segments.length === 0) return;
     await onSubmit(segments);
-    setText("");
+    setText('');
     setAnchored([]);
     setMentionDraft(null);
   };
 
   // Web: intercept Cmd/Ctrl+Enter to submit, Esc to cancel.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: handleSubmit is intentionally left out of the deps (see the note at the deps array).
   React.useEffect(() => {
-    if (Platform.OS !== "web") return;
+    if (Platform.OS !== 'web') return;
     const node = inputRef.current as unknown as HTMLElement | null;
-    if (!node || typeof node.addEventListener !== "function") return;
+    if (!node || typeof node.addEventListener !== 'function') return;
     const handler = (ev: Event) => {
       const e = ev as KeyboardEvent;
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         void handleSubmit();
       }
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         if (mentionDraft) {
           e.preventDefault();
           setMentionDraft(null);
@@ -306,12 +290,11 @@ export function CommentComposer({
         }
       }
     };
-    node.addEventListener("keydown", handler);
-    return () => node.removeEventListener("keydown", handler);
+    node.addEventListener('keydown', handler);
+    return () => node.removeEventListener('keydown', handler);
     // We intentionally don't include handleSubmit in deps — it closes over
     // refs and state via the React tree; rebuilding the handler on every
     // keystroke is wasteful and not required for correctness.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mentionDraft, onCancel]);
 
   return (
@@ -329,7 +312,7 @@ export function CommentComposer({
           autoFocus={autoFocus}
           className="text-sm text-foreground"
           style={
-            Platform.OS === "web"
+            Platform.OS === 'web'
               ? { outlineWidth: 0, borderWidth: 0, minHeight: 36 }
               : { minHeight: 36 }
           }
@@ -348,9 +331,7 @@ export function CommentComposer({
       </View>
       <View className="flex-row items-center justify-between">
         <Text className="text-[10px] text-muted-foreground">
-          {Platform.OS === "web"
-            ? "@ to mention · Cmd/Ctrl+Enter to send"
-            : "@ to mention"}
+          {Platform.OS === 'web' ? '@ to mention · Cmd/Ctrl+Enter to send' : '@ to mention'}
         </Text>
         <View className="flex-row items-center gap-2">
           {onCancel ? (
@@ -368,31 +349,24 @@ export function CommentComposer({
             disabled={isEmpty || submitting}
             className={
               isEmpty || submitting
-                ? "flex-row items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 opacity-60"
-                : "flex-row items-center gap-1.5 rounded-md bg-primary px-3 py-1.5"
+                ? 'flex-row items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 opacity-60'
+                : 'flex-row items-center gap-1.5 rounded-md bg-primary px-3 py-1.5'
             }
             accessibilityLabel="Send comment"
           >
             {submitting ? (
               <ActivityIndicator size="small" color={colors.primaryForeground} />
             ) : (
-              <Send
-                size={12}
-                color={
-                  isEmpty
-                    ? colors.mutedForeground
-                    : colors.primaryForeground
-                }
-              />
+              <Send size={12} color={isEmpty ? colors.mutedForeground : colors.primaryForeground} />
             )}
             <Text
               className={
                 isEmpty || submitting
-                  ? "text-xs font-medium text-muted-foreground"
-                  : "text-xs font-medium text-primary-foreground"
+                  ? 'text-xs font-medium text-muted-foreground'
+                  : 'text-xs font-medium text-primary-foreground'
               }
             >
-              {submitting ? "Posting…" : "Comment"}
+              {submitting ? 'Posting…' : 'Comment'}
             </Text>
           </Pressable>
         </View>

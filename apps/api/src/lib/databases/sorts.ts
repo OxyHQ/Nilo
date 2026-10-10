@@ -33,11 +33,7 @@ export function compareBySorts(
   };
 }
 
-function compareScalar(
-  a: unknown,
-  b: unknown,
-  type: DatabasePropertyType,
-): number {
+function compareScalar(a: unknown, b: unknown, type: DatabasePropertyType): number {
   const av = scalarFor(a, type);
   const bv = scalarFor(b, type);
   if (av === null && bv === null) return 0;
@@ -52,10 +48,7 @@ function compareScalar(
   return as.localeCompare(bs);
 }
 
-function scalarFor(
-  value: unknown,
-  type: DatabasePropertyType,
-): string | number | null {
+function scalarFor(value: unknown, type: DatabasePropertyType): string | number | null {
   if (value === null || value === undefined) return null;
   if (typeof value !== 'object') return null;
   const v = value as Record<string, unknown>;

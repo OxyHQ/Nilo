@@ -24,10 +24,7 @@ function getShortcutContext(e: KeyboardEvent): ShortcutContext {
   const target = e.target as HTMLElement | null;
   if (!target) return { inEditor: false };
   const tag = target.tagName?.toLowerCase();
-  const isEditable =
-    tag === 'input' ||
-    tag === 'textarea' ||
-    target.isContentEditable === true;
+  const isEditable = tag === 'input' || tag === 'textarea' || target.isContentEditable === true;
   return { inEditor: isEditable };
 }
 
@@ -91,8 +88,7 @@ export function useKeyboardShortcuts() {
       // Cmd+N → new page
       if (key === 'n') {
         e.preventDefault();
-        const { currentWorkspaceId: wsId, createPage: cp, router: r } =
-          handlersRef.current;
+        const { currentWorkspaceId: wsId, createPage: cp, router: r } = handlersRef.current;
         if (!wsId) return;
         cp.mutateAsync({
           workspaceId: wsId,

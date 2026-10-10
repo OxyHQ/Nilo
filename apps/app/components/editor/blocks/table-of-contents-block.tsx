@@ -1,14 +1,14 @@
-import * as React from "react";
-import { Pressable, View } from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import { List as ListIcon } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import apiClient from "@/lib/api/client";
-import { API_ROUTES } from "@/lib/api/routes";
-import { queryKeys } from "@/lib/hooks/query-keys";
-import type { BlockComponentProps } from "./types";
-import type { BlocksListResponse } from "@/lib/types/pages";
+import * as React from 'react';
+import { Pressable, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { List as ListIcon } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import apiClient from '@/lib/api/client';
+import { API_ROUTES } from '@/lib/api/routes';
+import { queryKeys } from '@/lib/hooks/query-keys';
+import type { BlockComponentProps } from './types';
+import type { BlocksListResponse } from '@/lib/types/pages';
 
 interface HeadingItem {
   id: string;
@@ -40,14 +40,10 @@ export function TableOfContentsBlock({ block }: BlockComponentProps) {
     if (!blocks.data) return [];
     const out: HeadingItem[] = [];
     for (const b of blocks.data.blocks) {
-      if (
-        b.type === "heading_1" ||
-        b.type === "heading_2" ||
-        b.type === "heading_3"
-      ) {
-        const text = typeof b.content.text === "string" ? b.content.text : "";
+      if (b.type === 'heading_1' || b.type === 'heading_2' || b.type === 'heading_3') {
+        const text = typeof b.content.text === 'string' ? b.content.text : '';
         if (!text.trim()) continue;
-        const depth = b.type === "heading_1" ? 1 : b.type === "heading_2" ? 2 : 3;
+        const depth = b.type === 'heading_1' ? 1 : b.type === 'heading_2' ? 2 : 3;
         out.push({ id: b._id, text, depth });
       }
     }
@@ -74,20 +70,17 @@ export function TableOfContentsBlock({ block }: BlockComponentProps) {
           key={h.id}
           onPress={() => {
             // Web: scroll the heading into view via anchor convention.
-            if (typeof document !== "undefined") {
+            if (typeof document !== 'undefined') {
               const el = document.querySelector(`[data-block-id="${h.id}"]`);
               if (el && el instanceof HTMLElement) {
-                el.scrollIntoView({ behavior: "smooth", block: "start" });
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }
             }
           }}
           style={{ paddingLeft: (h.depth - 1) * 12 }}
           className="py-0.5"
         >
-          <Text
-            className="text-sm text-muted-foreground hover:text-foreground"
-            numberOfLines={1}
-          >
+          <Text className="text-sm text-muted-foreground hover:text-foreground" numberOfLines={1}>
             {h.text}
           </Text>
         </Pressable>

@@ -1,16 +1,12 @@
-import * as React from "react";
-import { Platform, Pressable, ScrollView, TextInput, View } from "react-native";
-import { Home, X } from "lucide-react-native";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { usePages, useUpdatePage } from "@/lib/hooks/use-pages";
-import type { Page } from "@/lib/types/pages";
-import { IconDisplay } from "./icon-display";
+import * as React from 'react';
+import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Home, X } from 'lucide-react-native';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { usePages, useUpdatePage } from '@/lib/hooks/use-pages';
+import type { Page } from '@/lib/types/pages';
+import { IconDisplay } from './icon-display';
 
 interface MoveToDialogProps {
   open: boolean;
@@ -26,7 +22,7 @@ interface MoveToDialogProps {
  */
 export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
   const { colors } = useColorScheme();
-  const [query, setQuery] = React.useState("");
+  const [query, setQuery] = React.useState('');
   const { data, isLoading } = usePages(page.workspaceId);
   const updatePage = useUpdatePage();
 
@@ -39,7 +35,7 @@ export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
       .filter((p) => !p.archived && !descendantIds.has(p._id))
       .filter((p) => {
         if (!normalized) return true;
-        const title = (p.title || "Untitled").toLowerCase();
+        const title = (p.title || 'Untitled').toLowerCase();
         return title.includes(normalized);
       })
       .slice(0, 100);
@@ -76,9 +72,7 @@ export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
             autoCorrect={false}
             autoCapitalize="none"
             style={
-              Platform.OS === "web"
-                ? { outlineWidth: 0, borderWidth: 0, padding: 0 }
-                : undefined
+              Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined
             }
           />
         </View>
@@ -93,9 +87,7 @@ export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
             <Text className="text-sm text-foreground">Move to root</Text>
           </Pressable>
           {isLoading ? (
-            <Text className="px-2 py-2 text-sm text-muted-foreground">
-              Loading…
-            </Text>
+            <Text className="px-2 py-2 text-sm text-muted-foreground">Loading…</Text>
           ) : candidates.length === 0 ? (
             <Text className="px-2 py-4 text-center text-sm text-muted-foreground">
               No pages match “{query}”.
@@ -106,13 +98,13 @@ export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
                 key={p._id}
                 onPress={() => handleMove(p._id)}
                 className="flex-row items-center gap-2 rounded-md px-2 py-2 hover:bg-muted"
-                accessibilityLabel={`Move under ${p.title || "Untitled"}`}
+                accessibilityLabel={`Move under ${p.title || 'Untitled'}`}
               >
                 <View className="h-4 w-4 items-center justify-center">
                   <IconDisplay value={p.icon} size={14} showPlaceholder />
                 </View>
                 <Text className="flex-1 text-sm text-foreground" numberOfLines={1}>
-                  {p.title.trim() || "Untitled"}
+                  {p.title.trim() || 'Untitled'}
                 </Text>
               </Pressable>
             ))

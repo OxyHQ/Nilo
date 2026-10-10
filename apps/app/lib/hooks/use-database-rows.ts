@@ -1,15 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useOxy } from "@oxy.so/services";
-import apiClient from "../api/client";
-import { API_ROUTES } from "../api/routes";
-import { queryKeys } from "./query-keys";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOxy } from '@oxy.so/services';
+import apiClient from '../api/client';
+import { API_ROUTES } from '../api/routes';
+import { queryKeys } from './query-keys';
 import type {
   DatabaseRow,
   DatabaseRowResponse,
   DatabaseRowsResponse,
   PropertyValue,
-} from "../types/databases";
-import type { Page, PageResponse } from "../types/pages";
+} from '../types/databases';
+import type { Page, PageResponse } from '../types/pages';
 
 /**
  * Backend serializes a database row as a Page payload extended with
@@ -67,17 +67,14 @@ interface DeleteRowInput {
  * downstream UI can render badges (active sort, active filter count)
  * without a second roundtrip.
  */
-export function useDatabaseRows(
-  databaseId: string | undefined,
-  viewId: string | null,
-) {
+export function useDatabaseRows(databaseId: string | undefined, viewId: string | null) {
   const { isAuthenticated } = useOxy();
   return useQuery<DatabaseRowsResponse>({
     queryKey: databaseId
       ? queryKeys.databases.rows(databaseId, viewId)
-      : ["database", "none", "rows"],
+      : ['database', 'none', 'rows'],
     queryFn: async () => {
-      if (!databaseId) throw new Error("Database id required");
+      if (!databaseId) throw new Error('Database id required');
       const res = await apiClient.get<DatabaseRowsResponse>(
         API_ROUTES.databases.listRows(databaseId),
         { params: viewId ? { viewId } : undefined },
@@ -100,7 +97,7 @@ export function useCreateRow() {
     },
     onSettled: (_data, _err, { databaseId }) => {
       queryClient.invalidateQueries({
-        queryKey: ["database", databaseId, "rows"],
+        queryKey: ['database', databaseId, 'rows'],
       });
     },
   });
@@ -115,15 +112,12 @@ export function useUpdateRow() {
   const queryClient = useQueryClient();
   return useMutation<DatabaseRow, Error, UpdateRowInput>({
     mutationFn: async ({ rowId, databaseId: _databaseId, ...patch }) => {
-      const res = await apiClient.patch<PageResponse>(
-        API_ROUTES.pages.update(rowId),
-        patch,
-      );
+      const res = await apiClient.patch<PageResponse>(API_ROUTES.pages.update(rowId), patch);
       return pageToDatabaseRow(res.data.page);
     },
     onMutate: async ({ databaseId, rowId, ...patch }) => {
       const queries = queryClient.getQueriesData<DatabaseRowsResponse>({
-        queryKey: ["database", databaseId, "rows"],
+        queryKey: ['database', databaseId, 'rows'],
       });
       const previous: Array<{
         key: unknown[];
@@ -132,27 +126,21 @@ export function useUpdateRow() {
       for (const [key, data] of queries) {
         previous.push({ key: key as unknown[], data });
         if (!data) continue;
-        queryClient.setQueryData<DatabaseRowsResponse>(
-          key as unknown[],
-          {
-            ...data,
-            rows: data.rows.map((r) =>
-              r.id === rowId
-                ? {
-                    ...r,
-                    ...patch,
-                    properties: {
-                      ...r.properties,
-                      ...((patch.properties ?? {}) as Record<
-                        string,
-                        PropertyValue
-                      >),
-                    },
-                  }
-                : r,
-            ),
-          },
-        );
+        queryClient.setQueryData<DatabaseRowsResponse>(key as unknown[], {
+          ...data,
+          rows: data.rows.map((r) =>
+            r.id === rowId
+              ? {
+                  ...r,
+                  ...patch,
+                  properties: {
+                    ...r.properties,
+                    ...((patch.properties ?? {}) as Record<string, PropertyValue>),
+                  },
+                }
+              : r,
+          ),
+        });
       }
       return { previous };
     },
@@ -173,7 +161,7 @@ export function useUpdateRow() {
     },
     onSettled: (_data, _err, { databaseId, rowId }) => {
       queryClient.invalidateQueries({
-        queryKey: ["database", databaseId, "rows"],
+        queryKey: ['database', databaseId, 'rows'],
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.pages.detail(rowId),
@@ -192,7 +180,7 @@ export function useDeleteRow() {
     },
     onSettled: (_data, _err, { databaseId }) => {
       queryClient.invalidateQueries({
-        queryKey: ["database", databaseId, "rows"],
+        queryKey: ['database', databaseId, 'rows'],
       });
     },
   });

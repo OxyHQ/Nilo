@@ -1,14 +1,14 @@
-import * as React from "react";
-import { Pressable, View } from "react-native";
-import { router } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import apiClient from "@/lib/api/client";
-import { API_ROUTES } from "@/lib/api/routes";
-import type { Page, PageResponse } from "@/lib/types/pages";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { Pressable, View } from 'react-native';
+import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronRight } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import apiClient from '@/lib/api/client';
+import { API_ROUTES } from '@/lib/api/routes';
+import type { Page, PageResponse } from '@/lib/types/pages';
+import type { BlockComponentProps } from './types';
 
 interface BreadcrumbTrail {
   pages: Page[];
@@ -38,7 +38,7 @@ export function BreadcrumbBlock({ block }: BlockComponentProps) {
   const { colors } = useColorScheme();
   const pageId = block.pageId;
   const trail = useQuery({
-    queryKey: ["breadcrumb", pageId],
+    queryKey: ['breadcrumb', pageId],
     queryFn: () => fetchTrail(pageId),
     enabled: Boolean(pageId),
     staleTime: 1000 * 30,
@@ -58,7 +58,7 @@ export function BreadcrumbBlock({ block }: BlockComponentProps) {
         <View key={p._id} className="flex-row items-center gap-1">
           <Pressable onPress={() => router.push(`/p/${p._id}`)}>
             <Text className="text-xs text-muted-foreground hover:text-foreground">
-              {p.title || "Untitled"}
+              {p.title || 'Untitled'}
             </Text>
           </Pressable>
           {idx < trail.data.pages.length - 1 ? (

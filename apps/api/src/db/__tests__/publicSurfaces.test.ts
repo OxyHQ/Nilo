@@ -6,18 +6,9 @@ const REPOSITORY_ROOT = resolve(__dirname, '..', '..', '..', '..', '..');
 
 describe('the checked-in public surfaces describe routes that exist', () => {
   it('has no implicit production API origin', () => {
-    const config = readFileSync(
-      resolve(REPOSITORY_ROOT, 'apps/app/lib/config.ts'),
-      'utf8',
-    );
-    const validator = readFileSync(
-      resolve(REPOSITORY_ROOT, 'apps/app/lib/api-origin.ts'),
-      'utf8',
-    );
-    const deploy = readFileSync(
-      resolve(REPOSITORY_ROOT, '.github/workflows/deploy.yml'),
-      'utf8',
-    );
+    const config = readFileSync(resolve(REPOSITORY_ROOT, 'apps/app/lib/config.ts'), 'utf8');
+    const validator = readFileSync(resolve(REPOSITORY_ROOT, 'apps/app/lib/api-origin.ts'), 'utf8');
+    const deploy = readFileSync(resolve(REPOSITORY_ROOT, '.github/workflows/deploy.yml'), 'utf8');
 
     expect(config).toContain("process.env.NODE_ENV === 'production'");
     expect(config).not.toContain('api.nilo.so');
@@ -32,10 +23,7 @@ describe('the checked-in public surfaces describe routes that exist', () => {
   });
 
   it('binds notification sockets to the server-validated Oxy session', () => {
-    const serverSocket = readFileSync(
-      resolve(REPOSITORY_ROOT, 'apps/api/src/socket.ts'),
-      'utf8',
-    );
+    const serverSocket = readFileSync(resolve(REPOSITORY_ROOT, 'apps/api/src/socket.ts'), 'utf8');
     const clientSocket = readFileSync(
       resolve(REPOSITORY_ROOT, 'apps/app/lib/hooks/use-notification-setup.ts'),
       'utf8',
@@ -53,27 +41,19 @@ describe('the checked-in public surfaces describe routes that exist', () => {
       resolve(REPOSITORY_ROOT, 'apps/app/scripts/generate-sitemap.ts'),
       'utf8',
     );
-    const generatedRoutes = [...generator.matchAll(/\bloc:\s*['"]([^'"]+)['"]/g)]
-      .map((match) => match[1]);
-    const sitemap = readFileSync(
-      resolve(REPOSITORY_ROOT, 'apps/app/public/sitemap.xml'),
-      'utf8',
+    const generatedRoutes = [...generator.matchAll(/\bloc:\s*['"]([^'"]+)['"]/g)].map(
+      (match) => match[1],
     );
-    const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)]
-      .map((match) => match[1]);
+    const sitemap = readFileSync(resolve(REPOSITORY_ROOT, 'apps/app/public/sitemap.xml'), 'utf8');
+    const sitemapUrls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
 
     expect(generatedRoutes).toEqual(['/']);
     expect(sitemapUrls).toEqual(['https://nilo.so/']);
   });
 
   it('does not advertise Alia or nonexistent Nilo pages in robots.txt', () => {
-    const robots = readFileSync(
-      resolve(REPOSITORY_ROOT, 'apps/app/public/robots.txt'),
-      'utf8',
-    );
-    const sitemapLines = robots
-      .split('\n')
-      .filter((line) => line.startsWith('Sitemap:'));
+    const robots = readFileSync(resolve(REPOSITORY_ROOT, 'apps/app/public/robots.txt'), 'utf8');
+    const sitemapLines = robots.split('\n').filter((line) => line.startsWith('Sitemap:'));
 
     expect(robots).not.toContain('alia.onl');
     expect(robots).not.toContain('/developers/');
@@ -81,13 +61,10 @@ describe('the checked-in public surfaces describe routes that exist', () => {
   });
 
   it('does not mount or advertise the catch-all webhook router that always returned 404', () => {
-    const indexSource = readFileSync(
-      resolve(REPOSITORY_ROOT, 'apps/api/src/index.ts'),
-      'utf8',
-    );
+    const indexSource = readFileSync(resolve(REPOSITORY_ROOT, 'apps/api/src/index.ts'), 'utf8');
 
     expect(existsSync(resolve(REPOSITORY_ROOT, 'apps/api/src/routes/webhooks.ts'))).toBe(false);
-    expect(indexSource).not.toContain("./routes/webhooks.js");
+    expect(indexSource).not.toContain('./routes/webhooks.js');
     expect(indexSource).not.toMatch(/app\.use\(['"]\/webhooks['"]/);
   });
 
@@ -97,6 +74,8 @@ describe('the checked-in public surfaces describe routes that exist', () => {
     expect(indexSource).toContain("app.use('/workspaces', workspacesRouter)");
     expect(indexSource).toContain("app.use('/pages', pagesRouter)");
     expect(indexSource).toContain("app.use('/databases', databasesRouter)");
-    expect(indexSource).not.toMatch(/app\.use\(['"]\/(?:v1|clarity|conversations|billing|credits|models|analytics|internal)/u);
+    expect(indexSource).not.toMatch(
+      /app\.use\(['"]\/(?:v1|clarity|conversations|billing|credits|models|analytics|internal)/u,
+    );
   });
 });

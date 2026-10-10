@@ -1,8 +1,5 @@
 import { randomUUID } from 'crypto';
-import type {
-  DatabaseProperty,
-  DatabaseSchema,
-} from '../../db/schema/databases.js';
+import type { DatabaseProperty, DatabaseSchema } from '../../db/schema/databases.js';
 
 /**
  * Build the default property schema used when a Database is created without
@@ -55,10 +52,6 @@ export function buildDefaultSchema(): DatabaseSchema {
  * doesn't depend on schema metadata. UI may still rename it; only the
  * `id` is load-bearing.
  */
-export function findNameProperty(
-  schema: DatabaseSchema,
-): DatabaseProperty | null {
-  return (
-    schema.properties.find((p) => p.id === NAME_PROPERTY_ID) ?? null
-  );
+export function findNameProperty(schema: DatabaseSchema): DatabaseProperty | null {
+  return schema.properties.find((p) => p.id === NAME_PROPERTY_ID) ?? null;
 }

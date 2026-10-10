@@ -5,15 +5,9 @@
  * mounting Express.
  */
 import { describe, expect, it } from 'vitest';
-import {
-  evaluateFilter,
-  filterGroupSchema,
-} from '../../lib/databases/filters.js';
+import { evaluateFilter, filterGroupSchema } from '../../lib/databases/filters.js';
 import { compareBySorts } from '../../lib/databases/sorts.js';
-import {
-  parsePropertyValue,
-  serializeParsedValue,
-} from '../../lib/databases/property-values.js';
+import { parsePropertyValue, serializeParsedValue } from '../../lib/databases/property-values.js';
 import { evaluateFormulaExpression } from '../../lib/databases/formula.js';
 import type { DatabaseProperty } from '../../db/schema/databases.js';
 
@@ -50,18 +44,14 @@ describe('filterGroupSchema', () => {
     const parsed = filterGroupSchema.parse({
       kind: 'group',
       combinator: 'and',
-      filters: [
-        { kind: 'condition', propertyId: 'p1', operator: 'is', value: 'x' },
-      ],
+      filters: [{ kind: 'condition', propertyId: 'p1', operator: 'is', value: 'x' }],
     });
     expect(parsed.combinator).toBe('and');
     expect(parsed.filters.length).toBe(1);
   });
 
   it('rejects malformed input', () => {
-    expect(() =>
-      filterGroupSchema.parse({ kind: 'condition', propertyId: 'p1' }),
-    ).toThrow();
+    expect(() => filterGroupSchema.parse({ kind: 'condition', propertyId: 'p1' })).toThrow();
   });
 });
 
@@ -153,11 +143,7 @@ describe('evaluateFilter', () => {
 
   it('Empty group passes', () => {
     const r = row('Anything', null, false);
-    const pass = evaluateFilter(
-      { kind: 'group', combinator: 'and', filters: [] },
-      r,
-      byId,
-    );
+    const pass = evaluateFilter({ kind: 'group', combinator: 'and', filters: [] }, r, byId);
     expect(pass).toBe(true);
   });
 });
@@ -184,10 +170,7 @@ describe('compareBySorts', () => {
         properties: new Map([['priority', { number: 2 }]]),
       },
     ];
-    const compare = compareBySorts(
-      [{ propertyId: 'priority', direction: 'asc' }],
-      byId,
-    );
+    const compare = compareBySorts([{ propertyId: 'priority', direction: 'asc' }], byId);
     rows.sort(compare);
     expect(rows.map((r) => r.title)).toEqual(['B', 'C', 'A']);
   });
@@ -198,10 +181,7 @@ describe('compareBySorts', () => {
       { title: 'a', properties: new Map() },
       { title: 'c', properties: new Map() },
     ];
-    const compare = compareBySorts(
-      [{ propertyId: 'name', direction: 'desc' }],
-      byId,
-    );
+    const compare = compareBySorts([{ propertyId: 'name', direction: 'desc' }], byId);
     rows.sort(compare);
     expect(rows.map((r) => r.title)).toEqual(['c', 'b', 'a']);
   });

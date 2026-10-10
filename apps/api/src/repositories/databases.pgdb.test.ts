@@ -366,9 +366,7 @@ describe('insertDatabaseView', () => {
         filters: {
           kind: 'group',
           combinator: 'or',
-          filters: [
-            { kind: 'condition', propertyId: 'status', operator: 'equals', value: 'o1' },
-          ],
+          filters: [{ kind: 'condition', propertyId: 'status', operator: 'equals', value: 'o1' }],
         },
         sorts: [{ propertyId: 'name', direction: 'desc' }],
         groupBy: { propertyId: 'status' },

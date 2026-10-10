@@ -19,9 +19,7 @@ export function SharedSection() {
 
   const sharedPages = React.useMemo<Page[]>(() => {
     if (!data?.pages || !user) return [];
-    return data.pages.filter(
-      (p) => p.ownerId !== user.id && !p.archived,
-    );
+    return data.pages.filter((p) => p.ownerId !== user.id && !p.archived);
   }, [data?.pages, user]);
 
   if (sharedPages.length === 0) return null;
@@ -30,11 +28,7 @@ export function SharedSection() {
   return (
     <SidebarSection sectionKey="shared" title="Shared">
       <View className="px-1">
-        <SidebarPageTree
-          pages={sharedPages}
-          workspaceId={currentWorkspaceId}
-          enableDrag={false}
-        />
+        <SidebarPageTree pages={sharedPages} workspaceId={currentWorkspaceId} enableDrag={false} />
       </View>
     </SidebarSection>
   );

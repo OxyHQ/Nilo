@@ -1,14 +1,14 @@
-import * as React from "react";
-import { Platform, Pressable, View } from "react-native";
-import { File as FileIcon, Upload } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { uploadFile } from "@/lib/uploads/upload-file";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { Platform, Pressable, View } from 'react-native';
+import { File as FileIcon, Upload } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { uploadFile } from '@/lib/uploads/upload-file';
+import type { BlockComponentProps } from './types';
 
 function formatBytes(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return "";
-  const units = ["B", "KB", "MB", "GB"];
+  if (!Number.isFinite(n) || n <= 0) return '';
+  const units = ['B', 'KB', 'MB', 'GB'];
   let v = n;
   let i = 0;
   while (v >= 1024 && i < units.length - 1) {
@@ -25,9 +25,9 @@ function formatBytes(n: number): string {
  */
 export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const url = typeof block.content.url === "string" ? block.content.url : "";
-  const name = typeof block.content.name === "string" ? block.content.name : "";
-  const size = typeof block.content.size === "number" ? block.content.size : 0;
+  const url = typeof block.content.url === 'string' ? block.content.url : '';
+  const name = typeof block.content.name === 'string' ? block.content.name : '';
+  const size = typeof block.content.size === 'number' ? block.content.size : 0;
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -39,7 +39,7 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
       const buf = await file.arrayBuffer();
       const result = await uploadFile({
         filename: file.name,
-        mimeType: file.type || "application/octet-stream",
+        mimeType: file.type || 'application/octet-stream',
         body: buf,
         size: file.size,
       });
@@ -48,10 +48,10 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
         url: result.fileUrl,
         name: file.name,
         size: file.size,
-        mimeType: file.type || "application/octet-stream",
+        mimeType: file.type || 'application/octet-stream',
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setBusy(false);
     }
@@ -61,14 +61,14 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
     setBusy(true);
     setError(null);
     try {
-      const picker = await import("expo-document-picker");
-      const { File } = await import("expo-file-system");
+      const picker = await import('expo-document-picker');
+      const { File } = await import('expo-file-system');
       const result = await picker.getDocumentAsync({ copyToCacheDirectory: true });
       if (result.canceled || result.assets.length === 0) return;
       const asset = result.assets[0];
       const file = new File(asset.uri);
       const bytes = await file.bytes();
-      const mimeType = asset.mimeType ?? "application/octet-stream";
+      const mimeType = asset.mimeType ?? 'application/octet-stream';
       const filename = asset.name ?? `file-${Date.now()}`;
       const uploaded = await uploadFile({
         filename,
@@ -84,7 +84,7 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
         mimeType,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setBusy(false);
     }
@@ -99,7 +99,7 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
         </View>
         <Pressable
           onPress={() => {
-            if (Platform.OS === "web") {
+            if (Platform.OS === 'web') {
               fileInputRef.current?.click();
             } else {
               void handleNativeUpload();
@@ -109,22 +109,19 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
           disabled={busy}
         >
           <Upload size={14} color={colors.primaryForeground} />
-          <Text
-            className="text-sm font-medium"
-            style={{ color: colors.primaryForeground }}
-          >
-            {busy ? "Uploading…" : "Choose file"}
+          <Text className="text-sm font-medium" style={{ color: colors.primaryForeground }}>
+            {busy ? 'Uploading…' : 'Choose file'}
           </Text>
         </Pressable>
-        {Platform.OS === "web" ? (
+        {Platform.OS === 'web' ? (
           <input
             ref={fileInputRef}
             type="file"
-            style={{ display: "none" }}
+            style={{ display: 'none' }}
             onChange={(ev) => {
               const file = ev.target.files?.[0];
               if (file) void handleWebUpload(file);
-              ev.target.value = "";
+              ev.target.value = '';
             }}
           />
         ) : null}
@@ -134,23 +131,16 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
   }
 
   const sizeLabel = formatBytes(size);
-  const displayName = name || url.split("/").pop() || "file";
+  const displayName = name || url.split('/').pop() || 'file';
 
-  if (Platform.OS === "web") {
+  if (Platform.OS === 'web') {
     return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        style={{ textDecoration: "none" }}
-      >
+      <a href={url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
         <View className="flex-row items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2">
           <FileIcon size={18} color={colors.foreground} />
           <View className="flex-1">
             <Text className="text-sm text-foreground">{displayName}</Text>
-            {sizeLabel ? (
-              <Text className="text-xs text-muted-foreground">{sizeLabel}</Text>
-            ) : null}
+            {sizeLabel ? <Text className="text-xs text-muted-foreground">{sizeLabel}</Text> : null}
           </View>
         </View>
       </a>
@@ -160,16 +150,14 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
   return (
     <Pressable
       onPress={() => {
-        import("expo-web-browser").then((mod) => mod.openBrowserAsync(url));
+        import('expo-web-browser').then((mod) => mod.openBrowserAsync(url));
       }}
       className="flex-row items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
     >
       <FileIcon size={18} color={colors.foreground} />
       <View className="flex-1">
         <Text className="text-sm text-foreground">{displayName}</Text>
-        {sizeLabel ? (
-          <Text className="text-xs text-muted-foreground">{sizeLabel}</Text>
-        ) : null}
+        {sizeLabel ? <Text className="text-xs text-muted-foreground">{sizeLabel}</Text> : null}
       </View>
     </Pressable>
   );

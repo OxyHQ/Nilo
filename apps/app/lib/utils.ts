@@ -1,6 +1,6 @@
-import { clsx, type ClassValue } from "clsx";
-import { Platform } from "react-native";
-import { twMerge } from "tailwind-merge";
+import { clsx, type ClassValue } from 'clsx';
+import { Platform } from 'react-native';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -12,13 +12,13 @@ export function isValidYoutubeUrl(url: string) {
 }
 
 export function isWeb() {
-  return Platform.OS === "web";
+  return Platform.OS === 'web';
 }
 export function isNative() {
-  return Platform.OS === "ios" || Platform.OS === "android";
+  return Platform.OS === 'ios' || Platform.OS === 'android';
 }
 export function isIOS() {
-  return Platform.OS === "ios";
+  return Platform.OS === 'ios';
 }
 
 interface ApplicationError extends Error {
@@ -30,9 +30,7 @@ export const fetcher = async (url: string) => {
   const res = await fetch(url);
 
   if (!res.ok) {
-    const error = new Error(
-      "An error occurred while fetching the data.",
-    ) as ApplicationError;
+    const error = new Error('An error occurred while fetching the data.') as ApplicationError;
 
     error.info = await res.json();
     error.status = res.status;
@@ -44,16 +42,16 @@ export const fetcher = async (url: string) => {
 };
 
 export function getLocalStorage(key: string) {
-  if (typeof window !== "undefined") {
-    return JSON.parse(localStorage.getItem(key) || "[]");
+  if (typeof window !== 'undefined') {
+    return JSON.parse(localStorage.getItem(key) || '[]');
   }
   return [];
 }
 
 export function generateUUID(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }

@@ -1,8 +1,5 @@
 import * as React from 'react';
-import {
-  SharedPageRow,
-  type PageRowSharedProps,
-} from './shared-page-row';
+import { SharedPageRow, type PageRowSharedProps } from './shared-page-row';
 
 /**
  * Native sidebar page row. No drag-and-drop on native (would need

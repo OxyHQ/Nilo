@@ -80,14 +80,7 @@ export interface PropertyConfig {
   twoWay?: boolean;
   relationPropertyId?: string;
   targetPropertyId?: string;
-  function?:
-    | 'count'
-    | 'sum'
-    | 'avg'
-    | 'min'
-    | 'max'
-    | 'earliest'
-    | 'latest';
+  function?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'earliest' | 'latest';
   expression?: string;
 }
 
@@ -117,13 +110,7 @@ export interface Database {
   updatedAt: string;
 }
 
-export type DatabaseViewType =
-  | 'table'
-  | 'board'
-  | 'gallery'
-  | 'list'
-  | 'calendar'
-  | 'timeline';
+export type DatabaseViewType = 'table' | 'board' | 'gallery' | 'list' | 'calendar' | 'timeline';
 
 export type SortDirection = 'asc' | 'desc';
 

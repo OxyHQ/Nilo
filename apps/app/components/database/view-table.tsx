@@ -1,25 +1,19 @@
-import * as React from "react";
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { Plus } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
+import * as React from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Plus } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
 import type {
   Database,
   DatabaseProperty,
   DatabaseRow,
   DatabaseView,
   PropertyValue,
-} from "@/lib/types/databases";
-import { useCreateRow, useUpdateRow } from "@/lib/hooks/use-database-rows";
-import { PropertyCell } from "./property-cell";
-import { PropertyHeaderMenu } from "./property-config-modal";
+} from '@/lib/types/databases';
+import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
+import { PropertyCell } from './property-cell';
+import { PropertyHeaderMenu } from './property-config-modal';
 
 interface ViewTableProps {
   database: Database;
@@ -44,7 +38,7 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
 
   const visibleProperties = React.useMemo(() => {
     return database.schema.properties.filter(
-      (p) => !view.hiddenProperties.includes(p.id) && p.id !== "name",
+      (p) => !view.hiddenProperties.includes(p.id) && p.id !== 'name',
     );
   }, [database.schema.properties, view.hiddenProperties]);
 
@@ -90,26 +84,15 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
           className="flex-row border-y border-border bg-muted/30"
           style={{ minWidth: TITLE_COL_WIDTH + visibleProperties.length * DEFAULT_COL_WIDTH + 60 }}
         >
-          <View
-            className="px-3 py-2 border-r border-border"
-            style={{ width: TITLE_COL_WIDTH }}
-          >
+          <View className="px-3 py-2 border-r border-border" style={{ width: TITLE_COL_WIDTH }}>
             <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Name
             </Text>
           </View>
           {visibleProperties.map((property) => (
-            <ColumnHeader
-              key={property.id}
-              database={database}
-              view={view}
-              property={property}
-            />
+            <ColumnHeader key={property.id} database={database} view={view} property={property} />
           ))}
-          <View
-            className="px-3 py-2 items-center justify-center"
-            style={{ width: 60 }}
-          />
+          <View className="px-3 py-2 items-center justify-center" style={{ width: 60 }} />
         </View>
 
         {/* rows */}
@@ -119,10 +102,7 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
           </View>
         ) : (
           rows.map((row) => (
-            <View
-              key={row.id}
-              className="flex-row border-b border-border/60"
-            >
+            <View key={row.id} className="flex-row border-b border-border/60">
               <Pressable
                 className="px-3 py-2 border-r border-border/60 flex-row items-center"
                 style={{ width: TITLE_COL_WIDTH }}
@@ -143,9 +123,7 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
                     property={property}
                     value={row.properties[property.id] ?? null}
                     variant="table"
-                    onChange={(value) =>
-                      handleCellChange(row.id, property.id, value)
-                    }
+                    onChange={(value) => handleCellChange(row.id, property.id, value)}
                   />
                 </View>
               ))}
@@ -161,7 +139,7 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
         >
           <Plus size={14} color={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">
-            {createRow.isPending ? "Adding…" : "New"}
+            {createRow.isPending ? 'Adding…' : 'New'}
           </Text>
         </Pressable>
       </View>
@@ -182,10 +160,7 @@ function ColumnHeader({ database, view, property }: ColumnHeaderProps) {
       className="px-3 py-2 border-r border-border flex-row items-center justify-between"
       style={{ width: DEFAULT_COL_WIDTH }}
     >
-      <Pressable
-        onPress={() => setMenuOpen(true)}
-        className="flex-1"
-      >
+      <Pressable onPress={() => setMenuOpen(true)} className="flex-1">
         <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {property.name}
         </Text>
@@ -217,14 +192,14 @@ function TitleCell({ initial, onChange }: TitleCellProps) {
     if (draft !== initial) onChange(draft);
   };
 
-  if (Platform.OS === "web") {
+  if (Platform.OS === 'web') {
     return (
       <input
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === "Enter") {
+          if (e.key === 'Enter') {
             e.preventDefault();
             commit();
             (e.target as HTMLInputElement).blur();
@@ -232,12 +207,12 @@ function TitleCell({ initial, onChange }: TitleCellProps) {
         }}
         placeholder="Untitled"
         style={{
-          background: "transparent",
-          border: "none",
-          outline: "none",
+          background: 'transparent',
+          border: 'none',
+          outline: 'none',
           color: colors.foreground,
           fontSize: 14,
-          width: "100%",
+          width: '100%',
         }}
       />
     );
@@ -245,7 +220,7 @@ function TitleCell({ initial, onChange }: TitleCellProps) {
   // Native: simple read-only label that opens the row on tap.
   return (
     <Text className="text-sm text-foreground" numberOfLines={1}>
-      {draft || "Untitled"}
+      {draft || 'Untitled'}
     </Text>
   );
 }

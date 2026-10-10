@@ -1,21 +1,21 @@
-import * as React from "react";
-import { Platform, Pressable, TextInput, View } from "react-native";
-import { Video as VideoIcon } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import type { VideoSource } from "@/lib/types/pages";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Video as VideoIcon } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import type { VideoSource } from '@/lib/types/pages';
+import type { BlockComponentProps } from './types';
 
 function detectVideoSource(url: string): VideoSource {
   try {
     const u = new URL(url);
     const host = u.host.toLowerCase();
-    if (host === "youtu.be" || host.endsWith("youtube.com")) return "youtube";
-    if (host === "vimeo.com" || host.endsWith(".vimeo.com")) return "vimeo";
-    if (host.endsWith("loom.com")) return "loom";
-    return "other";
+    if (host === 'youtu.be' || host.endsWith('youtube.com')) return 'youtube';
+    if (host === 'vimeo.com' || host.endsWith('.vimeo.com')) return 'vimeo';
+    if (host.endsWith('loom.com')) return 'loom';
+    return 'other';
   } catch {
-    return "other";
+    return 'other';
   }
 }
 
@@ -23,8 +23,8 @@ function youtubeEmbed(url: string): string | null {
   try {
     const u = new URL(url);
     let id: string | undefined;
-    if (u.host === "youtu.be") id = u.pathname.slice(1);
-    else if (u.host.endsWith("youtube.com")) id = u.searchParams.get("v") ?? undefined;
+    if (u.host === 'youtu.be') id = u.pathname.slice(1);
+    else if (u.host.endsWith('youtube.com')) id = u.searchParams.get('v') ?? undefined;
     if (!id) return null;
     return `https://www.youtube.com/embed/${id}`;
   } catch {
@@ -35,7 +35,7 @@ function youtubeEmbed(url: string): string | null {
 function vimeoEmbed(url: string): string | null {
   try {
     const u = new URL(url);
-    const id = u.pathname.split("/").filter(Boolean).pop();
+    const id = u.pathname.split('/').filter(Boolean).pop();
     if (!id) return null;
     return `https://player.vimeo.com/video/${id}`;
   } catch {
@@ -46,7 +46,7 @@ function vimeoEmbed(url: string): string | null {
 function loomEmbed(url: string): string | null {
   try {
     const u = new URL(url);
-    const id = u.pathname.split("/").filter(Boolean).pop();
+    const id = u.pathname.split('/').filter(Boolean).pop();
     if (!id) return null;
     return `https://www.loom.com/embed/${id}`;
   } catch {
@@ -62,9 +62,8 @@ function loomEmbed(url: string): string | null {
  */
 export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const url = typeof block.content.url === "string" ? block.content.url : "";
-  const caption =
-    typeof block.content.caption === "string" ? block.content.caption : "";
+  const url = typeof block.content.url === 'string' ? block.content.url : '';
+  const caption = typeof block.content.caption === 'string' ? block.content.caption : '';
   const [urlDraft, setUrlDraft] = React.useState(url);
   const lastBlockId = React.useRef(block._id);
   if (lastBlockId.current !== block._id) {
@@ -98,22 +97,22 @@ export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
   }
 
   const source =
-    (typeof block.content.source === "string" ? block.content.source : "") ||
+    (typeof block.content.source === 'string' ? block.content.source : '') ||
     detectVideoSource(url);
   const embedUrl =
-    source === "youtube"
+    source === 'youtube'
       ? youtubeEmbed(url)
-      : source === "vimeo"
+      : source === 'vimeo'
         ? vimeoEmbed(url)
-        : source === "loom"
+        : source === 'loom'
           ? loomEmbed(url)
           : null;
 
   return (
     <View className="gap-1">
-      {Platform.OS === "web" ? (
+      {Platform.OS === 'web' ? (
         embedUrl ? (
-          <View style={{ aspectRatio: 16 / 9, width: "100%" }}>
+          <View style={{ aspectRatio: 16 / 9, width: '100%' }}>
             <iframe
               src={embedUrl}
               title="Embedded video"
@@ -121,28 +120,22 @@ export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               style={{
                 border: 0,
-                width: "100%",
-                height: "100%",
+                width: '100%',
+                height: '100%',
                 borderRadius: 8,
               }}
             />
           </View>
         ) : (
-          <video
-            src={url}
-            controls
-            style={{ width: "100%", borderRadius: 8 }}
-          />
+          <video src={url} controls style={{ width: '100%', borderRadius: 8 }} />
         )
       ) : (
         <Pressable
           accessibilityLabel="Open video"
           className="rounded-lg bg-muted/60 px-3 py-3"
           onPress={() => {
-            if (Platform.OS !== "web") {
-              import("expo-web-browser").then((mod) =>
-                mod.openBrowserAsync(url),
-              );
+            if (Platform.OS !== 'web') {
+              import('expo-web-browser').then((mod) => mod.openBrowserAsync(url));
             }
           }}
         >

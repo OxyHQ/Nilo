@@ -1,8 +1,5 @@
 import * as React from 'react';
-import {
-  SharedPageRow,
-  type PageRowSharedProps,
-} from './shared-page-row';
+import { SharedPageRow, type PageRowSharedProps } from './shared-page-row';
 import { usePageDrag, type DropPosition } from './drag-context';
 
 export type { PageRowSharedProps };
@@ -23,31 +20,22 @@ const DRAG_MIME = 'application/x-oxy-page-id';
 export function SidebarPageRow(props: PageRowSharedProps) {
   const { page, enableDrag = true } = props;
   const drag = usePageDrag();
-  const [dropIndicator, setDropIndicator] = React.useState<DropPosition | null>(
-    null,
-  );
+  const [dropIndicator, setDropIndicator] = React.useState<DropPosition | null>(null);
   const isDragging = drag.draggingId === page._id;
-  const domId = React.useMemo(
-    () => `sidebar-page-row-${page._id}`,
-    [page._id],
-  );
+  const domId = React.useMemo(() => `sidebar-page-row-${page._id}`, [page._id]);
 
-  const computePosition = React.useCallback(
-    (node: HTMLElement, clientY: number): DropPosition => {
-      const rect = node.getBoundingClientRect();
-      const offset = clientY - rect.top;
-      const ratio = offset / rect.height;
-      if (ratio < 0.25) return 'before';
-      if (ratio > 0.75) return 'after';
-      return 'inside';
-    },
-    [],
-  );
+  const computePosition = React.useCallback((node: HTMLElement, clientY: number): DropPosition => {
+    const rect = node.getBoundingClientRect();
+    const offset = clientY - rect.top;
+    const ratio = offset / rect.height;
+    if (ratio < 0.25) return 'before';
+    if (ratio > 0.75) return 'after';
+    return 'inside';
+  }, []);
 
   React.useEffect(() => {
     if (!enableDrag) return;
-    const node =
-      typeof document !== 'undefined' ? document.getElementById(domId) : null;
+    const node = typeof document !== 'undefined' ? document.getElementById(domId) : null;
     if (!node) return;
 
     node.setAttribute('draggable', 'true');
@@ -68,10 +56,7 @@ export function SidebarPageRow(props: PageRowSharedProps) {
 
     const onDragOver = (e: DragEvent) => {
       const types = e.dataTransfer?.types;
-      if (
-        !types ||
-        (!types.includes(DRAG_MIME) && !types.includes('text/plain'))
-      ) {
+      if (!types || (!types.includes(DRAG_MIME) && !types.includes('text/plain'))) {
         return;
       }
       e.preventDefault();
@@ -88,9 +73,7 @@ export function SidebarPageRow(props: PageRowSharedProps) {
     const onDrop = (e: DragEvent) => {
       e.preventDefault();
       const sourceId =
-        e.dataTransfer?.getData(DRAG_MIME) ||
-        e.dataTransfer?.getData('text/plain') ||
-        '';
+        e.dataTransfer?.getData(DRAG_MIME) || e.dataTransfer?.getData('text/plain') || '';
       const position = computePosition(node, e.clientY);
       setDropIndicator(null);
       drag.setDraggingId(null);

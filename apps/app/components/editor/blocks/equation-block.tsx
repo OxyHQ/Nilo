@@ -1,9 +1,9 @@
-import * as React from "react";
-import { Platform, TextInput, View } from "react-native";
-import { Sigma } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { Platform, TextInput, View } from 'react-native';
+import { Sigma } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import type { BlockComponentProps } from './types';
 
 /**
  * Equation block — stores LaTeX in `content.latex`. On web we render via
@@ -14,7 +14,7 @@ import type { BlockComponentProps } from "./types";
  */
 export function EquationBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const latex = typeof block.content.latex === "string" ? block.content.latex : "";
+  const latex = typeof block.content.latex === 'string' ? block.content.latex : '';
   const [draft, setDraft] = React.useState(latex);
   const lastBlockId = React.useRef(block._id);
   if (lastBlockId.current !== block._id) {
@@ -22,13 +22,13 @@ export function EquationBlock({ block, onChangeContent }: BlockComponentProps) {
     setDraft(latex);
   }
 
-  const [html, setHtml] = React.useState<string>("");
+  const [html, setHtml] = React.useState<string>('');
   const lastRendered = React.useRef<string | null>(null);
-  if (Platform.OS === "web" && lastRendered.current !== latex) {
+  if (Platform.OS === 'web' && lastRendered.current !== latex) {
     lastRendered.current = latex;
     if (latex) {
       // Lazy import — keeps initial bundle slim for users who never insert math.
-      import("katex").then((mod) => {
+      import('katex').then((mod) => {
         try {
           const rendered = mod.default.renderToString(latex, {
             throwOnError: false,
@@ -36,22 +36,22 @@ export function EquationBlock({ block, onChangeContent }: BlockComponentProps) {
           });
           setHtml(rendered);
         } catch {
-          setHtml("");
+          setHtml('');
         }
       });
       // Stylesheet is needed for proper typography. Inject once.
-      if (typeof document !== "undefined") {
-        const id = "katex-stylesheet";
+      if (typeof document !== 'undefined') {
+        const id = 'katex-stylesheet';
         if (!document.getElementById(id)) {
-          const link = document.createElement("link");
+          const link = document.createElement('link');
           link.id = id;
-          link.rel = "stylesheet";
-          link.href = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css";
+          link.rel = 'stylesheet';
+          link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css';
           document.head.appendChild(link);
         }
       }
     } else {
-      setHtml("");
+      setHtml('');
     }
   }
 
@@ -73,16 +73,16 @@ export function EquationBlock({ block, onChangeContent }: BlockComponentProps) {
         multiline
         numberOfLines={2}
       />
-      {Platform.OS === "web" && html ? (
+      {Platform.OS === 'web' && html ? (
         <div
           dangerouslySetInnerHTML={{ __html: html }}
           style={{
             color: colors.foreground,
-            backgroundColor: "transparent",
-            overflowX: "auto",
+            backgroundColor: 'transparent',
+            overflowX: 'auto',
           }}
         />
-      ) : Platform.OS !== "web" && latex ? (
+      ) : Platform.OS !== 'web' && latex ? (
         <Text className="text-sm text-foreground font-mono">{latex}</Text>
       ) : null}
     </View>

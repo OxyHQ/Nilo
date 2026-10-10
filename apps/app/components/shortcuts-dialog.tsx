@@ -50,9 +50,7 @@ export function ShortcutsDialog() {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Keyboard shortcuts</DialogTitle>
-          <DialogDescription>
-            Move faster in Nilo with these shortcuts.
-          </DialogDescription>
+          <DialogDescription>Move faster in Nilo with these shortcuts.</DialogDescription>
         </DialogHeader>
         <View className="gap-5">
           {SHORTCUTS.map((group) => (
@@ -62,18 +60,11 @@ export function ShortcutsDialog() {
               </Text>
               <View className="gap-1">
                 {group.items.map((sc) => (
-                  <View
-                    key={sc.label}
-                    className="flex-row items-center justify-between gap-3"
-                  >
-                    <Text className="flex-1 text-sm text-foreground">
-                      {sc.label}
-                    </Text>
+                  <View key={sc.label} className="flex-row items-center justify-between gap-3">
+                    <Text className="flex-1 text-sm text-foreground">{sc.label}</Text>
                     <View className="flex-row items-center gap-1">
                       {sc.keys.map((k) => (
-                        <KeyCap key={`${sc.label}-${k}`}>
-                          {k === 'Mod' ? modLabel : k}
-                        </KeyCap>
+                        <KeyCap key={`${sc.label}-${k}`}>{k === 'Mod' ? modLabel : k}</KeyCap>
                       ))}
                     </View>
                   </View>
@@ -90,9 +81,7 @@ export function ShortcutsDialog() {
 function KeyCap({ children }: { children: React.ReactNode }) {
   return (
     <View className="min-w-7 rounded-md border border-border bg-muted px-1.5 py-0.5">
-      <Text className="text-center text-[11px] font-medium text-foreground">
-        {children}
-      </Text>
+      <Text className="text-center text-[11px] font-medium text-foreground">{children}</Text>
     </View>
   );
 }

@@ -28,11 +28,7 @@ export function FavoritesSection() {
   return (
     <SidebarSection sectionKey="favorites" title="Favorites">
       <View className="px-1">
-        <SidebarPageTree
-          pages={favorites}
-          workspaceId={currentWorkspaceId}
-          enableDrag={false}
-        />
+        <SidebarPageTree pages={favorites} workspaceId={currentWorkspaceId} enableDrag={false} />
       </View>
     </SidebarSection>
   );

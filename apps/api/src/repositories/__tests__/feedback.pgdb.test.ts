@@ -1,10 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { feedback } from '../../db/schema/feedback.js';
-import {
-  createFeedback,
-  findFeedbackByIdForUser,
-  listFeedbackByUser,
-} from '../feedback.js';
+import { createFeedback, findFeedbackByIdForUser, listFeedbackByUser } from '../feedback.js';
 import {
   closeTestDb,
   getTestDb,
@@ -155,7 +151,7 @@ describe('reading feedback back', () => {
    * id-only lookup plus a caller-side check is the shape that turns into an
    * IDOR the first time someone forgets the second half.
    */
-  it('refuses to return another user\'s feedback', async () => {
+  it("refuses to return another user's feedback", async () => {
     const mine = testScope('fb-owner');
     const theirs = testScope('fb-other');
     const row = await createFeedback(db, { oxyUserId: mine, type: 'bug', message: 'private' });

@@ -8,7 +8,7 @@
  * Web-only: serialization to/from `contentEditable` DOM happens in
  * `rich-editable.tsx`. These helpers are framework-free.
  */
-import type { BlockColor, Segment } from "@/lib/types/pages";
+import type { BlockColor, Segment } from '@/lib/types/pages';
 
 /** Segment with no annotations — a plain run of text. */
 export function plainSegment(text: string): Segment {
@@ -17,33 +17,30 @@ export function plainSegment(text: string): Segment {
 
 /** Concatenated plain text of every segment. */
 export function segmentsToPlainText(segments: Segment[] | undefined): string {
-  if (!segments) return "";
-  return segments.map((s) => s.text).join("");
+  if (!segments) return '';
+  return segments.map((s) => s.text).join('');
 }
 
 /**
  * If a block currently stores only `text`, promote it to a single plain
  * segment. Callers can then apply annotations against a uniform `Segment[]`.
  */
-export function ensureSegments(
-  segments: Segment[] | undefined,
-  fallbackText: string,
-): Segment[] {
+export function ensureSegments(segments: Segment[] | undefined, fallbackText: string): Segment[] {
   if (segments && segments.length > 0) return segments;
   if (fallbackText.length === 0) return [];
   return [plainSegment(fallbackText)];
 }
 
-type Mark = Exclude<keyof Segment, "text" | "link">;
+type Mark = Exclude<keyof Segment, 'text' | 'link'>;
 
 const BOOL_MARKS: readonly Mark[] = [
-  "bold",
-  "italic",
-  "underline",
-  "strike",
-  "code",
-  "color",
-  "background",
+  'bold',
+  'italic',
+  'underline',
+  'strike',
+  'code',
+  'color',
+  'background',
 ];
 
 function annotationsEqual(a: Segment, b: Segment): boolean {
@@ -74,10 +71,7 @@ export function coalesceSegments(segments: Segment[]): Segment[] {
  * codepoint count across the flattened text. Used to apply formatting to a
  * sub-range.
  */
-export function splitSegmentsAt(
-  segments: Segment[],
-  offset: number,
-): [Segment[], Segment[]] {
+export function splitSegmentsAt(segments: Segment[], offset: number): [Segment[], Segment[]] {
   const left: Segment[] = [];
   const right: Segment[] = [];
   let consumed = 0;
@@ -129,28 +123,22 @@ export function applyAnnotationRange(
 
 function applyPatch(seg: Segment, patch: AnnotationPatch): Segment {
   const out: Segment = { ...seg };
-  for (const key of [
-    "bold",
-    "italic",
-    "underline",
-    "strike",
-    "code",
-  ] as const) {
+  for (const key of ['bold', 'italic', 'underline', 'strike', 'code'] as const) {
     if (key in patch) {
       const val = patch[key];
       if (val) out[key] = true;
       else delete out[key];
     }
   }
-  if ("color" in patch) {
-    if (patch.color && patch.color !== "default") out.color = patch.color;
+  if ('color' in patch) {
+    if (patch.color && patch.color !== 'default') out.color = patch.color;
     else delete out.color;
   }
-  if ("background" in patch) {
-    if (patch.background && patch.background !== "default") out.background = patch.background;
+  if ('background' in patch) {
+    if (patch.background && patch.background !== 'default') out.background = patch.background;
     else delete out.background;
   }
-  if ("link" in patch) {
+  if ('link' in patch) {
     if (patch.link) out.link = patch.link;
     else delete out.link;
   }
@@ -161,12 +149,7 @@ function applyPatch(seg: Segment, patch: AnnotationPatch): Segment {
  * Check whether every segment fully inside [start, end) has a mark set.
  * Used by the formatting toolbar to display the "active" state.
  */
-export function rangeHasMark(
-  segments: Segment[],
-  start: number,
-  end: number,
-  mark: Mark,
-): boolean {
+export function rangeHasMark(segments: Segment[], start: number, end: number, mark: Mark): boolean {
   if (start === end) return false;
   const [, rest] = splitSegmentsAt(segments, start);
   const [middle] = splitSegmentsAt(rest, end - start);
@@ -175,11 +158,7 @@ export function rangeHasMark(
 }
 
 /** Apply a single character insertion to the segments at the given offset. */
-export function insertText(
-  segments: Segment[],
-  offset: number,
-  text: string,
-): Segment[] {
+export function insertText(segments: Segment[], offset: number, text: string): Segment[] {
   if (text.length === 0) return segments;
   if (segments.length === 0) {
     return [{ text }];
@@ -188,18 +167,12 @@ export function insertText(
   // Inherit the annotations of the segment immediately to the left, falling
   // back to the right neighbor (so insertions at offset 0 keep their style).
   const inheritFrom = left[left.length - 1] ?? right[0];
-  const inherited = inheritFrom
-    ? { ...inheritFrom, text }
-    : { text };
+  const inherited = inheritFrom ? { ...inheritFrom, text } : { text };
   return coalesceSegments([...left, inherited, ...right]);
 }
 
 /** Delete the [start, end) range. */
-export function deleteRange(
-  segments: Segment[],
-  start: number,
-  end: number,
-): Segment[] {
+export function deleteRange(segments: Segment[], start: number, end: number): Segment[] {
   if (start === end) return segments;
   const [left, rest] = splitSegmentsAt(segments, start);
   const [, tail] = splitSegmentsAt(rest, end - start);

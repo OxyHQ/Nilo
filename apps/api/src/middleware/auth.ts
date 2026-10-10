@@ -1,8 +1,4 @@
-import {
-  createOxyAuthMiddleware,
-  OxyServer,
-  type OxyRequestUser,
-} from '@oxy.so/core/server';
+import { createOxyAuthMiddleware, OxyServer, type OxyRequestUser } from '@oxy.so/core/server';
 import type { WorkspaceRole } from '../db/schema/workspaces.js';
 import type { WorkspaceMemberRow, WorkspaceRow } from '../repositories/workspaces.js';
 

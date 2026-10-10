@@ -31,12 +31,14 @@ const S3_PUBLIC_URL = process.env.AWS_CDN_URL
 
 /** Upload a buffer to S3 with the given key and content type. Returns the public URL. */
 async function executeUpload(key: string, file: Buffer, contentType: string): Promise<string> {
-  await s3Client.send(new PutObjectCommand({
-    Bucket: BUCKET_NAME,
-    Key: key,
-    Body: file,
-    ContentType: contentType,
-  }));
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: key,
+      Body: file,
+      ContentType: contentType,
+    }),
+  );
 
   return `${S3_PUBLIC_URL}/${key}`;
 }
@@ -51,7 +53,7 @@ export async function uploadToS3(
   file: Buffer,
   filename: string,
   folder: string = 'uploads',
-  descriptor: string = 'file'
+  descriptor: string = 'file',
 ): Promise<string> {
   const env = process.env.NODE_ENV || 'development';
   const ext = filename.split('.').pop() || '';

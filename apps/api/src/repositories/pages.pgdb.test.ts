@@ -156,12 +156,10 @@ describe('pages repository (real database)', () => {
     it('enforces the coverPosition bounds', async () => {
       const withinBounds = await seedPage();
       await expect(updatePage(db, withinBounds.id, { coverPosition: 0 })).resolves.toBeDefined();
-      await expect(
-        updatePage(db, withinBounds.id, { coverPosition: 100 }),
-      ).resolves.toBeDefined();
-      await expect(
-        updatePage(db, withinBounds.id, { coverPosition: 101 }),
-      ).rejects.toSatisfy(isCheckViolation);
+      await expect(updatePage(db, withinBounds.id, { coverPosition: 100 })).resolves.toBeDefined();
+      await expect(updatePage(db, withinBounds.id, { coverPosition: 101 })).rejects.toSatisfy(
+        isCheckViolation,
+      );
       await expect(updatePage(db, withinBounds.id, { coverPosition: -1 })).rejects.toSatisfy(
         isCheckViolation,
       );
@@ -194,7 +192,11 @@ describe('pages repository (real database)', () => {
 
     it('round-trips a database row with typed properties', async () => {
       const databaseId = uuidv7();
-      const properties = { name: { text: 'Row one' }, num: { number: 3.5 }, tags: { optionIds: ['a'] } };
+      const properties = {
+        name: { text: 'Row one' },
+        num: { number: 3.5 },
+        tags: { optionIds: ['a'] },
+      };
       const row = await seedPage({ databaseId, properties, title: 'Row one' });
       const read = await findPageById(db, row.id);
       expect(read?.properties).toEqual(properties);
@@ -423,7 +425,10 @@ describe('pages repository (real database)', () => {
     it('keeps a live child of an archived page, detached rather than destroyed', async () => {
       const archivedParent = await seedPage({ title: 'archived-parent' });
       const liveChild = await seedPage({ title: 'live-child', parentId: archivedParent.id });
-      const archivedChild = await seedPage({ title: 'archived-child', parentId: archivedParent.id });
+      const archivedChild = await seedPage({
+        title: 'archived-child',
+        parentId: archivedParent.id,
+      });
       await updatePage(db, archivedParent.id, { archived: true });
       await updatePage(db, archivedChild.id, { archived: true });
 
@@ -503,7 +508,11 @@ describe('pages repository (real database)', () => {
     it('lists, orders, unsets a property and deletes, scoped to one database', async () => {
       const databaseId = uuidv7();
       const otherDatabaseId = uuidv7();
-      const first = await seedPage({ databaseId, order: 0, properties: { p1: { text: 'x' }, p2: { number: 1 } } });
+      const first = await seedPage({
+        databaseId,
+        order: 0,
+        properties: { p1: { text: 'x' }, p2: { number: 1 } },
+      });
       const second = await seedPage({ databaseId, order: 4, properties: { p1: { text: 'y' } } });
       const archivedRow = await seedPage({ databaseId, order: 9 });
       await updatePage(db, archivedRow.id, { archived: true });

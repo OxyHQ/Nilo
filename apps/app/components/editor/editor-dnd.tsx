@@ -12,9 +12,9 @@
  * The hook only owns the pointer plumbing — block-list reordering happens
  * in the editor (it has direct access to the block list and reorder mutation).
  */
-import * as React from "react";
+import * as React from 'react';
 
-export type DropPosition = "above" | "below";
+export type DropPosition = 'above' | 'below';
 
 export interface DropIndicator {
   blockId: string;
@@ -22,10 +22,7 @@ export interface DropIndicator {
 }
 
 export interface EditorDndApi {
-  onHandlePointerDown: (
-    blockId: string,
-    event: React.PointerEvent<HTMLElement>,
-  ) => void;
+  onHandlePointerDown: (blockId: string, event: React.PointerEvent<HTMLElement>) => void;
   draggingBlockId: string | null;
   indicator: DropIndicator | null;
   /** Provide a render callback for the drag preview (web-only). */
@@ -53,22 +50,20 @@ export function useEditorDnd(options: UseEditorDndOptions): EditorDndApi {
   const [draggingBlockId, setDragging] = React.useState<string | null>(null);
   const [indicator, setIndicator] = React.useState<DropIndicator | null>(null);
   const [pos, setPos] = React.useState<{ x: number; y: number } | null>(null);
-  const startedRef = React.useRef<{ blockId: string; x: number; y: number } | null>(
-    null,
-  );
+  const startedRef = React.useRef<{ blockId: string; x: number; y: number } | null>(null);
 
   const cleanup = React.useCallback(() => {
     startedRef.current = null;
     setDragging(null);
     setIndicator(null);
     setPos(null);
-    if (typeof document !== "undefined") {
-      document.body.style.userSelect = "";
+    if (typeof document !== 'undefined') {
+      document.body.style.userSelect = '';
     }
   }, []);
 
   React.useEffect(() => {
-    if (typeof window === "undefined") return undefined;
+    if (typeof window === 'undefined') return undefined;
     if (!draggingBlockId && !startedRef.current) return undefined;
 
     const onMove = (ev: PointerEvent) => {
@@ -79,7 +74,7 @@ export function useEditorDnd(options: UseEditorDndOptions): EditorDndApi {
       if (!draggingBlockId && Math.hypot(dx, dy) < 4) return;
       if (!draggingBlockId) {
         setDragging(started.blockId);
-        document.body.style.userSelect = "none";
+        document.body.style.userSelect = 'none';
       }
       setPos({ x: ev.clientX, y: ev.clientY });
 
@@ -95,7 +90,7 @@ export function useEditorDnd(options: UseEditorDndOptions): EditorDndApi {
         return;
       }
       const middle = rect.top + rect.height / 2;
-      const position: DropPosition = ev.clientY < middle ? "above" : "below";
+      const position: DropPosition = ev.clientY < middle ? 'above' : 'below';
       setIndicator((prev) =>
         prev && prev.blockId === targetBlockId && prev.position === position
           ? prev
@@ -112,20 +107,13 @@ export function useEditorDnd(options: UseEditorDndOptions): EditorDndApi {
       cleanup();
     };
 
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
     return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
     };
-  }, [
-    blockIdForNode,
-    cleanup,
-    draggingBlockId,
-    indicator,
-    onDrop,
-    rectForBlock,
-  ]);
+  }, [blockIdForNode, cleanup, draggingBlockId, indicator, onDrop, rectForBlock]);
 
   const onHandlePointerDown = React.useCallback(
     (blockId: string, event: React.PointerEvent<HTMLElement>) => {
@@ -142,20 +130,20 @@ export function useEditorDnd(options: UseEditorDndOptions): EditorDndApi {
 
   const renderPreview = React.useCallback((): React.ReactNode => {
     if (!draggingBlockId || !pos) return null;
-    const label = previewLabel?.(draggingBlockId) ?? "Block";
+    const label = previewLabel?.(draggingBlockId) ?? 'Block';
     return (
       <div
         style={{
-          position: "fixed",
+          position: 'fixed',
           left: pos.x + 12,
           top: pos.y + 12,
           zIndex: 80,
-          background: "rgba(0,0,0,0.75)",
-          color: "white",
-          padding: "4px 10px",
+          background: 'rgba(0,0,0,0.75)',
+          color: 'white',
+          padding: '4px 10px',
           borderRadius: 6,
           fontSize: 12,
-          pointerEvents: "none",
+          pointerEvents: 'none',
         }}
       >
         {label}

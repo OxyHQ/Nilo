@@ -67,7 +67,7 @@ unrelated test runner.
 CI runs the following on every pull request, and each line runs locally as written:
 
 ```bash
-bun run --filter @nilo/api lint
+bun run lint
 bun run --filter @nilo/api test
 bun run build:api
 ```

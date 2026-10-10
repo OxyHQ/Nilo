@@ -1,28 +1,19 @@
-import * as React from "react";
-import { Pressable, View } from "react-native";
-import {
-  ArrowUpDown,
-  Filter as FilterIcon,
-  Plus,
-  Settings2,
-} from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import type {
-  Database,
-  DatabaseRow,
-  DatabaseView,
-} from "@/lib/types/databases";
-import { useCreateRow } from "@/lib/hooks/use-database-rows";
-import { ViewTable } from "./view-table";
-import { ViewBoard } from "./view-board";
-import { ViewGallery } from "./view-gallery";
-import { ViewList } from "./view-list";
-import { ViewCalendar } from "./view-calendar";
-import { ViewTimeline } from "./view-timeline";
-import { FilterBuilder } from "./filter-builder";
-import { SortBuilder } from "./sort-builder";
-import { AddPropertyButton } from "./property-config-modal";
+import * as React from 'react';
+import { Pressable, View } from 'react-native';
+import { ArrowUpDown, Filter as FilterIcon, Plus, Settings2 } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
+import { useCreateRow } from '@/lib/hooks/use-database-rows';
+import { ViewTable } from './view-table';
+import { ViewBoard } from './view-board';
+import { ViewGallery } from './view-gallery';
+import { ViewList } from './view-list';
+import { ViewCalendar } from './view-calendar';
+import { ViewTimeline } from './view-timeline';
+import { FilterBuilder } from './filter-builder';
+import { SortBuilder } from './sort-builder';
+import { AddPropertyButton } from './property-config-modal';
 
 interface DatabaseViewContainerProps {
   database: Database;
@@ -57,15 +48,13 @@ export function DatabaseViewContainer({
             onPress={() => setFilterOpen(true)}
             active={filterCount > 0}
             icon={FilterIcon}
-            label={
-              filterCount > 0 ? `Filter (${filterCount})` : "Filter"
-            }
+            label={filterCount > 0 ? `Filter (${filterCount})` : 'Filter'}
           />
           <ToolButton
             onPress={() => setSortOpen(true)}
             active={sortCount > 0}
             icon={ArrowUpDown}
-            label={sortCount > 0 ? `Sort (${sortCount})` : "Sort"}
+            label={sortCount > 0 ? `Sort (${sortCount})` : 'Sort'}
           />
           <AddPropertyButton database={database} />
         </View>
@@ -76,60 +65,30 @@ export function DatabaseViewContainer({
           >
             <Plus size={12} color="#ffffff" />
             <Text className="text-xs text-primary-foreground">
-              {createRow.isPending ? "Adding…" : "New"}
+              {createRow.isPending ? 'Adding…' : 'New'}
             </Text>
           </Pressable>
         </View>
       </View>
 
       <View className="flex-1">
-        {view.type === "table" ? (
-          <ViewTable
-            database={database}
-            view={view}
-            rows={rows}
-            isLoading={isLoading}
-          />
+        {view.type === 'table' ? (
+          <ViewTable database={database} view={view} rows={rows} isLoading={isLoading} />
         ) : null}
-        {view.type === "board" ? (
-          <ViewBoard
-            database={database}
-            view={view}
-            rows={rows}
-            isLoading={isLoading}
-          />
+        {view.type === 'board' ? (
+          <ViewBoard database={database} view={view} rows={rows} isLoading={isLoading} />
         ) : null}
-        {view.type === "gallery" ? (
-          <ViewGallery
-            database={database}
-            view={view}
-            rows={rows}
-            isLoading={isLoading}
-          />
+        {view.type === 'gallery' ? (
+          <ViewGallery database={database} view={view} rows={rows} isLoading={isLoading} />
         ) : null}
-        {view.type === "list" ? (
-          <ViewList
-            database={database}
-            view={view}
-            rows={rows}
-            isLoading={isLoading}
-          />
+        {view.type === 'list' ? (
+          <ViewList database={database} view={view} rows={rows} isLoading={isLoading} />
         ) : null}
-        {view.type === "calendar" ? (
-          <ViewCalendar
-            database={database}
-            view={view}
-            rows={rows}
-            isLoading={isLoading}
-          />
+        {view.type === 'calendar' ? (
+          <ViewCalendar database={database} view={view} rows={rows} isLoading={isLoading} />
         ) : null}
-        {view.type === "timeline" ? (
-          <ViewTimeline
-            database={database}
-            view={view}
-            rows={rows}
-            isLoading={isLoading}
-          />
+        {view.type === 'timeline' ? (
+          <ViewTimeline database={database} view={view} rows={rows} isLoading={isLoading} />
         ) : null}
       </View>
 
@@ -162,25 +121,21 @@ function ToolButton({ onPress, active, icon: Icon, label }: ToolButtonProps) {
     <Pressable
       onPress={onPress}
       className={`flex-row items-center gap-1 px-2 py-1 rounded ${
-        active ? "bg-primary/15" : "hover:bg-muted"
+        active ? 'bg-primary/15' : 'hover:bg-muted'
       }`}
     >
       <Icon size={12} color={active ? colors.primary : colors.mutedForeground} />
-      <Text
-        className={`text-xs ${
-          active ? "text-primary" : "text-muted-foreground"
-        }`}
-      >
+      <Text className={`text-xs ${active ? 'text-primary' : 'text-muted-foreground'}`}>
         {label}
       </Text>
     </Pressable>
   );
 }
 
-function countFilters(group: DatabaseView["filters"]): number {
+function countFilters(group: DatabaseView['filters']): number {
   let count = 0;
   for (const f of group.filters) {
-    if (f.kind === "condition") count += 1;
+    if (f.kind === 'condition') count += 1;
     else count += countFilters(f);
   }
   return count;

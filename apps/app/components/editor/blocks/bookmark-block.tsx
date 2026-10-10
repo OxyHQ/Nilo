@@ -1,12 +1,12 @@
-import * as React from "react";
-import { Platform, Pressable, TextInput, View } from "react-native";
-import { Image as ExpoImage } from "expo-image";
-import { useQuery } from "@tanstack/react-query";
-import { Link2 } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { fetchEmbedPreview } from "@/lib/uploads/upload-file";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
+import { useQuery } from '@tanstack/react-query';
+import { Link2 } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { fetchEmbedPreview } from '@/lib/uploads/upload-file';
+import type { BlockComponentProps } from './types';
 
 /**
  * Bookmark block — once a URL is set, fetches OG metadata from
@@ -16,13 +16,12 @@ import type { BlockComponentProps } from "./types";
  */
 export function BookmarkBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const url = typeof block.content.url === "string" ? block.content.url : "";
-  const title = typeof block.content.title === "string" ? block.content.title : "";
+  const url = typeof block.content.url === 'string' ? block.content.url : '';
+  const title = typeof block.content.title === 'string' ? block.content.title : '';
   const description =
-    typeof block.content.description === "string" ? block.content.description : "";
-  const image = typeof block.content.image === "string" ? block.content.image : "";
-  const favicon =
-    typeof block.content.favicon === "string" ? block.content.favicon : "";
+    typeof block.content.description === 'string' ? block.content.description : '';
+  const image = typeof block.content.image === 'string' ? block.content.image : '';
+  const favicon = typeof block.content.favicon === 'string' ? block.content.favicon : '';
 
   // Reset the draft when the block id changes (effectively "key-based reset").
   const [urlDraft, setUrlDraft] = React.useState(url);
@@ -34,7 +33,7 @@ export function BookmarkBlock({ block, onChangeContent }: BlockComponentProps) {
 
   const hasMetadata = Boolean(title || description || image);
   const preview = useQuery({
-    queryKey: ["embed-preview", url],
+    queryKey: ['embed-preview', url],
     queryFn: () => fetchEmbedPreview(url),
     enabled: Boolean(url) && !hasMetadata,
     staleTime: 1000 * 60 * 30,
@@ -45,11 +44,7 @@ export function BookmarkBlock({ block, onChangeContent }: BlockComponentProps) {
   // a single declarative check keeps this idempotent.
   const fetched = preview.data;
   const lastWrittenUrl = React.useRef<string | null>(hasMetadata ? url : null);
-  if (
-    fetched &&
-    lastWrittenUrl.current !== fetched.url &&
-    !hasMetadata
-  ) {
+  if (fetched && lastWrittenUrl.current !== fetched.url && !hasMetadata) {
     lastWrittenUrl.current = fetched.url;
     onChangeContent({
       ...block.content,
@@ -100,7 +95,7 @@ export function BookmarkBlock({ block, onChangeContent }: BlockComponentProps) {
     <View className="flex-row gap-3 rounded-lg border border-border bg-muted/30 overflow-hidden">
       <View className="flex-1 px-3 py-2 gap-1">
         <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
-          {loading ? "Loading…" : title || url}
+          {loading ? 'Loading…' : title || url}
         </Text>
         {description ? (
           <Text className="text-xs text-muted-foreground" numberOfLines={2}>
@@ -121,34 +116,21 @@ export function BookmarkBlock({ block, onChangeContent }: BlockComponentProps) {
         </View>
       </View>
       {image ? (
-        <ExpoImage
-          source={{ uri: image }}
-          style={{ width: 96, height: 80 }}
-          contentFit="cover"
-        />
+        <ExpoImage source={{ uri: image }} style={{ width: 96, height: 80 }} contentFit="cover" />
       ) : null}
     </View>
   );
 
-  if (Platform.OS === "web") {
+  if (Platform.OS === 'web') {
     return (
-      <a
-        href={url}
-        target="_blank"
-        rel="noreferrer"
-        style={{ textDecoration: "none" }}
-      >
+      <a href={url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
         {cardBody}
       </a>
     );
   }
 
   return (
-    <Pressable
-      onPress={() =>
-        import("expo-web-browser").then((mod) => mod.openBrowserAsync(url))
-      }
-    >
+    <Pressable onPress={() => import('expo-web-browser').then((mod) => mod.openBrowserAsync(url))}>
       {cardBody}
     </Pressable>
   );

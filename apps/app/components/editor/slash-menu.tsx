@@ -1,12 +1,5 @@
-import * as React from "react";
-import {
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import * as React from 'react';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   AlignLeft,
   ChevronRight,
@@ -21,17 +14,12 @@ import {
   Minus,
   Quote,
   ToggleRight,
-} from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import type { BlockType } from "@/lib/types/pages";
+} from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import type { BlockType } from '@/lib/types/pages';
 
-export type SlashMenuSection =
-  | "basic"
-  | "media"
-  | "advanced"
-  | "embeds"
-  | "database";
+export type SlashMenuSection = 'basic' | 'media' | 'advanced' | 'embeds' | 'database';
 
 export interface SlashMenuOption {
   /** Stable id — `${section}:${type}:${suffix?}` so extensions can dedupe. */
@@ -53,19 +41,19 @@ export interface SlashMenuOption {
 }
 
 const SECTION_LABEL: Record<SlashMenuSection, string> = {
-  basic: "Basic blocks",
-  media: "Media",
-  advanced: "Advanced",
-  embeds: "Embeds",
-  database: "Database",
+  basic: 'Basic blocks',
+  media: 'Media',
+  advanced: 'Advanced',
+  embeds: 'Embeds',
+  database: 'Database',
 };
 
 const SECTION_ORDER: readonly SlashMenuSection[] = [
-  "basic",
-  "media",
-  "advanced",
-  "embeds",
-  "database",
+  'basic',
+  'media',
+  'advanced',
+  'embeds',
+  'database',
 ];
 
 /**
@@ -76,111 +64,111 @@ const SECTION_ORDER: readonly SlashMenuSection[] = [
  */
 const DEFAULT_OPTIONS: readonly SlashMenuOption[] = [
   {
-    id: "basic:paragraph",
-    type: "paragraph",
-    label: "Text",
-    description: "Plain text paragraph.",
-    keywords: ["text", "paragraph", "p"],
-    section: "basic",
+    id: 'basic:paragraph',
+    type: 'paragraph',
+    label: 'Text',
+    description: 'Plain text paragraph.',
+    keywords: ['text', 'paragraph', 'p'],
+    section: 'basic',
     Icon: AlignLeft,
   },
   {
-    id: "basic:heading_1",
-    type: "heading_1",
-    label: "Heading 1",
-    description: "Large section heading.",
-    keywords: ["h1", "title"],
-    section: "basic",
+    id: 'basic:heading_1',
+    type: 'heading_1',
+    label: 'Heading 1',
+    description: 'Large section heading.',
+    keywords: ['h1', 'title'],
+    section: 'basic',
     Icon: Heading1,
   },
   {
-    id: "basic:heading_2",
-    type: "heading_2",
-    label: "Heading 2",
-    description: "Medium section heading.",
-    keywords: ["h2"],
-    section: "basic",
+    id: 'basic:heading_2',
+    type: 'heading_2',
+    label: 'Heading 2',
+    description: 'Medium section heading.',
+    keywords: ['h2'],
+    section: 'basic',
     Icon: Heading2,
   },
   {
-    id: "basic:heading_3",
-    type: "heading_3",
-    label: "Heading 3",
-    description: "Small section heading.",
-    keywords: ["h3"],
-    section: "basic",
+    id: 'basic:heading_3',
+    type: 'heading_3',
+    label: 'Heading 3',
+    description: 'Small section heading.',
+    keywords: ['h3'],
+    section: 'basic',
     Icon: Heading3,
   },
   {
-    id: "basic:bulleted_list_item",
-    type: "bulleted_list_item",
-    label: "Bulleted list",
-    description: "Create a simple bulleted list.",
-    keywords: ["bullet", "ul", "list"],
-    section: "basic",
+    id: 'basic:bulleted_list_item',
+    type: 'bulleted_list_item',
+    label: 'Bulleted list',
+    description: 'Create a simple bulleted list.',
+    keywords: ['bullet', 'ul', 'list'],
+    section: 'basic',
     Icon: List,
   },
   {
-    id: "basic:numbered_list_item",
-    type: "numbered_list_item",
-    label: "Numbered list",
-    description: "Create a list with numbering.",
-    keywords: ["ol", "1.", "ordered"],
-    section: "basic",
+    id: 'basic:numbered_list_item',
+    type: 'numbered_list_item',
+    label: 'Numbered list',
+    description: 'Create a list with numbering.',
+    keywords: ['ol', '1.', 'ordered'],
+    section: 'basic',
     Icon: ListOrdered,
   },
   {
-    id: "basic:to_do",
-    type: "to_do",
-    label: "To-do list",
-    description: "Track tasks with checkboxes.",
-    keywords: ["todo", "task", "checkbox"],
-    section: "basic",
+    id: 'basic:to_do',
+    type: 'to_do',
+    label: 'To-do list',
+    description: 'Track tasks with checkboxes.',
+    keywords: ['todo', 'task', 'checkbox'],
+    section: 'basic',
     Icon: CheckSquare,
   },
   {
-    id: "basic:quote",
-    type: "quote",
-    label: "Quote",
-    description: "Capture a quote.",
-    keywords: ["blockquote"],
-    section: "basic",
+    id: 'basic:quote',
+    type: 'quote',
+    label: 'Quote',
+    description: 'Capture a quote.',
+    keywords: ['blockquote'],
+    section: 'basic',
     Icon: Quote,
   },
   {
-    id: "basic:divider",
-    type: "divider",
-    label: "Divider",
-    description: "Visually divide blocks.",
-    keywords: ["hr", "line"],
-    section: "basic",
+    id: 'basic:divider',
+    type: 'divider',
+    label: 'Divider',
+    description: 'Visually divide blocks.',
+    keywords: ['hr', 'line'],
+    section: 'basic',
     Icon: Minus,
   },
   {
-    id: "advanced:code",
-    type: "code",
-    label: "Code",
-    description: "Monospace code block.",
-    keywords: ["snippet", "monospace"],
-    section: "advanced",
+    id: 'advanced:code',
+    type: 'code',
+    label: 'Code',
+    description: 'Monospace code block.',
+    keywords: ['snippet', 'monospace'],
+    section: 'advanced',
     Icon: Code2,
   },
   {
-    id: "advanced:callout",
-    type: "callout",
-    label: "Callout",
-    description: "Highlight important info.",
-    keywords: ["note", "info"],
-    section: "advanced",
+    id: 'advanced:callout',
+    type: 'callout',
+    label: 'Callout',
+    description: 'Highlight important info.',
+    keywords: ['note', 'info'],
+    section: 'advanced',
     Icon: Megaphone,
   },
   {
-    id: "advanced:toggle",
-    type: "toggle",
-    label: "Toggle",
-    description: "Click to expand or collapse content.",
-    keywords: ["dropdown", "collapsible", "details"],
-    section: "advanced",
+    id: 'advanced:toggle',
+    type: 'toggle',
+    label: 'Toggle',
+    description: 'Click to expand or collapse content.',
+    keywords: ['dropdown', 'collapsible', 'details'],
+    section: 'advanced',
     Icon: ToggleRight,
   },
 ];
@@ -198,9 +186,7 @@ const extensionsById = new Map<string, SlashMenuOption>();
  * overwrites the previous entry. Other agents (databases, media, embeds) call
  * this from their module entry-point.
  */
-export function registerSlashMenuOptions(
-  options: readonly SlashMenuOption[],
-): void {
+export function registerSlashMenuOptions(options: readonly SlashMenuOption[]): void {
   for (const opt of options) {
     extensionsById.set(opt.id, opt);
   }
@@ -235,7 +221,7 @@ function scoreOption(opt: SlashMenuOption, q: string): number {
   if (!q) return 0;
   const lq = q.toLowerCase();
   const label = opt.label.toLowerCase();
-  const type = opt.type ?? "";
+  const type = opt.type ?? '';
   if (label.startsWith(lq)) return 100;
   if (type.startsWith(lq)) return 90;
   if (opt.keywords?.some((k) => k.toLowerCase().startsWith(lq))) return 80;
@@ -281,27 +267,27 @@ export function SlashMenu({ open, query, onSelect, onClose }: SlashMenuProps) {
   // Keyboard nav (web only). Native: tap-to-select via Modal list.
   React.useEffect(() => {
     if (!open) return;
-    if (Platform.OS !== "web") return;
+    if (Platform.OS !== 'web') return;
     const handler = (ev: KeyboardEvent) => {
-      if (ev.key === "ArrowDown") {
+      if (ev.key === 'ArrowDown') {
         ev.preventDefault();
         setActiveIndex((i) => Math.min(filtered.length - 1, i + 1));
-      } else if (ev.key === "ArrowUp") {
+      } else if (ev.key === 'ArrowUp') {
         ev.preventDefault();
         setActiveIndex((i) => Math.max(0, i - 1));
-      } else if (ev.key === "Enter") {
+      } else if (ev.key === 'Enter') {
         const target = filtered[activeIndex];
         if (target) {
           ev.preventDefault();
           handleSelect(target);
         }
-      } else if (ev.key === "Escape") {
+      } else if (ev.key === 'Escape') {
         ev.preventDefault();
         onClose();
       }
     };
-    window.addEventListener("keydown", handler, true);
-    return () => window.removeEventListener("keydown", handler, true);
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
   });
 
   const handleSelect = (opt: SlashMenuOption) => {
@@ -322,27 +308,21 @@ export function SlashMenu({ open, query, onSelect, onClose }: SlashMenuProps) {
       <Pressable
         key={opt.id}
         onPress={() => handleSelect(opt)}
-        onHoverIn={Platform.OS === "web" ? () => setActiveIndex(flatIndex) : undefined}
+        onHoverIn={Platform.OS === 'web' ? () => setActiveIndex(flatIndex) : undefined}
         className={
           isActive
-            ? "flex-row items-center gap-3 px-3 py-2 bg-muted"
-            : "flex-row items-center gap-3 px-3 py-2 hover:bg-muted"
+            ? 'flex-row items-center gap-3 px-3 py-2 bg-muted'
+            : 'flex-row items-center gap-3 px-3 py-2 hover:bg-muted'
         }
       >
         <View className="h-8 w-8 items-center justify-center rounded-md bg-muted">
           <opt.Icon size={16} color={colors.foreground} />
         </View>
         <View className="flex-1">
-          <Text className="text-sm font-medium text-foreground">
-            {opt.label}
-          </Text>
-          <Text className="text-xs text-muted-foreground">
-            {opt.description}
-          </Text>
+          <Text className="text-sm font-medium text-foreground">{opt.label}</Text>
+          <Text className="text-xs text-muted-foreground">{opt.description}</Text>
         </View>
-        {isActive ? (
-          <ChevronRight size={14} color={colors.mutedForeground} />
-        ) : null}
+        {isActive ? <ChevronRight size={14} color={colors.mutedForeground} /> : null}
       </Pressable>
     );
   };
@@ -353,9 +333,7 @@ export function SlashMenu({ open, query, onSelect, onClose }: SlashMenuProps) {
       <ScrollView className="max-h-80" contentContainerClassName="py-1">
         {filtered.length === 0 ? (
           <View className="px-3 py-3">
-            <Text className="text-sm text-muted-foreground">
-              No matches for “{query}”
-            </Text>
+            <Text className="text-sm text-muted-foreground">No matches for “{query}”</Text>
           </View>
         ) : (
           grouped.map(({ section, options }) => (
@@ -379,7 +357,7 @@ export function SlashMenu({ open, query, onSelect, onClose }: SlashMenuProps) {
 
   // Web: absolute-positioned popover just below the current block's input.
   // The parent renders this inside a `relative` container so 0,0 ≈ caret row.
-  if (Platform.OS === "web") {
+  if (Platform.OS === 'web') {
     return (
       <View style={styles.webPopover} pointerEvents="box-none">
         <View style={styles.webPopoverInner} pointerEvents="auto">
@@ -391,17 +369,8 @@ export function SlashMenu({ open, query, onSelect, onClose }: SlashMenuProps) {
 
   // Native: bottom sheet via Modal — simple, no positional math.
   return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Pressable
-        style={StyleSheet.absoluteFill}
-        className="bg-black/50"
-        onPress={onClose}
-      />
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={StyleSheet.absoluteFill} className="bg-black/50" onPress={onClose} />
       <View className="absolute bottom-0 left-0 right-0 p-3">{list}</View>
     </Modal>
   );
@@ -409,14 +378,14 @@ export function SlashMenu({ open, query, onSelect, onClose }: SlashMenuProps) {
 
 const styles = StyleSheet.create({
   webPopover: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     zIndex: 50,
   },
   webPopoverInner: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
   },

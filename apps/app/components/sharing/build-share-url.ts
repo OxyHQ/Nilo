@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Platform } from 'react-native';
 
 /**
  * Resolve the public host that serves `/share/[token]` URLs.
@@ -9,12 +9,12 @@ import { Platform } from "react-native";
  */
 function resolveWebOrigin(): string {
   if (process.env.EXPO_PUBLIC_WEB_URL) {
-    return process.env.EXPO_PUBLIC_WEB_URL.replace(/\/$/, "");
+    return process.env.EXPO_PUBLIC_WEB_URL.replace(/\/$/, '');
   }
-  if (Platform.OS === "web" && typeof window !== "undefined") {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
     return window.location.origin;
   }
-  return "https://nilo.so";
+  return 'https://nilo.so';
 }
 
 export function buildShareUrl(token: string): string {

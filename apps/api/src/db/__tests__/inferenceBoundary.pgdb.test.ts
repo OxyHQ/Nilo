@@ -52,7 +52,9 @@ describe('the live Nilo schema contains workspace data only', () => {
     expect(declared.length).toBeGreaterThanOrEqual(12);
     expect(declared).toContain('workspaces');
     expect(declared).toContain('feedback');
-    expect(declared.filter((name) => RETIRED_TABLES.includes(name as (typeof RETIRED_TABLES)[number]))).toEqual([]);
+    expect(
+      declared.filter((name) => RETIRED_TABLES.includes(name as (typeof RETIRED_TABLES)[number])),
+    ).toEqual([]);
     expect(liveRows).toEqual([]);
   });
 });

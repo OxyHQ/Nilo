@@ -1,6 +1,6 @@
-import * as React from "react";
-import { View } from "react-native";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { View } from 'react-native';
+import type { BlockComponentProps } from './types';
 
 /**
  * Row inside a `table` block. Children are `table_cell` blocks — the

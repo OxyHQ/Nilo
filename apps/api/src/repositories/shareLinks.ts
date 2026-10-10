@@ -146,10 +146,7 @@ export async function revokeShareLink(
  * drizzle types it `number`, so an uncast `count(*)` returns `"3"` and any
  * arithmetic on it becomes string concatenation.
  */
-export async function countShareLinksByPage(
-  db: NiloDatabase,
-  pageId: string,
-): Promise<number> {
+export async function countShareLinksByPage(db: NiloDatabase, pageId: string): Promise<number> {
   const rows = await db
     .select({ total: sql<number>`count(*)::int` })
     .from(shareLinks)

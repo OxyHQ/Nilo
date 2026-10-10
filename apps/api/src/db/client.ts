@@ -28,8 +28,7 @@ export type NiloDatabase = OxyDatabase<typeof schema>;
  */
 export type PgHandle = NiloDatabase | Parameters<Parameters<NiloDatabase['transaction']>[0]>[0];
 
-let handle: { db: NiloDatabase; client: ReturnType<typeof createDatabase>['client'] } | null =
-  null;
+let handle: { db: NiloDatabase; client: ReturnType<typeof createDatabase>['client'] } | null = null;
 
 export function getDb(): NiloDatabase {
   if (handle) return handle.db;

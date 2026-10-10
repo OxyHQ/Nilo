@@ -59,68 +59,68 @@ export interface PageNode extends Page {
 }
 
 export type BlockType =
-  | "paragraph"
-  | "heading_1"
-  | "heading_2"
-  | "heading_3"
-  | "bulleted_list_item"
-  | "numbered_list_item"
-  | "to_do"
-  | "quote"
-  | "divider"
-  | "code"
-  | "callout"
-  | "toggle"
+  | 'paragraph'
+  | 'heading_1'
+  | 'heading_2'
+  | 'heading_3'
+  | 'bulleted_list_item'
+  | 'numbered_list_item'
+  | 'to_do'
+  | 'quote'
+  | 'divider'
+  | 'code'
+  | 'callout'
+  | 'toggle'
   // Media
-  | "image"
-  | "video"
-  | "audio"
-  | "file"
-  | "pdf"
+  | 'image'
+  | 'video'
+  | 'audio'
+  | 'file'
+  | 'pdf'
   // Embeds
-  | "bookmark"
-  | "embed"
+  | 'bookmark'
+  | 'embed'
   // Layout
-  | "columns"
-  | "column"
-  | "table"
-  | "table_row"
-  | "table_cell"
+  | 'columns'
+  | 'column'
+  | 'table'
+  | 'table_row'
+  | 'table_cell'
   // Interactive
-  | "button"
-  | "link_to_page"
-  | "sync_block"
-  | "breadcrumb"
-  | "table_of_contents"
+  | 'button'
+  | 'link_to_page'
+  | 'sync_block'
+  | 'breadcrumb'
+  | 'table_of_contents'
   // Math + diagram
-  | "equation"
-  | "mermaid"
+  | 'equation'
+  | 'mermaid'
   // Database
-  | "inline_database";
+  | 'inline_database';
 
 export type BlockColor =
-  | "default"
-  | "gray"
-  | "brown"
-  | "orange"
-  | "yellow"
-  | "green"
-  | "blue"
-  | "purple"
-  | "pink"
-  | "red";
+  | 'default'
+  | 'gray'
+  | 'brown'
+  | 'orange'
+  | 'yellow'
+  | 'green'
+  | 'blue'
+  | 'purple'
+  | 'pink'
+  | 'red';
 
 export const BLOCK_COLORS: readonly BlockColor[] = [
-  "default",
-  "gray",
-  "brown",
-  "orange",
-  "yellow",
-  "green",
-  "blue",
-  "purple",
-  "pink",
-  "red",
+  'default',
+  'gray',
+  'brown',
+  'orange',
+  'yellow',
+  'green',
+  'blue',
+  'purple',
+  'pink',
+  'red',
 ];
 
 /**
@@ -140,13 +140,9 @@ export interface Segment {
   link?: string;
 }
 
-export type VideoSource = "upload" | "youtube" | "vimeo" | "loom" | "other";
-export type ImageAlignment = "left" | "center" | "right" | "full";
-export type ButtonAction =
-  | "duplicate-template"
-  | "new-page"
-  | "navigate"
-  | "webhook";
+export type VideoSource = 'upload' | 'youtube' | 'vimeo' | 'loom' | 'other';
+export type ImageAlignment = 'left' | 'center' | 'right' | 'full';
+export type ButtonAction = 'duplicate-template' | 'new-page' | 'navigate' | 'webhook';
 
 /**
  * Block content is type-specific. Phase 2 extends with inline `segments[]`

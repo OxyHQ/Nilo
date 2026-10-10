@@ -1,6 +1,6 @@
-import React from "react";
-import { Text, View } from "react-native";
-import { useColorScheme } from "@/lib/useColorScheme";
+import React from 'react';
+import { Text, View } from 'react-native';
+import { useColorScheme } from '@/lib/useColorScheme';
 
 export interface NiloWordmarkProps {
   width?: number;
@@ -25,15 +25,15 @@ export function NiloWordmark({ width = 256, height, color }: NiloWordmarkProps) 
     <View
       style={{
         height: containerHeight,
-        justifyContent: "center",
-        alignItems: "flex-start",
+        justifyContent: 'center',
+        alignItems: 'flex-start',
       }}
     >
       <Text
         style={{
           color: fill,
           fontSize,
-          fontWeight: "700",
+          fontWeight: '700',
           letterSpacing: -0.5,
           lineHeight: fontSize * 1.1,
         }}

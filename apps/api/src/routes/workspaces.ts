@@ -38,10 +38,9 @@ const updateWorkspaceSchema = z
     name: z.string().trim().min(1).max(WORKSPACE_NAME_MAX).optional(),
     icon: z.string().max(ICON_MAX_LENGTH).nullable().optional(),
   })
-  .refine(
-    (val) => val.name !== undefined || val.icon !== undefined,
-    { message: 'Provide at least one of: name, icon' },
-  );
+  .refine((val) => val.name !== undefined || val.icon !== undefined, {
+    message: 'Provide at least one of: name, icon',
+  });
 
 // Members can be invited as any role except `owner`. Owner is reserved
 // for the creator and is not transferable in MVP.
@@ -57,7 +56,16 @@ const updateMemberSchema = z.object({
 });
 
 function serializeWorkspace(
-  ws: { id: string; name: string; icon: string | null; ownerId: string; isPersonal: boolean; archivedAt: Date | null; createdAt: Date; updatedAt: Date },
+  ws: {
+    id: string;
+    name: string;
+    icon: string | null;
+    ownerId: string;
+    isPersonal: boolean;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  },
   role: WorkspaceRole | null,
 ) {
   return {
@@ -80,65 +88,60 @@ function serializeWorkspace(
  * join. Personal workspace is created lazily on first access via the
  * `ensurePersonalWorkspace` middleware.
  */
-router.get(
-  '/',
-  authenticateToken,
-  ensurePersonalWorkspace,
-  async (req: Request, res: Response) => {
-    try {
-      if (!req.user?.id) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
-      }
-
-      const db = getDb();
-      const memberships = await listMembershipsForUser(db, req.user.id);
-
-      if (memberships.length === 0) {
-        res.json({ workspaces: [] });
-        return;
-      }
-
-      const workspaces = await listLiveWorkspacesByIds(
-        db,
-        memberships.map((m) => m.workspaceId),
-      );
-
-      const roleByWorkspace = new Map<string, WorkspaceRole>();
-      for (const m of memberships) {
-        roleByWorkspace.set(m.workspaceId, m.role);
-      }
-
-      const serialized = workspaces
-        .map((ws) => {
-          const role = roleByWorkspace.get(ws.id) ?? null;
-          return serializeWorkspace(
-            {
-              id: ws.id,
-              name: ws.name,
-              icon: ws.icon,
-              ownerId: ws.ownerId,
-              isPersonal: ws.isPersonal,
-              archivedAt: ws.archivedAt,
-              createdAt: ws.createdAt,
-              updatedAt: ws.updatedAt,
-            },
-            role,
-          );
-        })
-        // Stable ordering: personal first, then most recently joined.
-        .sort((a, b) => {
-          if (a.isPersonal !== b.isPersonal) return a.isPersonal ? -1 : 1;
-          return b.createdAt.getTime() - a.createdAt.getTime();
-        });
-
-      res.json({ workspaces: serialized });
-    } catch (error: unknown) {
-      log.general.error({ err: error }, 'Failed to list workspaces');
-      res.status(500).json({ error: 'Failed to list workspaces' });
+router.get('/', authenticateToken, ensurePersonalWorkspace, async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
-  },
-);
+
+    const db = getDb();
+    const memberships = await listMembershipsForUser(db, req.user.id);
+
+    if (memberships.length === 0) {
+      res.json({ workspaces: [] });
+      return;
+    }
+
+    const workspaces = await listLiveWorkspacesByIds(
+      db,
+      memberships.map((m) => m.workspaceId),
+    );
+
+    const roleByWorkspace = new Map<string, WorkspaceRole>();
+    for (const m of memberships) {
+      roleByWorkspace.set(m.workspaceId, m.role);
+    }
+
+    const serialized = workspaces
+      .map((ws) => {
+        const role = roleByWorkspace.get(ws.id) ?? null;
+        return serializeWorkspace(
+          {
+            id: ws.id,
+            name: ws.name,
+            icon: ws.icon,
+            ownerId: ws.ownerId,
+            isPersonal: ws.isPersonal,
+            archivedAt: ws.archivedAt,
+            createdAt: ws.createdAt,
+            updatedAt: ws.updatedAt,
+          },
+          role,
+        );
+      })
+      // Stable ordering: personal first, then most recently joined.
+      .sort((a, b) => {
+        if (a.isPersonal !== b.isPersonal) return a.isPersonal ? -1 : 1;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
+
+    res.json({ workspaces: serialized });
+  } catch (error: unknown) {
+    log.general.error({ err: error }, 'Failed to list workspaces');
+    res.status(500).json({ error: 'Failed to list workspaces' });
+  }
+});
 
 /**
  * POST /api/workspaces
@@ -436,7 +439,7 @@ router.post(
           error: 'No Oxy user found with that email',
           code: 'INVITEE_NOT_FOUND',
           message:
-            'Ask them to sign up at Oxy first — we do not create accounts on a user\'s behalf.',
+            "Ask them to sign up at Oxy first — we do not create accounts on a user's behalf.",
         });
         return;
       }
@@ -562,8 +565,7 @@ router.delete(
       }
 
       const isSelfRemoval = targetUserId === req.user.id;
-      const callerIsAdminOrHigher =
-        req.member.role === 'admin' || req.member.role === 'owner';
+      const callerIsAdminOrHigher = req.member.role === 'admin' || req.member.role === 'owner';
 
       if (!isSelfRemoval && !callerIsAdminOrHigher) {
         res.status(403).json({ error: 'Forbidden: only admins can remove other members' });

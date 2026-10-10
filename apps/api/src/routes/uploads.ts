@@ -23,10 +23,7 @@ authedRouter.use(authenticateToken);
  * Maximum upload size (in bytes). Spaces / S3 hard limits are much larger,
  * but we cap here to avoid runaway uploads. Tweak via env if needed.
  */
-const MAX_UPLOAD_BYTES = parseInt(
-  process.env.UPLOAD_MAX_BYTES || `${100 * 1024 * 1024}`,
-  10,
-);
+const MAX_UPLOAD_BYTES = parseInt(process.env.UPLOAD_MAX_BYTES || `${100 * 1024 * 1024}`, 10);
 
 /**
  * Single source of truth for Spaces / S3 configuration. Accepts both the
@@ -43,13 +40,10 @@ interface SpacesConfig {
 }
 
 function getSpacesConfig(): SpacesConfig | null {
-  const accessKeyId =
-    process.env.SPACES_KEY || process.env.AWS_ACCESS_KEY_ID || '';
-  const secretAccessKey =
-    process.env.SPACES_SECRET || process.env.AWS_SECRET_ACCESS_KEY || '';
+  const accessKeyId = process.env.SPACES_KEY || process.env.AWS_ACCESS_KEY_ID || '';
+  const secretAccessKey = process.env.SPACES_SECRET || process.env.AWS_SECRET_ACCESS_KEY || '';
   const bucket = process.env.SPACES_BUCKET || process.env.AWS_S3_BUCKET || '';
-  const region =
-    process.env.SPACES_REGION || process.env.AWS_REGION || 'us-east-1';
+  const region = process.env.SPACES_REGION || process.env.AWS_REGION || 'us-east-1';
   const endpoint =
     process.env.SPACES_ENDPOINT ||
     process.env.AWS_ENDPOINT_URL ||
@@ -61,9 +55,10 @@ function getSpacesConfig(): SpacesConfig | null {
 
   let publicBaseUrl: string;
   if (process.env.SPACES_CDN_URL || process.env.AWS_CDN_URL) {
-    publicBaseUrl = (process.env.SPACES_CDN_URL ||
-      process.env.AWS_CDN_URL ||
-      '').replace(/\/$/, '');
+    publicBaseUrl = (process.env.SPACES_CDN_URL || process.env.AWS_CDN_URL || '').replace(
+      /\/$/,
+      '',
+    );
   } else if (endpoint) {
     const host = new URL(endpoint).host;
     publicBaseUrl = `https://${bucket}.${host}`;
@@ -110,9 +105,7 @@ function buildObjectKey(filename: string): string {
   const ext = safe.includes('.') ? safe.split('.').pop() : '';
   const base = ext ? safe.slice(0, safe.length - ext.length - 1) : safe;
   const id = crypto.randomUUID();
-  return ext
-    ? `${env}/uploads/${base}-${id}.${ext}`
-    : `${env}/uploads/${base}-${id}`;
+  return ext ? `${env}/uploads/${base}-${id}.${ext}` : `${env}/uploads/${base}-${id}`;
 }
 
 const presignSchema = z.object({
