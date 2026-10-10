@@ -296,7 +296,6 @@ export function BlockView({
       return renderPhase3(EquationBlock, block, onChangeContent, renderChildren);
     case 'mermaid':
       return renderPhase3(MermaidBlock, block, onChangeContent, renderChildren);
-    case 'paragraph':
     default:
       return (
         <RichEditable

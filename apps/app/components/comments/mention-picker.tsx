@@ -127,10 +127,7 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
     if (!q) return all.slice(0, 12);
     return all
       .filter((item) => {
-        return (
-          item.label.toLowerCase().includes(q) ||
-          (item.detail && item.detail.toLowerCase().includes(q))
-        );
+        return item.label.toLowerCase().includes(q) || item.detail?.toLowerCase().includes(q);
       })
       .slice(0, 12);
   }, [members, pagesData?.pages, query]);
