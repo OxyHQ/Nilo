@@ -63,7 +63,7 @@
         "noUnusedImports": "warn",
         "noUnusedVariables": { "level": "warn", "options": { "ignoreRestSiblings": true } },
         "useExhaustiveDependencies": "warn",
-        "useHookAtTopLevel": "warn"
+        "useHookAtTopLevel": "error"
       },
       "security": {
         "noDangerouslySetInnerHtml": "warn"

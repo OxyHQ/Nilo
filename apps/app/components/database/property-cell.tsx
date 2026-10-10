@@ -567,49 +567,55 @@ interface DateCellProps extends CellVariantProps {
 }
 
 function DateCell({ value, onChange, variant }: DateCellProps) {
-  const { colors } = useColorScheme();
-  const display = value ? new Date(value).toLocaleDateString() : '—';
   // On web, use a native date input. On native, render the date as text
-  // and allow clearing — full picker is a Phase 4.5 stretch goal.
+  // and allow clearing — full picker is a Phase 4.5 stretch goal. The web
+  // input is its own component so its state hooks are never called
+  // conditionally from this one.
   if (Platform.OS === 'web') {
-    const [draft, setDraft] = React.useState<string>(value ? toDateInput(value) : '');
-    React.useEffect(() => {
-      setDraft(value ? toDateInput(value) : '');
-    }, [value]);
-
-    return (
-      <View className="flex-row items-center gap-2">
-        <input
-          type="date"
-          value={draft}
-          onChange={(e) => {
-            const next = e.target.value;
-            setDraft(next);
-          }}
-          onBlur={() => {
-            if (!draft) {
-              if (value) onChange(null);
-              return;
-            }
-            const iso = new Date(draft).toISOString();
-            if (iso !== value) onChange(iso);
-          }}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            outline: 'none',
-            color: colors.foreground,
-            fontSize: 13,
-            padding: 0,
-          }}
-        />
-      </View>
-    );
+    return <WebDateInput value={value} onChange={onChange} />;
   }
+  const display = value ? new Date(value).toLocaleDateString() : '—';
   // Native fallback
   return (
     <View className={variant === 'panel' ? 'py-1' : ''}>
       <Text className="text-sm text-foreground">{display}</Text>
+    </View>
+  );
+}
+
+function WebDateInput({ value, onChange }: Pick<DateCellProps, 'value' | 'onChange'>) {
+  const { colors } = useColorScheme();
+  const [draft, setDraft] = React.useState<string>(value ? toDateInput(value) : '');
+  React.useEffect(() => {
+    setDraft(value ? toDateInput(value) : '');
+  }, [value]);
+
+  return (
+    <View className="flex-row items-center gap-2">
+      <input
+        type="date"
+        value={draft}
+        onChange={(e) => {
+          const next = e.target.value;
+          setDraft(next);
+        }}
+        onBlur={() => {
+          if (!draft) {
+            if (value) onChange(null);
+            return;
+          }
+          const iso = new Date(draft).toISOString();
+          if (iso !== value) onChange(iso);
+        }}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          outline: 'none',
+          color: colors.foreground,
+          fontSize: 13,
+          padding: 0,
+        }}
+      />
     </View>
   );
 }

@@ -995,6 +995,14 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
     }
   }, [blocks, createBlock, pageId]);
 
+  // Mutable holder for the render-tree callback — populated below once
+  // the row handler bag exists. Keeps the closure stable across renders.
+  // Declared before the loading early return: a hook after it is skipped
+  // while blocks load, so the loading -> loaded render calls one more hook
+  // than the previous render and React throws ("Rendered more hooks than
+  // during the previous render"), crashing the editor on any uncached page.
+  const renderChildrenOfRef = React.useRef<(parentId: string) => React.ReactNode>(() => null);
+
   if (isLoading) {
     return (
       <View className="px-1 py-6">
@@ -1004,10 +1012,6 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
   }
 
   const rootBlocks = childMap.get(null) ?? [];
-
-  // Mutable holder for the render-tree callback — populated below once
-  // the row handler bag exists. Keeps the closure stable across renders.
-  const renderChildrenOfRef = React.useRef<(parentId: string) => React.ReactNode>(() => null);
 
   // Build a typed bag of per-row handlers to avoid prop drilling chains.
   const rowHandlers: RowHandlerBag = {
