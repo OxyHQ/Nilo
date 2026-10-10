@@ -7,7 +7,6 @@ import type {
   Database,
   DatabaseProperty,
   DatabaseView,
-  Filter,
   FilterCondition,
   FilterGroup,
 } from '@/lib/types/databases';

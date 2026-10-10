@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { SharedPageRow, type PageRowSharedProps } from './shared-page-row';
 
 /**

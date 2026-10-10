@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Calendar, FileText, User } from 'lucide-react-native';

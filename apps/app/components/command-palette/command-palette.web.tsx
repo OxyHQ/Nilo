@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { useRouter } from 'expo-router';
 import {
-  Command,
   CommandDialog,
   CommandInput,
   CommandList,

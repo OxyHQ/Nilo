@@ -3,12 +3,7 @@ import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } f
 import { Check, ChevronDown, Plus, X } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
-import type {
-  DatabaseProperty,
-  PropertyValue,
-  SelectColor,
-  SelectOption,
-} from '@/lib/types/databases';
+import type { DatabaseProperty, PropertyValue, SelectOption } from '@/lib/types/databases';
 import { SELECT_COLOR_CLASSES } from './select-color';
 import { centeredModalStyle } from './centered-modal-style';
 

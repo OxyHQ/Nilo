@@ -1,5 +1,4 @@
-import React from 'react';
-import { View, Pressable, Platform } from 'react-native';
+import { View, Platform } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Check } from 'lucide-react-native';
 import { useColorScheme } from '@/lib/useColorScheme';
