@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, type TextInput, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -960,7 +960,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
   const numberedIndex = React.useMemo(() => {
     const result: Record<string, number> = {};
     let counter = 0;
-    let lastParent: string | null | undefined = undefined;
+    let lastParent: string | null | undefined;
     for (const b of blocks) {
       if (b.type === 'numbered_list_item') {
         if (lastParent === b.parentBlockId) {
