@@ -55,6 +55,7 @@ function CommandDialog({ open, onOpenChange, children }: CommandDialogProps) {
 
   return createPortal(
     <div className="fixed inset-0 z-50 isolate">
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: the backdrop's click-to-dismiss; keyboard users dismiss with Escape, handled on the document */}
       <div
         className={cn(
           'fixed inset-0 bg-black/10 backdrop-blur-[2px] transition-opacity duration-150',

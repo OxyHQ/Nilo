@@ -37,11 +37,13 @@ function DragHandleWeb({ visible, onOpenMenu, onPlus, onDragStart, blockId }: Dr
   const { colors } = useColorScheme();
   const gripRef = React.useRef<View | null>(null);
 
-  const handleGripPress = (event: React.MouseEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const target = event.currentTarget as HTMLDivElement;
+  const openMenuAt = (target: HTMLDivElement) => {
     const rect = target.getBoundingClientRect();
     onOpenMenu({ top: rect.bottom + 4, left: rect.left });
+  };
+  const handleGripPress = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    openMenuAt(event.currentTarget);
   };
 
   return (
@@ -66,10 +68,20 @@ function DragHandleWeb({ visible, onOpenMenu, onPlus, onDragStart, blockId }: Dr
       >
         <Plus size={14} color={colors.mutedForeground} />
       </Pressable>
+      {/* biome-ignore lint/a11y/useSemanticElements: the grip is also the pointer-drag source the dnd hook types as a div; role, tabIndex and Enter/Space give it button behaviour */}
       <div
         ref={gripRef as unknown as React.RefObject<HTMLDivElement>}
         draggable
+        role="button"
+        tabIndex={0}
+        aria-label="Block menu"
         onClick={handleGripPress}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openMenuAt(event.currentTarget);
+          }
+        }}
         onPointerDown={onDragStart}
         title="Click for menu, drag to move"
         style={{

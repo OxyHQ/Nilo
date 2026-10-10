@@ -1252,6 +1252,7 @@ function renderBlockTree(args: RenderArgs): React.ReactNode {
   if (Platform.OS === 'web') {
     return (
       <View key={block._id} style={{ marginLeft: depth * 24 }}>
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: a layout wrapper; the mouse handlers drive hover chrome and drag-selection, and the block's own editable and buttons carry keyboard access */}
         <div
           ref={(el) => {
             handlers.blockNodeRefs.current[block._id] = el;

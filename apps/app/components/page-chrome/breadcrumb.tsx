@@ -50,7 +50,7 @@ export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProp
         <Text className="text-xs text-muted-foreground">{workspace?.name ?? 'Workspace'}</Text>
       </Pressable>
 
-      {condensed.map((entry, idx) => (
+      {condensed.map((entry) => (
         <React.Fragment key={entry.kind === 'page' ? `page-${entry.page.id}` : 'ellipsis'}>
           <ChevronRight size={12} color={colors.mutedForeground} style={{ marginHorizontal: 2 }} />
           {entry.kind === 'page' ? (

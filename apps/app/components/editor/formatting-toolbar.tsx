@@ -79,7 +79,7 @@ function FormattingToolbarWeb({
       // Stop selection collapse when clicking on toolbar buttons.
       onStartShouldSetResponderCapture={() => true}
     >
-      <div onMouseDown={preventBlur}>
+      <div role="toolbar" aria-label="Text formatting" onMouseDown={preventBlur}>
         <View className="flex-row items-center gap-1 rounded-xl border border-border bg-popover px-1 py-1 shadow-lg">
           <ToolbarButton active={active.bold} onPress={() => onToggle('bold')} ariaLabel="Bold">
             <Bold size={14} color={colors.foreground} />
@@ -165,6 +165,7 @@ function FormattingToolbarWeb({
                   setLinkOpen(false);
                 }
               }}
+              // biome-ignore lint/a11y/noAutofocus: the user just opened the link field; focus moving into it is the expected result
               autoFocus
             />
             <Pressable onPress={submitLink} className="rounded-md bg-primary px-2 py-1">
