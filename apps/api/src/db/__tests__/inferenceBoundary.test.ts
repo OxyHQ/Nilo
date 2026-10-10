@@ -539,6 +539,7 @@ describe('Nilo has no local inference runtime', () => {
 
   it('allows an Oxy inference request that carries only an exact opaque routing id', () => {
     const source =
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: fixture source text containing a template literal, scanned by the boundary census
       'fetch(`${oxyOrigin}/inference/nilo/summarize`, { body: JSON.stringify({ routingProfileId }) });';
 
     expect(

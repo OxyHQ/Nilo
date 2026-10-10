@@ -14,6 +14,7 @@ describe('the checked-in public surfaces describe routes that exist', () => {
     expect(config).not.toContain('api.nilo.so');
     expect(validator).toContain('EXPO_PUBLIC_API_URL is required');
     expect(validator).not.toContain('api.nilo.so');
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: asserts the literal GitHub Actions expression in the workflow text
     expect(deploy).toContain('EXPO_PUBLIC_API_URL: ${{ vars.NILO_API_URL }}');
     expect(deploy).toContain('bun run build:production');
     expect(deploy).not.toContain('api.nilo.so');
