@@ -910,7 +910,8 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       filtered = filtered.filter((r) => r.title.toLowerCase().includes(needle));
     }
     if (view?.filters && view.filters.filters.length > 0) {
-      filtered = filtered.filter((r) => evaluateFilter(view!.filters as Filter, r, propertyById));
+      const viewFilter = view.filters as Filter;
+      filtered = filtered.filter((r) => evaluateFilter(viewFilter, r, propertyById));
     }
     if (view?.sorts && view.sorts.length > 0) {
       const compare = compareBySorts(view.sorts, propertyById);
