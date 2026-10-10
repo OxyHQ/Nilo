@@ -85,8 +85,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Lint API
-        run: bun run --filter @nilo/api lint
+      - name: Lint (Biome)
+        run: bunx biome ci .
 
       - name: Run API tests
         run: bun run --filter @nilo/api test

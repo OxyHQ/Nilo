@@ -44,7 +44,6 @@ export function applySkinTone(entry: EmojiEntry, modifier: string): string {
   return `${entry.emoji}${modifier}`;
 }
 
-/* eslint-disable max-lines */
 export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
   {
     id: "smileys",
@@ -907,4 +906,3 @@ export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
     ],
   },
 ];
-/* eslint-enable max-lines */

@@ -45,7 +45,7 @@ bun run dev:app
 ## Gates
 
 ```bash
-bun run --filter @nilo/api lint
+bun run lint
 bun run --filter @nilo/api test
 NILO_TEST_DATABASE_URL=postgres://nilo:nilo@127.0.0.1:5439/postgres \
   bun run --filter @nilo/api test:pgdb

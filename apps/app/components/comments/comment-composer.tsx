@@ -284,6 +284,7 @@ export function CommentComposer({
   };
 
   // Web: intercept Cmd/Ctrl+Enter to submit, Esc to cancel.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: handleSubmit is intentionally left out of the deps (see the note at the deps array).
   React.useEffect(() => {
     if (Platform.OS !== "web") return;
     const node = inputRef.current as unknown as HTMLElement | null;
@@ -311,7 +312,6 @@ export function CommentComposer({
     // We intentionally don't include handleSubmit in deps — it closes over
     // refs and state via the React tree; rebuilding the handler on every
     // keystroke is wasteful and not required for correctness.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mentionDraft, onCancel]);
 
   return (

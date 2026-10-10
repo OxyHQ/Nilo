@@ -397,11 +397,10 @@ function RichEditableWeb(props: RichEditableProps, ref: React.Ref<unknown>) {
   );
 
   // First mount: paint initial segments. Auto-focus if requested.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Run once per element instance.
   React.useEffect(() => {
     renderToDom(initialSegments, { preserveCaret: false });
     if (autoFocus) elRef.current?.focus();
-    // Run once per element instance.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync prop changes back into the DOM only when the parent's text differs

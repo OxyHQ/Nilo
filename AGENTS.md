@@ -36,13 +36,18 @@ reuse legacy chat vocabulary for workspace concepts.
 
 ```bash
 bun install
-bun run --filter @nilo/api lint
+bun run lint
 bun run --filter @nilo/api test
 NILO_TEST_DATABASE_URL=postgres://nilo:nilo@127.0.0.1:5439/postgres \
   bun run --filter @nilo/api test:pgdb
 bun run build:api
 EXPO_PUBLIC_API_URL=https://api.example.test bun run build:app
 ```
+
+Formatting and linting are Biome only (root `biome.json`, no ESLint or
+Prettier): `bun run lint` checks the whole repo, as CI's `biome ci .` does;
+`bun run format` rewrites formatting. Formatting-only commits go in
+`.git-blame-ignore-revs`.
 
 Commit manifest and `bun.lock` changes together. The web export requires an
 explicit HTTPS `EXPO_PUBLIC_API_URL`; there is no implicit production API
