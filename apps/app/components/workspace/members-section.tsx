@@ -1,61 +1,46 @@
-import React from "react";
-import { View, Pressable, Platform, ActivityIndicator } from "react-native";
-import { useOxy } from "@oxy.so/services";
-import { Image } from "expo-image";
-import { UserPlus, Trash2, MoreHorizontal } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { Button } from "@/components/ui/button";
-import * as DropdownMenu from "@/components/ui/dropdown-menu";
-import { toast } from "@oxy.so/bloom/toast";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useWorkspaces } from "@/lib/hooks/use-workspaces";
-import { useWorkspaceStore } from "@/lib/stores/workspace-store";
+import React from 'react';
+import { View, Pressable, Platform, ActivityIndicator } from 'react-native';
+import { useOxy } from '@oxy.so/services';
+import { Image } from 'expo-image';
+import { UserPlus, Trash2, MoreHorizontal } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { Button } from '@/components/ui/button';
+import * as DropdownMenu from '@/components/ui/dropdown-menu';
+import { toast } from '@oxy.so/bloom/toast';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useWorkspaces } from '@/lib/hooks/use-workspaces';
+import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import {
   useWorkspaceMembers,
   useRemoveMember,
   useUpdateMemberRole,
   type WorkspaceMember,
-} from "@/lib/hooks/use-workspace-members";
-import type { WorkspaceRole } from "@/lib/hooks/use-workspaces";
-import {
-  ROLE_LABELS,
-  WORKSPACE_ROLES,
-  hasRole,
-} from "@/lib/hooks/workspace-roles";
-import { InviteMemberModal } from "./invite-member-modal";
+} from '@/lib/hooks/use-workspace-members';
+import type { WorkspaceRole } from '@/lib/hooks/use-workspaces';
+import { ROLE_LABELS, WORKSPACE_ROLES, hasRole } from '@/lib/hooks/workspace-roles';
+import { InviteMemberModal } from './invite-member-modal';
 
-const ASSIGNABLE_ROLES: WorkspaceRole[] = [
-  "viewer",
-  "commenter",
-  "editor",
-  "admin",
-];
+const ASSIGNABLE_ROLES: WorkspaceRole[] = ['viewer', 'commenter', 'editor', 'admin'];
 
 function memberDisplayName(member: WorkspaceMember): string {
   const profile = member.user;
   if (!profile) return member.userId;
   if (profile.name?.first) {
-    return profile.name.last
-      ? `${profile.name.first} ${profile.name.last}`
-      : profile.name.first;
+    return profile.name.last ? `${profile.name.first} ${profile.name.last}` : profile.name.first;
   }
   return profile.username ?? profile.email ?? member.userId;
 }
 
 function memberInitial(member: WorkspaceMember): string {
   const profile = member.user;
-  const source =
-    profile?.name?.first?.[0] ??
-    profile?.username?.[0] ??
-    profile?.email?.[0] ??
-    "?";
+  const source = profile?.name?.first?.[0] ?? profile?.username?.[0] ?? profile?.email?.[0] ?? '?';
   return source.toUpperCase();
 }
 
 function MemberAvatar({ member }: { member: WorkspaceMember }) {
   const { oxyServices } = useOxy();
   const avatarUrl = member.user?.avatar
-    ? oxyServices.assets.publicUrl(member.user.avatar, "thumb")
+    ? oxyServices.assets.publicUrl(member.user.avatar, 'thumb')
     : null;
 
   return (
@@ -71,9 +56,7 @@ function MemberAvatar({ member }: { member: WorkspaceMember }) {
           transition={150}
         />
       ) : (
-        <Text className="text-sm font-bold text-foreground">
-          {memberInitial(member)}
-        </Text>
+        <Text className="text-sm font-bold text-foreground">{memberInitial(member)}</Text>
       )}
     </View>
   );
@@ -88,22 +71,15 @@ interface MemberRowProps {
   callerUserId: string | undefined;
 }
 
-function MemberRow({
-  member,
-  workspaceId,
-  callerRole,
-  callerUserId,
-}: MemberRowProps) {
+function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowProps) {
   const { colors } = useColorScheme();
-  const { mutate: updateRole, isPending: isUpdating } =
-    useUpdateMemberRole(workspaceId);
-  const { mutate: removeMember, isPending: isRemoving } =
-    useRemoveMember(workspaceId);
+  const { mutate: updateRole, isPending: isUpdating } = useUpdateMemberRole(workspaceId);
+  const { mutate: removeMember, isPending: isRemoving } = useRemoveMember(workspaceId);
 
-  const isOwner = member.role === "owner";
+  const isOwner = member.role === 'owner';
   const isSelf = callerUserId === member.userId;
   // Only admin+ can manage members. Owners can't be demoted via this UI.
-  const canManage = hasRole(callerRole, "admin") && !isOwner && !isSelf;
+  const canManage = hasRole(callerRole, 'admin') && !isOwner && !isSelf;
 
   const handleChangeRole = React.useCallback(
     (role: WorkspaceRole) => {
@@ -112,15 +88,11 @@ function MemberRow({
         { memberId: member._id, role },
         {
           onSuccess: () => {
-            toast.success(
-              `Role updated to ${ROLE_LABELS[role]} for ${memberDisplayName(member)}`,
-            );
+            toast.success(`Role updated to ${ROLE_LABELS[role]} for ${memberDisplayName(member)}`);
           },
           onError: (error) => {
             const message =
-              error instanceof Error && error.message
-                ? error.message
-                : "Failed to update role";
+              error instanceof Error && error.message ? error.message : 'Failed to update role';
             toast.error(message);
           },
         },
@@ -136,9 +108,7 @@ function MemberRow({
       },
       onError: (error) => {
         const message =
-          error instanceof Error && error.message
-            ? error.message
-            : "Failed to remove member";
+          error instanceof Error && error.message ? error.message : 'Failed to remove member';
         toast.error(message);
       },
     });
@@ -150,16 +120,10 @@ function MemberRow({
       <View className="flex-1 min-w-0">
         <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
           {memberDisplayName(member)}
-          {isSelf ? (
-            <Text className="text-xs text-muted-foreground"> (you)</Text>
-          ) : null}
+          {isSelf ? <Text className="text-xs text-muted-foreground"> (you)</Text> : null}
         </Text>
         {member.user?.email ? (
-          <Text
-            className="text-xs text-muted-foreground"
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
+          <Text className="text-xs text-muted-foreground" numberOfLines={1} ellipsizeMode="tail">
             {member.user.email}
           </Text>
         ) : null}
@@ -182,13 +146,8 @@ function MemberRow({
             </DropdownMenu.Trigger>
             <DropdownMenu.Content>
               {ASSIGNABLE_ROLES.map((role) => (
-                <DropdownMenu.Item
-                  key={role}
-                  onSelect={() => handleChangeRole(role)}
-                >
-                  <DropdownMenu.ItemTitle>
-                    {ROLE_LABELS[role]}
-                  </DropdownMenu.ItemTitle>
+                <DropdownMenu.Item key={role} onSelect={() => handleChangeRole(role)}>
+                  <DropdownMenu.ItemTitle>{ROLE_LABELS[role]}</DropdownMenu.ItemTitle>
                 </DropdownMenu.Item>
               ))}
             </DropdownMenu.Content>
@@ -206,12 +165,8 @@ function MemberRow({
               </Pressable>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content>
-              <DropdownMenu.Item
-                key="remove"
-                destructive
-                onSelect={handleRemove}
-              >
-                <DropdownMenu.ItemIcon ios={{ name: "trash" }} />
+              <DropdownMenu.Item key="remove" destructive onSelect={handleRemove}>
+                <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
                 <DropdownMenu.ItemTitle>Remove from workspace</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
@@ -239,26 +194,18 @@ export function MembersSection() {
     [workspaces, currentWorkspaceId],
   );
 
-  const {
-    data: members,
-    isLoading,
-    isError,
-    error,
-  } = useWorkspaceMembers(currentWorkspaceId);
+  const { data: members, isLoading, isError, error } = useWorkspaceMembers(currentWorkspaceId);
 
   const callerRole = currentWorkspace?.role;
-  const canInvite = hasRole(callerRole, "admin");
+  const canInvite = hasRole(callerRole, 'admin');
 
   // Sort: owners first, then by role rank (desc), then by joinedAt asc.
   const sortedMembers = React.useMemo(() => {
     if (!members) return [];
     return [...members].sort((a, b) => {
-      const roleDelta =
-        WORKSPACE_ROLES.indexOf(b.role) - WORKSPACE_ROLES.indexOf(a.role);
+      const roleDelta = WORKSPACE_ROLES.indexOf(b.role) - WORKSPACE_ROLES.indexOf(a.role);
       if (roleDelta !== 0) return roleDelta;
-      return (
-        new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime()
-      );
+      return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
     });
   }, [members]);
 
@@ -267,23 +214,18 @@ export function MembersSection() {
       <View className="flex-row items-center justify-between">
         <View className="flex-1 min-w-0">
           <Text className="text-sm font-medium text-foreground">
-            {currentWorkspace?.name ?? "Workspace"}
+            {currentWorkspace?.name ?? 'Workspace'}
           </Text>
           <Text className="text-xs text-muted-foreground">
             {members?.length ?? 0} member
-            {(members?.length ?? 0) === 1 ? "" : "s"}
+            {(members?.length ?? 0) === 1 ? '' : 's'}
           </Text>
         </View>
         {canInvite && currentWorkspaceId ? (
           <Button onPress={() => setInviteOpen(true)} size="sm">
             <View className="flex-row items-center gap-1.5">
-              <UserPlus
-                size={14}
-                className="text-primary-foreground"
-              />
-              <Text className="text-xs font-semibold text-primary-foreground">
-                Invite member
-              </Text>
+              <UserPlus size={14} className="text-primary-foreground" />
+              <Text className="text-xs font-semibold text-primary-foreground">Invite member</Text>
             </View>
           </Button>
         ) : null}
@@ -297,27 +239,21 @@ export function MembersSection() {
         ) : isError ? (
           <View className="py-6 px-4">
             <Text className="text-sm text-destructive">
-              {error instanceof Error
-                ? error.message
-                : "Failed to load members"}
+              {error instanceof Error ? error.message : 'Failed to load members'}
             </Text>
           </View>
         ) : sortedMembers.length === 0 ? (
           <View className="py-10 items-center justify-center px-4">
-            <Text className="text-sm text-muted-foreground text-center">
-              No members yet.
-            </Text>
+            <Text className="text-sm text-muted-foreground text-center">No members yet.</Text>
           </View>
         ) : (
           <View className="px-1 py-1">
             {sortedMembers.map((member, idx) => (
               <View key={member._id}>
-                {idx > 0 ? (
-                  <View className="h-px bg-border/50 mx-2" />
-                ) : null}
+                {idx > 0 ? <View className="h-px bg-border/50 mx-2" /> : null}
                 <MemberRow
                   member={member}
-                  workspaceId={currentWorkspaceId ?? ""}
+                  workspaceId={currentWorkspaceId ?? ''}
                   callerRole={callerRole}
                   callerUserId={user?.id}
                 />
@@ -338,9 +274,9 @@ export function MembersSection() {
       {!canInvite && currentWorkspace ? (
         <View
           className={
-            Platform.OS === "web"
-              ? "rounded-lg bg-muted/40 px-3 py-2"
-              : "rounded-lg bg-muted px-3 py-2"
+            Platform.OS === 'web'
+              ? 'rounded-lg bg-muted/40 px-3 py-2'
+              : 'rounded-lg bg-muted px-3 py-2'
           }
         >
           <Text className="text-xs text-muted-foreground">

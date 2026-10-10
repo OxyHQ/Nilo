@@ -1,4 +1,8 @@
-import { ecosystemActivityMiddleware, startEcosystemActivity, stopEcosystemActivity } from './ecosystemActivity';
+import {
+  ecosystemActivityMiddleware,
+  startEcosystemActivity,
+  stopEcosystemActivity,
+} from './ecosystemActivity';
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
@@ -38,11 +42,14 @@ app.use(ecosystemActivityMiddleware);
 const PORT = parseInt(process.env.PORT || '4001', 10);
 
 // Create the HTTP server.
-const server = http.createServer({
-  maxHeaderSize: 16384,
-  keepAlive: true,
-  keepAliveTimeout: 65000,
-}, app);
+const server = http.createServer(
+  {
+    maxHeaderSize: 16384,
+    keepAlive: true,
+    keepAliveTimeout: 65000,
+  },
+  app,
+);
 
 // Handle HTTP server errors (e.g. EADDRINUSE)
 server.on('error', (error: NodeJS.ErrnoException) => {
@@ -62,9 +69,7 @@ startEcosystemActivity(() => server.listening);
 initSocket(server);
 
 // Internal routes - restricted to known origins
-const PRODUCTION_ORIGINS = [
-  'https://nilo.so',
-];
+const PRODUCTION_ORIGINS = ['https://nilo.so'];
 
 const DEV_ORIGINS = [
   'http://localhost:3000',
@@ -94,7 +99,17 @@ app.use((req, res, next) => {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'X-Device-Info', 'X-Workspace-Id', 'X-Oxy-Edge-Region', 'X-Oxy-Activity-Id'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      'X-Device-Info',
+      'X-Workspace-Id',
+      'X-Oxy-Edge-Region',
+      'X-Oxy-Activity-Id',
+    ],
     optionsSuccessStatus: 200,
   })(req, res, next);
 });
@@ -142,17 +157,19 @@ app.get('/', (_req, res) => {
       '/embed',
       '/share-links',
       '/share/:token',
-    ]
+    ],
   });
 });
 
 // Error handler
-app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  log.general.error({ err }, 'Unhandled Express error');
-  if (!res.headersSent) {
-    res.status(500).json({ error: 'Something went wrong!' });
-  }
-});
+app.use(
+  (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    log.general.error({ err }, 'Unhandled Express error');
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Something went wrong!' });
+    }
+  },
+);
 
 // Process-level error handlers — prevent crashes from taking down all users
 // Classifies errors to determine logging level (inspired by openclaw)
@@ -174,7 +191,10 @@ process.on('unhandledRejection', (reason) => {
   }
 
   // Everything else: log as error but keep running
-  log.general.error({ reason: reason instanceof Error ? reason : String(reason) }, '[Process] Unhandled promise rejection');
+  log.general.error(
+    { reason: reason instanceof Error ? reason : String(reason) },
+    '[Process] Unhandled promise rejection',
+  );
 });
 
 process.on('uncaughtException', (error) => {
@@ -197,9 +217,15 @@ getDb()
       import('./lib/redis.js').then(({ getRedisClient }) => {
         const redis = getRedisClient();
         if (redis) {
-          redis.ping()
+          redis
+            .ping()
             .then(() => log.general.info('Redis readiness check passed'))
-            .catch((err) => log.general.warn({ err }, 'Redis readiness check failed — rate limiting will fail-open'));
+            .catch((err) =>
+              log.general.warn(
+                { err },
+                'Redis readiness check failed — rate limiting will fail-open',
+              ),
+            );
         } else {
           log.general.info('Redis not configured (REDIS_URL not set) — rate limiting disabled');
         }

@@ -51,10 +51,7 @@ export function CommandPalette() {
     [router, setOpen],
   );
 
-  const handlePageSelect = React.useCallback(
-    (item: PageItem) => openPage(item.pageId),
-    [openPage],
-  );
+  const handlePageSelect = React.useCallback((item: PageItem) => openPage(item.pageId), [openPage]);
 
   const handleMemberSelect = React.useCallback(
     (_member: MemberItem) => {
@@ -73,9 +70,7 @@ export function CommandPalette() {
       if (!(e.metaKey || e.ctrlKey)) return;
       const root = listRef.current;
       if (!root) return;
-      const selected = root.querySelector<HTMLElement>(
-        '[cmdk-item][data-selected="true"]',
-      );
+      const selected = root.querySelector<HTMLElement>('[cmdk-item][data-selected="true"]');
       if (!selected) return;
       const itemId = selected.getAttribute('data-value');
       if (!itemId) return;
@@ -156,14 +151,12 @@ function PageRow({ item, onSelect, icon }: PageRowProps) {
       onSelect={() => onSelect(item)}
     >
       <span className="flex h-5 w-5 items-center justify-center text-base">
-        {item.icon ? item.icon : icon ?? <FileText />}
+        {item.icon ? item.icon : (icon ?? <FileText />)}
       </span>
       <span className="flex flex-1 flex-col min-w-0">
         <span className="truncate text-sm text-foreground">{item.title}</span>
         {item.subtitle ? (
-          <span className="truncate text-xs text-muted-foreground">
-            {item.subtitle}
-          </span>
+          <span className="truncate text-xs text-muted-foreground">{item.subtitle}</span>
         ) : null}
       </span>
     </CommandItem>
@@ -189,9 +182,7 @@ function MemberRow({ item, onSelect }: MemberRowProps) {
       <span className="flex flex-1 flex-col min-w-0">
         <span className="truncate text-sm text-foreground">{item.title}</span>
         {item.subtitle ? (
-          <span className="truncate text-xs text-muted-foreground">
-            {item.subtitle}
-          </span>
+          <span className="truncate text-xs text-muted-foreground">{item.subtitle}</span>
         ) : null}
       </span>
     </CommandItem>
@@ -216,14 +207,10 @@ function CommandRow({ item }: CommandRowProps) {
       <span className="flex flex-1 flex-col min-w-0">
         <span className="truncate text-sm text-foreground">{item.title}</span>
         {item.subtitle ? (
-          <span className="truncate text-xs text-muted-foreground">
-            {item.subtitle}
-          </span>
+          <span className="truncate text-xs text-muted-foreground">{item.subtitle}</span>
         ) : null}
       </span>
-      {item.shortcut ? (
-        <CommandShortcut>{item.shortcut}</CommandShortcut>
-      ) : null}
+      {item.shortcut ? <CommandShortcut>{item.shortcut}</CommandShortcut> : null}
     </CommandItem>
   );
 }

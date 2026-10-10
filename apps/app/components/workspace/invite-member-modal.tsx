@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Pressable, Platform } from "react-native";
+import React from 'react';
+import { View, Pressable, Platform } from 'react-native';
 import {
   Dialog,
   DialogContent,
@@ -7,25 +7,20 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Text } from "@/components/ui/text";
-import * as DropdownMenu from "@/components/ui/dropdown-menu";
-import { ChevronDown } from "lucide-react-native";
-import axios from "axios";
-import { toast } from "@oxy.so/bloom/toast";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useInviteMember } from "@/lib/hooks/use-workspace-members";
-import { ROLE_LABELS, ROLE_DESCRIPTIONS } from "@/lib/hooks/workspace-roles";
-import type { WorkspaceRole } from "@/lib/hooks/use-workspaces";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Text } from '@/components/ui/text';
+import * as DropdownMenu from '@/components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react-native';
+import axios from 'axios';
+import { toast } from '@oxy.so/bloom/toast';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useInviteMember } from '@/lib/hooks/use-workspace-members';
+import { ROLE_LABELS, ROLE_DESCRIPTIONS } from '@/lib/hooks/workspace-roles';
+import type { WorkspaceRole } from '@/lib/hooks/use-workspaces';
 
-const ASSIGNABLE_ROLES: WorkspaceRole[] = [
-  "viewer",
-  "commenter",
-  "editor",
-  "admin",
-];
+const ASSIGNABLE_ROLES: WorkspaceRole[] = ['viewer', 'commenter', 'editor', 'admin'];
 
 // RFC-5322 compliant-ish minimum: localpart@domain.tld with no whitespace.
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -38,36 +33,30 @@ interface InviteMemberModalProps {
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   if (axios.isAxiosError(err)) {
-    const data = err.response?.data as
-      | { message?: string; error?: string }
-      | undefined;
+    const data = err.response?.data as { message?: string; error?: string } | undefined;
     if (data?.message) return data.message;
     if (data?.error) return data.error;
     if (err.response?.status === 404) {
-      return "User not found. Ask them to sign up at oxy.so first.";
+      return 'User not found. Ask them to sign up at oxy.so first.';
     }
     if (err.response?.status === 409) {
-      return "That user is already a member of this workspace.";
+      return 'That user is already a member of this workspace.';
     }
   }
   if (err instanceof Error && err.message) return err.message;
   return fallback;
 }
 
-export function InviteMemberModal({
-  open,
-  onOpenChange,
-  workspaceId,
-}: InviteMemberModalProps) {
+export function InviteMemberModal({ open, onOpenChange, workspaceId }: InviteMemberModalProps) {
   const { colors } = useColorScheme();
-  const [email, setEmail] = React.useState("");
-  const [role, setRole] = React.useState<WorkspaceRole>("editor");
+  const [email, setEmail] = React.useState('');
+  const [role, setRole] = React.useState<WorkspaceRole>('editor');
   const { mutate, isPending } = useInviteMember(workspaceId);
 
   React.useEffect(() => {
     if (!open) {
-      setEmail("");
-      setRole("editor");
+      setEmail('');
+      setRole('editor');
     }
   }, [open]);
 
@@ -85,7 +74,7 @@ export function InviteMemberModal({
           onOpenChange(false);
         },
         onError: (err) => {
-          toast.error(extractErrorMessage(err, "Failed to invite member"));
+          toast.error(extractErrorMessage(err, 'Failed to invite member'));
         },
       },
     );
@@ -97,8 +86,8 @@ export function InviteMemberModal({
         <DialogHeader>
           <DialogTitle>Invite a member</DialogTitle>
           <DialogDescription>
-            Invite an existing Oxy user to this workspace. They must
-            already have an account at oxy.so.
+            Invite an existing Oxy user to this workspace. They must already have an account at
+            oxy.so.
           </DialogDescription>
         </DialogHeader>
 
@@ -117,9 +106,7 @@ export function InviteMemberModal({
               returnKeyType="send"
             />
             {email.length > 0 && !emailValid ? (
-              <Text className="text-xs text-destructive">
-                Enter a valid email address.
-              </Text>
+              <Text className="text-xs text-destructive">Enter a valid email address.</Text>
             ) : null}
           </View>
 
@@ -134,10 +121,7 @@ export function InviteMemberModal({
                   disabled={isPending}
                 >
                   <View className="flex-1 min-w-0">
-                    <Text
-                      className="text-sm text-foreground"
-                      numberOfLines={1}
-                    >
+                    <Text className="text-sm text-foreground" numberOfLines={1}>
                       {ROLE_LABELS[role]}
                     </Text>
                   </View>
@@ -146,11 +130,8 @@ export function InviteMemberModal({
               </DropdownMenu.Trigger>
               <DropdownMenu.Content>
                 {ASSIGNABLE_ROLES.map((option) => (
-                  <DropdownMenu.Item
-                    key={option}
-                    onSelect={() => setRole(option)}
-                  >
-                    {Platform.OS === "web" ? (
+                  <DropdownMenu.Item key={option} onSelect={() => setRole(option)}>
+                    {Platform.OS === 'web' ? (
                       <View className="gap-0.5">
                         <Text className="text-sm font-medium text-foreground">
                           {ROLE_LABELS[option]}
@@ -161,9 +142,7 @@ export function InviteMemberModal({
                       </View>
                     ) : (
                       <>
-                        <DropdownMenu.ItemTitle>
-                          {ROLE_LABELS[option]}
-                        </DropdownMenu.ItemTitle>
+                        <DropdownMenu.ItemTitle>{ROLE_LABELS[option]}</DropdownMenu.ItemTitle>
                         <DropdownMenu.ItemSubtitle>
                           {ROLE_DESCRIPTIONS[option]}
                         </DropdownMenu.ItemSubtitle>
@@ -173,25 +152,15 @@ export function InviteMemberModal({
                 ))}
               </DropdownMenu.Content>
             </DropdownMenu.Root>
-            <Text className="text-xs text-muted-foreground">
-              {ROLE_DESCRIPTIONS[role]}
-            </Text>
+            <Text className="text-xs text-muted-foreground">{ROLE_DESCRIPTIONS[role]}</Text>
           </View>
         </View>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onPress={() => onOpenChange(false)}
-            disabled={isPending}
-          >
+          <Button variant="outline" onPress={() => onOpenChange(false)} disabled={isPending}>
             <Text>Cancel</Text>
           </Button>
-          <Button
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-            isLoading={isPending}
-          >
+          <Button onPress={handleSubmit} disabled={!canSubmit} isLoading={isPending}>
             <Text>Send invite</Text>
           </Button>
         </DialogFooter>

@@ -1,15 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useOxy } from "@oxy.so/services";
-import apiClient from "../api/client";
-import { API_ROUTES } from "../api/routes";
-import { queryKeys } from "./query-keys";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOxy } from '@oxy.so/services';
+import apiClient from '../api/client';
+import { API_ROUTES } from '../api/routes';
+import { queryKeys } from './query-keys';
 import type {
   Database,
   DatabaseResponse,
   DatabaseSchema,
   DatabasesListResponse,
   DatabaseView,
-} from "../types/databases";
+} from '../types/databases';
 
 interface CreateDatabaseInput {
   workspaceId: string;
@@ -57,9 +57,9 @@ export function useDatabases(workspaceId: string | null) {
 export function useDatabase(id: string | undefined) {
   const { isAuthenticated } = useOxy();
   return useQuery<{ database: Database; views: DatabaseView[] }>({
-    queryKey: id ? queryKeys.databases.detail(id) : ["database", "none"],
+    queryKey: id ? queryKeys.databases.detail(id) : ['database', 'none'],
     queryFn: async () => {
-      if (!id) throw new Error("Database id required");
+      if (!id) throw new Error('Database id required');
       const res = await apiClient.get<{
         database: Database;
         views: DatabaseView[];
@@ -75,11 +75,7 @@ export function useDatabase(id: string | undefined) {
 
 export function useCreateDatabase() {
   const queryClient = useQueryClient();
-  return useMutation<
-    { database: Database; views: DatabaseView[] },
-    Error,
-    CreateDatabaseInput
-  >({
+  return useMutation<{ database: Database; views: DatabaseView[] }, Error, CreateDatabaseInput>({
     mutationFn: async (input) => {
       const res = await apiClient.post<{
         database: Database;
@@ -102,10 +98,7 @@ export function useUpdateDatabase() {
   const queryClient = useQueryClient();
   return useMutation<Database, Error, UpdateDatabaseInput>({
     mutationFn: async ({ id, ...patch }) => {
-      const res = await apiClient.patch<DatabaseResponse>(
-        API_ROUTES.databases.update(id),
-        patch,
-      );
+      const res = await apiClient.patch<DatabaseResponse>(API_ROUTES.databases.update(id), patch);
       return res.data.database;
     },
     onMutate: async ({ id, ...patch }) => {
@@ -131,10 +124,7 @@ export function useUpdateDatabase() {
           }
         | undefined;
       if (ctx?.previous) {
-        queryClient.setQueryData(
-          queryKeys.databases.detail(id),
-          ctx.previous,
-        );
+        queryClient.setQueryData(queryKeys.databases.detail(id), ctx.previous);
       }
     },
     onSettled: (database) => {
@@ -160,7 +150,7 @@ export function useDeleteDatabase() {
   return useMutation<void, Error, DeleteDatabaseInput>({
     mutationFn: async ({ id, hard }) => {
       await apiClient.delete(API_ROUTES.databases.delete(id), {
-        params: hard ? { hard: "true" } : undefined,
+        params: hard ? { hard: 'true' } : undefined,
       });
     },
     onSuccess: (_data, { workspaceId }) => {

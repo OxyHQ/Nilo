@@ -1,19 +1,9 @@
-import * as React from "react";
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import type {
-  Database,
-  DatabaseRow,
-  DatabaseView,
-} from "@/lib/types/databases";
+import * as React from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 
 interface ViewTimelineProps {
   database: Database;
@@ -30,12 +20,7 @@ const DAYS_WINDOW = 60;
  * `endPropertyId`) date property and lays out a horizontal bar per row.
  * Web-only in Phase 4 — native shows a fallback list.
  */
-export function ViewTimeline({
-  database,
-  view,
-  rows,
-  isLoading,
-}: ViewTimelineProps) {
+export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelineProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
 
@@ -43,16 +28,16 @@ export function ViewTimeline({
     const id = view.config.startPropertyId;
     if (id) {
       const p = database.schema.properties.find((x) => x.id === id);
-      if (p?.type === "date") return p;
+      if (p?.type === 'date') return p;
     }
-    return database.schema.properties.find((p) => p.type === "date") ?? null;
+    return database.schema.properties.find((p) => p.type === 'date') ?? null;
   }, [database.schema.properties, view.config.startPropertyId]);
 
   const endProperty = React.useMemo(() => {
     const id = view.config.endPropertyId;
     if (!id) return null;
     const p = database.schema.properties.find((x) => x.id === id);
-    return p?.type === "date" ? p : null;
+    return p?.type === 'date' ? p : null;
   }, [database.schema.properties, view.config.endPropertyId]);
 
   if (isLoading) {
@@ -73,12 +58,11 @@ export function ViewTimeline({
     );
   }
 
-  if (Platform.OS !== "web") {
+  if (Platform.OS !== 'web') {
     return (
       <View className="p-3">
         <Text className="text-sm text-muted-foreground">
-          Timeline view is web-only in Phase 4. Open the table view on
-          native to see your rows.
+          Timeline view is web-only in Phase 4. Open the table view on native to see your rows.
         </Text>
       </View>
     );
@@ -98,13 +82,8 @@ export function ViewTimeline({
           className="flex-row border-b border-border bg-muted/30"
           style={{ height: 32, minWidth: DAY_WIDTH * DAYS_WINDOW + 240 }}
         >
-          <View
-            style={{ width: 240 }}
-            className="px-3 py-1 justify-center border-r border-border"
-          >
-            <Text className="text-xs font-semibold uppercase text-muted-foreground">
-              Row
-            </Text>
+          <View style={{ width: 240 }} className="px-3 py-1 justify-center border-r border-border">
+            <Text className="text-xs font-semibold uppercase text-muted-foreground">Row</Text>
           </View>
           {Array.from({ length: DAYS_WINDOW }).map((_, i) => {
             const day = new Date(windowStart);
@@ -118,7 +97,7 @@ export function ViewTimeline({
               >
                 <Text className="text-[10px] text-muted-foreground">
                   {isFirstOfMonth
-                    ? day.toLocaleString(undefined, { month: "short" })
+                    ? day.toLocaleString(undefined, { month: 'short' })
                     : day.getDate()}
                 </Text>
               </View>
@@ -129,16 +108,11 @@ export function ViewTimeline({
         {/* rows */}
         {rows.map((row) => {
           const startStr = readDateStart(row, startProperty.id);
-          const endStr = endProperty
-            ? readDateStart(row, endProperty.id)
-            : null;
+          const endStr = endProperty ? readDateStart(row, endProperty.id) : null;
           if (!startStr) return null;
           const start = startOfDay(new Date(startStr));
           const end = endStr ? startOfDay(new Date(endStr)) : start;
-          if (
-            end.getTime() < windowStart.getTime() ||
-            start.getTime() > windowEnd.getTime()
-          ) {
+          if (end.getTime() < windowStart.getTime() || start.getTime() > windowEnd.getTime()) {
             return null;
           }
           const offsetDays = Math.max(
@@ -160,21 +134,21 @@ export function ViewTimeline({
                 className="px-3 justify-center border-r border-border/60"
               >
                 <Text className="text-sm text-foreground" numberOfLines={1}>
-                  {row.title || "Untitled"}
+                  {row.title || 'Untitled'}
                 </Text>
               </View>
-              <View style={{ position: "relative", flexDirection: "row" }}>
+              <View style={{ position: 'relative', flexDirection: 'row' }}>
                 <View
                   style={{
                     width: DAY_WIDTH * DAYS_WINDOW,
                     height: 36,
-                    position: "relative",
+                    position: 'relative',
                   }}
                 />
                 <Pressable
                   onPress={() => router.push(`/p/${row.id}`)}
                   style={{
-                    position: "absolute",
+                    position: 'absolute',
                     left: offsetDays * DAY_WIDTH + 2,
                     top: 6,
                     width: spanDays * DAY_WIDTH - 4,
@@ -182,11 +156,8 @@ export function ViewTimeline({
                   }}
                   className="bg-primary/20 border border-primary/50 rounded-md justify-center px-2"
                 >
-                  <Text
-                    className="text-[11px] text-primary"
-                    numberOfLines={1}
-                  >
-                    {row.title || "Untitled"}
+                  <Text className="text-[11px] text-primary" numberOfLines={1}>
+                    {row.title || 'Untitled'}
                   </Text>
                 </Pressable>
               </View>
@@ -206,7 +177,7 @@ function startOfDay(d: Date): Date {
 
 function readDateStart(row: DatabaseRow, propertyId: string): string | null {
   const value = row.properties[propertyId];
-  if (!value || typeof value !== "object" || !("start" in value)) return null;
+  if (!value || typeof value !== 'object' || !('start' in value)) return null;
   const start = value.start;
-  return typeof start === "string" ? start : null;
+  return typeof start === 'string' ? start : null;
 }

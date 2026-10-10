@@ -118,10 +118,7 @@ export async function deactivatePushTokenEverywhere(
 }
 
 /** Deactivate one row by primary key — the malformed-token path. */
-export async function deactivatePushTokenById(
-  db: NiloDatabase,
-  id: string,
-): Promise<number> {
+export async function deactivatePushTokenById(db: NiloDatabase, id: string): Promise<number> {
   const rows = await db
     .update(pushTokens)
     .set({ active: false })
@@ -149,10 +146,7 @@ export async function listActivePushTokens(
  * rather than a row on purpose: nothing downstream can leak a value it was never
  * handed.
  */
-export async function hasActivePushToken(
-  db: NiloDatabase,
-  oxyUserId: string,
-): Promise<boolean> {
+export async function hasActivePushToken(db: NiloDatabase, oxyUserId: string): Promise<boolean> {
   const rows = await db
     .select({ one: sql<number>`1` })
     .from(pushTokens)

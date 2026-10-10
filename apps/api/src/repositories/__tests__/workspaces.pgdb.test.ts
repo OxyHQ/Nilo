@@ -113,9 +113,12 @@ describe('membership', () => {
 
   it('stays quiet about a duplicate on the idempotent provisioning path', async () => {
     const ws = await createWorkspace(db, { name: 'Provision', ownerId: `${scope}-prov` });
-    expect(await addMemberIfAbsent(db, { workspaceId: ws.id, userId: 'u2', role: 'owner' })).not
-      .toBeNull();
-    expect(await addMemberIfAbsent(db, { workspaceId: ws.id, userId: 'u2', role: 'owner' })).toBeNull();
+    expect(
+      await addMemberIfAbsent(db, { workspaceId: ws.id, userId: 'u2', role: 'owner' }),
+    ).not.toBeNull();
+    expect(
+      await addMemberIfAbsent(db, { workspaceId: ws.id, userId: 'u2', role: 'owner' }),
+    ).toBeNull();
   });
 
   it('reads a removal off RETURNING, not a row count', async () => {

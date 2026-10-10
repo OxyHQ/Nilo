@@ -1,22 +1,18 @@
-import * as React from "react";
-import { Platform, Pressable } from "react-native";
-import * as Clipboard from "expo-clipboard";
-import { MoreHorizontal } from "lucide-react-native";
-import { useRouter } from "expo-router";
-import { useOxy } from "@oxy.so/services";
-import { toast } from "@oxy.so/bloom/toast";
-import * as DropdownMenu from "@/components/ui/dropdown-menu";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import { useColorScheme } from "@/lib/useColorScheme";
-import {
-  useDeletePage,
-  useDuplicatePage,
-  useUpdatePage,
-} from "@/lib/hooks/use-pages";
-import apiClient from "@/lib/api/client";
-import { API_ROUTES } from "@/lib/api/routes";
-import type { Page } from "@/lib/types/pages";
-import { MoveToDialog } from "./move-to-dialog";
+import * as React from 'react';
+import { Platform, Pressable } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { MoreHorizontal } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { useOxy } from '@oxy.so/services';
+import { toast } from '@oxy.so/bloom/toast';
+import * as DropdownMenu from '@/components/ui/dropdown-menu';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useDeletePage, useDuplicatePage, useUpdatePage } from '@/lib/hooks/use-pages';
+import apiClient from '@/lib/api/client';
+import { API_ROUTES } from '@/lib/api/routes';
+import type { Page } from '@/lib/types/pages';
+import { MoveToDialog } from './move-to-dialog';
 
 interface PageActionsMenuProps {
   page: Page;
@@ -45,11 +41,11 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
       { id: page._id, workspaceId: page.workspaceId },
       {
         onSuccess: (created) => {
-          toast.success("Page duplicated");
+          toast.success('Page duplicated');
           router.push(`/p/${created._id}`);
         },
         onError: (err) => {
-          toast.error(err.message || "Failed to duplicate page");
+          toast.error(err.message || 'Failed to duplicate page');
         },
       },
     );
@@ -61,44 +57,41 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
 
   const handleCopyLink = React.useCallback(async () => {
     const origin =
-      Platform.OS === "web" && typeof window !== "undefined"
+      Platform.OS === 'web' && typeof window !== 'undefined'
         ? window.location.origin
-        : "https://nilo.so";
+        : 'https://nilo.so';
     const url = `${origin}/p/${page._id}`;
     await Clipboard.setStringAsync(url);
-    toast.success("Link copied");
+    toast.success('Link copied');
   }, [page._id]);
 
   const handleExportMarkdown = React.useCallback(async () => {
     try {
-      const res = await apiClient.get<string>(
-        API_ROUTES.pages.export(page._id),
-        {
-          params: { format: "md" },
-          responseType: "text",
-          transformResponse: [(d: string) => d],
-        },
-      );
-      const markdown = typeof res.data === "string" ? res.data : "";
-      if (Platform.OS === "web" && typeof window !== "undefined") {
+      const res = await apiClient.get<string>(API_ROUTES.pages.export(page._id), {
+        params: { format: 'md' },
+        responseType: 'text',
+        transformResponse: [(d: string) => d],
+      });
+      const markdown = typeof res.data === 'string' ? res.data : '';
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const blob = new Blob([markdown], {
-          type: "text/markdown;charset=utf-8",
+          type: 'text/markdown;charset=utf-8',
         });
         const href = URL.createObjectURL(blob);
-        const link = document.createElement("a");
+        const link = document.createElement('a');
         link.href = href;
-        link.download = `${(page.title || "untitled").replace(/[^a-zA-Z0-9-_]+/gu, "-")}.md`;
+        link.download = `${(page.title || 'untitled').replace(/[^a-zA-Z0-9-_]+/gu, '-')}.md`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(href);
-        toast.success("Markdown downloaded");
+        toast.success('Markdown downloaded');
       } else {
         await Clipboard.setStringAsync(markdown);
-        toast.success("Markdown copied to clipboard");
+        toast.success('Markdown copied to clipboard');
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Export failed";
+      const msg = err instanceof Error ? err.message : 'Export failed';
       toast.error(msg);
     }
   }, [page._id, page.title]);
@@ -108,11 +101,11 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
       { id: page._id, workspaceId: page.workspaceId },
       {
         onSuccess: () => {
-          toast.success("Moved to trash");
-          router.replace("/(app)");
+          toast.success('Moved to trash');
+          router.replace('/(app)');
         },
         onError: (err) => {
-          toast.error(err.message || "Failed to move to trash");
+          toast.error(err.message || 'Failed to move to trash');
         },
       },
     );
@@ -123,7 +116,7 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
       { id: page._id, archived: false },
       {
         onSuccess: () => {
-          toast.success("Page restored");
+          toast.success('Page restored');
         },
       },
     );
@@ -134,11 +127,11 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
       { id: page._id, workspaceId: page.workspaceId, hard: true },
       {
         onSuccess: () => {
-          toast.success("Page deleted permanently");
-          router.replace("/trash");
+          toast.success('Page deleted permanently');
+          router.replace('/trash');
         },
         onError: (err) => {
-          toast.error(err.message || "Failed to delete page");
+          toast.error(err.message || 'Failed to delete page');
         },
       },
     );
@@ -160,50 +153,38 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
           {!page.archived ? (
             <>
               <DropdownMenu.Item key="duplicate" onSelect={handleDuplicate}>
-                <DropdownMenu.ItemIcon ios={{ name: "doc.on.doc" }} />
+                <DropdownMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
                 <DropdownMenu.ItemTitle>Duplicate</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Item key="favorite" onSelect={handleFavorite}>
-                <DropdownMenu.ItemIcon
-                  ios={{ name: page.favorited ? "star.slash" : "star" }}
-                />
+                <DropdownMenu.ItemIcon ios={{ name: page.favorited ? 'star.slash' : 'star' }} />
                 <DropdownMenu.ItemTitle>
-                  {page.favorited ? "Remove from favorites" : "Add to favorites"}
+                  {page.favorited ? 'Remove from favorites' : 'Add to favorites'}
                 </DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
-              <DropdownMenu.Item
-                key="move"
-                onSelect={() => setMoveOpen(true)}
-              >
-                <DropdownMenu.ItemIcon ios={{ name: "folder" }} />
+              <DropdownMenu.Item key="move" onSelect={() => setMoveOpen(true)}>
+                <DropdownMenu.ItemIcon ios={{ name: 'folder' }} />
                 <DropdownMenu.ItemTitle>Move to…</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Item key="copy-link" onSelect={handleCopyLink}>
-                <DropdownMenu.ItemIcon ios={{ name: "link" }} />
+                <DropdownMenu.ItemIcon ios={{ name: 'link' }} />
                 <DropdownMenu.ItemTitle>Copy link</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Separator />
-              <DropdownMenu.Item
-                key="export-md"
-                onSelect={handleExportMarkdown}
-              >
-                <DropdownMenu.ItemIcon ios={{ name: "arrow.down.doc" }} />
+              <DropdownMenu.Item key="export-md" onSelect={handleExportMarkdown}>
+                <DropdownMenu.ItemIcon ios={{ name: 'arrow.down.doc' }} />
                 <DropdownMenu.ItemTitle>Export as Markdown</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Separator />
-              <DropdownMenu.Item
-                key="trash"
-                destructive
-                onSelect={handleMoveToTrash}
-              >
-                <DropdownMenu.ItemIcon ios={{ name: "trash" }} />
+              <DropdownMenu.Item key="trash" destructive onSelect={handleMoveToTrash}>
+                <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
                 <DropdownMenu.ItemTitle>Move to trash</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
             </>
           ) : (
             <>
               <DropdownMenu.Item key="restore" onSelect={handleRestore}>
-                <DropdownMenu.ItemIcon ios={{ name: "arrow.uturn.backward" }} />
+                <DropdownMenu.ItemIcon ios={{ name: 'arrow.uturn.backward' }} />
                 <DropdownMenu.ItemTitle>Restore from trash</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               {isOwner ? (
@@ -214,7 +195,7 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
                     destructive
                     onSelect={() => setDeleteOpen(true)}
                   >
-                    <DropdownMenu.ItemIcon ios={{ name: "trash.slash" }} />
+                    <DropdownMenu.ItemIcon ios={{ name: 'trash.slash' }} />
                     <DropdownMenu.ItemTitle>Delete permanently</DropdownMenu.ItemTitle>
                   </DropdownMenu.Item>
                 </>
@@ -230,7 +211,7 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Delete permanently?"
-        description={`“${page.title || "Untitled"}” and all its blocks will be removed forever. This can't be undone.`}
+        description={`“${page.title || 'Untitled'}” and all its blocks will be removed forever. This can't be undone.`}
         confirmText="Delete"
         confirmVariant="destructive"
         onConfirm={handleHardDelete}

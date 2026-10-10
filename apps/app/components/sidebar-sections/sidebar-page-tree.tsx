@@ -5,10 +5,7 @@ import { Text } from '@/components/ui/text';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import { SidebarPageRow } from './page-row';
-import {
-  PageDragProvider,
-  type DragMutation,
-} from './drag-context';
+import { PageDragProvider, type DragMutation } from './drag-context';
 
 interface SidebarPageTreeProps {
   /** Flat list of pages to organize into a tree. */
@@ -43,10 +40,7 @@ function buildLocalTree(pages: Page[]): TreeNode[] {
     const ao = a.page.order ?? 0;
     const bo = b.page.order ?? 0;
     if (ao !== bo) return ao - bo;
-    return (
-      new Date(b.page.updatedAt).getTime() -
-      new Date(a.page.updatedAt).getTime()
-    );
+    return new Date(b.page.updatedAt).getTime() - new Date(a.page.updatedAt).getTime();
   };
   roots.sort(orderCompare);
   for (const n of lookup.values()) n.children.sort(orderCompare);
@@ -97,9 +91,7 @@ export function SidebarPageTree({
       let newOrder: number;
       if (position === 'inside') {
         newParentId = target._id;
-        const siblings = pages
-          .filter((p) => p.parentId === target._id)
-          .map((p) => p.order ?? 0);
+        const siblings = pages.filter((p) => p.parentId === target._id).map((p) => p.order ?? 0);
         newOrder = (siblings.length ? Math.max(...siblings) : -1) + 1;
       } else {
         newParentId = target.parentId ?? null;

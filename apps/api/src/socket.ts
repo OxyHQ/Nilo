@@ -6,10 +6,7 @@ import { getRedisClient, getRedisSubClient } from './lib/redis.js';
 import { log } from './lib/logger.js';
 import { oxyClient } from './middleware/auth.js';
 
-const ALLOWED_ORIGINS = [
-  process.env.WEB_URL || 'http://localhost:3000',
-  'https://nilo.so',
-];
+const ALLOWED_ORIGINS = [process.env.WEB_URL || 'http://localhost:3000', 'https://nilo.so'];
 
 let io: Server | null = null;
 

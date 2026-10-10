@@ -14,10 +14,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
 
         {/* Viewport and mobile optimization */}
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, shrink-to-fit=no"
-        />
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
         {/* Security and Performance */}
         <meta httpEquiv="Content-Security-Policy" content="upgrade-insecure-requests" />
@@ -26,10 +23,7 @@ export default function Root({ children }: PropsWithChildren) {
 
         {/* Primary Meta Tags */}
         <meta name="title" content="Nilo" />
-        <meta
-          name="description"
-          content="Nilo — your workspace for docs, databases, and AI."
-        />
+        <meta name="description" content="Nilo — your workspace for docs, databases, and AI." />
         <meta
           name="keywords"
           content="workspace, docs, databases, notes, knowledge base, productivity, collaboration"
@@ -92,8 +86,7 @@ export default function Root({ children }: PropsWithChildren) {
               '@type': 'WebApplication',
               name: 'Nilo',
               url: 'https://nilo.so',
-              description:
-                'Nilo — your workspace for docs, databases, and AI.',
+              description: 'Nilo — your workspace for docs, databases, and AI.',
               applicationCategory: 'BusinessApplication',
               operatingSystem: 'Web, iOS, Android',
               offers: {

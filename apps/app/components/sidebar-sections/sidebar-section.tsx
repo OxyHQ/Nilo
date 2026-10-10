@@ -38,9 +38,7 @@ export function SidebarSection({
   trailing,
 }: SidebarSectionProps) {
   const { colors } = useColorScheme();
-  const collapsed = useUIStore((s) =>
-    sectionKey ? s.sectionCollapsed[sectionKey] : false,
-  );
+  const collapsed = useUIStore((s) => (sectionKey ? s.sectionCollapsed[sectionKey] : false));
   const toggle = useUIStore((s) => s.toggleSection);
 
   const isOpen = !collapsed;

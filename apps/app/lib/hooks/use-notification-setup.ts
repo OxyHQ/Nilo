@@ -91,15 +91,13 @@ export function useNotificationSetup() {
 
   // ── Notification tap handler ─────────────────────────────────
   useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        if (!isAuthenticated) return;
-        const pageId = response.notification.request.content.data?.pageId;
-        if (typeof pageId === 'string') {
-          router.push({ pathname: '/(app)/p/[pageId]', params: { pageId } });
-        }
-      },
-    );
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      if (!isAuthenticated) return;
+      const pageId = response.notification.request.content.data?.pageId;
+      if (typeof pageId === 'string') {
+        router.push({ pathname: '/(app)/p/[pageId]', params: { pageId } });
+      }
+    });
 
     return () => subscription.remove();
   }, [isAuthenticated, router]);

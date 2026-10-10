@@ -1,18 +1,13 @@
-import * as React from "react";
-import { View, Pressable, ActivityIndicator } from "react-native";
-import { useRouter, usePathname } from "expo-router";
-import { ChevronRight, ChevronDown, Plus, FileText } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useWorkspaceStore } from "@/lib/stores/workspace-store";
-import {
-  buildPageTree,
-  useCreatePage,
-  useDeletePage,
-  usePages,
-} from "@/lib/hooks/use-pages";
-import type { Page } from "@/lib/types/pages";
-import * as DropdownMenu from "@/components/ui/dropdown-menu";
+import * as React from 'react';
+import { View, Pressable, ActivityIndicator } from 'react-native';
+import { useRouter, usePathname } from 'expo-router';
+import { ChevronRight, ChevronDown, Plus, FileText } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useWorkspaceStore } from '@/lib/stores/workspace-store';
+import { buildPageTree, useCreatePage, useDeletePage, usePages } from '@/lib/hooks/use-pages';
+import type { Page } from '@/lib/types/pages';
+import * as DropdownMenu from '@/components/ui/dropdown-menu';
 
 const INDENT_PX = 14;
 const ROW_HEIGHT = 28;
@@ -46,7 +41,7 @@ export function PageTree() {
       const page = await createPage.mutateAsync({
         workspaceId: currentWorkspaceId,
         parentId: null,
-        title: "",
+        title: '',
       });
       router.push(`/p/${page._id}`);
     } catch {
@@ -59,9 +54,7 @@ export function PageTree() {
   if (!currentWorkspaceId) {
     return (
       <View className="px-3 py-2">
-        <Text className="text-xs text-muted-foreground">
-          Select a workspace to see pages.
-        </Text>
+        <Text className="text-xs text-muted-foreground">Select a workspace to see pages.</Text>
       </View>
     );
   }
@@ -94,9 +87,7 @@ export function PageTree() {
         </View>
       ) : isError ? (
         <View className="px-3 py-2">
-          <Text className="text-xs text-destructive">
-            Couldn’t load pages. Retry shortly.
-          </Text>
+          <Text className="text-xs text-destructive">Couldn’t load pages. Retry shortly.</Text>
         </View>
       ) : tree.roots.length === 0 ? (
         <View className="px-3 py-3">
@@ -152,9 +143,7 @@ function PageRowRecursive({
         depth={depth}
         hasChildren={children.length > 0}
         isOpen={isOpen}
-        onToggle={() =>
-          setExpanded((prev) => ({ ...prev, [page._id]: !prev[page._id] }))
-        }
+        onToggle={() => setExpanded((prev) => ({ ...prev, [page._id]: !prev[page._id] }))}
         activePath={activePath}
         workspaceId={workspaceId}
       />
@@ -211,7 +200,7 @@ const PageRow = React.memo(function PageRow({
       const child = await createPage.mutateAsync({
         workspaceId,
         parentId: page._id,
-        title: "",
+        title: '',
       });
       router.push(`/p/${child._id}`);
     } catch {
@@ -223,7 +212,7 @@ const PageRow = React.memo(function PageRow({
     deletePage.mutate({ id: page._id, workspaceId });
   }, [deletePage, page._id, workspaceId]);
 
-  const title = page.title.trim() ? page.title : "Untitled";
+  const title = page.title.trim() ? page.title : 'Untitled';
   const indent = depth * INDENT_PX;
 
   return (
@@ -238,8 +227,8 @@ const PageRow = React.memo(function PageRow({
           accessibilityLabel={`Open ${title}`}
           className={
             isActive
-              ? "flex-row items-center bg-muted"
-              : "flex-row items-center hover:bg-muted/60 active:bg-muted/60"
+              ? 'flex-row items-center bg-muted'
+              : 'flex-row items-center hover:bg-muted/60 active:bg-muted/60'
           }
           style={{ paddingLeft: 8 + indent, paddingRight: 8, height: ROW_HEIGHT }}
         >
@@ -248,7 +237,7 @@ const PageRow = React.memo(function PageRow({
               e.stopPropagation();
               if (hasChildren) onToggle();
             }}
-            accessibilityLabel={isOpen ? "Collapse" : "Expand"}
+            accessibilityLabel={isOpen ? 'Collapse' : 'Expand'}
             className="h-5 w-5 items-center justify-center rounded"
             disabled={!hasChildren}
           >
@@ -270,8 +259,8 @@ const PageRow = React.memo(function PageRow({
           <Text
             className={
               isActive
-                ? "ml-1 flex-1 truncate text-sm font-medium text-foreground"
-                : "ml-1 flex-1 truncate text-sm text-foreground"
+                ? 'ml-1 flex-1 truncate text-sm font-medium text-foreground'
+                : 'ml-1 flex-1 truncate text-sm text-foreground'
             }
             numberOfLines={1}
           >
@@ -281,16 +270,16 @@ const PageRow = React.memo(function PageRow({
       </DropdownMenu.Trigger>
       <DropdownMenu.Content>
         <DropdownMenu.Item key="add-sub" onSelect={handleAddChild}>
-          <DropdownMenu.ItemIcon ios={{ name: "doc" }} />
+          <DropdownMenu.ItemIcon ios={{ name: 'doc' }} />
           <DropdownMenu.ItemTitle>Add sub-page</DropdownMenu.ItemTitle>
         </DropdownMenu.Item>
         <DropdownMenu.Item key="rename" onSelect={handleOpen}>
-          <DropdownMenu.ItemIcon ios={{ name: "pencil" }} />
+          <DropdownMenu.ItemIcon ios={{ name: 'pencil' }} />
           <DropdownMenu.ItemTitle>Open & rename</DropdownMenu.ItemTitle>
         </DropdownMenu.Item>
         <DropdownMenu.Separator />
         <DropdownMenu.Item key="delete" destructive onSelect={handleDelete}>
-          <DropdownMenu.ItemIcon ios={{ name: "trash" }} />
+          <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
           <DropdownMenu.ItemTitle>Delete</DropdownMenu.ItemTitle>
         </DropdownMenu.Item>
       </DropdownMenu.Content>

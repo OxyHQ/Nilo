@@ -75,14 +75,15 @@ export const workspaces = pgTable(
      * own many non-personal workspaces, so the uniqueness applies only to the
      * personal one.
      */
-    uniqueIndex('unique_personal_workspace_per_owner')
-      .on(t.ownerId)
-      .where(sql`${t.isPersonal}`),
+    uniqueIndex('unique_personal_workspace_per_owner').on(t.ownerId).where(sql`${t.isPersonal}`),
     /**
      * Workspace names are capped at `WORKSPACE_NAME_MAX` characters as a live
      * constraint.
      */
-    check('workspaces_name_length', sql`char_length(${t.name}) <= ${sql.raw(String(WORKSPACE_NAME_MAX))}`),
+    check(
+      'workspaces_name_length',
+      sql`char_length(${t.name}) <= ${sql.raw(String(WORKSPACE_NAME_MAX))}`,
+    ),
   ],
 );
 

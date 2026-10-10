@@ -46,13 +46,7 @@ export const OPERATORS_BY_TYPE: Record<DatabasePropertyType, readonly string[]> 
   rollup: ['is_empty', 'is_not_empty'],
   formula: ['is_empty', 'is_not_empty'],
   created_time: ['before', 'after', 'on_or_before', 'on_or_after', 'equals'],
-  last_edited_time: [
-    'before',
-    'after',
-    'on_or_before',
-    'on_or_after',
-    'equals',
-  ],
+  last_edited_time: ['before', 'after', 'on_or_before', 'on_or_after', 'equals'],
   created_by: ['contains', 'does_not_contain'],
   last_edited_by: ['contains', 'does_not_contain'],
 };
@@ -144,34 +138,32 @@ function parseFilter(value: unknown, path: string[]): Filter {
  * with `z.unknown().transform(...)` so callers can chain `.optional()`
  * etc. exactly like any other Zod schema.
  */
-export const filterGroupSchema = z
-  .unknown()
-  .transform((raw, ctx): FilterGroup => {
-    try {
-      const parsed = parseFilter(raw, []);
-      if (parsed.kind !== 'group') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['kind'],
-          message: 'Top-level filter must be a group',
-        });
-        return { kind: 'group', combinator: 'and', filters: [] };
-      }
-      return parsed;
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        for (const issue of err.errors) {
-          ctx.addIssue(issue);
-        }
-      } else {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Invalid filter',
-        });
-      }
+export const filterGroupSchema = z.unknown().transform((raw, ctx): FilterGroup => {
+  try {
+    const parsed = parseFilter(raw, []);
+    if (parsed.kind !== 'group') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['kind'],
+        message: 'Top-level filter must be a group',
+      });
       return { kind: 'group', combinator: 'and', filters: [] };
     }
-  });
+    return parsed;
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      for (const issue of err.errors) {
+        ctx.addIssue(issue);
+      }
+    } else {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Invalid filter',
+      });
+    }
+    return { kind: 'group', combinator: 'and', filters: [] };
+  }
+});
 
 /**
  * Read property value for filter/sort evaluation. Returns the raw JSON
@@ -229,13 +221,9 @@ export function evaluateFilter(
   if (filter.kind === 'group') {
     if (filter.filters.length === 0) return true;
     if (filter.combinator === 'and') {
-      return filter.filters.every((child) =>
-        evaluateFilter(child, row, propertyById),
-      );
+      return filter.filters.every((child) => evaluateFilter(child, row, propertyById));
     }
-    return filter.filters.some((child) =>
-      evaluateFilter(child, row, propertyById),
-    );
+    return filter.filters.some((child) => evaluateFilter(child, row, propertyById));
   }
 
   const prop = propertyById.get(filter.propertyId);

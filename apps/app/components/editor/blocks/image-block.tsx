@@ -1,11 +1,11 @@
-import * as React from "react";
-import { Platform, Pressable, TextInput, View } from "react-native";
-import { Image as ExpoImage } from "expo-image";
-import { Image as ImageIcon, Upload } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { uploadFile } from "@/lib/uploads/upload-file";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
+import { Image as ImageIcon, Upload } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { uploadFile } from '@/lib/uploads/upload-file';
+import type { BlockComponentProps } from './types';
 
 /**
  * Image block — renders a captioned image. Empty state offers two paths:
@@ -18,9 +18,8 @@ import type { BlockComponentProps } from "./types";
  */
 export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const url = typeof block.content.url === "string" ? block.content.url : "";
-  const caption =
-    typeof block.content.caption === "string" ? block.content.caption : "";
+  const url = typeof block.content.url === 'string' ? block.content.url : '';
+  const caption = typeof block.content.caption === 'string' ? block.content.caption : '';
   const [urlDraft, setUrlDraft] = React.useState(url);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -46,13 +45,13 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
       const buf = await file.arrayBuffer();
       const result = await uploadFile({
         filename: file.name,
-        mimeType: file.type || "application/octet-stream",
+        mimeType: file.type || 'application/octet-stream',
         body: buf,
         size: file.size,
       });
       onChangeContent({ ...block.content, url: result.fileUrl });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setBusy(false);
     }
@@ -62,17 +61,17 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
     setBusy(true);
     setError(null);
     try {
-      const picker = await import("expo-image-picker");
+      const picker = await import('expo-image-picker');
       const result = await picker.launchImageLibraryAsync({
         mediaTypes: picker.MediaTypeOptions.Images,
         quality: 0.9,
       });
       if (result.canceled || result.assets.length === 0) return;
       const asset = result.assets[0];
-      const { File } = await import("expo-file-system");
+      const { File } = await import('expo-file-system');
       const file = new File(asset.uri);
       const bytes = await file.bytes();
-      const mimeType = asset.mimeType ?? "image/jpeg";
+      const mimeType = asset.mimeType ?? 'image/jpeg';
       const filename = asset.fileName ?? `image-${Date.now()}.jpg`;
       const uploaded = await uploadFile({
         filename,
@@ -82,7 +81,7 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
       });
       onChangeContent({ ...block.content, url: uploaded.fileUrl });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setBusy(false);
     }
@@ -106,7 +105,7 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
           />
           <Pressable
             onPress={() => {
-              if (Platform.OS === "web") {
+              if (Platform.OS === 'web') {
                 fileInputRef.current?.click();
               } else {
                 void handleNativeUpload();
@@ -117,26 +116,24 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
           >
             <Upload size={14} color={colors.primaryForeground} />
             <Text className="text-sm font-medium" style={{ color: colors.primaryForeground }}>
-              {busy ? "Uploading…" : "Upload"}
+              {busy ? 'Uploading…' : 'Upload'}
             </Text>
           </Pressable>
         </View>
-        {Platform.OS === "web" ? (
+        {Platform.OS === 'web' ? (
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            style={{ display: "none" }}
+            style={{ display: 'none' }}
             onChange={(ev) => {
               const file = ev.target.files?.[0];
               if (file) void handleWebUpload(file);
-              ev.target.value = "";
+              ev.target.value = '';
             }}
           />
         ) : null}
-        {error ? (
-          <Text className="text-xs text-destructive">{error}</Text>
-        ) : null}
+        {error ? <Text className="text-xs text-destructive">{error}</Text> : null}
       </View>
     );
   }
@@ -145,12 +142,10 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
     <View className="gap-1">
       <ExpoImage
         source={{ uri: url }}
-        style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 8 }}
+        style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 8 }}
         contentFit="contain"
         transition={150}
-        accessibilityLabel={
-          typeof block.content.alt === "string" ? block.content.alt : undefined
-        }
+        accessibilityLabel={typeof block.content.alt === 'string' ? block.content.alt : undefined}
       />
       <TextInput
         value={caption}

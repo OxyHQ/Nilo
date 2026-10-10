@@ -2,11 +2,13 @@ import { eq, like, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { executeRows } from '@oxy.so/db';
 import { sweepExpiredRows } from '@oxy.so/db/expiry';
-import { closeTestDb, getTestDb, type TestDatabase, testScope } from '../../db/__tests__/testDatabase.js';
 import {
-  NOTIFICATION_DISMISSED_RETENTION_SECONDS,
-  notifications,
-} from '../../db/schema/collab.js';
+  closeTestDb,
+  getTestDb,
+  type TestDatabase,
+  testScope,
+} from '../../db/__tests__/testDatabase.js';
+import { NOTIFICATION_DISMISSED_RETENTION_SECONDS, notifications } from '../../db/schema/collab.js';
 import {
   countNotifications,
   countUnreadNotifications,
@@ -271,9 +273,7 @@ describe('notifications repository', () => {
       ['priority', sql`update notifications set priority = 'critical' where id = `],
     ])('refuses a %s outside the declared set', async (_field, statement) => {
       const created = await newNotification();
-      await expect(
-        executeRows(db, sql`${statement}${created.id}`),
-      ).rejects.toThrow();
+      await expect(executeRows(db, sql`${statement}${created.id}`)).rejects.toThrow();
     });
 
     it('refuses a channel outside the declared set', async () => {

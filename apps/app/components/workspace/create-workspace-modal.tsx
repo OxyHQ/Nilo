@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Pressable } from "react-native";
+import React from 'react';
+import { View, Pressable } from 'react-native';
 import {
   Dialog,
   DialogContent,
@@ -7,12 +7,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Text } from "@/components/ui/text";
-import { useCreateWorkspace, type Workspace } from "@/lib/hooks/use-workspaces";
-import { toast } from "@oxy.so/bloom/toast";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Text } from '@/components/ui/text';
+import { useCreateWorkspace, type Workspace } from '@/lib/hooks/use-workspaces';
+import { toast } from '@oxy.so/bloom/toast';
 
 /**
  * Curated set of safe, cross-platform emoji glyphs for the icon picker.
@@ -20,22 +20,22 @@ import { toast } from "@oxy.so/bloom/toast";
  * the grid is just convenience.
  */
 const EMOJI_OPTIONS = [
-  "🚀",
-  "📚",
-  "💡",
-  "🎯",
-  "🌱",
-  "🎨",
-  "🧠",
-  "💼",
-  "📦",
-  "🛠️",
-  "🪐",
-  "✨",
-  "🔥",
-  "🌊",
-  "🌍",
-  "📝",
+  '🚀',
+  '📚',
+  '💡',
+  '🎯',
+  '🌱',
+  '🎨',
+  '🧠',
+  '💼',
+  '📦',
+  '🛠️',
+  '🪐',
+  '✨',
+  '🔥',
+  '🌊',
+  '🌍',
+  '📝',
 ];
 
 interface CreateWorkspaceModalProps {
@@ -45,20 +45,16 @@ interface CreateWorkspaceModalProps {
   onCreated?: (workspace: Workspace) => void;
 }
 
-export function CreateWorkspaceModal({
-  open,
-  onOpenChange,
-  onCreated,
-}: CreateWorkspaceModalProps) {
-  const [name, setName] = React.useState("");
-  const [icon, setIcon] = React.useState<string>(EMOJI_OPTIONS[0] ?? "");
+export function CreateWorkspaceModal({ open, onOpenChange, onCreated }: CreateWorkspaceModalProps) {
+  const [name, setName] = React.useState('');
+  const [icon, setIcon] = React.useState<string>(EMOJI_OPTIONS[0] ?? '');
   const { mutate, isPending } = useCreateWorkspace();
 
   // Reset form whenever the modal is dismissed.
   React.useEffect(() => {
     if (!open) {
-      setName("");
-      setIcon(EMOJI_OPTIONS[0] ?? "");
+      setName('');
+      setIcon(EMOJI_OPTIONS[0] ?? '');
     }
   }, [open]);
 
@@ -76,9 +72,7 @@ export function CreateWorkspaceModal({
         },
         onError: (error) => {
           const message =
-            error instanceof Error && error.message
-              ? error.message
-              : "Failed to create workspace";
+            error instanceof Error && error.message ? error.message : 'Failed to create workspace';
           toast.error(message);
         },
       },
@@ -91,8 +85,7 @@ export function CreateWorkspaceModal({
         <DialogHeader>
           <DialogTitle>New workspace</DialogTitle>
           <DialogDescription>
-            Workspaces are containers for pages, databases, and team
-            members.
+            Workspaces are containers for pages, databases, and team members.
           </DialogDescription>
         </DialogHeader>
 
@@ -122,8 +115,8 @@ export function CreateWorkspaceModal({
                     onPress={() => setIcon(emoji)}
                     className={`h-9 w-9 items-center justify-center rounded-lg border ${
                       selected
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-background hover:bg-muted"
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border bg-background hover:bg-muted'
                     }`}
                     accessibilityRole="button"
                     accessibilityLabel={`Use ${emoji} as icon`}
@@ -139,18 +132,10 @@ export function CreateWorkspaceModal({
         </View>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onPress={() => onOpenChange(false)}
-            disabled={isPending}
-          >
+          <Button variant="outline" onPress={() => onOpenChange(false)} disabled={isPending}>
             <Text>Cancel</Text>
           </Button>
-          <Button
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-            isLoading={isPending}
-          >
+          <Button onPress={handleSubmit} disabled={!canSubmit} isLoading={isPending}>
             <Text>Create workspace</Text>
           </Button>
         </DialogFooter>

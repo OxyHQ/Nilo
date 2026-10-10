@@ -1,13 +1,5 @@
-import * as React from "react";
-import {
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import * as React from 'react';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import {
   Calendar,
   GalleryVertical,
@@ -18,21 +10,13 @@ import {
   Settings2,
   Table as TableIcon,
   TimerReset,
-} from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import type {
-  Database,
-  DatabaseView,
-  DatabaseViewType,
-} from "@/lib/types/databases";
-import { useUpdateDatabase } from "@/lib/hooks/use-databases";
-import {
-  useCreateView,
-  useDeleteView,
-  useUpdateView,
-} from "@/lib/hooks/use-database-views";
-import { centeredModalStyle } from "./centered-modal-style";
+} from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import type { Database, DatabaseView, DatabaseViewType } from '@/lib/types/databases';
+import { useUpdateDatabase } from '@/lib/hooks/use-databases';
+import { useCreateView, useDeleteView, useUpdateView } from '@/lib/hooks/use-database-views';
+import { centeredModalStyle } from './centered-modal-style';
 
 const VIEW_ICONS: Record<
   DatabaseViewType,
@@ -47,12 +31,12 @@ const VIEW_ICONS: Record<
 };
 
 const VIEW_LABELS: Record<DatabaseViewType, string> = {
-  table: "Table",
-  board: "Board",
-  gallery: "Gallery",
-  list: "List",
-  calendar: "Calendar",
-  timeline: "Timeline",
+  table: 'Table',
+  board: 'Board',
+  gallery: 'Gallery',
+  list: 'List',
+  calendar: 'Calendar',
+  timeline: 'Timeline',
 };
 
 interface DatabaseHeaderProps {
@@ -120,9 +104,7 @@ export function DatabaseHeader({
               placeholderTextColor={colors.mutedForeground}
               className="text-3xl font-bold text-foreground"
               style={
-                Platform.OS === "web"
-                  ? { outlineWidth: 0, borderWidth: 0, padding: 0 }
-                  : undefined
+                Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined
               }
               underlineColorAndroid="transparent"
             />
@@ -199,14 +181,12 @@ function ViewTab({ view, active, onPress, database }: ViewTabProps) {
         onPress={onPress}
         onLongPress={() => setMenuOpen(true)}
         className={`flex-row items-center gap-1.5 px-2 py-1 rounded ${
-          active ? "bg-muted" : "hover:bg-muted/60"
+          active ? 'bg-muted' : 'hover:bg-muted/60'
         }`}
       >
         <Icon size={12} color={colors.foreground} />
         <Text
-          className={`text-xs ${
-            active ? "text-foreground font-medium" : "text-muted-foreground"
-          }`}
+          className={`text-xs ${active ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
         >
           {view.name}
         </Text>
@@ -218,17 +198,8 @@ function ViewTab({ view, active, onPress, database }: ViewTabProps) {
         </Pressable>
       </Pressable>
 
-      <Modal
-        visible={menuOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={close}
-      >
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          className="bg-black/40"
-          onPress={close}
-        />
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={close}>
+        <Pressable style={StyleSheet.absoluteFill} className="bg-black/40" onPress={close} />
         <View
           className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2"
           style={centeredModalStyle(260, 200)}
@@ -266,25 +237,17 @@ function ViewTab({ view, active, onPress, database }: ViewTabProps) {
                   placeholder="View name"
                   placeholderTextColor={colors.mutedForeground}
                   className="text-sm text-foreground border border-border rounded-md px-2 py-1"
-                  style={Platform.OS === "web" ? { outlineWidth: 0 } : undefined}
+                  style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
                   underlineColorAndroid="transparent"
                   autoFocus
                   onSubmitEditing={commitRename}
                 />
                 <View className="flex-row justify-end gap-2 mt-1">
-                  <Pressable
-                    onPress={close}
-                    className="px-3 py-1 rounded-md bg-muted"
-                  >
+                  <Pressable onPress={close} className="px-3 py-1 rounded-md bg-muted">
                     <Text className="text-sm text-foreground">Cancel</Text>
                   </Pressable>
-                  <Pressable
-                    onPress={commitRename}
-                    className="px-3 py-1 rounded-md bg-primary"
-                  >
-                    <Text className="text-sm text-primary-foreground">
-                      Save
-                    </Text>
+                  <Pressable onPress={commitRename} className="px-3 py-1 rounded-md bg-primary">
+                    <Text className="text-sm text-primary-foreground">Save</Text>
                   </Pressable>
                 </View>
               </>
@@ -304,27 +267,11 @@ interface NewViewPickerProps {
 
 function NewViewPicker({ open, onClose, onChoose }: NewViewPickerProps) {
   const { colors } = useColorScheme();
-  const types: DatabaseViewType[] = [
-    "table",
-    "board",
-    "gallery",
-    "list",
-    "calendar",
-    "timeline",
-  ];
+  const types: DatabaseViewType[] = ['table', 'board', 'gallery', 'list', 'calendar', 'timeline'];
 
   return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Pressable
-        style={StyleSheet.absoluteFill}
-        className="bg-black/40"
-        onPress={onClose}
-      />
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={StyleSheet.absoluteFill} className="bg-black/40" onPress={onClose} />
       <View
         className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2"
         style={centeredModalStyle(280, 340)}
@@ -342,9 +289,7 @@ function NewViewPicker({ open, onClose, onChoose }: NewViewPickerProps) {
                 className="flex-row items-center gap-2 px-2 py-2 rounded hover:bg-muted"
               >
                 <Icon size={14} color={colors.foreground} />
-                <Text className="text-sm text-foreground">
-                  {VIEW_LABELS[t]}
-                </Text>
+                <Text className="text-sm text-foreground">{VIEW_LABELS[t]}</Text>
               </Pressable>
             );
           })}

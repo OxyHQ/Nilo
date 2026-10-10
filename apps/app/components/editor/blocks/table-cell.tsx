@@ -1,7 +1,7 @@
-import * as React from "react";
-import { TextInput, View } from "react-native";
-import { useColorScheme } from "@/lib/useColorScheme";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { TextInput, View } from 'react-native';
+import { useColorScheme } from '@/lib/useColorScheme';
+import type { BlockComponentProps } from './types';
 
 /**
  * Single cell inside a table row. Stores plain text on `content.text`
@@ -10,7 +10,7 @@ import type { BlockComponentProps } from "./types";
  */
 export function TableCell({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const text = typeof block.content.text === "string" ? block.content.text : "";
+  const text = typeof block.content.text === 'string' ? block.content.text : '';
 
   const [draft, setDraft] = React.useState(text);
   const lastBlockId = React.useRef(block._id);

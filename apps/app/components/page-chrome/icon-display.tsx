@@ -1,10 +1,10 @@
-import * as React from "react";
-import { Image, View } from "react-native";
-import { FileText } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { getLucideIcon } from "./lucide-icons";
-import { parseIcon, type IconValue } from "./icon-value";
+import * as React from 'react';
+import { Image, View } from 'react-native';
+import { FileText } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { getLucideIcon } from './lucide-icons';
+import { parseIcon, type IconValue } from './icon-value';
 
 interface IconDisplayProps {
   /** Raw icon string from `Page.icon`. */
@@ -20,46 +20,33 @@ interface IconDisplayProps {
  * for sidebar (small), page header (large), and breadcrumb (xs) by varying
  * `size`. Falls back to a doc placeholder when `showPlaceholder` is true.
  */
-export function IconDisplay({
-  value,
-  size = 16,
-  showPlaceholder = false,
-}: IconDisplayProps) {
+export function IconDisplay({ value, size = 16, showPlaceholder = false }: IconDisplayProps) {
   const parsed = React.useMemo<IconValue>(() => parseIcon(value), [value]);
   const { colors } = useColorScheme();
 
-  if (parsed.kind === "none") {
+  if (parsed.kind === 'none') {
     if (!showPlaceholder) return null;
     return (
-      <View
-        className="items-center justify-center"
-        style={{ width: size, height: size }}
-      >
+      <View className="items-center justify-center" style={{ width: size, height: size }}>
         <FileText size={size * 0.85} color={colors.mutedForeground} />
       </View>
     );
   }
 
-  if (parsed.kind === "emoji") {
+  if (parsed.kind === 'emoji') {
     // Emoji rendering: lineHeight = size so the glyph sits in a clean square.
     return (
-      <Text
-        style={{ fontSize: size, lineHeight: size * 1.1 }}
-        accessibilityLabel="Page icon"
-      >
+      <Text style={{ fontSize: size, lineHeight: size * 1.1 }} accessibilityLabel="Page icon">
         {parsed.emoji}
       </Text>
     );
   }
 
-  if (parsed.kind === "icon") {
+  if (parsed.kind === 'icon') {
     const Icon = getLucideIcon(parsed.name);
     if (!Icon) {
       return (
-        <View
-          className="items-center justify-center"
-          style={{ width: size, height: size }}
-        >
+        <View className="items-center justify-center" style={{ width: size, height: size }}>
           <FileText size={size * 0.85} color={colors.mutedForeground} />
         </View>
       );

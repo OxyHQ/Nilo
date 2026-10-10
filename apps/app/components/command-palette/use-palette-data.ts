@@ -16,14 +16,14 @@ import { usePages, useCreatePage } from '@/lib/hooks/use-pages';
 import { useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Page } from '@/lib/types/pages';
-import type {
-  PageItem,
-  MemberItem,
-  CommandItem,
-} from './types';
+import type { PageItem, MemberItem, CommandItem } from './types';
 
 function memberDisplayName(member: {
-  user?: { name?: { first?: string; last?: string } | null; username?: string | null; email?: string | null };
+  user?: {
+    name?: { first?: string; last?: string } | null;
+    username?: string | null;
+    email?: string | null;
+  };
   userId?: string;
 }): string {
   const name = member.user?.name;

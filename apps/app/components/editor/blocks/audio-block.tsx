@@ -1,9 +1,9 @@
-import * as React from "react";
-import { Platform, Pressable, TextInput, View } from "react-native";
-import { Music } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Music } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import type { BlockComponentProps } from './types';
 
 /**
  * Audio block — accepts a URL (paste or upload) and renders a player.
@@ -13,9 +13,8 @@ import type { BlockComponentProps } from "./types";
  */
 export function AudioBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const url = typeof block.content.url === "string" ? block.content.url : "";
-  const caption =
-    typeof block.content.caption === "string" ? block.content.caption : "";
+  const url = typeof block.content.url === 'string' ? block.content.url : '';
+  const caption = typeof block.content.caption === 'string' ? block.content.caption : '';
   const [urlDraft, setUrlDraft] = React.useState(url);
   const lastBlockId = React.useRef(block._id);
   if (lastBlockId.current !== block._id) {
@@ -33,9 +32,7 @@ export function AudioBlock({ block, onChangeContent }: BlockComponentProps) {
         <TextInput
           value={urlDraft}
           onChangeText={setUrlDraft}
-          onBlur={() =>
-            onChangeContent({ ...block.content, url: urlDraft.trim() })
-          }
+          onBlur={() => onChangeContent({ ...block.content, url: urlDraft.trim() })}
           placeholder="Paste audio URL"
           placeholderTextColor={colors.mutedForeground}
           className="rounded-md bg-background px-2 py-1.5 text-sm text-foreground border border-input"
@@ -46,13 +43,13 @@ export function AudioBlock({ block, onChangeContent }: BlockComponentProps) {
 
   return (
     <View className="gap-1">
-      {Platform.OS === "web" ? (
-        <audio controls src={url} style={{ width: "100%" }} />
+      {Platform.OS === 'web' ? (
+        <audio controls src={url} style={{ width: '100%' }} />
       ) : (
         <Pressable
           className="flex-row items-center gap-2 rounded-lg bg-muted/60 px-3 py-2"
           onPress={() => {
-            import("expo-web-browser").then((mod) => mod.openBrowserAsync(url));
+            import('expo-web-browser').then((mod) => mod.openBrowserAsync(url));
           }}
         >
           <Music size={14} color={colors.foreground} />

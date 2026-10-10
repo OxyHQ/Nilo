@@ -3,11 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
-import {
-  BLOCK_TYPES,
-  type BlockContent,
-  type BlockType,
-} from '../db/schema/pages.js';
+import { BLOCK_TYPES, type BlockContent, type BlockType } from '../db/schema/pages.js';
 import type { BlockRow } from '../repositories/blocks.js';
 import {
   createBlock,
@@ -220,12 +216,7 @@ const tableCellContentSchema = z.object({
 });
 
 // --- Phase 3: interactive ---
-const buttonActionSchema = z.enum([
-  'duplicate-template',
-  'new-page',
-  'navigate',
-  'webhook',
-]);
+const buttonActionSchema = z.enum(['duplicate-template', 'new-page', 'navigate', 'webhook']);
 const buttonContentSchema = z.object({
   label: z.string().default('Button'),
   action: buttonActionSchema.default('navigate'),
@@ -287,7 +278,11 @@ function syncTextFromSegments(value: BlockContent): BlockContent {
   const segments = value.segments;
   if (Array.isArray(segments) && segments.length > 0) {
     const flat = segments
-      .map((s) => (s && typeof s === 'object' && 'text' in s ? String((s as { text: unknown }).text ?? '') : ''))
+      .map((s) =>
+        s && typeof s === 'object' && 'text' in s
+          ? String((s as { text: unknown }).text ?? '')
+          : '',
+      )
       .join('');
     value.text = flat;
   }

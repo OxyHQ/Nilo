@@ -1,9 +1,9 @@
-import React from "react";
-import { Pressable, View } from "react-native";
-import { Share2 } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { ShareModal } from "./share-modal";
+import React from 'react';
+import { Pressable, View } from 'react-native';
+import { Share2 } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { ShareModal } from './share-modal';
 
 interface ShareButtonProps {
   pageId: string;
@@ -28,16 +28,14 @@ export function ShareButton({ pageId, compact = false }: ShareButtonProps) {
         onPress={() => setOpen(true)}
         className={
           compact
-            ? "h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
-            : "h-9 px-3 flex-row items-center gap-1.5 rounded-lg border border-border hover:bg-muted"
+            ? 'h-9 w-9 items-center justify-center rounded-lg hover:bg-muted'
+            : 'h-9 px-3 flex-row items-center gap-1.5 rounded-lg border border-border hover:bg-muted'
         }
         accessibilityRole="button"
         accessibilityLabel="Share page"
       >
         <Share2 size={14} color={colors.foreground} />
-        {!compact && (
-          <Text className="text-xs font-semibold text-foreground">Share</Text>
-        )}
+        {!compact && <Text className="text-xs font-semibold text-foreground">Share</Text>}
       </Pressable>
       <ShareModal open={open} onOpenChange={setOpen} pageId={pageId} />
     </>

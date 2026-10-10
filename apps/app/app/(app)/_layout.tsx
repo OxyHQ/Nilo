@@ -35,34 +35,38 @@ export default function AppLayout() {
   const renderDrawerContent = useCallback(() => <Sidebar />, []);
 
   // On large screens, use collapsed width when collapsed; on mobile always expanded
-  const drawerWidth = isLargeScreen && sidebarCollapsed
-    ? SIDEBAR_WIDTH_COLLAPSED
-    : SIDEBAR_WIDTH_EXPANDED;
+  const drawerWidth =
+    isLargeScreen && sidebarCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED;
 
-  const screenOptions = useCallback(({ route }: { route: { name: string } }) => ({
-    headerShown: false,
-    sceneContainerStyle: {
-      paddingTop: SELF_INSET_ROUTES.has(route.name) || route.name.startsWith('settings/') ? 0 : insets.top,
-    },
-    drawerStyle: {
-      width: drawerWidth,
-      backgroundColor: colors.background,
-      borderRightWidth: 0,
-      boxShadow: 'none' as const,
-      elevation: 0,
-      // Smooth collapse/expand transition on web (desktop only)
-      ...(Platform.OS === 'web' && isLargeScreen && {
-        transitionProperty: 'width',
-        transitionDuration: '200ms',
-        transitionTimingFunction: 'ease-out',
-      }),
-    },
-    drawerType: isLargeScreen ? ('permanent' as const) : ('front' as const),
-    swipeEnabled: !isLargeScreen,
-    overlayColor: isLargeScreen ? 'transparent' : 'rgba(0, 0, 0, 0.5)',
-    // Hide all built-in drawer items; the custom Sidebar renders its own navigation
-    drawerItemStyle: { display: 'none' as const },
-  }), [insets.top, colors.background, isLargeScreen, drawerWidth]);
+  const screenOptions = useCallback(
+    ({ route }: { route: { name: string } }) => ({
+      headerShown: false,
+      sceneContainerStyle: {
+        paddingTop:
+          SELF_INSET_ROUTES.has(route.name) || route.name.startsWith('settings/') ? 0 : insets.top,
+      },
+      drawerStyle: {
+        width: drawerWidth,
+        backgroundColor: colors.background,
+        borderRightWidth: 0,
+        boxShadow: 'none' as const,
+        elevation: 0,
+        // Smooth collapse/expand transition on web (desktop only)
+        ...(Platform.OS === 'web' &&
+          isLargeScreen && {
+            transitionProperty: 'width',
+            transitionDuration: '200ms',
+            transitionTimingFunction: 'ease-out',
+          }),
+      },
+      drawerType: isLargeScreen ? ('permanent' as const) : ('front' as const),
+      swipeEnabled: !isLargeScreen,
+      overlayColor: isLargeScreen ? 'transparent' : 'rgba(0, 0, 0, 0.5)',
+      // Hide all built-in drawer items; the custom Sidebar renders its own navigation
+      drawerItemStyle: { display: 'none' as const },
+    }),
+    [insets.top, colors.background, isLargeScreen, drawerWidth],
+  );
 
   return (
     <AppErrorBoundary>
@@ -73,10 +77,7 @@ export default function AppLayout() {
           <View className="isolate flex h-auto max-h-screen min-w-0 grow flex-col">
             {/* content-area: relative isolate min-h-0 flex-1 overflow-hidden bg-background */}
             <View className="relative isolate min-h-0 flex-1 overflow-hidden bg-background">
-              <Drawer
-                drawerContent={renderDrawerContent}
-                screenOptions={screenOptions}
-              >
+              <Drawer drawerContent={renderDrawerContent} screenOptions={screenOptions}>
                 <Drawer.Screen
                   name="settings/index"
                   options={{

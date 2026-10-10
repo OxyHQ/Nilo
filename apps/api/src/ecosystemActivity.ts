@@ -29,7 +29,8 @@ let activity: ReturnType<typeof createEcosystemTraffic> | undefined;
  */
 export function startEcosystemActivity(ready: () => boolean): void {
   const pair =
-    Boolean(process.env.OXY_SERVICE_API_KEY?.trim()) && Boolean(process.env.OXY_SERVICE_API_SECRET?.trim());
+    Boolean(process.env.OXY_SERVICE_API_KEY?.trim()) &&
+    Boolean(process.env.OXY_SERVICE_API_SECRET?.trim());
   if (!pair && !canAttestWorkloadIdentity()) {
     console.warn(
       'Ecosystem activity is disabled for nilo: no OXY_SERVICE_API_KEY/OXY_SERVICE_API_SECRET and no workload identity to attest',
@@ -49,7 +50,9 @@ export const ecosystemActivityMiddleware: RequestHandler = (request, response, n
   else next();
 };
 
-export function observeEcosystemSocket(socket: Parameters<ReturnType<typeof createEcosystemTraffic>['observeSocket']>[0]): void {
+export function observeEcosystemSocket(
+  socket: Parameters<ReturnType<typeof createEcosystemTraffic>['observeSocket']>[0],
+): void {
   activity?.observeSocket(socket);
 }
 

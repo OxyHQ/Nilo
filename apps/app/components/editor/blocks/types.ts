@@ -3,8 +3,8 @@
  * plus a small surface for committing content edits — keeps the dispatcher
  * (`block.tsx`) and the editor itself free of per-type plumbing.
  */
-import type * as React from "react";
-import type { Block, BlockContent, BlockType } from "@/lib/types/pages";
+import type * as React from 'react';
+import type { Block, BlockContent, BlockType } from '@/lib/types/pages';
 
 export interface BlockComponentProps {
   block: Block;

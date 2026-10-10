@@ -8,16 +8,15 @@
  * `'workspace-members-*'` / `'share-links-*'` to avoid collisions.
  */
 export const workspaceKeys = {
-  list: ["workspaces"] as const,
-  detail: (id: string) => ["workspace", id] as const,
+  list: ['workspaces'] as const,
+  detail: (id: string) => ['workspace', id] as const,
 } as const;
 
 export const workspaceMemberKeys = {
-  list: (workspaceId: string) =>
-    ["workspace-members", workspaceId] as const,
+  list: (workspaceId: string) => ['workspace-members', workspaceId] as const,
 } as const;
 
 export const shareLinkKeys = {
-  list: (pageId: string) => ["share-links", pageId] as const,
-  public: (token: string) => ["shared-page", token] as const,
+  list: (pageId: string) => ['share-links', pageId] as const,
+  public: (token: string) => ['shared-page', token] as const,
 } as const;

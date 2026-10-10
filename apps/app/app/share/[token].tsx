@@ -1,23 +1,13 @@
-import React from "react";
-import {
-  View,
-  ScrollView,
-  Pressable,
-  Platform,
-  Linking,
-  ActivityIndicator,
-} from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import axios from "axios";
-import { Text } from "@/components/ui/text";
-import { NiloWordmark } from "@/components/ui/nilo-wordmark";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  useSharedPage,
-  type SharedPage,
-} from "@/lib/hooks/use-share-links";
-import { SharedBlockRenderer } from "@/components/sharing/shared-block-renderer";
+import React from 'react';
+import { View, ScrollView, Pressable, Platform, Linking, ActivityIndicator } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import axios from 'axios';
+import { Text } from '@/components/ui/text';
+import { NiloWordmark } from '@/components/ui/nilo-wordmark';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSharedPage, type SharedPage } from '@/lib/hooks/use-share-links';
+import { SharedBlockRenderer } from '@/components/sharing/shared-block-renderer';
 
 interface ShareLoadStateProps {
   title: string;
@@ -27,22 +17,18 @@ interface ShareLoadStateProps {
 function ShareLoadState({ title, body }: ShareLoadStateProps) {
   return (
     <View className="flex-1 items-center justify-center px-6 gap-3">
-      <Text className="text-xl font-semibold text-foreground text-center">
-        {title}
-      </Text>
-      <Text className="text-sm text-muted-foreground text-center max-w-md">
-        {body}
-      </Text>
+      <Text className="text-xl font-semibold text-foreground text-center">{title}</Text>
+      <Text className="text-sm text-muted-foreground text-center max-w-md">{body}</Text>
     </View>
   );
 }
 
 function ShareFooter() {
   const handlePress = React.useCallback(() => {
-    const url = "https://nilo.so";
-    if (Platform.OS === "web") {
-      if (typeof window !== "undefined") {
-        window.open(url, "_blank", "noopener");
+    const url = 'https://nilo.so';
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined') {
+        window.open(url, '_blank', 'noopener');
       }
       return;
     }
@@ -68,7 +54,7 @@ export default function PublicSharePage() {
   const insets = useSafeAreaInsets();
   const { colors } = useColorScheme();
   const params = useLocalSearchParams<{ token: string }>();
-  const token = typeof params.token === "string" ? params.token : null;
+  const token = typeof params.token === 'string' ? params.token : null;
 
   const { data, isLoading, isError, error } = useSharedPage(token);
 
@@ -100,15 +86,15 @@ export default function PublicSharePage() {
 
   if (isError || !data) {
     const status = axios.isAxiosError(error) ? error.response?.status : null;
-    let title = "Link unavailable";
+    let title = 'Link unavailable';
     let body = "We couldn't load this shared page.";
     if (status === 404) {
-      title = "Link not found";
+      title = 'Link not found';
       body =
-        "This share link has been revoked or never existed. Ask the page owner for a new link.";
+        'This share link has been revoked or never existed. Ask the page owner for a new link.';
     } else if (status === 410) {
-      title = "Link expired";
-      body = "This share link has expired. Ask the page owner for a new link.";
+      title = 'Link expired';
+      body = 'This share link has expired. Ask the page owner for a new link.';
     } else if (error instanceof Error && error.message) {
       body = error.message;
     }
@@ -136,13 +122,9 @@ export default function PublicSharePage() {
           <SharedPageHeader page={data.page} />
           <View className="gap-1.5">
             {data.blocks.length === 0 ? (
-              <Text className="text-sm text-muted-foreground">
-                This page is empty.
-              </Text>
+              <Text className="text-sm text-muted-foreground">This page is empty.</Text>
             ) : (
-              data.blocks.map((block) => (
-                <SharedBlockRenderer key={block._id} block={block} />
-              ))
+              data.blocks.map((block) => <SharedBlockRenderer key={block._id} block={block} />)
             )}
           </View>
         </View>
@@ -152,7 +134,7 @@ export default function PublicSharePage() {
   );
 }
 
-function SharedPageHeader({ page }: { page: SharedPage["page"] }) {
+function SharedPageHeader({ page }: { page: SharedPage['page'] }) {
   return (
     <View className="gap-2">
       {page.icon ? (
@@ -161,7 +143,7 @@ function SharedPageHeader({ page }: { page: SharedPage["page"] }) {
         </Text>
       ) : null}
       <Text className="text-3xl font-bold text-foreground sm:text-4xl">
-        {page.title?.trim() ? page.title : "Untitled"}
+        {page.title?.trim() ? page.title : 'Untitled'}
       </Text>
     </View>
   );

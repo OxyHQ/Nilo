@@ -1,18 +1,18 @@
-import * as React from "react";
-import { Platform, TextInput, View } from "react-native";
-import { Workflow } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { Platform, TextInput, View } from 'react-native';
+import { Workflow } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import type { BlockComponentProps } from './types';
 
-let mermaidLoader: Promise<typeof import("mermaid")> | null = null;
-function loadMermaid(): Promise<typeof import("mermaid")> {
-  if (Platform.OS !== "web") {
-    return Promise.reject(new Error("Mermaid web-only"));
+let mermaidLoader: Promise<typeof import('mermaid')> | null = null;
+function loadMermaid(): Promise<typeof import('mermaid')> {
+  if (Platform.OS !== 'web') {
+    return Promise.reject(new Error('Mermaid web-only'));
   }
   if (!mermaidLoader) {
-    mermaidLoader = import("mermaid").then((mod) => {
-      mod.default.initialize({ startOnLoad: false, securityLevel: "loose" });
+    mermaidLoader = import('mermaid').then((mod) => {
+      mod.default.initialize({ startOnLoad: false, securityLevel: 'loose' });
       return mod;
     });
   }
@@ -26,7 +26,7 @@ function loadMermaid(): Promise<typeof import("mermaid")> {
  */
 export function MermaidBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const code = typeof block.content.code === "string" ? block.content.code : "";
+  const code = typeof block.content.code === 'string' ? block.content.code : '';
   const [draft, setDraft] = React.useState(code);
   const lastBlockId = React.useRef(block._id);
   if (lastBlockId.current !== block._id) {
@@ -34,12 +34,12 @@ export function MermaidBlock({ block, onChangeContent }: BlockComponentProps) {
     setDraft(code);
   }
 
-  const [svg, setSvg] = React.useState<string>("");
-  const [renderError, setRenderError] = React.useState<string>("");
+  const [svg, setSvg] = React.useState<string>('');
+  const [renderError, setRenderError] = React.useState<string>('');
   const lastRendered = React.useRef<string | null>(null);
   const idRef = React.useRef(`mermaid-${Math.random().toString(36).slice(2)}`);
 
-  if (Platform.OS === "web" && lastRendered.current !== code) {
+  if (Platform.OS === 'web' && lastRendered.current !== code) {
     lastRendered.current = code;
     if (code.trim()) {
       loadMermaid()
@@ -47,18 +47,18 @@ export function MermaidBlock({ block, onChangeContent }: BlockComponentProps) {
           try {
             const { svg: rendered } = await mod.default.render(idRef.current, code);
             setSvg(rendered);
-            setRenderError("");
+            setRenderError('');
           } catch (err) {
-            setRenderError(err instanceof Error ? err.message : "Render failed");
-            setSvg("");
+            setRenderError(err instanceof Error ? err.message : 'Render failed');
+            setSvg('');
           }
         })
         .catch((err) => {
-          setRenderError(err instanceof Error ? err.message : "Mermaid unavailable");
+          setRenderError(err instanceof Error ? err.message : 'Mermaid unavailable');
         });
     } else {
-      setSvg("");
-      setRenderError("");
+      setSvg('');
+      setRenderError('');
     }
   }
 
@@ -74,22 +74,19 @@ export function MermaidBlock({ block, onChangeContent }: BlockComponentProps) {
         onBlur={() => {
           if (draft !== code) onChangeContent({ ...block.content, code: draft });
         }}
-        placeholder={"graph TD;\n  A-->B;"}
+        placeholder={'graph TD;\n  A-->B;'}
         placeholderTextColor={colors.mutedForeground}
         className="rounded bg-background px-2 py-1.5 text-sm text-foreground border border-input font-mono"
         multiline
         numberOfLines={4}
       />
-      {Platform.OS === "web" && svg ? (
-        <div
-          dangerouslySetInnerHTML={{ __html: svg }}
-          style={{ overflowX: "auto" }}
-        />
+      {Platform.OS === 'web' && svg ? (
+        <div dangerouslySetInnerHTML={{ __html: svg }} style={{ overflowX: 'auto' }} />
       ) : null}
-      {Platform.OS === "web" && renderError ? (
+      {Platform.OS === 'web' && renderError ? (
         <Text className="text-xs text-destructive">{renderError}</Text>
       ) : null}
-      {Platform.OS !== "web" && code ? (
+      {Platform.OS !== 'web' && code ? (
         <Text className="text-sm text-foreground font-mono">{code}</Text>
       ) : null}
     </View>

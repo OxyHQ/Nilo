@@ -79,7 +79,10 @@ function pushServiceStatusCode(error: unknown): number | undefined {
  * If explicit channels are provided, use those. Otherwise, default to in_app
  * plus any connected messaging accounts the user has.
  */
-async function resolveChannels(userId: string, explicit?: NotificationChannel[]): Promise<NotificationChannel[]> {
+async function resolveChannels(
+  userId: string,
+  explicit?: NotificationChannel[],
+): Promise<NotificationChannel[]> {
   if (explicit && explicit.length > 0) {
     return explicit;
   }
@@ -95,9 +98,7 @@ async function resolveChannels(userId: string, explicit?: NotificationChannel[])
     hasActivePushToken(db, userId).catch(() => false),
 
     // Web push: check if user has any active browser push subscriptions (only if VAPID configured)
-    VAPID_PUBLIC_KEY
-      ? hasActiveWebPushSubscription(db, userId).catch(() => false)
-      : false,
+    VAPID_PUBLIC_KEY ? hasActiveWebPushSubscription(db, userId).catch(() => false) : false,
   ]);
 
   if (hasPushTokens || hasWebPushSubs) {
@@ -157,7 +158,8 @@ async function deliverPush(userId: string, notification: NotificationRow): Promi
         ...notification.data,
       },
       sound: 'default',
-      priority: notification.priority === 'urgent' || notification.priority === 'high' ? 'high' : 'normal',
+      priority:
+        notification.priority === 'urgent' || notification.priority === 'high' ? 'high' : 'normal',
       channelId: 'default',
     });
   }
@@ -182,11 +184,20 @@ async function deliverPush(userId: string, notification: NotificationRow): Promi
           }
         } else {
           // ticket.status === 'error'
-          const errorDetail = ticket as { status: 'error'; message: string; details?: { error: string } };
+          const errorDetail = ticket as {
+            status: 'error';
+            message: string;
+            details?: { error: string };
+          };
           const messageTo = chunk[i].to;
           const messageToken = Array.isArray(messageTo) ? messageTo[0] : messageTo;
           log.general.warn(
-            { userId, token: messageToken, error: errorDetail.message, errorCode: errorDetail.details?.error },
+            {
+              userId,
+              token: messageToken,
+              error: errorDetail.message,
+              errorCode: errorDetail.details?.error,
+            },
             'Expo push ticket error',
           );
 
@@ -212,7 +223,7 @@ async function deliverPush(userId: string, notification: NotificationRow): Promi
 
   // Update lastUsedAt for active tokens
   if (anySucceeded) {
-    const activeTokenIds = tokens.filter(t => Expo.isExpoPushToken(t.token)).map(t => t.id);
+    const activeTokenIds = tokens.filter((t) => Expo.isExpoPushToken(t.token)).map((t) => t.id);
     await touchPushTokensLastUsed(db, activeTokenIds, new Date());
   }
 
@@ -234,13 +245,19 @@ async function checkPushReceipts(receiptIds: ExpoPushReceiptId[]): Promise<void>
       for (const [receiptId, receipt] of Object.entries(receipts)) {
         if (receipt.status === 'error') {
           const { message, details } = receipt;
-          log.general.warn({ receiptId, message, error: details?.error }, 'Expo push receipt error');
+          log.general.warn(
+            { receiptId, message, error: details?.error },
+            'Expo push receipt error',
+          );
 
           // Deactivate invalid device tokens
           if (details?.error === 'DeviceNotRegistered') {
             // We can't directly map receiptId -> token, but Expo will stop delivering
             // to unregistered devices. The token gets deactivated on the next send attempt.
-            log.general.info({ receiptId }, 'Device not registered — token will be deactivated on next send');
+            log.general.info(
+              { receiptId },
+              'Device not registered — token will be deactivated on next send',
+            );
           }
         }
       }
@@ -278,24 +295,27 @@ async function deliverWebPush(userId: string, notification: NotificationRow): Pr
   const results = await Promise.allSettled(
     subscriptions.map(async (sub) => {
       try {
-        await webPush.sendNotification(
-          { endpoint: sub.endpoint, keys: sub.keys },
-          payload,
-        );
+        await webPush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload);
       } catch (error: unknown) {
         if (GONE_STATUS_CODES.includes(pushServiceStatusCode(error) ?? 0)) {
           // Subscription expired or invalid — deactivate
           await deactivateWebPushSubscriptionById(db, sub.id);
-          log.general.info({ userId, endpoint: sub.endpoint }, 'Web push subscription expired, deactivated');
+          log.general.info(
+            { userId, endpoint: sub.endpoint },
+            'Web push subscription expired, deactivated',
+          );
         } else {
-          log.general.warn({ err: error, userId, endpoint: sub.endpoint }, 'Web push delivery failed');
+          log.general.warn(
+            { err: error, userId, endpoint: sub.endpoint },
+            'Web push delivery failed',
+          );
         }
         throw error; // Re-throw so Promise.allSettled marks as rejected
       }
     }),
   );
 
-  return results.some(r => r.status === 'fulfilled');
+  return results.some((r) => r.status === 'fulfilled');
 }
 
 // ── Main send function ─────────────────────────────────────────────
@@ -304,19 +324,12 @@ async function deliverWebPush(userId: string, notification: NotificationRow): Pr
  * Create and deliver a notification to a user across their preferred channels.
  */
 export async function sendNotification(options: SendNotificationOptions): Promise<NotificationRow> {
-  const {
-    userId,
-    type,
-    title,
-    body,
-    priority = 'normal',
-    data,
-  } = options;
+  const { userId, type, title, body, priority = 'normal', data } = options;
 
   const channels = await resolveChannels(userId, options.channels);
 
   const deliveryStatus: NotificationDeliveryStatus = Object.fromEntries(
-    channels.map(ch => [ch, 'pending' as const]),
+    channels.map((ch) => [ch, 'pending' as const]),
   );
 
   // Persist the notification
@@ -365,12 +378,13 @@ export async function sendNotification(options: SendNotificationOptions): Promis
   await Promise.allSettled(deliveries);
 
   // Persist delivery status
-  const persisted = await updateNotificationDeliveryStatus(getDb(), notification.id, deliveryStatus);
-
-  log.general.info(
-    { type, userId, channels, title: title.slice(0, 50) },
-    'Notification sent',
+  const persisted = await updateNotificationDeliveryStatus(
+    getDb(),
+    notification.id,
+    deliveryStatus,
   );
+
+  log.general.info({ type, userId, channels, title: title.slice(0, 50) }, 'Notification sent');
 
   // The row was inserted a moment ago, so the update finding nothing means it
   // was deleted mid-send. Returning the in-memory copy with the statuses this
@@ -398,6 +412,9 @@ export async function markAllAsRead(userId: string): Promise<number> {
   return markAllNotificationsRead(getDb(), userId, new Date());
 }
 
-export async function dismissNotification(notificationId: string, userId: string): Promise<boolean> {
+export async function dismissNotification(
+  notificationId: string,
+  userId: string,
+): Promise<boolean> {
   return (await dismissNotificationRow(getDb(), notificationId, userId)) > 0;
 }

@@ -12,9 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "so.oxy.nilo",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "remote-notification"
-        ]
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {

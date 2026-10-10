@@ -1,14 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useOxy } from "@oxy.so/services";
-import apiClient from "../api/client";
-import { API_ROUTES } from "../api/routes";
-import { queryKeys } from "./query-keys";
-import type {
-  BreadcrumbResponse,
-  Page,
-  PageResponse,
-  PagesListResponse,
-} from "../types/pages";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOxy } from '@oxy.so/services';
+import apiClient from '../api/client';
+import { API_ROUTES } from '../api/routes';
+import { queryKeys } from './query-keys';
+import type { BreadcrumbResponse, Page, PageResponse, PagesListResponse } from '../types/pages';
 
 interface CreatePageInput {
   workspaceId: string;
@@ -54,9 +49,9 @@ export function usePage(id: string | undefined) {
   const { isAuthenticated } = useOxy();
 
   return useQuery<PageResponse>({
-    queryKey: id ? queryKeys.pages.detail(id) : ["page", "none"],
+    queryKey: id ? queryKeys.pages.detail(id) : ['page', 'none'],
     queryFn: async () => {
-      if (!id) throw new Error("Page id required");
+      if (!id) throw new Error('Page id required');
       const res = await apiClient.get(API_ROUTES.pages.get(id));
       return res.data;
     },
@@ -69,10 +64,7 @@ export function useCreatePage() {
 
   return useMutation<Page, Error, CreatePageInput>({
     mutationFn: async (input) => {
-      const res = await apiClient.post<PageResponse>(
-        API_ROUTES.pages.create,
-        input,
-      );
+      const res = await apiClient.post<PageResponse>(API_ROUTES.pages.create, input);
       return res.data.page;
     },
     onSuccess: (page) => {
@@ -88,17 +80,12 @@ export function useUpdatePage() {
 
   return useMutation<Page, Error, UpdatePageInput>({
     mutationFn: async ({ id, ...patch }) => {
-      const res = await apiClient.patch<PageResponse>(
-        API_ROUTES.pages.update(id),
-        patch,
-      );
+      const res = await apiClient.patch<PageResponse>(API_ROUTES.pages.update(id), patch);
       return res.data.page;
     },
     onMutate: async ({ id, ...patch }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.pages.detail(id) });
-      const previous = queryClient.getQueryData<PageResponse>(
-        queryKeys.pages.detail(id),
-      );
+      const previous = queryClient.getQueryData<PageResponse>(queryKeys.pages.detail(id));
       if (previous) {
         queryClient.setQueryData<PageResponse>(queryKeys.pages.detail(id), {
           page: { ...previous.page, ...patch } as Page,
@@ -137,7 +124,7 @@ export function useDeletePage() {
   return useMutation<void, Error, DeletePageInput>({
     mutationFn: async ({ id, hard }) => {
       await apiClient.delete(API_ROUTES.pages.delete(id), {
-        params: hard ? { hard: "true" } : undefined,
+        params: hard ? { hard: 'true' } : undefined,
       });
     },
     onSuccess: (_data, { workspaceId, id }) => {
@@ -161,9 +148,7 @@ export function useDuplicatePage() {
 
   return useMutation<Page, Error, { id: string; workspaceId: string }>({
     mutationFn: async ({ id }) => {
-      const res = await apiClient.post<PageResponse>(
-        API_ROUTES.pages.duplicate(id),
-      );
+      const res = await apiClient.post<PageResponse>(API_ROUTES.pages.duplicate(id));
       return res.data.page;
     },
     onSuccess: (_page, { workspaceId }) => {
@@ -182,11 +167,9 @@ export function useBreadcrumb(pageId: string | null | undefined) {
   const { isAuthenticated } = useOxy();
 
   return useQuery<BreadcrumbResponse>({
-    queryKey: pageId
-      ? queryKeys.pages.breadcrumb(pageId)
-      : ["page", "none", "breadcrumb"],
+    queryKey: pageId ? queryKeys.pages.breadcrumb(pageId) : ['page', 'none', 'breadcrumb'],
     queryFn: async () => {
-      if (!pageId) throw new Error("Page id required");
+      if (!pageId) throw new Error('Page id required');
       const res = await apiClient.get(API_ROUTES.pages.breadcrumb(pageId));
       return res.data;
     },
@@ -206,7 +189,7 @@ export function useArchivedPages(workspaceId: string | null) {
     queryFn: async () => {
       const res = await apiClient.get(API_ROUTES.pages.list, {
         params: workspaceId
-          ? { workspaceId, archivedOnly: "true", includeArchived: "true" }
+          ? { workspaceId, archivedOnly: 'true', includeArchived: 'true' }
           : undefined,
       });
       return res.data;
@@ -259,14 +242,8 @@ export function buildPageTree(pages: Page[]) {
     }
   }
   for (const node of byId.values()) {
-    node.children.sort(
-      (a, b) =>
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    );
+    node.children.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   }
-  roots.sort(
-    (a, b) =>
-      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  );
+  roots.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   return { roots, byId };
 }

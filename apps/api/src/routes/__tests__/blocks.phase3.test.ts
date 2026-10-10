@@ -77,20 +77,14 @@ describe('block content normalization', () => {
     });
 
     it('rejects an id of neither shape', () => {
-      expect(() =>
-        normalizeContent('link_to_page', { pageId: 'not-an-id' }),
-      ).toThrow();
+      expect(() => normalizeContent('link_to_page', { pageId: 'not-an-id' })).toThrow();
     });
 
     it('defaults an unpicked target to a sentinel that names no row', () => {
       // The UI replaces this the moment a target is chosen; it exists so the
       // type-changed-to-link_to_page path does not fail validation.
-      expect(normalizeContent('link_to_page', {}).pageId).toBe(
-        '000000000000000000000000',
-      );
-      expect(normalizeContent('inline_database', {}).databaseId).toBe(
-        '000000000000000000000000',
-      );
+      expect(normalizeContent('link_to_page', {}).pageId).toBe('000000000000000000000000');
+      expect(normalizeContent('inline_database', {}).databaseId).toBe('000000000000000000000000');
     });
   });
 });

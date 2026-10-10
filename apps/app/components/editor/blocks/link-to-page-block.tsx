@@ -1,35 +1,31 @@
-import * as React from "react";
-import { Pressable, TextInput, View } from "react-native";
-import { router } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
-import { FileText } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import apiClient from "@/lib/api/client";
-import { API_ROUTES } from "@/lib/api/routes";
-import { queryKeys } from "@/lib/hooks/query-keys";
-import type { PageResponse } from "@/lib/types/pages";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { Pressable, TextInput, View } from 'react-native';
+import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
+import { FileText } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import apiClient from '@/lib/api/client';
+import { API_ROUTES } from '@/lib/api/routes';
+import { queryKeys } from '@/lib/hooks/query-keys';
+import type { PageResponse } from '@/lib/types/pages';
+import type { BlockComponentProps } from './types';
 
 const VALID_OBJECT_ID = /^[0-9a-fA-F]{24}$/u;
-const PLACEHOLDER_ID = "000000000000000000000000";
+const PLACEHOLDER_ID = '000000000000000000000000';
 
 /**
  * Inline link to another page. Shows an icon + title once the target page is
  * resolved; otherwise lets the user paste a page id. Clicking routes to the
  * page detail screen.
  */
-export function LinkToPageBlock({
-  block,
-  onChangeContent,
-}: BlockComponentProps) {
+export function LinkToPageBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const pageId =
-    typeof block.content.pageId === "string" ? block.content.pageId : "";
+  const pageId = typeof block.content.pageId === 'string' ? block.content.pageId : '';
   const isResolved = pageId && pageId !== PLACEHOLDER_ID && VALID_OBJECT_ID.test(pageId);
 
   const pageQuery = useQuery<PageResponse>({
-    queryKey: isResolved ? queryKeys.pages.detail(pageId) : ["pages", "none"],
+    queryKey: isResolved ? queryKeys.pages.detail(pageId) : ['pages', 'none'],
     queryFn: async () => {
       const res = await apiClient.get(API_ROUTES.pages.get(pageId));
       return res.data;
@@ -69,7 +65,7 @@ export function LinkToPageBlock({
     );
   }
 
-  const title = pageQuery.data?.page.title ?? "Untitled";
+  const title = pageQuery.data?.page.title ?? 'Untitled';
   const icon = pageQuery.data?.page.icon ?? null;
 
   return (

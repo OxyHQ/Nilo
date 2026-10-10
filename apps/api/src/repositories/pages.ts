@@ -69,7 +69,9 @@ export interface ListPagesFilter {
 export async function listPages(db: PgHandle, filter: ListPagesFilter): Promise<PageRow[]> {
   const predicates = [eq(pages.workspaceId, filter.workspaceId)];
   if (filter.parentId !== undefined) {
-    predicates.push(filter.parentId === null ? isNull(pages.parentId) : eq(pages.parentId, filter.parentId));
+    predicates.push(
+      filter.parentId === null ? isNull(pages.parentId) : eq(pages.parentId, filter.parentId),
+    );
   }
   if (filter.archived !== undefined) predicates.push(eq(pages.archived, filter.archived));
   if (filter.favoritedOnly) predicates.push(eq(pages.favorited, true));

@@ -1,16 +1,8 @@
-import * as React from "react";
-import {
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
-import { ChevronDown, Plus, Trash2 } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
+import * as React from 'react';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ChevronDown, Plus, Trash2 } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
 import type {
   Database,
   DatabaseProperty,
@@ -18,9 +10,9 @@ import type {
   Filter,
   FilterCondition,
   FilterGroup,
-} from "@/lib/types/databases";
-import { useUpdateView } from "@/lib/hooks/use-database-views";
-import { centeredModalStyle } from "./centered-modal-style";
+} from '@/lib/types/databases';
+import { useUpdateView } from '@/lib/hooks/use-database-views';
+import { centeredModalStyle } from './centered-modal-style';
 
 interface FilterBuilderProps {
   open: boolean;
@@ -31,85 +23,87 @@ interface FilterBuilderProps {
 
 const OPERATORS_BY_TYPE: Record<string, { value: string; label: string }[]> = {
   text: [
-    { value: "contains", label: "contains" },
-    { value: "equals", label: "equals" },
-    { value: "starts_with", label: "starts with" },
-    { value: "ends_with", label: "ends with" },
-    { value: "is_empty", label: "is empty" },
-    { value: "is_not_empty", label: "is not empty" },
+    { value: 'contains', label: 'contains' },
+    { value: 'equals', label: 'equals' },
+    { value: 'starts_with', label: 'starts with' },
+    { value: 'ends_with', label: 'ends with' },
+    { value: 'is_empty', label: 'is empty' },
+    { value: 'is_not_empty', label: 'is not empty' },
   ],
   number: [
-    { value: "=", label: "=" },
-    { value: "!=", label: "≠" },
-    { value: ">", label: ">" },
-    { value: "<", label: "<" },
-    { value: ">=", label: "≥" },
-    { value: "<=", label: "≤" },
-    { value: "is_empty", label: "is empty" },
+    { value: '=', label: '=' },
+    { value: '!=', label: '≠' },
+    { value: '>', label: '>' },
+    { value: '<', label: '<' },
+    { value: '>=', label: '≥' },
+    { value: '<=', label: '≤' },
+    { value: 'is_empty', label: 'is empty' },
   ],
   select: [
-    { value: "is", label: "is" },
-    { value: "is_not", label: "is not" },
-    { value: "is_empty", label: "is empty" },
+    { value: 'is', label: 'is' },
+    { value: 'is_not', label: 'is not' },
+    { value: 'is_empty', label: 'is empty' },
   ],
   status: [
-    { value: "is", label: "is" },
-    { value: "is_not", label: "is not" },
-    { value: "is_empty", label: "is empty" },
+    { value: 'is', label: 'is' },
+    { value: 'is_not', label: 'is not' },
+    { value: 'is_empty', label: 'is empty' },
   ],
   multi_select: [
-    { value: "contains", label: "contains" },
-    { value: "does_not_contain", label: "does not contain" },
-    { value: "is_empty", label: "is empty" },
+    { value: 'contains', label: 'contains' },
+    { value: 'does_not_contain', label: 'does not contain' },
+    { value: 'is_empty', label: 'is empty' },
   ],
   date: [
-    { value: "before", label: "before" },
-    { value: "after", label: "after" },
-    { value: "on_or_before", label: "on or before" },
-    { value: "on_or_after", label: "on or after" },
-    { value: "equals", label: "equals" },
-    { value: "is_empty", label: "is empty" },
+    { value: 'before', label: 'before' },
+    { value: 'after', label: 'after' },
+    { value: 'on_or_before', label: 'on or before' },
+    { value: 'on_or_after', label: 'on or after' },
+    { value: 'equals', label: 'equals' },
+    { value: 'is_empty', label: 'is empty' },
   ],
   checkbox: [
-    { value: "is", label: "is" },
-    { value: "is_not", label: "is not" },
+    { value: 'is', label: 'is' },
+    { value: 'is_not', label: 'is not' },
   ],
   url: [
-    { value: "contains", label: "contains" },
-    { value: "equals", label: "equals" },
-    { value: "is_empty", label: "is empty" },
+    { value: 'contains', label: 'contains' },
+    { value: 'equals', label: 'equals' },
+    { value: 'is_empty', label: 'is empty' },
   ],
   email: [
-    { value: "contains", label: "contains" },
-    { value: "equals", label: "equals" },
-    { value: "is_empty", label: "is empty" },
+    { value: 'contains', label: 'contains' },
+    { value: 'equals', label: 'equals' },
+    { value: 'is_empty', label: 'is empty' },
   ],
   phone: [
-    { value: "contains", label: "contains" },
-    { value: "equals", label: "equals" },
-    { value: "is_empty", label: "is empty" },
+    { value: 'contains', label: 'contains' },
+    { value: 'equals', label: 'equals' },
+    { value: 'is_empty', label: 'is empty' },
   ],
   person: [
-    { value: "contains", label: "contains" },
-    { value: "does_not_contain", label: "does not contain" },
-    { value: "is_empty", label: "is empty" },
+    { value: 'contains', label: 'contains' },
+    { value: 'does_not_contain', label: 'does not contain' },
+    { value: 'is_empty', label: 'is empty' },
   ],
   relation: [
-    { value: "contains", label: "contains" },
-    { value: "does_not_contain", label: "does not contain" },
-    { value: "is_empty", label: "is empty" },
+    { value: 'contains', label: 'contains' },
+    { value: 'does_not_contain', label: 'does not contain' },
+    { value: 'is_empty', label: 'is empty' },
   ],
   files: [
-    { value: "is_empty", label: "is empty" },
-    { value: "is_not_empty", label: "is not empty" },
+    { value: 'is_empty', label: 'is empty' },
+    { value: 'is_not_empty', label: 'is not empty' },
   ],
 };
 
 function operatorsFor(type: string): { value: string; label: string }[] {
-  return OPERATORS_BY_TYPE[type] ?? [
-    { value: "is_empty", label: "is empty" },
-    { value: "is_not_empty", label: "is not empty" },
-  ];
+  return (
+    OPERATORS_BY_TYPE[type] ?? [
+      { value: 'is_empty', label: 'is empty' },
+      { value: 'is_not_empty', label: 'is not empty' },
+    ]
+  );
 }
 
 /**
@@ -117,16 +111,9 @@ function operatorsFor(type: string): { value: string; label: string }[] {
  * conditions (groups inside groups exist in the data model but aren't
  * exposed in the MVP UI to keep things simple).
  */
-export function FilterBuilder({
-  open,
-  onClose,
-  database,
-  view,
-}: FilterBuilderProps) {
+export function FilterBuilder({ open, onClose, database, view }: FilterBuilderProps) {
   const updateView = useUpdateView();
-  const [draft, setDraft] = React.useState<FilterGroup>(() =>
-    cloneFilterGroup(view.filters),
-  );
+  const [draft, setDraft] = React.useState<FilterGroup>(() => cloneFilterGroup(view.filters));
 
   React.useEffect(() => {
     if (open) setDraft(cloneFilterGroup(view.filters));
@@ -143,8 +130,8 @@ export function FilterBuilder({
 
   const reset = async () => {
     const empty: FilterGroup = {
-      kind: "group",
-      combinator: "and",
+      kind: 'group',
+      combinator: 'and',
       filters: [],
     };
     setDraft(empty);
@@ -157,29 +144,26 @@ export function FilterBuilder({
   };
 
   const addCondition = (property: DatabaseProperty) => {
-    const operator = operatorsFor(property.type)[0]?.value ?? "is_empty";
+    const operator = operatorsFor(property.type)[0]?.value ?? 'is_empty';
     setDraft((prev) => ({
       ...prev,
       filters: [
         ...prev.filters,
         {
-          kind: "condition",
+          kind: 'condition',
           propertyId: property.id,
           operator,
-          value: "",
+          value: '',
         } satisfies FilterCondition,
       ],
     }));
   };
 
-  const updateCondition = (
-    index: number,
-    patch: Partial<FilterCondition>,
-  ) => {
+  const updateCondition = (index: number, patch: Partial<FilterCondition>) => {
     setDraft((prev) => {
       const next = [...prev.filters];
       const target = next[index];
-      if (!target || target.kind !== "condition") return prev;
+      if (!target || target.kind !== 'condition') return prev;
       next[index] = { ...target, ...patch };
       return { ...prev, filters: next };
     });
@@ -192,35 +176,21 @@ export function FilterBuilder({
     }));
   };
 
-  const setCombinator = (combinator: "and" | "or") => {
+  const setCombinator = (combinator: 'and' | 'or') => {
     setDraft((prev) => ({ ...prev, combinator }));
   };
 
   return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Pressable
-        style={StyleSheet.absoluteFill}
-        className="bg-black/50"
-        onPress={onClose}
-      />
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={StyleSheet.absoluteFill} className="bg-black/50" onPress={onClose} />
       <View
         className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2"
         style={centeredModalStyle(520, 480)}
       >
         <View className="bg-popover border border-border rounded-2xl shadow-xl p-4 m-3 web:m-0 gap-3">
           <View className="flex-row items-center justify-between">
-            <Text className="text-base font-semibold text-foreground">
-              Filters
-            </Text>
-            <CombinatorPicker
-              value={draft.combinator}
-              onChange={setCombinator}
-            />
+            <Text className="text-base font-semibold text-foreground">Filters</Text>
+            <CombinatorPicker value={draft.combinator} onChange={setCombinator} />
           </View>
 
           <ScrollView style={{ maxHeight: 360 }} className="gap-2">
@@ -232,7 +202,7 @@ export function FilterBuilder({
               </View>
             ) : (
               draft.filters.map((filter, idx) =>
-                filter.kind === "condition" ? (
+                filter.kind === 'condition' ? (
                   <ConditionRow
                     key={idx}
                     database={database}
@@ -245,28 +215,16 @@ export function FilterBuilder({
             )}
           </ScrollView>
 
-          <AddConditionButton
-            database={database}
-            onPick={addCondition}
-          />
+          <AddConditionButton database={database} onPick={addCondition} />
 
           <View className="flex-row justify-end gap-2 mt-2">
-            <Pressable
-              onPress={reset}
-              className="px-3 py-1.5 rounded-md bg-muted"
-            >
+            <Pressable onPress={reset} className="px-3 py-1.5 rounded-md bg-muted">
               <Text className="text-sm text-foreground">Clear all</Text>
             </Pressable>
-            <Pressable
-              onPress={onClose}
-              className="px-3 py-1.5 rounded-md bg-muted"
-            >
+            <Pressable onPress={onClose} className="px-3 py-1.5 rounded-md bg-muted">
               <Text className="text-sm text-foreground">Cancel</Text>
             </Pressable>
-            <Pressable
-              onPress={apply}
-              className="px-3 py-1.5 rounded-md bg-primary"
-            >
+            <Pressable onPress={apply} className="px-3 py-1.5 rounded-md bg-primary">
               <Text className="text-sm text-primary-foreground">Apply</Text>
             </Pressable>
           </View>
@@ -277,26 +235,22 @@ export function FilterBuilder({
 }
 
 interface CombinatorPickerProps {
-  value: "and" | "or";
-  onChange: (next: "and" | "or") => void;
+  value: 'and' | 'or';
+  onChange: (next: 'and' | 'or') => void;
 }
 
 function CombinatorPicker({ value, onChange }: CombinatorPickerProps) {
   return (
     <View className="flex-row rounded-md border border-border overflow-hidden">
-      {(["and", "or"] as const).map((option) => (
+      {(['and', 'or'] as const).map((option) => (
         <Pressable
           key={option}
           onPress={() => onChange(option)}
-          className={`px-2 py-1 ${
-            value === option ? "bg-primary" : "bg-muted"
-          }`}
+          className={`px-2 py-1 ${value === option ? 'bg-primary' : 'bg-muted'}`}
         >
           <Text
             className={`text-xs uppercase ${
-              value === option
-                ? "text-primary-foreground"
-                : "text-foreground"
+              value === option ? 'text-primary-foreground' : 'text-foreground'
             }`}
           >
             {option}
@@ -314,32 +268,22 @@ interface ConditionRowProps {
   onRemove: () => void;
 }
 
-function ConditionRow({
-  database,
-  filter,
-  onChange,
-  onRemove,
-}: ConditionRowProps) {
+function ConditionRow({ database, filter, onChange, onRemove }: ConditionRowProps) {
   const { colors } = useColorScheme();
   const [propertyOpen, setPropertyOpen] = React.useState(false);
   const [operatorOpen, setOperatorOpen] = React.useState(false);
 
-  const property = database.schema.properties.find(
-    (p) => p.id === filter.propertyId,
-  );
+  const property = database.schema.properties.find((p) => p.id === filter.propertyId);
   const operators = property ? operatorsFor(property.type) : [];
 
   return (
     <View className="flex-row items-center gap-2 py-1">
       <PickerButton
-        label={property?.name ?? "Property"}
+        label={property?.name ?? 'Property'}
         onPress={() => setPropertyOpen((s) => !s)}
       />
       <PickerButton
-        label={
-          operators.find((o) => o.value === filter.operator)?.label ??
-          filter.operator
-        }
+        label={operators.find((o) => o.value === filter.operator)?.label ?? filter.operator}
         onPress={() => setOperatorOpen((s) => !s)}
       />
       <View className="flex-1">
@@ -350,10 +294,7 @@ function ConditionRow({
           onChange={(value) => onChange({ value })}
         />
       </View>
-      <Pressable
-        onPress={onRemove}
-        className="p-1.5 rounded hover:bg-muted"
-      >
+      <Pressable onPress={onRemove} className="p-1.5 rounded hover:bg-muted">
         <Trash2 size={12} color={colors.mutedForeground} />
       </Pressable>
 
@@ -369,8 +310,8 @@ function ConditionRow({
             if (!next) return;
             onChange({
               propertyId: id,
-              operator: operatorsFor(next.type)[0]?.value ?? "is_empty",
-              value: "",
+              operator: operatorsFor(next.type)[0]?.value ?? 'is_empty',
+              value: '',
             });
             setPropertyOpen(false);
           }}
@@ -421,17 +362,13 @@ function ListPopover({ onClose, options, onSelect }: ListPopoverProps) {
   return (
     <View
       style={{
-        position: "absolute",
+        position: 'absolute',
         top: 32,
         left: 0,
         zIndex: 50,
       }}
     >
-      <Pressable
-        style={StyleSheet.absoluteFill}
-        onPress={onClose}
-        className="-inset-screen"
-      />
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} className="-inset-screen" />
       <View className="bg-popover border border-border rounded-md shadow-xl p-1 min-w-[160px]">
         <ScrollView style={{ maxHeight: 220 }}>
           {options.map((o) => (
@@ -456,45 +393,32 @@ interface ConditionValueInputProps {
   onChange: (next: unknown) => void;
 }
 
-function ConditionValueInput({
-  property,
-  operator,
-  value,
-  onChange,
-}: ConditionValueInputProps) {
+function ConditionValueInput({ property, operator, value, onChange }: ConditionValueInputProps) {
   const { colors } = useColorScheme();
   // Operators that don't take a value
-  if (operator === "is_empty" || operator === "is_not_empty") {
+  if (operator === 'is_empty' || operator === 'is_not_empty') {
     return <View />;
   }
 
-  if (property?.type === "checkbox") {
+  if (property?.type === 'checkbox') {
     return (
       <View className="flex-row items-center gap-2">
         <Pressable
           onPress={() => onChange(true)}
-          className={`px-2 py-1 rounded-md ${
-            value === true ? "bg-primary" : "bg-muted"
-          }`}
+          className={`px-2 py-1 rounded-md ${value === true ? 'bg-primary' : 'bg-muted'}`}
         >
           <Text
-            className={`text-xs ${
-              value === true ? "text-primary-foreground" : "text-foreground"
-            }`}
+            className={`text-xs ${value === true ? 'text-primary-foreground' : 'text-foreground'}`}
           >
             Checked
           </Text>
         </Pressable>
         <Pressable
           onPress={() => onChange(false)}
-          className={`px-2 py-1 rounded-md ${
-            value === false ? "bg-primary" : "bg-muted"
-          }`}
+          className={`px-2 py-1 rounded-md ${value === false ? 'bg-primary' : 'bg-muted'}`}
         >
           <Text
-            className={`text-xs ${
-              value === false ? "text-primary-foreground" : "text-foreground"
-            }`}
+            className={`text-xs ${value === false ? 'text-primary-foreground' : 'text-foreground'}`}
           >
             Unchecked
           </Text>
@@ -503,7 +427,7 @@ function ConditionValueInput({
     );
   }
 
-  if (property?.type === "select" || property?.type === "status") {
+  if (property?.type === 'select' || property?.type === 'status') {
     const opts = property.config?.options ?? [];
     return (
       <View className="flex-row flex-wrap gap-1">
@@ -511,13 +435,11 @@ function ConditionValueInput({
           <Pressable
             key={o.id}
             onPress={() => onChange(o.id)}
-            className={`px-2 py-1 rounded-md ${
-              value === o.id ? "bg-primary" : "bg-muted"
-            }`}
+            className={`px-2 py-1 rounded-md ${value === o.id ? 'bg-primary' : 'bg-muted'}`}
           >
             <Text
               className={`text-xs ${
-                value === o.id ? "text-primary-foreground" : "text-foreground"
+                value === o.id ? 'text-primary-foreground' : 'text-foreground'
               }`}
             >
               {o.name}
@@ -528,7 +450,7 @@ function ConditionValueInput({
     );
   }
 
-  const text = typeof value === "string" ? value : String(value ?? "");
+  const text = typeof value === 'string' ? value : String(value ?? '');
   return (
     <TextInput
       value={text}
@@ -536,7 +458,7 @@ function ConditionValueInput({
       placeholder="Value"
       placeholderTextColor={colors.mutedForeground}
       className="text-sm text-foreground border border-border rounded-md px-2 py-1"
-      style={Platform.OS === "web" ? { outlineWidth: 0 } : undefined}
+      style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
       underlineColorAndroid="transparent"
     />
   );
@@ -580,12 +502,8 @@ function AddConditionButton({ database, onPick }: AddConditionButtonProps) {
 
 function cloneFilterGroup(group: FilterGroup): FilterGroup {
   return {
-    kind: "group",
+    kind: 'group',
     combinator: group.combinator,
-    filters: group.filters.map((f) =>
-      f.kind === "condition"
-        ? { ...f }
-        : cloneFilterGroup(f),
-    ),
+    filters: group.filters.map((f) => (f.kind === 'condition' ? { ...f } : cloneFilterGroup(f))),
   };
 }

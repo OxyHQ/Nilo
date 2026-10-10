@@ -1,7 +1,7 @@
-import * as React from "react";
-import { View } from "react-native";
-import { Text } from "@/components/ui/text";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/text';
+import type { BlockComponentProps } from './types';
 
 /**
  * `columns` container — renders its `column` children side-by-side. The
@@ -16,9 +16,7 @@ export function ColumnsBlock({ block, renderChildren }: BlockComponentProps) {
         renderChildren(block._id)
       ) : (
         <View className="flex-1 rounded-md border border-dashed border-border bg-muted/30 px-3 py-3">
-          <Text className="text-xs text-muted-foreground">
-            Drop blocks into each column
-          </Text>
+          <Text className="text-xs text-muted-foreground">Drop blocks into each column</Text>
         </View>
       )}
     </View>
