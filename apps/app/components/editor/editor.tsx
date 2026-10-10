@@ -634,7 +634,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   // -- Keyboard shortcuts (web) --------------------------------------------
   const handleEditorKeyDown = React.useCallback(
-    (block: Block, event: KeyboardEvent, range: CaretRange): boolean | void => {
+    (block: Block, event: KeyboardEvent, range: CaretRange): boolean | undefined => {
       if (Platform.OS !== 'web') return;
       const meta = event.metaKey || event.ctrlKey;
 
@@ -1153,7 +1153,7 @@ interface RowHandlerBag {
   onSubmitNew: (block: Block) => void;
   onBackspaceAtStart: (block: Block) => void;
   onIndent: (block: Block, outdent: boolean) => void;
-  onKeyDown: (block: Block, event: KeyboardEvent, range: CaretRange) => boolean | void;
+  onKeyDown: (block: Block, event: KeyboardEvent, range: CaretRange) => boolean | undefined;
   onSelectionChange: (block: Block, range: CaretRange) => void;
   onToggleChecked: (block: Block) => void;
   onToggleExpanded: (block: Block) => void;

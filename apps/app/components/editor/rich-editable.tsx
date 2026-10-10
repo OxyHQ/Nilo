@@ -45,7 +45,7 @@ interface RichEditableProps {
   /** Emit on selection changes (web). Native fires on selection change events. */
   onSelectionChange?: (range: CaretRange) => void;
   /** Block-level Enter handler — return true to consume the event. */
-  onSubmit?: () => boolean | void;
+  onSubmit?: () => boolean | undefined;
   /** Backspace at offset 0 with collapsed caret. */
   onBackspaceAtStart?: () => void;
   /** Tab / Shift+Tab on web. */
@@ -55,7 +55,7 @@ interface RichEditableProps {
    * shortcuts, slash-menu triggering, multi-block selection, etc. Returning
    * true means the parent consumed it (the editor will not run its default).
    */
-  onKeyDown?: (event: KeyboardEvent, range: CaretRange) => boolean | void;
+  onKeyDown?: (event: KeyboardEvent, range: CaretRange) => boolean | undefined;
   /** Placeholder text shown when the editor is empty. */
   placeholder?: string;
   /** Visual classes applied to the editing surface. */

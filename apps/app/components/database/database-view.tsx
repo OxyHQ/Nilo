@@ -32,7 +32,6 @@ export function DatabaseViewContainer({
   rows,
   isLoading,
 }: DatabaseViewContainerProps) {
-  const { colors } = useColorScheme();
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
   const createRow = useCreateRow();

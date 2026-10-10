@@ -248,7 +248,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  */
 router.post(
   '/',
-  (req, res, next) => {
+  (req, _res, next) => {
     const wsFromBody = typeof req.body?.workspaceId === 'string' ? req.body.workspaceId : undefined;
     if (wsFromBody && !req.headers['x-workspace-id']) {
       req.headers['x-workspace-id'] = wsFromBody;
