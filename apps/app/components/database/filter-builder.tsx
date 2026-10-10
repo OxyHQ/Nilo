@@ -203,6 +203,7 @@ export function FilterBuilder({ open, onClose, database, view }: FilterBuilderPr
               draft.filters.map((filter, idx) =>
                 filter.kind === 'condition' ? (
                   <ConditionRow
+                    // biome-ignore lint/suspicious/noArrayIndexKey: persisted conditions have no id, and a key derived from the condition would remount the row (closing its pickers) on every edit
                     key={idx}
                     database={database}
                     filter={filter}

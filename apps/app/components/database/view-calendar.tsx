@@ -105,8 +105,12 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
       </View>
 
       <View>
-        {chunk(days, 7).map((week, i) => (
-          <View key={i} className="flex-row border-b border-border/60" style={{ minHeight: 100 }}>
+        {chunk(days, 7).map((week) => (
+          <View
+            key={week[0].toISOString()}
+            className="flex-row border-b border-border/60"
+            style={{ minHeight: 100 }}
+          >
             {week.map((day) => {
               const inMonth = day.getMonth() === cursor.getMonth();
               const key = day.toISOString().slice(0, 10);

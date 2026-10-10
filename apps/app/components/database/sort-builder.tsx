@@ -59,6 +59,7 @@ export function SortBuilder({ open, onClose, database, view }: SortBuilderProps)
             ) : (
               draft.map((sort, idx) => (
                 <SortRow
+                  // biome-ignore lint/suspicious/noArrayIndexKey: persisted sorts have no id and the same property may appear twice while editing; the row is controlled by this draft
                   key={`${sort.propertyId}-${idx}`}
                   database={database}
                   sort={sort}
