@@ -82,11 +82,5 @@
         "noTemplateCurlyInString": "warn"
       }
     }
-  },
-  "overrides": [
-    {
-      "includes": ["apps/api/scripts/**"],
-      "linter": { "rules": { "suspicious": { "noAssignInExpressions": "warn" } } }
-    }
-  ]
+  }
 }
