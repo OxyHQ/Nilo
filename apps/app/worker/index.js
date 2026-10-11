@@ -1,5 +1,3 @@
-import { observeEdgeRequest } from '@oxy.so/telemetry/edge';
-
 /**
  * Nilo web Worker -- SPA routing with proper MIME-type handling.
  *
@@ -10,11 +8,11 @@ import { observeEdgeRequest } from '@oxy.so/telemetry/edge';
  * `text/html` rejects it, so this returns a real 404 for asset extensions
  * instead.
  *
- * It runs ONLY on a miss. `run_worker_first` is unset, so the asset router
- * serves anything matching a real file without invoking this script — which is
- * why the immutable-caching branch that used to live here was removed rather
- * than kept: it could never fire for an asset that exists. `public/_headers`
- * sets those headers, and Workers static assets honours it.
+ * `run_worker_first = true` in wrangler.toml means this runs for every request
+ * and passes it to `env.ASSETS`; it changes a response only for the stale-asset
+ * case below. (That flag was set for the retired edge-activity observer; going
+ * back to running only on a miss is a separate change.) `public/_headers` sets
+ * the caching headers, and Workers static assets honours it.
  *
  * It must keep running as a Worker script rather than becoming Pages Advanced
  * Mode again: `public/_worker.js` was only ever loaded by Pages.
@@ -55,7 +53,7 @@ function getExtension(pathname) {
   return lastDot === -1 ? '' : pathname.slice(lastDot).toLowerCase();
 }
 
-const assetWorker = {
+export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const pathname = url.pathname;
@@ -76,17 +74,5 @@ const assetWorker = {
     // For non-asset paths (SPA navigation routes), the platform's index.html
     // fallback is correct behavior. Return the response as-is.
     return assetResponse;
-  },
-};
-
-export default {
-  fetch(request, env, ctx) {
-    return observeEdgeRequest({
-      service: 'nilo',
-      request,
-      env,
-      ctx,
-      next: () => assetWorker.fetch(request, env, ctx),
-    });
   },
 };
