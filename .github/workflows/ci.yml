@@ -110,12 +110,20 @@ jobs:
       - name: Run API tests
         run: bun run --filter @nilo/api test
 
+      # Production runs the API on Bun (apps/api/Dockerfile), so the same unit
+      # suite also runs under Bun's runtime and test runner, not only under
+      # vitest on Node. The *.pgdb suite stays on vitest: several of its files
+      # rely on vitest-only APIs (vi.hoisted, `.rejects.toSatisfy`, thenables
+      # under `.resolves`); the image smoke below covers Postgres under Bun.
+      - name: Run API tests under Bun
+        run: bun run --filter @nilo/api test:bun
+
       - name: Run API tests against PostgreSQL
         env:
           NILO_TEST_DATABASE_URL: postgres://nilo:nilo@127.0.0.1:5439/postgres
         run: bun run --filter @nilo/api test:pgdb
 
-      # Builds the API and EXECUTES the built artefact under node 22 — the
+      # Builds the API and EXECUTES the built artefact under bun — the
       # image's runtime and command — with boot forced to fail, asserting a
       # non-zero exit, plus a real boot and clean shutdown as the control. An
       # uncaught exception at boot once exited 0, which reads as success.
@@ -154,6 +162,21 @@ jobs:
     timeout-minutes: 20
     needs: [changes, lint-and-test]
     if: needs.changes.outputs.api == 'true'
+    # A throwaway database for the image smoke below; nothing else uses it.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: nilo
+          POSTGRES_PASSWORD: nilo
+          POSTGRES_DB: nilo
+        ports:
+          - 5439:5432
+        options: >-
+          --health-cmd "pg_isready -U nilo -d nilo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
@@ -181,6 +204,14 @@ jobs:
             exit 1
           fi
           echo "The image's CMD exited $code on a failed boot."
+
+      # The image as ECS runs it: Bun as PID 1, both migrator phases, a 200
+      # from /health/ready and a graceful exit 0 on SIGTERM.
+      - name: Smoke the API image under its Bun runtime
+        env:
+          IMAGE: nilo-api:ci
+          DATABASE_URL: postgres://nilo:nilo@127.0.0.1:5439/nilo
+        run: bash .github/scripts/smoke-api-image.sh
 
   build-web:
     name: Build Web
