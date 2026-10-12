@@ -1,11 +1,17 @@
-node_modules
-dist
-.env
-.env.*
-*.log
+# The build context is the repository root. The Dockerfile COPYs only the
+# manifests, bun.lock and apps/api/, but `COPY apps/api/` takes everything under
+# it, so these patterns match at ANY depth: a local apps/api/.env must never
+# reach a layer, and a local node_modules or dist must not replace the ones the
+# build installs and bundles. No .env.example is needed by the build.
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+**/*.log
 signal-data
 .git
 .github
+.worktrees
 .vscode
 .claude
 docs
