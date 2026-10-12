@@ -34,10 +34,12 @@ NETWORK=$(jq -c '.services[0].networkConfiguration.awsvpcConfiguration' <<<"$SER
 run_migration() {
   local phase="$1"
   local overrides task_arn exit_code
+  # `bun`: the runtime apps/api/Dockerfile ships. Reverting to a Node image
+  # means reverting this line with it.
   overrides=$(jq -nc --arg container "$APP" --arg phase "$phase" '{
     containerOverrides: [{
       name: $container,
-      command: ["node", "apps/api/dist/db/migrate.js", "--target-database=nilo", ("--phase=" + $phase)]
+      command: ["bun", "apps/api/dist/db/migrate.js", "--target-database=nilo", ("--phase=" + $phase)]
     }]
   }')
   task_arn=$(aws ecs run-task --cluster "$CLUSTER" --launch-type FARGATE \

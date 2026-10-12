@@ -76,7 +76,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.3.14"
+          bun-version-file: package.json
 
       - uses: actions/setup-node@v4
         with:
@@ -88,13 +88,49 @@ jobs:
       - name: Lint (Biome)
         run: bunx biome ci .
 
+      # `packageManager` is the one bun pin. Every setup-bun here reads it, but
+      # apps/api/Dockerfile's `FROM oven/bun:<ver>` is a literal; this fails
+      # when the image (or a workflow) runs a different bun from the one that
+      # wrote bun.lock.
+      - name: Check the bun pin
+        run: bun run check:bun-pin
+
+      # Every `test*`/`check*` script in any package.json is run by this
+      # workflow, and every test file outside the API's vitest tree is named by
+      # one — `test:worker` once passed for months with no workflow running it.
+      - name: Check every test and check script is run by CI
+        run: bun run check:ci-wiring
+
+      # The Cloudflare Worker that serves the web app (apps/app/worker, the
+      # `main` of apps/app/wrangler.toml). Its tests are bun tests outside
+      # either app's suite, so no other step runs them.
+      - name: Run web worker tests
+        run: bun run test:worker
+
       - name: Run API tests
         run: bun run --filter @nilo/api test
+
+      # Production runs the API on Bun (apps/api/Dockerfile), so the same unit
+      # suite also runs under Bun's runtime and test runner, not only under
+      # vitest on Node. The *.pgdb suite stays on vitest: several of its files
+      # rely on vitest-only APIs (vi.hoisted, `.rejects.toSatisfy`, thenables
+      # under `.resolves`); the image smoke below covers Postgres under Bun.
+      - name: Run API tests under Bun
+        run: bun run --filter @nilo/api test:bun
 
       - name: Run API tests against PostgreSQL
         env:
           NILO_TEST_DATABASE_URL: postgres://nilo:nilo@127.0.0.1:5439/postgres
         run: bun run --filter @nilo/api test:pgdb
+
+      # Builds the API and EXECUTES the built artefact under bun — the
+      # image's runtime and command — with boot forced to fail, asserting a
+      # non-zero exit, plus a real boot and clean shutdown as the control. An
+      # uncaught exception at boot once exited 0, which reads as success.
+      - name: The built API exits non-zero when boot fails
+        env:
+          NILO_TEST_DATABASE_URL: postgres://nilo:nilo@127.0.0.1:5439/postgres
+        run: bun run check:api-entrypoints
 
   build-api:
     name: Build API
@@ -108,7 +144,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.3.14"
+          bun-version-file: package.json
 
       - uses: actions/setup-node@v4
         with:
@@ -126,12 +162,56 @@ jobs:
     timeout-minutes: 20
     needs: [changes, lint-and-test]
     if: needs.changes.outputs.api == 'true'
+    # A throwaway database for the image smoke below; nothing else uses it.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: nilo
+          POSTGRES_PASSWORD: nilo
+          POSTGRES_DB: nilo
+        ports:
+          - 5439:5432
+        options: >-
+          --health-cmd "pg_isready -U nilo -d nilo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Build ARM64 API image
         run: docker build -f apps/api/Dockerfile -t nilo-api:ci .
+
+      # The image's own CMD, unmodified, with no DATABASE_URL: boot must fail
+      # and the container must exit non-zero. The log line proves it got as far
+      # as boot — a container that cannot even load the bundle also exits
+      # non-zero. 124 is `timeout` killing a container that never exited.
+      - name: The image exits non-zero when boot fails
+        run: |
+          set +e
+          output=$(timeout 60 docker run --rm nilo-api:ci 2>&1)
+          code=$?
+          set -e
+          printf '%s\n' "$output" | tail -n 20
+          if [ "$code" -eq 0 ] || [ "$code" -eq 124 ]; then
+            echo "::error::the image exited $code with boot forced to fail; it must exit non-zero"
+            exit 1
+          fi
+          if ! grep -qF 'DATABASE_URL is required.' <<<"$output"; then
+            echo "::error::the image exited $code without reaching boot (no 'DATABASE_URL is required.')"
+            exit 1
+          fi
+          echo "The image's CMD exited $code on a failed boot."
+
+      # The image as ECS runs it: Bun as PID 1, both migrator phases, a 200
+      # from /health/ready and a graceful exit 0 on SIGTERM.
+      - name: Smoke the API image under its Bun runtime
+        env:
+          IMAGE: nilo-api:ci
+          DATABASE_URL: postgres://nilo:nilo@127.0.0.1:5439/nilo
+        run: bash .github/scripts/smoke-api-image.sh
 
   build-web:
     name: Build Web
@@ -145,7 +225,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.3.14"
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile

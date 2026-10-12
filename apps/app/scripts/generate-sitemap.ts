@@ -66,4 +66,10 @@ async function generateSitemap() {
   console.log(`Total URLs in sitemap: ${staticRoutes.length}`);
 }
 
-generateSitemap().catch(console.error);
+// `prebuild` runs this, and bun runs a pre-script's failure as the build's
+// failure only when the script EXITS non-zero. `.catch(console.error)` logged
+// and exited 0, so a sitemap that failed to write shipped a stale one silently.
+generateSitemap().catch((error: unknown) => {
+  console.error(error);
+  process.exit(1);
+});
