@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, type TextInput, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -634,7 +634,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   // -- Keyboard shortcuts (web) --------------------------------------------
   const handleEditorKeyDown = React.useCallback(
-    (block: Block, event: KeyboardEvent, range: CaretRange): boolean | void => {
+    (block: Block, event: KeyboardEvent, range: CaretRange): boolean | undefined => {
       if (Platform.OS !== 'web') return;
       const meta = event.metaKey || event.ctrlKey;
 
@@ -960,7 +960,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
   const numberedIndex = React.useMemo(() => {
     const result: Record<string, number> = {};
     let counter = 0;
-    let lastParent: string | null | undefined = undefined;
+    let lastParent: string | null | undefined;
     for (const b of blocks) {
       if (b.type === 'numbered_list_item') {
         if (lastParent === b.parentBlockId) {
@@ -995,6 +995,14 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
     }
   }, [blocks, createBlock, pageId]);
 
+  // Mutable holder for the render-tree callback — populated below once
+  // the row handler bag exists. Keeps the closure stable across renders.
+  // Declared before the loading early return: a hook after it is skipped
+  // while blocks load, so the loading -> loaded render calls one more hook
+  // than the previous render and React throws ("Rendered more hooks than
+  // during the previous render"), crashing the editor on any uncached page.
+  const renderChildrenOfRef = React.useRef<(parentId: string) => React.ReactNode>(() => null);
+
   if (isLoading) {
     return (
       <View className="px-1 py-6">
@@ -1004,10 +1012,6 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
   }
 
   const rootBlocks = childMap.get(null) ?? [];
-
-  // Mutable holder for the render-tree callback — populated below once
-  // the row handler bag exists. Keeps the closure stable across renders.
-  const renderChildrenOfRef = React.useRef<(parentId: string) => React.ReactNode>(() => null);
 
   // Build a typed bag of per-row handlers to avoid prop drilling chains.
   const rowHandlers: RowHandlerBag = {
@@ -1149,7 +1153,7 @@ interface RowHandlerBag {
   onSubmitNew: (block: Block) => void;
   onBackspaceAtStart: (block: Block) => void;
   onIndent: (block: Block, outdent: boolean) => void;
-  onKeyDown: (block: Block, event: KeyboardEvent, range: CaretRange) => boolean | void;
+  onKeyDown: (block: Block, event: KeyboardEvent, range: CaretRange) => boolean | undefined;
   onSelectionChange: (block: Block, range: CaretRange) => void;
   onToggleChecked: (block: Block) => void;
   onToggleExpanded: (block: Block) => void;
@@ -1248,6 +1252,7 @@ function renderBlockTree(args: RenderArgs): React.ReactNode {
   if (Platform.OS === 'web') {
     return (
       <View key={block._id} style={{ marginLeft: depth * 24 }}>
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: a layout wrapper; the mouse handlers drive hover chrome and drag-selection, and the block's own editable and buttons carry keyboard access */}
         <div
           ref={(el) => {
             handlers.blockNodeRefs.current[block._id] = el;

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
-import { ArrowUpDown, Filter as FilterIcon, Plus, Settings2 } from 'lucide-react-native';
+import { ArrowUpDown, Filter as FilterIcon, Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
@@ -32,7 +32,6 @@ export function DatabaseViewContainer({
   rows,
   isLoading,
 }: DatabaseViewContainerProps) {
-  const { colors } = useColorScheme();
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
   const createRow = useCreateRow();

@@ -1,11 +1,11 @@
 import * as React from 'react';
 import {
-  NativeSyntheticEvent,
+  type NativeSyntheticEvent,
   Platform,
   TextInput,
-  TextInputContentSizeChangeEventData,
-  TextInputKeyPressEventData,
-  TextInputSelectionChangeEventData,
+  type TextInputContentSizeChangeEventData,
+  type TextInputKeyPressEventData,
+  type TextInputSelectionChangeEventData,
   View,
 } from 'react-native';
 import { cn } from '@/lib/utils';
@@ -45,7 +45,7 @@ interface RichEditableProps {
   /** Emit on selection changes (web). Native fires on selection change events. */
   onSelectionChange?: (range: CaretRange) => void;
   /** Block-level Enter handler — return true to consume the event. */
-  onSubmit?: () => boolean | void;
+  onSubmit?: () => boolean | undefined;
   /** Backspace at offset 0 with collapsed caret. */
   onBackspaceAtStart?: () => void;
   /** Tab / Shift+Tab on web. */
@@ -55,7 +55,7 @@ interface RichEditableProps {
    * shortcuts, slash-menu triggering, multi-block selection, etc. Returning
    * true means the parent consumed it (the editor will not run its default).
    */
-  onKeyDown?: (event: KeyboardEvent, range: CaretRange) => boolean | void;
+  onKeyDown?: (event: KeyboardEvent, range: CaretRange) => boolean | undefined;
   /** Placeholder text shown when the editor is empty. */
   placeholder?: string;
   /** Visual classes applied to the editing surface. */
@@ -350,7 +350,7 @@ function RichEditableWeb(props: RichEditableProps, ref: React.Ref<unknown>) {
       getSelection: getSelectionRange,
       setSelection: setSelectionRange,
     }),
-    [getSelectionRange, setSelectionRange, handleRef],
+    [getSelectionRange, setSelectionRange],
   );
 
   // Initial DOM render — runs once because lastRenderedRef is empty.
@@ -593,7 +593,7 @@ function RichEditableNative(props: RichEditableProps, ref: React.Ref<unknown>) {
         selectionRef.current = range;
       },
     }),
-    [handleRef],
+    [],
   );
 
   const setRef = (i: TextInput | null) => {

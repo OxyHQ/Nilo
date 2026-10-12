@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import crypto from 'crypto';
-import { promises as fs } from 'fs';
-import path from 'path';
+import crypto from 'node:crypto';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { z } from 'zod';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';

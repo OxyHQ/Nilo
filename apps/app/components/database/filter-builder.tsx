@@ -7,7 +7,6 @@ import type {
   Database,
   DatabaseProperty,
   DatabaseView,
-  Filter,
   FilterCondition,
   FilterGroup,
 } from '@/lib/types/databases';
@@ -163,7 +162,7 @@ export function FilterBuilder({ open, onClose, database, view }: FilterBuilderPr
     setDraft((prev) => {
       const next = [...prev.filters];
       const target = next[index];
-      if (!target || target.kind !== 'condition') return prev;
+      if (target?.kind !== 'condition') return prev;
       next[index] = { ...target, ...patch };
       return { ...prev, filters: next };
     });
@@ -204,6 +203,7 @@ export function FilterBuilder({ open, onClose, database, view }: FilterBuilderPr
               draft.filters.map((filter, idx) =>
                 filter.kind === 'condition' ? (
                   <ConditionRow
+                    // biome-ignore lint/suspicious/noArrayIndexKey: persisted conditions have no id, and a key derived from the condition would remount the row (closing its pickers) on every edit
                     key={idx}
                     database={database}
                     filter={filter}

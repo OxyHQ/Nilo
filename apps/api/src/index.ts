@@ -4,7 +4,7 @@ import {
   stopEcosystemActivity,
 } from './ecosystemActivity';
 import express from 'express';
-import http from 'http';
+import http from 'node:http';
 import cors from 'cors';
 import { sql } from 'drizzle-orm';
 import { closeDb, getDb } from './db/client.js';

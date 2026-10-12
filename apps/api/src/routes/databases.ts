@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { NextFunction, Request, Response } from 'express';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { getDb, type PgHandle } from '../db/client.js';
@@ -566,7 +566,7 @@ router.get('/:id', async (req: Request, res: Response) => {
  */
 router.post(
   '/',
-  (req, res, next) => {
+  (req, _res, next) => {
     const wsFromBody = typeof req.body?.workspaceId === 'string' ? req.body.workspaceId : undefined;
     if (wsFromBody && !req.headers['x-workspace-id']) {
       req.headers['x-workspace-id'] = wsFromBody;
@@ -910,7 +910,8 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       filtered = filtered.filter((r) => r.title.toLowerCase().includes(needle));
     }
     if (view?.filters && view.filters.filters.length > 0) {
-      filtered = filtered.filter((r) => evaluateFilter(view!.filters as Filter, r, propertyById));
+      const viewFilter = view.filters as Filter;
+      filtered = filtered.filter((r) => evaluateFilter(viewFilter, r, propertyById));
     }
     if (view?.sorts && view.sorts.length > 0) {
       const compare = compareBySorts(view.sorts, propertyById);

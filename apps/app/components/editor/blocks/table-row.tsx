@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { View } from 'react-native';
 import type { BlockComponentProps } from './types';
 

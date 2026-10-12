@@ -8,9 +8,10 @@ declare module '*.svg' {
 /**
  * Web-only CSS properties we use through RN style props. RN-Web forwards
  * unknown style keys directly to the DOM, so declaring them here keeps
- * editor auto-sizing typed without `as any`. The `export {}` below marks
- * this file as a module so the `declare module` blocks are treated as
- * augmentations rather than replacements.
+ * editor auto-sizing typed without `as any`. The top-level
+ * `import 'react-native'` below marks this file as a module, so the
+ * `declare module` blocks are treated as augmentations rather than
+ * replacements. Do not remove it.
  */
 import 'react-native';
 declare module 'react-native' {
@@ -23,4 +24,3 @@ declare module 'react-native' {
     cursor?: 'pointer' | 'default' | 'text' | 'not-allowed' | 'grab';
   }
 }
-export {};

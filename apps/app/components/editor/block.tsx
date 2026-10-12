@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { Platform, Pressable, TextInput, View } from 'react-native';
+import type * as React from 'react';
+import { Platform, Pressable, type TextInput, View } from 'react-native';
 import { Check, ChevronRight } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -50,7 +50,7 @@ export interface BlockHandlers {
   /** Tab / Shift+Tab (web). */
   onIndent: (outdent: boolean) => void;
   /** Web: keydown raw event with caret range, for markdown shortcuts. */
-  onKeyDown?: (event: KeyboardEvent, range: CaretRange) => boolean | void;
+  onKeyDown?: (event: KeyboardEvent, range: CaretRange) => boolean | undefined;
   /** Selection range — reported on every selection change. */
   onSelectionChange?: (range: CaretRange) => void;
   /** Todo blocks only. */
@@ -296,7 +296,6 @@ export function BlockView({
       return renderPhase3(EquationBlock, block, onChangeContent, renderChildren);
     case 'mermaid':
       return renderPhase3(MermaidBlock, block, onChangeContent, renderChildren);
-    case 'paragraph':
     default:
       return (
         <RichEditable
@@ -351,7 +350,7 @@ interface InnerCommonProps {
   segments: Segment[];
   fallbackText: string;
   onChange: BlockHandlers['onChange'];
-  onSubmit: () => boolean | void;
+  onSubmit: () => boolean | undefined;
   onBackspaceAtStart: BlockHandlers['onBackspaceAtStart'];
   onIndent: BlockHandlers['onIndent'];
   onKeyDown?: BlockHandlers['onKeyDown'];

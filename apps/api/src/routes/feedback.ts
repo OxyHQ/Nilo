@@ -46,6 +46,11 @@ function serializeFeedback(row: FeedbackRow) {
  */
 router.post('/', async (req, res) => {
   try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
     const { type, rating, message, email, metadata } = req.body;
 
     if (!type || !message) {
@@ -67,7 +72,7 @@ router.post('/', async (req, res) => {
     // and silently DROPS every other key. This body is unvalidated user input;
     // passing it through whole would persist it.
     const feedback = await createFeedback(getDb(), {
-      oxyUserId: req.user!.id,
+      oxyUserId: userId,
       type,
       rating,
       message,
@@ -96,7 +101,12 @@ router.post('/', async (req, res) => {
  */
 router.get('/', async (req, res) => {
   try {
-    const feedback = await listFeedbackByUser(getDb(), req.user!.id);
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const feedback = await listFeedbackByUser(getDb(), userId);
 
     res.json(feedback.map(serializeFeedback));
   } catch (error: unknown) {
@@ -111,12 +121,17 @@ router.get('/', async (req, res) => {
  */
 router.get('/:id', async (req, res) => {
   try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
     // The owner is part of the WHERE clause, so another user's feedback is a
     // miss rather than a row this handler has to remember to reject.
     //
     // An id of the wrong SHAPE 404s. `id` is a `text` column, so there is no
     // cast to fail, and 404 is the right answer for "no such feedback".
-    const feedback = await findFeedbackByIdForUser(getDb(), req.params.id, req.user!.id);
+    const feedback = await findFeedbackByIdForUser(getDb(), req.params.id, userId);
 
     if (!feedback) {
       res.status(404).json({ error: 'Feedback not found' });

@@ -91,7 +91,7 @@ export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelinePr
             const isFirstOfMonth = day.getDate() === 1;
             return (
               <View
-                key={i}
+                key={day.toISOString()}
                 style={{ width: DAY_WIDTH }}
                 className="items-center justify-center border-r border-border/60"
               >

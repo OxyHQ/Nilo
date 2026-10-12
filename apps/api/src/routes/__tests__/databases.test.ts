@@ -11,21 +11,27 @@ import { parsePropertyValue, serializeParsedValue } from '../../lib/databases/pr
 import { evaluateFormulaExpression } from '../../lib/databases/formula.js';
 import type { DatabaseProperty } from '../../db/schema/databases.js';
 
+/** Fails the test, rather than passing `null` on, when parsing rejected the input. */
+function parsedOrFail(parsed: ReturnType<typeof parsePropertyValue>) {
+  if (parsed === null) throw new Error('parsePropertyValue rejected a valid value');
+  return parsed;
+}
+
 describe('parsePropertyValue', () => {
   it('parses text', () => {
     const parsed = parsePropertyValue('text', { text: 'hi' });
     expect(parsed?.kind).toBe('text');
-    expect(serializeParsedValue(parsed!)).toEqual({ text: 'hi' });
+    expect(serializeParsedValue(parsedOrFail(parsed))).toEqual({ text: 'hi' });
   });
 
   it('parses checkbox', () => {
     const parsed = parsePropertyValue('checkbox', { checked: true });
-    expect(serializeParsedValue(parsed!)).toEqual({ checked: true });
+    expect(serializeParsedValue(parsedOrFail(parsed))).toEqual({ checked: true });
   });
 
   it('parses multi_select', () => {
     const parsed = parsePropertyValue('multi_select', { optionIds: ['a', 'b'] });
-    expect(serializeParsedValue(parsed!)).toEqual({ optionIds: ['a', 'b'] });
+    expect(serializeParsedValue(parsedOrFail(parsed))).toEqual({ optionIds: ['a', 'b'] });
   });
 
   it('rejects bad shape', () => {

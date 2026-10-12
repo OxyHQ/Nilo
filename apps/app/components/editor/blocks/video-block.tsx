@@ -127,6 +127,7 @@ export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
             />
           </View>
         ) : (
+          // biome-ignore lint/a11y/useMediaCaption: user-uploaded video; the block model has no caption track to attach
           <video src={url} controls style={{ width: '100%', borderRadius: 8 }} />
         )
       ) : (

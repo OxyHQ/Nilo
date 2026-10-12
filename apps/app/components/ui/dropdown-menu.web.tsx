@@ -312,7 +312,7 @@ DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName;
 export const ItemIcon = React.forwardRef<
   HTMLSpanElement,
   React.HTMLProps<HTMLSpanElement> & {
-    ios?: { name?: string; [key: string]: any };
+    ios?: { name?: string; [key: string]: unknown };
     androidIconName?: string;
   }
 >(({ className, ios, androidIconName, children, ...props }, ref) => {

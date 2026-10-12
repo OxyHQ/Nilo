@@ -44,6 +44,7 @@ export function AudioBlock({ block, onChangeContent }: BlockComponentProps) {
   return (
     <View className="gap-1">
       {Platform.OS === 'web' ? (
+        // biome-ignore lint/a11y/useMediaCaption: user-uploaded audio; the block model has no caption track to attach
         <audio controls src={url} style={{ width: '100%' }} />
       ) : (
         <Pressable

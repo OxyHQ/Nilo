@@ -127,11 +127,12 @@ async function main(): Promise<void> {
 
   let order = 0;
   for (const block of blocks) {
+    order += 1000;
     await createBlock(db, {
       pageId: welcome.id,
       type: block.type as never,
       content: block.content as never,
-      order: (order += 1000),
+      order,
     });
   }
   console.log(`  page "${welcome.title}" with ${blocks.length} blocks`);
@@ -206,12 +207,13 @@ async function main(): Promise<void> {
   ];
   let rowOrder = 0;
   for (const row of rows) {
+    rowOrder += 1000;
     await createPage(db, {
       workspaceId,
       ownerId: OWNER_ID,
       databaseId: tasks.id,
       title: row.title,
-      order: (rowOrder += 1000),
+      order: rowOrder,
       properties: {
         name: { text: row.title },
         status: { select: row.status },

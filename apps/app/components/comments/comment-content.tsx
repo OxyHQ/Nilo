@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Calendar, FileText, User } from 'lucide-react-native';
@@ -32,10 +31,12 @@ export function CommentContentView({ content, textClassName }: CommentContentPro
     <View className="flex-row flex-wrap">
       {segments.map((seg, idx) => {
         if (isMentionSegment(seg)) {
+          // biome-ignore lint/suspicious/noArrayIndexKey: segments carry no id; the list is read-only and re-rendered whole when the comment changes
           return <MentionChip key={idx} mention={seg} />;
         }
         return (
           <Text
+            // biome-ignore lint/suspicious/noArrayIndexKey: segments carry no id; the list is read-only and re-rendered whole when the comment changes
             key={idx}
             className={cn(
               'text-sm text-foreground',

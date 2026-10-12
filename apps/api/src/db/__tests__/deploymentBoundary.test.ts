@@ -115,6 +115,7 @@ describe('the web export fails closed before bundling', () => {
     expect(manifest.scripts?.['validate:api-origin']).toBe('bun scripts/validate-api-origin.ts');
     expect(manifest.scripts?.build).toMatch(/^bun run validate:api-origin &&/u);
     expect(manifest.scripts?.['build:production']).toMatch(/^bun run validate:api-origin &&/u);
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: asserts the literal GitHub Actions expression in the workflow text
     expect(workflow).toContain('EXPO_PUBLIC_API_URL: ${{ vars.NILO_API_URL }}');
     expect(workflow).toContain('run: cd apps/app && bun run build:production');
     expect(workflow).not.toContain('bunx expo export --platform web');

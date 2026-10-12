@@ -26,6 +26,7 @@ function CommandDialog({ open, onOpenChange, children }: CommandDialogProps) {
   const [mounted, setMounted] = React.useState(false);
   const [visible, setVisible] = React.useState(false);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs on open changes only; mounted is read to skip the exit animation when the dialog never opened, and re-running on it would schedule a redundant enter frame
   React.useEffect(() => {
     if (open) {
       setMounted(true);
@@ -54,6 +55,7 @@ function CommandDialog({ open, onOpenChange, children }: CommandDialogProps) {
 
   return createPortal(
     <div className="fixed inset-0 z-50 isolate">
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: the backdrop's click-to-dismiss; keyboard users dismiss with Escape, handled on the document */}
       <div
         className={cn(
           'fixed inset-0 bg-black/10 backdrop-blur-[2px] transition-opacity duration-150',

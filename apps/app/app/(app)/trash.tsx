@@ -25,7 +25,6 @@ import type { Page } from '@/lib/types/pages';
  * an "Empty trash" button at the top.
  */
 export default function TrashRoute() {
-  const router = useRouter();
   const { colors } = useColorScheme();
   const { user } = useOxy();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);

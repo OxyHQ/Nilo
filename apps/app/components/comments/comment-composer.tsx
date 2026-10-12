@@ -1,12 +1,12 @@
 import * as React from 'react';
 import {
   ActivityIndicator,
-  NativeSyntheticEvent,
+  type NativeSyntheticEvent,
   Platform,
   Pressable,
   TextInput,
-  TextInputKeyPressEventData,
-  TextInputSelectionChangeEventData,
+  type TextInputKeyPressEventData,
+  type TextInputSelectionChangeEventData,
   View,
 } from 'react-native';
 import { Send } from 'lucide-react-native';
@@ -118,7 +118,6 @@ function reanchor(prevText: string, prevAnchored: Anchored[], nextText: string):
     // Mention entirely after the edit — shift.
     if (a.start >= editEndPrev) {
       result.push({ ...a, start: a.start + delta, end: a.end + delta });
-      continue;
     }
     // Otherwise the edit overlaps this mention — drop it.
   }

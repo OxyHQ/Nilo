@@ -33,11 +33,11 @@ vi.mock('../../repositories/workspaces.js', () => ({
 }));
 
 vi.mock('../../middleware/auth.js', () => ({
-  authenticateToken: vi.fn((_req: any, _res: any, next: any) => next()),
+  authenticateToken: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
 }));
 
 vi.mock('../../middleware/workspace.js', () => ({
-  requireWorkspaceMember: vi.fn((_req: any, _res: any, next: any) => next()),
+  requireWorkspaceMember: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
 }));
 
 vi.mock('../../lib/notification-service.js', () => ({
