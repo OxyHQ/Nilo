@@ -6,9 +6,6 @@ import {
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import { sql } from 'drizzle-orm';
 import { closeDb, getDb } from './db/client.js';
 import { log } from './lib/logger.js';
@@ -30,12 +27,9 @@ import embedRouter from './routes/embed.js';
 // Socket.io
 import { initSocket } from './socket.js';
 
-// Fix for ES Modules __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Load .env from the api directory (not the monorepo root)
-dotenv.config({ path: join(__dirname, '../.env') });
+// Bun loads `.env` from the working directory before any module runs, and every
+// script that starts this server (`dev`, `start`) runs in apps/api, so it
+// reads apps/api/.env. Variables already in the environment win.
 
 const app = express();
 app.use(ecosystemActivityMiddleware);

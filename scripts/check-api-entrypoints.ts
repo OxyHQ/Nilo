@@ -168,7 +168,8 @@ async function main(): Promise<void> {
   // 1. A throw at module top level, after the process handlers are registered,
   //    with nothing yet holding the event loop open: exactly the case the
   //    unref'd timer turned into exit 0. `DATABASE_URL` is set EMPTY rather
-  //    than unset, so dotenv cannot fill it from a developer's apps/api/.env.
+  //    than unset, so Bun's own .env loading cannot fill it from a developer's
+  //    .env in the working directory (the repo root, see `start`).
   //    Asserting the handler's own line keeps this scenario measuring the
   //    handler: if boot is restructured so this throw no longer reaches it,
   //    this fails and a scenario that does must replace it.
