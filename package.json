@@ -8,7 +8,7 @@
     "apps/api",
     "apps/app"
   ],
-  "packageManager": "bun@1.3.14",
+  "packageManager": "bun@1.4.3",
   "scripts": {
     "dev": "bun run --filter '*' dev",
     "dev:app": "bun run --filter @nilo/app dev -- --clear --tunnel",

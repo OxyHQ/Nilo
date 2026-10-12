@@ -4,7 +4,7 @@
 # Multi-stage build: pinned Bun for installs, minimal Node for runtime.
 
 # --- Stage 1: Builder ---
-FROM oven/bun:1.4.2-slim AS builder
+FROM oven/bun:1.4.3-slim AS builder
 
 WORKDIR /build
 
@@ -25,7 +25,7 @@ COPY apps/api/ ./apps/api/
 RUN bun run --filter @nilo/api build
 
 # --- Stage 2: Production dependencies ---
-FROM oven/bun:1.4.2-slim AS production-deps
+FROM oven/bun:1.4.3-slim AS production-deps
 
 WORKDIR /app
 
