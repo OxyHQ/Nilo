@@ -41,6 +41,10 @@ bun run check:bun-pin   # packageManager is the one bun pin; image and workflows
 bun run --filter @nilo/api test
 NILO_TEST_DATABASE_URL=postgres://nilo:nilo@127.0.0.1:5439/postgres \
   bun run --filter @nilo/api test:pgdb
+bun run test:worker
+bun run check:ci-wiring
+NILO_TEST_DATABASE_URL=postgres://nilo:nilo@127.0.0.1:5439/postgres \
+  bun run check:api-entrypoints
 bun run build:api
 EXPO_PUBLIC_API_URL=https://api.example.test bun run build:app
 ```
@@ -49,6 +53,11 @@ Formatting and linting are Biome only (root `biome.json`, no ESLint or
 Prettier): `bun run lint` checks the whole repo, as CI's `biome ci .` does;
 `bun run format` rewrites formatting. Formatting-only commits go in
 `.git-blame-ignore-revs`.
+
+Every `test*`/`check*` script must be run by `ci.yml`; `check:ci-wiring`
+enforces it. A boot or migration failure must exit non-zero: never defer a
+fatal exit to an unref'd timer, and `check:api-entrypoints` executes the built
+artefacts under node to hold that.
 
 Commit manifest and `bun.lock` changes together. The web export requires an
 explicit HTTPS `EXPO_PUBLIC_API_URL`; there is no implicit production API

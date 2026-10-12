@@ -51,11 +51,14 @@ const server = http.createServer(
   app,
 );
 
-// Handle HTTP server errors (e.g. EADDRINUSE)
+// An error before the server is listening means it never will be: EADDRINUSE,
+// but equally EACCES or EADDRNOTAVAIL. Only EADDRINUSE used to exit; any other
+// listen error left a process that was alive, held open by the Postgres pool,
+// and listening on nothing — measured with PORT=80 as a non-root user.
 server.on('error', (error: NodeJS.ErrnoException) => {
-  log.general.error({ err: error }, '[Server] HTTP server error');
-  if (error.code === 'EADDRINUSE') {
-    log.general.error({ port: PORT }, 'Port already in use');
+  log.general.error({ err: error, port: PORT }, '[Server] HTTP server error');
+  if (!server.listening) {
+    log.general.error({ port: PORT }, '[Server] Could not listen — shutting down');
     process.exit(1);
   }
 });
@@ -171,6 +174,27 @@ app.use(
   },
 );
 
+/**
+ * End the process as a FAILURE, now.
+ *
+ * Registering an `uncaughtException` listener takes the exit decision away
+ * from Node: it no longer exits, and no longer sets exit code 1. These handlers
+ * used to hand that decision to `setTimeout(() => process.exit(1), 5000).unref()`
+ * — and an unref'd timer is exactly the one thing that does not keep the event
+ * loop alive. At boot nothing else does either (no listening socket, no pool
+ * yet), so the loop drained, the timer never fired, and the process exited
+ * with code 0: a crashed boot that every orchestrator reads as a clean exit.
+ * Measured on the built artefact under node 22 with `DATABASE_URL` unset.
+ *
+ * Node's documented contract is that a process is not safe to resume after an
+ * uncaught exception, so there is no grace period to protect. The log line is
+ * not lost: pino flushes its destination synchronously on `exit`.
+ * `scripts/check-api-entrypoints.ts` executes the built artefact to hold this.
+ */
+function exitAsFailure(): never {
+  process.exit(1);
+}
+
 // Process-level error handlers — prevent crashes from taking down all users
 // Classifies errors to determine logging level (inspired by openclaw)
 process.on('unhandledRejection', (reason) => {
@@ -180,8 +204,7 @@ process.on('unhandledRejection', (reason) => {
   // Fatal: OOM, worker failures — must exit
   if (isFatalError(reason)) {
     log.general.error({ err: reason }, '[Process] FATAL unhandled rejection — shutting down');
-    setTimeout(() => process.exit(1), 5000).unref();
-    return;
+    exitAsFailure();
   }
 
   // Transient network: ECONNRESET, ETIMEDOUT, etc. — expected with external services
@@ -199,7 +222,7 @@ process.on('unhandledRejection', (reason) => {
 
 process.on('uncaughtException', (error) => {
   log.general.error({ err: error }, '[Process] Uncaught exception — shutting down');
-  setTimeout(() => process.exit(1), 5000).unref();
+  exitAsFailure();
 });
 
 /**
@@ -214,22 +237,31 @@ getDb()
     server.listen(PORT, '0.0.0.0', () => {
       log.general.info({ port: PORT }, 'API server listening');
       // Verify Redis connectivity (non-blocking)
-      import('./lib/redis.js').then(({ getRedisClient }) => {
-        const redis = getRedisClient();
-        if (redis) {
-          redis
-            .ping()
-            .then(() => log.general.info('Redis readiness check passed'))
-            .catch((err) =>
-              log.general.warn(
-                { err },
-                'Redis readiness check failed — rate limiting will fail-open',
-              ),
-            );
-        } else {
-          log.general.info('Redis not configured (REDIS_URL not set) — rate limiting disabled');
-        }
-      });
+      import('./lib/redis.js')
+        .then(({ getRedisClient }) => {
+          const redis = getRedisClient();
+          if (redis) {
+            redis
+              .ping()
+              .then(() => log.general.info('Redis readiness check passed'))
+              .catch((err) =>
+                log.general.warn(
+                  { err },
+                  'Redis readiness check failed — rate limiting will fail-open',
+                ),
+              );
+          } else {
+            log.general.info('Redis not configured (REDIS_URL not set) — rate limiting disabled');
+          }
+        })
+        // Redis is optional, so a failure here is a warning, not a boot failure —
+        // but it is handled HERE, not left to the process-level rejection handler.
+        .catch((err: unknown) =>
+          log.general.warn(
+            { err },
+            'Redis readiness check could not run — rate limiting will fail-open',
+          ),
+        );
     });
 
     // Graceful shutdown handler
@@ -238,6 +270,10 @@ getDb()
       if (shuttingDown) return;
       shuttingDown = true;
       log.general.info(`Received ${signal}. Starting graceful shutdown...`);
+      // Only the completed path below reports success. The force-exit timer is
+      // unref'd, so a shutdown wedged on a promise nothing else keeps alive ends
+      // by the event loop draining — which, without this, would be exit 0.
+      process.exitCode = 1;
 
       // Stop accepting new connections
       server.close(() => {
