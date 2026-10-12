@@ -2,15 +2,15 @@
  * A failed start of either API entrypoint must END THE PROCESS NON-ZERO.
  *
  * Executes the BUILT artefacts the way the production image runs them —
- * `node apps/api/dist/index.js` (the image's CMD) and
- * `node apps/api/dist/db/migrate.js` (the deploy's one-shot task, whose exit
+ * `bun apps/api/dist/index.js` (the image's CMD) and
+ * `bun apps/api/dist/db/migrate.js` (the deploy's one-shot task, whose exit
  * code `.github/scripts/deploy-ecs.sh` reads) from the repository root with
- * `NODE_ENV=production` — never `src/` under bun, which is a different runtime
- * running a different file.
+ * `NODE_ENV=production` — never `src/`, which is a different file from the
+ * bundle the image ships.
  *
  * Why it exists: the process-level `uncaughtException` handler once deferred its
- * exit to an unref'd 5 s timer. Registering the handler stops Node exiting on
- * its own, and an unref'd timer does not keep the event loop alive, so a throw
+ * exit to an unref'd 5 s timer. Registering the handler stops the runtime
+ * exiting on its own, and an unref'd timer does not keep the event loop alive, so a throw
  * at boot (with no socket or pool open yet) drained the loop and the process
  * exited 0 — a crashed boot every orchestrator read as success.
  *
@@ -33,7 +33,8 @@ import { join } from 'node:path';
 const ROOT = join(import.meta.dir, '..');
 const SERVER = 'apps/api/dist/index.js';
 const MIGRATOR = 'apps/api/dist/db/migrate.js';
-const NODE = process.env.NODE_BINARY || 'node';
+// The image's runtime. Override only to compare runtimes, e.g. RUNTIME_BINARY=node.
+const RUNTIME = process.env.RUNTIME_BINARY || 'bun';
 
 interface Outcome {
   code: number | null;
@@ -52,7 +53,7 @@ interface Run {
 function start(argv: string[], env: Record<string, string>, timeoutMs: number): Run {
   // Inherit nothing that could decide the scenario: PATH and HOME only, then
   // what the scenario sets. A developer's DATABASE_URL or PORT must not leak in.
-  const child = spawn(NODE, argv, {
+  const child = spawn(RUNTIME, argv, {
     cwd: ROOT,
     env: {
       PATH: process.env.PATH ?? '',

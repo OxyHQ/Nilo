@@ -33,6 +33,13 @@ Last verified: 2026-09-13.
   production host.
 - Nilo deployment configuration contains no provider credentials, provider
   runtime, or inference route.
+- The API image runs on Bun: `apps/api/Dockerfile`'s runtime stage is
+  `oven/bun:1.4.3-slim`, the image the dependencies are installed with, and the
+  migrator one-shot in `.github/scripts/deploy-ecs.sh` runs
+  `bun apps/api/dist/db/migrate.js`. CI's `Build Production Image` job boots
+  the built image against Postgres (`.github/scripts/smoke-api-image.sh`). To
+  return to Node, revert the change that made this switch: it moved the
+  Dockerfile and the migrator command together, and they must stay together.
 
 ## Before a new API release
 

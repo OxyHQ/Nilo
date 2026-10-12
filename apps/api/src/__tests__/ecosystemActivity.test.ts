@@ -1,28 +1,55 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const publisher = vi.hoisted(() => ({
+/*
+ * This file runs under vitest AND under `bun test` (the production runtime; see
+ * the `test:bun` script). bun:test has no `vi.hoisted` or `vi.stubEnv`, and its
+ * `vi.mock` is not hoisted, so: the mocks are plain constants, the mock is
+ * registered before the module under test is imported, and that import is
+ * dynamic so it cannot be hoisted above the mock under either runner.
+ */
+const publisher = {
   observeHttp: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
   installFetch: vi.fn(),
   observeSocket: vi.fn(),
   stop: vi.fn(async () => {}),
-}));
-const create = vi.hoisted(() => vi.fn((_options: unknown) => publisher));
-const canAttest = vi.hoisted(() => vi.fn(() => false));
+};
+const create = vi.fn((_options: unknown) => publisher);
+const canAttest = vi.fn(() => false);
 vi.mock('@oxy.so/core/server', () => ({
   createEcosystemTraffic: create,
   canAttestWorkloadIdentity: canAttest,
 }));
-import {
-  ecosystemActivityMiddleware,
-  observeEcosystemSocket,
-  startEcosystemActivity,
-  stopEcosystemActivity,
-} from '../ecosystemActivity';
+
+let ecosystemActivityMiddleware: typeof import('../ecosystemActivity').ecosystemActivityMiddleware;
+let observeEcosystemSocket: typeof import('../ecosystemActivity').observeEcosystemSocket;
+let startEcosystemActivity: typeof import('../ecosystemActivity').startEcosystemActivity;
+let stopEcosystemActivity: typeof import('../ecosystemActivity').stopEcosystemActivity;
+
+beforeAll(async () => {
+  ({
+    ecosystemActivityMiddleware,
+    observeEcosystemSocket,
+    startEcosystemActivity,
+    stopEcosystemActivity,
+  } = await import('../ecosystemActivity'));
+});
+
+/** `vi.stubEnv` semantics by hand: `undefined` deletes the variable. */
+const STUBBED_ENV = ['OXY_SERVICE_API_KEY', 'OXY_SERVICE_API_SECRET'] as const;
+type StubbedEnv = (typeof STUBBED_ENV)[number];
+const originalEnv = new Map(STUBBED_ENV.map((name) => [name, process.env[name]]));
+function stubEnv(name: StubbedEnv, value: string | undefined): void {
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
+}
+function unstubAllEnvs(): void {
+  for (const [name, value] of originalEnv) stubEnv(name, value);
+}
 
 describe('ecosystem activity lifecycle', () => {
   beforeEach(() => {
-    vi.stubEnv('OXY_SERVICE_API_KEY', 'test-key');
-    vi.stubEnv('OXY_SERVICE_API_SECRET', 'test-secret');
+    stubEnv('OXY_SERVICE_API_KEY', 'test-key');
+    stubEnv('OXY_SERVICE_API_SECRET', 'test-secret');
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.clearAllMocks();
     // A laptop cannot attest; the ECS case is asserted on its own below.
@@ -30,12 +57,12 @@ describe('ecosystem activity lifecycle', () => {
   });
   afterEach(async () => {
     await stopEcosystemActivity();
-    vi.unstubAllEnvs();
+    unstubAllEnvs();
     vi.restoreAllMocks();
   });
 
   it('does not start or publish when the credential key is missing and nothing can be attested', () => {
-    vi.stubEnv('OXY_SERVICE_API_KEY', undefined);
+    stubEnv('OXY_SERVICE_API_KEY', undefined);
     startEcosystemActivity(() => true);
     expect(create).not.toHaveBeenCalled();
     expect(console.warn).toHaveBeenCalled();
@@ -47,14 +74,14 @@ describe('ecosystem activity lifecycle', () => {
   });
 
   it('does not start or publish when the credential secret is missing and nothing can be attested', () => {
-    vi.stubEnv('OXY_SERVICE_API_SECRET', undefined);
+    stubEnv('OXY_SERVICE_API_SECRET', undefined);
     startEcosystemActivity(() => true);
     expect(create).not.toHaveBeenCalled();
     expect(console.warn).toHaveBeenCalled();
   });
 
   it('does not start when a credential is present but blank', () => {
-    vi.stubEnv('OXY_SERVICE_API_KEY', '   ');
+    stubEnv('OXY_SERVICE_API_KEY', '   ');
     startEcosystemActivity(() => true);
     expect(create).not.toHaveBeenCalled();
     expect(console.warn).toHaveBeenCalled();
@@ -67,8 +94,8 @@ describe('ecosystem activity lifecycle', () => {
    * dashboard the moment the secret was dropped from its task definition.
    */
   it('starts on an attestable workload with no key pair at all', () => {
-    vi.stubEnv('OXY_SERVICE_API_KEY', undefined);
-    vi.stubEnv('OXY_SERVICE_API_SECRET', undefined);
+    stubEnv('OXY_SERVICE_API_KEY', undefined);
+    stubEnv('OXY_SERVICE_API_SECRET', undefined);
     canAttest.mockReturnValue(true);
     startEcosystemActivity(() => true);
     expect(create).toHaveBeenCalledTimes(1);
