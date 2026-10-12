@@ -37,6 +37,7 @@ reuse legacy chat vocabulary for workspace concepts.
 ```bash
 bun install
 bun run lint
+bun run check:bun-pin   # packageManager is the one bun pin; image and workflows obey it
 bun run --filter @nilo/api test
 NILO_TEST_DATABASE_URL=postgres://nilo:nilo@127.0.0.1:5439/postgres \
   bun run --filter @nilo/api test:pgdb

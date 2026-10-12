@@ -76,7 +76,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.3"
+          bun-version-file: package.json
 
       - uses: actions/setup-node@v4
         with:
@@ -87,6 +87,13 @@ jobs:
 
       - name: Lint (Biome)
         run: bunx biome ci .
+
+      # `packageManager` is the one bun pin. Every setup-bun here reads it, but
+      # apps/api/Dockerfile's `FROM oven/bun:<ver>` is a literal; this fails
+      # when the image (or a workflow) runs a different bun from the one that
+      # wrote bun.lock.
+      - name: Check the bun pin
+        run: bun run check:bun-pin
 
       - name: Run API tests
         run: bun run --filter @nilo/api test
@@ -108,7 +115,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.3"
+          bun-version-file: package.json
 
       - uses: actions/setup-node@v4
         with:
@@ -145,7 +152,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: "1.4.3"
+          bun-version-file: package.json
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
