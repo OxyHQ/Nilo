@@ -17,9 +17,15 @@
 # the node:22-bookworm-slim runtime stage AND the `node` migrator command in
 # .github/scripts/deploy-ecs.sh, which must always name the runtime this image
 # ships.
+#
+# Every stage pins the base image by digest: the tag is for readers and for
+# scripts/check-bun-pin.ts, the digest (the multi-arch index, which lists
+# linux/arm64) is what the build pulls, so a re-pushed tag cannot change the
+# image. A bump needs a new digest and an owner re-review of the reviewed pin
+# (.github/scripts/reviewed-images.json).
 
 # --- Stage 1: Builder ---
-FROM oven/bun:1.4.3-slim AS builder
+FROM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbba6a54b22b52a3288 AS builder
 
 WORKDIR /build
 
@@ -40,7 +46,7 @@ COPY apps/api/ ./apps/api/
 RUN bun run --filter @nilo/api build
 
 # --- Stage 2: Production dependencies ---
-FROM oven/bun:1.4.3-slim AS production-deps
+FROM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbba6a54b22b52a3288 AS production-deps
 
 WORKDIR /app
 
@@ -54,7 +60,7 @@ COPY apps/api/package.json ./apps/api/
 RUN bun install --frozen-lockfile --production --ignore-scripts
 
 # --- Stage 3: Production runtime ---
-FROM oven/bun:1.4.3-slim AS runtime
+FROM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbba6a54b22b52a3288 AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && \
     rm -rf /var/lib/apt/lists/*
