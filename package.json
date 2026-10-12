@@ -25,7 +25,9 @@
     "ios": "bun run --filter @nilo/app ios",
     "web": "bun run --filter @nilo/app web",
     "test:worker": "bun test scripts/web-worker.test.ts",
-    "check:bun-pin": "bun scripts/check-bun-pin.ts && bun test scripts/check-bun-pin.test.ts"
+    "check:api-entrypoints": "bun run build:api && bun scripts/check-api-entrypoints.ts",
+    "check:bun-pin": "bun scripts/check-bun-pin.ts && bun test scripts/check-bun-pin.test.ts",
+    "check:ci-wiring": "bun scripts/check-ci-wiring.ts"
   },
   "keywords": [
     "monorepo",
