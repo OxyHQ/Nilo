@@ -3,15 +3,11 @@
   "recipes": [
     {
       "name": "nilo",
-      "services": [
-        "nilo"
-      ],
       "ecrRepository": "oxy/nilo",
       "dockerfile": "apps/api/Dockerfile",
-      "dockerfileSha256": "0ac7938817baf22c3231330970c55feaaabc98d49db722fccfa36274db82f4db",
+      "context": ".",
       "target": null,
-      "tagSuffix": "",
-      "cacheScope": "nilo-api"
+      "buildInputsSha256": "42325a8013a4059be804f18d8215512241295e1dee1fa1f6dd72b8669de2952e"
     }
   ]
 }
