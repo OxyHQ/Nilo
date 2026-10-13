@@ -10,7 +10,8 @@
 #   4. it runs as `bun` (uid 1000), every file under /app is root-owned and
 #      not writable by that user, and only /app/uploads (the local upload
 #      fallback) is,
-#   5. no curl or wget ships, and none of the API's devDependencies do,
+#   5. no curl or wget ships, none of the API's devDependencies do, nor the
+#      Expo app's tree, and every bare import of the bundle resolves,
 #   6. its own HEALTHCHECK command passes against the booted API, fails with
 #      no API to answer, and Docker itself reports the container healthy.
 # A unit suite cannot see any of these: they are properties of the image.
@@ -60,14 +61,40 @@ if ! in_image 'printf x > /app/uploads/smoke-probe && rm /app/uploads/smoke-prob
 fi
 
 shipped=$(in_image 'for tool in curl wget; do command -v "$tool"; done
-  for dev in vitest drizzle-kit @swc/core @swc/cli pino-pretty @biomejs/biome; do
+  for dev in vitest drizzle-kit @swc/core @swc/cli pino-pretty @biomejs/biome \
+    typescript expo expo-modules-core react-native react @oxy.so/services @oxy.so/bloom; do
     [ -e "/app/node_modules/$dev" ] && echo "node_modules/$dev"
   done; true')
 if [ -n "$shipped" ]; then
   printf '%s\n' "$shipped"
-  echo "::error::the runtime image ships a network tool or a devDependency it must not"
+  echo "::error::the runtime image ships a network tool, a devDependency or the Expo app's tree"
   exit 1
 fi
+
+# Every bare module specifier the bundle imports (static, dynamic or
+# require) must resolve from dist inside the image: the production install
+# omits peers, so a needed package that only arrived as one would surface here
+# as well as at boot. A floor on the count keeps the scan from passing vacuously.
+resolved=$(docker run --rm --network none -w /app/apps/api --entrypoint bun "$IMAGE" -e '
+  const { readdirSync, readFileSync } = require("node:fs");
+  const { builtinModules } = require("node:module");
+  const specs = new Set();
+  const pattern = /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|^import\s*)["\x27](@?[a-z0-9][\w.\/@-]*)["\x27]/gm;
+  for (const file of readdirSync("dist", { recursive: true })) {
+    if (!String(file).endsWith(".js")) continue;
+    for (const m of readFileSync("dist/" + file, "utf8").matchAll(pattern)) {
+      if (!m[1].startsWith("node:") && !builtinModules.includes(m[1])) specs.add(m[1]);
+    }
+  }
+  const missing = [...specs].filter((s) => { try { Bun.resolveSync(s, process.cwd() + "/dist"); return false; } catch { return true; } });
+  for (const s of missing) console.log("unresolved " + s);
+  console.log("specifiers " + specs.size);
+  process.exit(missing.length || specs.size < 20 ? 1 : 0);
+') || {
+  printf '%s\n' "$resolved"
+  echo "::error::a bare import of the bundle does not resolve in the runtime image"
+  exit 1
+}
 
 # The HEALTHCHECK, exactly as the image declares it (exec form, no shell).
 mapfile -d '' -t healthcheck < <(docker image inspect -f '{{json .Config.Healthcheck.Test}}' "$IMAGE" |
@@ -146,4 +173,4 @@ if [ "$exit_code" != 0 ] || ! grep -q 'Graceful shutdown complete' <<<"$logs"; t
   exit 1
 fi
 
-echo "API image smoke passed: root-owned read-only code, writable uploads/ only, no curl or devDependencies, migrations, /health/ready, PID 1 = Bun, HEALTHCHECK healthy, graceful SIGTERM"
+echo "API image smoke passed: root-owned read-only code, writable uploads/ only, no curl, devDependencies or Expo, every import resolves, migrations, /health/ready, PID 1 = Bun, HEALTHCHECK healthy, graceful SIGTERM"

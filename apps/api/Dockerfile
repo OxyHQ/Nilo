@@ -54,13 +54,22 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/api/package.json ./apps/api/
 
+# Only the API workspace's production closure, without peers. The root
+# manifest's `dependencies` (@oxy.so/bloom, @oxy.so/services) are the app's,
+# and the optional peers of @oxy.so/core and @oxy.so/protocol (expo-secure-store,
+# AsyncStorage, expo-modules-core) are resolved by the lockfile for apps/app; a
+# plain --production install shipped all of it, Expo and React Native included
+# (942 MB). The bundle imports none of them: @oxy.so/* are bundled into dist,
+# and every bare specifier dist imports is a dependency of @nilo/api or of one
+# of those packages. The image smoke asserts Expo, React Native and TypeScript
+# are absent, resolves every bare import of dist inside the image, and boots it.
 # Optional native accelerators have JavaScript fallbacks and are not part of
 # Nilo's runtime contract. Skipping lifecycle scripts keeps the production
 # dependency layer deterministic across clean ARM64 builders.
 # Some tarballs ship world-writable files (pino/bin.js, tldts/bin/cli.js are
 # 0777), which would let the app user rewrite them even when root owns them in
 # the runtime stage, so group and other write bits are cleared here.
-RUN bun install --frozen-lockfile --production --ignore-scripts && \
+RUN bun install --frozen-lockfile --production --ignore-scripts --filter @nilo/api --omit=peer && \
     chmod -R go-w node_modules
 
 # --- Stage 3: Production runtime ---
