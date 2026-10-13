@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # New Oxy repositories use GitHub's ID-qualified subject. Printing only
       # that claim gives infra the exact trust-policy value without exposing
@@ -40,16 +40,16 @@ jobs:
           printf 'OIDC subject: %s\n' "$(printf '%s' "$payload" | base64 -d | jq -r .sub)"
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: arn:aws:iam::237343248947:role/oxy-github-deploy
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to ECR
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       # `--cache-from/--cache-to type=gha` below need the Actions runtime token
       # and cache URL, which GitHub gives to JavaScript actions and NOT to `run:`
@@ -57,7 +57,7 @@ jobs:
       # or a dispatch runs this workflow, so pull-request code never writes this
       # cache scope.
       - name: Expose the Actions cache to buildx
-        uses: crazy-max/ghaction-github-runtime@v4
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
 
       # Production builds only what the owner reviewed. The Dockerfile, its
       # context, target and both .dockerignore files are hashed and compared
