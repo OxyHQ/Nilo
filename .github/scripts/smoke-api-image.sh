@@ -36,7 +36,7 @@ fi
 # Ownership: anything under /app not owned by root:root, outside uploads/.
 foreign=$(in_image 'find /app -path /app/uploads -prune -o \( ! -user root -o ! -group root \) -print')
 if [ -n "$foreign" ]; then
-  printf '%s\n' "$foreign" | head -n 20
+  head -n 20 <<<"$foreign"
   echo "::error::files under /app are not root-owned; the app user could rewrite its own code"
   exit 1
 fi
@@ -44,7 +44,7 @@ fi
 # and a real write into the bundle, the dependencies and /app itself fails.
 writable=$(in_image 'find /app -path /app/uploads -prune -o -writable -print')
 if [ -n "$writable" ]; then
-  printf '%s\n' "$writable" | head -n 20
+  head -n 20 <<<"$writable"
   echo "::error::the app user can write under /app outside /app/uploads"
   exit 1
 fi
