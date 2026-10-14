@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # bump-base-digests.yml opens its PR with GITHUB_TOKEN, which triggers no
+  # pull_request run, so it dispatches this workflow on the bump branch. A
+  # dispatched run is not a pull_request, so `changes` reports every area and
+  # every job below runs, the image build and smoke included.
+  workflow_dispatch:
 
 # A new push to a pull request supersedes the run still testing the old head,
 # so that run is cancelled. Nothing else is ever cancelled or queued: a push to
@@ -140,6 +145,8 @@ jobs:
       # the gate can fail, not that it stopped looking.
       - name: Prove the reviewed-image gate can fail
         run: python3 -B -m unittest discover -s .github/scripts -p test_reviewed_image.py
+      - name: Prove the base-image digest bump rewrites and re-pins
+        run: python3 -B -m unittest discover -s .github/scripts -p test_bump_base_digests.py
       - name: Verify the production image's build inputs are reviewed
         run: python3 -B .github/scripts/reviewed-image.py check
 
@@ -192,8 +199,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The same recipe the deploy builds, from the same guard: the Dockerfile
+      # and context are its outputs, so this smoke tests what production would
+      # build and fails like the deploy would on unreviewed inputs.
+      - name: Refuse unreviewed image build inputs
+        id: reviewed
+        run: python3 -B .github/scripts/reviewed-image.py guard --recipe nilo
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+
+      # Reads the deploy's cache scope and never writes it (no cache-to), so
+      # pull-request code cannot plant layers a production build would reuse.
+      # Loaded into the runner's Docker, never pushed.
       - name: Build ARM64 API image
-        run: docker build -f apps/api/Dockerfile -t nilo-api:ci .
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ steps.reviewed.outputs.context }}
+          file: ${{ steps.reviewed.outputs.dockerfile }}
+          platforms: linux/arm64
+          push: false
+          load: true
+          provenance: false
+          tags: nilo-api:ci
+          cache-from: type=gha,scope=nilo-api
 
       # The image's own CMD, unmodified, with no DATABASE_URL: boot must fail
       # and the container must exit non-zero. The log line proves it got as far
@@ -217,7 +246,10 @@ jobs:
           echo "The image's CMD exited $code on a failed boot."
 
       # The image as ECS runs it: Bun as PID 1, both migrator phases, a 200
-      # from /health/ready and a graceful exit 0 on SIGTERM.
+      # from /health/ready and a graceful exit 0 on SIGTERM. Also what the
+      # image must hold: root-owned code the app user cannot write (only
+      # /app/uploads is writable), no curl/wget, no API devDependencies, and a
+      # HEALTHCHECK that passes on the live API and fails with none.
       - name: Smoke the API image under its Bun runtime
         env:
           IMAGE: nilo-api:ci

@@ -54,31 +54,50 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/api/package.json ./apps/api/
 
+# Only the API workspace's production closure, without peers. The root
+# manifest's `dependencies` (@oxy.so/bloom, @oxy.so/services) are the app's,
+# and the optional peers of @oxy.so/core and @oxy.so/protocol (expo-secure-store,
+# AsyncStorage, expo-modules-core) are resolved by the lockfile for apps/app; a
+# plain --production install shipped all of it, Expo and React Native included
+# (942 MB). The bundle imports none of them: @oxy.so/* are bundled into dist,
+# and every bare specifier dist imports is a dependency of @nilo/api or of one
+# of those packages. The image smoke asserts Expo, React Native and TypeScript
+# are absent, resolves every bare import of dist inside the image, and boots it.
 # Optional native accelerators have JavaScript fallbacks and are not part of
 # Nilo's runtime contract. Skipping lifecycle scripts keeps the production
 # dependency layer deterministic across clean ARM64 builders.
-RUN bun install --frozen-lockfile --production --ignore-scripts
+# Some tarballs ship world-writable files (pino/bin.js, tldts/bin/cli.js are
+# 0777), which would let the app user rewrite them even when root owns them in
+# the runtime stage, so group and other write bits are cleared here.
+RUN bun install --frozen-lockfile --production --ignore-scripts --filter @nilo/api --omit=peer && \
+    chmod -R go-w node_modules
 
 # --- Stage 3: Production runtime ---
 FROM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbba6a54b22b52a3288 AS runtime
 
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && \
+# ca-certificates only: the API's outbound TLS (Oxy, S3, push services) needs
+# the CA bundle (#23). No curl or other network tool: the HEALTHCHECK below
+# probes with the runtime itself.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# The non-root user owns /app (it writes temp files there) and everything
-# copied into it. Each COPY sets the owner itself: a trailing `chown -R`
-# rewrote every file into a second layer and shipped node_modules twice.
-# `bun` is the image's own unprivileged user, uid/gid 1000 like Node's `node`.
-RUN chown bun:bun /app
+# The code is root-owned and read-only to the app user, so a compromised
+# process cannot rewrite its own bundle or dependencies. The one directory the
+# API writes is `uploads/` under its working directory (the local-disk upload
+# fallback in src/routes/uploads.ts, used only when no S3 bucket is set), so
+# that directory alone belongs to `bun`, the image's own unprivileged user
+# (uid/gid 1000). CI's image smoke (.github/scripts/smoke-api-image.sh) asserts
+# both, and boots the image as ECS runs it.
+RUN install -d -o bun -g bun -m 0755 /app/uploads
 
-COPY --from=production-deps --chown=bun:bun /app/node_modules ./node_modules
-COPY --chown=bun:bun package.json ./
-COPY --chown=bun:bun apps/api/package.json ./apps/api/
+COPY --from=production-deps /app/node_modules ./node_modules
+COPY package.json ./
+COPY apps/api/package.json ./apps/api/
 
 # Copy built output from builder
-COPY --from=builder --chown=bun:bun /build/apps/api/dist ./apps/api/dist
+COPY --from=builder /build/apps/api/dist ./apps/api/dist
 
 # Security hardening: Run as non-root user
 USER bun
@@ -86,9 +105,13 @@ USER bun
 ENV NODE_ENV=production
 EXPOSE 4001
 
-# Health check for orchestrators (k8s, DO App Platform)
+# For `docker run` and Compose. ECS ignores an image HEALTHCHECK (the task
+# definition declares none for this container; the ALB probes /health/ready).
+# Bun's own fetch, so the image needs no curl; it gives up after 4 s, inside
+# Docker's 5 s timeout. The smoke runs this exact command against the booted
+# API and against nothing.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:4001/health/live || exit 1
+  CMD ["bun", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||4001)+'/health/live',{signal:AbortSignal.timeout(4000)}).then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 
 # The image's entrypoint execs this command, so Bun is PID 1 and receives
 # SIGTERM itself; src/index.ts registers the graceful-shutdown handler. Every
