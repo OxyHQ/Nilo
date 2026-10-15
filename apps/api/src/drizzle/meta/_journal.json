@@ -148,6 +148,13 @@
       "when": 1792051518850,
       "tag": "0020_block_content_version",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792052239507,
+      "tag": "0021_page_layout_and_lock",
+      "breakpoints": true
     }
   ]
 }

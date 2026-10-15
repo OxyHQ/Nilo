@@ -29,6 +29,7 @@ import {
   databaseHosts,
   rolesForPages,
 } from '../lib/page-access.js';
+import { PAGE_FONTS } from '../db/schema/pages.js';
 import { hasRole } from '../db/schema/workspaces.js';
 import {
   listGrantsOfUser,
@@ -103,6 +104,11 @@ const updatePageSchema = z
     restricted: z.boolean().optional(),
     /** Make it a template, or an ordinary page again. */
     template: z.boolean().optional(),
+    fullWidth: z.boolean().optional(),
+    smallText: z.boolean().optional(),
+    font: z.enum(PAGE_FONTS).optional(),
+    /** Lock against edits, or unlock (see `pages.locked`). */
+    locked: z.boolean().optional(),
     // Database row property writes. Keys are propertyIds; shapes are
     // validated per-property type by `parsePropertyValue`.
     properties: z.record(z.unknown()).optional(),
@@ -157,6 +163,10 @@ function serializePage(page: PageRow) {
     favorited: page.favorited,
     restricted: page.restricted,
     template: page.template,
+    fullWidth: page.fullWidth,
+    smallText: page.smallText,
+    font: page.font,
+    locked: page.locked,
     publishedAt: page.publishedAt,
     publishSlug: page.publishSlug,
     publishIndexing: page.publishIndexing,
@@ -439,6 +449,19 @@ router.patch('/:id', async (req: Request, res: Response) => {
       }
     }
 
+    // A locked page keeps its title, icon, cover and properties until it is
+    // unlocked (in this request or an earlier one).
+    const editsContent =
+      body.title !== undefined ||
+      body.icon !== undefined ||
+      body.cover !== undefined ||
+      body.coverPosition !== undefined ||
+      body.properties !== undefined;
+    if (page.locked && body.locked !== false && editsContent) {
+      res.status(423).json({ error: 'The page is locked', code: 'PAGE_LOCKED' });
+      return;
+    }
+
     // Built by assignment rather than by spreading `body`, because `title` is
     // written twice below and the second write has to win.
     const patch = {
@@ -452,6 +475,10 @@ router.patch('/:id', async (req: Request, res: Response) => {
       favorited: body.favorited,
       restricted: body.restricted,
       template: body.template,
+      fullWidth: body.fullWidth,
+      smallText: body.smallText,
+      font: body.font,
+      locked: body.locked,
       lastEditedBy: userId,
       mergeProperties: undefined as Record<string, unknown> | undefined,
     };

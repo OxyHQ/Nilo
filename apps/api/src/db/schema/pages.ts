@@ -17,6 +17,10 @@ import { createdAt, generatedId, inList, timestamptz, updatedAt } from '@oxy.so/
 import { databases } from './databases.js';
 import { workspaces } from './workspaces.js';
 
+/** A page's typeface (`pages.font`). */
+export const PAGE_FONTS = ['default', 'serif', 'mono'] as const;
+export type PageFont = (typeof PAGE_FONTS)[number];
+
 /** Every block type the editor persists, and each one's content: the contract shared with the app. */
 export { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
 
@@ -103,6 +107,19 @@ export const pages = pgTable(
      * `fromTemplate`).
      */
     template: boolean().notNull().default(false),
+    /** Layout, as in Notion's page menu: the page's content spans the window. */
+    fullWidth: boolean().notNull().default(false),
+    /** Layout: text one size down (the editor's `textScale`). */
+    smallText: boolean().notNull().default(false),
+    /** The page's typeface: `default`, `serif` or `mono`. */
+    font: text().$type<PageFont>().notNull().default('default'),
+    /**
+     * Locked against edits — a guard, not a permission: nobody changes its
+     * blocks, title, icon, cover or properties until an editor unlocks it.
+     * Comments still work. Enforced in `applyBlockTransaction` and the page
+     * route.
+     */
+    locked: boolean().notNull().default(false),
     /**
      * Published to the web: readable by anyone at `/public/pages/<publishSlug>`,
      * with its subpages (restricted ones excepted). Null when not published.
@@ -228,6 +245,7 @@ export const pages = pgTable(
      * fired. `between` also rejects `'NaN'::double precision`, which the
      * Mongoose validator did not.
      */
+    check('pages_font', sql`${t.font} in ('default', 'serif', 'mono')`),
     check(
       'pages_cover_position_range',
       sql`${t.coverPosition} between ${sql.raw(String(COVER_POSITION_MIN))} and ${sql.raw(String(COVER_POSITION_MAX))}`,

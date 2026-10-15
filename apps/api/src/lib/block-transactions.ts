@@ -177,7 +177,10 @@ export async function applyBlockTransaction(
     // transactions both validate against the same old state (a renumbering
     // applied to a block another member had just moved away). A rejected
     // transaction rolls everything back, the version bump included.
-    await lockPage(tx, input.pageId);
+    const locked = await lockPage(tx, input.pageId);
+    if (locked?.locked) {
+      throw new TransactionRejected(423, 'The page is locked', 'PAGE_LOCKED');
+    }
     if (input.key) {
       const done = await findPageTransaction(tx, input.pageId, input.key);
       if (done) {

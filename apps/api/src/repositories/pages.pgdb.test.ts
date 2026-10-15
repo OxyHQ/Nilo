@@ -99,6 +99,11 @@ describe('pages repository (real database)', () => {
       'restricted',
       // Written by `PATCH /pages/:id` and by copying a template.
       'template',
+      // Layout and the lock, written by `PATCH /pages/:id`.
+      'fullWidth',
+      'smallText',
+      'font',
+      'locked',
       // Written by `POST/DELETE /pages/:id/publish`.
       'publishedAt',
       'publishSlug',
@@ -117,7 +122,7 @@ describe('pages repository (real database)', () => {
       // spells. `sqlColumnName` is used below where the SQL identifier is what
       // matters — reading one for the other is the 42703 trap.
       const declared = getTableConfig(pages).columns.map((column) => column.name);
-      expect(WRITER_FIELDS.length).toBe(19);
+      expect(WRITER_FIELDS.length).toBe(23);
       for (const field of WRITER_FIELDS) expect(declared).toContain(field);
       expect(new Set(declared)).toEqual(
         new Set([...WRITER_FIELDS, 'id', 'createdAt', 'updatedAt']),
@@ -131,7 +136,7 @@ describe('pages repository (real database)', () => {
       `);
       const live = new Set(rows.map((row) => row.column_name));
       const config = getTableConfig(pages);
-      expect(config.columns.length).toBe(22);
+      expect(config.columns.length).toBe(26);
       for (const column of config.columns) expect(live).toContain(sqlColumnName(column));
       expect(live.size).toBe(config.columns.length);
     });

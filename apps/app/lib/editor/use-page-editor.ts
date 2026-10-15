@@ -140,6 +140,15 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
                 if (response?.status === 409 && response.data?.code === 'STALE_BLOCK') {
                   return { ok: false, stale: true };
                 }
+                // Someone locked the page: the change is undone, and the page
+                // read again so it shows as locked.
+                if (response?.status === 423) {
+                  void queryClient.invalidateQueries({
+                    queryKey: queryKeys.pages.detail(pageId),
+                    exact: true,
+                  });
+                  return { ok: false, retry: false };
+                }
                 const code = response?.status;
                 // No answer, a server fault or rate limiting: try again.
                 return { ok: false, retry: code === undefined || code >= 500 || code === 429 };

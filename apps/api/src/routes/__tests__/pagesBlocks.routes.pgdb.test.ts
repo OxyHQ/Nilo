@@ -424,6 +424,55 @@ describe('PATCH /pages/:id', () => {
     expect(updated.title).toBe('keep');
   });
 
+  it("keeps a page's layout: full width, small text and font", async () => {
+    const page = await createPage();
+    const res = await api('PATCH', `/pages/${page.id}`, {
+      fullWidth: true,
+      smallText: true,
+      font: 'serif',
+    });
+    expect(res.status).toBe(200);
+    expect(res.json.page).toMatchObject({ fullWidth: true, smallText: true, font: 'serif' });
+    expect((await api('PATCH', `/pages/${page.id}`, { font: 'comic' })).status).toBe(400);
+  });
+
+  it('keeps a locked page as it is until it is unlocked', async () => {
+    const page = await createPage({ title: 'Policy' });
+    const write = () =>
+      api(
+        'POST',
+        `/pages/${page.id}/blocks/transactions`,
+        {
+          ops: [
+            {
+              kind: 'insert',
+              id: uuidv7(),
+              parentBlockId: null,
+              afterId: null,
+              type: 'paragraph',
+              content: {},
+            },
+          ],
+        },
+        { 'x-workspace-id': workspaceId },
+      );
+    expect((await write()).status).toBe(200);
+    expect((await api('PATCH', `/pages/${page.id}`, { locked: true })).json.page).toMatchObject({
+      locked: true,
+    });
+    const refused = await write();
+    expect(refused.status).toBe(423);
+    expect(refused.json.code).toBe('PAGE_LOCKED');
+    expect((await api('PATCH', `/pages/${page.id}`, { title: 'Changed' })).status).toBe(423);
+    // Layout and favourites are not content.
+    expect((await api('PATCH', `/pages/${page.id}`, { favorited: true })).status).toBe(200);
+    // Unlocking and editing in one go.
+    const unlocked = await api('PATCH', `/pages/${page.id}`, { locked: false, title: 'Changed' });
+    expect(unlocked.status).toBe(200);
+    expect(unlocked.json.page).toMatchObject({ locked: false, title: 'Changed' });
+    expect((await write()).status).toBe(200);
+  });
+
   it('refuses to make a page its own parent', async () => {
     const page = await createPage();
     const res = await api('PATCH', `/pages/${page.id}`, { parentId: page.id });

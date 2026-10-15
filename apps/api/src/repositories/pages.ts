@@ -14,7 +14,7 @@ import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { TRANSACTION_KEY_RETENTION_MS } from '@nilo/contracts';
 import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
-import { pages, type PageProperties, pageTransactions } from '../db/schema/pages.js';
+import { type PageFont, pages, type PageProperties, pageTransactions } from '../db/schema/pages.js';
 
 export type PageRow = typeof pages.$inferSelect;
 
@@ -231,6 +231,10 @@ export interface UpdatePageInput {
   favorited?: boolean;
   restricted?: boolean;
   template?: boolean;
+  fullWidth?: boolean;
+  smallText?: boolean;
+  font?: PageFont;
+  locked?: boolean;
   publishedAt?: Date | null;
   publishSlug?: string;
   publishIndexing?: boolean;
@@ -284,6 +288,10 @@ export async function updatePage(
   if (patch.favorited !== undefined) values.favorited = patch.favorited;
   if (patch.restricted !== undefined) values.restricted = patch.restricted;
   if (patch.template !== undefined) values.template = patch.template;
+  if (patch.fullWidth !== undefined) values.fullWidth = patch.fullWidth;
+  if (patch.smallText !== undefined) values.smallText = patch.smallText;
+  if (patch.font !== undefined) values.font = patch.font;
+  if (patch.locked !== undefined) values.locked = patch.locked;
   if (patch.publishedAt !== undefined) values.publishedAt = patch.publishedAt;
   if (patch.publishSlug !== undefined) values.publishSlug = patch.publishSlug;
   if (patch.publishIndexing !== undefined) values.publishIndexing = patch.publishIndexing;
@@ -495,9 +503,16 @@ export async function bumpBlocksVersion(
 /**
  * Lock a page's row until the end of the transaction `db` is in: block
  * transactions on one page take it first, so they run one after another.
+ * Answers whether the page is locked against edits (`pages.locked`), read
+ * under that same row lock.
  */
-export async function lockPage(db: PgHandle, pageId: string): Promise<void> {
-  await db.select({ id: pages.id }).from(pages).where(eq(pages.id, pageId)).for('update');
+export async function lockPage(db: PgHandle, pageId: string): Promise<{ locked: boolean } | null> {
+  const [row] = await db
+    .select({ locked: pages.locked })
+    .from(pages)
+    .where(eq(pages.id, pageId))
+    .for('update');
+  return row ?? null;
 }
 
 /** Which of `keys` name block transactions this page has applied (and still remembers). */
