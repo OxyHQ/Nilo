@@ -185,6 +185,8 @@ export interface CreatePageInput {
   databaseId?: string | null;
   /** Set only by `routes/databases.ts:1057`. Every other creator takes the `{}` default. */
   properties?: PageProperties;
+  /** A database row created as a template (`POST /databases/:id/rows { template }`). */
+  template?: boolean;
 }
 
 /**
@@ -211,6 +213,7 @@ export async function createPage(db: PgHandle, input: CreatePageInput): Promise<
       order: input.order,
       databaseId: input.databaseId ?? null,
       properties: input.properties ?? {},
+      template: input.template ?? false,
     })
     .returning();
   if (!row) throw new Error('createPage inserted no row');

@@ -199,6 +199,8 @@ const createRowSchema = z.object({
   properties: z.record(z.unknown()).optional(),
   /** A row template of this database to start from (its values, icon, cover and content). */
   templateId: entityIdSchema.optional(),
+  /** Create the row as a template ("New template"): never listed among the rows. */
+  template: z.boolean().optional(),
 });
 
 const updateViewSchema = z
@@ -924,6 +926,34 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /databases/:id/rows/:rowId — one row (a template too) with its computed
+ * values, whatever view it falls in: for the row's own page.
+ */
+router.get('/:id/rows/:rowId', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ id: entityIdSchema, rowId: entityIdSchema }).parse(req.params);
+    const handle = getDb();
+    const db = await findDatabaseById(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+    if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
+    const row = await findPageById(handle, params.rowId);
+    if (!row || row.databaseId !== db.id || row.archived) {
+      res.status(404).json({ error: 'Row not found' });
+      return;
+    }
+    const derived = await resolveDerivedProperties(handle, row, db.propertiesSchema);
+    res.json({ row: serializeRow(row, { derived }) });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to read row');
+    res.status(500).json({ error: 'Failed to read row' });
+  }
+});
+
 router.post('/:id/rows', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
@@ -978,6 +1008,7 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
         archived: false,
         order: await nextDatabaseRowOrder(tx, db.id),
         properties: { ...(template?.properties ?? {}), ...stored },
+        template: body.template === true,
       });
       if (template) await duplicateBlocksToPage(tx, template.id, created.id);
       return created;
@@ -1185,7 +1216,15 @@ router.get('/:id/templates', async (req: Request, res: Response) => {
     }
     if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
     const templates = await listDatabaseRows(handle, db.id, { archived: false, template: true });
-    res.json({ templates: templates.map((t) => serializeRow(t, { derived: {} })) });
+    res.json({
+      templates: await Promise.all(
+        templates.map(async (t) =>
+          serializeRow(t, {
+            derived: await resolveDerivedProperties(handle, t, db.propertiesSchema),
+          }),
+        ),
+      ),
+    });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list row templates');

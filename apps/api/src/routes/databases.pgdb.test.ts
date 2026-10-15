@@ -622,6 +622,40 @@ describe('rows', () => {
     ).toBe(400);
   });
 
+  it('creates a template in one step, and reads one row with its formulas whatever the view', async () => {
+    const databaseId = await createDatabase();
+    await api('POST', `/api/databases/${databaseId}/properties`, {
+      id: 'pts',
+      name: 'Points',
+      type: 'number',
+    });
+    await api('POST', `/api/databases/${databaseId}/properties`, {
+      id: 'dbl',
+      name: 'Double',
+      type: 'formula',
+      config: { expression: 'prop("Points") * 2' },
+    });
+    const made = await api('POST', `/api/databases/${databaseId}/rows`, {
+      title: 'Estimate',
+      properties: { pts: { number: 3 } },
+      template: true,
+    });
+    expect(made.status).toBe(201);
+    const templateId = idOf(made.body.row);
+    // Never a row, not even for a moment.
+    const listed = await api('GET', `/api/databases/${databaseId}/rows`);
+    expect(listed.body.rows).toEqual([]);
+    const templates = await api('GET', `/api/databases/${databaseId}/templates`);
+    const [template] = templates.body.templates as Record<string, unknown>[];
+    expect(asRecord(asRecord(template).properties).dbl).toEqual({ number: 6 });
+
+    const one = await api('GET', `/api/databases/${databaseId}/rows/${templateId}`);
+    expect(one.status).toBe(200);
+    expect(asRecord(asRecord(one.body.row).properties).dbl).toEqual({ number: 6 });
+    const other = await createDatabase();
+    expect((await api('GET', `/api/databases/${other}/rows/${templateId}`)).status).toBe(404);
+  });
+
   it('numbers rows with an ID property, existing ones first, and never takes one from the client', async () => {
     const databaseId = await createDatabase();
     await api('POST', `/api/databases/${databaseId}/rows`, { title: 'first' });
