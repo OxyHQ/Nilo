@@ -44,6 +44,28 @@ vi.mock('../../middleware/workspace.js', () => ({
   }),
 }));
 
+// Page access is the member's role here (the rule has its own tests); the
+// shape mirrors `checkPageAccess`.
+vi.mock('../../lib/page-access.js', () => ({
+  checkPageAccess: vi.fn(
+    async (req: any, res: any, _db: unknown, _pageId: string, minRole: string) => {
+      const ranks = ['viewer', 'commenter', 'editor', 'admin', 'owner'];
+      const role = req.member?.role;
+      if (role && ranks.indexOf(role) >= ranks.indexOf(minRole)) {
+        return { role, memberRole: role, chain: [], grants: [] };
+      }
+      res
+        .status(403)
+        .json({
+          code: role ? 'INSUFFICIENT_ROLE' : 'NO_PAGE_ACCESS',
+          required: minRole,
+          actual: role ?? null,
+        });
+      return null;
+    },
+  ),
+}));
+
 vi.mock('../../lib/notification-service.js', () => ({
   sendNotification: vi.fn().mockResolvedValue({}),
 }));

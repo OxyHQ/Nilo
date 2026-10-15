@@ -89,6 +89,13 @@ export const pages = pgTable(
     /** Starred in the sidebar Favorites section. */
     favorited: boolean().notNull().default(false),
     /**
+     * Open only to the people granted access to it or to a page above it
+     * (`page_permissions`), and to the workspace's owners and admins, instead
+     * of to every member. Inherited: a restricted page restricts its subtree.
+     * See `lib/page-access.ts`.
+     */
+    restricted: boolean().notNull().default(false),
+    /**
      * Sibling ordering. `double precision`, not an integer: `PATCH
      * /api/pages/:id` accepts `z.number().finite()`, so a client may write a
      * fractional order to insert between two neighbours without renumbering.

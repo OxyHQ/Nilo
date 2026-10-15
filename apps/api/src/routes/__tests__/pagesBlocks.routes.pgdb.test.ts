@@ -33,7 +33,7 @@ import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import express from 'express';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { uuidv7 } from '@oxy.so/db';
 import {
   closeTestDb,
@@ -44,7 +44,7 @@ import {
 } from '../../db/__tests__/testDatabase.js';
 import { blocks, pages } from '../../db/schema/pages.js';
 import { databases } from '../../db/schema/databases.js';
-import { workspaces } from '../../db/schema/workspaces.js';
+import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
 import { closeDb } from '../../db/client.js';
 // Type-only, and from the PostgreSQL schema that owns the role declaration used
 // by the `Express.Request` augmentation in `middleware/auth.ts`. `vi.mock`
@@ -188,6 +188,20 @@ async function createBlock(
   >;
 }
 
+/**
+ * The caller's role in this file's workspace: both the membership the mocked
+ * middleware reports and the row page access reads.
+ */
+async function setRole(role: WorkspaceRole): Promise<void> {
+  ctx.role = role;
+  await db
+    .update(workspaceMembers)
+    .set({ role })
+    .where(
+      and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, ctx.userId)),
+    );
+}
+
 beforeAll(async () => {
   db = await getTestDb();
   // `getDb()` opens its own pool from `DATABASE_URL`; point it at the same
@@ -210,6 +224,7 @@ beforeAll(async () => {
     .values({ name: scope, ownerId: `owner-${scope}` })
     .returning({ id: workspaces.id });
   workspaceId = ws.id;
+  await db.insert(workspaceMembers).values({ workspaceId, userId: ctx.userId, role: 'owner' });
   const [other] = await db
     .insert(workspaces)
     .values({ name: `${scope}-other`, ownerId: `owner-${scope}` })
@@ -292,6 +307,9 @@ describe('GET /pages — the three-valued archived filter', () => {
       .values({ name: scope, ownerId: `owner-${scope}` })
       .returning({ id: workspaces.id });
     listWorkspace = ws.id;
+    await db
+      .insert(workspaceMembers)
+      .values({ workspaceId: listWorkspace, userId: ctx.userId, role: 'owner' });
 
     const mk = async (input: Record<string, unknown>) => {
       const res = await api('POST', '/pages', { workspaceId: listWorkspace, ...input });
@@ -544,9 +562,9 @@ describe('DELETE /pages/:id', () => {
 
   it('403s a hard delete for a non-owner', async () => {
     const page = await createPage();
-    ctx.role = 'editor';
+    await setRole('editor');
     const res = await api('DELETE', `/pages/${page.id}?hard=true`);
-    ctx.role = 'owner';
+    await setRole('owner');
     expect(res.status).toBe(403);
     const [row] = await db
       .select()
@@ -749,7 +767,7 @@ describe('role enforcement', () => {
     });
     const ws = { 'x-workspace-id': workspaceId };
 
-    ctx.role = 'viewer';
+    await setRole('viewer');
     try {
       expect((await api('GET', `/pages/${page.id}`)).status).toBe(200);
       expect((await api('GET', `/pages/${page.id}/blocks`, undefined, ws)).status).toBe(200);
@@ -771,7 +789,7 @@ describe('role enforcement', () => {
         expect(res.json.code).toBe('INSUFFICIENT_ROLE');
       }
     } finally {
-      ctx.role = 'owner';
+      await setRole('owner');
     }
 
     const [row] = await db
@@ -789,12 +807,12 @@ describe('role enforcement', () => {
 
   it('lets an editor write', async () => {
     const page = await createPage();
-    ctx.role = 'editor';
+    await setRole('editor');
     try {
       const res = await api('PATCH', `/pages/${page.id}`, { title: 'edited' });
       expect(res.status).toBe(200);
     } finally {
-      ctx.role = 'owner';
+      await setRole('owner');
     }
   });
 });
@@ -996,14 +1014,14 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
 
   it('refuses a viewer', async () => {
     const page = await createPage();
-    ctx.role = 'viewer';
+    await setRole('viewer');
     try {
       const res = await tx(page.id, [
         { kind: 'insert', id: uuidv7(), parentBlockId: null, type: 'paragraph', afterId: null },
       ]);
       expect(res.status).toBe(403);
     } finally {
-      ctx.role = 'owner';
+      await setRole('owner');
     }
   });
 });

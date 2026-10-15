@@ -10,7 +10,7 @@ import type { Server, Socket } from 'socket.io';
 import { getDb } from '../db/client.js';
 import { log } from '../lib/logger.js';
 import { findPageById } from '../repositories/pages.js';
-import { findMembership } from '../repositories/workspaces.js';
+import { resolvePageAccess } from '../lib/page-access.js';
 
 const ID_PATTERN = /^[0-9a-f-]{24,36}$/i;
 
@@ -61,8 +61,10 @@ export function registerPageRooms(io: Server, socket: Socket): void {
         reply({ ok: false, error: 'Page not found' });
         return;
       }
-      const member = await findMembership(db, page.workspaceId, data.userId);
-      if (!member) {
+      // The same rule as the page's routes: a guest it is shared with joins,
+      // a member shut out of a restricted page does not.
+      const access = await resolvePageAccess(db, data.userId, page.id);
+      if (!access) {
         reply({ ok: false, error: 'Forbidden' });
         return;
       }

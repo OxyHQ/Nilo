@@ -4,7 +4,7 @@
  */
 
 import { and, desc, eq, gt, isNull, or, sql } from 'drizzle-orm';
-import type { NiloDatabase } from '../db/client.js';
+import type { NiloDatabase, PgHandle } from '../db/client.js';
 import { type ShareLinkScope, shareLinks } from '../db/schema/collab.js';
 
 export interface ShareLinkRow {
@@ -125,7 +125,7 @@ export async function findShareLinkByToken(
  * tell those apart.
  */
 export async function revokeShareLink(
-  db: NiloDatabase,
+  db: PgHandle,
   id: string,
   revokedAt: Date,
 ): Promise<ShareLinkRow | null> {

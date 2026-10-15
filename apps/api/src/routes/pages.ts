@@ -9,6 +9,7 @@ import {
   deletePageTree,
   findPageAncestry,
   findPageById,
+  findPagesByIds,
   listPages,
   nextSiblingOrder,
   updatePage,
@@ -18,7 +19,16 @@ import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
-import { checkWorkspaceAccess, ensureRole } from '../lib/workspace-access.js';
+import { checkWorkspaceAccess } from '../lib/workspace-access.js';
+import { accessibleAncestry, checkPageAccess, rolesForPages } from '../lib/page-access.js';
+import { hasRole } from '../db/schema/workspaces.js';
+import {
+  listGrantsOfUser,
+  listGrantsOfUserInWorkspace,
+  listGrantsOnPages,
+  upsertGrant,
+} from '../repositories/pagePermissions.js';
+import { findLiveWorkspaceById, listMembershipsForUser } from '../repositories/workspaces.js';
 import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
 import { NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
 
@@ -79,6 +89,8 @@ const updatePageSchema = z
     order: z.number().finite().optional(),
     archived: z.boolean().optional(),
     favorited: z.boolean().optional(),
+    /** Open only to the people it is shared with (see `lib/page-access.ts`). */
+    restricted: z.boolean().optional(),
     // Database row property writes. Keys are propertyIds; shapes are
     // validated per-property type by `parsePropertyValue`.
     properties: z.record(z.unknown()).optional(),
@@ -131,6 +143,7 @@ function serializePage(page: PageRow) {
     ownerId: page.ownerId,
     archived: page.archived,
     favorited: page.favorited,
+    restricted: page.restricted,
     order: page.order,
     databaseId: page.databaseId,
     properties: page.properties,
@@ -172,7 +185,8 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
       archived = false;
     }
 
-    const pages = await listPages(getDb(), {
+    const db = getDb();
+    const pages = await listPages(db, {
       workspaceId,
       parentId:
         query.parentId === undefined
@@ -184,11 +198,74 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
       favoritedOnly: query.favoritedOnly,
     });
 
-    res.json({ pages: pages.map((p) => serializePage(p)) });
+    // Leave out the restricted pages this member has no grant reaching.
+    // Owners and admins see everything; for everyone else the rule needs
+    // each page's ancestry, so it runs over the whole workspace.
+    const memberRole = req.workspace?.role ?? null;
+    let visible = pages;
+    if (!memberRole || !hasRole(memberRole, 'admin')) {
+      const [all, grants] = await Promise.all([
+        listPages(db, { workspaceId }),
+        listGrantsOfUserInWorkspace(db, req.user?.id ?? '', workspaceId),
+      ]);
+      const roles = rolesForPages(all, memberRole, grants);
+      visible = pages.filter((p) => roles.has(p.id));
+    }
+
+    res.json({ pages: visible.map((p) => serializePage(p)) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list pages');
     res.status(500).json({ error: 'Failed to list pages' });
+  }
+});
+
+/**
+ * GET /api/pages/shared
+ *
+ * The pages shared with the caller in workspaces they are not a member of
+ * (they are a guest there), with their role on each: every page their
+ * grants reach, flat, per workspace. Members find restricted pages shared
+ * with them in the workspace's own list.
+ */
+router.get('/shared', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const db = getDb();
+    const [grants, memberships] = await Promise.all([
+      listGrantsOfUser(db, userId),
+      listMembershipsForUser(db, userId),
+    ]);
+    const memberOf = new Set(memberships.map((m) => m.workspaceId));
+    const grantedPages = await findPagesByIds(
+      db,
+      grants.map((g) => g.pageId),
+    );
+    const workspaceIds = [...new Set(grantedPages.map((p) => p.workspaceId))].filter(
+      (id) => !memberOf.has(id),
+    );
+
+    const out = [];
+    for (const workspaceId of workspaceIds) {
+      const workspace = await findLiveWorkspaceById(db, workspaceId);
+      if (!workspace) continue;
+      const all = await listPages(db, { workspaceId, archived: false });
+      const roles = rolesForPages(all, null, grants);
+      out.push({
+        workspace: { id: workspace.id, name: workspace.name, icon: workspace.icon ?? null },
+        pages: all
+          .filter((p) => roles.has(p.id))
+          .map((p) => ({ ...serializePage(p), role: roles.get(p.id) })),
+      });
+    }
+    res.json({ shared: out });
+  } catch (error: unknown) {
+    log.general.error({ err: error }, 'Failed to list shared pages');
+    res.status(500).json({ error: 'Failed to list shared pages' });
   }
 });
 
@@ -199,16 +276,18 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
 
-    const page = await findPageById(getDb(), params.id);
+    const db = getDb();
+    const page = await findPageById(db, params.id);
     if (!page) {
       res.status(404).json({ error: 'Page not found' });
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'viewer');
-    if (!ok) return;
+    const access = await checkPageAccess(req, res, db, page.id, 'viewer');
+    if (!access) return;
 
-    res.json({ page: serializePage(page) });
+    // The caller's role on this page decides what the app lets them do.
+    res.json({ page: serializePage(page), role: access.role });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to fetch page');
@@ -219,78 +298,65 @@ router.get('/:id', async (req: Request, res: Response) => {
 /**
  * POST /api/pages
  */
-router.post(
-  '/',
-  (req, res, next) => {
-    const wsFromBody = typeof req.body?.workspaceId === 'string' ? req.body.workspaceId : undefined;
-    if (wsFromBody && !req.headers['x-workspace-id']) {
-      req.headers['x-workspace-id'] = wsFromBody;
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const body = createPageSchema.parse(req.body);
+    const workspaceId = body.workspaceId;
+
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
-    next();
-  },
-  requireWorkspaceMember,
-  async (req: Request, res: Response) => {
-    try {
-      const body = createPageSchema.parse(req.body);
-      const workspaceId = assertWorkspace(req, res);
-      if (!workspaceId) return;
-      if (!ensureRole(req, res, 'editor')) return;
-      if (body.workspaceId !== workspaceId) {
-        res.status(403).json({ error: 'Workspace mismatch' });
+
+    const db = getDb();
+
+    // A subpage needs edit access to its parent, which a guest can have; a
+    // top-level page needs a workspace editor.
+    if (body.parentId) {
+      const parent = await findPageById(db, body.parentId);
+      if (!parent) {
+        res.status(404).json({ error: 'Parent page not found' });
         return;
       }
-
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
+      if (parent.workspaceId !== workspaceId) {
+        res.status(400).json({ error: 'Parent page is in a different workspace' });
         return;
       }
-
-      const db = getDb();
-
-      // If parentId provided, ensure the parent belongs to the same workspace.
-      if (body.parentId) {
-        const parent = await findPageById(db, body.parentId);
-        if (!parent) {
-          res.status(404).json({ error: 'Parent page not found' });
-          return;
-        }
-        if (parent.workspaceId !== workspaceId) {
-          res.status(400).json({ error: 'Parent page is in a different workspace' });
-          return;
-        }
-      }
-
-      // `max(order) + 1` among siblings, then insert. Read and write are
-      // deliberately NOT wrapped in a transaction: under READ COMMITTED one
-      // would take no lock and two concurrent creates would still read the same
-      // maximum, so it would buy nothing while implying the race was closed.
-      // The race is the one Mongo had, and `order` is a client-writable
-      // `double precision` that `PATCH /api/pages/:id` renumbers anyway.
-      const order = await nextSiblingOrder(db, {
-        workspaceId,
-        parentId: body.parentId ?? null,
-      });
-
-      const page = await createPage(db, {
-        workspaceId,
-        parentId: body.parentId ?? null,
-        title: body.title ?? '',
-        icon: body.icon ?? null,
-        cover: body.cover ?? null,
-        ownerId: userId,
-        archived: false,
-        order,
-      });
-
-      res.status(201).json({ page: serializePage(page) });
-    } catch (error: unknown) {
-      if (handleZodError(error, res)) return;
-      log.general.error({ err: error }, 'Failed to create page');
-      res.status(500).json({ error: 'Failed to create page' });
+      if (!(await checkPageAccess(req, res, db, parent.id, 'editor'))) return;
+    } else if (!(await checkWorkspaceAccess(req, res, workspaceId, 'editor'))) {
+      return;
     }
-  },
-);
+
+    // `max(order) + 1` among siblings, then insert. Read and write are
+    // deliberately NOT wrapped in a transaction: under READ COMMITTED one
+    // would take no lock and two concurrent creates would still read the same
+    // maximum, so it would buy nothing while implying the race was closed.
+    // The race is the one Mongo had, and `order` is a client-writable
+    // `double precision` that `PATCH /api/pages/:id` renumbers anyway.
+    const order = await nextSiblingOrder(db, {
+      workspaceId,
+      parentId: body.parentId ?? null,
+    });
+
+    const page = await createPage(db, {
+      workspaceId,
+      parentId: body.parentId ?? null,
+      title: body.title ?? '',
+      icon: body.icon ?? null,
+      cover: body.cover ?? null,
+      ownerId: userId,
+      archived: false,
+      order,
+    });
+
+    res.status(201).json({ page: serializePage(page) });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to create page');
+    res.status(500).json({ error: 'Failed to create page' });
+  }
+});
 
 /**
  * PATCH /api/pages/:id
@@ -307,8 +373,9 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'editor');
-    if (!ok) return;
+    const access = await checkPageAccess(req, res, db, page.id, 'editor');
+    if (!access) return;
+    const userId = req.user?.id as string;
 
     if (body.parentId !== undefined && body.parentId !== null) {
       if (body.parentId === page.id) {
@@ -324,6 +391,31 @@ router.patch('/:id', async (req: Request, res: Response) => {
         res.status(400).json({ error: 'Parent page is in a different workspace' });
         return;
       }
+      // Moving a page under another needs edit access there too.
+      if (!(await checkPageAccess(req, res, db, parent.id, 'editor'))) return;
+    } else if (body.parentId === null && page.parentId !== null) {
+      // To the top level: a workspace editor's place.
+      if (!access.memberRole || !hasRole(access.memberRole, 'editor')) {
+        res.status(403).json({ error: 'Moving a page to the top level needs a workspace editor' });
+        return;
+      }
+    }
+
+    // Restricting a page shuts other members out: full access, or the page's
+    // creator. Whoever restricts it keeps access through a grant.
+    if (body.restricted !== undefined && body.restricted !== page.restricted) {
+      if (!hasRole(access.role, 'admin') && page.ownerId !== userId) {
+        res.status(403).json({
+          error: 'Changing who can open a page needs full access to it',
+          code: 'INSUFFICIENT_ROLE',
+          required: 'admin',
+          actual: access.role,
+        });
+        return;
+      }
+      if (body.restricted && !(access.memberRole && hasRole(access.memberRole, 'admin'))) {
+        await upsertGrant(db, { pageId: page.id, userId, role: 'admin', grantedBy: userId });
+      }
     }
 
     // Built by assignment rather than by spreading `body`, because `title` is
@@ -337,6 +429,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       order: body.order,
       archived: body.archived,
       favorited: body.favorited,
+      restricted: body.restricted,
       mergeProperties: undefined as Record<string, unknown> | undefined,
     };
 
@@ -416,12 +509,12 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'editor');
-    if (!ok) return;
+    const access = await checkPageAccess(req, res, db, page.id, 'editor');
+    if (!access) return;
 
     if (hard) {
       // Hard-delete requires workspace ownership.
-      if (req.workspace?.role !== 'owner') {
+      if (access.memberRole !== 'owner') {
         res.status(403).json({ error: 'Hard delete requires workspace owner role' });
         return;
       }
@@ -470,12 +563,15 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, source.workspaceId, 'editor');
-    if (!ok) return;
-
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+    const access = await checkPageAccess(req, res, db, source.id, 'editor');
+    if (!access) return;
+    const userId = req.user?.id as string;
+    // The copy lands beside the source: that needs edit access to the parent,
+    // or a workspace editor for a top-level page.
+    if (source.parentId) {
+      if (!(await checkPageAccess(req, res, db, source.parentId, 'editor'))) return;
+    } else if (!access.memberRole || !hasRole(access.memberRole, 'editor')) {
+      res.status(403).json({ error: 'Duplicating a top-level page needs a workspace editor' });
       return;
     }
 
@@ -505,6 +601,22 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
       // Children pages are NOT duplicated (see the route comment above), so the
       // copy takes the source's blocks and nothing else.
       await duplicateBlocksToPage(tx, source.id, created.id);
+      // And who may open it: a copy of a restricted page must not open up.
+      if (source.restricted) {
+        await updatePage(tx, created.id, { restricted: true });
+        for (const grant of await listGrantsOnPages(tx, [source.id])) {
+          await upsertGrant(tx, {
+            pageId: created.id,
+            userId: grant.userId,
+            role: grant.role,
+            grantedBy: userId,
+          });
+        }
+        if (!(access.memberRole && hasRole(access.memberRole, 'admin'))) {
+          await upsertGrant(tx, { pageId: created.id, userId, role: 'admin', grantedBy: userId });
+        }
+        return (await findPageById(tx, created.id)) ?? created;
+      }
       return created;
     });
 
@@ -533,13 +645,15 @@ router.get('/:id/breadcrumb', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, head.workspaceId, 'viewer');
-    if (!ok) return;
+    const access = await checkPageAccess(req, res, db, head.id, 'viewer');
+    if (!access) return;
 
     // One recursive walk instead of one query per level. The depth bound and
     // the cycle handling that the `seen` set provided are both inside
     // `findPageAncestry`, which returns root-first exactly as the `unshift` did.
-    const breadcrumb = await findPageAncestry(db, head.id);
+    // Only the ancestors the caller can open are named.
+    const open = new Set(accessibleAncestry(access).map((link) => link.id));
+    const breadcrumb = (await findPageAncestry(db, head.id)).filter((crumb) => open.has(crumb.id));
 
     res.json({ breadcrumb });
   } catch (error: unknown) {
@@ -647,7 +761,7 @@ router.get('/:id/export', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'viewer');
+    const ok = await checkPageAccess(req, res, getDb(), page.id, 'viewer');
     if (!ok) return;
 
     const blocks = await listBlocksForPageByOrder(db, page.id);

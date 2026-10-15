@@ -85,6 +85,8 @@ describe('pages repository (real database)', () => {
       'ownerId',
       'archived',
       'favorited',
+      // Written by `PATCH /pages/:id` (restricting a page) and its duplicate.
+      'restricted',
       'order',
       // Written by `bumpBlocksVersion`, inside every block transaction.
       'blocksVersion',
@@ -97,7 +99,7 @@ describe('pages repository (real database)', () => {
       // spells. `sqlColumnName` is used below where the SQL identifier is what
       // matters — reading one for the other is the 42703 trap.
       const declared = getTableConfig(pages).columns.map((column) => column.name);
-      expect(WRITER_FIELDS.length).toBe(13);
+      expect(WRITER_FIELDS.length).toBe(14);
       for (const field of WRITER_FIELDS) expect(declared).toContain(field);
       expect(new Set(declared)).toEqual(
         new Set([...WRITER_FIELDS, 'id', 'createdAt', 'updatedAt']),
@@ -111,7 +113,7 @@ describe('pages repository (real database)', () => {
       `);
       const live = new Set(rows.map((row) => row.column_name));
       const config = getTableConfig(pages);
-      expect(config.columns.length).toBe(16);
+      expect(config.columns.length).toBe(17);
       for (const column of config.columns) expect(live).toContain(sqlColumnName(column));
       expect(live.size).toBe(config.columns.length);
     });

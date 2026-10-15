@@ -29,7 +29,7 @@ import { broadcastPageTransaction } from '../collab/page-rooms.js';
 import { getIO } from '../socket.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { log } from '../lib/logger.js';
-import { checkWorkspaceAccess } from '../lib/workspace-access.js';
+import { checkPageAccess } from '../lib/page-access.js';
 
 const router = Router();
 
@@ -88,7 +88,7 @@ router.get('/pages/:pageId/blocks', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'viewer');
+    const ok = await checkPageAccess(req, res, db, page.id, 'viewer');
     if (!ok) return;
 
     // The blocks and the version they are at, read in one snapshot: a
@@ -205,7 +205,7 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
       res.status(404).json({ error: 'Page not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'editor');
+    const ok = await checkPageAccess(req, res, db, page.id, 'editor');
     if (!ok) return;
 
     // The operations as applied, content normalized, for collaborators.

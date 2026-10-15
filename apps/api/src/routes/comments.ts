@@ -22,7 +22,8 @@ import {
 import { authenticateToken } from '../middleware/auth.js';
 import { sendNotification } from '../lib/notification-service.js';
 import { log } from '../lib/logger.js';
-import { checkWorkspaceAccess } from '../lib/workspace-access.js';
+import { checkPageAccess } from '../lib/page-access.js';
+import { hasRole } from '../db/schema/workspaces.js';
 
 const router = Router();
 router.use(authenticateToken);
@@ -345,7 +346,7 @@ router.get('/pages/:pageId/comments', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'viewer');
+    const ok = await checkPageAccess(req, res, getDb(), page.id, 'viewer');
     if (!ok) return;
 
     // Thread listing: when hiding resolved threads we still need replies to
@@ -398,7 +399,7 @@ router.get('/blocks/:blockId/comments', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'viewer');
+    const ok = await checkPageAccess(req, res, getDb(), page.id, 'viewer');
     if (!ok) return;
 
     const comments = await listCommentsByBlock(db, block.id);
@@ -431,7 +432,7 @@ router.post('/pages/:pageId/comments', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'commenter');
+    const ok = await checkPageAccess(req, res, getDb(), page.id, 'commenter');
     if (!ok) return;
 
     // Validate block belongs to the same page (if provided).
@@ -524,7 +525,7 @@ router.patch('/comments/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, comment.workspaceId, 'commenter');
+    const ok = await checkPageAccess(req, res, getDb(), comment.pageId, 'commenter');
     if (!ok) return;
 
     if (comment.authorId !== req.user.id) {
@@ -584,7 +585,7 @@ router.post('/comments/:id/resolve', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, comment.workspaceId, 'commenter');
+    const ok = await checkPageAccess(req, res, getDb(), comment.pageId, 'commenter');
     if (!ok) return;
 
     // Already-resolved is not an error and not a write: the repository's
@@ -620,7 +621,7 @@ router.post('/comments/:id/unresolve', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, comment.workspaceId, 'commenter');
+    const ok = await checkPageAccess(req, res, getDb(), comment.pageId, 'commenter');
     if (!ok) return;
 
     const unresolved =
@@ -654,12 +655,12 @@ router.delete('/comments/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceAccess(req, res, comment.workspaceId, 'commenter');
+    const ok = await checkPageAccess(req, res, getDb(), comment.pageId, 'commenter');
     if (!ok) return;
 
     const isAuthor = comment.authorId === req.user.id;
-    const role = req.member?.role;
-    const isAdmin = role === 'admin' || role === 'owner';
+    // Full access to the page (a workspace admin, or an admin grant).
+    const isAdmin = hasRole(ok.role, 'admin');
     if (!isAuthor && !isAdmin) {
       res.status(403).json({ error: 'Only the author or an admin can delete this comment' });
       return;

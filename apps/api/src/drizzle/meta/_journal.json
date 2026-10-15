@@ -43,6 +43,13 @@
       "when": 1792041698107,
       "tag": "0005_fancy_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792042612251,
+      "tag": "0006_brown_young_avengers",
+      "breakpoints": true
     }
   ]
 }

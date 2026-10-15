@@ -6,6 +6,7 @@ import {
   index,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
@@ -213,9 +214,53 @@ export const shareLinks = pgTable(
   ],
 );
 
+/* ─────────────────────── page permissions ─────────────────────── */
+
+/**
+ * The roles a page grant can carry: the workspace roles below `owner`, where
+ * `admin` is "full access" (may also share the page).
+ */
+export const PAGE_GRANT_ROLES = ['viewer', 'commenter', 'editor', 'admin'] as const;
+export type PageGrantRole = (typeof PAGE_GRANT_ROLES)[number];
+
+/**
+ * Access to one page and everything under it, for one person: a workspace
+ * member on a restricted page, or a guest who is not a member at all.
+ * The effective role on a page is the strongest of the grants on it and its
+ * ancestors and, unless one of those is restricted, the member's workspace
+ * role. See `lib/page-access.ts`.
+ */
+export const pagePermissions = pgTable(
+  'page_permissions',
+  {
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    /** Oxy user id. */
+    userId: text().notNull(),
+    role: text().$type<PageGrantRole>().notNull(),
+    /** Oxy user id of whoever granted it. */
+    grantedBy: text().notNull(),
+    /**
+     * Set when the grant came from opening a share link: revoking or deleting
+     * the link takes it away again.
+     */
+    shareLinkId: text().references(() => shareLinks.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pageId, t.userId] }),
+    // "Pages shared with me".
+    index('page_permissions_user_idx').on(t.userId),
+    index('page_permissions_share_link_idx').on(t.shareLinkId),
+    check('page_permissions_role', sql`${t.role} in (${sql.raw(inList(PAGE_GRANT_ROLES))})`),
+  ],
+);
+
 /* ──────────────────────── notifications ──────────────────────── */
 
-export const NOTIFICATION_TYPES = ['mention', 'comment_reply'] as const;
+export const NOTIFICATION_TYPES = ['mention', 'comment_reply', 'page_shared'] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export const NOTIFICATION_CHANNELS = ['push', 'in_app'] as const;
