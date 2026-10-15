@@ -23,6 +23,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import { sendNotification } from '../lib/notification-service.js';
 import { log } from '../lib/logger.js';
 import { checkPageAccess, resolvePageAccess } from '../lib/page-access.js';
+import { follow, listFollowers } from '../repositories/pageFollows.js';
 import { hasRole } from '../db/schema/workspaces.js';
 
 const router = Router();
@@ -293,6 +294,43 @@ async function notifyMentions(
 }
 
 /**
+ * Tell the page's followers about a new comment: everyone following it who
+ * can still open it, except its author and those already told.
+ */
+async function notifyFollowers(
+  comment: CommentRow,
+  alreadyTold: ReadonlySet<string>,
+  page: { id: string; title: string },
+): Promise<void> {
+  try {
+    const db = getDb();
+    const followers = (await listFollowers(db, page.id)).filter(
+      (id) => id !== comment.authorId && !alreadyTold.has(id),
+    );
+    await Promise.all(
+      followers.map(async (userId) => {
+        if (!(await resolvePageAccess(db, userId, page.id))) return;
+        await sendNotification({
+          userId,
+          type: 'page_comment',
+          title: `New comment in ${page.title || 'Untitled'}`,
+          body: comment.content.plainText.slice(0, 280),
+          priority: 'normal',
+          data: {
+            commentId: comment.id,
+            pageId: page.id,
+            blockId: comment.blockId ? String(comment.blockId) : null,
+            authorId: comment.authorId,
+          },
+        });
+      }),
+    );
+  } catch (err: unknown) {
+    log.general.warn({ err, commentId: comment.id }, 'Failed to notify page followers');
+  }
+}
+
+/**
  * Notify the parent thread author when someone replies.
  */
 async function notifyReply(
@@ -490,11 +528,23 @@ router.post('/pages/:pageId/comments', async (req: Request, res: Response) => {
       content,
     });
 
+    // Whoever comments on a page follows it.
+    await follow(getDb(), page.id, comment.authorId);
+
     // Notifications: fan-out non-blocking. Errors logged inside the helpers.
     void notifyMentions(comment, mentionedUserIds, { id: page.id, title: page.title });
     if (parentAuthorId) {
       void notifyReply(comment, parentAuthorId, { id: page.id, title: page.title });
     }
+    // Followers hear of it too — once: not those mentioned or replied to.
+    void notifyFollowers(
+      comment,
+      new Set([...mentionedUserIds, ...(parentAuthorId ? [parentAuthorId] : [])]),
+      {
+        id: page.id,
+        title: page.title,
+      },
+    );
 
     res.status(201).json({ comment: serializeComment(comment) });
   } catch (error: unknown) {

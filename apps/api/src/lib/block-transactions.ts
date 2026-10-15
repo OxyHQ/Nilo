@@ -31,6 +31,7 @@ import {
   lockPage,
   recordPageTransaction,
 } from '../repositories/pages.js';
+import { follow } from '../repositories/pageFollows.js';
 import { getIO } from '../socket.js';
 
 const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
@@ -162,6 +163,8 @@ export async function applyBlockTransaction(
       }
     }
     const version = await bumpBlocksVersion(tx, input.pageId, input.actorId || undefined);
+    // Whoever edits a page follows it (a no-op when they already do).
+    if (input.actorId) await follow(tx, input.pageId, input.actorId);
     const rows = await listBlocksForPage(tx, input.pageId);
     await input.beforeChange?.(tx, rows);
     const types = new Map<string, BlockType>(rows.map((b) => [b.id, b.type]));

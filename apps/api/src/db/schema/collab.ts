@@ -260,7 +260,13 @@ export const pagePermissions = pgTable(
 
 /* ──────────────────────── notifications ──────────────────────── */
 
-export const NOTIFICATION_TYPES = ['mention', 'comment_reply', 'page_shared', 'reminder'] as const;
+export const NOTIFICATION_TYPES = [
+  'mention',
+  'comment_reply',
+  'page_shared',
+  'reminder',
+  'page_comment',
+] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export const NOTIFICATION_CHANNELS = ['push', 'in_app'] as const;
@@ -490,5 +496,28 @@ export const reminders = pgTable(
     index('reminders_user_remind_idx').on(t.userId, t.remindAt),
     index('reminders_page_idx').on(t.pageId),
     index('reminders_block_idx').on(t.blockId),
+  ],
+);
+
+/* ────────────────────────── page follows ────────────────────────── */
+
+/**
+ * People following a page, told about its new comments. Whoever creates,
+ * edits or comments on a page follows it; anyone can stop (or start)
+ * following one they can open.
+ */
+export const pageFollows = pgTable(
+  'page_follows',
+  {
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    /** Oxy user id. */
+    userId: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pageId, t.userId] }),
+    index('page_follows_user_idx').on(t.userId),
   ],
 );

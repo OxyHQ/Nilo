@@ -23,6 +23,11 @@ vi.mock('../../repositories/pages.js', () => ({
   findPagesByIds: vi.fn(),
 }));
 
+vi.mock('../../repositories/pageFollows.js', () => ({
+  follow: vi.fn(),
+  listFollowers: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock('../../repositories/blocks.js', () => ({
   findBlockById: vi.fn(),
 }));

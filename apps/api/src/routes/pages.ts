@@ -17,6 +17,7 @@ import {
 import { listBlocksForPage } from '../repositories/blocks.js';
 import { blocksToHtml, blocksToMarkdown, blocksToTree } from '@nilo/contracts';
 import { copyPageTree } from '../repositories/pageCopies.js';
+import { follow } from '../repositories/pageFollows.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
@@ -367,6 +368,8 @@ router.post('/', async (req: Request, res: Response) => {
       archived: false,
       order,
     });
+    // Whoever creates a page follows it.
+    await follow(db, page.id, userId);
 
     res.status(201).json({ page: serializePage(page) });
   } catch (error: unknown) {

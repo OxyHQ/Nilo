@@ -50,6 +50,8 @@ const { default: blocksRouter } = await import('../blocks.js');
 const { default: pagePermissionsRouter } = await import('../page-permissions.js');
 const { default: shareLinksRouter } = await import('../share-links.js');
 const { default: backlinksRouter } = await import('../backlinks.js');
+const { default: followsRouter } = await import('../page-follows.js');
+const { default: commentsRouter } = await import('../comments.js');
 
 let db: TestDatabase;
 let server: Server;
@@ -129,6 +131,8 @@ beforeAll(async () => {
   app.use(express.json());
   app.use(shareLinksRouter);
   app.use(backlinksRouter);
+  app.use(followsRouter);
+  app.use(commentsRouter);
   app.use(pagePermissionsRouter);
   app.use(blocksRouter);
   app.use('/pages', pagesRouter);
@@ -394,5 +398,30 @@ describe('backlinks', () => {
         .sort();
     expect(await titles(OWNER)).toEqual(['Secret', 'Via block', 'Via link', 'Via mention']);
     expect(await titles(VIEWER)).toEqual(['Via block', 'Via link', 'Via mention']);
+  });
+});
+
+describe('following pages', () => {
+  it('follows what you create and comment on, and tells followers of new comments', async () => {
+    const target = await page(OWNER, { title: 'Followed' });
+    expect((await api(OWNER, 'GET', `/pages/${target}/follow`)).json.following).toBe(true);
+    expect((await api(VIEWER, 'GET', `/pages/${target}/follow`)).json.following).toBe(false);
+    expect((await api(VIEWER, 'PUT', `/pages/${target}/follow`)).json.following).toBe(true);
+
+    notified.length = 0;
+    const comment = await api(EDITOR, 'POST', `/pages/${target}/comments`, {
+      content: { segments: [{ type: 'text', text: 'Looks good' }] },
+    });
+    expect(comment.status).toBe(201);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(
+      notified
+        .filter((n) => n.type === 'page_comment')
+        .map((n) => n.userId)
+        .sort(),
+    ).toEqual([OWNER, VIEWER].sort());
+    // The commenter follows it now.
+    expect((await api(EDITOR, 'GET', `/pages/${target}/follow`)).json.following).toBe(true);
+    expect((await api(VIEWER, 'DELETE', `/pages/${target}/follow`)).json.following).toBe(false);
   });
 });
