@@ -61,7 +61,7 @@ async function call(
   try {
     json = JSON.parse(text);
   } catch {}
-  return { status: res.status, text, json };
+  return { status: res.status, text, json, type: res.headers.get('content-type') ?? '' };
 }
 
 beforeAll(async () => {
@@ -156,6 +156,10 @@ describe('POST /pages/import', () => {
     const html = await call(EDITOR, 'GET', `/pages/${created[0]?.id}/export?format=html`);
     expect(html.text).toContain('<strong>bold</strong>');
     expect(html.text).toContain('<input type="checkbox" disabled>');
+    const pdf = await call(EDITOR, 'GET', `/pages/${created[0]?.id}/export?format=pdf`);
+    expect(pdf.status).toBe(200);
+    expect(pdf.type).toBe('application/pdf');
+    expect(pdf.text.startsWith('%PDF-')).toBe(true);
   });
 
   it('needs edit access where the pages go', async () => {

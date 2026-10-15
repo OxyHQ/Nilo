@@ -185,7 +185,7 @@ export function PageEditor({
 
   return (
     <View>
-      {!readOnly ? (
+      {!readOnly || status === 'offline' ? (
         <View className="mb-2 flex-row items-center justify-end gap-3">
           <PresenceAvatars collaborators={collaborators} />
           <Text
@@ -197,7 +197,7 @@ export function PageEditor({
             {status === 'saving'
               ? t('editor.status.saving')
               : status === 'offline'
-                ? t('editor.status.offline')
+                ? t(readOnly ? 'editor.status.offlineCopy' : 'editor.status.offline')
                 : status === 'error'
                   ? t('editor.status.error')
                   : t('editor.status.saved')}

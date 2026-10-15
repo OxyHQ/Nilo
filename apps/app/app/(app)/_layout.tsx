@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUIStore } from '@/lib/stores/ui-store';
 import i18n from '@/lib/i18n';
 import { useNotificationSetup } from '@/lib/hooks/use-notification-setup';
+import { useOfflineSync } from '@/lib/editor/use-offline-pages';
 import { useKeyboardShortcuts } from '@/lib/hooks/use-keyboard-shortcuts';
 import { CommandPalette } from '@/components/command-palette';
 import { ShortcutsDialog } from '@/components/shortcuts-dialog';
@@ -29,6 +30,8 @@ export default function AppLayout() {
 
   // Push notification registration, tap handling, and real-time subscription
   useNotificationSetup();
+  // Pages kept offline stay current (lib/editor/offline-pages.ts).
+  useOfflineSync();
 
   // Global app-wide keyboard shortcuts (Cmd+K, Cmd+N, Cmd+\, Cmd+/)
   useKeyboardShortcuts();

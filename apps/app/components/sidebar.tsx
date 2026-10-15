@@ -1,3 +1,5 @@
+import { useQueryClient } from '@tanstack/react-query';
+import { forgetDeviceData } from '@/lib/account-boundary';
 import { PlacementSections } from './sidebar-sections/placement-sections';
 import { useNewPageStore } from '@/lib/stores/new-page-store';
 import { SharedWithMeSection } from './sidebar-sections/shared-with-me-section';
@@ -72,10 +74,14 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
     () => showBottomSheet?.('ManageAccount'),
     [showBottomSheet],
   );
+  const queryClient = useQueryClient();
   const handleLogout = React.useCallback(() => {
-    logout();
-    router.replace('/(app)');
-  }, [router, logout]);
+    // What the device kept for this account goes with it (lib/account-boundary.ts).
+    void forgetDeviceData(queryClient).finally(() => {
+      logout();
+      router.replace('/(app)');
+    });
+  }, [router, logout, queryClient]);
   const handleLogin = React.useCallback(() => openAccountDialog(), []);
   const handleNotifications = React.useCallback(
     () => router.push('/(app)/notifications'),

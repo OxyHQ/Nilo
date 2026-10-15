@@ -233,7 +233,8 @@
   "status": {
     "saving": "Guardando…",
     "saved": "Guardado",
-    "offline": "Sin conexión: los cambios se sincronizarán al reconectar",
+    "offline": "Sin conexión: es la copia de este dispositivo; los cambios se sincronizarán al reconectar",
+    "offlineCopy": "Sin conexión: es la copia de este dispositivo",
     "error": "No se pudo guardar un cambio",
     "rejected": "Otra persona cambió este bloque; tu edición se deshizo.",
     "collaborators": {

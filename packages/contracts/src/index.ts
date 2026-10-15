@@ -27,4 +27,5 @@ export {
   parseInline,
   renderInline,
   type Segment,
+  segmentsOf,
 } from './markdown';

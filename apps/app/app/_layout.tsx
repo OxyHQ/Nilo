@@ -6,7 +6,8 @@ import { OverlayInertBoundary, PortalOutlet, PortalProvider } from '@oxy.so/bloo
 import { BloomProvider } from '@oxy.so/bloom/provider';
 import { ImageResolverProvider } from '@oxy.so/bloom/image-resolver';
 import { expoRouterScrollAdapter } from '@oxy.so/bloom/scroll/expo-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -14,6 +15,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppErrorBoundary } from '@/components/error-boundary';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { setTokenGetter } from '@/lib/api/client';
+import { enterAccount } from '@/lib/account-boundary';
+import { configureShellQueries, shellPersistOptions } from '@/lib/offline-cache';
 import { BLOOM_THEME_PERSIST_KEY, BLOOM_THEME_STORAGE } from '@/lib/themePersistence';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/lib/i18n';
 import { useI18nStore } from '@/lib/stores/i18n-store';
@@ -32,7 +35,24 @@ const OXY_API_URL = process.env.EXPO_PUBLIC_OXY_API_URL || 'https://api.oxy.so';
 const AUTH_REDIRECT_URI = Linking.createURL('/');
 
 function AuthSetup({ children }: { children: React.ReactNode }) {
-  const { oxyServices } = useOxy();
+  const { oxyServices, user } = useOxy();
+  const queryClient = useQueryClient();
+
+  // What the device keeps is one account's (lib/account-boundary.ts): nothing
+  // shows until it is known to be this one's, so another's never flashes up.
+  const userId = user?.id ?? null;
+  const [checkedFor, setCheckedFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    void enterAccount(queryClient, userId).finally(() => {
+      if (live) setCheckedFor(userId);
+    });
+    return () => {
+      live = false;
+    };
+  }, [userId, queryClient]);
+  const ready = userId === null || checkedFor === userId;
 
   // Registered during render, not in an effect: children's mount effects fire
   // API calls before a parent effect would run. Guarded so it only re-runs if
@@ -49,7 +69,11 @@ function AuthSetup({ children }: { children: React.ReactNode }) {
     [oxyServices],
   );
 
-  return <ImageResolverProvider value={resolveImageSource}>{children}</ImageResolverProvider>;
+  return (
+    <ImageResolverProvider value={resolveImageSource}>
+      {ready ? children : null}
+    </ImageResolverProvider>
+  );
 }
 
 function AppContent() {
@@ -82,19 +106,35 @@ function AppContent() {
   );
 }
 
-function RootLayout() {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30_000,
-            retry: 1,
-            refetchOnWindowFocus: false,
-          },
-        },
-      }),
+/**
+ * On iOS and Android the queries the app needs to stand up are kept on the
+ * device (lib/offline-cache.ts); a browser keeps nothing, as for offline pages.
+ */
+function QueryProvider({ client, children }: { client: QueryClient; children: React.ReactNode }) {
+  if (Platform.OS === 'web') {
+    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  }
+  return (
+    <PersistQueryClientProvider client={client} persistOptions={shellPersistOptions}>
+      {children}
+    </PersistQueryClientProvider>
   );
+}
+
+function RootLayout() {
+  const [queryClient] = useState(() => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 30_000,
+          retry: 1,
+          refetchOnWindowFocus: false,
+        },
+      },
+    });
+    if (Platform.OS !== 'web') configureShellQueries(client);
+    return client;
+  });
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -109,7 +149,7 @@ function RootLayout() {
         scrollAdapter={expoRouterScrollAdapter}
       >
         <AppErrorBoundary>
-          <QueryClientProvider client={queryClient}>
+          <QueryProvider client={queryClient}>
             <OxyProvider
               baseURL={OXY_API_URL}
               clientId={process.env.EXPO_PUBLIC_OXY_CLIENT_ID}
@@ -131,7 +171,7 @@ function RootLayout() {
                 <PortalOutlet />
               </PortalProvider>
             </OxyProvider>
-          </QueryClientProvider>
+          </QueryProvider>
         </AppErrorBoundary>
       </BloomProvider>
     </GestureHandlerRootView>

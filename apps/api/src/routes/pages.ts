@@ -21,6 +21,8 @@ import { follow } from '../repositories/pageFollows.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
+import { blocksToPdf } from '../lib/pdf-export.js';
+import { safeFetch } from '../lib/safe-fetch.js';
 import { log } from '../lib/logger.js';
 import { placeOrRefuse } from '../lib/placement.js';
 import { syncRelations } from '../lib/databases/relations.js';
@@ -790,15 +792,24 @@ router.get('/:id/breadcrumb', async (req: Request, res: Response) => {
 });
 
 const exportQuerySchema = z.object({
-  format: z.enum(['md', 'markdown', 'html']).default('md'),
+  format: z.enum(['md', 'markdown', 'html', 'pdf']).default('md'),
 });
 
+/** An image a PDF embeds: fetched safely, PNG or JPEG, whole, at most 8 MB. */
+async function loadExportImage(url: string): Promise<Buffer | null> {
+  const res = await safeFetch(url, {
+    maxBytes: 8 * 1024 * 1024,
+    accept: (type) => /^image\/(png|jpeg)\b/u.test(type),
+  });
+  return res.status === 200 && !res.truncated && res.bytes.length > 0 ? res.bytes : null;
+}
+
 /**
- * GET /api/pages/:id/export?format=md|html
+ * GET /api/pages/:id/export?format=md|html|pdf
  *
- * The page as a Markdown or a standalone HTML document: title, blocks with
- * their formatting and nesting (`@nilo/contracts` markdown/HTML), every piece
- * of text escaped in HTML.
+ * The page as Markdown, a standalone HTML document or a PDF: title, blocks
+ * with their formatting and nesting (`@nilo/contracts` markdown/HTML,
+ * `lib/pdf-export.ts`), every piece of text escaped in HTML.
  */
 router.get('/:id/export', async (req: Request, res: Response) => {
   try {
@@ -821,17 +832,24 @@ router.get('/:id/export', async (req: Request, res: Response) => {
         .normalize('NFKD')
         .replace(/[^a-zA-Z0-9-_]+/gu, '-')
         .replace(/^-+|-+$/g, '') || 'page';
-    const html = format === 'html';
-    const extension = html ? 'html' : 'md';
-    res.setHeader(
-      'Content-Type',
-      html ? 'text/html; charset=utf-8' : 'text/markdown; charset=utf-8',
-    );
+    const kind =
+      format === 'pdf'
+        ? { extension: 'pdf', type: 'application/pdf' }
+        : format === 'html'
+          ? { extension: 'html', type: 'text/html; charset=utf-8' }
+          : { extension: 'md', type: 'text/markdown; charset=utf-8' };
+    const body =
+      format === 'pdf'
+        ? await blocksToPdf(tree, title, loadExportImage)
+        : format === 'html'
+          ? blocksToHtml(tree, title)
+          : blocksToMarkdown(tree, title);
+    res.setHeader('Content-Type', kind.type);
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${ascii}.${extension}"; filename*=UTF-8''${encodeURIComponent(`${title}.${extension}`)}`,
+      `attachment; filename="${ascii}.${kind.extension}"; filename*=UTF-8''${encodeURIComponent(`${title}.${kind.extension}`)}`,
     );
-    res.send(html ? blocksToHtml(tree, title) : blocksToMarkdown(tree, title));
+    res.send(body);
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to export page');

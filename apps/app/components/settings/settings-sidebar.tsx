@@ -10,6 +10,7 @@ import {
   MessageSquarePlus,
   ArrowLeft,
   Users,
+  CloudOff,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -35,6 +36,12 @@ const SECTIONS: SettingsSection[] = [
     labelKey: 'settings.sections.general',
   },
   {
+    id: 'offline',
+    route: '/(app)/settings/offline',
+    icon: CloudOff,
+    labelKey: 'settings.sections.offline',
+  },
+  {
     id: 'feedback',
     route: '/(app)/settings/feedback',
     icon: MessageSquarePlus,
@@ -50,6 +57,7 @@ export const SettingsSidebar = React.memo(function SettingsSidebar() {
   const activeId = React.useMemo(() => {
     if (pathname.includes('/settings/members')) return 'members';
     if (pathname.includes('/settings/general')) return 'general';
+    if (pathname.includes('/settings/offline')) return 'offline';
     if (pathname.includes('/settings/feedback')) return 'feedback';
     return 'account';
   }, [pathname]);

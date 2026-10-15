@@ -26,7 +26,8 @@
     "account": "Account",
     "members": "Members",
     "general": "General",
-    "feedback": "Feedback"
+    "feedback": "Feedback",
+    "offline": "Offline"
   },
   "accentColor": {
     "title": "App Color",
@@ -45,5 +46,24 @@
   "members": {
     "title": "Workspace members",
     "description": "Invite people to your workspace and manage their roles. Only workspace admins and owners can change roles or remove members."
+  },
+  "offline": {
+    "description": "Pages kept on this device open without a connection. Pages you make available offline stay until you remove them; the last pages you opened are kept too.",
+    "webOnly": "Pages are kept offline in the Nilo app for iOS and Android.",
+    "empty": "No pages are kept on this device yet.",
+    "total": {
+      "one": "%{count} page · %{size}",
+      "other": "%{count} pages · %{size}"
+    },
+    "pinned": "Available offline",
+    "recent": "Opened recently",
+    "savedAt": "saved %{when}",
+    "notSaved": "not saved yet",
+    "open": "Open %{title}",
+    "remove": "Stop keeping %{title} offline",
+    "removeOne": "Remove",
+    "removeAll": "Remove all offline pages",
+    "removeAllTitle": "Remove all offline pages?",
+    "removeAllDescription": "Every page kept on this device is removed. Changes not yet sent are kept and sent when the connection is back."
   }
 }

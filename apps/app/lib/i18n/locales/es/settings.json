@@ -26,7 +26,8 @@
     "account": "Cuenta",
     "members": "Miembros",
     "general": "General",
-    "feedback": "Comentarios"
+    "feedback": "Comentarios",
+    "offline": "Sin conexión"
   },
   "accentColor": {
     "title": "Color de la app",
@@ -45,5 +46,24 @@
   "members": {
     "title": "Miembros del espacio de trabajo",
     "description": "Invita a personas a tu espacio de trabajo y gestiona sus roles. Solo los administradores y propietarios del espacio de trabajo pueden cambiar roles o quitar miembros."
+  },
+  "offline": {
+    "description": "Las páginas guardadas en este dispositivo se abren sin conexión. Las que marcas como disponibles sin conexión se quedan hasta que las quites; también se guardan las últimas que abriste.",
+    "webOnly": "Las páginas se guardan sin conexión en la app de Nilo para iOS y Android.",
+    "empty": "Todavía no hay páginas guardadas en este dispositivo.",
+    "total": {
+      "one": "%{count} página · %{size}",
+      "other": "%{count} páginas · %{size}"
+    },
+    "pinned": "Disponible sin conexión",
+    "recent": "Abierta recientemente",
+    "savedAt": "guardada %{when}",
+    "notSaved": "aún sin guardar",
+    "open": "Abrir %{title}",
+    "remove": "Dejar de guardar %{title} sin conexión",
+    "removeOne": "Quitar",
+    "removeAll": "Quitar todas las páginas sin conexión",
+    "removeAllTitle": "¿Quitar todas las páginas sin conexión?",
+    "removeAllDescription": "Se quitan todas las páginas guardadas en este dispositivo. Los cambios que aún no se enviaron se conservan y se envían cuando vuelva la conexión."
   }
 }
