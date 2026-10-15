@@ -343,6 +343,8 @@ export function rolesForPages(
   grants: readonly Grant[],
   /** Each database's place (`databaseHomes`): what is above its rows. */
   homes: ReadonlyMap<string, DatabaseHome> = new Map(),
+  /** Filled with the pages the caller reaches only through a grant (shared with them). */
+  sharedOnly?: Set<string>,
 ): Map<string, WorkspaceRole> {
   const byId = new Map(pages.map((p) => [p.id, p]));
   const above = (link: (typeof pages)[number]) =>
@@ -364,7 +366,9 @@ export function rolesForPages(
     }
     const base = baseRole(viewer, homeOf(chain));
     const role = effectivePageRole({ base, chain, grants });
-    if (role) out.set(page.id, role);
+    if (!role) continue;
+    out.set(page.id, role);
+    if (sharedOnly && !effectivePageRole({ base, chain, grants: [] })) sharedOnly.add(page.id);
   }
   return out;
 }

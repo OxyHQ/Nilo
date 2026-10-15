@@ -148,6 +148,16 @@ describe('private pages', () => {
     ).toBe(200);
     expect(await opens(OTHER, child)).toBe(200);
     expect(await opens(ADMIN, mine)).toBe(403);
+    // Listed to them as shared; to its creator as their own.
+    const sharedWithMe = async (user: string) =>
+      (
+        (await api(user, 'GET', `/pages?workspaceId=${workspaceId}`)).json.pages as {
+          id: string;
+          sharedWithMe: boolean;
+        }[]
+      ).find((p) => p.id === mine)?.sharedWithMe;
+    expect(await sharedWithMe(OTHER)).toBe(true);
+    expect(await sharedWithMe(EDITOR)).toBe(false);
   });
 
   it("keep a private page's subpage private when it moves to the top level", async () => {

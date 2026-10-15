@@ -249,10 +249,15 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
       listGrantsOfUserInWorkspace(db, userId, workspaceId),
       databaseHomes(db, workspaceId),
     ]);
-    const roles = rolesForPages(all, viewer, grants, homes);
+    const sharedOnly = new Set<string>();
+    const roles = rolesForPages(all, viewer, grants, homes, sharedOnly);
     const visible = pages.filter((p) => roles.has(p.id));
 
-    res.json({ pages: visible.map((p) => serializePage(p)) });
+    // `sharedWithMe`: reached only because it was shared with the caller —
+    // the sidebar's "Shared", as opposed to their teamspaces and private pages.
+    res.json({
+      pages: visible.map((p) => ({ ...serializePage(p), sharedWithMe: sharedOnly.has(p.id) })),
+    });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list pages');
