@@ -1,4 +1,8 @@
--- oxy:deploy-phase=post
+-- oxy:deploy-phase=pre
+-- It drops the inference tables, which no image has read since the runtime that
+-- used them was removed with it, so it now runs before a rollout like an
+-- additive change, and a database starting from zero deploys in phases. A
+-- database already past it is unaffected: the ledger keys on its timestamp.
 ALTER TABLE "api_key_usage" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "developer_api_keys" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "developer_apps" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
