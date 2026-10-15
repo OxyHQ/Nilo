@@ -116,12 +116,39 @@ describe('PageCanvas', () => {
     expect(store.doc.root.map((id) => getBlock(store.doc, id).type)).toEqual([NOTE]);
   });
 
-  it('puts blocks written outside a note into one', () => {
+  it('shows blocks outside a note without moving them, and puts them in one when asked', () => {
     const store = storeOf([{ type: 'paragraph', text: [{ text: 'loose' }] }]);
+    const loose = store.doc.root[0] as string;
+    const changes = jest.fn();
+    store.onTransaction(changes);
     mount(store);
+    // Looking at the canvas changes nothing (a collaborator switching it back
+    // to a document, an undo, a reader).
+    expect(changes).not.toHaveBeenCalled();
+    expect(store.doc.root).toEqual([loose]);
+    expect(
+      (renderer as ReactTestRenderer).root.findByProps({ testID: `list:${loose}` }),
+    ).toBeTruthy();
+    act(() =>
+      (renderer as ReactTestRenderer).root
+        .findAll(
+          (node) =>
+            typeof node.props.onPress === 'function' &&
+            node.findAll((child) => child.props.children === 'editor.canvas.putInNote').length > 0,
+          { deep: false },
+        )[0]
+        ?.props.onPress(),
+    );
     const [note] = store.doc.root;
     expect(getBlock(store.doc, note as string).type).toBe(NOTE);
-    expect(getBlock(store.doc, note as string).children).toHaveLength(1);
+    expect(getBlock(store.doc, note as string).children).toEqual([loose]);
+  });
+
+  it('shows a reader the blocks outside a note, with nothing to change them', () => {
+    const store = storeOf([{ type: 'paragraph', text: [{ text: 'loose' }] }]);
+    mount(store, true);
+    expect(JSON.stringify(renderer?.toJSON())).toContain('editor.canvas.loose');
+    expect(JSON.stringify(renderer?.toJSON())).not.toContain('editor.canvas.putInNote');
   });
 
   it('deletes a note, and writes in an empty one', () => {

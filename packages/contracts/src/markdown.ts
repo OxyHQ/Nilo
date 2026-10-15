@@ -761,6 +761,24 @@ function renderNodesHtml(blocks: readonly BlockNode[]): string {
   return out.join('\n');
 }
 
+const coordinate = (value: unknown) => (typeof value === 'number' ? value : 0);
+
+/**
+ * A canvas page read as a page: its notes top to bottom, then left to right,
+ * after anything not in a note. A document's blocks keep their order.
+ */
+export function inReadingOrder(nodes: readonly BlockNode[]): BlockNode[] {
+  if (!nodes.some((node) => node.type === 'canvas_note')) return [...nodes];
+  const notes = nodes
+    .filter((node) => node.type === 'canvas_note')
+    .sort(
+      (a, b) =>
+        coordinate(a.content.y) - coordinate(b.content.y) ||
+        coordinate(a.content.x) - coordinate(b.content.x),
+    );
+  return [...nodes.filter((node) => node.type !== 'canvas_note'), ...notes];
+}
+
 /** Block trees → the HTML of their content alone, escaped as in `blocksToHtml`. */
 export function blocksToHtmlBody(blocks: readonly BlockNode[]): string {
   return renderNodesHtml(blocks);

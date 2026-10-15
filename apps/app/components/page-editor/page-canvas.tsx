@@ -9,9 +9,11 @@ import { BlockList, EditorSurface, type EditorSurfaceProps } from '@oxy.so/bloom
 import type { BlockId, EditorStore } from '@oxy.so/bloom-editor/model';
 import { Maximize, Minus, Plus, StickyNote, Trash2 } from 'lucide-react-native';
 import {
+  memo,
   type ReactNode,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -95,12 +97,10 @@ export function PageCanvas(props: SurfaceProps & { store: EditorStore; readOnly:
   const { colors } = useColorScheme();
   const root = useSyncExternalStore(store.subscribe, () => store.getSnapshot().doc.root);
   const notes = root.filter((id) => isNote(store.doc, id));
-  const loose = root.length - notes.length;
-
-  // Blocks outside a note (written while the page was a document) go into one.
-  useEffect(() => {
-    if (!readOnly && loose > 0) store.run(toCanvas);
-  }, [loose, readOnly, store]);
+  // Blocks outside a note (written while the page was a document, or while it
+  // is being turned back into one) are shown as they are, never moved by
+  // looking at them: only the member's own switch wraps them.
+  const loose = root.filter((id) => !isNote(store.doc, id));
 
   const x = useSharedValue(ORIGIN_MARGIN);
   const y = useSharedValue(ORIGIN_MARGIN);
@@ -109,15 +109,17 @@ export function PageCanvas(props: SurfaceProps & { store: EditorStore; readOnly:
   const size = useRef({ width: 0, height: 0 });
   const heights = useRef(new Map<BlockId, number>());
   const viewNow = (): CanvasView => ({ x: x.value, y: y.value, scale: scale.value });
+  /** Show `view`; the zoom label follows unless a gesture is still moving it. */
   const setView = useCallback(
-    (view: CanvasView) => {
+    (view: CanvasView, label = true) => {
       x.value = view.x;
       y.value = view.y;
       scale.value = view.scale;
-      setZoom(view.scale);
+      if (label) setZoom(view.scale);
     },
     [x, y, scale],
   );
+  const currentScale = useCallback(() => scale.value, [scale]);
 
   const createAt = (point: { x: number; y: number }) => {
     if (readOnly) return;
@@ -125,27 +127,36 @@ export function PageCanvas(props: SurfaceProps & { store: EditorStore; readOnly:
     store.run((c) => addNote(c, point));
   };
 
-  const start = useRef({ x: 0, y: 0, scale: 1 });
+  // One finger pans; two pinch, and the pinch alone moves the view then, from
+  // where it began, so the two never add up.
+  const panStart = useRef({ x: 0, y: 0, scale: 1 });
+  const pinchStart = useRef({ x: 0, y: 0, scale: 1 });
   const pan = Gesture.Pan()
     .runOnJS(true)
     .minDistance(2)
+    .maxPointers(1)
     .onStart(() => {
-      start.current = viewNow();
+      panStart.current = viewNow();
     })
     .onUpdate((e) => {
-      x.value = start.current.x + e.translationX;
-      y.value = start.current.y + e.translationY;
+      x.value = panStart.current.x + e.translationX;
+      y.value = panStart.current.y + e.translationY;
     });
   const pinch = Gesture.Pinch()
     .runOnJS(true)
     .onStart(() => {
-      start.current = viewNow();
+      pinchStart.current = viewNow();
     })
     .onUpdate((e) =>
       setView(
-        zoomAround(start.current, start.current.scale * e.scale, { x: e.focalX, y: e.focalY }),
+        zoomAround(pinchStart.current, pinchStart.current.scale * e.scale, {
+          x: e.focalX,
+          y: e.focalY,
+        }),
+        false,
       ),
-    );
+    )
+    .onEnd(() => setZoom(scale.value));
   const doubleTap = Gesture.Tap()
     .runOnJS(true)
     .numberOfTaps(2)
@@ -208,18 +219,19 @@ export function PageCanvas(props: SurfaceProps & { store: EditorStore; readOnly:
           <View style={StyleSheet.absoluteFill} />
         </GestureDetector>
         <Animated.View style={[styles.plane, plane]} pointerEvents="box-none">
+          {loose.length > 0 ? <LooseBlocks ids={loose} store={store} readOnly={readOnly} /> : null}
           {notes.map((id) => (
             <CanvasNote
               key={id}
               id={id}
               store={store}
               readOnly={readOnly}
-              scale={() => scale.value}
-              onHeight={(height) => heights.current.set(id, height)}
+              scale={currentScale}
+              heights={heights.current}
             />
           ))}
         </Animated.View>
-        {notes.length === 0 ? (
+        {root.length === 0 ? (
           <View style={styles.empty} pointerEvents="none">
             <Text className="text-sm text-muted-foreground">
               {t(readOnly ? 'editor.canvas.emptyReadOnly' : 'editor.canvas.empty')}
@@ -276,19 +288,58 @@ function Control({
   );
 }
 
+/** Blocks outside any note: shown where they are, framed, until put into one. */
+function LooseBlocks({
+  ids,
+  store,
+  readOnly,
+}: {
+  ids: readonly BlockId[];
+  store: EditorStore;
+  readOnly: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View
+      style={[styles.note, { left: 0, top: 0, width: 640 }]}
+      className="rounded-xl border border-dashed border-border bg-background px-4 pb-4 pt-2"
+    >
+      <View className="flex-row items-center justify-between gap-2">
+        <Text className="text-xs text-muted-foreground">{t('editor.canvas.loose')}</Text>
+        {!readOnly ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              store.sealHistory();
+              store.run(toCanvas);
+            }}
+            className="rounded-md px-2 py-1 hover:bg-muted"
+          >
+            <Text className="text-xs text-foreground">{t('editor.canvas.putInNote')}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      <BlockList ids={ids} depth={0} />
+    </View>
+  );
+}
+
+/** How far the keyboard or a screen reader moves or widens a note at a time. */
+const NUDGE = 40;
+
 /** One note where it sits: moved by its header, resized at its right edge. */
-function CanvasNote({
+const CanvasNote = memo(function CanvasNote({
   id,
   store,
   readOnly,
   scale,
-  onHeight,
+  heights,
 }: {
   id: BlockId;
   store: EditorStore;
   readOnly: boolean;
   scale: () => number;
-  onHeight: (height: number) => void;
+  heights: Map<BlockId, number>;
 }) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
@@ -298,6 +349,36 @@ function CanvasNote({
   const dy = useSharedValue(0);
   const dw = useSharedValue(0);
 
+  // A drag's offset is let go once the note is drawn where it was dropped,
+  // not before, so it never shows back at its old place for a frame.
+  const drawnAt = useRef(frame);
+  useLayoutEffect(() => {
+    if (drawnAt.current.x !== frame.x || drawnAt.current.y !== frame.y) {
+      dx.value = 0;
+      dy.value = 0;
+    }
+    if (drawnAt.current.width !== frame.width) dw.value = 0;
+    drawnAt.current = frame;
+  });
+
+  const moveTo = (to: { x: number; y: number }) => {
+    if (Math.round(to.x) === frame.x && Math.round(to.y) === frame.y) {
+      dx.value = 0;
+      dy.value = 0;
+      return;
+    }
+    store.sealHistory();
+    store.run((c) => moveNote(c, id, to));
+  };
+  const widen = (width: number) => {
+    if (Math.round(width) === frame.width) {
+      dw.value = 0;
+      return;
+    }
+    store.sealHistory();
+    store.run((c) => resizeNote(c, id, width));
+  };
+
   const move = Gesture.Pan()
     .runOnJS(true)
     .enabled(!readOnly)
@@ -305,25 +386,14 @@ function CanvasNote({
       dx.value = e.translationX / scale();
       dy.value = e.translationY / scale();
     })
-    .onEnd(() => {
-      const to = { x: frame.x + dx.value, y: frame.y + dy.value };
-      store.sealHistory();
-      store.run((c) => moveNote(c, id, to));
-      dx.value = 0;
-      dy.value = 0;
-    });
+    .onEnd(() => moveTo({ x: frame.x + dx.value, y: frame.y + dy.value }));
   const resize = Gesture.Pan()
     .runOnJS(true)
     .enabled(!readOnly)
     .onUpdate((e) => {
       dw.value = e.translationX / scale();
     })
-    .onEnd(() => {
-      const width = frame.width + dw.value;
-      store.sealHistory();
-      store.run((c) => resizeNote(c, id, width));
-      dw.value = 0;
-    });
+    .onEnd(() => widen(frame.width + dw.value));
 
   const placed = useAnimatedStyle(() => ({
     transform: [{ translateX: dx.value }, { translateY: dy.value }],
@@ -336,13 +406,30 @@ function CanvasNote({
     <Animated.View
       style={[styles.note, { left: frame.x, top: frame.y }, placed]}
       className="rounded-xl border border-border bg-background shadow-sm"
-      onLayout={(e) => onHeight(e.nativeEvent.layout.height)}
+      onLayout={(e) => heights.set(id, e.nativeEvent.layout.height)}
     >
       <View className="flex-row items-center justify-between px-2 pt-1">
         <GestureDetector gesture={move}>
           <View
+            accessible={!readOnly}
             accessibilityRole="adjustable"
             accessibilityLabel={t('editor.canvas.moveNote')}
+            accessibilityActions={[
+              { name: 'moveLeft', label: t('editor.canvas.moveLeft') },
+              { name: 'moveRight', label: t('editor.canvas.moveRight') },
+              { name: 'moveUp', label: t('editor.canvas.moveUp') },
+              { name: 'moveDown', label: t('editor.canvas.moveDown') },
+            ]}
+            onAccessibilityAction={(event) => {
+              if (readOnly) return;
+              const by = {
+                moveLeft: { x: -NUDGE, y: 0 },
+                moveRight: { x: NUDGE, y: 0 },
+                moveUp: { x: 0, y: -NUDGE },
+                moveDown: { x: 0, y: NUDGE },
+              }[event.nativeEvent.actionName];
+              if (by) moveTo({ x: frame.x + by.x, y: frame.y + by.y });
+            }}
             className="h-5 flex-1 cursor-grab items-center justify-center"
           >
             <View className="h-1 w-10 rounded-full bg-border" />
@@ -383,6 +470,11 @@ function CanvasNote({
           <View
             accessibilityRole="adjustable"
             accessibilityLabel={t('editor.canvas.resizeNote')}
+            accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+            onAccessibilityAction={(event) => {
+              if (event.nativeEvent.actionName === 'increment') widen(frame.width + NUDGE);
+              if (event.nativeEvent.actionName === 'decrement') widen(frame.width - NUDGE);
+            }}
             style={styles.resize}
             className="cursor-ew-resize"
           />
@@ -390,7 +482,7 @@ function CanvasNote({
       ) : null}
     </Animated.View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   surface: { flex: 1 },

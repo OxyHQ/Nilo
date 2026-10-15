@@ -38,5 +38,11 @@
     "tryLater": "AI is busy right now. Try again in a moment.",
     "account": "Your account has no AI usage left. Check your plan or spending limits in Oxy.",
     "unavailable": "AI could not do this. If it keeps happening, report the request below."
+  },
+  "back": "Back",
+  "notice": {
+    "blockChanged": "The block changed while AI was writing. Insert the result below it instead, so nothing written meanwhile is lost.",
+    "blockGone": "The block was deleted while AI was writing.",
+    "insertOnly": "Replacing would lose what Markdown cannot carry here (what the block holds, mentions, underline or colour), so the result can only go below it."
   }
 }

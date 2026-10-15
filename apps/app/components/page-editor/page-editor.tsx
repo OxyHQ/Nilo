@@ -280,7 +280,12 @@ export function PageEditor({
         />
       ) : null}
       {aiTarget && aiAvailable ? (
-        <AiDialog store={store} target={aiTarget} onClose={() => setAiTarget(null)} />
+        <AiDialog
+          store={store}
+          target={aiTarget}
+          canvas={layout === 'canvas'}
+          onClose={() => setAiTarget(null)}
+        />
       ) : null}
       {layout === 'canvas' ? <PageCanvas {...editorProps} /> : <BlockEditor {...editorProps} />}
     </View>

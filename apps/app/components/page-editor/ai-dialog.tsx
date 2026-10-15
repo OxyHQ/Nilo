@@ -17,11 +17,15 @@ import {
   type TranslationLanguage,
 } from '@/lib/ai/actions';
 import { type AiFailure, failureOf, useAiAction } from '@/lib/ai/use-ai';
+import { insertMarkdownAsNote } from '@/lib/editor/canvas';
 import {
   blocksToMarkdownText,
+  blockTextMarkdown,
+  canReplaceText,
   insertMarkdownAfter,
   insertMarkdownAtTop,
-  replaceWithMarkdown,
+  isSameText,
+  replaceBlockText,
 } from '@/lib/editor/markdown-blocks';
 import { useColorScheme } from '@/lib/useColorScheme';
 
@@ -33,10 +37,13 @@ const PAGE_ACTIONS: readonly AiActionId[] = ['summarize'];
 export function AiDialog({
   store,
   target,
+  canvas = false,
   onClose,
 }: {
   store: EditorStore;
   target: AiTarget;
+  /** The page is a canvas: what goes on the page goes in a new note. */
+  canvas?: boolean;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -46,20 +53,26 @@ export function AiDialog({
   const [last, setLast] = useState<{ action: AiActionId; language?: TranslationLanguage } | null>(
     null,
   );
+  const [notice, setNotice] = useState<'blockChanged' | 'blockGone' | null>(null);
   const abort = useRef<AbortController | null>(null);
+  /** What the action read, to tell whether the block changed since. */
+  const sent = useRef('');
   useEffect(() => () => abort.current?.abort(), []);
 
+  // A block's own text (not what it holds); the page's whole content.
   const source = () =>
     target.kind === 'block'
-      ? blocksToMarkdownText(store.doc, [target.blockId])
+      ? blockTextMarkdown(store.doc, target.blockId)
       : blocksToMarkdownText(store.doc, store.doc.root);
 
   const start = (action: AiActionId, language?: TranslationLanguage) => {
     abort.current?.abort();
     abort.current = new AbortController();
     setChoosingLanguage(false);
+    setNotice(null);
     setLast({ action, language });
-    run.mutate({ action, text: source(), language, signal: abort.current.signal });
+    sent.current = source();
+    run.mutate({ action, text: sent.current, language, signal: abort.current.signal });
   };
   const cancel = () => {
     abort.current?.abort();
@@ -69,16 +82,31 @@ export function AiDialog({
   const apply = (how: 'replace' | 'below' | 'top') => {
     const markdown = run.data;
     if (!markdown) return;
+    if (target.kind === 'block') {
+      // Someone deleted the block, or wrote in it, while the action ran:
+      // nothing of theirs is overwritten, and the member is told.
+      if (!store.doc.blocks[target.blockId]) {
+        setNotice('blockGone');
+        return;
+      }
+      if (how === 'replace' && !isSameText(store.doc, target.blockId, sent.current)) {
+        setNotice('blockChanged');
+        return;
+      }
+    }
     store.sealHistory();
     store.run((c) => {
-      if (how === 'top') return insertMarkdownAtTop(c, markdown);
-      if (target.kind !== 'block' || !c.doc.blocks[target.blockId]) return null;
+      if (how === 'top')
+        return canvas ? insertMarkdownAsNote(c, markdown) : insertMarkdownAtTop(c, markdown);
+      if (target.kind !== 'block') return null;
       return how === 'replace'
-        ? replaceWithMarkdown(c, target.blockId, markdown)
+        ? replaceBlockText(c, target.blockId, markdown)
         : insertMarkdownAfter(c, target.blockId, markdown);
     });
     onClose();
   };
+  const replaceable =
+    target.kind === 'block' && canReplaceText(store.doc, store.schema, target.blockId);
 
   const actions = target.kind === 'block' ? BLOCK_ACTIONS : PAGE_ACTIONS;
   const failure = run.isError && run.error && !isAbort(run.error) ? failureOf(run.error) : null;
@@ -114,6 +142,13 @@ export function AiDialog({
               </Text>
             </ScrollView>
             <Text className="text-xs text-muted-foreground">{t('ai.check')}</Text>
+            {notice ? (
+              <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+                {t(`ai.notice.${notice}`)}
+              </Text>
+            ) : target.kind === 'block' && !replaceable ? (
+              <Text className="text-xs text-muted-foreground">{t('ai.notice.insertOnly')}</Text>
+            ) : null}
             <View className="flex-row flex-wrap justify-end gap-2">
               <Button variant="ghost" onPress={onClose}>
                 <Text>{t('ai.discard')}</Text>
@@ -125,12 +160,18 @@ export function AiDialog({
               ) : null}
               {target.kind === 'block' ? (
                 <>
-                  <Button variant="outline" onPress={() => apply('below')}>
+                  <Button
+                    variant={replaceable ? 'outline' : 'default'}
+                    disabled={notice === 'blockGone'}
+                    onPress={() => apply('below')}
+                  >
                     <Text>{t('ai.insertBelow')}</Text>
                   </Button>
-                  <Button onPress={() => apply('replace')}>
-                    <Text>{t('ai.replace')}</Text>
-                  </Button>
+                  {replaceable ? (
+                    <Button disabled={notice !== null} onPress={() => apply('replace')}>
+                      <Text>{t('ai.replace')}</Text>
+                    </Button>
+                  ) : null}
                 </>
               ) : (
                 <Button onPress={() => apply('top')}>
@@ -141,7 +182,12 @@ export function AiDialog({
           </>
         ) : choosingLanguage ? (
           <View className="gap-1">
-            <Text className="text-sm text-muted-foreground">{t('ai.chooseLanguage')}</Text>
+            <View className="flex-row items-center justify-between">
+              <Text className="text-sm text-muted-foreground">{t('ai.chooseLanguage')}</Text>
+              <Button variant="ghost" size="sm" onPress={() => setChoosingLanguage(false)}>
+                <Text>{t('ai.back')}</Text>
+              </Button>
+            </View>
             {TRANSLATION_LANGUAGES.map((language) => (
               <Button
                 key={language}

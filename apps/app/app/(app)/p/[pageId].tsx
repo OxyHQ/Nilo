@@ -173,6 +173,12 @@ function PageDetail({
                   {page.title || t('pages.untitled')}
                 </Text>
               </View>
+              {page.databaseId ? (
+                // A database row keeps its properties above its canvas.
+                <View className="border-b border-border px-4 py-2">
+                  <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
+                </View>
+              ) : null}
               <PageEditor
                 pageId={page.id}
                 focusedBlockId={blockId}

@@ -15,7 +15,7 @@ import {
   updatePage,
 } from '../repositories/pages.js';
 import { listBlocksForPage } from '../repositories/blocks.js';
-import { blocksToHtml, blocksToMarkdown, blocksToTree } from '@nilo/contracts';
+import { blocksToHtml, blocksToMarkdown, blocksToTree, inReadingOrder } from '@nilo/contracts';
 import { copyPageTree } from '../repositories/pageCopies.js';
 import { follow } from '../repositories/pageFollows.js';
 import { findDatabaseById } from '../repositories/databases.js';
@@ -487,12 +487,15 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
     // A locked page keeps its title, icon, cover and properties until it is
     // unlocked (in this request or an earlier one).
+    // A canvas and a document lay the same blocks out differently: switching
+    // rearranges them, so it is a content edit too.
     const editsContent =
       body.title !== undefined ||
       body.icon !== undefined ||
       body.cover !== undefined ||
       body.coverPosition !== undefined ||
-      body.properties !== undefined;
+      body.properties !== undefined ||
+      body.mode !== undefined;
     if (page.locked && body.locked !== false && editsContent) {
       res.status(423).json({ error: 'The page is locked', code: 'PAGE_LOCKED' });
       return;
@@ -839,7 +842,7 @@ router.get(
       }
       if (!(await checkPageAccess(req, res, db, page.id, 'viewer'))) return;
 
-      const tree = blocksToTree(await listBlocksForPage(db, page.id));
+      const tree = inReadingOrder(blocksToTree(await listBlocksForPage(db, page.id)));
       const title = page.title?.trim() ? page.title : 'Untitled';
       // A filename every OS accepts, plus the exact name for clients that read RFC 5987.
       const ascii =

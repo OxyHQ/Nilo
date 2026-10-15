@@ -10,10 +10,13 @@ import {
 } from '@oxy.so/bloom-editor/model';
 import {
   blocksToMarkdownText,
+  blockTextMarkdown,
+  canReplaceText,
   insertMarkdownAfter,
   insertMarkdownAtTop,
+  isSameText,
   markdownToSnapshot,
-  replaceWithMarkdown,
+  replaceBlockText,
 } from '../markdown-blocks';
 import { NILO_SCHEMA } from '../schema';
 
@@ -55,19 +58,71 @@ it('writes blocks out as Markdown', () => {
   expect(blocksToMarkdownText(d, d.root).trim().split(/\n+/)).toEqual(['one', 'two']);
 });
 
-it('replaces a block with what the Markdown says, as one step', () => {
-  const start = doc(['before', 'old', 'after']);
-  const next = run(
-    start,
-    replaceWithMarkdown(ctx(start), start.root[1] as string, 'New\n\n- item'),
+it("replaces a block's text in place, keeping the block, and adds what follows", () => {
+  const start = documentFromSnapshot(
+    [
+      { type: 'paragraph', text: [{ text: 'before' }] },
+      { type: 'heading_2', text: [{ text: 'old' }], props: { color: 'blue' } },
+      { type: 'paragraph', text: [{ text: 'after' }] },
+    ],
+    newId,
+    NILO_SCHEMA,
   );
+  const id = start.root[1] as string;
+  const next = run(start, replaceBlockText(ctx(start), id, 'New **bold**\n\n- item'));
   expect(outline(next)).toEqual([
     'paragraph:before',
-    'paragraph:New',
+    'heading_2:New bold',
     'bulleted_list_item:item',
     'paragraph:after',
   ]);
-  expect(replaceWithMarkdown(ctx(start), start.root[1] as string, '   ')).toBeNull();
+  // The same block: its id, type and props.
+  expect(next.root[1]).toBe(id);
+  expect(getBlock(next, id).props).toMatchObject({ color: 'blue' });
+  expect(getBlock(next, id).text).toEqual([{ text: 'New ' }, { text: 'bold', bold: true }]);
+  expect(replaceBlockText(ctx(start), id, '   ')).toBeNull();
+});
+
+it('offers replacing only what Markdown carries both ways', () => {
+  const d = documentFromSnapshot(
+    [
+      {
+        type: 'paragraph',
+        text: [{ text: 'plain ' }, { text: 'bold', bold: true, link: 'https://x.y' }],
+      },
+      { type: 'paragraph', text: [{ text: 'under', underline: true }] },
+      {
+        type: 'paragraph',
+        text: [{ text: '@Ana', mention: { indicator: '@', attributes: { id: 'a' } } }],
+      },
+      {
+        type: 'toggle',
+        text: [{ text: 'holds' }],
+        children: [{ type: 'paragraph', text: [{ text: 'x' }] }],
+      },
+      { type: 'divider' },
+    ],
+    newId,
+    NILO_SCHEMA,
+  );
+  expect(d.root.map((id) => canReplaceText(d, NILO_SCHEMA, id))).toEqual([
+    true,
+    false,
+    false,
+    false,
+    false,
+  ]);
+});
+
+it('tells whether a block still says what was sent', () => {
+  const d = doc(['same']);
+  const id = d.root[0] as string;
+  const sent = blockTextMarkdown(d, id);
+  expect(isSameText(d, id, sent)).toBe(true);
+  const edited = run(d, insertMarkdownAfter(ctx(d), id, 'x'));
+  expect(isSameText(edited, id, sent)).toBe(true);
+  expect(isSameText(d, 'gone', sent)).toBe(false);
+  expect(isSameText(d, id, 'other')).toBe(false);
 });
 
 it('inserts below a block, and at the top of the page', () => {

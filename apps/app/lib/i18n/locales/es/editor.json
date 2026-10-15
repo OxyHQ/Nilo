@@ -278,6 +278,12 @@
     "moveNote": "Mover la nota",
     "resizeNote": "Cambiar el ancho de la nota",
     "deleteNote": "Eliminar la nota",
-    "writeInNote": "Escribir en esta nota"
+    "writeInNote": "Escribir en esta nota",
+    "loose": "Fuera de una nota",
+    "putInNote": "Poner en una nota",
+    "moveLeft": "Mover a la izquierda",
+    "moveRight": "Mover a la derecha",
+    "moveUp": "Mover arriba",
+    "moveDown": "Mover abajo"
   }
 }

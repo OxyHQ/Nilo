@@ -38,5 +38,11 @@
     "tryLater": "La IA está ocupada. Vuelve a intentarlo en un momento.",
     "account": "A tu cuenta no le queda uso de IA. Revisa tu plan o tus límites de gasto en Oxy.",
     "unavailable": "La IA no pudo hacerlo. Si vuelve a pasar, informa de la solicitud de abajo."
+  },
+  "back": "Atrás",
+  "notice": {
+    "blockChanged": "El bloque cambió mientras la IA escribía. Inserta el resultado debajo, para no perder lo que se escribió mientras tanto.",
+    "blockGone": "El bloque se eliminó mientras la IA escribía.",
+    "insertOnly": "Reemplazarlo perdería lo que Markdown no puede conservar aquí (lo que contiene el bloque, menciones, subrayado o color), así que el resultado solo puede ir debajo."
   }
 }

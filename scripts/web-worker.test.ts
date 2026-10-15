@@ -120,6 +120,17 @@ describe('published pages', () => {
     expect(result.headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
   });
 
+  test('reads a canvas page top to bottom, then left to right', async () => {
+    const note = (id: string, x: number, y: number, text: string) => [
+      { id, parentBlockId: null, type: 'canvas_note', content: { x, y }, order: 1 },
+      { id: `${id}-p`, parentBlockId: id, type: 'paragraph', content: { text }, order: 1 },
+    ];
+    answer(200, page({ blocks: [...note('b', 0, 500, 'Second'), ...note('a', 0, 0, 'First')] }));
+    const html = await (await visit('/pub/plan')).text();
+    expect(html.indexOf('First')).toBeLessThan(html.indexOf('Second'));
+    expect(html).toContain('<meta name="description" content="First Second">');
+  });
+
   test('serves the app unchanged when the page is not published', async () => {
     answer(404, { error: 'This page is not published' });
     const result = await visit('/pub/gone');

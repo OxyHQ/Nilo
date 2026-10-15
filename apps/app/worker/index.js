@@ -23,6 +23,7 @@ import {
   blocksToText,
   blocksToTree,
   escapeHtml,
+  inReadingOrder,
   isEntityId,
 } from '@nilo/contracts';
 
@@ -62,7 +63,7 @@ async function readPublishedPage(env, slug, pageId) {
  */
 function withPublishedPage(response, data, url) {
   const title = data.page?.title?.trim() || 'Untitled';
-  const tree = blocksToTree(data.blocks ?? []);
+  const tree = inReadingOrder(blocksToTree(data.blocks ?? []));
   const description = blocksToText(tree, 160);
   const canonical = `${url.origin}${url.pathname.replace(/\/$/, '')}`;
   const cover =
