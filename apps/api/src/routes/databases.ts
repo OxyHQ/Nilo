@@ -73,7 +73,12 @@ import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js'
 import { hasRole } from '../db/schema/workspaces.js';
 import { buildDefaultSchema, NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
 import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
-import { evaluateFilter, filterGroupSchema } from '../lib/databases/filters.js';
+import {
+  evaluateFilter,
+  filterGroupSchema,
+  filterPropertyIds,
+  readsComputed,
+} from '../lib/databases/filters.js';
 import { compareBySorts } from '../lib/databases/sorts.js';
 import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js';
 import { rowFormulaContext } from '../lib/databases/row-values.js';
@@ -845,7 +850,25 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     const propertyById = new Map<string, DatabaseProperty>();
     for (const p of db.propertiesSchema.properties) propertyById.set(p.id, p);
 
-    let filtered = rowDocs;
+    // Formulas and rollups are computed, not stored: a view that filters or
+    // sorts on one needs every row's computed values first.
+    const viewReads = [
+      ...(view?.filters ? filterPropertyIds(view.filters as Filter) : []),
+      ...(view?.sorts ?? []).map((s) => s.propertyId),
+    ];
+    const rowsWithComputed = readsComputed(viewReads, propertyById)
+      ? await Promise.all(
+          rowDocs.map(async (row) => ({
+            ...row,
+            properties: {
+              ...row.properties,
+              ...(await resolveDerivedProperties(handle, row, db.propertiesSchema)),
+            },
+          })),
+        )
+      : rowDocs;
+
+    let filtered = rowsWithComputed;
     if (query.search) {
       const needle = query.search.toLowerCase();
       filtered = filtered.filter((r) => r.title.toLowerCase().includes(needle));

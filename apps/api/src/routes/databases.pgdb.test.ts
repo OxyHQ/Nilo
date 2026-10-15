@@ -716,6 +716,78 @@ describe('rows', () => {
     expect(listed.body.total).toBe(2);
   });
 
+  it('filters and sorts on a formula, and sorts options in their listed order', async () => {
+    const databaseId = await createDatabase({
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'pts', name: 'Points', type: 'number' },
+          {
+            id: 'dbl',
+            name: 'Double',
+            type: 'formula',
+            config: { expression: 'prop("Points") * 2' },
+          },
+          {
+            id: 'pri',
+            name: 'Priority',
+            type: 'select',
+            config: {
+              options: [
+                { id: 'zz-high', name: 'High' },
+                { id: 'aa-low', name: 'Low' },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    for (const [title, pts, pri] of [
+      ['one', 1, 'aa-low'],
+      ['five', 5, 'zz-high'],
+      ['three', 3, 'aa-low'],
+    ] as const) {
+      await api('POST', `/api/databases/${databaseId}/rows`, {
+        title,
+        properties: { pts: { number: pts }, pri: { optionId: pri } },
+      });
+    }
+    const byFormula = await api('POST', `/api/databases/${databaseId}/views`, {
+      name: 'Big',
+      type: 'table',
+      filters: {
+        kind: 'group',
+        combinator: 'and',
+        filters: [{ kind: 'condition', propertyId: 'dbl', operator: '>', value: 4 }],
+      },
+      sorts: [{ propertyId: 'dbl', direction: 'desc' }],
+    });
+    const big = await api(
+      'GET',
+      `/api/databases/${databaseId}/rows?viewId=${idOf(byFormula.body.view)}`,
+    );
+    expect(asArray(big.body.rows).map((r) => asRecord(r).title)).toEqual(['five', 'three']);
+
+    const byPriority = await api('POST', `/api/databases/${databaseId}/views`, {
+      name: 'Priority',
+      type: 'table',
+      sorts: [
+        { propertyId: 'pri', direction: 'asc' },
+        { propertyId: 'pts', direction: 'asc' },
+      ],
+    });
+    const sorted = await api(
+      'GET',
+      `/api/databases/${databaseId}/rows?viewId=${idOf(byPriority.body.view)}`,
+    );
+    // High is listed first, whatever its id.
+    expect(asArray(sorted.body.rows).map((r) => asRecord(r).title)).toEqual([
+      'five',
+      'one',
+      'three',
+    ]);
+  });
+
   it('resolves created_time, created_by and formula properties at read time', async () => {
     const databaseId = await createDatabase({
       schema: {
