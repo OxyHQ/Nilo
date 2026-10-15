@@ -121,7 +121,12 @@ export interface SafeResponse {
   status: number;
   contentType: string;
   finalUrl: string;
+  /** The body as UTF-8 text. */
   body: string;
+  /** The body as received, for binary content. */
+  bytes: Buffer;
+  /** Whether the body was cut off at `maxBytes` or the deadline. */
+  truncated: boolean;
 }
 
 export interface SafeFetchOptions {
@@ -175,28 +180,41 @@ export async function safeFetch(
     const contentType = String(res.headers['content-type'] ?? '');
     if (options.accept && !options.accept(contentType)) {
       res.destroy();
-      return { status, contentType, finalUrl: url.toString(), body: '' };
+      return {
+        status,
+        contentType,
+        finalUrl: url.toString(),
+        body: '',
+        bytes: Buffer.alloc(0),
+        truncated: false,
+      };
     }
     const chunks: Buffer[] = [];
     let received = 0;
+    let truncated = false;
     for await (const chunk of res as AsyncIterable<Buffer>) {
       received += chunk.length;
       if (received > settings.maxBytes) {
         chunks.push(chunk.subarray(0, chunk.length - (received - settings.maxBytes)));
         res.destroy();
+        truncated = true;
         break;
       }
       chunks.push(chunk);
       if (Date.now() > deadline) {
         res.destroy();
+        truncated = true;
         break;
       }
     }
+    const bytes = Buffer.concat(chunks);
     return {
       status,
       contentType,
       finalUrl: url.toString(),
-      body: Buffer.concat(chunks).toString('utf8'),
+      body: bytes.toString('utf8'),
+      bytes,
+      truncated,
     };
   }
   throw new UnsafeUrlError('Too many redirects');

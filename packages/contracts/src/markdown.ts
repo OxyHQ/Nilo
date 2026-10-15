@@ -470,7 +470,8 @@ export function blocksToTree(blocks: readonly FlatBlock[]): BlockNode[] {
   return build(null);
 }
 
-const segmentsOf = (content: BlockContent): Segment[] => {
+/** A block's text as segments: its `segments`, or its plain `text` as one. */
+export const segmentsOf = (content: BlockContent): Segment[] => {
   const segments = content.segments;
   if (Array.isArray(segments) && segments.length > 0) return segments as Segment[];
   return typeof content.text === 'string' && content.text ? [{ text: content.text }] : [];
