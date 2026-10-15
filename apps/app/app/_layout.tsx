@@ -7,7 +7,6 @@ import { BloomProvider } from '@oxy.so/bloom/provider';
 import { ImageResolverProvider } from '@oxy.so/bloom/image-resolver';
 import { expoRouterScrollAdapter } from '@oxy.so/bloom/scroll/expo-router';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -15,8 +14,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppErrorBoundary } from '@/components/error-boundary';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { setTokenGetter } from '@/lib/api/client';
-import { enterAccount } from '@/lib/account-boundary';
-import { configureShellQueries, shellPersistOptions } from '@/lib/offline-cache';
+import { enterAccount, sessionEnded } from '@/lib/account-boundary';
+import { ACCOUNT_QUERIES, configureShellQueries } from '@/lib/offline-cache';
 import { BLOOM_THEME_PERSIST_KEY, BLOOM_THEME_STORAGE } from '@/lib/themePersistence';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@/lib/i18n';
 import { useI18nStore } from '@/lib/stores/i18n-store';
@@ -35,14 +34,21 @@ const OXY_API_URL = process.env.EXPO_PUBLIC_OXY_API_URL || 'https://api.oxy.so';
 const AUTH_REDIRECT_URI = Linking.createURL('/');
 
 function AuthSetup({ children }: { children: React.ReactNode }) {
-  const { oxyServices, user } = useOxy();
+  const { oxyServices, user, isAuthResolved } = useOxy();
   const queryClient = useQueryClient();
 
-  // What the device keeps is one account's (lib/account-boundary.ts): nothing
-  // shows until it is known to be this one's, so another's never flashes up.
+  // What the device keeps outside the SDK's per-account queries is one
+  // account's (lib/account-boundary.ts). Nothing renders until the session is
+  // resolved and the device known to be this account's, so the app mounts
+  // once, and another's pages never show.
   const userId = user?.id ?? null;
   const [checkedFor, setCheckedFor] = useState<string | null>(null);
+  const previous = useRef<string | null>(null);
   useEffect(() => {
+    if (!isAuthResolved) return;
+    const left = previous.current;
+    previous.current = userId;
+    if (left && left !== userId) void sessionEnded(left);
     if (!userId) return;
     let live = true;
     void enterAccount(queryClient, userId).finally(() => {
@@ -51,8 +57,8 @@ function AuthSetup({ children }: { children: React.ReactNode }) {
     return () => {
       live = false;
     };
-  }, [userId, queryClient]);
-  const ready = userId === null || checkedFor === userId;
+  }, [isAuthResolved, userId, queryClient]);
+  const ready = isAuthResolved && (userId === null || checkedFor === userId);
 
   // Registered during render, not in an effect: children's mount effects fire
   // API calls before a parent effect would run. Guarded so it only re-runs if
@@ -106,21 +112,6 @@ function AppContent() {
   );
 }
 
-/**
- * On iOS and Android the queries the app needs to stand up are kept on the
- * device (lib/offline-cache.ts); a browser keeps nothing, as for offline pages.
- */
-function QueryProvider({ client, children }: { client: QueryClient; children: React.ReactNode }) {
-  if (Platform.OS === 'web') {
-    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-  }
-  return (
-    <PersistQueryClientProvider client={client} persistOptions={shellPersistOptions}>
-      {children}
-    </PersistQueryClientProvider>
-  );
-}
-
 function RootLayout() {
   const [queryClient] = useState(() => {
     const client = new QueryClient({
@@ -132,7 +123,7 @@ function RootLayout() {
         },
       },
     });
-    if (Platform.OS !== 'web') configureShellQueries(client);
+    configureShellQueries(client);
     return client;
   });
 
@@ -149,9 +140,11 @@ function RootLayout() {
         scrollAdapter={expoRouterScrollAdapter}
       >
         <AppErrorBoundary>
-          <QueryProvider client={queryClient}>
+          <QueryClientProvider client={queryClient}>
             <OxyProvider
               baseURL={OXY_API_URL}
+              queryClient={queryClient}
+              accountQueries={ACCOUNT_QUERIES}
               clientId={process.env.EXPO_PUBLIC_OXY_CLIENT_ID}
               authRedirectUri={Platform.OS !== 'web' ? AUTH_REDIRECT_URI : undefined}
               language={{
@@ -171,7 +164,7 @@ function RootLayout() {
                 <PortalOutlet />
               </PortalProvider>
             </OxyProvider>
-          </QueryProvider>
+          </QueryClientProvider>
         </AppErrorBoundary>
       </BloomProvider>
     </GestureHandlerRootView>

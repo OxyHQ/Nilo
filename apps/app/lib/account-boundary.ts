@@ -1,35 +1,55 @@
 /**
- * What the app keeps on the device belongs to one account: the kept queries,
- * the pages kept offline, the work not yet sent. When another account signs
- * in, or the member signs out, all of it goes, so no one sees another's pages
+ * What the app keeps on the device outside the SDK's per-account query cache —
+ * pages kept offline and work not yet sent — belongs to one account. When
+ * another account signs in, all of it goes, so no one sees another's pages
  * and no change is sent in someone else's name.
  *
- * A session still being restored (no user yet) changes nothing: offline, that
- * is exactly when what is kept is needed.
+ * The device's owner is recorded as the account id, or as a mark left by a
+ * sign-out:
+ *
+ * - `signed-out` (signing out from Nilo): whoever signs in next starts clean,
+ *   the same account included. Anything written after the sign-out — an
+ *   editor saving as it unmounts — is cleared then too.
+ * - `signed-out:<id>` (the session ended elsewhere, from Oxy's own account
+ *   sheet): that account keeps its pages; anyone else starts clean.
+ *
+ * A session still being restored decides nothing.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { QueryClient } from '@tanstack/react-query';
 import { clearAllSavedPages } from './editor/offline';
 import { offlinePages } from './editor/offline-pages';
-import { shellPersister } from './offline-cache';
 
-const ACCOUNT_KEY = 'nilo:account';
+const OWNER_KEY = 'nilo:account';
+const SIGNED_OUT = 'signed-out';
 
-/** Remove everything kept on the device for the account using it. */
-export async function forgetDeviceData(client: QueryClient): Promise<void> {
+const readOwner = () => AsyncStorage.getItem(OWNER_KEY).catch(() => null);
+const writeOwner = (value: string) => AsyncStorage.setItem(OWNER_KEY, value).catch(() => undefined);
+
+async function clearDevice(client: QueryClient): Promise<void> {
   client.clear();
-  await Promise.all([
-    shellPersister.removeClient(),
-    offlinePages.clear(),
-    clearAllSavedPages(),
-    AsyncStorage.removeItem(ACCOUNT_KEY).catch(() => undefined),
-  ]);
+  await Promise.all([offlinePages.clear(), clearAllSavedPages()]);
 }
 
-/** `userId` is using the app: if the device's data was another account's, it goes. */
+/**
+ * Signing out from Nilo: the next account, whoever it is, starts clean. The
+ * mark goes first, so what is written while the app unmounts is cleared too.
+ */
+export async function signOutOfDevice(client: QueryClient): Promise<void> {
+  await writeOwner(SIGNED_OUT);
+  await clearDevice(client);
+}
+
+/** The session ended without Nilo signing out (Oxy's own sheet): only another account starts clean. */
+export async function sessionEnded(userId: string): Promise<void> {
+  const owner = await readOwner();
+  if (owner === userId) await writeOwner(`${SIGNED_OUT}:${userId}`);
+}
+
+/** `userId` is using the app: if the device's data was another account's, or signed out of, it goes. */
 export async function enterAccount(client: QueryClient, userId: string): Promise<void> {
-  const previous = await AsyncStorage.getItem(ACCOUNT_KEY).catch(() => null);
-  if (previous === userId) return;
-  if (previous !== null) await forgetDeviceData(client);
-  await AsyncStorage.setItem(ACCOUNT_KEY, userId).catch(() => undefined);
+  const owner = await readOwner();
+  if (owner === userId) return;
+  if (owner !== null && owner !== `${SIGNED_OUT}:${userId}`) await clearDevice(client);
+  await writeOwner(userId);
 }

@@ -1,7 +1,7 @@
 import { deflateSync } from 'node:zlib';
 import type { BlockNode } from '@nilo/contracts';
 import { describe, expect, it } from 'vitest';
-import { blocksToPdf } from '../pdf-export.js';
+import { blocksToPdf, IMAGE_LIMITS, imageSize } from '../pdf-export.js';
 
 const block = (
   type: BlockNode['type'],
@@ -9,8 +9,8 @@ const block = (
   children: BlockNode[] = [],
 ): BlockNode => ({ type, content, children });
 
-/** A 2×1 RGB PNG, built by hand: signature, IHDR, IDAT, IEND. */
-function png(): Buffer {
+/** A small RGB PNG, built by hand (signature, IHDR, IDAT, IEND), declaring `width`×`height`. */
+function png(width = 2, height = 1): Buffer {
   const crcTable = Array.from({ length: 256 }, (_, n) => {
     let c = n;
     for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
@@ -30,8 +30,8 @@ function png(): Buffer {
     return out;
   };
   const header = Buffer.alloc(13);
-  header.writeUInt32BE(2, 0);
-  header.writeUInt32BE(1, 4);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
   header[8] = 8;
   header[9] = 2;
   const pixels = Buffer.from([0, 255, 0, 0, 0, 0, 255]);
@@ -114,5 +114,50 @@ describe('blocksToPdf', () => {
       Promise.reject(new Error('offline')),
     );
     expect(pdf.toString('latin1')).not.toContain('/Subtype /Image');
+  });
+});
+
+describe('what an export may take in images', () => {
+  it('reads an image size from its PNG or JPEG header', () => {
+    expect(imageSize(png(640, 480))).toEqual({ width: 640, height: 480 });
+    // SOI, an APP0 segment, then a baseline frame of 300×200.
+    const jpeg = Buffer.from([
+      0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0x00, 0x00, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0xc8,
+      0x01, 0x2c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ]);
+    expect(imageSize(jpeg)).toEqual({ width: 300, height: 200 });
+    expect(imageSize(Buffer.from('<svg/>'))).toBeNull();
+  });
+
+  it('refuses an image whose header declares a huge canvas, before decoding it', async () => {
+    const pdf = await blocksToPdf(
+      [block('image', { url: 'https://img.example/huge.png' })],
+      'Huge',
+      async () => png(30_000, 30_000),
+    );
+    expect(pdf.toString('latin1')).not.toContain('/Subtype /Image');
+    expect(pdf.toString('latin1')).toContain('/URI (https://img.example/huge.png)');
+  });
+
+  it('loads only so many images, a few at a time', async () => {
+    const urls = Array.from({ length: 200 }, (_, i) => `https://img.example/${i}.png`);
+    let running = 0;
+    let most = 0;
+    const asked: string[] = [];
+    await blocksToPdf(
+      urls.map((url) => block('image', { url })),
+      'Many',
+      async (url) => {
+        asked.push(url);
+        running += 1;
+        most = Math.max(most, running);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        running -= 1;
+        return png();
+      },
+    );
+    expect(asked).toHaveLength(IMAGE_LIMITS.count);
+    expect(asked).toEqual(urls.slice(0, IMAGE_LIMITS.count));
+    expect(most).toBeLessThanOrEqual(IMAGE_LIMITS.concurrency);
   });
 });
