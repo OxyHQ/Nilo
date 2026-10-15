@@ -1,8 +1,10 @@
 import * as React from 'react';
-import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
+import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from 'react-native';
 import { cn } from '@/lib/utils';
 
 const TextClassContext = React.createContext<string | undefined>(undefined);
+
+const TextStyleContext = React.createContext<TextStyle | undefined>(undefined);
 
 export type TextProps = RNTextProps & {
   className?: string;
@@ -11,7 +13,8 @@ export type TextProps = RNTextProps & {
 };
 
 const Text = React.forwardRef<RNText, TextProps>(
-  ({ className, inherit = false, ...props }, ref) => {
+  ({ className, inherit = false, style, ...props }, ref) => {
+    const textStyle = React.useContext(TextStyleContext);
     const textClass = React.useContext(TextClassContext);
     return (
       <RNText
@@ -20,6 +23,7 @@ const Text = React.forwardRef<RNText, TextProps>(
           !inherit && textClass,
           className,
         )}
+        style={[!inherit && textStyle, style]}
         ref={ref}
         {...props}
       />
@@ -28,4 +32,4 @@ const Text = React.forwardRef<RNText, TextProps>(
 );
 Text.displayName = 'Text';
 
-export { Text, TextClassContext };
+export { Text, TextClassContext, TextStyleContext };

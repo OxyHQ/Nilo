@@ -10,7 +10,10 @@ import { useAuthQuery } from './create-query';
 import { queryKeys } from './query-keys';
 
 export interface PublicPage {
-  page: Pick<Page, 'id' | 'title' | 'icon' | 'cover' | 'coverPosition' | 'updatedAt'>;
+  page: Pick<
+    Page,
+    'id' | 'title' | 'icon' | 'cover' | 'coverPosition' | 'updatedAt' | 'font' | 'fullWidth'
+  >;
   blocks: ReadOnlyBlock[];
   children: BreadcrumbEntry[];
   breadcrumb: BreadcrumbEntry[];

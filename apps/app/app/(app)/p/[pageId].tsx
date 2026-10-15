@@ -23,6 +23,7 @@ import { useDatabase } from '@/lib/hooks/use-databases';
 import { useTrackRecentPage } from '@/lib/hooks/use-track-recent-page';
 import { hasRole } from '@/lib/hooks/workspace-roles';
 import type { DatabaseRow, PropertyValue } from '@/lib/types/databases';
+import { cn } from '@/lib/utils';
 import type { Page } from '@/lib/types/pages';
 
 /**
@@ -95,9 +96,9 @@ function PageDetail({
     return comments.filter((c) => c.parentCommentId === null && c.resolvedAt === null).length;
   }, [commentsData?.comments]);
 
-  const handleOpenPanel = (focusedBlockId: string | null = null) => {
+  const handleOpenPanel = React.useCallback((focusedBlockId: string | null = null) => {
     setCommentPanel({ open: true, focusedBlockId });
-  };
+  }, []);
 
   if (isLoading) {
     return (
@@ -134,6 +135,7 @@ function PageDetail({
 
   const page = data.page;
   const canEdit = hasRole(role, 'editor');
+  const contentReadOnly = !canEdit || page.locked;
 
   const rightHeader = (
     <View className="flex-row items-center gap-2">
@@ -158,18 +160,20 @@ function PageDetail({
   );
 
   return (
-    <PageEditorProvider pageId={pageId} readOnly={!canEdit}>
+    <PageEditorProvider pageId={pageId} readOnly={contentReadOnly}>
       <PageChrome page={page} readOnly={!canEdit} rightHeader={rightHeader}>
         <View className="flex-1 flex-row">
           <EditorScrollView>
             <PageHeader page={page} readOnly={!canEdit} />
-            <View className="px-6 md:px-10 max-w-3xl w-full mx-auto pt-4">
-              <DatabaseRowProperties page={page} readOnly={!canEdit} />
+            <View
+              className={cn('px-6 md:px-10 w-full mx-auto pt-4', !page.fullWidth && 'max-w-3xl')}
+            >
+              <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
               <PageEditor
                 pageId={page.id}
                 focusedBlockId={blockId}
-                readOnly={!canEdit}
-                onOpenBlockComments={(blockId) => handleOpenPanel(blockId)}
+                readOnly={contentReadOnly}
+                onOpenBlockComments={handleOpenPanel}
               />
             </View>
           </EditorScrollView>
@@ -183,7 +187,7 @@ function PageDetail({
             onClose={() => setCommentPanel({ open: false, focusedBlockId: null })}
           />
         </View>
-        <PageEditorToolbar readOnly={!canEdit} />
+        <PageEditorToolbar readOnly={contentReadOnly} />
       </PageChrome>
     </PageEditorProvider>
   );

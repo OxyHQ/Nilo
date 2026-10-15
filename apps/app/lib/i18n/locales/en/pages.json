@@ -309,5 +309,21 @@
     "following": "Following",
     "failed": "Could not change following. Try again.",
     "retry": "Could not load following. Retry"
-  }
+  },
+  "style": {
+    "title": "Style",
+    "default": "Default",
+    "serif": "Serif",
+    "mono": "Mono",
+    "sample": "Ag",
+    "smallText": "Small text",
+    "fullWidth": "Full width",
+    "locked": "Lock page",
+    "updateFailed": "Could not update page settings."
+  },
+  "lock": {
+    "banner": "This page is locked.",
+    "unlock": "Unlock"
+  },
+  "title": "Page title"
 }

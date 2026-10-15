@@ -16,6 +16,7 @@ import {
   type EditorLabels,
   type BlockDecoration,
 } from '@oxy.so/bloom-editor';
+import { usePage } from '@/lib/hooks/use-pages';
 import { useOxy } from '@oxy.so/services';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -63,7 +64,8 @@ export function PageEditorProvider({
   const { user } = useOxy();
   const { t } = useTranslation();
   const profiles = useMemberProfiles(state.collaborators.map(({ userId }) => userId));
-  const theme = useEditorTheme();
+  const page = usePage(pageId);
+  const theme = useEditorTheme(page.data?.page.font, page.data?.page.smallText);
   const labels = useEditorLabels();
   const [toolbarHeight, setToolbarHeight] = useState(0);
   useEffect(() => {

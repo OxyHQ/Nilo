@@ -2,6 +2,10 @@ import { buildPageTree } from '../page-tree';
 import type { Page } from '../types/pages';
 
 const page = (id: string, parentId: string | null, order = 0): Page => ({
+  fullWidth: false,
+  smallText: false,
+  font: 'default',
+  locked: false,
   id,
   parentId,
   order,

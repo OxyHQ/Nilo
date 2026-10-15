@@ -1,8 +1,9 @@
 import { BlockText, blockTextSegments, PublicMentionContext } from './block-text';
 import { View } from 'react-native';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
-import { Text } from '@/components/ui/text';
-import { MONO_FONT_FAMILY } from '@/lib/fonts';
+import { Text, TextStyleContext } from '@/components/ui/text';
+import type { PageFont } from '@/lib/types/pages';
+import { MONO_FONT_FAMILY, PAGE_FONT_FAMILIES } from '@/lib/fonts';
 import { Check } from 'lucide-react-native';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { buildBlockTree, type ReadOnlyBlock, type BlockTreeNode } from '@/lib/block-tree';
@@ -198,17 +199,22 @@ export function SharedBlockRenderer({ block, listIndex = 1 }: SharedBlockRendere
 export function SharedBlockTree({
   blocks,
   publicSlug,
+  font = 'default',
 }: {
   blocks: readonly ReadOnlyBlock[];
   publicSlug?: string;
+  font?: PageFont;
 }) {
   const { t } = useTranslation();
+  const textStyle = useMemo(() => ({ fontFamily: PAGE_FONT_FAMILIES[font] }), [font]);
   const tree = useMemo(() => buildBlockTree(blocks), [blocks]);
   if (!tree.length)
     return <Text className="text-sm text-muted-foreground">{t('pages.share.empty')}</Text>;
   return (
     <PublicMentionContext.Provider value={publicSlug}>
-      <BlockBranch nodes={tree} />
+      <TextStyleContext.Provider value={textStyle}>
+        <BlockBranch nodes={tree} />
+      </TextStyleContext.Provider>
     </PublicMentionContext.Provider>
   );
 }

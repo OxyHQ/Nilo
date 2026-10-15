@@ -16,6 +16,10 @@ interface CreatePageInput {
 
 interface UpdatePageInput {
   id: string;
+  fullWidth?: boolean;
+  smallText?: boolean;
+  font?: Page['font'];
+  locked?: boolean;
   title?: string;
   icon?: string | null;
   cover?: string | null;
@@ -120,7 +124,8 @@ export function useUpdatePage() {
         queryClient.setQueryData(queryKeys.pages.detail(id), ctx.previous);
       }
     },
-    onSettled: (page) => {
+    onSettled: (page, _error, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.pages.detail(id) });
       if (!page) return;
       if (page.databaseId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.databases.detail(page.databaseId) });
@@ -129,9 +134,6 @@ export function useUpdatePage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.pages.shared });
       queryClient.invalidateQueries({
         queryKey: queryKeys.pages.list(page.workspaceId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.pages.detail(page.id),
       });
     },
   });

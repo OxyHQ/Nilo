@@ -138,6 +138,10 @@ function publicPage(page: PageRow) {
     icon: page.icon,
     cover: page.cover,
     coverPosition: page.coverPosition,
+    // How it is laid out, as its readers see it.
+    font: page.font,
+    fullWidth: page.fullWidth,
+    smallText: page.smallText,
     updatedAt: page.updatedAt,
   };
 }

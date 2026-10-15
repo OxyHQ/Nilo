@@ -3,13 +3,18 @@ import { saveExport } from '@/lib/save-export';
 import { PageHistoryDialog } from './page-history-dialog';
 import { ReminderDialog } from '@/components/reminders/reminder-dialog';
 import * as React from 'react';
-import { Platform, Pressable } from 'react-native';
+import { Platform, Pressable, ScrollView, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { MoreHorizontal } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useOxy } from '@oxy.so/services';
 import { toast } from '@oxy.so/bloom/toast';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
+import { Popover, PopoverTrigger, PopoverContent, PopoverSeparator } from '@oxy.so/bloom/popover';
+import { Button } from '@/components/ui/button';
+import { Text } from '@/components/ui/text';
+import { Switch } from '@/components/ui/switch';
+import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
+import { cn } from '@/lib/utils';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -40,6 +45,7 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
   const updatePage = useUpdatePage();
   const deletePage = useDeletePage();
   const exportPage = useExportPage();
+  const [menuOpen, setMenuOpen] = React.useState(false);
   const [importOpen, setImportOpen] = React.useState(false);
 
   const [historyOpen, setHistoryOpen] = React.useState(false);
@@ -135,12 +141,14 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
 
   return (
     <>
-      <DropdownMenu.Root
+      <Popover
+        open={menuOpen}
         onOpenChange={(open) => {
+          setMenuOpen(open);
           if (open) void follow.refetch();
         }}
       >
-        <DropdownMenu.Trigger>
+        <PopoverTrigger asChild>
           <Pressable
             accessibilityLabel={t('pages.actions.menu')}
             accessibilityRole="button"
@@ -148,143 +156,193 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
           >
             <MoreHorizontal size={16} color={colors.foreground} />
           </Pressable>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content>
-          <DropdownMenu.Item
-            key="follow"
-            disabled={follow.isFetching || follow.isPending || setFollow.isPending}
-            onSelect={() => {
-              if (follow.isError) {
-                void follow.refetch();
-                return;
-              }
-              setFollow.mutate(!follow.data?.following, {
-                onError: () => toast.error(t('pages.follow.failed')),
-              });
-            }}
-          >
-            <DropdownMenu.ItemTitle>
-              {t(
+        </PopoverTrigger>
+        <PopoverContent align="end" label={t('pages.actions.menu')} className="w-72">
+          <ScrollView style={{ maxHeight: 560 }} keyboardShouldPersistTaps="handled">
+            {!readOnly && !page.archived ? (
+              <View className="gap-3 p-2">
+                <Text
+                  accessibilityRole="header"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  {t('pages.style.title')}
+                </Text>
+                <View className="flex-row gap-2">
+                  {(['default', 'serif', 'mono'] as const).map((font) => (
+                    <Button
+                      key={font}
+                      variant="ghost"
+                      className={cn(
+                        'h-auto flex-1 gap-1 px-1 py-2',
+                        (page.font ?? 'default') === font && 'bg-muted',
+                      )}
+                      disabled={updatePage.isPending}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: (page.font ?? 'default') === font }}
+                      accessibilityLabel={t(`pages.style.${font}`)}
+                      onPress={() =>
+                        updatePage.mutate(
+                          { id: page.id, font },
+                          {
+                            onError: () => toast.error(t('pages.style.updateFailed')),
+                          },
+                        )
+                      }
+                    >
+                      <Text className="text-2xl" style={{ fontFamily: PAGE_FONT_FAMILIES[font] }}>
+                        {t('pages.style.sample')}
+                      </Text>
+                      <Text className="text-xs">{t(`pages.style.${font}`)}</Text>
+                    </Button>
+                  ))}
+                </View>
+                {(['smallText', 'fullWidth', 'locked'] as const).map((field) => (
+                  <View key={field} className="flex-row items-center justify-between gap-3">
+                    <Text className="text-sm">{t(`pages.style.${field}`)}</Text>
+                    <Switch
+                      value={Boolean(page[field])}
+                      disabled={updatePage.isPending}
+                      accessibilityLabel={t(`pages.style.${field}`)}
+                      onValueChange={(value) =>
+                        updatePage.mutate(
+                          { id: page.id, [field]: value },
+                          {
+                            onError: () => toast.error(t('pages.style.updateFailed')),
+                          },
+                        )
+                      }
+                    />
+                  </View>
+                ))}
+                <PopoverSeparator />
+              </View>
+            ) : null}
+            <Action
+              label={t(
                 follow.isError
                   ? 'pages.follow.retry'
                   : follow.data?.following
                     ? 'pages.follow.following'
                     : 'pages.follow.follow',
               )}
-            </DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item key="history" onSelect={() => setHistoryOpen(true)}>
-            <DropdownMenu.ItemTitle>{t('pages.history.title')}</DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item key="reminders" onSelect={() => setRemindersOpen(true)}>
-            <DropdownMenu.ItemTitle>{t('pages.reminders.title')}</DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-          <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger key="export" disabled={exportPage.isPending}>
-              <DropdownMenu.ItemTitle>{t('pages.export.title')}</DropdownMenu.ItemTitle>
-            </DropdownMenu.SubTrigger>
-            <DropdownMenu.SubContent>
-              <DropdownMenu.Item
-                key="export-md"
-                disabled={exportPage.isPending}
-                onSelect={() => {
-                  void handleExport('md');
-                }}
-              >
-                <DropdownMenu.ItemTitle>{t('pages.export.markdown')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item
-                key="export-html"
-                disabled={exportPage.isPending}
-                onSelect={() => {
-                  void handleExport('html');
-                }}
-              >
-                <DropdownMenu.ItemTitle>{t('pages.export.html')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-            </DropdownMenu.SubContent>
-          </DropdownMenu.Sub>
-          {!readOnly && !page.archived ? (
-            <DropdownMenu.Item key="import" onSelect={() => setImportOpen(true)}>
-              <DropdownMenu.ItemTitle>{t('pages.import.intoPage')}</DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
-          ) : null}
-          {!readOnly && <DropdownMenu.Separator />}
-          {readOnly ? null : !page.archived ? (
-            <>
-              <DropdownMenu.Item
-                key="template"
-                disabled={updatePage.isPending}
-                onSelect={() =>
-                  updatePage.mutate(
-                    { id: page.id, template: !page.template },
-                    { onError: () => toast.error(t('pages.templates.updateFailed')) },
-                  )
+              disabled={follow.isFetching || follow.isPending || setFollow.isPending}
+              onPress={() => {
+                if (follow.isError) {
+                  void follow.refetch();
+                  return;
                 }
-              >
-                <DropdownMenu.ItemTitle>
-                  {t(
+                setFollow.mutate(!follow.data?.following, {
+                  onError: () => toast.error(t('pages.follow.failed')),
+                });
+              }}
+            />
+            <Action
+              label={t('pages.history.title')}
+              onPress={() => {
+                setMenuOpen(false);
+                setHistoryOpen(true);
+              }}
+            />
+            <Action
+              label={t('pages.reminders.title')}
+              onPress={() => {
+                setMenuOpen(false);
+                setRemindersOpen(true);
+              }}
+            />
+            <Text className="px-3 pt-2 text-xs text-muted-foreground">
+              {t('pages.export.title')}
+            </Text>
+            {(['md', 'html'] as const).map((format) => (
+              <Action
+                key={format}
+                label={t(format === 'md' ? 'pages.export.markdown' : 'pages.export.html')}
+                disabled={exportPage.isPending}
+                onPress={() => {
+                  void handleExport(format);
+                }}
+              />
+            ))}
+            {!readOnly && !page.archived ? (
+              <>
+                <Action
+                  label={t('pages.import.intoPage')}
+                  disabled={page.locked}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    setImportOpen(true);
+                  }}
+                />
+                <PopoverSeparator />
+                <Action
+                  label={t(
                     page.template
                       ? 'pages.templates.makeRegular'
                       : page.databaseId
                         ? 'databases.templates.makeTemplate'
                         : 'pages.templates.makeTemplate',
                   )}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item key="duplicate" onSelect={handleDuplicate}>
-                <DropdownMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
-                <DropdownMenu.ItemTitle>{t('pages.actions.duplicate')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item key="favorite" onSelect={handleFavorite}>
-                <DropdownMenu.ItemIcon ios={{ name: page.favorited ? 'star.slash' : 'star' }} />
-                <DropdownMenu.ItemTitle>
-                  {page.favorited
-                    ? t('pages.actions.removeFromFavorites')
-                    : t('pages.actions.addToFavorites')}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item key="move" onSelect={() => setMoveOpen(true)}>
-                <DropdownMenu.ItemIcon ios={{ name: 'folder' }} />
-                <DropdownMenu.ItemTitle>{t('pages.actions.moveTo')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item key="copy-link" onSelect={handleCopyLink}>
-                <DropdownMenu.ItemIcon ios={{ name: 'link' }} />
-                <DropdownMenu.ItemTitle>{t('pages.actions.copyLink')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item key="trash" destructive onSelect={handleMoveToTrash}>
-                <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
-                <DropdownMenu.ItemTitle>{t('pages.actions.moveToTrash')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-            </>
-          ) : (
-            <>
-              <DropdownMenu.Item key="restore" onSelect={handleRestore}>
-                <DropdownMenu.ItemIcon ios={{ name: 'arrow.uturn.backward' }} />
-                <DropdownMenu.ItemTitle>
-                  {t('pages.actions.restoreFromTrash')}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              {isOwner ? (
-                <>
-                  <DropdownMenu.Separator />
-                  <DropdownMenu.Item
-                    key="hard-delete"
+                  disabled={updatePage.isPending}
+                  onPress={() =>
+                    updatePage.mutate(
+                      { id: page.id, template: !page.template },
+                      {
+                        onError: () => toast.error(t('pages.templates.updateFailed')),
+                      },
+                    )
+                  }
+                />
+                <Action
+                  label={t('pages.actions.duplicate')}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    handleDuplicate();
+                  }}
+                />
+                <Action
+                  label={t(
+                    page.favorited
+                      ? 'pages.actions.removeFromFavorites'
+                      : 'pages.actions.addToFavorites',
+                  )}
+                  onPress={handleFavorite}
+                />
+                <Action
+                  label={t('pages.actions.moveTo')}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    setMoveOpen(true);
+                  }}
+                />
+                <Action label={t('pages.actions.copyLink')} onPress={handleCopyLink} />
+                <PopoverSeparator />
+                <Action
+                  label={t('pages.actions.moveToTrash')}
+                  destructive
+                  onPress={() => {
+                    setMenuOpen(false);
+                    handleMoveToTrash();
+                  }}
+                />
+              </>
+            ) : !readOnly ? (
+              <>
+                <Action label={t('pages.actions.restoreFromTrash')} onPress={handleRestore} />
+                {isOwner ? (
+                  <Action
+                    label={t('pages.actions.deletePermanently')}
                     destructive
-                    onSelect={() => setDeleteOpen(true)}
-                  >
-                    <DropdownMenu.ItemIcon ios={{ name: 'trash.slash' }} />
-                    <DropdownMenu.ItemTitle>
-                      {t('pages.actions.deletePermanently')}
-                    </DropdownMenu.ItemTitle>
-                  </DropdownMenu.Item>
-                </>
-              ) : null}
-            </>
-          )}
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
+                    onPress={() => {
+                      setMenuOpen(false);
+                      setDeleteOpen(true);
+                    }}
+                  />
+                ) : null}
+              </>
+            ) : null}
+          </ScrollView>
+        </PopoverContent>
+      </Popover>
 
       {importOpen ? (
         <ImportPagesDialog
@@ -311,5 +369,29 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
         onConfirm={handleHardDelete}
       />
     </>
+  );
+}
+
+function Action({
+  label,
+  onPress,
+  disabled,
+  destructive,
+}: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      className="justify-start"
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityLabel={label}
+    >
+      <Text className={cn('text-sm', destructive && 'text-destructive')}>{label}</Text>
+    </Button>
   );
 }

@@ -48,7 +48,7 @@ export function PageHistoryDialog({ page, onClose }: { page: Page; onClose: () =
         }
       }}
     >
-      <DialogContent className="max-w-3xl">
+      <DialogContent className={page.fullWidth ? 'max-w-full' : 'max-w-3xl'}>
         {confirm ? (
           <View className="gap-4">
             <DialogHeader>
@@ -146,7 +146,7 @@ export function PageHistoryDialog({ page, onClose }: { page: Page; onClose: () =
                       </Button>
                     </View>
                   ) : preview.data ? (
-                    <SharedBlockTree blocks={preview.data.blocks} />
+                    <SharedBlockTree blocks={preview.data.blocks} font={page.font} />
                   ) : null}
                 </View>
               ) : null}

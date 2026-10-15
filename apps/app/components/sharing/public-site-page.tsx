@@ -3,6 +3,8 @@ import { Link, useLocalSearchParams } from 'expo-router';
 import Head from 'expo-router/head';
 import axios from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
+import { cn } from '@/lib/utils';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { CoverDisplay } from '@/components/page-chrome/cover-display';
@@ -54,8 +56,15 @@ export default function PublicSitePage() {
         </View>
       ) : (
         <ScrollView contentContainerClassName="pb-12">
-          <CoverDisplay value={data.page.cover} position={data.page.coverPosition} />
-          <View className="w-full max-w-3xl mx-auto px-6 py-8 gap-5">
+          <View className={cn('w-full mx-auto px-6 md:px-10', !data.page.fullWidth && 'max-w-3xl')}>
+            <CoverDisplay value={data.page.cover} position={data.page.coverPosition} />
+          </View>
+          <View
+            className={cn(
+              'w-full mx-auto px-6 md:px-10 py-8 gap-5',
+              !data.page.fullWidth && 'max-w-3xl',
+            )}
+          >
             <View
               className="flex-row flex-wrap gap-2"
               accessibilityLabel={t('pages.publish.breadcrumb')}
@@ -75,10 +84,14 @@ export default function PublicSitePage() {
               ))}
             </View>
             <IconDisplay value={data.page.icon} size={48} />
-            <Text accessibilityRole="header" className="text-3xl font-bold">
+            <Text
+              accessibilityRole="header"
+              className="text-3xl font-bold"
+              style={{ fontFamily: PAGE_FONT_FAMILIES[data.page.font ?? 'default'] }}
+            >
               {title}
             </Text>
-            <SharedBlockTree blocks={data.blocks} publicSlug={slug} />
+            <SharedBlockTree blocks={data.blocks} publicSlug={slug} font={data.page.font} />
             {data.children.length ? (
               <View className="border-t border-border pt-4 gap-3">
                 <Text accessibilityRole="header" className="font-semibold">

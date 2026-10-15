@@ -139,6 +139,8 @@ describe('publishing', () => {
     expect(read.status).toBe(200);
     expect(read.headers.get('x-robots-tag')).toBe('noindex, nofollow');
     expect((read.json.page as Record<string, unknown>).ownerId).toBeUndefined();
+    // Laid out as its readers should see it.
+    expect(read.json.page).toMatchObject({ font: 'default', fullWidth: false, smallText: false });
     expect((read.json.blocks as { content: { text: string } }[])[0]?.content.text).toBe('Welcome');
     expect((read.json.children as { id: string }[]).map((c) => c.id)).toEqual([chapter]);
 

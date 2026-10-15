@@ -3,12 +3,17 @@ import { resolveAccentColors, useTheme } from '@oxy.so/bloom/theme';
 import { useMemo } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { MONO_FONT_FAMILY } from '@/lib/fonts';
+import type { PageFont } from '@/lib/types/pages';
+import { MONO_FONT_FAMILY, PAGE_FONT_FAMILIES } from '@/lib/fonts';
 
 /** The editor's look, from the active Bloom theme. */
-export function useEditorTheme(): EditorTheme {
+export function useEditorTheme(font: PageFont = 'default', smallText = false): EditorTheme {
   const theme = useTheme();
   const { colors, isDarkColorScheme } = useColorScheme();
+  const palette = useMemo(
+    () => blockColors(isDarkColorScheme ? 'dark' : 'light'),
+    [isDarkColorScheme],
+  );
   return useMemo(
     () => ({
       text: colors.foreground,
@@ -19,10 +24,12 @@ export function useEditorTheme(): EditorTheme {
       accentText: colors.primaryForeground,
       selection: resolveAccentColors(theme.colors, 'primary', 'subtle').background,
       codeBackground: colors.muted,
-      colors: blockColors(isDarkColorScheme ? 'dark' : 'light'),
+      colors: palette,
+      fontFamily: PAGE_FONT_FAMILIES[font],
+      textScale: smallText ? 0.875 : 1,
       monoFontFamily: MONO_FONT_FAMILY,
     }),
-    [colors, isDarkColorScheme, theme.colors],
+    [colors, palette, theme.colors, font, smallText],
   );
 }
 

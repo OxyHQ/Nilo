@@ -309,5 +309,21 @@
     "following": "Siguiendo",
     "failed": "No se pudo cambiar el seguimiento. Inténtalo de nuevo.",
     "retry": "No se pudo cargar el seguimiento. Reintentar"
-  }
+  },
+  "style": {
+    "title": "Estilo",
+    "default": "Predeterminada",
+    "serif": "Serif",
+    "mono": "Mono",
+    "sample": "Ag",
+    "smallText": "Texto pequeño",
+    "fullWidth": "Ancho completo",
+    "locked": "Bloquear página",
+    "updateFailed": "No se pudo actualizar la configuración de la página."
+  },
+  "lock": {
+    "banner": "Esta página está bloqueada.",
+    "unlock": "Desbloquear"
+  },
+  "title": "Título de la página"
 }

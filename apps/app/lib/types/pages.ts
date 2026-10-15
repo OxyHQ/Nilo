@@ -13,7 +13,13 @@ import type { WorkspaceRole } from '../hooks/use-workspaces';
  * `BLOCK_TYPES`), one spelling on both sides.
  */
 
+export type PageFont = 'default' | 'serif' | 'mono';
+
 export interface Page {
+  fullWidth: boolean;
+  smallText: boolean;
+  font: PageFont;
+  locked: boolean;
   id: string;
   workspaceId: string;
   parentId: string | null;

@@ -1,7 +1,10 @@
+import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
+import { cn } from '@/lib/utils';
+import { toast } from '@oxy.so/bloom/toast';
 import { PageInfo } from './page-info';
 import * as React from 'react';
 import { Platform, Pressable, TextInput, View, type GestureResponderEvent } from 'react-native';
-import { Globe, ImageIcon, Move, Smile } from 'lucide-react-native';
+import { Globe, ImageIcon, Lock, Move, Smile } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -56,15 +59,17 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
 
   const handleIconSelect = React.useCallback(
     (next: string | null) => {
+      if (readOnly || page.locked) return;
       updatePage.mutate({ id: page.id, icon: next });
     },
-    [page.id, updatePage],
+    [page.id, page.locked, readOnly, updatePage],
   );
   const handleCoverSelect = React.useCallback(
     (next: string | null) => {
+      if (readOnly || page.locked) return;
       updatePage.mutate({ id: page.id, cover: next, coverPosition: 50 });
     },
-    [page.id, updatePage],
+    [page.id, page.locked, readOnly, updatePage],
   );
 
   const stateValue = React.useMemo<PageChromeState>(
@@ -98,7 +103,7 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
           {children}
         </RepositioningContext.Provider>
 
-        {!readOnly ? (
+        {!readOnly && !page.locked ? (
           <>
             <IconPicker open={iconOpen} onOpenChange={setIconOpen} onSelect={handleIconSelect} />
             <CoverPicker
@@ -128,55 +133,67 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
   const updatePage = useUpdatePage();
   const [titleDraft, setTitleDraft] = React.useState<string | null>(null);
 
+  const contentReadOnly = readOnly || page.locked;
   const title = titleDraft ?? page.title;
+  const titleStyle = {
+    fontFamily: PAGE_FONT_FAMILIES[page.font ?? 'default'],
+    fontSize: page.smallText ? 31.5 : 36,
+    lineHeight: page.smallText ? 35 : 40,
+  };
+  React.useEffect(() => {
+    if (contentReadOnly) setTitleDraft(null);
+  }, [contentReadOnly]);
 
   const handleTitleBlur = React.useCallback(() => {
-    if (titleDraft === null) return;
+    if (contentReadOnly || titleDraft === null) return;
     if (titleDraft === page.title) {
       setTitleDraft(null);
       return;
     }
     updatePage.mutate({ id: page.id, title: titleDraft });
     setTitleDraft(null);
-  }, [titleDraft, page.title, page.id, updatePage]);
+  }, [contentReadOnly, titleDraft, page.title, page.id, updatePage]);
 
   const handleCommitReposition = React.useCallback(
     (nextPosition: number) => {
+      if (contentReadOnly) return;
       const clamped = Math.min(100, Math.max(0, Math.round(nextPosition)));
       if (clamped === (page.coverPosition ?? 50)) return;
       updatePage.mutate({ id: page.id, coverPosition: clamped });
     },
-    [page.id, page.coverPosition, updatePage],
+    [contentReadOnly, page.id, page.coverPosition, updatePage],
   );
 
   return (
     <View>
-      {readOnly ? (
-        page.cover ? (
-          <CoverDisplay value={page.cover} position={page.coverPosition ?? 50} height={192} />
-        ) : null
-      ) : (
-        <CoverArea
-          cover={page.cover ?? null}
-          position={page.coverPosition ?? 50}
-          onOpenPicker={() => state?.setCoverOpen(true)}
-          repositioning={repositioning}
-          onToggleReposition={() => state?.setRepositioning((v) => !v)}
-          onCommitPosition={handleCommitReposition}
-        />
-      )}
+      <View className={cn('px-6 md:px-10 w-full mx-auto', !page.fullWidth && 'max-w-3xl')}>
+        {contentReadOnly ? (
+          page.cover ? (
+            <CoverDisplay value={page.cover} position={page.coverPosition ?? 50} height={192} />
+          ) : null
+        ) : (
+          <CoverArea
+            cover={page.cover ?? null}
+            position={page.coverPosition ?? 50}
+            onOpenPicker={() => state?.setCoverOpen(true)}
+            repositioning={repositioning}
+            onToggleReposition={() => state?.setRepositioning((v) => !v)}
+            onCommitPosition={handleCommitReposition}
+          />
+        )}
+      </View>
       <View
-        className="px-6 md:px-10 max-w-3xl w-full mx-auto"
+        className={cn('px-6 md:px-10 w-full mx-auto', !page.fullWidth && 'max-w-3xl')}
         style={{ marginTop: page.cover ? -32 : 24 }}
       >
-        {readOnly ? (
+        {contentReadOnly ? (
           page.icon ? (
             <IconDisplay value={page.icon} size={64} />
           ) : null
         ) : (
           <IconArea icon={page.icon ?? null} onOpenPicker={() => state?.setIconOpen(true)} />
         )}
-        {!readOnly ? (
+        {!contentReadOnly ? (
           <AddChromeRow
             hasIcon={Boolean(page.icon)}
             hasCover={Boolean(page.cover)}
@@ -194,7 +211,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
             <Text className="text-sm font-medium text-muted-foreground">
               {t('pages.templates.badge')}
             </Text>
-            {!readOnly ? (
+            {!contentReadOnly ? (
               <Button
                 variant="ghost"
                 accessibilityLabel={t('databases.templates.done')}
@@ -208,13 +225,44 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
             ) : null}
           </View>
         ) : null}
-        {readOnly ? (
-          <Text accessibilityRole="header" className="text-4xl font-bold text-foreground">
+        {contentReadOnly ? (
+          <Text accessibilityRole="header" className="font-bold text-foreground" style={titleStyle}>
             {page.title || t('pages.untitled')}
           </Text>
         ) : (
-          <TitleInput value={title} onChangeText={setTitleDraft} onBlur={handleTitleBlur} />
+          <TitleInput
+            value={title}
+            onChangeText={setTitleDraft}
+            onBlur={handleTitleBlur}
+            style={titleStyle}
+          />
         )}
+        {page.locked ? (
+          <View className="mt-3 flex-row items-center gap-2 rounded-lg bg-muted px-3 py-2">
+            <Lock size={14} className="text-muted-foreground" />
+            <Text className="flex-1 text-sm text-muted-foreground" accessibilityLiveRegion="polite">
+              {t('pages.lock.banner')}
+            </Text>
+            {!readOnly ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={updatePage.isPending}
+                accessibilityLabel={t('pages.lock.unlock')}
+                onPress={() =>
+                  updatePage.mutate(
+                    { id: page.id, locked: false },
+                    {
+                      onError: () => toast.error(t('pages.style.updateFailed')),
+                    },
+                  )
+                }
+              >
+                <Text>{t('pages.lock.unlock')}</Text>
+              </Button>
+            ) : null}
+          </View>
+        ) : null}
         <PageInfo page={page} />
       </View>
     </View>
@@ -407,8 +455,9 @@ interface TitleInputProps {
   value: string;
   onChangeText: (next: string) => void;
   onBlur: () => void;
+  style: { fontFamily: string; fontSize: number; lineHeight: number };
 }
-function TitleInput({ value, onChangeText, onBlur }: TitleInputProps) {
+function TitleInput({ value, onChangeText, onBlur, style }: TitleInputProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   return (
@@ -416,12 +465,16 @@ function TitleInput({ value, onChangeText, onBlur }: TitleInputProps) {
       value={value}
       onChangeText={onChangeText}
       onBlur={onBlur}
+      accessibilityLabel={t('pages.title')}
       placeholder={t('pages.untitled')}
       placeholderTextColor={colors.mutedForeground}
       className="text-4xl font-bold text-foreground"
       multiline
       scrollEnabled={false}
-      style={Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined}
+      style={[
+        style,
+        Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined,
+      ]}
       underlineColorAndroid="transparent"
     />
   );
