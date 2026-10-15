@@ -63,7 +63,7 @@ const col = (column: Parameters<typeof sqlColumnName>[0]) => sql.identifier(sqlC
 
 /**
  * Live pages of `workspaceId` whose title matches `query` (a `prefixQuery`),
- * best first. The tsvector expression is `pages_title_search_idx`'s.
+ * best first. The tsvector expression is `pages_title_fts_idx`'s.
  */
 export async function searchPageTitles(
   db: PgHandle,
@@ -73,11 +73,11 @@ export async function searchPageTitles(
 ): Promise<TitleHit[]> {
   const rows = await db.execute(sql`
     select ${col(pages.id)} as id,
-           ts_rank(to_tsvector('simple', ${col(pages.title)}), to_tsquery('simple', ${query})) as rank
+           ts_rank(to_tsvector('nilo_search'::regconfig, ${col(pages.title)}), to_tsquery('nilo_search'::regconfig, ${query})) as rank
     from ${pages}
     where ${col(pages.workspaceId)} = ${workspaceId}
       and not ${col(pages.archived)}
-      and to_tsvector('simple', ${col(pages.title)}) @@ to_tsquery('simple', ${query})
+      and to_tsvector('nilo_search'::regconfig, ${col(pages.title)}) @@ to_tsquery('nilo_search'::regconfig, ${query})
     order by rank desc, ${col(pages.updatedAt)} desc
     limit ${limit}
   `);
@@ -86,7 +86,7 @@ export async function searchPageTitles(
 
 /**
  * The best-matching block per live page of `workspaceId`, best pages first,
- * with a snippet of it. The tsvector expression is `blocks_text_search_idx`'s.
+ * with a snippet of it. The tsvector expression is `blocks_text_fts_idx`'s.
  */
 export async function searchBlockText(
   db: PgHandle,
@@ -100,19 +100,19 @@ export async function searchBlockText(
       select b.${col(blocks.id)} as block_id,
              b.${col(blocks.pageId)} as page_id,
              ${text} as text,
-             ts_rank(to_tsvector('simple', ${text}), to_tsquery('simple', ${query})) as rank,
+             ts_rank(to_tsvector('nilo_search'::regconfig, ${text}), to_tsquery('nilo_search'::regconfig, ${query})) as rank,
              row_number() over (
                partition by b.${col(blocks.pageId)}
-               order by ts_rank(to_tsvector('simple', ${text}), to_tsquery('simple', ${query})) desc
+               order by ts_rank(to_tsvector('nilo_search'::regconfig, ${text}), to_tsquery('nilo_search'::regconfig, ${query})) desc
              ) as nth
       from ${blocks} b
       join ${pages} p on p.${col(pages.id)} = b.${col(blocks.pageId)}
       where p.${col(pages.workspaceId)} = ${workspaceId}
         and not p.${col(pages.archived)}
-        and to_tsvector('simple', ${text}) @@ to_tsquery('simple', ${query})
+        and to_tsvector('nilo_search'::regconfig, ${text}) @@ to_tsquery('nilo_search'::regconfig, ${query})
     )
     select block_id, page_id, rank,
-           ts_headline('simple', text, to_tsquery('simple', ${query}),
+           ts_headline('nilo_search'::regconfig, text, to_tsquery('nilo_search'::regconfig, ${query}),
              ${`StartSel=${START}, StopSel=${STOP}, MaxWords=24, MinWords=8, MaxFragments=1`}) as headline
     from matched
     where nth = 1

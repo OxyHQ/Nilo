@@ -156,7 +156,7 @@ describe('pages repository (real database)', () => {
           'pages_workspace_favorited_idx',
           'pages_properties_gin_idx',
           // Full-text search (`GET /search`).
-          'pages_title_search_idx',
+          'pages_title_fts_idx',
           // The public address of a published page.
           'pages_publish_slug_key',
         ]),

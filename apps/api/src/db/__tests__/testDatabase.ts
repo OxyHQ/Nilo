@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { generateDrizzleJson, generateMigration } from 'drizzle-kit/api';
 import { createDatabase, DATABASE_CASING, type OxyDatabase } from '@oxy.so/db';
 import type postgres from 'postgres';
+import { DATABASE_PREREQUISITES } from '../prerequisites.js';
 import * as schema from '../schema/index.js';
 
 /**
@@ -92,7 +93,8 @@ let applied: Promise<void> | null = null;
  * nothing out from under the rows that worker has already seeded.
  */
 async function applySchema(client: postgres.Sql): Promise<void> {
-  const statements = await renderSchemaDdl();
+  // What the schema cannot say comes first: its indexes name it.
+  const statements = [...DATABASE_PREREQUISITES, ...(await renderSchemaDdl())];
   const fingerprint = createHash('sha256').update(statements.join('\n')).digest('hex');
   const tables = schemaTableNames();
 

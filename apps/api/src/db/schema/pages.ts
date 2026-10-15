@@ -209,13 +209,17 @@ export const pages = pgTable(
      */
     index('pages_properties_gin_idx').using('gin', t.properties),
     /**
-     * Full-text search over titles (`GET /search`). `simple`: no stemming or
-     * stop words, so it behaves the same for every language a workspace
-     * writes in; the query side matches word prefixes. The expression must be
+     * Full-text search over titles (`GET /search`). `nilo_search` is `simple`
+     * (no stemming or stop words, so it behaves the same for every language a
+     * workspace writes in) with accents removed (`unaccent`): "cancion" finds
+     * "canción". The query side matches word prefixes. The expression must be
      * written exactly as `repositories/search.ts` queries it, or the planner
      * cannot use the index.
      */
-    index('pages_title_search_idx').using('gin', sql`to_tsvector('simple', ${t.title})`),
+    index('pages_title_fts_idx').using(
+      'gin',
+      sql`to_tsvector('nilo_search'::regconfig, ${t.title})`,
+    ),
     /**
      * The Mongoose `min: 0, max: 100` on `coverPosition` genuinely ran: the only
      * writer is `page.coverPosition = ...; await page.save()`
@@ -307,10 +311,10 @@ export const blocks = pgTable(
     index('blocks_link_to_page_idx')
       .on(sql`(${t.content} ->> 'pageId')`)
       .where(sql`${t.type} = 'link_to_page'`),
-    /** Full-text search over block text; see `pages_title_search_idx`. */
-    index('blocks_text_search_idx').using(
+    /** Full-text search over block text; see `pages_title_fts_idx`. */
+    index('blocks_text_fts_idx').using(
       'gin',
-      sql`to_tsvector('simple', coalesce(${t.content} ->> 'text', ''))`,
+      sql`to_tsvector('nilo_search'::regconfig, coalesce(${t.content} ->> 'text', ''))`,
     ),
     /**
      * The Mongoose `enum: BLOCK_TYPES` genuinely ran — every write is

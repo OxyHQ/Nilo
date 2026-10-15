@@ -9,6 +9,7 @@ import { sql } from 'drizzle-orm';
 import express from 'express';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { closeDb } from '../../db/client.js';
+import { pagePermissions } from '../../db/schema/collab.js';
 import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
 import {
   closeTestDb,
@@ -152,6 +153,16 @@ describe('GET /search', () => {
     expect(await search(OWNER, 'reunión martes')).toEqual([]);
   });
 
+  it('ignores accents both ways, and still marks the word as written', async () => {
+    const plain = await search(OWNER, 'reunion lunes');
+    expect(plain.map((r) => r.page.id)).toEqual([notes]);
+    const hit = (await search(OWNER, 'planificacion')).find((r) => r.page.id === notes);
+    expect(hit?.snippet.filter((p) => p.match).map((p) => p.text.toLowerCase())).toEqual([
+      'planificación',
+    ]);
+    expect((await search(OWNER, 'RÓADMAP'))[0]?.page.id).toBe(roadmap);
+  });
+
   it('treats query syntax as text', async () => {
     expect(
       (
@@ -171,6 +182,23 @@ describe('GET /search', () => {
     expect(ids).not.toContain(secret);
   });
 
+  it('lets a guest search what is shared with them, and nobody else in', async () => {
+    const GUEST = 'search-guest';
+    await db
+      .insert(pagePermissions)
+      .values({ pageId: notes, userId: GUEST, role: 'viewer', grantedBy: OWNER });
+    const found = (await search(GUEST, 'planificación')).map((r) => r.page.id);
+    expect(found).toEqual([notes]);
+    // The path above a shared page stays private.
+    expect((await search(GUEST, 'reunión'))[0]?.path).toEqual([]);
+    const stranger = await api(
+      'search-stranger',
+      'GET',
+      `/search?workspaceId=${workspaceId}&q=plan`,
+    );
+    expect(stranger.status).toBe(403);
+  });
+
   it('can use the full-text indexes', async () => {
     await db.execute(sql`set enable_seqscan = off`);
     try {
@@ -180,14 +208,14 @@ describe('GET /search', () => {
           .join('\n');
       expect(
         await plan(
-          sql`select id from blocks where to_tsvector('simple', coalesce(content ->> 'text', '')) @@ to_tsquery('simple', 'plan:*')`,
+          sql`select id from blocks where to_tsvector('nilo_search'::regconfig, coalesce(content ->> 'text', '')) @@ to_tsquery('nilo_search'::regconfig, 'plan:*')`,
         ),
-      ).toContain('blocks_text_search_idx');
+      ).toContain('blocks_text_fts_idx');
       expect(
         await plan(
-          sql`select id from pages where to_tsvector('simple', title) @@ to_tsquery('simple', 'plan:*')`,
+          sql`select id from pages where to_tsvector('nilo_search'::regconfig, title) @@ to_tsquery('nilo_search'::regconfig, 'plan:*')`,
         ),
-      ).toContain('pages_title_search_idx');
+      ).toContain('pages_title_fts_idx');
       expect(
         await plan(
           sql`select id from blocks b where b.content -> 'segments' @> '[{"mention":{"attributes":{"kind":"page","id":"x"}}}]'::jsonb`,

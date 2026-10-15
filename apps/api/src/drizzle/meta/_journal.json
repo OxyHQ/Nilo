@@ -127,6 +127,20 @@
       "when": 1792048152235,
       "tag": "0017_majestic_magik",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792050916973,
+      "tag": "0018_unaccent_search",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792050926322,
+      "tag": "0019_drop_old_search_indexes",
+      "breakpoints": true
     }
   ]
 }

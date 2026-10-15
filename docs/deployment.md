@@ -26,6 +26,10 @@ Last verified: 2026-09-13.
 
 - The API requires `DATABASE_URL`, executes a real PostgreSQL query before
   listening, and uses only the Drizzle schema and migrations in this repo.
+- PostgreSQL 13 or later with the `unaccent` extension available: migration
+  `0018_unaccent_search` creates it (a trusted extension, so the database
+  owner can) and the `nilo_search` text search configuration that search
+  uses. What the schema cannot express lives in `src/db/prerequisites.ts`.
 - The frontend export preflight requires an explicit HTTPS
   `EXPO_PUBLIC_API_URL`. The Cloudflare workflow reads it from the
   `NILO_API_URL` repository variable and fails before export when it is

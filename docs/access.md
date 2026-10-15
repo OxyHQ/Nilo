@@ -40,6 +40,8 @@ page. A database in no page is open to the workspace by role.
   subpages to anyone, never restricted subtrees.
 - Forms (`/databases/:id/views/:viewId/form`, public `/forms/:token`) accept
   responses as rows without exposing the database.
+- Search (`GET /search`) returns only pages the caller can open; a guest
+  searches the pages shared with them, without the path above them.
 
 Unauthenticated endpoints are rate limited per client address
 (`lib/rate-limit.ts`; Redis when configured).

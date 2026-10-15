@@ -11,13 +11,13 @@ import { Router, type Request, type Response } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
-import { hasRole } from '../db/schema/workspaces.js';
+import { hasRole, type WorkspaceRole } from '../db/schema/workspaces.js';
 import { log } from '../lib/logger.js';
 import { databaseHosts, rolesForPages } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
 import { listPages } from '../repositories/pages.js';
+import { findLiveWorkspaceById, findMembership } from '../repositories/workspaces.js';
 import {
   prefixQuery,
   searchBlockText,
@@ -36,11 +36,28 @@ const querySchema = z.object({
 /** A title match outranks any amount of body text. */
 const TITLE_WEIGHT = 1;
 
-router.get('/', authenticateToken, requireWorkspaceMember, async (req: Request, res: Response) => {
+/**
+ * GET /search?workspaceId&q&limit — the pages of a workspace the caller can
+ * open whose title or text matches, best first. Members search what their
+ * role and grants open; a guest (no membership, pages shared with them)
+ * searches those pages.
+ */
+router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { workspaceId, q, limit } = querySchema.parse(req.query);
-    if (req.workspace?.id !== workspaceId) {
-      res.status(403).json({ error: 'Workspace mismatch' });
+    const userId = req.user?.id ?? '';
+    const db = getDb();
+    const [workspace, member, grants] = await Promise.all([
+      findLiveWorkspaceById(db, workspaceId),
+      findMembership(db, workspaceId, userId),
+      listGrantsOfUserInWorkspace(db, userId, workspaceId),
+    ]);
+    if (!workspace) {
+      res.status(404).json({ error: 'Workspace not found' });
+      return;
+    }
+    if (!member && grants.length === 0) {
+      res.status(403).json({ error: 'Forbidden: nothing in this workspace is shared with you' });
       return;
     }
     const query = prefixQuery(q);
@@ -49,7 +66,6 @@ router.get('/', authenticateToken, requireWorkspaceMember, async (req: Request, 
       return;
     }
 
-    const db = getDb();
     // More than `limit` from each side: some are dropped for access below.
     const [titles, texts, all] = await Promise.all([
       searchPageTitles(db, workspaceId, query, limit * 3),
@@ -57,16 +73,11 @@ router.get('/', authenticateToken, requireWorkspaceMember, async (req: Request, 
       listPages(db, { workspaceId, archived: false }),
     ]);
 
-    const memberRole = req.workspace?.role ?? null;
+    const memberRole = (member?.role as WorkspaceRole | undefined) ?? null;
     const visible =
       memberRole && hasRole(memberRole, 'admin')
         ? null
-        : rolesForPages(
-            all,
-            memberRole,
-            await listGrantsOfUserInWorkspace(db, req.user?.id ?? '', workspaceId),
-            await databaseHosts(db, workspaceId),
-          );
+        : rolesForPages(all, memberRole, grants, await databaseHosts(db, workspaceId));
     const byId = new Map(all.map((p) => [p.id, p]));
 
     const scored = new Map<

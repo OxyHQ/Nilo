@@ -88,7 +88,7 @@ describe('blocks repository (real database)', () => {
           'blocks_page_parent_order_idx',
           'blocks_parent_block_idx',
           // Full-text search (`GET /search`).
-          'blocks_text_search_idx',
+          'blocks_text_fts_idx',
           // Backlinks.
           'blocks_segments_path_idx',
           'blocks_link_to_page_idx',
