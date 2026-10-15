@@ -152,7 +152,8 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
   } = useShareLinks(pageId, { enabled: open && Boolean(pageId) });
   const { mutate: createLink, isPending: isCreating } = useCreateShareLink(pageId);
 
-  const activeLinks = React.useMemo(() => (links ?? []).filter((l) => !l.revokedAt), [links]);
+  // The API lists active links only.
+  const activeLinks = links ?? [];
   const matchingLink = React.useMemo(
     () => activeLinks.find((l) => l.scope === scope && !isExpired(l)) ?? null,
     [activeLinks, scope],

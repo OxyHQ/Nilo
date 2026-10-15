@@ -161,7 +161,7 @@ function DatabaseRowProperties({ page }: { page: Page }) {
     cover: page.cover ?? null,
     ownerId: page.ownerId,
     archived: page.archived,
-    order: 0,
+    order: page.order,
     properties: (page.properties ?? {}) as Record<string, PropertyValue>,
     createdAt: page.createdAt,
     updatedAt: page.updatedAt,

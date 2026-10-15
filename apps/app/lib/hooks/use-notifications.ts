@@ -9,9 +9,9 @@ export interface Notification {
   body: string;
   status: 'pending' | 'sent' | 'read' | 'dismissed';
   priority: 'low' | 'normal' | 'high' | 'urgent';
-  data?: Record<string, unknown>;
+  data: Record<string, unknown> | null;
   createdAt: string;
-  readAt?: string;
+  readAt: string | null;
 }
 
 interface NotificationsResponse {

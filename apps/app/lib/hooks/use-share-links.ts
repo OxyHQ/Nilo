@@ -9,16 +9,16 @@ export type ShareLinkScope = 'read' | 'comment' | 'edit';
 
 export const SHARE_LINK_SCOPES: ShareLinkScope[] = ['read', 'comment', 'edit'];
 
+/** An active share link, as `GET /pages/:pageId/share` lists it. */
 export interface ShareLink {
   id: string;
-  pageId: string;
   token: string;
+  /** The public URL the API built for this link. */
+  url: string;
   scope: ShareLinkScope;
   createdBy: string;
   expiresAt: string | null;
-  revokedAt: string | null;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface CreateShareLinkInput {
@@ -50,8 +50,8 @@ export interface SharedPage {
   };
 }
 
-function shareLinksBase(pageId: string) {
-  return `/pages/${pageId}/share-links`;
+function shareLinksPath(pageId: string) {
+  return `/pages/${pageId}/share`;
 }
 
 export function useShareLinks(
@@ -64,8 +64,8 @@ export function useShareLinks(
   return useQuery<ShareLink[]>({
     queryKey: shareLinkKeys.list(pageId ?? ''),
     queryFn: async () => {
-      const res = await apiClient.get<{ links: ShareLink[] }>(shareLinksBase(pageId ?? ''));
-      return res.data.links;
+      const res = await apiClient.get<{ shareLinks: ShareLink[] }>(shareLinksPath(pageId ?? ''));
+      return res.data.shareLinks;
     },
     enabled,
     staleTime: 1000 * 30,
@@ -78,8 +78,8 @@ export function useCreateShareLink(pageId: string) {
 
   return useMutation<ShareLink, Error, CreateShareLinkInput>({
     mutationFn: async (input) => {
-      const res = await apiClient.post<{ link: ShareLink }>(shareLinksBase(pageId), input);
-      return res.data.link;
+      const res = await apiClient.post<{ shareLink: ShareLink }>(shareLinksPath(pageId), input);
+      return res.data.shareLink;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -94,7 +94,7 @@ export function useRevokeShareLink(pageId: string) {
 
   return useMutation<void, Error, string>({
     mutationFn: async (linkId) => {
-      await apiClient.delete(`${shareLinksBase(pageId)}/${linkId}`);
+      await apiClient.delete(`/share-links/${linkId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({

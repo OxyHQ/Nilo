@@ -52,9 +52,7 @@ export function ToggleBlock({ block, onChangeContent, renderChildren }: BlockCom
           />
         </View>
       </View>
-      {expanded && renderChildren ? (
-        <View className="ml-6">{renderChildren(block.id)}</View>
-      ) : null}
+      {expanded && renderChildren ? <View className="ml-6">{renderChildren(block.id)}</View> : null}
     </View>
   );
 }

@@ -29,7 +29,7 @@ function pageToDatabaseRow(page: Page): DatabaseRow {
     cover: page.cover ?? null,
     ownerId: page.ownerId,
     archived: page.archived,
-    order: 0,
+    order: page.order,
     properties: (page.properties ?? {}) as Record<string, PropertyValue>,
     createdAt: page.createdAt,
     updatedAt: page.updatedAt,
@@ -57,9 +57,14 @@ interface DeleteRowInput {
   rowId: string;
 }
 
+/** The largest page the rows endpoint serves. */
+const ROWS_PAGE_SIZE = 500;
+
 /**
- * List rows for the given database. When `viewId` is passed, the server
- * applies that view's filters / sorts / page size before returning.
+ * List every row of the given database. When `viewId` is passed, the server
+ * applies that view's filters and sorts. The endpoint pages its answer
+ * (`cursor`); every page is fetched, so a view never silently stops at the
+ * first page.
  *
  * The query is keyed on (databaseId, viewId) so switching views fetches
  * fresh rows. We mirror the view's full payload in the response so
@@ -74,11 +79,25 @@ export function useDatabaseRows(databaseId: string | undefined, viewId: string |
       : ['database', 'none', 'rows'],
     queryFn: async () => {
       if (!databaseId) throw new Error('Database id required');
-      const res = await apiClient.get<DatabaseRowsResponse>(
-        API_ROUTES.databases.listRows(databaseId),
-        { params: viewId ? { viewId } : undefined },
-      );
-      return res.data;
+      const rows: DatabaseRow[] = [];
+      let cursor: string | null = null;
+      let first: DatabaseRowsResponse | null = null;
+      do {
+        const res: { data: DatabaseRowsResponse } = await apiClient.get<DatabaseRowsResponse>(
+          API_ROUTES.databases.listRows(databaseId),
+          {
+            params: {
+              ...(viewId && { viewId }),
+              pageSize: String(ROWS_PAGE_SIZE),
+              ...(cursor && { cursor }),
+            },
+          },
+        );
+        first ??= res.data;
+        rows.push(...res.data.rows);
+        cursor = res.data.cursor;
+      } while (cursor);
+      return { ...first, rows, cursor: null };
     },
     enabled: isAuthenticated && Boolean(databaseId),
   });

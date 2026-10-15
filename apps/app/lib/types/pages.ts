@@ -17,27 +17,19 @@ export interface Page {
   parentId: string | null;
   ownerId: string;
   title: string;
-  icon?: string | null;
-  cover?: string | null;
+  icon: string | null;
+  cover: string | null;
   /** 0–100, vertical focal point used when cropping the cover image. */
-  coverPosition?: number;
+  coverPosition: number;
   archived: boolean;
-  /**
-   * Owned by Page-chrome agent (#14). Sidebar reads this to populate the
-   * Favorites section; safe to be undefined until the backend ships the field.
-   */
-  favorited?: boolean;
-  /** Sibling order within the same parent. Used by drag-to-reorder. */
-  order?: number;
+  favorited: boolean;
+  /** Sibling order within the same parent. */
+  order: number;
   createdAt: string;
   updatedAt: string;
-  /**
-   * Phase 4 — Databases. When `databaseId` is non-null this Page is a
-   * row in that database. `properties` carries typed property values
-   * keyed by propertyId. Regular doc pages omit both fields.
-   */
-  databaseId?: string | null;
-  properties?: Record<string, unknown>;
+  /** Set when this page is a row of that database; `properties` holds its values. */
+  databaseId: string | null;
+  properties: Record<string, unknown>;
 }
 
 /** Slim ancestor record returned by GET /pages/:id/breadcrumb. */

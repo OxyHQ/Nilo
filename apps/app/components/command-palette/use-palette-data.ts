@@ -13,33 +13,19 @@ import { useRouter } from 'expo-router';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { usePages, useCreatePage } from '@/lib/hooks/use-pages';
-import { useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
+import {
+  memberProfileName,
+  useWorkspaceMembers,
+  type WorkspaceMember,
+} from '@/lib/hooks/use-workspace-members';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import i18n from '@/lib/i18n';
 import type { Page } from '@/lib/types/pages';
 import type { PageItem, MemberItem, CommandItem } from './types';
 
-function memberDisplayName(member: {
-  user?: {
-    name?: { first?: string; last?: string } | null;
-    username?: string | null;
-    email?: string | null;
-  };
-  userId?: string;
-}): string {
-  const name = member.user?.name;
-  const first = name?.first?.trim();
-  const last = name?.last?.trim();
-  if (first && last) return `${first} ${last}`;
-  if (first) return first;
-  if (last) return last;
-  return (
-    member.user?.username ??
-    member.user?.email ??
-    member.userId ??
-    i18n.t('commandPalette.memberFallback')
-  );
+function memberDisplayName(member: WorkspaceMember): string {
+  return memberProfileName(member) ?? member.userId ?? i18n.t('commandPalette.memberFallback');
 }
 
 /**
@@ -145,7 +131,7 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
       const username = m.user?.username ?? null;
       return {
         kind: 'member',
-        id: `member:${m.id}`,
+        id: `member:${m.userId}`,
         searchValue: `${title} ${email ?? ''} ${username ?? ''}`.trim(),
         title,
         subtitle: email ?? (username ? `@${username}` : undefined),

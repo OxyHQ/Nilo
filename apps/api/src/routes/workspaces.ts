@@ -22,6 +22,7 @@ import {
   updateWorkspace,
 } from '../repositories/workspaces.js';
 import { log } from '../lib/logger.js';
+import { loadMemberProfiles } from '../lib/member-profiles.js';
 
 const router = Router();
 
@@ -283,21 +284,7 @@ router.patch(
         return;
       }
 
-      res.json({
-        workspace: serializeWorkspace(
-          {
-            id: ws.id,
-            name: ws.name,
-            icon: ws.icon,
-            ownerId: ws.ownerId,
-            isPersonal: ws.isPersonal,
-            archivedAt: ws.archivedAt,
-            createdAt: ws.createdAt,
-            updatedAt: ws.updatedAt,
-          },
-          req.member.role,
-        ),
-      });
+      res.json({ workspace: serializeWorkspace(updated, req.member.role) });
     } catch (error: unknown) {
       log.general.error({ err: error }, 'Failed to update workspace');
       res.status(500).json({ error: 'Failed to update workspace' });
@@ -367,6 +354,7 @@ router.get(
       }
 
       const members = await listMembers(getDb(), req.workspaceDoc.id);
+      const profiles = await loadMemberProfiles(members.map((m) => m.userId));
 
       res.json({
         members: members.map((m) => ({
@@ -374,6 +362,7 @@ router.get(
           role: m.role,
           invitedBy: m.invitedBy,
           joinedAt: m.joinedAt,
+          user: profiles.get(m.userId) ?? null,
         })),
       });
     } catch (error: unknown) {

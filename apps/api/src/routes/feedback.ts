@@ -61,7 +61,7 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    if (rating !== undefined && (rating < 1 || rating > 5)) {
+    if (rating != null && (typeof rating !== 'number' || rating < 1 || rating > 5)) {
       res.status(400).json({ error: 'Rating must be between 1 and 5' });
       return;
     }
@@ -73,7 +73,7 @@ router.post('/', async (req, res) => {
     const feedback = await createFeedback(getDb(), {
       oxyUserId: req.user!.id,
       type,
-      rating,
+      rating: rating ?? undefined,
       message,
       email,
       metadata,

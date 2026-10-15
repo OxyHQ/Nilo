@@ -11,6 +11,7 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { useWorkspaces } from '@/lib/hooks/use-workspaces';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import {
+  memberProfileName,
   useWorkspaceMembers,
   useRemoveMember,
   useUpdateMemberRole,
@@ -25,12 +26,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 const ASSIGNABLE_ROLES: WorkspaceRole[] = ['viewer', 'commenter', 'editor', 'admin'];
 
 function memberDisplayName(member: WorkspaceMember): string {
-  const profile = member.user;
-  if (!profile) return member.userId;
-  if (profile.name?.first) {
-    return profile.name.last ? `${profile.name.first} ${profile.name.last}` : profile.name.first;
-  }
-  return profile.username ?? profile.email ?? member.userId;
+  return memberProfileName(member) ?? member.userId;
 }
 
 function memberInitial(member: WorkspaceMember): string {
@@ -88,7 +84,7 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
     (role: WorkspaceRole) => {
       if (role === member.role) return;
       updateRole(
-        { memberId: member.id, role },
+        { userId: member.userId, role },
         {
           onSuccess: () => {
             toast.success(
@@ -112,7 +108,7 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
   );
 
   const handleRemove = React.useCallback(() => {
-    removeMember(member.id, {
+    removeMember(member.userId, {
       onSuccess: () => {
         toast.success(t('workspace.members.removed', { name: memberDisplayName(member) }));
       },
@@ -271,7 +267,7 @@ export function MembersSection() {
         ) : (
           <View className="px-1 py-1">
             {sortedMembers.map((member, idx) => (
-              <View key={member.id}>
+              <View key={member.userId}>
                 {idx > 0 ? <View className="h-px bg-border/50 mx-2" /> : null}
                 <MemberRow
                   member={member}

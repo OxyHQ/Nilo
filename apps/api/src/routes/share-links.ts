@@ -299,12 +299,14 @@ router.get('/share/:token', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Share link not found' });
       return;
     }
+    // 410 rather than 404: the link existed and is gone, which the reader is
+    // told so they ask for a new one instead of doubting the URL.
     if (link.revokedAt) {
-      res.status(404).json({ error: 'Share link has been revoked' });
+      res.status(410).json({ error: 'Share link has been revoked' });
       return;
     }
     if (link.expiresAt && link.expiresAt.getTime() <= Date.now()) {
-      res.status(404).json({ error: 'Share link has expired' });
+      res.status(410).json({ error: 'Share link has expired' });
       return;
     }
 

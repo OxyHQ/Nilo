@@ -3,7 +3,7 @@ import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Calendar, FileText, User } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
+import { memberProfileName, useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
 import { usePages } from '@/lib/hooks/use-pages';
 import type { MentionKind, MentionSegment } from '@/lib/types/comments';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -65,10 +65,7 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
     const q = query.trim().toLowerCase();
 
     const people: PickerItem[] = (members ?? []).map((m) => {
-      const name = m.user?.name
-        ? [m.user.name.first, m.user.name.last].filter(Boolean).join(' ')
-        : null;
-      const label = name || m.user?.username || m.userId;
+      const label = memberProfileName(m) ?? m.userId;
       const detail = m.user?.email ?? m.user?.username ?? undefined;
       return {
         key: `user:${m.userId}`,
@@ -79,7 +76,7 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
           type: 'mention',
           kind: 'user',
           id: m.userId,
-          originalText: `@${name || m.user?.username || m.userId}`,
+          originalText: `@${label}`,
         }),
       };
     });
