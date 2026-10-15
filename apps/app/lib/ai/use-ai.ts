@@ -58,22 +58,36 @@ function useInferenceClient() {
   return useMemo(() => createInferenceClient(oxyServices), [oxyServices]);
 }
 
+/** The scope the edge requires: it spends the balance of the account that owns Nilo's application. */
+export const AI_SCOPE = 'inference:invoke';
+
 /**
- * Whether this member may run Nilo's actions: the edge lists the power level
- * for them. Until it does (Oxy has not opened it to this app or account), no
- * action is offered, so nothing is shown that would only fail.
+ * Whether this member may run Nilo's actions: Nilo's application holds
+ * `inference:invoke` in Oxy's registry (public metadata), and the edge lists
+ * the power level for this member. The catalogue alone is not enough — it is
+ * filtered by the kind of application, not by its scopes — so without the
+ * scope no action is offered, rather than one that would only be refused.
  */
 export function useAiAvailable(): boolean {
-  const { isAuthenticated } = useOxy();
+  const { isAuthenticated, oxyServices } = useOxy();
   const client = useInferenceClient();
-  const levels = useQuery({
-    queryKey: ['ai', 'power-levels'],
-    queryFn: ({ signal }) => client.listRoutingProfiles({ signal }),
-    enabled: isAuthenticated,
+  const clientId = process.env.EXPO_PUBLIC_OXY_CLIENT_ID;
+  const application = useQuery({
+    queryKey: ['ai', 'application', clientId],
+    queryFn: () => oxyServices.apps.getPublic(clientId as string),
+    enabled: isAuthenticated && Boolean(clientId),
     staleTime: 10 * 60_000,
     retry: false,
   });
-  return levels.data?.some((level) => level.slug === AI_POWER_LEVEL) ?? false;
+  const granted = application.data?.scopes.includes(AI_SCOPE) ?? false;
+  const levels = useQuery({
+    queryKey: ['ai', 'power-levels'],
+    queryFn: ({ signal }) => client.listRoutingProfiles({ signal }),
+    enabled: isAuthenticated && granted,
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+  return granted && (levels.data?.some((level) => level.slug === AI_POWER_LEVEL) ?? false);
 }
 
 export interface AiRequest {
