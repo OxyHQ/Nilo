@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { getDb } from '../db/client.js';
 import { hasRole, type WorkspaceRole } from '../db/schema/workspaces.js';
 import {

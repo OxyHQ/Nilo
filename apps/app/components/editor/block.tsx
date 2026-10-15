@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { Platform, Pressable, TextInput, View } from 'react-native';
+import type * as React from 'react';
+import { Platform, Pressable, type TextInput, View } from 'react-native';
 import { Check, ChevronRight } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -296,7 +296,6 @@ export function BlockView({
       return renderPhase3(EquationBlock, block, onChangeContent, renderChildren);
     case 'mermaid':
       return renderPhase3(MermaidBlock, block, onChangeContent, renderChildren);
-    case 'paragraph':
     default:
       return (
         <RichEditable

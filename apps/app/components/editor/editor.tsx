@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, type TextInput, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -960,7 +960,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
   const numberedIndex = React.useMemo(() => {
     const result: Record<string, number> = {};
     let counter = 0;
-    let lastParent: string | null | undefined = undefined;
+    let lastParent: string | null | undefined;
     for (const b of blocks) {
       if (b.type === 'numbered_list_item') {
         if (lastParent === b.parentBlockId) {
@@ -995,6 +995,12 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
     }
   }, [blocks, createBlock, pageId]);
 
+  // Mutable holder for the render-tree callback — populated below once
+  // the row handler bag exists. Declared before the loading return: a hook
+  // after an early return changes the hook count when loading finishes.
+  // Keeps the closure stable across renders.
+  const renderChildrenOfRef = React.useRef<(parentId: string) => React.ReactNode>(() => null);
+
   if (isLoading) {
     return (
       <View className="px-1 py-6">
@@ -1004,10 +1010,6 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
   }
 
   const rootBlocks = childMap.get(null) ?? [];
-
-  // Mutable holder for the render-tree callback — populated below once
-  // the row handler bag exists. Keeps the closure stable across renders.
-  const renderChildrenOfRef = React.useRef<(parentId: string) => React.ReactNode>(() => null);
 
   // Build a typed bag of per-row handlers to avoid prop drilling chains.
   const rowHandlers: RowHandlerBag = {

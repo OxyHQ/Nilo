@@ -1,11 +1,11 @@
 import * as React from 'react';
 import {
-  NativeSyntheticEvent,
+  type NativeSyntheticEvent,
   Platform,
   TextInput,
-  TextInputContentSizeChangeEventData,
-  TextInputKeyPressEventData,
-  TextInputSelectionChangeEventData,
+  type TextInputContentSizeChangeEventData,
+  type TextInputKeyPressEventData,
+  type TextInputSelectionChangeEventData,
   View,
 } from 'react-native';
 import { cn } from '@/lib/utils';

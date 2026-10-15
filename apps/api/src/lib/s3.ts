@@ -1,5 +1,5 @@
 import { S3Client, DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { log } from './logger.js';
 
 // Initialize S3 client

@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';

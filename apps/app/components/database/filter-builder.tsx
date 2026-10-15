@@ -9,7 +9,6 @@ import type {
   Database,
   DatabaseProperty,
   DatabaseView,
-  Filter,
   FilterCondition,
   FilterGroup,
 } from '@/lib/types/databases';
@@ -143,7 +142,7 @@ export function FilterBuilder({ open, onClose, database, view }: FilterBuilderPr
     setDraft((prev) => {
       const next = [...prev.filters];
       const target = next[index];
-      if (!target || target.kind !== 'condition') return prev;
+      if (target?.kind !== 'condition') return prev;
       next[index] = { ...target, ...patch };
       return { ...prev, filters: next };
     });

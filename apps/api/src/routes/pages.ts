@@ -618,7 +618,6 @@ function renderBlockMarkdown(
       line = `> ${icon ? `${icon} ` : ''}${text}`;
       break;
     }
-    case 'paragraph':
     default:
       line = text;
       break;

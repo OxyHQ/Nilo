@@ -1,5 +1,4 @@
-import React from 'react';
-import { View, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { MONO_FONT_FAMILY } from '@/lib/fonts';
 import { Check } from 'lucide-react-native';

@@ -4,11 +4,11 @@ import {
   stopEcosystemActivity,
 } from './ecosystemActivity';
 import express from 'express';
-import http from 'http';
+import http from 'node:http';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { sql } from 'drizzle-orm';
 import { closeDb, getDb } from './db/client.js';
 import { log } from './lib/logger.js';

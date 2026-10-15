@@ -125,13 +125,12 @@ async function main(): Promise<void> {
     { type: 'divider', content: {} },
   ];
 
-  let order = 0;
-  for (const block of blocks) {
+  for (const [index, block] of blocks.entries()) {
     await createBlock(db, {
       pageId: welcome.id,
       type: block.type as never,
       content: block.content as never,
-      order: (order += 1000),
+      order: (index + 1) * 1000,
     });
   }
   console.log(`  page "${welcome.title}" with ${blocks.length} blocks`);
@@ -204,14 +203,13 @@ async function main(): Promise<void> {
     { title: 'Try the block editor', status: 'doing', done: false },
     { title: 'Invite a teammate', status: 'todo', done: false },
   ];
-  let rowOrder = 0;
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     await createPage(db, {
       workspaceId,
       ownerId: OWNER_ID,
       databaseId: tasks.id,
       title: row.title,
-      order: (rowOrder += 1000),
+      order: (index + 1) * 1000,
       properties: {
         name: { text: row.title },
         status: { select: row.status },

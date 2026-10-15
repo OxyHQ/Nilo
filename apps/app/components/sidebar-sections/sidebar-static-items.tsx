@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { Platform, View } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { Search, Inbox, Settings, Trash2 } from 'lucide-react-native';

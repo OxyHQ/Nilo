@@ -1,5 +1,5 @@
 import * as esbuild from 'esbuild';
-import { cp } from 'fs/promises';
+import { cp } from 'node:fs/promises';
 
 await esbuild.build({
   // The migrator is a SECOND entry point, not part of the server bundle: the

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { useOxy } from '@oxy.so/services';
 import { Image } from 'expo-image';
-import { UserPlus, Trash2, MoreHorizontal } from 'lucide-react-native';
+import { UserPlus, MoreHorizontal } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import * as DropdownMenu from '@/components/ui/dropdown-menu';

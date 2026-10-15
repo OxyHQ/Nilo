@@ -23,4 +23,3 @@ declare module 'react-native' {
     cursor?: 'pointer' | 'default' | 'text' | 'not-allowed' | 'grab';
   }
 }
-export {};

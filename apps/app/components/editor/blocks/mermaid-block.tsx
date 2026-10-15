@@ -12,7 +12,10 @@ function loadMermaid(): Promise<typeof import('mermaid')> {
   }
   if (!mermaidLoader) {
     mermaidLoader = import('mermaid').then((mod) => {
-      mod.default.initialize({ startOnLoad: false, securityLevel: 'loose' });
+      // 'strict' encodes HTML in labels and disables click handlers. The
+      // source is page content any editor can write and every reader renders,
+      // so 'loose' would let one member run script in another's session.
+      mod.default.initialize({ startOnLoad: false, securityLevel: 'strict' });
       return mod;
     });
   }
