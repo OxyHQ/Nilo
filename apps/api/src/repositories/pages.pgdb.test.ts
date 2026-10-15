@@ -19,6 +19,7 @@ import {
   testScope,
   type TestDatabase,
 } from '../db/__tests__/testDatabase.js';
+import { databases } from '../db/schema/databases.js';
 import { blocks, pages } from '../db/schema/pages.js';
 import { workspaces } from '../db/schema/workspaces.js';
 import {
@@ -52,6 +53,15 @@ describe('pages repository (real database)', () => {
   });
 
   /** A page with only the fields a caller must supply. */
+  /** A database for rows to belong to: `pages.databaseId` is a foreign key. */
+  async function seedDatabase(): Promise<string> {
+    const [row] = await db
+      .insert(databases)
+      .values({ workspaceId, name: 'rows', ownerId: 'user-owner' })
+      .returning({ id: databases.id });
+    return row?.id as string;
+  }
+
   async function seedPage(overrides: Partial<Parameters<typeof createPage>[1]> = {}) {
     return createPage(db, {
       workspaceId,
@@ -199,7 +209,7 @@ describe('pages repository (real database)', () => {
     });
 
     it('round-trips a database row with typed properties', async () => {
-      const databaseId = uuidv7();
+      const databaseId = await seedDatabase();
       const properties = {
         name: { text: 'Row one' },
         num: { number: 3.5 },
@@ -515,8 +525,8 @@ describe('pages repository (real database)', () => {
 
   describe('database rows', () => {
     it('lists, orders, unsets a property and deletes, scoped to one database', async () => {
-      const databaseId = uuidv7();
-      const otherDatabaseId = uuidv7();
+      const databaseId = await seedDatabase();
+      const otherDatabaseId = await seedDatabase();
       const first = await seedPage({
         databaseId,
         order: 0,

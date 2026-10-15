@@ -13,6 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
 import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
+import { databases } from './databases.js';
 import { workspaces } from './workspaces.js';
 
 /** Every block type the editor persists, and each one's content: the contract shared with the app. */
@@ -119,16 +120,13 @@ export const pages = pgTable(
      */
     blocksVersion: integer().notNull().default(0),
     /**
-     * Non-null when this page is a row of a database (Phase 4).
+     * Non-null when this page is a row of a database.
      *
-     * Deliberately NOT a foreign key yet: the `databases` domain is a separate
-     * port and its table does not exist in this schema. The reference belongs
-     * in the change that lands `databases`, together with its own delete
-     * semantics — `routes/databases.ts:765-771` hard-deletes a database's rows
-     * explicitly today, so the natural action there is CASCADE, but that is
-     * that port's call to make and to test.
+     * CASCADE: a database's rows go with it. This is one half of a pair with
+     * `databases.parentPageId` (SET NULL); why only that pair is safe is on
+     * that column.
      */
-    databaseId: text(),
+    databaseId: text().references((): AnyPgColumn => databases.id, { onDelete: 'cascade' }),
     /**
      * Typed property values for a database row, keyed by propertyId.
      *

@@ -8,8 +8,10 @@ import {
   jsonb,
   pgTable,
   text,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
+import { pages } from './pages.js';
 import { workspaces } from './workspaces.js';
 
 /**
@@ -283,11 +285,8 @@ export const databases = pgTable(
     /**
      * The page an inline database is rendered inside.
      *
-     * DELIBERATELY carries no `.references(() => pages.id)` yet: the `pages`
-     * table is ported in a sibling change and does not exist in this schema
-     * folder at the time of writing, so declaring the reference here would not
-     * compile. The foreign key belongs in the integration commit that first
-     * has both tables. Two things that commit must get right:
+     * A foreign key to `pages.id`, paired with `pages.databaseId`. Two things
+     * that pair had to get right:
      *
      * ## It must be SET NULL, and that is a choice about the PAIR
      *
@@ -329,7 +328,7 @@ export const databases = pgTable(
      * BOTH columns must also stay NULLABLE: if either became `notNull` the
      * pair is uninsertable without `DEFERRABLE INITIALLY DEFERRED`.
      */
-    parentPageId: text(),
+    parentPageId: text().references((): AnyPgColumn => pages.id, { onDelete: 'set null' }),
     /**
      * Soft delete — a boolean, matching `models/database.ts:194`.
      *

@@ -64,6 +64,13 @@
       "when": 1792043757803,
       "tag": "0008_complex_the_enforcers",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792043851634,
+      "tag": "0009_worthless_wilson_fisk",
+      "breakpoints": true
     }
   ]
 }

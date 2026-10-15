@@ -407,13 +407,11 @@ describe('indexes and foreign keys', () => {
     );
 
     /**
-     * Exactly two today. This is deliberately an equality, not a floor: when
-     * `databases.parentPageId -> pages.id` lands it becomes three, and that
-     * failure is the point — it puts whoever adds the foreign key in front of
-     * this assertion at the moment they need it. The coverage itself will
-     * already pass, via `databases_parent_page_idx`.
+     * Exactly three: the workspace, the view's database, and the inline
+     * database's host page (`databases_parent_page_idx` covers it). An
+     * equality, not a floor, so a new foreign key meets this assertion.
      */
-    expect(foreignKeys).toHaveLength(2);
+    expect(foreignKeys).toHaveLength(3);
 
     const leadsWith = new Set(indexes.map((i) => `${i.tbl}.${i.first_col}`));
     // Floor: a query that returned nothing would make the loop below vacuous.
