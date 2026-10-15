@@ -9,10 +9,12 @@ import { findAppliedTransactionKeys, findPageById } from '../repositories/pages.
 import { snapshotPage } from '../repositories/pageVersions.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { log } from '../lib/logger.js';
-import { checkPageAccess } from '../lib/page-access.js';
+import { sendNotification } from '../lib/notification-service.js';
+import { checkPageAccess, resolvePageAccess } from '../lib/page-access.js';
 import {
   applyBlockTransaction,
   blockTransactionSchema,
+  type NewMention,
   TransactionRejected,
 } from '../lib/block-transactions.js';
 
@@ -137,6 +139,33 @@ router.post('/pages/:pageId/blocks/resume', async (req: Request, res: Response) 
 });
 
 /**
+ * Tell the people newly mentioned in a page's text, as Notion does — those
+ * who can open the page, never the writer. Best effort: the edit is saved.
+ */
+async function notifyMentioned(
+  mentioned: readonly NewMention[],
+  page: { id: string; title: string },
+  authorId: string,
+): Promise<void> {
+  for (const { userId, blockId, text } of mentioned) {
+    if (userId === authorId) continue;
+    try {
+      if (!(await resolvePageAccess(getDb(), userId, page.id))) continue;
+      await sendNotification({
+        userId,
+        type: 'mention',
+        title: `You were mentioned in ${page.title || 'Untitled'}`,
+        body: text.slice(0, 280),
+        priority: 'normal',
+        data: { pageId: page.id, blockId, authorId },
+      });
+    } catch (err: unknown) {
+      log.general.warn({ err, userId, pageId: page.id }, 'Failed to send mention notification');
+    }
+  }
+}
+
+/**
  * POST /pages/:pageId/blocks/transactions
  *
  * Applies one editor transaction — an ordered list of insert / update / move
@@ -172,6 +201,7 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
     });
     // The sender gets the operations as applied too: the orders the server chose.
     res.json({ ok: true, version: result.version, ops: result.ops });
+    void notifyMentioned(result.mentioned, { id: page.id, title: page.title }, req.user?.id ?? '');
   } catch (error: unknown) {
     if (error instanceof TransactionRejected) {
       res.status(error.status).json({ error: error.message });

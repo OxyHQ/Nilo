@@ -424,4 +424,55 @@ describe('following pages', () => {
     expect((await api(EDITOR, 'GET', `/pages/${target}/follow`)).json.following).toBe(true);
     expect((await api(VIEWER, 'DELETE', `/pages/${target}/follow`)).json.following).toBe(false);
   });
+
+  it('tells people newly mentioned in the text who can open the page, once', async () => {
+    const target = await page(OWNER, { title: 'Plan' });
+    const block = uuidv7();
+    const mention = (id: string) => ({
+      text: `@${id}`,
+      mention: { indicator: '@', attributes: { kind: 'user', id } },
+    });
+    const write = (ops: unknown[]) =>
+      api(OWNER, 'POST', `/pages/${target}/blocks/transactions`, { ops });
+    notified.length = 0;
+    const first = await write([
+      {
+        kind: 'insert',
+        id: block,
+        parentBlockId: null,
+        afterId: null,
+        type: 'paragraph',
+        content: {
+          text: 'ask',
+          segments: [{ text: 'ask ' }, mention(VIEWER), mention(GUEST), mention(OWNER)],
+        },
+      },
+    ]);
+    expect(first.status).toBe(200);
+    await new Promise((r) => setTimeout(r, 50));
+    // Not the writer, not a guest the page is not shared with.
+    expect(notified.filter((n) => n.type === 'mention')).toEqual([
+      { userId: VIEWER, type: 'mention' },
+    ]);
+
+    // Still mentioned after an edit, and in another block: not again.
+    notified.length = 0;
+    await write([
+      {
+        kind: 'update',
+        id: block,
+        content: { text: 'now', segments: [{ text: 'now ' }, mention(VIEWER)] },
+      },
+      {
+        kind: 'insert',
+        id: uuidv7(),
+        parentBlockId: null,
+        afterId: block,
+        type: 'paragraph',
+        content: { text: 'again', segments: [mention(VIEWER)] },
+      },
+    ]);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(notified.filter((n) => n.type === 'mention')).toEqual([]);
+  });
 });

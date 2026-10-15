@@ -87,6 +87,14 @@ remembers the keys of what it applied (`TRANSACTION_KEY_RETENTION_MS` in
 `@nilo/contracts`, one day, less an hour), dated by its oldest change: past
 that, resending could apply a change twice over later edits.
 
+## Mentions
+
+A person mentioned in a page's text (`mention.attributes.kind === 'user'`)
+who was not mentioned anywhere on it before gets a `mention` notification
+when the editor saves — if they can open the page, and never the writer.
+`applyBlockTransaction` reports them (`mentioned`); only the editor's route
+notifies, so imports and restores do not.
+
 ## Page history
 
 Before the first change after ten quiet minutes, and before every restore,

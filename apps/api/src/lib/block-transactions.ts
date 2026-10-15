@@ -12,6 +12,7 @@ import {
   blockTypeSchema,
   normalizeContent,
   placeAfter,
+  type segmentSchema,
 } from '@nilo/contracts';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
@@ -127,10 +128,23 @@ export interface ApplyBlockTransactionInput {
   beforeChange?: (tx: PgHandle, rows: BlockRow[]) => Promise<void>;
 }
 
+/** Someone mentioned in a page's text who was not mentioned anywhere in it before. */
+export interface NewMention {
+  userId: string;
+  blockId: string;
+  /** The block's text, for the notification. */
+  text: string;
+}
+
 export interface AppliedTransaction {
   version: number;
   /** The operations as applied: content normalized, every order the server wrote. */
   ops: unknown[];
+  /**
+   * People the page's text mentions now and did not before (a block split or
+   * moved keeps its mentions: compared over the whole page). Empty for a replay.
+   */
+  mentioned: NewMention[];
   /** Answered from the record of an earlier attempt under the same key. */
   replayed: boolean;
 }
@@ -147,6 +161,7 @@ export async function applyBlockTransaction(
 ): Promise<AppliedTransaction> {
   // The operations as applied, content normalized, for collaborators.
   let applied: unknown[] = [];
+  let mentioned: NewMention[] = [];
   const { version, replayed } = await db.transaction(async (tx) => {
     // First, before anything is read: lock the page row, so transactions on
     // one page run one after another and each validates against the blocks
@@ -280,6 +295,10 @@ export async function applyBlockTransaction(
         }
       }
     }
+    const before = peopleMentioned(rows.map((b) => [b.id, b.content]));
+    mentioned = [...peopleMentioned(contents)]
+      .filter(([userId]) => !before.has(userId))
+      .map(([userId, at]) => ({ userId, ...at }));
     if (input.key)
       await recordPageTransaction(tx, {
         pageId: input.pageId,
@@ -298,5 +317,25 @@ export async function applyBlockTransaction(
       input.socketId,
     );
   }
-  return { version, ops: applied, replayed };
+  return { version, ops: applied, replayed, mentioned };
+}
+
+/** The people a page's blocks mention (`mention.attributes.kind === 'user'`), each with a block. */
+function peopleMentioned(
+  contents: Iterable<readonly [string, BlockContent]>,
+): Map<string, { blockId: string; text: string }> {
+  const people = new Map<string, { blockId: string; text: string }>();
+  for (const [blockId, content] of contents) {
+    // Stored content is normalized: `segments`, when present, are valid segments.
+    const segments = (content.segments ?? []) as z.infer<typeof segmentSchema>[];
+    for (const segment of segments) {
+      const attributes = segment.mention?.attributes;
+      if (attributes?.kind !== 'user' || !attributes.id || people.has(attributes.id)) continue;
+      people.set(attributes.id, {
+        blockId,
+        text: typeof content.text === 'string' ? content.text : '',
+      });
+    }
+  }
+  return people;
 }
