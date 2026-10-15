@@ -14,7 +14,8 @@ import {
   nextSiblingOrder,
   updatePage,
 } from '../repositories/pages.js';
-import { listBlocksForPageByOrder } from '../repositories/blocks.js';
+import { listBlocksForPage } from '../repositories/blocks.js';
+import { blocksToHtml, blocksToMarkdown, blocksToTree } from '@nilo/contracts';
 import { copyPageTree } from '../repositories/pageCopies.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -681,96 +682,21 @@ router.get('/:id/breadcrumb', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * Render a block tree to markdown text. Used by /pages/:id/export?format=md.
- *
- * The renderer keeps things conservative: unknown block types degrade to
- * a paragraph (just `text`). Lists/todos honour the parentBlockId hierarchy.
- */
-interface RenderableBlock {
-  id: string;
-  parentBlockId: string | null;
-  type: string;
-  content: Record<string, unknown>;
-  order: number;
-}
-
-function textOf(content: Record<string, unknown>): string {
-  const text = content.text;
-  return typeof text === 'string' ? text : '';
-}
-
-function renderBlockMarkdown(
-  block: RenderableBlock,
-  childrenByParent: Map<string, RenderableBlock[]>,
-  depth: number,
-): string {
-  const indent = '  '.repeat(depth);
-  const text = textOf(block.content);
-  const children = childrenByParent.get(block.id) ?? [];
-  const childMd = children
-    .map((c) => renderBlockMarkdown(c, childrenByParent, depth + 1))
-    .join('\n');
-
-  let line = '';
-  switch (block.type) {
-    case 'heading_1':
-      line = `# ${text}`;
-      break;
-    case 'heading_2':
-      line = `## ${text}`;
-      break;
-    case 'heading_3':
-      line = `### ${text}`;
-      break;
-    case 'bulleted_list_item':
-      line = `${indent}- ${text}`;
-      break;
-    case 'numbered_list_item':
-      line = `${indent}1. ${text}`;
-      break;
-    case 'todo': {
-      const checked = block.content.checked === true ? 'x' : ' ';
-      line = `${indent}- [${checked}] ${text}`;
-      break;
-    }
-    case 'quote':
-      line = `> ${text}`;
-      break;
-    case 'divider':
-      line = '---';
-      break;
-    case 'code': {
-      const lang = typeof block.content.language === 'string' ? block.content.language : '';
-      line = `\`\`\`${lang}\n${text}\n\`\`\``;
-      break;
-    }
-    case 'callout': {
-      const icon = typeof block.content.icon === 'string' ? block.content.icon : '';
-      line = `> ${icon ? `${icon} ` : ''}${text}`;
-      break;
-    }
-    default:
-      line = text;
-      break;
-  }
-
-  return childMd ? `${line}\n${childMd}` : line;
-}
-
 const exportQuerySchema = z.object({
-  format: z.enum(['md', 'markdown']).default('md'),
+  format: z.enum(['md', 'markdown', 'html']).default('md'),
 });
 
 /**
- * GET /api/pages/:id/export?format=md
- * Streams markdown for the page (title + blocks). HTML/PDF live in the
- * client (or a future worker) — this endpoint stays MD-only on purpose.
+ * GET /api/pages/:id/export?format=md|html
+ *
+ * The page as a Markdown or a standalone HTML document: title, blocks with
+ * their formatting and nesting (`@nilo/contracts` markdown/HTML), every piece
+ * of text escaped in HTML.
  */
 router.get('/:id/export', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
-    exportQuerySchema.parse(req.query);
+    const { format } = exportQuerySchema.parse(req.query);
 
     const db = getDb();
     const page = await findPageById(db, params.id);
@@ -778,42 +704,27 @@ router.get('/:id/export', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Page not found' });
       return;
     }
+    if (!(await checkPageAccess(req, res, db, page.id, 'viewer'))) return;
 
-    const ok = await checkPageAccess(req, res, getDb(), page.id, 'viewer');
-    if (!ok) return;
-
-    const blocks = await listBlocksForPageByOrder(db, page.id);
-
-    const childrenByParent = new Map<string, RenderableBlock[]>();
-    const roots: RenderableBlock[] = [];
-    for (const b of blocks) {
-      const renderable: RenderableBlock = {
-        id: b.id,
-        parentBlockId: b.parentBlockId,
-        type: b.type,
-        content: b.content,
-        order: b.order,
-      };
-      if (renderable.parentBlockId) {
-        const key = renderable.parentBlockId;
-        const list = childrenByParent.get(key) ?? [];
-        list.push(renderable);
-        childrenByParent.set(key, list);
-      } else {
-        roots.push(renderable);
-      }
-    }
-
+    const tree = blocksToTree(await listBlocksForPage(db, page.id));
     const title = page.title?.trim() ? page.title : 'Untitled';
-    const body = roots.map((b) => renderBlockMarkdown(b, childrenByParent, 0)).join('\n\n');
-
-    const markdown = `# ${title}\n\n${body}\n`;
-    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    // A filename every OS accepts, plus the exact name for clients that read RFC 5987.
+    const ascii =
+      title
+        .normalize('NFKD')
+        .replace(/[^a-zA-Z0-9-_]+/gu, '-')
+        .replace(/^-+|-+$/g, '') || 'page';
+    const html = format === 'html';
+    const extension = html ? 'html' : 'md';
+    res.setHeader(
+      'Content-Type',
+      html ? 'text/html; charset=utf-8' : 'text/markdown; charset=utf-8',
+    );
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${title.replace(/[^a-zA-Z0-9-_]+/gu, '-')}.md"`,
+      `attachment; filename="${ascii}.${extension}"; filename*=UTF-8''${encodeURIComponent(`${title}.${extension}`)}`,
     );
-    res.send(markdown);
+    res.send(html ? blocksToHtml(tree, title) : blocksToMarkdown(tree, title));
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to export page');
