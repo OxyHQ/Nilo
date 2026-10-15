@@ -1,0 +1,76 @@
+# Editing and real-time collaboration
+
+How a page's blocks are edited, saved and kept the same for everyone who has
+the page open. The editor is `@oxy.so/bloom-editor` (Bloom repo); Nilo's side
+is `apps/app/lib/editor/` and `apps/api/src/lib/block-transactions.ts`.
+
+## One way to write blocks
+
+Blocks are written only by **block transactions**:
+`POST /pages/:pageId/blocks/transactions { ops, key?, socketId? }`, applied by
+`applyBlockTransaction`. Restoring a page version, importing and the editor
+all go through it. There are no REST routes that write single blocks.
+
+Operations: `insert { id, parentBlockId, afterId, type, content }`,
+`update { id, type?, content? }`, `move { id, parentBlockId, afterId }`,
+`remove { id }`. Ids are client-minted UUIDv7s. Content is normalized by the
+shared contract (`@nilo/contracts` `normalizeContent`), which also defines
+each block type's fields and defaults.
+
+## The server owns order
+
+Positions are anchors ("after this block"), never numbers. The server turns
+an anchor into an `order` against its own state (`placeAfter` in
+`@nilo/contracts`), renumbering siblings when two orders leave no room, and
+answers with the operations **as applied** — every order it wrote, including
+renumberings as `reorder` operations. Siblings sort by `(order, id)`.
+
+Clients never invent orders. Each keeps an `OrderBook` of the server's
+orders, each tagged with the version that wrote it (an older version never
+overwrites a newer one), uses it to place remote changes, and runs
+`reconcileOrder` after every remote change so every list is in the server's
+order. A two-editor soak against PostgreSQL showed why: client-chosen orders
+diverged under concurrency (a renumbering pulled back a block someone had
+moved, an order chosen against a stale neighbour survived).
+
+## Serialized per page
+
+A transaction locks its page row first (`lockPage`), so transactions on one
+page run one after another and each validates against what the previous one
+committed. The page's `blocksVersion` goes up by one per transaction; the
+page room broadcasts `{ version, ops }` to everyone but the sender
+(`socketId`).
+
+## Idempotent retries
+
+The editor sends a `key` per transaction, the same on every retry. The
+server records `(page, key) → { version, ops }` in `page_transactions` (one
+day) and answers a repeated key from the record without applying it again —
+a lost response no longer leads to a double apply or a refused retry that
+undoes a saved change.
+
+## The client session
+
+`SyncSession` (Bloom) holds local transactions until the server confirms
+them, rebases them over remote ones by anchors, folds confirmations and
+remote versions in version order (holding early arrivals), retries with
+backoff and undoes what the server refuses. `snapshot()` / `resume` hand the
+unconfirmed work to a new session — after a reload, or (persisted) to work
+offline — resent under the same keys.
+
+## Page history
+
+Before the first change after ten quiet minutes, and before every restore,
+`applyBlockTransaction`'s `beforeChange` hook keeps the page's blocks as a
+version (`page_versions`, newest 200). A restore is computed against the
+locked page and applied as one transaction (block ids kept, so comment
+anchors stay), so open editors receive it live.
+
+## Tests
+
+- `apps/app/lib/editor/__tests__/wire.test.ts` — the wire conversion against
+  an in-memory server with the API's semantics.
+- `e2e/live-editing.test.ts` — two editors wired as the app wires them,
+  against the real endpoint, room and PostgreSQL, with seeded random
+  concurrent edits and lost responses. `LIVE_SEEDS=1,2,3 LIVE_STEPS=200` runs a
+  longer soak; `LIVE_TRACE=<dir>` keeps a failing run's exchange.
