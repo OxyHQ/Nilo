@@ -1,3 +1,4 @@
+import { saveExport } from '@/lib/save-export';
 import { PageHistoryDialog } from './page-history-dialog';
 import { ReminderDialog } from '@/components/reminders/reminder-dialog';
 import * as React from 'react';
@@ -75,28 +76,13 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
   }, [page.id, t]);
 
   const handleExport = async (format: 'md' | 'html') => {
-    if (Platform.OS !== 'web') {
-      toast.info(t('pages.export.webOnly'));
-      return;
-    }
     try {
       const { blob, filename } = await exportPage.mutateAsync({
         id: page.id,
         format,
         fallback: t('pages.untitled'),
       });
-      const href = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      try {
-        link.href = href;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-      } finally {
-        link.remove();
-        // Give the browser time to start reading the download before releasing it.
-        setTimeout(() => URL.revokeObjectURL(href), 60_000);
-      }
+      await saveExport({ blob, filename });
       toast.success(t('pages.export.downloaded'));
     } catch {
       toast.error(t('pages.toasts.exportFailed'));

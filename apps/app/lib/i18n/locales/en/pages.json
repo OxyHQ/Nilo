@@ -270,8 +270,7 @@
   "import": {
     "title": "Import",
     "intoPage": "Import into this page",
-    "description": "Choose Markdown (.md) files or one ZIP from a Notion “Markdown & CSV” export (up to 20 MB). Markdown files become pages; matching folders in a ZIP become subpages.",
-    "databasesUnsupported": "Databases are not imported yet. CSV and other unsupported files are skipped and listed in the results.",
+    "description": "Choose Markdown (.md) files, one CSV, or one Notion Markdown ZIP export (up to 20 MB).",
     "chooseFiles": "Choose files",
     "reading": "Choosing and reading files…",
     "uploading": "Uploading… %{percent}%",
@@ -280,7 +279,7 @@
     "tooLarge": "This import exceeds the 20 MB limit. Choose smaller files or a smaller ZIP.",
     "noAccess": "You do not have permission to import into this destination.",
     "noMarkdown": "No importable Markdown was found. Choose .md files or a Markdown ZIP export.",
-    "invalidFiles": "Choose one or more .md files, or exactly one .zip file. Do not mix them.",
+    "invalidFiles": "Choose .md files, one .csv, or one .zip. Do not mix formats.",
     "failed": "Import failed. Please try again.",
     "result": {
       "one": "%{count} page created",
@@ -289,6 +288,20 @@
     "skipped": {
       "one": "%{count} skipped file",
       "other": "%{count} skipped files"
-    }
+    },
+    "csvHint": "A CSV creates a full-page database. CSV files inside a ZIP are skipped; import them separately.",
+    "invalidContent": "The file could not be imported. Check its format and contents."
+  },
+  "info": {
+    "editedBy": "Edited %{time} by %{name}",
+    "edited": "Edited %{time}",
+    "unknownMember": "Unknown member"
+  },
+  "backlinks": {
+    "count": {
+      "one": "%{count} backlink",
+      "other": "%{count} backlinks"
+    },
+    "retry": "Could not load backlinks. Retry"
   }
 }

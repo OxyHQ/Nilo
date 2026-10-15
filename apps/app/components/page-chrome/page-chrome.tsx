@@ -1,3 +1,4 @@
+import { PageInfo } from './page-info';
 import * as React from 'react';
 import { Platform, Pressable, TextInput, View, type GestureResponderEvent } from 'react-native';
 import { Globe, ImageIcon, Move, Smile } from 'lucide-react-native';
@@ -192,6 +193,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
         ) : (
           <TitleInput value={title} onChangeText={setTitleDraft} onBlur={handleTitleBlur} />
         )}
+        <PageInfo page={page} />
       </View>
     </View>
   );

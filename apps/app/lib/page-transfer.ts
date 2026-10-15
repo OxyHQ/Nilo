@@ -22,11 +22,12 @@ export function exportFilename(disposition: unknown, fallback: string): string {
   return basename && basename !== '.' && basename !== '..' ? basename : fallback;
 }
 
-export function importSelection(assets: { name: string; size?: number }[]): 'md' | 'zip' {
+export function importSelection(assets: { name: string; size?: number }[]): 'md' | 'zip' | 'csv' {
   if (assets.length === 0) throw new Error('invalidFiles');
   if (assets.reduce((total, asset) => total + (asset.size ?? 0), 0) > MAX_IMPORT_BYTES) {
     throw new Error('tooLarge');
   }
+  if (assets.length === 1 && /\.csv$/i.test(assets[0].name)) return 'csv';
   if (assets.length === 1 && /\.zip$/i.test(assets[0].name)) return 'zip';
   if (assets.every((asset) => /\.md$/i.test(asset.name))) return 'md';
   throw new Error('invalidFiles');

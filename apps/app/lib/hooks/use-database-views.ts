@@ -102,6 +102,7 @@ export function useUpdateView() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.databases.views(databaseId),
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.forms.all });
       queryClient.invalidateQueries({
         queryKey: ['database', databaseId, 'rows'],
       });
@@ -116,6 +117,7 @@ export function useDeleteView() {
       await apiClient.delete(API_ROUTES.databases.deleteView(databaseId, viewId));
     },
     onSettled: (_data, _err, { databaseId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.forms.all });
       queryClient.invalidateQueries({
         queryKey: queryKeys.databases.detail(databaseId),
       });

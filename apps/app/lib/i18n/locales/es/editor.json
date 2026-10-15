@@ -211,7 +211,9 @@
     "collaborators": {
       "one": "%{count} persona más aquí",
       "other": "%{count} personas más aquí"
-    }
+    },
+    "present": "%{name} está en esta página",
+    "morePresent": "%{count} miembros más"
   },
   "tableOfContents": {
     "empty": "Añade encabezados para completar el índice."

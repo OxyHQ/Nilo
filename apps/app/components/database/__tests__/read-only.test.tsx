@@ -5,6 +5,13 @@ import { DatabaseViewContainer } from '../database-view';
 import { PropertyCell } from '../property-cell';
 import type { Database, DatabaseRow, DatabaseView, DatabaseViewType } from '@/lib/types/databases';
 
+jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
+jest.mock('@/lib/hooks/use-forms', () => ({
+  useFormLink: jest.fn(),
+  useChangeFormLink: jest.fn(),
+}));
+jest.mock('@/lib/hooks/use-database-views', () => ({ useUpdateView: jest.fn() }));
+
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
 }));
@@ -133,4 +140,20 @@ it('keeps table editing and creation available to editors', () => {
       .findAll((node) => Boolean(node.props.onPress))
       .some((node) => node.props.accessibilityLabel === 'databases.actions.new'),
   ).toBe(true);
+});
+
+it('keeps the form builder and management requests unavailable in read-only mode', () => {
+  act(() => {
+    renderer = create(
+      <DatabaseViewContainer
+        database={database}
+        view={{ ...view, type: 'form' }}
+        rows={rows}
+        isLoading={false}
+        readOnly
+      />,
+    );
+  });
+  expect(JSON.stringify(renderer.toJSON())).toContain('databases.form.editorsOnly');
+  expect(renderer.root.findAll((node) => Boolean(node.props.onPress))).toHaveLength(0);
 });

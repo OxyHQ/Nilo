@@ -24,3 +24,7 @@ export function buildShareUrl(token: string): string {
 export function buildPublishUrl(slug: string): string {
   return `${resolveWebOrigin()}/pub/${encodeURIComponent(slug)}`;
 }
+
+export function buildFormUrl(token: string): string {
+  return `${resolveWebOrigin()}/form/${encodeURIComponent(token)}`;
+}

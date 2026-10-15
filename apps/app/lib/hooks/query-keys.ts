@@ -1,4 +1,9 @@
 export const queryKeys = {
+  forms: {
+    all: ['forms'] as const,
+    link: (id: string, viewId: string) => ['form-link', id, viewId] as const,
+    public: (token: string, userId?: string) => ['forms', token, userId] as const,
+  },
   publicPages: {
     all: ['public-pages'] as const,
     detail: (slug: string, pageId?: string) => ['public-pages', slug, pageId] as const,
@@ -17,6 +22,7 @@ export const queryKeys = {
     results: (workspaceId: string | null, query: string) => ['search', workspaceId, query] as const,
   },
   pages: {
+    backlinks: (id: string) => ['page', id, 'backlinks'] as const,
     templates: (workspaceId: string | null) => ['pages', workspaceId, 'templates'] as const,
     shared: ['shared-pages'] as const,
     permissions: (id: string) => ['page-permissions', id] as const,

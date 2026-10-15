@@ -110,7 +110,14 @@ export interface Database {
   updatedAt: string;
 }
 
-export type DatabaseViewType = 'table' | 'board' | 'gallery' | 'list' | 'calendar' | 'timeline';
+export type DatabaseViewType =
+  | 'table'
+  | 'board'
+  | 'gallery'
+  | 'list'
+  | 'calendar'
+  | 'timeline'
+  | 'form';
 
 export type SortDirection = 'asc' | 'desc';
 
@@ -135,6 +142,7 @@ export interface FilterGroup {
 export type Filter = FilterCondition | FilterGroup;
 
 export interface ViewConfig {
+  description?: string;
   datePropertyId?: string;
   startPropertyId?: string;
   endPropertyId?: string;

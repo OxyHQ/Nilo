@@ -1,3 +1,4 @@
+import { ViewForm } from './view-form';
 import * as React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { ArrowUpDown, Filter as FilterIcon, Plus } from 'lucide-react-native';
@@ -40,6 +41,8 @@ export function DatabaseViewContainer({
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
   const createRow = useCreateRow();
+
+  if (view.type === 'form') return <ViewForm database={database} view={view} readOnly={readOnly} />;
 
   const filterCount = countFilters(view.filters);
   const sortCount = view.sorts.length;

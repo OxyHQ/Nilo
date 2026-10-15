@@ -25,7 +25,9 @@
     "new": "Nueva vista",
     "rename": "Cambiar nombre de la vista",
     "delete": "Eliminar vista",
-    "namePlaceholder": "Nombre de la vista"
+    "namePlaceholder": "Nombre de la vista",
+    "form": "Formulario",
+    "createFailed": "No se pudo crear la vista. Inténtalo de nuevo."
   },
   "propertyTypes": {
     "text": "Texto",
@@ -117,5 +119,45 @@
     "needsDateProperty": "Añade una propiedad de fecha para activar la vista de cronograma.",
     "webOnly": "La vista de cronograma solo está disponible en la web en la fase 4. Abre la vista de tabla en el móvil para ver tus filas.",
     "row": "Fila"
+  },
+  "form": {
+    "builder": "Editor de formulario",
+    "title": "Título del formulario",
+    "description": "Descripción",
+    "fields": "Campos",
+    "requiredLabel": "%{name} (obligatorio)",
+    "showField": "Mostrar %{name}",
+    "preview": "Vista previa",
+    "previewHint": "Solo vista previa. Las respuestas introducidas aquí no se envían.",
+    "saved": "Formulario guardado",
+    "saveFailed": "No se pudo guardar el formulario. Comprueba tus permisos e inténtalo de nuevo.",
+    "editorsOnly": "Solo los editores de la base de datos pueden gestionar este formulario.",
+    "link": "Enlace del formulario",
+    "createLink": "Crear enlace",
+    "copyLink": "Copiar enlace",
+    "copyFailed": "No se pudo copiar el enlace.",
+    "deleteLink": "Eliminar enlace",
+    "deleteHint": "Este enlace dejará de funcionar. Al crear otro enlace se generará una dirección nueva.",
+    "open": "Aceptar respuestas",
+    "requireSignIn": "Exigir inicio de sesión",
+    "loadFailed": "No se pudo cargar o enviar el formulario. Inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "required": "Introduce un valor para %{name}.",
+    "invalid": "Introduce un valor válido para %{name}.",
+    "timeFor": "Hora de %{name} (opcional)",
+    "optionalTime": "Hora (HH:MM, opcional)",
+    "submit": "Enviar",
+    "submitting": "Enviando…",
+    "thanks": "¡Gracias por tu respuesta!",
+    "another": "Enviar otra respuesta",
+    "unavailable": "Este formulario no está disponible o ya no acepta respuestas.",
+    "signInRequired": "Inicia sesión para responder a este formulario.",
+    "rateLimited": "Demasiadas solicitudes. Inténtalo de nuevo en %{seconds} segundos.",
+    "invalidResponse": "Algunas respuestas no son válidas. Revisa los campos obligatorios y tus respuestas e inténtalo de nuevo."
+  },
+  "csv": {
+    "import": "Importar CSV",
+    "export": "Exportar CSV",
+    "menu": "Acciones de la base de datos"
   }
 }

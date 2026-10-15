@@ -33,7 +33,9 @@ export function InlineDatabaseBlock({
     views.find((view) => view.isDefault) ??
     views[0];
   const rows = useDatabaseRows(
-    database.data && selectedView && !database.isError ? databaseId : undefined,
+    database.data && selectedView && selectedView.type !== 'form' && !database.isError
+      ? databaseId
+      : undefined,
     selectedView?.id ?? null,
   );
   const error = database.error ?? rows.error ?? create.error;

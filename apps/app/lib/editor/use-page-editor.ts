@@ -5,9 +5,11 @@ import {
   type SyncStatus,
   type Transaction,
 } from '@oxy.so/bloom-editor/model';
+import { useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import apiClient from '@/lib/api/client';
+import { queryKeys } from '@/lib/hooks/query-keys';
 import { API_ROUTES } from '@/lib/api/routes';
 import { uuidv7 } from '@/lib/ids';
 import { acquireSocket, releaseSocket } from '@/lib/realtime/socket';
@@ -57,6 +59,7 @@ interface TransactionEvent {
  * reconnect, a change that no longer applies).
  */
 export function usePageEditor(pageId: string, readOnly: boolean): PageEditorState {
+  const queryClient = useQueryClient();
   const [store, setStore] = useState<EditorStore | null>(null);
   const [status, setStatus] = useState<SyncStatus>('saved');
   const [rejected, setRejected] = useState<Transaction | null>(null);
@@ -66,6 +69,19 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
 
   useEffect(() => {
     let disposed = false;
+    setCollaborators([]);
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const refreshPageInfo = () => {
+      clearTimeout(refreshTimer);
+      // Only this page's own record ("edited … by …"), once edits pause.
+      refreshTimer = setTimeout(() => {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.pages.detail(pageId),
+          exact: true,
+        });
+      }, 1000);
+    };
+    const clearPresence = () => setCollaborators([]);
     const socket = acquireSocket();
     let session: SyncSession | null = null;
     let orders = new OrderBook();
@@ -96,6 +112,7 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
                     API_ROUTES.blocks.transactions(pageId),
                     { ops, key, socketId: socket.id },
                   );
+                  refreshPageInfo();
                   // The orders the server chose for this change.
                   orders.recordApplied(result.data.ops, result.data.version);
                   return { ok: true, version: result.data.version };
@@ -146,8 +163,9 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
     };
 
     const onTransaction = (event: TransactionEvent) => {
-      if (event.pageId !== pageId || !session) return;
-      session.receiveRemote({
+      if (event.pageId !== pageId) return;
+      refreshPageInfo();
+      session?.receiveRemote({
         version: event.version,
         toOperations: (doc) => wireToOperations(doc, event.ops, orders, event.version),
       });
@@ -160,6 +178,7 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
     socket.on('page:transaction', onTransaction);
     socket.on('page:presence', onPresence);
     socket.on('connect', join);
+    socket.on('disconnect', clearPresence);
     if (socket.connected) join();
     void load();
 
@@ -169,11 +188,13 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
       socket.off('page:transaction', onTransaction);
       socket.off('page:presence', onPresence);
       socket.off('connect', join);
+      socket.off('disconnect', clearPresence);
+      clearTimeout(refreshTimer);
       stopFocus?.();
       session?.dispose();
       releaseSocket();
     };
-  }, [pageId, readOnly]);
+  }, [pageId, readOnly, queryClient]);
 
   return { store, status, rejected, collaborators, error };
 }

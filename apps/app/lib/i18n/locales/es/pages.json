@@ -270,8 +270,7 @@
   "import": {
     "title": "Importar",
     "intoPage": "Importar en esta página",
-    "description": "Elige archivos Markdown (.md) o un ZIP de una exportación de Notion en formato «Markdown y CSV» (hasta 20 MB). Los archivos Markdown se convierten en páginas; las carpetas correspondientes del ZIP, en subpáginas.",
-    "databasesUnsupported": "Las bases de datos aún no se importan. Los archivos CSV y otros formatos no compatibles se omiten y se muestran en los resultados.",
+    "description": "Elige archivos Markdown (.md), un CSV o un ZIP de Markdown exportado de Notion (hasta 20 MB).",
     "chooseFiles": "Elegir archivos",
     "reading": "Eligiendo y leyendo archivos…",
     "uploading": "Subiendo… %{percent}%",
@@ -280,7 +279,7 @@
     "tooLarge": "Esta importación supera el límite de 20 MB. Elige archivos o un ZIP más pequeños.",
     "noAccess": "No tienes permiso para importar en este destino.",
     "noMarkdown": "No se encontró Markdown que se pueda importar. Elige archivos .md o una exportación ZIP de Markdown.",
-    "invalidFiles": "Elige uno o varios archivos .md, o un solo archivo .zip. No los mezcles.",
+    "invalidFiles": "Elige archivos .md, un .csv o un .zip. No mezcles formatos.",
     "failed": "No se pudo importar. Inténtalo de nuevo.",
     "result": {
       "one": "%{count} página creada",
@@ -289,6 +288,20 @@
     "skipped": {
       "one": "%{count} archivo omitido",
       "other": "%{count} archivos omitidos"
-    }
+    },
+    "csvHint": "Un CSV crea una base de datos de página completa. Los CSV dentro de un ZIP se omiten; impórtalos por separado.",
+    "invalidContent": "No se pudo importar el archivo. Revisa su formato y contenido."
+  },
+  "info": {
+    "editedBy": "Editado %{time} por %{name}",
+    "edited": "Editado %{time}",
+    "unknownMember": "Miembro desconocido"
+  },
+  "backlinks": {
+    "count": {
+      "one": "%{count} enlace entrante",
+      "other": "%{count} enlaces entrantes"
+    },
+    "retry": "No se pudieron cargar los enlaces entrantes. Reintentar"
   }
 }

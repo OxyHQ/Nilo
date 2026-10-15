@@ -45,7 +45,10 @@ function DatabasePage({ id }: { id: string }) {
   const selectedViewId = activeViewId ?? defaultViewId;
 
   const selectedView = views.find((v) => v.id === selectedViewId) ?? null;
-  const { data: rowsData, isLoading: isLoadingRows } = useDatabaseRows(id, selectedViewId);
+  const { data: rowsData, isLoading: isLoadingRows } = useDatabaseRows(
+    selectedView?.type === 'form' ? undefined : id,
+    selectedViewId,
+  );
 
   if (isLoading) {
     return (

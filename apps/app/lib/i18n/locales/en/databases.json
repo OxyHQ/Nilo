@@ -25,7 +25,9 @@
     "new": "New view",
     "rename": "Rename view",
     "delete": "Delete view",
-    "namePlaceholder": "View name"
+    "namePlaceholder": "View name",
+    "form": "Form",
+    "createFailed": "Could not create the view. Please try again."
   },
   "propertyTypes": {
     "text": "Text",
@@ -117,5 +119,45 @@
     "needsDateProperty": "Add a date property to enable the timeline view.",
     "webOnly": "Timeline view is web-only in Phase 4. Open the table view on native to see your rows.",
     "row": "Row"
+  },
+  "form": {
+    "builder": "Form builder",
+    "title": "Form title",
+    "description": "Description",
+    "fields": "Fields",
+    "requiredLabel": "%{name} (required)",
+    "showField": "Show %{name}",
+    "preview": "Preview",
+    "previewHint": "Preview only. Answers entered here are not submitted.",
+    "saved": "Form saved",
+    "saveFailed": "Could not save the form. Check your access and try again.",
+    "editorsOnly": "Only database editors can manage this form.",
+    "link": "Form link",
+    "createLink": "Create link",
+    "copyLink": "Copy link",
+    "copyFailed": "Could not copy the link.",
+    "deleteLink": "Delete link",
+    "deleteHint": "This link will stop working. Creating another link generates a new address.",
+    "open": "Accepting responses",
+    "requireSignIn": "Require sign-in",
+    "loadFailed": "Could not load or submit the form. Please try again.",
+    "retry": "Try again",
+    "required": "Enter a value for %{name}.",
+    "invalid": "Enter a valid value for %{name}.",
+    "timeFor": "Time for %{name} (optional)",
+    "optionalTime": "Time (HH:MM, optional)",
+    "submit": "Submit",
+    "submitting": "Submitting…",
+    "thanks": "Thank you for your response!",
+    "another": "Submit another response",
+    "unavailable": "This form is unavailable or no longer accepting responses.",
+    "signInRequired": "Sign in to respond to this form.",
+    "rateLimited": "Too many requests. Try again in %{seconds} seconds.",
+    "invalidResponse": "Some answers are invalid. Check the required fields and your answers, then try again."
+  },
+  "csv": {
+    "import": "Import CSV",
+    "export": "Export CSV",
+    "menu": "Database actions"
   }
 }

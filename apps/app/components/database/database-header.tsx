@@ -1,7 +1,10 @@
+import { toast } from '@oxy.so/bloom/toast';
+import { DatabaseActionsMenu } from './database-actions-menu';
 import * as React from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import {
   Calendar,
+  ClipboardList,
   GalleryVertical,
   Image as ImageIcon,
   Kanban,
@@ -24,6 +27,7 @@ const VIEW_ICONS: Record<
   DatabaseViewType,
   React.ComponentType<{ size?: number; color?: string }>
 > = {
+  form: ClipboardList,
   table: TableIcon,
   board: Kanban,
   gallery: GalleryVertical,
@@ -35,6 +39,8 @@ const VIEW_ICONS: Record<
 /** Translated at call time: the locale can change while the app runs. */
 function viewTypeLabel(type: DatabaseViewType): string {
   switch (type) {
+    case 'form':
+      return i18n.t('databases.views.form');
     case 'table':
       return i18n.t('databases.views.table');
     case 'board':
@@ -81,13 +87,18 @@ export function DatabaseHeader({
   };
 
   const handleAddView = async (type: DatabaseViewType) => {
-    const created = await createView.mutateAsync({
-      databaseId: database.id,
-      name: viewTypeLabel(type),
-      type,
-    });
-    setNewViewOpen(false);
-    onSelectView(created.id);
+    if (createView.isPending) return;
+    try {
+      const created = await createView.mutateAsync({
+        databaseId: database.id,
+        name: viewTypeLabel(type),
+        type,
+      });
+      setNewViewOpen(false);
+      onSelectView(created.id);
+    } catch {
+      toast.error(t('databases.views.createFailed'));
+    }
   };
 
   return (
@@ -121,6 +132,7 @@ export function DatabaseHeader({
               underlineColorAndroid="transparent"
             />
           </View>
+          <DatabaseActionsMenu databaseId={database.id} />
         </View>
 
         {/* View tabs */}
@@ -139,6 +151,8 @@ export function DatabaseHeader({
             />
           ))}
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('databases.views.new')}
             onPress={() => setNewViewOpen(true)}
             className="flex-row items-center gap-1 px-2 py-1 rounded hover:bg-muted"
           >
@@ -151,6 +165,7 @@ export function DatabaseHeader({
         open={newViewOpen}
         onClose={() => setNewViewOpen(false)}
         onChoose={handleAddView}
+        pending={createView.isPending}
       />
     </View>
   );
@@ -276,12 +291,21 @@ interface NewViewPickerProps {
   open: boolean;
   onClose: () => void;
   onChoose: (type: DatabaseViewType) => void;
+  pending: boolean;
 }
 
-function NewViewPicker({ open, onClose, onChoose }: NewViewPickerProps) {
+function NewViewPicker({ open, onClose, onChoose, pending }: NewViewPickerProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const types: DatabaseViewType[] = ['table', 'board', 'gallery', 'list', 'calendar', 'timeline'];
+  const types: DatabaseViewType[] = [
+    'table',
+    'board',
+    'gallery',
+    'list',
+    'calendar',
+    'timeline',
+    'form',
+  ];
 
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
@@ -299,6 +323,9 @@ function NewViewPicker({ open, onClose, onChoose }: NewViewPickerProps) {
             return (
               <Pressable
                 key={type}
+                accessibilityRole="button"
+                accessibilityLabel={viewTypeLabel(type)}
+                disabled={pending}
                 onPress={() => onChoose(type)}
                 className="flex-row items-center gap-2 px-2 py-2 rounded hover:bg-muted"
               >

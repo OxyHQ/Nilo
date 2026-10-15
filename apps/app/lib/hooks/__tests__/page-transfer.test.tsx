@@ -2,7 +2,7 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import apiClient from '@/lib/api/client';
-import { useExportPage, useImportPages } from '../use-page-transfer';
+import { useExportPage, useImportPages, useExportDatabase } from '../use-page-transfer';
 import { queryKeys } from '../query-keys';
 
 jest.mock('@/lib/api/client', () => ({
@@ -13,6 +13,7 @@ jest.mock('@/lib/api/client', () => ({
 let client: QueryClient;
 let renderer: ReactTestRenderer;
 let imports: ReturnType<typeof useImportPages>;
+let csvExport: ReturnType<typeof useExportDatabase>;
 let exports: ReturnType<typeof useExportPage>;
 const result = {
   pages: [{ id: 'first', title: 'Title', parentId: 'parent' }],
@@ -24,6 +25,7 @@ const fetchFile = jest.spyOn(global, 'fetch');
 function Hooks() {
   imports = useImportPages();
   exports = useExportPage();
+  csvExport = useExportDatabase();
   return null;
 }
 
@@ -127,3 +129,48 @@ it.each(['md', 'html'] as const)(
     });
   },
 );
+
+it('imports CSV into a full-page database and refreshes database navigation', async () => {
+  const csv = 'Name,Amount\n"Café, one",12';
+  const database = { id: 'db', workspaceId: 'workspace', isInline: false };
+  fetchFile.mockResolvedValue({ text: async () => csv } as Response);
+  jest.mocked(apiClient.post).mockResolvedValue({ data: { database, rows: 1 } });
+  const invalidate = jest.spyOn(client, 'invalidateQueries');
+  await act(async () => {
+    await expect(
+      imports.mutateAsync({
+        workspaceId: 'workspace',
+        parentId: 'parent',
+        assets: [{ lastModified: 0, uri: 'file:///table.csv', name: 'Table.CSV' }],
+        onProgress,
+      }),
+    ).resolves.toEqual({ database, rows: 1, pages: [], skipped: [] });
+  });
+  const [path, body] = jest.mocked(apiClient.post).mock.calls[0];
+  expect(path).toBe('/databases/import/csv');
+  expect(JSON.parse(String(body))).toEqual({
+    workspaceId: 'workspace',
+    parentPageId: 'parent',
+    name: 'Table',
+    csv,
+  });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.databases.list('workspace') });
+});
+
+it('exports a database using the CSV endpoint and server filename', async () => {
+  const blob = new Blob(['Name\nTest']);
+  jest.mocked(apiClient.get).mockResolvedValue({
+    data: blob,
+    headers: { 'content-disposition': 'attachment; filename="Table.csv"' },
+  });
+  await act(async () => {
+    await expect(csvExport.mutateAsync({ id: 'db', fallback: 'Database' })).resolves.toEqual({
+      blob,
+      filename: 'Table.csv',
+    });
+  });
+  expect(apiClient.get).toHaveBeenCalledWith('/databases/db/export', {
+    params: { format: 'csv' },
+    responseType: 'blob',
+  });
+});

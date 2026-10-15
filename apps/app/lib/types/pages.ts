@@ -34,6 +34,7 @@ export interface Page {
   order: number;
   createdAt: string;
   updatedAt: string;
+  lastEditedBy?: string | null;
   /** Set when this page is a row of that database; `properties` holds its values. */
   databaseId: string | null;
   properties: Record<string, unknown>;
@@ -126,6 +127,7 @@ export const BLOCK_COLORS: readonly BlockColor[] = [
  */
 export interface Segment {
   text: string;
+  mention?: { indicator: '@'; attributes: { kind: 'page'; id: string } };
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;

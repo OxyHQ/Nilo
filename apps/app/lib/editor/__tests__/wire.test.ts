@@ -65,6 +65,16 @@ describe('blocksToDocument', () => {
 });
 
 describe('contentOf', () => {
+  it('round-trips page mentions in the canonical backlink segment shape', () => {
+    const segment = {
+      text: '@Target',
+      mention: { indicator: '@' as const, attributes: { kind: 'page' as const, id: 'target' } },
+    };
+    const { doc } = blocksToDocument([
+      block('source', 0, { content: { text: '@Target', segments: [segment] } }),
+    ]);
+    expect(contentOf(getBlock(doc, 'source')).segments).toEqual([segment]);
+  });
   it('sends segments and the plain text, and plain text only for code', () => {
     expect(
       contentOf({ type: 'paragraph', text: [{ text: 'hi', bold: true }], props: { color: 'red' } }),

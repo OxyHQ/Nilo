@@ -1,3 +1,4 @@
+import { PresenceAvatars } from './presence-avatars';
 import { useCreateDatabase } from '@/lib/hooks/use-databases';
 import { usePage } from '@/lib/hooks/use-pages';
 import { useSearchBlock } from '@/lib/hooks/use-search-block';
@@ -514,11 +515,7 @@ export function PageEditor({
     <View>
       {!readOnly ? (
         <View className="mb-2 flex-row items-center justify-end gap-3">
-          {collaborators.length > 1 ? (
-            <Text className="text-xs text-muted-foreground">
-              {t('editor.status.collaborators', { count: collaborators.length - 1 })}
-            </Text>
-          ) : null}
+          <PresenceAvatars collaborators={collaborators} />
           <Text
             className={
               status === 'error' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground'

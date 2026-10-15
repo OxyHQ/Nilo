@@ -14,10 +14,12 @@ export function ImportPagesDialog({
   workspaceId,
   parentId,
   onClose,
+  csvOnly = false,
 }: {
   workspaceId: string;
   parentId?: string | null;
   onClose: () => void;
+  csvOnly?: boolean;
 }) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
@@ -29,7 +31,9 @@ export function ImportPagesDialog({
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const result = mutation.data;
   const first = result?.pages[0];
-  const title = t(parentId ? 'pages.import.intoPage' : 'pages.import.title');
+  const title = t(
+    csvOnly ? 'databases.csv.import' : parentId ? 'pages.import.intoPage' : 'pages.import.title',
+  );
 
   const pick = async () => {
     if (busyRef.current) return;
@@ -41,16 +45,21 @@ export function ImportPagesDialog({
     try {
       const selection = await DocumentPicker.getDocumentAsync({
         type: '*/*',
-        multiple: true,
+        multiple: !csvOnly,
         copyToCacheDirectory: true,
       });
       if (selection.canceled) return;
-      await mutation.mutateAsync({
+      if (csvOnly && !/\.csv$/i.test(selection.assets[0].name)) throw new Error('invalidFiles');
+      const imported = await mutation.mutateAsync({
         workspaceId,
         parentId,
         assets: selection.assets,
         onProgress: setProgress,
       });
+      if (imported.database) {
+        onClose();
+        router.push(`/db/${imported.database.id}`);
+      }
     } catch (error) {
       const status = axios.isAxiosError(error) ? error.response?.status : undefined;
       const reason = error instanceof Error ? error.message : '';
@@ -60,7 +69,7 @@ export function ImportPagesDialog({
           : status === 403
             ? 'noAccess'
             : status === 400
-              ? 'noMarkdown'
+              ? 'invalidContent'
               : reason === 'invalidFiles'
                 ? 'invalidFiles'
                 : 'failed',
@@ -85,9 +94,7 @@ export function ImportPagesDialog({
       >
         <DialogTitle accessibilityRole="header">{title}</DialogTitle>
         <Text className="text-sm text-muted-foreground">{t('pages.import.description')}</Text>
-        <Text className="text-sm text-muted-foreground">
-          {t('pages.import.databasesUnsupported')}
-        </Text>
+        <Text className="text-sm text-muted-foreground">{t('pages.import.csvHint')}</Text>
         {busy ? (
           <View className="flex-row items-center gap-2" accessibilityRole="progressbar">
             <ActivityIndicator color={colors.mutedForeground} />

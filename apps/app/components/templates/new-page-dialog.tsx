@@ -28,13 +28,14 @@ function PageChoices({ destination }: { destination: NewPageDestination }) {
   const create = useCreatePage();
   const duplicate = useDuplicatePage();
   const [importOpen, setImportOpen] = useState(false);
+  const [csvOnly, setCsvOnly] = useState(false);
   const [templates, setTemplates] = useState(false);
   const pending = create.isPending || duplicate.isPending;
   const created = (page: { id: string }) => {
     close();
     router.push(`/p/${page.id}`);
   };
-  if (importOpen) return <ImportPagesDialog {...destination} onClose={close} />;
+  if (importOpen) return <ImportPagesDialog {...destination} csvOnly={csvOnly} onClose={close} />;
   return (
     <Dialog
       open
@@ -77,6 +78,17 @@ function PageChoices({ destination }: { destination: NewPageDestination }) {
           </ScrollView>
         ) : (
           <View className="gap-2">
+            <Button
+              variant="outline"
+              accessibilityLabel={t('databases.csv.import')}
+              disabled={pending}
+              onPress={() => {
+                setCsvOnly(true);
+                setImportOpen(true);
+              }}
+            >
+              <Text>{t('databases.csv.import')}</Text>
+            </Button>
             <Button
               variant="outline"
               accessibilityLabel={t('pages.import.title')}

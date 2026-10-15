@@ -33,12 +33,14 @@ describe('import selection', () => {
   it('accepts multiple Markdown files or a single ZIP, case-insensitively', () => {
     expect(importSelection([{ name: 'Notes.MD' }, { name: 'Other.md' }])).toBe('md');
     expect(importSelection([{ name: 'Notion.ZIP' }])).toBe('zip');
+    expect(importSelection([{ name: 'Table.CSV' }])).toBe('csv');
   });
   it.each([
     [],
     [{ name: 'notes.md' }, { name: 'export.zip' }],
     [{ name: 'one.zip' }, { name: 'two.zip' }],
-    [{ name: 'table.csv' }],
+    [{ name: 'table.csv' }, { name: 'note.md' }],
+    [{ name: 'one.csv' }, { name: 'two.csv' }],
   ])('rejects unsupported and mixed selections: %j', (...assets) => {
     expect(() => importSelection(assets)).toThrow('invalidFiles');
   });
