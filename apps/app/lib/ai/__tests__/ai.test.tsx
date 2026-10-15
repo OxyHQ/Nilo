@@ -5,13 +5,17 @@ import { answerText, instructionFor, MAX_INPUT_CHARS, messagesFor } from '../act
 import { AI_POWER_LEVEL, failureOf, useAiAction, useAiAvailable } from '../use-ai';
 
 const mockClient = { listRoutingProfiles: jest.fn(), respond: jest.fn() };
+const mockGetPublic = jest.fn();
 let mockAuthenticated = true;
 jest.mock('@oxy.so/core/inference', () => {
   const actual = jest.requireActual('@oxy.so/core/inference');
   return { ...actual, createInferenceClient: () => mockClient };
 });
 jest.mock('@oxy.so/services', () => ({
-  useOxy: () => ({ isAuthenticated: mockAuthenticated, oxyServices: {} }),
+  useOxy: () => ({
+    isAuthenticated: mockAuthenticated,
+    oxyServices: { apps: { getPublic: (id: string) => mockGetPublic(id) } },
+  }),
 }));
 
 const refusal = (code: string, retryable: boolean) =>
@@ -94,14 +98,18 @@ async function mount() {
       </QueryClientProvider>,
     );
   });
-  // Let the power levels arrive.
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
+  // Let the application's scopes, then the power levels, arrive.
+  for (let i = 0; i < 3; i += 1) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
 }
 beforeEach(() => {
   jest.clearAllMocks();
   mockAuthenticated = true;
+  process.env.EXPO_PUBLIC_OXY_CLIENT_ID = 'nilo-client';
+  mockGetPublic.mockResolvedValue({ scopes: ['user:read', 'inference:invoke'] });
   mockClient.listRoutingProfiles.mockResolvedValue([{ slug: 'instant' }, { slug: 'high' }]);
 });
 afterEach(() => {
@@ -110,9 +118,17 @@ afterEach(() => {
 });
 
 describe('running an action', () => {
-  it('is offered once the edge lists the power level for this member', async () => {
+  it("is offered once Nilo's application holds the scope and the edge lists the power level", async () => {
     await mount();
+    expect(mockGetPublic).toHaveBeenCalledWith('nilo-client');
     expect(available).toBe(true);
+  });
+
+  it("is not offered while Nilo's application lacks the scope, whatever the catalogue lists", async () => {
+    mockGetPublic.mockResolvedValue({ scopes: ['user:read'] });
+    await mount();
+    expect(available).toBe(false);
+    expect(mockClient.listRoutingProfiles).not.toHaveBeenCalled();
   });
 
   it('is not offered when the edge lists nothing, or before signing in', async () => {
