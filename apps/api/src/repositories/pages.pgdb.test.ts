@@ -137,6 +137,8 @@ describe('pages repository (real database)', () => {
           'pages_parent_idx',
           'pages_workspace_favorited_idx',
           'pages_properties_gin_idx',
+          // Full-text search (`GET /search`).
+          'pages_title_search_idx',
         ]),
       );
     });

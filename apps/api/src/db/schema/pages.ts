@@ -185,6 +185,14 @@ export const pages = pgTable(
      */
     index('pages_properties_gin_idx').using('gin', t.properties),
     /**
+     * Full-text search over titles (`GET /search`). `simple`: no stemming or
+     * stop words, so it behaves the same for every language a workspace
+     * writes in; the query side matches word prefixes. The expression must be
+     * written exactly as `repositories/search.ts` queries it, or the planner
+     * cannot use the index.
+     */
+    index('pages_title_search_idx').using('gin', sql`to_tsvector('simple', ${t.title})`),
+    /**
      * The Mongoose `min: 0, max: 100` on `coverPosition` genuinely ran: the only
      * writer is `page.coverPosition = ...; await page.save()`
      * (`routes/pages.ts:387,439`), and `save()` runs validators. So it becomes a
@@ -263,6 +271,11 @@ export const blocks = pgTable(
      * recursion column of `deleteBlockTree`.
      */
     index('blocks_parent_block_idx').on(t.parentBlockId),
+    /** Full-text search over block text; see `pages_title_search_idx`. */
+    index('blocks_text_search_idx').using(
+      'gin',
+      sql`to_tsvector('simple', coalesce(${t.content} ->> 'text', ''))`,
+    ),
     /**
      * The Mongoose `enum: BLOCK_TYPES` genuinely ran — every write is
      * `Block.create()`, `block.save()` or `Block.insertMany()`

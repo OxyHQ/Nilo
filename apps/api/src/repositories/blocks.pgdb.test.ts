@@ -83,7 +83,13 @@ describe('blocks repository (real database)', () => {
         select indexname from pg_indexes where schemaname = 'public' and tablename = 'blocks'
       `);
       expect(new Set(rows.map((row) => row.indexname))).toEqual(
-        new Set(['blocks_pkey', 'blocks_page_parent_order_idx', 'blocks_parent_block_idx']),
+        new Set([
+          'blocks_pkey',
+          'blocks_page_parent_order_idx',
+          'blocks_parent_block_idx',
+          // Full-text search (`GET /search`).
+          'blocks_text_search_idx',
+        ]),
       );
     });
 
