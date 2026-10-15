@@ -57,6 +57,13 @@ remote versions in version order (holding early arrivals), retries with
 backoff and undoes what the server refuses. `snapshot()` / `resume` hand the
 unconfirmed work to a new session, resent under the same keys.
 
+## Read-only pages
+
+Viewers and commenters have no session: `RemoteFollower`
+(`lib/editor/follower.ts`) applies the room's transactions to their store in
+version order and asks for a reload on a skipped version. Their own changes
+(a closed toggle) stay on the device.
+
 ## Reloads and offline work
 
 `usePageEditor` reloads the page when the session cannot reconcile (a

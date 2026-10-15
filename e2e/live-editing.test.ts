@@ -39,6 +39,7 @@ import {
 import { closeDb } from '../apps/api/src/db/client.js';
 import { pages } from '../apps/api/src/db/schema/pages.js';
 import { workspaceMembers } from '../apps/api/src/db/schema/workspaces.js';
+import { RemoteFollower } from '../apps/app/lib/editor/follower';
 import { NILO_SCHEMA } from '../apps/app/lib/editor/schema';
 import {
   type AppliedOperation,
@@ -224,6 +225,35 @@ async function openEditor(
   return { name: userId, store, session, desyncs, log };
 }
 
+/** A read-only page wired as `usePageEditor` wires one: a store and a `RemoteFollower`. */
+async function openViewer(pageId: string, userId: string) {
+  const loaded = await loadBlocks(pageId);
+  const { doc, orders } = blocksToDocument(loaded.blocks, loaded.version);
+  const store = new EditorStore({ document: doc, schema: NILO_SCHEMA, newId: uuidv7 });
+  const follower = new RemoteFollower(store, () => orders, loaded.version);
+  const reloads: number[] = [];
+  const socket = connect(base, {
+    auth: { userId },
+    forceNew: true,
+    reconnection: false,
+    transports: ['websocket'],
+  });
+  sockets.push(socket);
+  await new Promise<void>((resolve) => socket.once('connect', () => resolve()));
+  socket.on(
+    'page:transaction',
+    (event: { pageId: string; version: number; ops: AppliedOperation[] }) => {
+      if (event.pageId === pageId && follower.receive(event) === 'reload')
+        reloads.push(event.version);
+    },
+  );
+  const joined = await new Promise<{ ok: boolean }>((resolve) =>
+    socket.emit('page:join', pageId, resolve),
+  );
+  expect(joined.ok).toBe(true);
+  return { store, follower, reloads };
+}
+
 async function settle(editors: Editor[]) {
   for (let i = 0; i < 400; i += 1) {
     await new Promise((r) => setTimeout(r, 25));
@@ -268,6 +298,7 @@ beforeAll(async () => {
   await db.insert(workspaceMembers).values([
     { workspaceId, userId: 'ana', role: 'editor' },
     { workspaceId, userId: 'ben', role: 'editor' },
+    { workspaceId, userId: 'cai', role: 'viewer' },
   ]);
 
   const app = express();
@@ -360,6 +391,41 @@ describe('live editing through the API', () => {
     );
     expect(texts).toEqual(['applied', 'never sent']);
     expect(next.log.filter((e) => (e as { ev: string }).ev === 'rejected')).toEqual([]);
+  });
+
+  it('keeps a read-only page live, leaving toggles the viewer closed alone', async () => {
+    const pageId = await createPage();
+    const ana = await openEditor(pageId, 'ana');
+    ana.store.run((c) => insertBlockAfter(c, null, 'toggle', { text: [{ text: 'Details' }] }));
+    await settle([ana]);
+    const viewer = await openViewer(pageId, 'cai');
+    const toggleId = viewer.store.doc.root[0] as string;
+    // The viewer closes the toggle: a change of its own, never sent.
+    const props = getBlock(viewer.store.doc, toggleId).props;
+    viewer.store.dispatch({
+      ops: [
+        {
+          kind: 'update',
+          id: toggleId,
+          before: { props },
+          after: { props: { ...props, expanded: false } },
+        },
+      ],
+    });
+
+    ana.store.run((c) => insertBlockAfter(c, toggleId, 'paragraph', { text: [{ text: 'one' }] }));
+    ana.store.run((c) => insertBlockAfter(c, null, 'heading_2', { text: [{ text: 'Top' }] }));
+    const stored = await expectConverged(pageId, [ana]);
+    await vi.waitFor(() => expect(viewer.follower.version).toBe(ana.session.currentVersion));
+    expect(viewer.reloads).toEqual([]);
+    const shown = (doc: EditorDocument) =>
+      doc.root.map((id) =>
+        getBlock(doc, id)
+          .text?.map((s) => s.text)
+          .join(''),
+      );
+    expect(shown(viewer.store.doc)).toEqual(shown(stored));
+    expect(getBlock(viewer.store.doc, toggleId).props.expanded).toBe(false);
   });
 
   // `LIVE_SEEDS=1,2,3` and `LIVE_STEPS=200` run a longer soak locally.

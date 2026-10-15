@@ -17,6 +17,7 @@ import { API_ROUTES } from '@/lib/api/routes';
 import { uuidv7 } from '@/lib/ids';
 import { acquireSocket, releaseSocket } from '@/lib/realtime/socket';
 import type { Block } from '@/lib/types/pages';
+import { RemoteFollower } from './follower';
 import { clearSavedPage, PendingClock, readSavedPage, writeSavedPage } from './offline';
 import { NILO_SCHEMA } from './schema';
 import {
@@ -165,6 +166,7 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
         });
       }
       shown = nextStore;
+      follower = readOnly ? new RemoteFollower(nextStore, () => orders, version) : null;
       setStore(nextStore);
     };
 
@@ -177,6 +179,8 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
     let stopLate: (() => void) | null = null;
     let buffered: TransactionEvent[] | null = null;
     let shown: EditorStore | null = null;
+    /** Keeps a read-only page live (an editable one has its session). */
+    let follower: RemoteFollower | null = null;
 
     const settle = () => {
       carry = null;
@@ -253,15 +257,20 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
       socket.emit('page:join', pageId, (ack: { ok: boolean; version?: number }) => {
         // Changes made while this client was away are not replayed: reload.
         // Unsent changes carry over the reload.
-        if (ack.ok && session && (ack.version ?? 0) > session.currentVersion) void load();
+        const current = session?.currentVersion ?? follower?.version;
+        if (ack.ok && current !== undefined && (ack.version ?? 0) > current) void load();
       });
     };
 
     function applyRemote(event: TransactionEvent) {
-      session?.receiveRemote({
-        version: event.version,
-        toOperations: (doc) => wireToOperations(doc, event.ops, orders, event.version),
-      });
+      if (session) {
+        session.receiveRemote({
+          version: event.version,
+          toOperations: (doc) => wireToOperations(doc, event.ops, orders, event.version),
+        });
+        return;
+      }
+      if (follower?.receive(event) === 'reload') void load();
     }
 
     const onTransaction = (event: TransactionEvent) => {
