@@ -1,12 +1,12 @@
-import * as React from "react";
-import { Modal, Platform, Pressable, StyleSheet, View } from "react-native";
-import { Calendar, FileText, User } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useWorkspaceMembers } from "@/lib/hooks/use-workspace-members";
-import { usePages } from "@/lib/hooks/use-pages";
-import type { MentionKind, MentionSegment } from "@/lib/types/comments";
-import { useTranslation } from "@/hooks/useTranslation";
+import * as React from 'react';
+import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Calendar, FileText, User } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
+import { usePages } from '@/lib/hooks/use-pages';
+import type { MentionKind, MentionSegment } from '@/lib/types/comments';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface MentionPickerProps {
   open: boolean;
@@ -28,16 +28,16 @@ interface PickerItem {
 
 function formatDate(d: Date): string {
   const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
 function formatDisplayDate(d: Date): string {
   return d.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
   });
 }
 
@@ -55,13 +55,7 @@ function formatDisplayDate(d: Date): string {
  * search yet. When the workspace grows past a few hundred entries, swap the
  * client-side filter for a debounced server query.
  */
-export function MentionPicker({
-  open,
-  query,
-  workspaceId,
-  onSelect,
-  onClose,
-}: MentionPickerProps) {
+export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: MentionPickerProps) {
   const { colors } = useColorScheme();
   const { t, locale } = useTranslation();
   const { data: members } = useWorkspaceMembers(workspaceId);
@@ -72,18 +66,18 @@ export function MentionPicker({
 
     const people: PickerItem[] = (members ?? []).map((m) => {
       const name = m.user?.name
-        ? [m.user.name.first, m.user.name.last].filter(Boolean).join(" ")
+        ? [m.user.name.first, m.user.name.last].filter(Boolean).join(' ')
         : null;
       const label = name || m.user?.username || m.userId;
       const detail = m.user?.email ?? m.user?.username ?? undefined;
       return {
         key: `user:${m.userId}`,
-        kind: "user",
+        kind: 'user',
         label,
         detail,
         build: (): MentionSegment => ({
-          type: "mention",
-          kind: "user",
+          type: 'mention',
+          kind: 'user',
           id: m.userId,
           originalText: `@${name || m.user?.username || m.userId}`,
         }),
@@ -93,17 +87,17 @@ export function MentionPicker({
     const pages: PickerItem[] = (pagesData?.pages ?? [])
       .filter((p) => !p.archived)
       .map((p) => {
-        const title = p.title?.trim() || t("comments.mentions.untitled");
+        const title = p.title?.trim() || t('comments.mentions.untitled');
         return {
           key: `page:${p._id}`,
-          kind: "page",
+          kind: 'page',
           label: title,
           detail: p.icon
-            ? t("comments.mentions.pageWithIcon", { icon: p.icon })
-            : t("comments.mentions.page"),
+            ? t('comments.mentions.pageWithIcon', { icon: p.icon })
+            : t('comments.mentions.page'),
           build: (): MentionSegment => ({
-            type: "mention",
-            kind: "page",
+            type: 'mention',
+            kind: 'page',
             id: p._id,
             originalText: `@${title}`,
           }),
@@ -117,17 +111,17 @@ export function MentionPicker({
     nextWeek.setDate(today.getDate() + 7);
 
     const dates: PickerItem[] = [
-      { id: "today", label: t("comments.mentions.today"), d: today },
-      { id: "tomorrow", label: t("comments.mentions.tomorrow"), d: tomorrow },
-      { id: "nextWeek", label: t("comments.mentions.nextWeek"), d: nextWeek },
+      { id: 'today', label: t('comments.mentions.today'), d: today },
+      { id: 'tomorrow', label: t('comments.mentions.tomorrow'), d: tomorrow },
+      { id: 'nextWeek', label: t('comments.mentions.nextWeek'), d: nextWeek },
     ].map(({ id, label, d }) => ({
       key: `date:${id}`,
-      kind: "date",
+      kind: 'date',
       label,
       detail: formatDisplayDate(d),
       build: (): MentionSegment => ({
-        type: "mention",
-        kind: "date",
+        type: 'mention',
+        kind: 'date',
         date: formatDate(d),
         originalText: `@${label}`,
       }),
@@ -149,8 +143,8 @@ export function MentionPicker({
   if (!open) return null;
 
   const renderIcon = (kind: MentionKind) => {
-    if (kind === "user") return <User size={16} color={colors.foreground} />;
-    if (kind === "page") return <FileText size={16} color={colors.foreground} />;
+    if (kind === 'user') return <User size={16} color={colors.foreground} />;
+    if (kind === 'page') return <FileText size={16} color={colors.foreground} />;
     return <Calendar size={16} color={colors.foreground} />;
   };
 
@@ -158,14 +152,14 @@ export function MentionPicker({
     <View className="w-72 rounded-2xl border border-border bg-popover py-1 shadow-lg">
       <View className="px-3 pt-2 pb-1">
         <Text className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {t("comments.mentions.header")}
+          {t('comments.mentions.header')}
         </Text>
       </View>
       <View className="max-h-72">
         {items.length === 0 ? (
           <View className="px-3 py-3">
             <Text className="text-sm text-muted-foreground">
-              {t("comments.mentions.noMatches", { query })}
+              {t('comments.mentions.noMatches', { query })}
             </Text>
           </View>
         ) : (
@@ -183,10 +177,7 @@ export function MentionPicker({
                   {item.label}
                 </Text>
                 {item.detail ? (
-                  <Text
-                    className="text-xs text-muted-foreground"
-                    numberOfLines={1}
-                  >
+                  <Text className="text-xs text-muted-foreground" numberOfLines={1}>
                     {item.detail}
                   </Text>
                 ) : null}
@@ -198,7 +189,7 @@ export function MentionPicker({
     </View>
   );
 
-  if (Platform.OS === "web") {
+  if (Platform.OS === 'web') {
     return (
       <View style={styles.webPopover} pointerEvents="box-none">
         <View style={styles.webPopoverInner} pointerEvents="auto">
@@ -210,11 +201,7 @@ export function MentionPicker({
 
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable
-        style={StyleSheet.absoluteFill}
-        className="bg-black/50"
-        onPress={onClose}
-      />
+      <Pressable style={StyleSheet.absoluteFill} className="bg-black/50" onPress={onClose} />
       <View className="absolute bottom-0 left-0 right-0 p-3">{list}</View>
     </Modal>
   );
@@ -222,14 +209,14 @@ export function MentionPicker({
 
 const styles = StyleSheet.create({
   webPopover: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     zIndex: 50,
   },
   webPopoverInner: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
   },

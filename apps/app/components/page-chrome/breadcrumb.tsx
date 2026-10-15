@@ -1,14 +1,14 @@
-import * as React from "react";
-import { Pressable, ScrollView, View } from "react-native";
-import { ChevronRight } from "lucide-react-native";
-import { useRouter } from "expo-router";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useTranslation } from "@/hooks/useTranslation";
-import { useBreadcrumb } from "@/lib/hooks/use-pages";
-import { useWorkspace } from "@/lib/hooks/use-workspaces";
-import { IconDisplay } from "./icon-display";
-import type { BreadcrumbEntry } from "@/lib/types/pages";
+import * as React from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useBreadcrumb } from '@/lib/hooks/use-pages';
+import { useWorkspace } from '@/lib/hooks/use-workspaces';
+import { IconDisplay } from './icon-display';
+import type { BreadcrumbEntry } from '@/lib/types/pages';
 
 interface BreadcrumbProps {
   pageId: string;
@@ -41,31 +41,27 @@ export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProp
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ alignItems: "center" }}
+      contentContainerStyle={{ alignItems: 'center' }}
       keyboardShouldPersistTaps="handled"
     >
       <Pressable
-        onPress={() => router.push("/(app)")}
-        accessibilityLabel={t("pages.breadcrumb.workspaceHome")}
+        onPress={() => router.push('/(app)')}
+        accessibilityLabel={t('pages.breadcrumb.workspaceHome')}
         className="rounded-md px-1.5 py-1 hover:bg-muted"
       >
         <Text className="text-xs text-muted-foreground">
-          {workspace?.name ?? t("pages.breadcrumb.workspace")}
+          {workspace?.name ?? t('pages.breadcrumb.workspace')}
         </Text>
       </Pressable>
 
       {condensed.map((entry, idx) => (
         <React.Fragment key={`${entry.kind}-${idx}`}>
-          <ChevronRight
-            size={12}
-            color={colors.mutedForeground}
-            style={{ marginHorizontal: 2 }}
-          />
-          {entry.kind === "page" ? (
+          <ChevronRight size={12} color={colors.mutedForeground} style={{ marginHorizontal: 2 }} />
+          {entry.kind === 'page' ? (
             <Pressable
               onPress={() => router.push(`/p/${entry.page.id}`)}
               className="flex-row items-center rounded-md px-1.5 py-1 hover:bg-muted"
-              accessibilityLabel={entry.page.title || t("pages.untitled")}
+              accessibilityLabel={entry.page.title || t('pages.untitled')}
             >
               {entry.page.icon ? (
                 <View className="mr-1">
@@ -73,7 +69,7 @@ export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProp
                 </View>
               ) : null}
               <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-                {entry.page.title.trim() || t("pages.untitled")}
+                {entry.page.title.trim() || t('pages.untitled')}
               </Text>
             </Pressable>
           ) : (
@@ -86,22 +82,15 @@ export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProp
 
       {current ? (
         <React.Fragment>
-          <ChevronRight
-            size={12}
-            color={colors.mutedForeground}
-            style={{ marginHorizontal: 2 }}
-          />
+          <ChevronRight size={12} color={colors.mutedForeground} style={{ marginHorizontal: 2 }} />
           <View className="flex-row items-center rounded-md px-1.5 py-1">
             {current.icon ? (
               <View className="mr-1">
                 <IconDisplay value={current.icon} size={14} />
               </View>
             ) : null}
-            <Text
-              className="text-xs font-medium text-foreground"
-              numberOfLines={1}
-            >
-              {current.title.trim() || t("pages.untitled")}
+            <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
+              {current.title.trim() || t('pages.untitled')}
             </Text>
           </View>
         </React.Fragment>
@@ -110,27 +99,22 @@ export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProp
   );
 }
 
-type CondensedEntry =
-  | { kind: "page"; page: BreadcrumbEntry }
-  | { kind: "ellipsis" };
+type CondensedEntry = { kind: 'page'; page: BreadcrumbEntry } | { kind: 'ellipsis' };
 
 /**
  * Notion-like middle truncation: keep the first ancestor and the last two,
  * collapse anything in between as `…`. When the chain is short, return
  * everything as-is.
  */
-function condenseAncestors(
-  ancestors: BreadcrumbEntry[],
-  maxItems: number,
-): CondensedEntry[] {
+function condenseAncestors(ancestors: BreadcrumbEntry[], maxItems: number): CondensedEntry[] {
   if (ancestors.length <= maxItems) {
-    return ancestors.map((page) => ({ kind: "page" as const, page }));
+    return ancestors.map((page) => ({ kind: 'page' as const, page }));
   }
   const head = ancestors[0];
   const tail = ancestors.slice(-2);
   return [
-    { kind: "page" as const, page: head },
-    { kind: "ellipsis" as const },
-    ...tail.map((page) => ({ kind: "page" as const, page })),
+    { kind: 'page' as const, page: head },
+    { kind: 'ellipsis' as const },
+    ...tail.map((page) => ({ kind: 'page' as const, page })),
   ];
 }

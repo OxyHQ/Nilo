@@ -1,7 +1,7 @@
-import * as React from "react";
-import { View } from "react-native";
-import { Text } from "@/components/ui/text";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/text';
+import type { BlockComponentProps } from './types';
 
 /**
  * `table` container. Children are `table_row` blocks (which themselves
@@ -11,15 +11,10 @@ import type { BlockComponentProps } from "./types";
  */
 export function TableBlock({ block, renderChildren }: BlockComponentProps) {
   const cols =
-    typeof block.content.cols === "number" && block.content.cols > 0
-      ? block.content.cols
-      : 2;
+    typeof block.content.cols === 'number' && block.content.cols > 0 ? block.content.cols : 2;
   return (
     <View className="rounded-md border border-border overflow-hidden my-1">
-      <View
-        accessibilityLabel={`Table with ${cols} columns`}
-        className="bg-background"
-      >
+      <View accessibilityLabel={`Table with ${cols} columns`} className="bg-background">
         {renderChildren ? (
           renderChildren(block._id)
         ) : (

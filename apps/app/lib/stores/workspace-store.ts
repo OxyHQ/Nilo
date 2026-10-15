@@ -1,6 +1,6 @@
-import { create } from "zustand";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 /**
  * Workspace store — owns the currently active workspace id.
@@ -22,7 +22,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       setCurrentWorkspaceId: (id) => set({ currentWorkspaceId: id }),
     }),
     {
-      name: "workspace-store",
+      name: 'workspace-store',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         currentWorkspaceId: state.currentWorkspaceId,

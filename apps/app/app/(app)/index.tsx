@@ -1,13 +1,13 @@
-import * as React from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
-import { Plus } from "lucide-react-native";
-import { Redirect, useRouter } from "expo-router";
-import { useOxy } from "@oxy.so/services";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useTranslation } from "@/hooks/useTranslation";
-import { useWorkspaceStore } from "@/lib/stores/workspace-store";
-import { useCreatePage, usePages } from "@/lib/hooks/use-pages";
+import * as React from 'react';
+import { ActivityIndicator, Pressable, View } from 'react-native';
+import { Plus } from 'lucide-react-native';
+import { Redirect, useRouter } from 'expo-router';
+import { useOxy } from '@oxy.so/services';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useWorkspaceStore } from '@/lib/stores/workspace-store';
+import { useCreatePage, usePages } from '@/lib/hooks/use-pages';
 
 /**
  * Landing screen — if the user has pages in the active workspace, redirect
@@ -26,10 +26,7 @@ export default function HomePage() {
     if (!data?.pages || data.pages.length === 0) return null;
     const sorted = [...data.pages]
       .filter((p) => !p.archived)
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      );
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     return sorted[0] ?? null;
   }, [data?.pages]);
 
@@ -43,7 +40,7 @@ export default function HomePage() {
       const page = await createPage.mutateAsync({
         workspaceId: currentWorkspaceId,
         parentId: null,
-        title: "",
+        title: '',
       });
       router.push(`/p/${page._id}`);
     } catch {
@@ -54,25 +51,21 @@ export default function HomePage() {
   return (
     <View className="flex-1 items-center justify-center bg-background px-6">
       <View className="max-w-md items-center gap-4">
-        <Text className="text-3xl font-semibold text-foreground text-center">
-          Nilo
-        </Text>
+        <Text className="text-3xl font-semibold text-foreground text-center">Nilo</Text>
 
         {!isAuthenticated ? (
           <Text className="text-base text-muted-foreground text-center">
-            {t("home.signInPrompt")}
+            {t('home.signInPrompt')}
           </Text>
         ) : !currentWorkspaceId ? (
           <Text className="text-base text-muted-foreground text-center">
-            {t("home.selectWorkspace")}
+            {t('home.selectWorkspace')}
           </Text>
         ) : isLoading ? (
           <ActivityIndicator color={colors.mutedForeground} />
         ) : (
           <>
-            <Text className="text-base text-muted-foreground text-center">
-              {t("home.empty")}
-            </Text>
+            <Text className="text-base text-muted-foreground text-center">{t('home.empty')}</Text>
             <Pressable
               onPress={handleCreate}
               disabled={createPage.isPending}
@@ -80,7 +73,7 @@ export default function HomePage() {
             >
               <Plus size={16} color={colors.primaryForeground} />
               <Text className="text-sm font-semibold text-primary-foreground">
-                {createPage.isPending ? t("home.creating") : t("home.createFirstPage")}
+                {createPage.isPending ? t('home.creating') : t('home.createFirstPage')}
               </Text>
             </Pressable>
           </>

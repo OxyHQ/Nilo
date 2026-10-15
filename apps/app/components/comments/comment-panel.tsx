@@ -1,4 +1,4 @@
-import * as React from "react";
+import * as React from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -7,21 +7,17 @@ import {
   ScrollView,
   StyleSheet,
   View,
-} from "react-native";
-import { CheckCheck, MessageCircle, X } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import {
-  groupIntoThreads,
-  useCreateComment,
-  usePageComments,
-} from "@/lib/hooks/use-comments";
-import { CommentComposer } from "./comment-composer";
-import { CommentThread } from "./comment-thread";
-import type { CommentSegment } from "@/lib/types/comments";
-import { useTranslation } from "@/hooks/useTranslation";
+} from 'react-native';
+import { CheckCheck, MessageCircle, X } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { groupIntoThreads, useCreateComment, usePageComments } from '@/lib/hooks/use-comments';
+import { CommentComposer } from './comment-composer';
+import { CommentThread } from './comment-thread';
+import type { CommentSegment } from '@/lib/types/comments';
+import { useTranslation } from '@/hooks/useTranslation';
 
-type FilterMode = "all" | "open" | "resolved";
+type FilterMode = 'all' | 'open' | 'resolved';
 
 interface CommentPanelProps {
   pageId: string;
@@ -50,8 +46,8 @@ export function CommentPanel({
 }: CommentPanelProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const [filter, setFilter] = React.useState<FilterMode>("open");
-  const includeResolved = filter !== "open";
+  const [filter, setFilter] = React.useState<FilterMode>('open');
+  const includeResolved = filter !== 'open';
   const { data, isLoading } = usePageComments(pageId, includeResolved);
   const createMutation = useCreateComment();
 
@@ -62,16 +58,14 @@ export function CommentPanel({
           (c) =>
             c.blockId === focusedBlockId ||
             (c.parentCommentId !== null &&
-              comments.some(
-                (p) => p.id === c.parentCommentId && p.blockId === focusedBlockId,
-              )),
+              comments.some((p) => p.id === c.parentCommentId && p.blockId === focusedBlockId)),
         )
       : comments;
     const grouped = groupIntoThreads(filteredByBlock);
-    if (filter === "resolved") {
+    if (filter === 'resolved') {
       return grouped.filter((t) => t.root.resolvedAt !== null);
     }
-    if (filter === "open") {
+    if (filter === 'open') {
       return grouped.filter((t) => t.root.resolvedAt === null);
     }
     return grouped;
@@ -86,23 +80,21 @@ export function CommentPanel({
     });
   };
 
-  const headerTitle = focusedBlockId ? t("comments.panel.blockTitle") : t("comments.panel.title");
+  const headerTitle = focusedBlockId ? t('comments.panel.blockTitle') : t('comments.panel.title');
 
   const body = (
     <View
       className="h-full bg-background border-l border-border flex-1"
-      style={Platform.OS === "web" ? { width: 360, maxWidth: "100%" } : undefined}
+      style={Platform.OS === 'web' ? { width: 360, maxWidth: '100%' } : undefined}
     >
       <View className="flex-row items-center justify-between border-b border-border px-4 py-3">
         <View className="flex-row items-center gap-2">
           <MessageCircle size={16} color={colors.foreground} />
-          <Text className="text-sm font-semibold text-foreground">
-            {headerTitle}
-          </Text>
+          <Text className="text-sm font-semibold text-foreground">{headerTitle}</Text>
         </View>
         <Pressable
           onPress={onClose}
-          accessibilityLabel={t("comments.panel.close")}
+          accessibilityLabel={t('comments.panel.close')}
           className="rounded-md p-1 hover:bg-muted"
         >
           <X size={16} color={colors.mutedForeground} />
@@ -110,28 +102,28 @@ export function CommentPanel({
       </View>
 
       <View className="flex-row gap-1 border-b border-border px-4 py-2">
-        {(["open", "all", "resolved"] as FilterMode[]).map((mode) => (
+        {(['open', 'all', 'resolved'] as FilterMode[]).map((mode) => (
           <Pressable
             key={mode}
             onPress={() => setFilter(mode)}
             className={
               filter === mode
-                ? "rounded-md bg-muted px-2 py-1"
-                : "rounded-md px-2 py-1 hover:bg-muted"
+                ? 'rounded-md bg-muted px-2 py-1'
+                : 'rounded-md px-2 py-1 hover:bg-muted'
             }
           >
             <Text
               className={
                 filter === mode
-                  ? "text-xs font-medium text-foreground capitalize"
-                  : "text-xs text-muted-foreground capitalize"
+                  ? 'text-xs font-medium text-foreground capitalize'
+                  : 'text-xs text-muted-foreground capitalize'
               }
             >
-              {mode === "open"
-                ? t("comments.filters.open")
-                : mode === "all"
-                  ? t("comments.filters.all")
-                  : t("comments.filters.resolved")}
+              {mode === 'open'
+                ? t('comments.filters.open')
+                : mode === 'all'
+                  ? t('comments.filters.all')
+                  : t('comments.filters.resolved')}
             </Text>
           </Pressable>
         ))}
@@ -146,11 +138,11 @@ export function CommentPanel({
           <View className="items-center gap-2 py-12 px-4">
             <CheckCheck size={24} color={colors.mutedForeground} />
             <Text className="text-sm text-muted-foreground text-center">
-              {filter === "resolved"
-                ? t("comments.panel.emptyResolved")
-                : filter === "open"
-                  ? t("comments.panel.emptyOpen")
-                  : t("comments.panel.emptyAll")}
+              {filter === 'resolved'
+                ? t('comments.panel.emptyResolved')
+                : filter === 'open'
+                  ? t('comments.panel.emptyOpen')
+                  : t('comments.panel.emptyAll')}
             </Text>
           </View>
         ) : (
@@ -168,7 +160,11 @@ export function CommentPanel({
       <View className="border-t border-border p-3">
         <CommentComposer
           workspaceId={workspaceId}
-          placeholder={focusedBlockId ? t("comments.panel.blockPlaceholder") : t("comments.panel.pagePlaceholder")}
+          placeholder={
+            focusedBlockId
+              ? t('comments.panel.blockPlaceholder')
+              : t('comments.panel.pagePlaceholder')
+          }
           onSubmit={handleSubmit}
           submitting={createMutation.isPending}
         />
@@ -176,13 +172,10 @@ export function CommentPanel({
     </View>
   );
 
-  if (Platform.OS === "web") {
+  if (Platform.OS === 'web') {
     if (!open) return null;
     return (
-      <View
-        style={styles.webOverlay}
-        pointerEvents="box-none"
-      >
+      <View style={styles.webOverlay} pointerEvents="box-none">
         <View style={styles.webPanel} pointerEvents="auto">
           {body}
         </View>
@@ -196,7 +189,7 @@ export function CommentPanel({
         <Pressable
           onPress={onClose}
           style={StyleSheet.absoluteFill}
-          accessibilityLabel={t("comments.panel.dismiss")}
+          accessibilityLabel={t('comments.panel.dismiss')}
         />
         <View className="mt-20 flex-1 rounded-t-2xl overflow-hidden">{body}</View>
       </View>
@@ -206,13 +199,13 @@ export function CommentPanel({
 
 const styles = StyleSheet.create({
   webOverlay: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     right: 0,
     bottom: 0,
     zIndex: 40,
   },
   webPanel: {
-    height: "100%",
+    height: '100%',
   },
 });

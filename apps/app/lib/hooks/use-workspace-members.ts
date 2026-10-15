@@ -1,13 +1,8 @@
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  type UseQueryOptions,
-} from "@tanstack/react-query";
-import { useOxy } from "@oxy.so/services";
-import apiClient from "../api/client";
-import { workspaceMemberKeys } from "./workspace-keys";
-import type { WorkspaceRole } from "./use-workspaces";
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
+import { useOxy } from '@oxy.so/services';
+import apiClient from '../api/client';
+import { workspaceMemberKeys } from './workspace-keys';
+import type { WorkspaceRole } from './use-workspaces';
 
 export interface WorkspaceMemberUser {
   id: string;
@@ -59,10 +54,10 @@ export function useWorkspaceMembers(
   const enabled = Boolean(isAuthenticated && workspaceId);
 
   return useQuery<WorkspaceMember[]>({
-    queryKey: workspaceMemberKeys.list(workspaceId ?? ""),
+    queryKey: workspaceMemberKeys.list(workspaceId ?? ''),
     queryFn: async () => {
       const res = await apiClient.get<{ members: WorkspaceMember[] }>(
-        membersBase(workspaceId ?? ""),
+        membersBase(workspaceId ?? ''),
       );
       return res.data.members;
     },

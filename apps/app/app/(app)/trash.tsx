@@ -1,29 +1,24 @@
-import * as React from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { useOxy } from "@oxy.so/services";
-import { RotateCcw, Trash2 } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { Button } from "@/components/ui/button";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import { toast } from "@oxy.so/bloom/toast";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useTranslation } from "@/hooks/useTranslation";
-import { useWorkspaceStore } from "@/lib/stores/workspace-store";
-import { useWorkspace } from "@/lib/hooks/use-workspaces";
+import * as React from 'react';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useOxy } from '@oxy.so/services';
+import { RotateCcw, Trash2 } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { Button } from '@/components/ui/button';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { toast } from '@oxy.so/bloom/toast';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useWorkspaceStore } from '@/lib/stores/workspace-store';
+import { useWorkspace } from '@/lib/hooks/use-workspaces';
 import {
   useArchivedPages,
   useDeletePage,
   useEmptyTrash,
   useUpdatePage,
-} from "@/lib/hooks/use-pages";
-import { IconDisplay } from "@/components/page-chrome";
-import type { Page } from "@/lib/types/pages";
+} from '@/lib/hooks/use-pages';
+import { IconDisplay } from '@/components/page-chrome';
+import type { Page } from '@/lib/types/pages';
 
 /**
  * Trash route. Lists every archived page in the active workspace and lets
@@ -48,8 +43,7 @@ export default function TrashRoute() {
   const pages = React.useMemo(() => {
     const list = data?.pages ?? [];
     return [...list].sort(
-      (a, b) =>
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
     );
   }, [data?.pages]);
 
@@ -60,8 +54,8 @@ export default function TrashRoute() {
       updatePage.mutate(
         { id: page._id, archived: false },
         {
-          onSuccess: () => toast.success(t("pages.toasts.restored")),
-          onError: (err) => toast.error(err.message || t("pages.toasts.restoreFailed")),
+          onSuccess: () => toast.success(t('pages.toasts.restored')),
+          onError: (err) => toast.error(err.message || t('pages.toasts.restoreFailed')),
         },
       );
     },
@@ -75,10 +69,10 @@ export default function TrashRoute() {
       { id: target._id, workspaceId: currentWorkspaceId, hard: true },
       {
         onSuccess: () => {
-          toast.success(t("pages.toasts.deletedPermanently"));
+          toast.success(t('pages.toasts.deletedPermanently'));
         },
         onError: (err) => {
-          toast.error(err.message || t("pages.toasts.deleteFailed"));
+          toast.error(err.message || t('pages.toasts.deleteFailed'));
         },
       },
     );
@@ -91,10 +85,10 @@ export default function TrashRoute() {
       { workspaceId: currentWorkspaceId },
       {
         onSuccess: (result) => {
-          toast.success(t("trash.removed", { count: result.deleted }));
+          toast.success(t('trash.removed', { count: result.deleted }));
         },
         onError: (err) => {
-          toast.error(err.message || t("trash.emptyFailed"));
+          toast.error(err.message || t('trash.emptyFailed'));
         },
       },
     );
@@ -103,9 +97,7 @@ export default function TrashRoute() {
   if (!currentWorkspaceId) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-base text-muted-foreground">
-          {t("trash.selectWorkspace")}
-        </Text>
+        <Text className="text-base text-muted-foreground">{t('trash.selectWorkspace')}</Text>
       </View>
     );
   }
@@ -115,10 +107,8 @@ export default function TrashRoute() {
       {/* Header */}
       <View className="flex-row items-center justify-between border-b border-border/30 px-4 py-3 md:px-8">
         <View>
-          <Text className="text-lg font-semibold text-foreground">{t("trash.title")}</Text>
-          <Text className="text-xs text-muted-foreground">
-            {t("trash.subtitle")}
-          </Text>
+          <Text className="text-lg font-semibold text-foreground">{t('trash.title')}</Text>
+          <Text className="text-xs text-muted-foreground">{t('trash.subtitle')}</Text>
         </View>
         {isOwner ? (
           <Button
@@ -130,7 +120,7 @@ export default function TrashRoute() {
           >
             <View className="flex-row items-center gap-1.5">
               <Trash2 size={14} color={colors.foreground} />
-              <Text className="text-sm font-medium">{t("trash.emptyTrash")}</Text>
+              <Text className="text-sm font-medium">{t('trash.emptyTrash')}</Text>
             </View>
           </Button>
         ) : null}
@@ -142,9 +132,7 @@ export default function TrashRoute() {
         </View>
       ) : pages.length === 0 ? (
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-sm text-muted-foreground">
-            {t("trash.empty")}
-          </Text>
+          <Text className="text-sm text-muted-foreground">{t('trash.empty')}</Text>
         </View>
       ) : (
         <ScrollView className="flex-1" contentContainerClassName="px-4 py-3 md:px-8">
@@ -163,9 +151,9 @@ export default function TrashRoute() {
       <ConfirmationDialog
         open={emptyOpen}
         onOpenChange={setEmptyOpen}
-        title={t("trash.emptyDialog.title")}
-        description={t("trash.emptyDialog.description", { count: pages.length })}
-        confirmText={t("trash.emptyTrash")}
+        title={t('trash.emptyDialog.title')}
+        description={t('trash.emptyDialog.description', { count: pages.length })}
+        confirmText={t('trash.emptyTrash')}
         confirmVariant="destructive"
         loading={emptyTrash.isPending}
         onConfirm={handleEmptyTrash}
@@ -175,11 +163,11 @@ export default function TrashRoute() {
         onOpenChange={(next) => {
           if (!next) setDeleteTarget(null);
         }}
-        title={t("trash.deleteDialog.title")}
-        description={t("trash.deleteDialog.description", {
-          title: deleteTarget?.title || t("pages.untitled"),
+        title={t('trash.deleteDialog.title')}
+        description={t('trash.deleteDialog.description', {
+          title: deleteTarget?.title || t('pages.untitled'),
         })}
-        confirmText={t("common.delete")}
+        confirmText={t('common.delete')}
         confirmVariant="destructive"
         loading={deletePage.isPending}
         onConfirm={handleHardDelete}
@@ -194,53 +182,45 @@ interface TrashRowProps {
   onHardDelete: () => void;
   canHardDelete: boolean;
 }
-function TrashRow({
-  page,
-  onRestore,
-  onHardDelete,
-  canHardDelete,
-}: TrashRowProps) {
+function TrashRow({ page, onRestore, onHardDelete, canHardDelete }: TrashRowProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const title = page.title.trim() || t("pages.untitled");
+  const title = page.title.trim() || t('pages.untitled');
 
   return (
     <View className="flex-row items-center gap-3 rounded-md border border-border/40 px-3 py-2 mb-2 hover:bg-muted/40">
       <Pressable
         onPress={() => router.push(`/p/${page._id}`)}
-        accessibilityLabel={t("pages.openPage", { title })}
+        accessibilityLabel={t('pages.openPage', { title })}
         className="h-8 w-8 items-center justify-center rounded-md"
       >
         <IconDisplay value={page.icon} size={20} showPlaceholder />
       </Pressable>
-      <Pressable
-        onPress={() => router.push(`/p/${page._id}`)}
-        className="flex-1 min-w-0"
-      >
+      <Pressable onPress={() => router.push(`/p/${page._id}`)} className="flex-1 min-w-0">
         <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
           {title}
         </Text>
         <Text className="text-xs text-muted-foreground">
-          {t("trash.archivedAt", { date: formatTime(page.updatedAt) })}
+          {t('trash.archivedAt', { date: formatTime(page.updatedAt) })}
         </Text>
       </Pressable>
       <Pressable
         onPress={onRestore}
-        accessibilityLabel={t("trash.restorePage")}
+        accessibilityLabel={t('trash.restorePage')}
         className="h-8 flex-row items-center gap-1 rounded-md border border-border px-2 hover:bg-muted"
       >
         <RotateCcw size={14} color={colors.foreground} />
-        <Text className="text-xs font-medium text-foreground">{t("trash.restore")}</Text>
+        <Text className="text-xs font-medium text-foreground">{t('trash.restore')}</Text>
       </Pressable>
       {canHardDelete ? (
         <Pressable
           onPress={onHardDelete}
-          accessibilityLabel={t("trash.deletePagePermanently")}
+          accessibilityLabel={t('trash.deletePagePermanently')}
           className="h-8 flex-row items-center gap-1 rounded-md border border-border px-2 hover:bg-destructive/10"
         >
           <Trash2 size={14} color={colors.foreground} />
-          <Text className="text-xs font-medium text-foreground">{t("common.delete")}</Text>
+          <Text className="text-xs font-medium text-foreground">{t('common.delete')}</Text>
         </Pressable>
       ) : null}
     </View>

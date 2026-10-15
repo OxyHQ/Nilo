@@ -1,9 +1,9 @@
-import * as React from "react";
-import { Pressable } from "react-native";
-import { Star } from "lucide-react-native";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useTranslation } from "@/hooks/useTranslation";
-import { useUpdatePage } from "@/lib/hooks/use-pages";
+import * as React from 'react';
+import { Pressable } from 'react-native';
+import { Star } from 'lucide-react-native';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useUpdatePage } from '@/lib/hooks/use-pages';
 
 interface FavoriteButtonProps {
   pageId: string;
@@ -27,15 +27,13 @@ export function FavoriteButton({ pageId, favorited }: FavoriteButtonProps) {
   return (
     <Pressable
       onPress={handleToggle}
-      accessibilityLabel={
-        favorited ? t("pages.favorite.remove") : t("pages.favorite.add")
-      }
+      accessibilityLabel={favorited ? t('pages.favorite.remove') : t('pages.favorite.add')}
       className="h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
     >
       <Star
         size={16}
-        color={favorited ? "#f59e0b" : colors.foreground}
-        fill={favorited ? "#f59e0b" : "transparent"}
+        color={favorited ? '#f59e0b' : colors.foreground}
+        fill={favorited ? '#f59e0b' : 'transparent'}
       />
     </Pressable>
   );

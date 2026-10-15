@@ -76,9 +76,7 @@ export const workspaces = pgTable(
      * own many non-personal workspaces, so the uniqueness applies only to the
      * personal one.
      */
-    uniqueIndex('unique_personal_workspace_per_owner')
-      .on(t.ownerId)
-      .where(sql`${t.isPersonal}`),
+    uniqueIndex('unique_personal_workspace_per_owner').on(t.ownerId).where(sql`${t.isPersonal}`),
     /**
      * The Mongoose `maxlength: 200` on this field genuinely ran — workspaces
      * are written through `new Workspace(...).save()` and `ws.name = ...;
@@ -86,7 +84,10 @@ export const workspaces = pgTable(
      * validators. So it becomes a live constraint rather than being dropped as
      * a validator that never fired.
      */
-    check('workspaces_name_length', sql`char_length(${t.name}) <= ${sql.raw(String(WORKSPACE_NAME_MAX))}`),
+    check(
+      'workspaces_name_length',
+      sql`char_length(${t.name}) <= ${sql.raw(String(WORKSPACE_NAME_MAX))}`,
+    ),
   ],
 );
 

@@ -1,6 +1,11 @@
 import { eq, like } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { closeTestDb, getTestDb, type TestDatabase, testScope } from '../../db/__tests__/testDatabase.js';
+import {
+  closeTestDb,
+  getTestDb,
+  type TestDatabase,
+  testScope,
+} from '../../db/__tests__/testDatabase.js';
 import { shareLinks } from '../../db/schema/collab.js';
 import { pages } from '../../db/schema/pages.js';
 import { workspaces } from '../../db/schema/workspaces.js';
@@ -129,13 +134,15 @@ describe('shareLinks repository', () => {
     it('the retry with a fresh token succeeds', async () => {
       const token = `${scope}-collide-2`;
       await newLink({ token });
-      expect(await createShareLink(db, {
-        pageId,
-        token,
-        scope: 'read',
-        createdBy,
-        expiresAt: null,
-      })).toBeNull();
+      expect(
+        await createShareLink(db, {
+          pageId,
+          token,
+          scope: 'read',
+          createdBy,
+          expiresAt: null,
+        }),
+      ).toBeNull();
 
       const retried = await createShareLink(db, {
         pageId,

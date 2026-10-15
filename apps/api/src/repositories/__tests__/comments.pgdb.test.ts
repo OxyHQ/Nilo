@@ -1,7 +1,12 @@
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { executeRows, isForeignKeyViolation } from '@oxy.so/db';
-import { closeTestDb, getTestDb, type TestDatabase, testScope } from '../../db/__tests__/testDatabase.js';
+import {
+  closeTestDb,
+  getTestDb,
+  type TestDatabase,
+  testScope,
+} from '../../db/__tests__/testDatabase.js';
 import { comments } from '../../db/schema/collab.js';
 import { blocks, pages } from '../../db/schema/pages.js';
 import { workspaces } from '../../db/schema/workspaces.js';
@@ -57,10 +62,7 @@ beforeAll(async () => {
     .onConflictDoNothing();
   await seedPage(pageId);
   await seedPage(otherPageId);
-  await db
-    .insert(blocks)
-    .values({ id: blockId, pageId, type: 'paragraph' })
-    .onConflictDoNothing();
+  await db.insert(blocks).values({ id: blockId, pageId, type: 'paragraph' }).onConflictDoNothing();
 });
 
 afterAll(async () => {

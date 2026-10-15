@@ -284,7 +284,10 @@ async function notifyMentions(
           },
         });
       } catch (err: unknown) {
-        log.general.warn({ err, userId, commentId: comment.id }, 'Failed to send mention notification');
+        log.general.warn(
+          { err, userId, commentId: comment.id },
+          'Failed to send mention notification',
+        );
       }
     }),
   );
@@ -315,7 +318,10 @@ async function notifyReply(
       },
     });
   } catch (err: unknown) {
-    log.general.warn({ err, userId: parentAuthorId, commentId: comment.id }, 'Failed to send reply notification');
+    log.general.warn(
+      { err, userId: parentAuthorId, commentId: comment.id },
+      'Failed to send reply notification',
+    );
   }
 }
 
@@ -355,9 +361,7 @@ router.get('/pages/:pageId/comments', async (req: Request, res: Response) => {
     // Hide top-level threads whose root is resolved (but keep all replies in
     // the returned list — clients group by parentCommentId).
     const resolvedTopIds = new Set(
-      all
-        .filter((c) => c.parentCommentId === null && c.resolvedAt !== null)
-        .map((c) => c.id),
+      all.filter((c) => c.parentCommentId === null && c.resolvedAt !== null).map((c) => c.id),
     );
     const filtered = all.filter((c) => {
       const rootId = c.parentCommentId ?? c.id;
@@ -460,9 +464,7 @@ router.post('/pages/:pageId/comments', async (req: Request, res: Response) => {
         return;
       }
       if (parent.parentCommentId !== null) {
-        res
-          .status(400)
-          .json({ error: 'Replies can only target top-level comments' });
+        res.status(400).json({ error: 'Replies can only target top-level comments' });
         return;
       }
       parentCommentId = parent.id;
@@ -589,9 +591,7 @@ router.post('/comments/:id/resolve', async (req: Request, res: Response) => {
     // guard is in the WHERE clause, so a null means "already resolved" and the
     // row we read is the answer.
     const resolved =
-      comment.resolvedAt === null
-        ? await setCommentResolvedAt(db, comment.id, new Date())
-        : null;
+      comment.resolvedAt === null ? await setCommentResolvedAt(db, comment.id, new Date()) : null;
 
     res.json({ comment: serializeComment(resolved ?? comment) });
   } catch (error: unknown) {

@@ -11,20 +11,13 @@
 
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { isUniqueViolation } from '@oxy.so/db';
-import {
-  workspaceMembers,
-  workspaces,
-  type WorkspaceRole,
-} from '../db/schema/workspaces.js';
+import { workspaceMembers, workspaces, type WorkspaceRole } from '../db/schema/workspaces.js';
 import type { PgHandle } from '../db/client.js';
 
 export type WorkspaceRow = typeof workspaces.$inferSelect;
 export type WorkspaceMemberRow = typeof workspaceMembers.$inferSelect;
 
-export async function findWorkspaceById(
-  db: PgHandle,
-  id: string,
-): Promise<WorkspaceRow | null> {
+export async function findWorkspaceById(db: PgHandle, id: string): Promise<WorkspaceRow | null> {
   const [row] = await db.select().from(workspaces).where(eq(workspaces.id, id)).limit(1);
   return row ?? null;
 }
@@ -56,9 +49,7 @@ export async function findMembership(
   const [row] = await db
     .select()
     .from(workspaceMembers)
-    .where(
-      and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, userId)),
-    )
+    .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, userId)))
     .limit(1);
   return row ?? null;
 }
@@ -248,19 +239,12 @@ export async function updateWorkspace(
   if (patch.icon !== undefined) values.icon = patch.icon;
   if (Object.keys(values).length === 0) return findWorkspaceById(db, id);
 
-  const [row] = await db
-    .update(workspaces)
-    .set(values)
-    .where(eq(workspaces.id, id))
-    .returning();
+  const [row] = await db.update(workspaces).set(values).where(eq(workspaces.id, id)).returning();
   return row ?? null;
 }
 
 /** Soft delete. Returns null when the workspace does not exist. */
-export async function archiveWorkspace(
-  db: PgHandle,
-  id: string,
-): Promise<WorkspaceRow | null> {
+export async function archiveWorkspace(db: PgHandle, id: string): Promise<WorkspaceRow | null> {
   const [row] = await db
     .update(workspaces)
     .set({ archivedAt: new Date() })
@@ -278,9 +262,7 @@ export async function updateMemberRole(
   const [row] = await db
     .update(workspaceMembers)
     .set({ role })
-    .where(
-      and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, userId)),
-    )
+    .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, userId)))
     .returning();
   return row ?? null;
 }
@@ -300,9 +282,7 @@ export async function removeMember(
 ): Promise<boolean> {
   const rows = await db
     .delete(workspaceMembers)
-    .where(
-      and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, userId)),
-    )
+    .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, userId)))
     .returning({ id: workspaceMembers.id });
   return rows.length > 0;
 }

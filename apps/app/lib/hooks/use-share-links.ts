@@ -1,18 +1,13 @@
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-  type UseQueryOptions,
-} from "@tanstack/react-query";
-import { useOxy } from "@oxy.so/services";
-import axios from "axios";
-import apiClient from "../api/client";
-import config from "../config";
-import { shareLinkKeys } from "./workspace-keys";
+import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
+import { useOxy } from '@oxy.so/services';
+import axios from 'axios';
+import apiClient from '../api/client';
+import config from '../config';
+import { shareLinkKeys } from './workspace-keys';
 
-export type ShareLinkScope = "read" | "comment" | "edit";
+export type ShareLinkScope = 'read' | 'comment' | 'edit';
 
-export const SHARE_LINK_SCOPES: ShareLinkScope[] = ["read", "comment", "edit"];
+export const SHARE_LINK_SCOPES: ShareLinkScope[] = ['read', 'comment', 'edit'];
 
 export interface ShareLink {
   _id: string;
@@ -67,11 +62,9 @@ export function useShareLinks(
   const enabled = Boolean(isAuthenticated && pageId);
 
   return useQuery<ShareLink[]>({
-    queryKey: shareLinkKeys.list(pageId ?? ""),
+    queryKey: shareLinkKeys.list(pageId ?? ''),
     queryFn: async () => {
-      const res = await apiClient.get<{ links: ShareLink[] }>(
-        shareLinksBase(pageId ?? ""),
-      );
+      const res = await apiClient.get<{ links: ShareLink[] }>(shareLinksBase(pageId ?? ''));
       return res.data.links;
     },
     enabled,
@@ -85,10 +78,7 @@ export function useCreateShareLink(pageId: string) {
 
   return useMutation<ShareLink, Error, CreateShareLinkInput>({
     mutationFn: async (input) => {
-      const res = await apiClient.post<{ link: ShareLink }>(
-        shareLinksBase(pageId),
-        input,
-      );
+      const res = await apiClient.post<{ link: ShareLink }>(shareLinksBase(pageId), input);
       return res.data.link;
     },
     onSuccess: () => {
@@ -121,12 +111,11 @@ export function useRevokeShareLink(pageId: string) {
  */
 export function useSharedPage(token: string | null | undefined) {
   return useQuery<SharedPage>({
-    queryKey: shareLinkKeys.public(token ?? ""),
+    queryKey: shareLinkKeys.public(token ?? ''),
     queryFn: async () => {
-      const res = await axios.get<SharedPage>(
-        `${config.apiUrl}/share/${token}`,
-        { timeout: 15000 },
-      );
+      const res = await axios.get<SharedPage>(`${config.apiUrl}/share/${token}`, {
+        timeout: 15000,
+      });
       return res.data;
     },
     enabled: Boolean(token),

@@ -164,8 +164,7 @@ const DIRECT_INFERENCE_ENDPOINT = new RegExp(
   ].join('|')})`,
   'iu',
 );
-const CLOUDFLARE_INFERENCE_ENDPOINT =
-  /https?:\/\/api\.cloudflare\.com\/[^\s'"`]*\/ai(?:\/|\b)/iu;
+const CLOUDFLARE_INFERENCE_ENDPOINT = /https?:\/\/api\.cloudflare\.com\/[^\s'"`]*\/ai(?:\/|\b)/iu;
 const INFERENCE_SURFACE = /inference|chat.?completions|kaana|relay|alia.?provider/iu;
 const FORBIDDEN_ROUTING_FIELDS = new Set([
   'provider',
@@ -182,10 +181,14 @@ const FORBIDDEN_ROUTING_FIELDS = new Set([
   'priority',
   'order',
 ]);
-const ORDER_ROUTING_FALLBACK = /\.(?:find|findIndex|filter|sort|orderBy)\s*\(.{0,500}\b(?:provider|model|name|priority|order)\b/isu;
-const COLLECTION_ROUTING_FALLBACK = /\b(?:deployments|routes|models|providers|candidates)\s*\.\s*(?:find|findIndex|filter|sort|orderBy)\s*\(/iu;
-const FIRST_ROW_ROUTING_FALLBACK = /\b(?:deployments|routes|models|providers|candidates|rows)\s*\[\s*0\s*\]|\.(?:at|limit)\s*\(\s*(?:0|1)\s*\)|\bfindFirst\s*\(/iu;
-const PROVIDER_STORAGE = /\b(?:provider|inference|model)[_-]?(?:keys?|credentials?|secrets?)\b|key-manager/iu;
+const ORDER_ROUTING_FALLBACK =
+  /\.(?:find|findIndex|filter|sort|orderBy)\s*\(.{0,500}\b(?:provider|model|name|priority|order)\b/isu;
+const COLLECTION_ROUTING_FALLBACK =
+  /\b(?:deployments|routes|models|providers|candidates)\s*\.\s*(?:find|findIndex|filter|sort|orderBy)\s*\(/iu;
+const FIRST_ROW_ROUTING_FALLBACK =
+  /\b(?:deployments|routes|models|providers|candidates|rows)\s*\[\s*0\s*\]|\.(?:at|limit)\s*\(\s*(?:0|1)\s*\)|\bfindFirst\s*\(/iu;
+const PROVIDER_STORAGE =
+  /\b(?:provider|inference|model)[_-]?(?:keys?|credentials?|secrets?)\b|key-manager/iu;
 
 function trackedFiles(...paths: string[]): string[] {
   return execFileSync('git', ['ls-files', '--', ...paths], {
@@ -274,10 +277,14 @@ function boundaryViolations(
 ): Violation[] {
   const violations: Violation[] = [];
   const providerEnvPattern = new RegExp(`\\b(?:${PROVIDER_ENV_NAMES.join('|')})\\b`, 'u');
-  const internalInferenceEnvPattern = /\b(?:KAANA|RELAY|ALIA_(?:PROVIDER|OPENAI|ANTHROPIC|GOOGLE|GROQ|MISTRAL|DEEPSEEK|TOGETHER|REPLICATE|CEREBRAS|OPENROUTER|COHERE|FIREWORKS|PERPLEXITY|XAI|SAMBANOVA|HYPERBOLIC|NOVITA|DIGITALOCEAN))_[A-Z0-9_]+\b/u;
+  const internalInferenceEnvPattern =
+    /\b(?:KAANA|RELAY|ALIA_(?:PROVIDER|OPENAI|ANTHROPIC|GOOGLE|GROQ|MISTRAL|DEEPSEEK|TOGETHER|REPLICATE|CEREBRAS|OPENROUTER|COHERE|FIREWORKS|PERPLEXITY|XAI|SAMBANOVA|HYPERBOLIC|NOVITA|DIGITALOCEAN))_[A-Z0-9_]+\b/u;
 
   for (const artifact of [...configuration, ...manifests]) {
-    if (providerEnvPattern.test(artifact.source) || internalInferenceEnvPattern.test(artifact.source)) {
+    if (
+      providerEnvPattern.test(artifact.source) ||
+      internalInferenceEnvPattern.test(artifact.source)
+    ) {
       violations.push({ kind: 'provider_env', path: artifact.path });
     }
     if (
@@ -300,22 +307,14 @@ function boundaryViolations(
     ) {
       violations.push({ kind: 'provider_env', path: artifact.path });
     }
-    if (
-      DIRECT_INFERENCE_ENDPOINT.test(source) ||
-      CLOUDFLARE_INFERENCE_ENDPOINT.test(source)
-    ) {
+    if (DIRECT_INFERENCE_ENDPOINT.test(source) || CLOUDFLARE_INFERENCE_ENDPOINT.test(source)) {
       violations.push({ kind: 'direct_inference_endpoint', path: artifact.path });
     }
-    if (
-      artifact.path.includes('/internal/providers/') ||
-      PROVIDER_STORAGE.test(source)
-    ) {
+    if (artifact.path.includes('/internal/providers/') || PROVIDER_STORAGE.test(source)) {
       violations.push({ kind: 'provider_storage', path: artifact.path });
     }
     if (
-      imports.some(
-        (specifier) => PROVIDER_SDKS.has(specifier) || specifier.startsWith('@ai-sdk/'),
-      )
+      imports.some((specifier) => PROVIDER_SDKS.has(specifier) || specifier.startsWith('@ai-sdk/'))
     ) {
       violations.push({ kind: 'provider_sdk', path: artifact.path });
     }
@@ -338,11 +337,7 @@ function boundaryViolations(
     ) {
       violations.push({ kind: 'name_or_order_routing', path: artifact.path });
     }
-    if (
-      /['"]\/(?:clarity\/search|v1\/chat\/completions|v1\/models)(?:['"/?]|$)/u.test(
-        source,
-      )
-    ) {
+    if (/['"]\/(?:clarity\/search|v1\/chat\/completions|v1\/models)(?:['"/?]|$)/u.test(source)) {
       violations.push({ kind: 'legacy_inference_route', path: artifact.path });
     }
   }
@@ -407,7 +402,9 @@ describe('Nilo has no local inference runtime', () => {
       },
     ];
 
-    expect(new Set(boundaryViolations(runtime, configuration, manifests).map((v) => v.kind))).toEqual(
+    expect(
+      new Set(boundaryViolations(runtime, configuration, manifests).map((v) => v.kind)),
+    ).toEqual(
       new Set<ViolationKind>([
         'provider_env',
         'provider_storage',
@@ -463,11 +460,7 @@ describe('Nilo has no local inference runtime', () => {
     'kills an internal inference credential mutant: %s',
     (environmentName) => {
       expect(
-        boundaryViolations(
-          [],
-          [{ path: 'fixture.env', source: `${environmentName}=secret` }],
-          [],
-        ),
+        boundaryViolations([], [{ path: 'fixture.env', source: `${environmentName}=secret` }], []),
       ).toContainEqual({ kind: 'provider_env', path: 'fixture.env' });
     },
   );
@@ -555,11 +548,7 @@ describe('Nilo has no local inference runtime', () => {
     'const selected = query.findFirst();',
   ])('kills a name or order routing fallback mutant: %s', (source) => {
     expect(
-      boundaryViolations(
-        [{ path: 'apps/api/src/lib/inference-client.ts', source }],
-        [],
-        [],
-      ),
+      boundaryViolations([{ path: 'apps/api/src/lib/inference-client.ts', source }], [], []),
     ).toContainEqual({
       kind: 'name_or_order_routing',
       path: 'apps/api/src/lib/inference-client.ts',
@@ -568,14 +557,10 @@ describe('Nilo has no local inference runtime', () => {
 
   it('allows an Oxy inference request that carries only an exact opaque routing id', () => {
     const source =
-      "fetch(`${oxyOrigin}/inference/nilo/summarize`, { body: JSON.stringify({ routingProfileId }) });";
+      'fetch(`${oxyOrigin}/inference/nilo/summarize`, { body: JSON.stringify({ routingProfileId }) });';
 
     expect(
-      boundaryViolations(
-        [{ path: 'apps/api/src/lib/inference-client.ts', source }],
-        [],
-        [],
-      ),
+      boundaryViolations([{ path: 'apps/api/src/lib/inference-client.ts', source }], [], []),
     ).toEqual([]);
   });
 
@@ -586,9 +571,9 @@ describe('Nilo has no local inference runtime', () => {
           {
             path: 'apps/api/src/lib/inference-boundary.ts',
             source: [
-              '// import OpenAI from \'openai\';',
-              '// const request = { model: \'retired-name\' };',
-              '/* fetch(\'https://kaana.ai/internal/v1/inference\'); */',
+              "// import OpenAI from 'openai';",
+              "// const request = { model: 'retired-name' };",
+              "/* fetch('https://kaana.ai/internal/v1/inference'); */",
               '// OPENAI_API_KEY=retired',
               'export const workspaceFeatureEnabled = true;',
             ].join('\n'),
@@ -645,15 +630,21 @@ describe('Nilo has no local inference runtime', () => {
       'bunfig.toml',
       'sst.config.ts',
     );
-    const manifestPaths = trackedFiles('package.json', 'apps/api/package.json', 'apps/app/package.json');
+    const manifestPaths = trackedFiles(
+      'package.json',
+      'apps/api/package.json',
+      'apps/app/package.json',
+    );
 
     expect(runtimePaths.length).toBeGreaterThan(100);
     expect(configurationPaths.length).toBeGreaterThan(3);
     expect(manifestPaths).toHaveLength(3);
-    expect(boundaryViolations(
-      artifacts(runtimePaths),
-      artifacts(configurationPaths),
-      artifacts(manifestPaths),
-    )).toEqual([]);
+    expect(
+      boundaryViolations(
+        artifacts(runtimePaths),
+        artifacts(configurationPaths),
+        artifacts(manifestPaths),
+      ),
+    ).toEqual([]);
   });
 });

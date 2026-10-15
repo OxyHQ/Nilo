@@ -53,10 +53,7 @@ export function CommandPalette() {
     [router, setOpen],
   );
 
-  const handlePageSelect = React.useCallback(
-    (item: PageItem) => openPage(item.pageId),
-    [openPage],
-  );
+  const handlePageSelect = React.useCallback((item: PageItem) => openPage(item.pageId), [openPage]);
 
   const handleMemberSelect = React.useCallback(
     (_member: MemberItem) => {
@@ -75,9 +72,7 @@ export function CommandPalette() {
       if (!(e.metaKey || e.ctrlKey)) return;
       const root = listRef.current;
       if (!root) return;
-      const selected = root.querySelector<HTMLElement>(
-        '[cmdk-item][data-selected="true"]',
-      );
+      const selected = root.querySelector<HTMLElement>('[cmdk-item][data-selected="true"]');
       if (!selected) return;
       const itemId = selected.getAttribute('data-value');
       if (!itemId) return;
@@ -94,16 +89,16 @@ export function CommandPalette() {
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput
-        placeholder={t("commandPalette.placeholder")}
+        placeholder={t('commandPalette.placeholder')}
         value={query}
         onValueChange={setQuery}
       />
       <div ref={listRef}>
         <CommandList>
-          <CommandEmpty>{t("commandPalette.noResults")}</CommandEmpty>
+          <CommandEmpty>{t('commandPalette.noResults')}</CommandEmpty>
 
           {recents.length > 0 ? (
-            <CommandGroup heading={t("commandPalette.groups.recent")}>
+            <CommandGroup heading={t('commandPalette.groups.recent')}>
               {recents.map((item) => (
                 <PageRow key={item.id} item={item} onSelect={handlePageSelect} icon={<Clock />} />
               ))}
@@ -113,7 +108,7 @@ export function CommandPalette() {
           {pages.length > 0 ? (
             <>
               {recents.length > 0 ? <CommandSeparator /> : null}
-              <CommandGroup heading={t("commandPalette.groups.pages")}>
+              <CommandGroup heading={t('commandPalette.groups.pages')}>
                 {pages.map((item) => (
                   <PageRow key={item.id} item={item} onSelect={handlePageSelect} />
                 ))}
@@ -124,7 +119,7 @@ export function CommandPalette() {
           {members.length > 0 ? (
             <>
               <CommandSeparator />
-              <CommandGroup heading={t("commandPalette.groups.people")}>
+              <CommandGroup heading={t('commandPalette.groups.people')}>
                 {members.map((item) => (
                   <MemberRow key={item.id} item={item} onSelect={handleMemberSelect} />
                 ))}
@@ -133,7 +128,7 @@ export function CommandPalette() {
           ) : null}
 
           <CommandSeparator />
-          <CommandGroup heading={t("commandPalette.groups.commands")}>
+          <CommandGroup heading={t('commandPalette.groups.commands')}>
             {commands.map((item) => (
               <CommandRow key={item.id} item={item} />
             ))}
@@ -158,14 +153,12 @@ function PageRow({ item, onSelect, icon }: PageRowProps) {
       onSelect={() => onSelect(item)}
     >
       <span className="flex h-5 w-5 items-center justify-center text-base">
-        {item.icon ? item.icon : icon ?? <FileText />}
+        {item.icon ? item.icon : (icon ?? <FileText />)}
       </span>
       <span className="flex flex-1 flex-col min-w-0">
         <span className="truncate text-sm text-foreground">{item.title}</span>
         {item.subtitle ? (
-          <span className="truncate text-xs text-muted-foreground">
-            {item.subtitle}
-          </span>
+          <span className="truncate text-xs text-muted-foreground">{item.subtitle}</span>
         ) : null}
       </span>
     </CommandItem>
@@ -191,9 +184,7 @@ function MemberRow({ item, onSelect }: MemberRowProps) {
       <span className="flex flex-1 flex-col min-w-0">
         <span className="truncate text-sm text-foreground">{item.title}</span>
         {item.subtitle ? (
-          <span className="truncate text-xs text-muted-foreground">
-            {item.subtitle}
-          </span>
+          <span className="truncate text-xs text-muted-foreground">{item.subtitle}</span>
         ) : null}
       </span>
     </CommandItem>
@@ -218,14 +209,10 @@ function CommandRow({ item }: CommandRowProps) {
       <span className="flex flex-1 flex-col min-w-0">
         <span className="truncate text-sm text-foreground">{item.title}</span>
         {item.subtitle ? (
-          <span className="truncate text-xs text-muted-foreground">
-            {item.subtitle}
-          </span>
+          <span className="truncate text-xs text-muted-foreground">{item.subtitle}</span>
         ) : null}
       </span>
-      {item.shortcut ? (
-        <CommandShortcut>{item.shortcut}</CommandShortcut>
-      ) : null}
+      {item.shortcut ? <CommandShortcut>{item.shortcut}</CommandShortcut> : null}
     </CommandItem>
   );
 }

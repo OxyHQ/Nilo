@@ -6,7 +6,9 @@ let activity: ReturnType<typeof createEcosystemTraffic> | undefined;
 /** Start only at process bootstrap; constructing a test app starts no publisher. */
 export function startEcosystemActivity(ready: () => boolean): void {
   if (!process.env.OXY_SERVICE_API_KEY?.trim() || !process.env.OXY_SERVICE_API_SECRET?.trim()) {
-    console.warn('Ecosystem activity is disabled for nilo: missing OXY_SERVICE_API_KEY/OXY_SERVICE_API_SECRET');
+    console.warn(
+      'Ecosystem activity is disabled for nilo: missing OXY_SERVICE_API_KEY/OXY_SERVICE_API_SECRET',
+    );
     return;
   }
   if (activity) return;
@@ -22,7 +24,9 @@ export const ecosystemActivityMiddleware: RequestHandler = (request, response, n
   else next();
 };
 
-export function observeEcosystemSocket(socket: Parameters<ReturnType<typeof createEcosystemTraffic>['observeSocket']>[0]): void {
+export function observeEcosystemSocket(
+  socket: Parameters<ReturnType<typeof createEcosystemTraffic>['observeSocket']>[0],
+): void {
   activity?.observeSocket(socket);
 }
 

@@ -42,17 +42,13 @@ export const API_ROUTES = {
     update: (id: string) => `/databases/${id}`,
     delete: (id: string) => `/databases/${id}`,
     addProperty: (id: string) => `/databases/${id}/properties`,
-    updateProperty: (id: string, propertyId: string) =>
-      `/databases/${id}/properties/${propertyId}`,
-    deleteProperty: (id: string, propertyId: string) =>
-      `/databases/${id}/properties/${propertyId}`,
+    updateProperty: (id: string, propertyId: string) => `/databases/${id}/properties/${propertyId}`,
+    deleteProperty: (id: string, propertyId: string) => `/databases/${id}/properties/${propertyId}`,
     listRows: (id: string) => `/databases/${id}/rows`,
     createRow: (id: string) => `/databases/${id}/rows`,
     listViews: (id: string) => `/databases/${id}/views`,
     createView: (id: string) => `/databases/${id}/views`,
-    updateView: (id: string, viewId: string) =>
-      `/databases/${id}/views/${viewId}`,
-    deleteView: (id: string, viewId: string) =>
-      `/databases/${id}/views/${viewId}`,
+    updateView: (id: string, viewId: string) => `/databases/${id}/views/${viewId}`,
+    deleteView: (id: string, viewId: string) => `/databases/${id}/views/${viewId}`,
   },
 } as const;

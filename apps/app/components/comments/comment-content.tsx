@@ -1,17 +1,17 @@
-import * as React from "react";
-import { Pressable, View } from "react-native";
-import { useRouter } from "expo-router";
-import { Calendar, FileText, User } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useOxy } from "@oxy.so/services";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { cn } from "@/lib/utils";
-import { useTranslation } from "@/hooks/useTranslation";
+import * as React from 'react';
+import { Pressable, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Calendar, FileText, User } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useOxy } from '@oxy.so/services';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { cn } from '@/lib/utils';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   isMentionSegment,
   type CommentContent as CommentContentType,
   type MentionSegment,
-} from "@/lib/types/comments";
+} from '@/lib/types/comments';
 
 interface CommentContentProps {
   content: CommentContentType;
@@ -27,10 +27,7 @@ interface CommentContentProps {
  * open the Oxy account sheet, page mentions navigate to the target page,
  * date mentions are non-interactive but visually distinguished.
  */
-export function CommentContentView({
-  content,
-  textClassName,
-}: CommentContentProps) {
+export function CommentContentView({ content, textClassName }: CommentContentProps) {
   const segments = content.segments ?? [];
   return (
     <View className="flex-row flex-wrap">
@@ -42,13 +39,13 @@ export function CommentContentView({
           <Text
             key={idx}
             className={cn(
-              "text-sm text-foreground",
+              'text-sm text-foreground',
               textClassName,
-              seg.bold && "font-bold",
-              seg.italic && "italic",
-              seg.underline && "underline",
-              seg.strike && "line-through",
-              seg.code && "font-mono bg-muted/60 rounded px-1",
+              seg.bold && 'font-bold',
+              seg.italic && 'italic',
+              seg.underline && 'underline',
+              seg.strike && 'line-through',
+              seg.code && 'font-mono bg-muted/60 rounded px-1',
             )}
           >
             {seg.text}
@@ -65,18 +62,18 @@ function MentionChip({ mention }: { mention: MentionSegment }) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
 
-  const Icon = mention.kind === "user" ? User : mention.kind === "page" ? FileText : Calendar;
+  const Icon = mention.kind === 'user' ? User : mention.kind === 'page' ? FileText : Calendar;
 
   const handlePress = () => {
-    if (mention.kind === "page" && mention.id) {
+    if (mention.kind === 'page' && mention.id) {
       router.push(`/(app)/p/${mention.id}`);
       return;
     }
-    if (mention.kind === "user" && mention.id) {
+    if (mention.kind === 'user' && mention.id) {
       // Best-effort — the Oxy account sheet covers the current user only,
       // but for non-self mentions we degrade to a no-op (Phase 3 will add
       // a user-profile sheet via Oxy services).
-      showBottomSheet?.("ManageAccount");
+      showBottomSheet?.('ManageAccount');
     }
   };
 
@@ -85,26 +82,26 @@ function MentionChip({ mention }: { mention: MentionSegment }) {
       onPress={handlePress}
       className="flex-row items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 mx-0.5"
       accessibilityRole="link"
-      accessibilityLabel={t("comments.mentionLabel", { name: mention.originalText })}
+      accessibilityLabel={t('comments.mentionLabel', { name: mention.originalText })}
     >
       <Icon size={12} color={colors.primary} />
       <Text className="text-xs font-medium text-primary">
-        {mention.kind === "date" && mention.date
+        {mention.kind === 'date' && mention.date
           ? formatDate(mention.date)
-          : mention.originalText.replace(/^@/, "")}
+          : mention.originalText.replace(/^@/, '')}
       </Text>
     </Pressable>
   );
 }
 
 function formatDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map((part) => parseInt(part, 10));
+  const [y, m, d] = iso.split('-').map((part) => parseInt(part, 10));
   if (!y || !m || !d) return iso;
   const date = new Date(y, m - 1, d);
   if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
   });
 }

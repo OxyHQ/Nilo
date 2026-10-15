@@ -1,13 +1,5 @@
-import * as React from "react";
-import {
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import * as React from 'react';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import {
   ArrowDownAZ,
   ArrowUpAZ,
@@ -27,11 +19,11 @@ import {
   Sigma,
   Plus,
   ChevronRight,
-} from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useTranslation } from "@/hooks/useTranslation";
-import i18n from "@/lib/i18n";
-import { useColorScheme } from "@/lib/useColorScheme";
+} from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useTranslation } from '@/hooks/useTranslation';
+import i18n from '@/lib/i18n';
+import { useColorScheme } from '@/lib/useColorScheme';
 import type {
   Database,
   DatabaseProperty,
@@ -39,16 +31,16 @@ import type {
   DatabaseView,
   SelectColor,
   SelectOption,
-} from "@/lib/types/databases";
-import { SELECT_COLORS } from "@/lib/types/databases";
-import { SELECT_COLOR_CLASSES } from "./select-color";
+} from '@/lib/types/databases';
+import { SELECT_COLORS } from '@/lib/types/databases';
+import { SELECT_COLOR_CLASSES } from './select-color';
 import {
   useAddProperty,
   useDeleteProperty,
   useUpdateProperty,
-} from "@/lib/hooks/use-database-properties";
-import { useUpdateView } from "@/lib/hooks/use-database-views";
-import { centeredModalStyle } from "./centered-modal-style";
+} from '@/lib/hooks/use-database-properties';
+import { useUpdateView } from '@/lib/hooks/use-database-views';
+import { centeredModalStyle } from './centered-modal-style';
 
 interface PropertyHeaderMenuProps {
   open: boolean;
@@ -61,44 +53,44 @@ interface PropertyHeaderMenuProps {
 /** Translated at call time: the locale can change while the app runs. */
 function propertyTypeLabel(type: DatabasePropertyType): string {
   switch (type) {
-    case "text":
-      return i18n.t("databases.propertyTypes.text");
-    case "number":
-      return i18n.t("databases.propertyTypes.number");
-    case "select":
-      return i18n.t("databases.propertyTypes.select");
-    case "multi_select":
-      return i18n.t("databases.propertyTypes.multiSelect");
-    case "status":
-      return i18n.t("databases.propertyTypes.status");
-    case "date":
-      return i18n.t("databases.propertyTypes.date");
-    case "person":
-      return i18n.t("databases.propertyTypes.person");
-    case "files":
-      return i18n.t("databases.propertyTypes.files");
-    case "checkbox":
-      return i18n.t("databases.propertyTypes.checkbox");
-    case "url":
-      return i18n.t("databases.propertyTypes.url");
-    case "email":
-      return i18n.t("databases.propertyTypes.email");
-    case "phone":
-      return i18n.t("databases.propertyTypes.phone");
-    case "relation":
-      return i18n.t("databases.propertyTypes.relation");
-    case "rollup":
-      return i18n.t("databases.propertyTypes.rollup");
-    case "created_time":
-      return i18n.t("databases.propertyTypes.createdTime");
-    case "last_edited_time":
-      return i18n.t("databases.propertyTypes.lastEditedTime");
-    case "created_by":
-      return i18n.t("databases.propertyTypes.createdBy");
-    case "last_edited_by":
-      return i18n.t("databases.propertyTypes.lastEditedBy");
-    case "formula":
-      return i18n.t("databases.propertyTypes.formula");
+    case 'text':
+      return i18n.t('databases.propertyTypes.text');
+    case 'number':
+      return i18n.t('databases.propertyTypes.number');
+    case 'select':
+      return i18n.t('databases.propertyTypes.select');
+    case 'multi_select':
+      return i18n.t('databases.propertyTypes.multiSelect');
+    case 'status':
+      return i18n.t('databases.propertyTypes.status');
+    case 'date':
+      return i18n.t('databases.propertyTypes.date');
+    case 'person':
+      return i18n.t('databases.propertyTypes.person');
+    case 'files':
+      return i18n.t('databases.propertyTypes.files');
+    case 'checkbox':
+      return i18n.t('databases.propertyTypes.checkbox');
+    case 'url':
+      return i18n.t('databases.propertyTypes.url');
+    case 'email':
+      return i18n.t('databases.propertyTypes.email');
+    case 'phone':
+      return i18n.t('databases.propertyTypes.phone');
+    case 'relation':
+      return i18n.t('databases.propertyTypes.relation');
+    case 'rollup':
+      return i18n.t('databases.propertyTypes.rollup');
+    case 'created_time':
+      return i18n.t('databases.propertyTypes.createdTime');
+    case 'last_edited_time':
+      return i18n.t('databases.propertyTypes.lastEditedTime');
+    case 'created_by':
+      return i18n.t('databases.propertyTypes.createdBy');
+    case 'last_edited_by':
+      return i18n.t('databases.propertyTypes.lastEditedBy');
+    case 'formula':
+      return i18n.t('databases.propertyTypes.formula');
   }
 }
 
@@ -141,7 +133,7 @@ export function PropertyHeaderMenu({
 }: PropertyHeaderMenuProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const [mode, setMode] = React.useState<"menu" | "rename" | "config">("menu");
+  const [mode, setMode] = React.useState<'menu' | 'rename' | 'config'>('menu');
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
   const updateView = useUpdateView();
@@ -149,17 +141,17 @@ export function PropertyHeaderMenu({
 
   React.useEffect(() => {
     setNameDraft(property.name);
-    if (open) setMode("menu");
+    if (open) setMode('menu');
   }, [open, property.name]);
 
   const close = () => {
     onClose();
-    setMode("menu");
+    setMode('menu');
   };
 
   const commitName = async () => {
-    if (nameDraft.trim() === "" || nameDraft === property.name) {
-      setMode("menu");
+    if (nameDraft.trim() === '' || nameDraft === property.name) {
+      setMode('menu');
       return;
     }
     await updateProperty.mutateAsync({
@@ -167,10 +159,10 @@ export function PropertyHeaderMenu({
       propertyId: property.id,
       name: nameDraft.trim(),
     });
-    setMode("menu");
+    setMode('menu');
   };
 
-  const applySort = async (direction: "asc" | "desc") => {
+  const applySort = async (direction: 'asc' | 'desc') => {
     const otherSorts = view.sorts.filter((s) => s.propertyId !== property.id);
     await updateView.mutateAsync({
       databaseId: database.id,
@@ -184,9 +176,7 @@ export function PropertyHeaderMenu({
     await updateView.mutateAsync({
       databaseId: database.id,
       viewId: view.id,
-      hiddenProperties: Array.from(
-        new Set([...view.hiddenProperties, property.id]),
-      ),
+      hiddenProperties: Array.from(new Set([...view.hiddenProperties, property.id])),
     });
     close();
   };
@@ -200,65 +190,50 @@ export function PropertyHeaderMenu({
   };
 
   return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="fade"
-      onRequestClose={close}
-    >
-      <Pressable
-        style={StyleSheet.absoluteFill}
-        className="bg-black/40"
-        onPress={close}
-      />
+    <Modal visible={open} transparent animationType="fade" onRequestClose={close}>
+      <Pressable style={StyleSheet.absoluteFill} className="bg-black/40" onPress={close} />
       <View
         className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2"
         style={centeredModalStyle(320, 360)}
       >
         <View className="bg-popover border border-border rounded-2xl shadow-xl p-3 m-3 web:m-0">
-          {mode === "menu" ? (
+          {mode === 'menu' ? (
             <>
               <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-sm font-semibold text-foreground">
-                  {property.name}
-                </Text>
+                <Text className="text-sm font-semibold text-foreground">{property.name}</Text>
                 <Text className="text-xs text-muted-foreground">
                   {propertyTypeLabel(property.type)}
                 </Text>
               </View>
               <MenuItem
                 icon={Pencil}
-                label={t("databases.properties.rename")}
-                onPress={() => setMode("rename")}
+                label={t('databases.properties.rename')}
+                onPress={() => setMode('rename')}
               />
-              {property.type === "select" ||
-              property.type === "multi_select" ||
-              property.type === "status" ? (
+              {property.type === 'select' ||
+              property.type === 'multi_select' ||
+              property.type === 'status' ? (
                 <MenuItem
                   icon={ListTodo}
-                  label={t("databases.properties.editOptions")}
-                  onPress={() => setMode("config")}
+                  label={t('databases.properties.editOptions')}
+                  onPress={() => setMode('config')}
                 />
               ) : null}
               <MenuItem
                 icon={ArrowUpAZ}
-                label={t("databases.properties.sortAscending")}
-                onPress={() => applySort("asc")}
+                label={t('databases.properties.sortAscending')}
+                onPress={() => applySort('asc')}
               />
               <MenuItem
                 icon={ArrowDownAZ}
-                label={t("databases.properties.sortDescending")}
-                onPress={() => applySort("desc")}
+                label={t('databases.properties.sortDescending')}
+                onPress={() => applySort('desc')}
               />
-              <MenuItem
-                icon={EyeOff}
-                label={t("databases.properties.hideInView")}
-                onPress={hide}
-              />
-              {property.id !== "name" ? (
+              <MenuItem icon={EyeOff} label={t('databases.properties.hideInView')} onPress={hide} />
+              {property.id !== 'name' ? (
                 <MenuItem
                   icon={Trash2}
-                  label={t("databases.properties.delete")}
+                  label={t('databases.properties.delete')}
                   destructive
                   onPress={remove}
                 />
@@ -266,49 +241,38 @@ export function PropertyHeaderMenu({
             </>
           ) : null}
 
-          {mode === "rename" ? (
+          {mode === 'rename' ? (
             <View className="gap-2">
               <Text className="text-xs uppercase tracking-wider text-muted-foreground">
-                {t("databases.properties.name")}
+                {t('databases.properties.name')}
               </Text>
               <TextInput
                 value={nameDraft}
                 onChangeText={setNameDraft}
-                placeholder={t("databases.untitled")}
+                placeholder={t('databases.untitled')}
                 placeholderTextColor={colors.mutedForeground}
                 className="text-sm text-foreground border border-border rounded-md px-2 py-1"
-                style={Platform.OS === "web" ? { outlineWidth: 0 } : undefined}
+                style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
                 underlineColorAndroid="transparent"
                 autoFocus
                 onSubmitEditing={commitName}
               />
               <View className="flex-row justify-end gap-2 mt-1">
                 <Pressable
-                  onPress={() => setMode("menu")}
+                  onPress={() => setMode('menu')}
                   className="px-3 py-1 rounded-md bg-muted"
                 >
-                  <Text className="text-sm text-foreground">
-                    {t("common.cancel")}
-                  </Text>
+                  <Text className="text-sm text-foreground">{t('common.cancel')}</Text>
                 </Pressable>
-                <Pressable
-                  onPress={commitName}
-                  className="px-3 py-1 rounded-md bg-primary"
-                >
-                  <Text className="text-sm text-primary-foreground">
-                    {t("common.save")}
-                  </Text>
+                <Pressable onPress={commitName} className="px-3 py-1 rounded-md bg-primary">
+                  <Text className="text-sm text-primary-foreground">{t('common.save')}</Text>
                 </Pressable>
               </View>
             </View>
           ) : null}
 
-          {mode === "config" ? (
-            <SelectOptionsEditor
-              property={property}
-              database={database}
-              onDone={close}
-            />
+          {mode === 'config' ? (
+            <SelectOptionsEditor property={property} database={database} onDone={close} />
           ) : null}
         </View>
       </View>
@@ -330,17 +294,8 @@ function MenuItem({ icon: Icon, label, onPress, destructive }: MenuItemProps) {
       onPress={onPress}
       className="flex-row items-center gap-2 px-2 py-1.5 rounded hover:bg-muted"
     >
-      <Icon
-        size={14}
-        color={destructive ? "#ef4444" : colors.foreground}
-      />
-      <Text
-        className={`text-sm ${
-          destructive ? "text-red-500" : "text-foreground"
-        }`}
-      >
-        {label}
-      </Text>
+      <Icon size={14} color={destructive ? '#ef4444' : colors.foreground} />
+      <Text className={`text-sm ${destructive ? 'text-red-500' : 'text-foreground'}`}>{label}</Text>
     </Pressable>
   );
 }
@@ -356,18 +311,12 @@ interface SelectOptionsEditorProps {
  * Adds and edits in-place — change is persisted via property PATCH on
  * blur or after rename.
  */
-function SelectOptionsEditor({
-  property,
-  database,
-  onDone,
-}: SelectOptionsEditorProps) {
+function SelectOptionsEditor({ property, database, onDone }: SelectOptionsEditorProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const updateProperty = useUpdateProperty();
-  const [options, setOptions] = React.useState<SelectOption[]>(
-    property.config?.options ?? [],
-  );
-  const [draftName, setDraftName] = React.useState("");
+  const [options, setOptions] = React.useState<SelectOption[]>(property.config?.options ?? []);
+  const [draftName, setDraftName] = React.useState('');
 
   const persist = async (next: SelectOption[]) => {
     setOptions(next);
@@ -385,7 +334,7 @@ function SelectOptionsEditor({
       ...options,
       { id: createOptionId(), name, color: pickNextColor(options) },
     ];
-    setDraftName("");
+    setDraftName('');
     await persist(next);
   };
 
@@ -400,7 +349,7 @@ function SelectOptionsEditor({
   return (
     <View className="gap-2">
       <Text className="text-xs uppercase tracking-wider text-muted-foreground">
-        {t("databases.properties.options")}
+        {t('databases.properties.options')}
       </Text>
       <ScrollView style={{ maxHeight: 240 }}>
         {options.map((o) => (
@@ -416,11 +365,11 @@ function SelectOptionsEditor({
         <TextInput
           value={draftName}
           onChangeText={setDraftName}
-          placeholder={t("databases.properties.newOption")}
+          placeholder={t('databases.properties.newOption')}
           placeholderTextColor={colors.mutedForeground}
           className="text-sm text-foreground border border-border rounded-md px-2 py-1 flex-1"
           onSubmitEditing={addOption}
-          style={Platform.OS === "web" ? { outlineWidth: 0 } : undefined}
+          style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
           underlineColorAndroid="transparent"
         />
         <Pressable
@@ -428,17 +377,12 @@ function SelectOptionsEditor({
           className="px-2 py-1 rounded-md bg-primary flex-row items-center gap-1"
         >
           <Plus size={12} color="#ffffff" />
-          <Text className="text-xs text-primary-foreground">
-            {t("databases.actions.add")}
-          </Text>
+          <Text className="text-xs text-primary-foreground">{t('databases.actions.add')}</Text>
         </Pressable>
       </View>
       <View className="flex-row justify-end gap-2 mt-2">
-        <Pressable
-          onPress={onDone}
-          className="px-3 py-1 rounded-md bg-muted"
-        >
-          <Text className="text-sm text-foreground">{t("common.done")}</Text>
+        <Pressable onPress={onDone} className="px-3 py-1 rounded-md bg-muted">
+          <Text className="text-sm text-foreground">{t('common.done')}</Text>
         </Pressable>
       </View>
     </View>
@@ -466,10 +410,7 @@ function OptionRow({ option, onRemove, onRecolor }: OptionRowProps) {
         <ChevronRight size={10} color={colors.mutedForeground} />
       </Pressable>
       <View className="flex-1" />
-      <Pressable
-        onPress={onRemove}
-        className="px-2 py-1 rounded hover:bg-muted"
-      >
+      <Pressable onPress={onRemove} className="px-2 py-1 rounded hover:bg-muted">
         <Trash2 size={12} color="#ef4444" />
       </Pressable>
       {colorOpen ? (
@@ -495,8 +436,8 @@ function OptionRow({ option, onRemove, onRecolor }: OptionRowProps) {
 
 function createOptionId(): string {
   if (
-    typeof globalThis !== "undefined" &&
-    typeof (globalThis.crypto as Crypto | undefined)?.randomUUID === "function"
+    typeof globalThis !== 'undefined' &&
+    typeof (globalThis.crypto as Crypto | undefined)?.randomUUID === 'function'
   ) {
     return (globalThis.crypto as Crypto).randomUUID();
   }
@@ -507,7 +448,7 @@ function pickNextColor(existing: SelectOption[]): SelectColor {
   for (const c of SELECT_COLORS) {
     if (!existing.some((o) => o.color === c)) return c;
   }
-  return "default";
+  return 'default';
 }
 
 /**
@@ -524,13 +465,10 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
-  const { mutate: addProperty, isPending } = useAddPropertyOptimistic(
-    database,
-    () => {
-      setOpen(false);
-      onAdded?.();
-    },
-  );
+  const { mutate: addProperty, isPending } = useAddPropertyOptimistic(database, () => {
+    setOpen(false);
+    onAdded?.();
+  });
 
   return (
     <>
@@ -540,17 +478,10 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
       >
         <Plus size={14} color={colors.mutedForeground} />
         <Text className="text-xs text-muted-foreground">
-          {isPending
-            ? t("databases.actions.adding")
-            : t("databases.properties.add")}
+          {isPending ? t('databases.actions.adding') : t('databases.properties.add')}
         </Text>
       </Pressable>
-      <Modal
-        visible={open}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setOpen(false)}
-      >
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable
           style={StyleSheet.absoluteFill}
           className="bg-black/40"
@@ -562,30 +493,30 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
         >
           <View className="bg-popover border border-border rounded-2xl shadow-xl p-3 m-3 web:m-0">
             <Text className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-              {t("databases.properties.add")}
+              {t('databases.properties.add')}
             </Text>
             <ScrollView style={{ maxHeight: 360 }}>
               {(
                 [
-                  "text",
-                  "number",
-                  "select",
-                  "multi_select",
-                  "status",
-                  "date",
-                  "checkbox",
-                  "url",
-                  "email",
-                  "phone",
-                  "person",
-                  "files",
-                  "relation",
-                  "rollup",
-                  "formula",
-                  "created_time",
-                  "last_edited_time",
-                  "created_by",
-                  "last_edited_by",
+                  'text',
+                  'number',
+                  'select',
+                  'multi_select',
+                  'status',
+                  'date',
+                  'checkbox',
+                  'url',
+                  'email',
+                  'phone',
+                  'person',
+                  'files',
+                  'relation',
+                  'rollup',
+                  'formula',
+                  'created_time',
+                  'last_edited_time',
+                  'created_by',
+                  'last_edited_by',
                 ] as DatabasePropertyType[]
               ).map((type) => {
                 const Icon = PROPERTY_TYPE_ICONS[type];
@@ -602,9 +533,7 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
                     className="flex-row items-center gap-2 px-2 py-1.5 rounded hover:bg-muted"
                   >
                     <Icon size={14} color={colors.foreground} />
-                    <Text className="text-sm text-foreground">
-                      {propertyTypeLabel(type)}
-                    </Text>
+                    <Text className="text-sm text-foreground">{propertyTypeLabel(type)}</Text>
                   </Pressable>
                 );
               })}
@@ -620,10 +549,7 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
  * Wraps `useAddProperty` so the picker can close itself on success
  * without the parent subscribing to the full mutation result.
  */
-function useAddPropertyOptimistic(
-  _database: Database,
-  onDone: () => void,
-) {
+function useAddPropertyOptimistic(_database: Database, onDone: () => void) {
   const addProperty = useAddProperty();
   return {
     mutate: (input: Parameters<typeof addProperty.mutate>[0]) => {

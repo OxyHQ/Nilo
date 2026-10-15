@@ -116,9 +116,7 @@ describe('databases_properties_schema_shape', () => {
    * ACCEPTED. That is the whole reason the coalesce is there.
    */
   it('rejects a document with no properties key at all', async () => {
-    expect(await violation(() => insertRawSchema('{}'))).toBe(
-      'databases_properties_schema_shape',
-    );
+    expect(await violation(() => insertRawSchema('{}'))).toBe('databases_properties_schema_shape');
   });
 
   it('rejects properties that is not an array', async () => {
@@ -135,9 +133,9 @@ describe('databases_properties_schema_shape', () => {
    * nothing when there is no `type` key, so it reports no violation.
    */
   it('rejects a property with no type key', async () => {
-    expect(
-      await violation(() => insertRawSchema('{"properties":[{"id":"p","name":"P"}]}')),
-    ).toBe('databases_properties_schema_shape');
+    expect(await violation(() => insertRawSchema('{"properties":[{"id":"p","name":"P"}]}'))).toBe(
+      'databases_properties_schema_shape',
+    );
   });
 
   it('rejects an empty or non-string id or name', async () => {
@@ -204,9 +202,7 @@ describe('database_views_sorts_shape', () => {
       '[{"propertyId":"","direction":"asc"}]',
       '{}',
     ]) {
-      expect(await violation(() => insertRawSorts(document))).toBe(
-        'database_views_sorts_shape',
-      );
+      expect(await violation(() => insertRawSorts(document))).toBe('database_views_sorts_shape');
     }
   });
 
@@ -241,10 +237,7 @@ describe('column defaults', () => {
     expect(database.createdAt).toBeInstanceOf(Date);
     expect(database.updatedAt).toBeInstanceOf(Date);
 
-    const [view] = await db
-      .insert(databaseViews)
-      .values({ databaseId: database.id })
-      .returning();
+    const [view] = await db.insert(databaseViews).values({ databaseId: database.id }).returning();
 
     expect(view.name).toBe('');
     expect(view.type).toBe('table');

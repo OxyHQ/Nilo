@@ -1,13 +1,13 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import apiClient from "../api/client";
-import { API_ROUTES } from "../api/routes";
-import { queryKeys } from "./query-keys";
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import apiClient from '../api/client';
+import { API_ROUTES } from '../api/routes';
+import { queryKeys } from './query-keys';
 import type {
   Database,
   DatabaseResponse,
   DatabasePropertyType,
   PropertyConfig,
-} from "../types/databases";
+} from '../types/databases';
 
 interface AddPropertyInput {
   databaseId: string;
@@ -46,7 +46,7 @@ export function useAddProperty() {
         queryKey: queryKeys.databases.detail(database.id),
       });
       queryClient.invalidateQueries({
-        queryKey: ["database", database.id, "rows"],
+        queryKey: ['database', database.id, 'rows'],
       });
     },
   });
@@ -68,7 +68,7 @@ export function useUpdateProperty() {
         queryKey: queryKeys.databases.detail(database.id),
       });
       queryClient.invalidateQueries({
-        queryKey: ["database", database.id, "rows"],
+        queryKey: ['database', database.id, 'rows'],
       });
     },
   });
@@ -89,7 +89,7 @@ export function useDeleteProperty() {
         queryKey: queryKeys.databases.detail(database.id),
       });
       queryClient.invalidateQueries({
-        queryKey: ["database", database.id, "rows"],
+        queryKey: ['database', database.id, 'rows'],
       });
     },
   });

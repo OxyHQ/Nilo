@@ -15,9 +15,7 @@ export function DatabaseSection() {
   return (
     <SidebarSection sectionKey="databases" title={t('sidebar.sections.databases')}>
       <View className="px-4 py-1.5">
-        <Text className="text-xs text-muted-foreground">
-          {t('sidebar.databasesComingSoon')}
-        </Text>
+        <Text className="text-xs text-muted-foreground">{t('sidebar.databasesComingSoon')}</Text>
       </View>
     </SidebarSection>
   );

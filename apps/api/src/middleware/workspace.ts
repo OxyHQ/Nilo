@@ -134,16 +134,9 @@ export async function requireWorkspaceMember(
  * 500s — that is a programming error, not a runtime expectation.
  */
 export function requireRole(minRole: WorkspaceRole) {
-  return function requireRoleMiddleware(
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ): void {
+  return function requireRoleMiddleware(req: Request, res: Response, next: NextFunction): void {
     if (!req.member) {
-      log.general.error(
-        { path: req.path },
-        'requireRole used without requireWorkspaceMember',
-      );
+      log.general.error({ path: req.path }, 'requireRole used without requireWorkspaceMember');
       res.status(500).json({ error: 'Server misconfigured' });
       return;
     }
@@ -172,11 +165,13 @@ export function requireRole(minRole: WorkspaceRole) {
  *   - user.email (local part)
  *   - "My Workspace"
  */
-function defaultPersonalWorkspaceName(user: {
-  username?: string;
-  email?: string;
-  name?: { full?: string; first?: string } | null;
-} | null): string {
+function defaultPersonalWorkspaceName(
+  user: {
+    username?: string;
+    email?: string;
+    name?: { full?: string; first?: string } | null;
+  } | null,
+): string {
   if (!user) return 'My Workspace';
   const fullName = user.name?.full?.trim();
   if (fullName) return `${fullName}'s Workspace`;
@@ -232,9 +227,7 @@ export async function ensurePersonalWorkspace(
         displayUser = {
           username: oxyUser.username,
           email: oxyUser.email,
-          name: oxyUser.name
-            ? { full: oxyUser.name.full, first: oxyUser.name.first }
-            : null,
+          name: oxyUser.name ? { full: oxyUser.name.full, first: oxyUser.name.first } : null,
         };
       }
     } catch (lookupErr: unknown) {

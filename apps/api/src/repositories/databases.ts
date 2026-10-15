@@ -52,9 +52,7 @@ import {
  * `PgTransaction<…>`, so it cannot drift from whatever `createDatabase()`
  * actually hands back.
  */
-export type NiloTransaction = Parameters<
-  Parameters<NiloDatabase['transaction']>[0]
->[0];
+export type NiloTransaction = Parameters<Parameters<NiloDatabase['transaction']>[0]>[0];
 export type NiloHandle = NiloDatabase | NiloTransaction;
 
 /** The `databases` row as the rest of the application sees it. */
@@ -258,11 +256,7 @@ export async function updateDatabase(
 
   if (Object.keys(values).length === 0) return findDatabaseById(handle, id);
 
-  const [row] = await handle
-    .update(databases)
-    .set(values)
-    .where(eq(databases.id, id))
-    .returning();
+  const [row] = await handle.update(databases).set(values).where(eq(databases.id, id)).returning();
   return row ? toDatabaseRecord(row) : null;
 }
 
@@ -404,10 +398,7 @@ export async function findFirstViewByOrder(
  * `bigint`/`int8` as a STRING while drizzle types it `number`, so on an `int8`
  * column `last.order + 1` would be string concatenation.
  */
-export async function nextViewOrder(
-  handle: NiloHandle,
-  databaseId: string,
-): Promise<number> {
+export async function nextViewOrder(handle: NiloHandle, databaseId: string): Promise<number> {
   const [row] = await handle
     .select({ order: databaseViews.order })
     .from(databaseViews)
@@ -545,10 +536,7 @@ export async function countViews(handle: NiloHandle, databaseId: string): Promis
 }
 
 /** `DatabaseView.deleteOne({ _id })` — `routes/databases.ts:1274`. */
-export async function deleteDatabaseView(
-  handle: NiloHandle,
-  viewId: string,
-): Promise<boolean> {
+export async function deleteDatabaseView(handle: NiloHandle, viewId: string): Promise<boolean> {
   const deleted = await handle
     .delete(databaseViews)
     .where(eq(databaseViews.id, viewId))

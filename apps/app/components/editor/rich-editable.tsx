@@ -1,4 +1,4 @@
-import * as React from "react";
+import * as React from 'react';
 import {
   NativeSyntheticEvent,
   Platform,
@@ -7,16 +7,16 @@ import {
   TextInputKeyPressEventData,
   TextInputSelectionChangeEventData,
   View,
-} from "react-native";
-import { cn } from "@/lib/utils";
-import { useColorScheme } from "@/lib/useColorScheme";
-import type { BlockColor, Segment } from "@/lib/types/pages";
+} from 'react-native';
+import { cn } from '@/lib/utils';
+import { useColorScheme } from '@/lib/useColorScheme';
+import type { BlockColor, Segment } from '@/lib/types/pages';
 import {
   applyPlainTextChange,
   coalesceSegments,
   ensureSegments,
   segmentsToPlainText,
-} from "./segments";
+} from './segments';
 
 /**
  * Selection in caret-offset coordinates over the flattened plain text.
@@ -77,38 +77,38 @@ interface RichEditableProps {
 
 /** Color name → Tailwind class. Default returns empty string. */
 const TEXT_COLOR_CLASS: Record<BlockColor, string> = {
-  default: "",
-  gray: "text-gray-500 dark:text-gray-400",
-  brown: "text-amber-800 dark:text-amber-300",
-  orange: "text-orange-600 dark:text-orange-400",
-  yellow: "text-yellow-600 dark:text-yellow-400",
-  green: "text-emerald-600 dark:text-emerald-400",
-  blue: "text-blue-600 dark:text-blue-400",
-  purple: "text-purple-600 dark:text-purple-400",
-  pink: "text-pink-600 dark:text-pink-400",
-  red: "text-red-600 dark:text-red-400",
+  default: '',
+  gray: 'text-gray-500 dark:text-gray-400',
+  brown: 'text-amber-800 dark:text-amber-300',
+  orange: 'text-orange-600 dark:text-orange-400',
+  yellow: 'text-yellow-600 dark:text-yellow-400',
+  green: 'text-emerald-600 dark:text-emerald-400',
+  blue: 'text-blue-600 dark:text-blue-400',
+  purple: 'text-purple-600 dark:text-purple-400',
+  pink: 'text-pink-600 dark:text-pink-400',
+  red: 'text-red-600 dark:text-red-400',
 };
 
 const BG_COLOR_CLASS: Record<BlockColor, string> = {
-  default: "",
-  gray: "bg-gray-200/50 dark:bg-gray-700/50",
-  brown: "bg-amber-100 dark:bg-amber-900/40",
-  orange: "bg-orange-100 dark:bg-orange-900/40",
-  yellow: "bg-yellow-100 dark:bg-yellow-900/40",
-  green: "bg-emerald-100 dark:bg-emerald-900/40",
-  blue: "bg-blue-100 dark:bg-blue-900/40",
-  purple: "bg-purple-100 dark:bg-purple-900/40",
-  pink: "bg-pink-100 dark:bg-pink-900/40",
-  red: "bg-red-100 dark:bg-red-900/40",
+  default: '',
+  gray: 'bg-gray-200/50 dark:bg-gray-700/50',
+  brown: 'bg-amber-100 dark:bg-amber-900/40',
+  orange: 'bg-orange-100 dark:bg-orange-900/40',
+  yellow: 'bg-yellow-100 dark:bg-yellow-900/40',
+  green: 'bg-emerald-100 dark:bg-emerald-900/40',
+  blue: 'bg-blue-100 dark:bg-blue-900/40',
+  purple: 'bg-purple-100 dark:bg-purple-900/40',
+  pink: 'bg-pink-100 dark:bg-pink-900/40',
+  red: 'bg-red-100 dark:bg-red-900/40',
 };
 
 export function segmentTextColorClass(color: BlockColor | undefined): string {
-  if (!color || color === "default") return "";
+  if (!color || color === 'default') return '';
   return TEXT_COLOR_CLASS[color];
 }
 
 export function segmentBgColorClass(color: BlockColor | undefined): string {
-  if (!color || color === "default") return "";
+  if (!color || color === 'default') return '';
   return BG_COLOR_CLASS[color];
 }
 
@@ -120,58 +120,48 @@ export function segmentBgColorClass(color: BlockColor | undefined): string {
 function segmentsToHtml(segments: Segment[], placeholderEmpty: boolean): string {
   if (segments.length === 0 || segmentsToPlainText(segments).length === 0) {
     // Browsers collapse empty contenteditable when no <br> — give them one.
-    return placeholderEmpty ? "<br>" : "";
+    return placeholderEmpty ? '<br>' : '';
   }
-  return segments.map(segmentToHtml).join("");
+  return segments.map(segmentToHtml).join('');
 }
 
 function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function segmentToHtml(seg: Segment): string {
   const classes: string[] = [];
-  if (seg.bold) classes.push("font-bold");
-  if (seg.italic) classes.push("italic");
-  if (seg.underline) classes.push("underline");
-  if (seg.strike) classes.push("line-through");
+  if (seg.bold) classes.push('font-bold');
+  if (seg.italic) classes.push('italic');
+  if (seg.underline) classes.push('underline');
+  if (seg.strike) classes.push('line-through');
   if (seg.code)
-    classes.push(
-      "font-mono",
-      "text-[0.875em]",
-      "bg-muted",
-      "rounded",
-      "px-1",
-      "py-[1px]",
-    );
+    classes.push('font-mono', 'text-[0.875em]', 'bg-muted', 'rounded', 'px-1', 'py-[1px]');
   const textClass = segmentTextColorClass(seg.color);
   if (textClass) classes.push(textClass);
   const bgClass = segmentBgColorClass(seg.background);
   if (bgClass) classes.push(bgClass);
 
   const dataAttrs = [
-    seg.bold ? 'data-mark-bold="1"' : "",
-    seg.italic ? 'data-mark-italic="1"' : "",
-    seg.underline ? 'data-mark-underline="1"' : "",
-    seg.strike ? 'data-mark-strike="1"' : "",
-    seg.code ? 'data-mark-code="1"' : "",
-    seg.color ? `data-mark-color="${escapeHtml(seg.color)}"` : "",
-    seg.background ? `data-mark-bg="${escapeHtml(seg.background)}"` : "",
+    seg.bold ? 'data-mark-bold="1"' : '',
+    seg.italic ? 'data-mark-italic="1"' : '',
+    seg.underline ? 'data-mark-underline="1"' : '',
+    seg.strike ? 'data-mark-strike="1"' : '',
+    seg.code ? 'data-mark-code="1"' : '',
+    seg.color ? `data-mark-color="${escapeHtml(seg.color)}"` : '',
+    seg.background ? `data-mark-bg="${escapeHtml(seg.background)}"` : '',
   ]
     .filter(Boolean)
-    .join(" ");
+    .join(' ');
 
-  const safeText = escapeHtml(seg.text).replace(/\n/g, "<br>");
+  const safeText = escapeHtml(seg.text).replace(/\n/g, '<br>');
   if (seg.link) {
-    return `<a href="${escapeHtml(seg.link)}" data-segment="1" ${dataAttrs} class="${classes.concat(["text-primary", "underline"]).join(" ")}" target="_blank" rel="noopener noreferrer">${safeText}</a>`;
+    return `<a href="${escapeHtml(seg.link)}" data-segment="1" ${dataAttrs} class="${classes.concat(['text-primary', 'underline']).join(' ')}" target="_blank" rel="noopener noreferrer">${safeText}</a>`;
   }
   if (classes.length === 0 && !dataAttrs) {
     return `<span data-segment="1">${safeText}</span>`;
   }
-  return `<span data-segment="1" ${dataAttrs} class="${classes.join(" ")}">${safeText}</span>`;
+  return `<span data-segment="1" ${dataAttrs} class="${classes.join(' ')}">${safeText}</span>`;
 }
 
 /**
@@ -182,11 +172,7 @@ function segmentToHtml(seg: Segment): string {
  */
 function parseSegmentsFromDom(root: HTMLElement): Segment[] {
   const out: Segment[] = [];
-  const walker = document.createTreeWalker(
-    root,
-    NodeFilter.SHOW_TEXT,
-    null,
-  );
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
   let node = walker.nextNode();
   while (node) {
     const textNode = node as Text;
@@ -194,7 +180,7 @@ function parseSegmentsFromDom(root: HTMLElement): Segment[] {
     // Preserve <br> as newlines — but only when explicitly inserted (Enter).
     // The block editor splits blocks on Enter anyway, so newlines inside a
     // single block are rare.
-    text = text.replace(/ /g, " ");
+    text = text.replace(/ /g, ' ');
     if (text.length > 0) {
       const seg: Segment = { text };
       let el: HTMLElement | null = textNode.parentElement;
@@ -210,25 +196,25 @@ function parseSegmentsFromDom(root: HTMLElement): Segment[] {
 }
 
 function readMarksFromEl(el: HTMLElement, seg: Segment): void {
-  if (el.tagName === "A") {
-    const href = el.getAttribute("href");
+  if (el.tagName === 'A') {
+    const href = el.getAttribute('href');
     if (href) seg.link = href;
   }
-  if (el.dataset.markBold === "1") seg.bold = true;
-  if (el.dataset.markItalic === "1") seg.italic = true;
-  if (el.dataset.markUnderline === "1") seg.underline = true;
-  if (el.dataset.markStrike === "1") seg.strike = true;
-  if (el.dataset.markCode === "1") seg.code = true;
+  if (el.dataset.markBold === '1') seg.bold = true;
+  if (el.dataset.markItalic === '1') seg.italic = true;
+  if (el.dataset.markUnderline === '1') seg.underline = true;
+  if (el.dataset.markStrike === '1') seg.strike = true;
+  if (el.dataset.markCode === '1') seg.code = true;
   const color = el.dataset.markColor;
   if (color) seg.color = color as BlockColor;
   const bg = el.dataset.markBg;
   if (bg) seg.background = bg as BlockColor;
   // Older marks may have lived as classes — read those defensively.
   const cl = el.classList;
-  if (cl.contains("font-bold")) seg.bold = true;
-  if (cl.contains("italic")) seg.italic = true;
-  if (cl.contains("underline")) seg.underline = true;
-  if (cl.contains("line-through")) seg.strike = true;
+  if (cl.contains('font-bold')) seg.bold = true;
+  if (cl.contains('italic')) seg.italic = true;
+  if (cl.contains('underline')) seg.underline = true;
+  if (cl.contains('line-through')) seg.strike = true;
 }
 
 /**
@@ -254,7 +240,7 @@ function caretOffsetIn(root: HTMLElement, node: Node, offset: number): number {
     }
     if (cursor.nodeType === Node.TEXT_NODE) {
       count += (cursor as Text).data.length;
-    } else if ((cursor as HTMLElement).tagName === "BR") {
+    } else if ((cursor as HTMLElement).tagName === 'BR') {
       // <br> contributes nothing — block-edit splits on Enter anyway.
     }
     cursor = walker.nextNode();
@@ -270,10 +256,7 @@ function caretOffsetIn(root: HTMLElement, node: Node, offset: number): number {
  * Walk to a (node, offset) pair within `root` corresponding to a flat caret
  * offset. Used to restore selection after re-rendering.
  */
-function nodeOffsetFromCaret(
-  root: HTMLElement,
-  caret: number,
-): { node: Node; offset: number } {
+function nodeOffsetFromCaret(root: HTMLElement, caret: number): { node: Node; offset: number } {
   let remaining = caret;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
   let lastTextNode: Text | null = null;
@@ -318,14 +301,11 @@ function RichEditableWeb(props: RichEditableProps, ref: React.Ref<unknown>) {
   // Track last rendered text so we know when to overwrite DOM. Without this,
   // every controlled-prop update would blow away the caret position even when
   // the props originated from this very component's onChange.
-  const lastRenderedRef = React.useRef<string>("");
+  const lastRenderedRef = React.useRef<string>('');
   const lastRenderedSegments = React.useRef<Segment[] | null>(null);
 
-  const initialSegments = segments.length > 0
-    ? segments
-    : fallbackText
-      ? [{ text: fallbackText }]
-      : [];
+  const initialSegments =
+    segments.length > 0 ? segments : fallbackText ? [{ text: fallbackText }] : [];
 
   // Imperative handle (focus + selection control).
   const getSelectionRange = React.useCallback((): CaretRange | null => {
@@ -458,8 +438,8 @@ function RichEditableWeb(props: RichEditableProps, ref: React.Ref<unknown>) {
       lastRenderedSegments.current = newSegs;
       onChange({ segments: newSegs, text });
     };
-    el.addEventListener("input", handler);
-    return () => el.removeEventListener("input", handler);
+    el.addEventListener('input', handler);
+    return () => el.removeEventListener('input', handler);
   }, [onChange]);
 
   // Selection change observer — selectionchange fires globally so we filter.
@@ -471,8 +451,8 @@ function RichEditableWeb(props: RichEditableProps, ref: React.Ref<unknown>) {
       const range = getSelectionRange();
       if (range) onSelectionChange(range);
     };
-    document.addEventListener("selectionchange", handler);
-    return () => document.removeEventListener("selectionchange", handler);
+    document.addEventListener('selectionchange', handler);
+    return () => document.removeEventListener('selectionchange', handler);
   }, [getSelectionRange, onSelectionChange]);
 
   // Keydown — own Enter/Tab/Backspace defaults, then pass through to parent.
@@ -486,24 +466,24 @@ function RichEditableWeb(props: RichEditableProps, ref: React.Ref<unknown>) {
         if (consumed === true) return;
         if (ev.defaultPrevented) return;
       }
-      if (ev.key === "Enter" && !ev.shiftKey) {
+      if (ev.key === 'Enter' && !ev.shiftKey) {
         ev.preventDefault();
         if (onSubmit) onSubmit();
         return;
       }
-      if (ev.key === "Tab") {
+      if (ev.key === 'Tab') {
         ev.preventDefault();
         onIndent?.(ev.shiftKey);
         return;
       }
-      if (ev.key === "Backspace" && range.start === 0 && range.end === 0) {
+      if (ev.key === 'Backspace' && range.start === 0 && range.end === 0) {
         ev.preventDefault();
         onBackspaceAtStart?.();
         return;
       }
     };
-    el.addEventListener("keydown", handler);
-    return () => el.removeEventListener("keydown", handler);
+    el.addEventListener('keydown', handler);
+    return () => el.removeEventListener('keydown', handler);
   }, [getSelectionRange, onBackspaceAtStart, onIndent, onKeyDown, onSubmit]);
 
   // Paste — sanitize to plain text segments to avoid foreign markup.
@@ -512,7 +492,7 @@ function RichEditableWeb(props: RichEditableProps, ref: React.Ref<unknown>) {
     if (!el) return;
     const handler = (ev: ClipboardEvent) => {
       ev.preventDefault();
-      const data = ev.clipboardData?.getData("text/plain") ?? "";
+      const data = ev.clipboardData?.getData('text/plain') ?? '';
       // Insert as plain text at the caret. The browser doesn't reliably do
       // this for us in contenteditable=true once we override paste.
       const sel = window.getSelection();
@@ -525,22 +505,19 @@ function RichEditableWeb(props: RichEditableProps, ref: React.Ref<unknown>) {
       range.setEndAfter(text);
       sel.removeAllRanges();
       sel.addRange(range);
-      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event('input', { bubbles: true }));
     };
-    el.addEventListener("paste", handler);
-    return () => el.removeEventListener("paste", handler);
+    el.addEventListener('paste', handler);
+    return () => el.removeEventListener('paste', handler);
   }, []);
 
   const empty = segmentsToPlainText(segments).length === 0;
 
   return (
-    <View className={cn("relative", containerClassName)}>
+    <View className={cn('relative', containerClassName)}>
       {empty && placeholder ? (
-        <View
-          pointerEvents="none"
-          className="absolute inset-0 px-0 py-0"
-        >
-          <View className={cn("opacity-50", className)}>
+        <View pointerEvents="none" className="absolute inset-0 px-0 py-0">
+          <View className={cn('opacity-50', className)}>
             {placeholder ? <PlaceholderText>{placeholder}</PlaceholderText> : null}
           </View>
         </View>
@@ -551,10 +528,10 @@ function RichEditableWeb(props: RichEditableProps, ref: React.Ref<unknown>) {
         suppressContentEditableWarning
         spellCheck
         data-rich-editable
-        className={cn("outline-none whitespace-pre-wrap break-words", className)}
+        className={cn('outline-none whitespace-pre-wrap break-words', className)}
         style={{
-          minHeight: "1.5em",
-          caretColor: "currentColor",
+          minHeight: '1.5em',
+          caretColor: 'currentColor',
         }}
       />
     </View>
@@ -593,7 +570,7 @@ function RichEditableNative(props: RichEditableProps, ref: React.Ref<unknown>) {
   } = props;
   const { colors } = useColorScheme();
   const current = React.useMemo(
-    () => ensureSegments(segments, fallbackText ?? ""),
+    () => ensureSegments(segments, fallbackText ?? ''),
     [segments, fallbackText],
   );
   const text = React.useMemo(() => segmentsToPlainText(current), [current]);
@@ -607,9 +584,7 @@ function RichEditableNative(props: RichEditableProps, ref: React.Ref<unknown>) {
 
   const localRef = React.useRef<TextInput | null>(null);
   const selectionRef = React.useRef<CaretRange>({ start: 0, end: 0 });
-  const [contentHeight, setContentHeight] = React.useState<number | undefined>(
-    undefined,
-  );
+  const [contentHeight, setContentHeight] = React.useState<number | undefined>(undefined);
 
   React.useImperativeHandle(
     ref,
@@ -647,28 +622,22 @@ function RichEditableNative(props: RichEditableProps, ref: React.Ref<unknown>) {
     onChange({ segments: nextSegments, text: next });
   };
 
-  const handleKey = (
-    e: NativeSyntheticEvent<TextInputKeyPressEventData>,
-  ) => {
+  const handleKey = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
     const key = e.nativeEvent.key;
     const { start, end } = selectionRef.current;
-    if (key === "Backspace" && start === 0 && end === 0) {
+    if (key === 'Backspace' && start === 0 && end === 0) {
       onBackspaceAtStart?.();
       return;
     }
-    if (key === "Tab") onIndent?.(false);
+    if (key === 'Tab') onIndent?.(false);
   };
 
-  const handleSelection = (
-    e: NativeSyntheticEvent<TextInputSelectionChangeEventData>,
-  ) => {
+  const handleSelection = (e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
     selectionRef.current = e.nativeEvent.selection;
     onSelectionChange?.(e.nativeEvent.selection);
   };
 
-  const handleContentSize = (
-    e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>,
-  ) => {
+  const handleContentSize = (e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => {
     setContentHeight(e.nativeEvent.contentSize.height);
   };
 
@@ -688,17 +657,18 @@ function RichEditableNative(props: RichEditableProps, ref: React.Ref<unknown>) {
       multiline
       scrollEnabled={false}
       textAlignVertical="top"
-      className={cn("p-0 text-base text-foreground", className)}
+      className={cn('p-0 text-base text-foreground', className)}
       style={contentHeight ? { minHeight: contentHeight } : undefined}
       underlineColorAndroid="transparent"
     />
   );
 }
 
-const Forwarded = Platform.OS === "web"
-  ? React.forwardRef<unknown, RichEditableProps>(RichEditableWeb)
-  : React.forwardRef<unknown, RichEditableProps>(RichEditableNative);
+const Forwarded =
+  Platform.OS === 'web'
+    ? React.forwardRef<unknown, RichEditableProps>(RichEditableWeb)
+    : React.forwardRef<unknown, RichEditableProps>(RichEditableNative);
 
-Forwarded.displayName = "RichEditable";
+Forwarded.displayName = 'RichEditable';
 
 export const RichEditable = Forwarded;

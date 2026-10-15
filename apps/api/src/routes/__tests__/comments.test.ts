@@ -99,7 +99,11 @@ function makeReq(overrides: Record<string, unknown> = {}) {
 }
 
 function makeRes() {
-  const res: { status: ReturnType<typeof vi.fn>; json: ReturnType<typeof vi.fn>; headersSent: boolean } = {
+  const res: {
+    status: ReturnType<typeof vi.fn>;
+    json: ReturnType<typeof vi.fn>;
+    headersSent: boolean;
+  } = {
     status: vi.fn(),
     json: vi.fn(),
     headersSent: false,
@@ -125,10 +129,10 @@ describe('comments route', () => {
     vi.clearAllMocks();
     // Default: page exists, user is workspace member.
     mockPage.findPageById.mockResolvedValue({
-          id: PAGE_ID,
-          workspaceId: WORKSPACE_ID,
-          title: 'Sample page',
-        });
+      id: PAGE_ID,
+      workspaceId: WORKSPACE_ID,
+      title: 'Sample page',
+    });
   });
 
   describe('POST /pages/:pageId/comments', () => {
@@ -227,9 +231,9 @@ describe('comments route', () => {
 
     it('attaches block when blockId provided and belongs to the page', async () => {
       mockBlock.findBlockById.mockResolvedValue({
-            id: BLOCK_ID,
-            pageId: PAGE_ID,
-          });
+        id: BLOCK_ID,
+        pageId: PAGE_ID,
+      });
       mockComment.createComment.mockResolvedValue({
         id: randomId(),
         workspaceId: WORKSPACE_ID,
@@ -408,10 +412,7 @@ describe('comments route', () => {
 
       // The cascade is the repository's job now — and the database's, via
       // `comments.parentCommentId` — rather than an $or the route assembles.
-      expect(mockComment.deleteCommentThread).toHaveBeenCalledWith(
-        expect.anything(),
-        comment.id,
-      );
+      expect(mockComment.deleteCommentThread).toHaveBeenCalledWith(expect.anything(), comment.id);
       expect(mockComment.deleteComment).not.toHaveBeenCalled();
     });
 

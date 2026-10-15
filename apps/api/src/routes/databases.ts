@@ -55,18 +55,9 @@ import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
 import { checkWorkspaceAccess, ensureRole } from '../lib/workspace-access.js';
-import {
-  buildDefaultSchema,
-  NAME_PROPERTY_ID,
-} from '../lib/databases/schema-defaults.js';
-import {
-  parsePropertyValue,
-  serializeParsedValue,
-} from '../lib/databases/property-values.js';
-import {
-  evaluateFilter,
-  filterGroupSchema,
-} from '../lib/databases/filters.js';
+import { buildDefaultSchema, NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
+import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
+import { evaluateFilter, filterGroupSchema } from '../lib/databases/filters.js';
 import { compareBySorts } from '../lib/databases/sorts.js';
 import { evaluateFormulaExpression } from '../lib/databases/formula.js';
 import { resolveRollup } from '../lib/databases/rollups.js';
@@ -90,10 +81,7 @@ router.use(authenticateToken);
 const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 
 const propertyTypeSchema = z.enum(
-  DATABASE_PROPERTY_TYPES as readonly [
-    DatabasePropertyType,
-    ...DatabasePropertyType[],
-  ],
+  DATABASE_PROPERTY_TYPES as readonly [DatabasePropertyType, ...DatabasePropertyType[]],
 );
 
 const viewTypeSchema = z.enum(
@@ -129,9 +117,7 @@ const propertyConfigSchema = z
     twoWay: z.boolean().optional(),
     relationPropertyId: z.string().optional(),
     targetPropertyId: z.string().optional(),
-    function: z
-      .enum(['count', 'sum', 'avg', 'min', 'max', 'earliest', 'latest'])
-      .optional(),
+    function: z.enum(['count', 'sum', 'avg', 'min', 'max', 'earliest', 'latest']).optional(),
     expression: z.string().max(2000).optional(),
   })
   .strict();
@@ -199,12 +185,7 @@ const updateViewSchema = z
         }),
       )
       .optional(),
-    groupBy: z
-      .union([
-        z.object({ propertyId: z.string().min(1) }),
-        z.null(),
-      ])
-      .optional(),
+    groupBy: z.union([z.object({ propertyId: z.string().min(1) }), z.null()]).optional(),
     hiddenProperties: z.array(z.string()).optional(),
     frozenProperties: z.array(z.string()).optional(),
     pageSize: z.number().int().min(1).max(500).optional(),
@@ -237,9 +218,7 @@ const createViewSchema = z.object({
       }),
     )
     .optional(),
-  groupBy: z
-    .union([z.object({ propertyId: z.string().min(1) }), z.null()])
-    .optional(),
+  groupBy: z.union([z.object({ propertyId: z.string().min(1) }), z.null()]).optional(),
   hiddenProperties: z.array(z.string()).optional(),
   frozenProperties: z.array(z.string()).optional(),
   pageSize: z.number().int().min(1).max(500).optional(),
@@ -266,14 +245,8 @@ const listDatabasesQuerySchema = z.object({
 
 const listRowsQuerySchema = z.object({
   viewId: entityIdSchema.optional(),
-  cursor: z
-    .string()
-    .regex(/^\d+$/u)
-    .optional(),
-  pageSize: z
-    .string()
-    .regex(/^\d+$/u)
-    .optional(),
+  cursor: z.string().regex(/^\d+$/u).optional(),
+  pageSize: z.string().regex(/^\d+$/u).optional(),
   search: z.string().max(200).optional(),
 });
 
@@ -468,10 +441,7 @@ async function resolveDerivedProperties(
  * /:id/views/:viewId` will not remove the last one). This makes the storage
  * uphold an invariant the code already tried to hold; it does not invent one.
  */
-async function createDefaultViewForDatabase(
-  handle: PgHandle,
-  databaseId: string,
-): Promise<void> {
+async function createDefaultViewForDatabase(handle: PgHandle, databaseId: string): Promise<void> {
   await insertDatabaseView(handle, {
     databaseId,
     name: 'All',
@@ -575,8 +545,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.post(
   '/',
   (req, res, next) => {
-    const wsFromBody =
-      typeof req.body?.workspaceId === 'string' ? req.body.workspaceId : undefined;
+    const wsFromBody = typeof req.body?.workspaceId === 'string' ? req.body.workspaceId : undefined;
     if (wsFromBody && !req.headers['x-workspace-id']) {
       req.headers['x-workspace-id'] = wsFromBody;
     }
@@ -609,9 +578,7 @@ router.post(
           return;
         }
         if (parent.workspaceId !== workspaceId) {
-          res
-            .status(400)
-            .json({ error: 'Parent page is in a different workspace' });
+          res.status(400).json({ error: 'Parent page is in a different workspace' });
           return;
         }
       }
@@ -776,11 +743,7 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
     }
 
     db.propertiesSchema.properties.push(property);
-    const updated = await writeDatabaseSchema(
-      handle,
-      db.id,
-      normalizeSchema(db.propertiesSchema),
-    );
+    const updated = await writeDatabaseSchema(handle, db.id, normalizeSchema(db.propertiesSchema));
     if (!updated) {
       res.status(404).json({ error: 'Database not found' });
       return;
@@ -794,111 +757,94 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
   }
 });
 
-router.patch(
-  '/:id/properties/:propertyId',
-  async (req: Request, res: Response) => {
-    try {
-      const params = z
-        .object({ id: entityIdSchema, propertyId: z.string().min(1) })
-        .parse(req.params);
-      const body = updatePropertySchema.parse(req.body);
+router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) => {
+  try {
+    const params = z
+      .object({ id: entityIdSchema, propertyId: z.string().min(1) })
+      .parse(req.params);
+    const body = updatePropertySchema.parse(req.body);
 
-      const handle = getDb();
-      const db = await findDatabaseById(handle, params.id);
-      if (!db) {
-        res.status(404).json({ error: 'Database not found' });
-        return;
-      }
-      const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
-      if (!ok) return;
-
-      const idx = db.propertiesSchema.properties.findIndex(
-        (p) => p.id === params.propertyId,
-      );
-      if (idx === -1) {
-        res.status(404).json({ error: 'Property not found' });
-        return;
-      }
-      const current = db.propertiesSchema.properties[idx];
-      const next: DatabaseProperty = {
-        id: current.id,
-        name: body.name ?? current.name,
-        type: body.type ?? current.type,
-        config:
-          body.config !== undefined
-            ? (body.config as PropertyConfig)
-            : current.config,
-      };
-      db.propertiesSchema.properties[idx] = next;
-      const updated = await writeDatabaseSchema(
-        handle,
-        db.id,
-        normalizeSchema(db.propertiesSchema),
-      );
-      if (!updated) {
-        res.status(404).json({ error: 'Database not found' });
-        return;
-      }
-
-      res.json({ database: serializeDatabase(updated) });
-    } catch (error: unknown) {
-      if (handleZodError(error, res)) return;
-      log.general.error({ err: error }, 'Failed to update property');
-      res.status(500).json({ error: 'Failed to update property' });
+    const handle = getDb();
+    const db = await findDatabaseById(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
     }
-  },
-);
+    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    if (!ok) return;
 
-router.delete(
-  '/:id/properties/:propertyId',
-  async (req: Request, res: Response) => {
-    try {
-      const params = z
-        .object({ id: entityIdSchema, propertyId: z.string().min(1) })
-        .parse(req.params);
-
-      const handle = getDb();
-      const db = await findDatabaseById(handle, params.id);
-      if (!db) {
-        res.status(404).json({ error: 'Database not found' });
-        return;
-      }
-      const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
-      if (!ok) return;
-
-      if (params.propertyId === NAME_PROPERTY_ID) {
-        res.status(400).json({ error: 'Cannot delete the Name property' });
-        return;
-      }
-      const propertiesSchema: DatabaseSchema = {
-        properties: db.propertiesSchema.properties.filter(
-          (p) => p.id !== params.propertyId,
-        ),
-      };
-
-      // Dropping the property from the schema and from every row is one
-      // logical write: the schema is what tells a reader the key exists, so a
-      // failure between the two leaves values no reader can reach and no
-      // writer will overwrite.
-      const updated = await handle.transaction(async (tx) => {
-        const row = await writeDatabaseSchema(tx, db.id, propertiesSchema);
-        if (!row) return null;
-        await removePropertyFromDatabaseRows(tx, db.id, params.propertyId);
-        return row;
-      });
-      if (!updated) {
-        res.status(404).json({ error: 'Database not found' });
-        return;
-      }
-
-      res.json({ database: serializeDatabase(updated) });
-    } catch (error: unknown) {
-      if (handleZodError(error, res)) return;
-      log.general.error({ err: error }, 'Failed to delete property');
-      res.status(500).json({ error: 'Failed to delete property' });
+    const idx = db.propertiesSchema.properties.findIndex((p) => p.id === params.propertyId);
+    if (idx === -1) {
+      res.status(404).json({ error: 'Property not found' });
+      return;
     }
-  },
-);
+    const current = db.propertiesSchema.properties[idx];
+    const next: DatabaseProperty = {
+      id: current.id,
+      name: body.name ?? current.name,
+      type: body.type ?? current.type,
+      config: body.config !== undefined ? (body.config as PropertyConfig) : current.config,
+    };
+    db.propertiesSchema.properties[idx] = next;
+    const updated = await writeDatabaseSchema(handle, db.id, normalizeSchema(db.propertiesSchema));
+    if (!updated) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+
+    res.json({ database: serializeDatabase(updated) });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to update property');
+    res.status(500).json({ error: 'Failed to update property' });
+  }
+});
+
+router.delete('/:id/properties/:propertyId', async (req: Request, res: Response) => {
+  try {
+    const params = z
+      .object({ id: entityIdSchema, propertyId: z.string().min(1) })
+      .parse(req.params);
+
+    const handle = getDb();
+    const db = await findDatabaseById(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    if (!ok) return;
+
+    if (params.propertyId === NAME_PROPERTY_ID) {
+      res.status(400).json({ error: 'Cannot delete the Name property' });
+      return;
+    }
+    const propertiesSchema: DatabaseSchema = {
+      properties: db.propertiesSchema.properties.filter((p) => p.id !== params.propertyId),
+    };
+
+    // Dropping the property from the schema and from every row is one
+    // logical write: the schema is what tells a reader the key exists, so a
+    // failure between the two leaves values no reader can reach and no
+    // writer will overwrite.
+    const updated = await handle.transaction(async (tx) => {
+      const row = await writeDatabaseSchema(tx, db.id, propertiesSchema);
+      if (!row) return null;
+      await removePropertyFromDatabaseRows(tx, db.id, params.propertyId);
+      return row;
+    });
+    if (!updated) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+
+    res.json({ database: serializeDatabase(updated) });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to delete property');
+    res.status(500).json({ error: 'Failed to delete property' });
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Rows
@@ -944,17 +890,13 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       filtered = filtered.filter((r) => r.title.toLowerCase().includes(needle));
     }
     if (view?.filters && view.filters.filters.length > 0) {
-      filtered = filtered.filter((r) =>
-        evaluateFilter(view!.filters as Filter, r, propertyById),
-      );
+      filtered = filtered.filter((r) => evaluateFilter(view!.filters as Filter, r, propertyById));
     }
     if (view?.sorts && view.sorts.length > 0) {
       const compare = compareBySorts(view.sorts, propertyById);
       filtered = [...filtered].sort(compare);
     } else {
-      filtered = [...filtered].sort(
-        (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
-      );
+      filtered = [...filtered].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
     }
 
     const pageSize = Math.min(
@@ -964,17 +906,11 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     const cursorOffset = Number(query.cursor ?? '0');
     const slice = filtered.slice(cursorOffset, cursorOffset + pageSize);
     const nextCursor =
-      cursorOffset + pageSize < filtered.length
-        ? String(cursorOffset + pageSize)
-        : null;
+      cursorOffset + pageSize < filtered.length ? String(cursorOffset + pageSize) : null;
 
     const serializedRows = await Promise.all(
       slice.map(async (row) => {
-        const derived = await resolveDerivedProperties(
-          handle,
-          row,
-          db.propertiesSchema,
-        );
+        const derived = await resolveDerivedProperties(handle, row, db.propertiesSchema);
         return serializeRow(row, { derived });
       }),
     );
@@ -1040,11 +976,7 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
       properties: stored,
     });
 
-    const derived = await resolveDerivedProperties(
-      handle,
-      row,
-      db.propertiesSchema,
-    );
+    const derived = await resolveDerivedProperties(handle, row, db.propertiesSchema);
 
     res.status(201).json({ row: serializeRow(row, { derived }) });
   } catch (error: unknown) {
@@ -1127,118 +1059,108 @@ router.post('/:id/views', async (req: Request, res: Response) => {
   }
 });
 
-router.patch(
-  '/:id/views/:viewId',
-  async (req: Request, res: Response) => {
-    try {
-      const params = z
-        .object({ id: entityIdSchema, viewId: entityIdSchema })
-        .parse(req.params);
-      const body = updateViewSchema.parse(req.body);
+router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ id: entityIdSchema, viewId: entityIdSchema }).parse(req.params);
+    const body = updateViewSchema.parse(req.body);
 
-      const handle = getDb();
-      const db = await findDatabaseWorkspaceId(handle, params.id);
-      if (!db) {
-        res.status(404).json({ error: 'Database not found' });
-        return;
-      }
-      const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
-      if (!ok) return;
-
-      const view = await findViewById(handle, params.viewId, db.id);
-      if (!view) {
-        res.status(404).json({ error: 'View not found' });
-        return;
-      }
-
-      // Promoting a view and demoting the previous default(s) commit
-      // together — Mongo demoted first and saved the target afterwards, so a
-      // failure between the two left the database with no default at all.
-      const updated = await handle.transaction(async (tx) => {
-        if (body.isDefault) {
-          await demoteOtherDefaultViews(tx, db.id, view.id);
-        }
-        return updateDatabaseView(tx, view.id, {
-          name: body.name,
-          type: body.type,
-          isDefault: body.isDefault,
-          filters: body.filters,
-          sorts: body.sorts as ViewSort[] | undefined,
-          groupBy:
-            body.groupBy === undefined
-              ? undefined
-              : body.groupBy === null
-                ? null
-                : { propertyId: body.groupBy.propertyId },
-          hiddenProperties: body.hiddenProperties,
-          frozenProperties: body.frozenProperties,
-          pageSize: body.pageSize,
-          config: body.config as ViewConfig | undefined,
-          order: body.order,
-        });
-      });
-      if (!updated) {
-        res.status(404).json({ error: 'View not found' });
-        return;
-      }
-
-      res.json({ view: serializeView(updated) });
-    } catch (error: unknown) {
-      if (handleZodError(error, res)) return;
-      log.general.error({ err: error }, 'Failed to update view');
-      res.status(500).json({ error: 'Failed to update view' });
+    const handle = getDb();
+    const db = await findDatabaseWorkspaceId(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
     }
-  },
-);
+    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    if (!ok) return;
 
-router.delete(
-  '/:id/views/:viewId',
-  async (req: Request, res: Response) => {
-    try {
-      const params = z
-        .object({ id: entityIdSchema, viewId: entityIdSchema })
-        .parse(req.params);
-
-      const handle = getDb();
-      const db = await findDatabaseWorkspaceId(handle, params.id);
-      if (!db) {
-        res.status(404).json({ error: 'Database not found' });
-        return;
-      }
-      const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
-      if (!ok) return;
-
-      const view = await findViewById(handle, params.viewId, db.id);
-      if (!view) {
-        res.status(404).json({ error: 'View not found' });
-        return;
-      }
-
-      // Don't allow deleting the last view — promote another to default
-      // if we're removing the default.
-      const total = await countViews(handle, db.id);
-      if (total <= 1) {
-        res.status(400).json({ error: 'Cannot delete the last view' });
-        return;
-      }
-      // The delete and the promotion commit together: between them the
-      // database has no default view, and `GET /:id/rows` resolves its view
-      // from exactly that flag.
-      await handle.transaction(async (tx) => {
-        await deleteDatabaseView(tx, view.id);
-        if (!view.isDefault) return;
-        const fallback = await findFirstViewByOrder(tx, db.id);
-        if (fallback) {
-          await updateDatabaseView(tx, fallback.id, { isDefault: true });
-        }
-      });
-      res.json({ success: true });
-    } catch (error: unknown) {
-      if (handleZodError(error, res)) return;
-      log.general.error({ err: error }, 'Failed to delete view');
-      res.status(500).json({ error: 'Failed to delete view' });
+    const view = await findViewById(handle, params.viewId, db.id);
+    if (!view) {
+      res.status(404).json({ error: 'View not found' });
+      return;
     }
-  },
-);
+
+    // Promoting a view and demoting the previous default(s) commit
+    // together — Mongo demoted first and saved the target afterwards, so a
+    // failure between the two left the database with no default at all.
+    const updated = await handle.transaction(async (tx) => {
+      if (body.isDefault) {
+        await demoteOtherDefaultViews(tx, db.id, view.id);
+      }
+      return updateDatabaseView(tx, view.id, {
+        name: body.name,
+        type: body.type,
+        isDefault: body.isDefault,
+        filters: body.filters,
+        sorts: body.sorts as ViewSort[] | undefined,
+        groupBy:
+          body.groupBy === undefined
+            ? undefined
+            : body.groupBy === null
+              ? null
+              : { propertyId: body.groupBy.propertyId },
+        hiddenProperties: body.hiddenProperties,
+        frozenProperties: body.frozenProperties,
+        pageSize: body.pageSize,
+        config: body.config as ViewConfig | undefined,
+        order: body.order,
+      });
+    });
+    if (!updated) {
+      res.status(404).json({ error: 'View not found' });
+      return;
+    }
+
+    res.json({ view: serializeView(updated) });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to update view');
+    res.status(500).json({ error: 'Failed to update view' });
+  }
+});
+
+router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ id: entityIdSchema, viewId: entityIdSchema }).parse(req.params);
+
+    const handle = getDb();
+    const db = await findDatabaseWorkspaceId(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    if (!ok) return;
+
+    const view = await findViewById(handle, params.viewId, db.id);
+    if (!view) {
+      res.status(404).json({ error: 'View not found' });
+      return;
+    }
+
+    // Don't allow deleting the last view — promote another to default
+    // if we're removing the default.
+    const total = await countViews(handle, db.id);
+    if (total <= 1) {
+      res.status(400).json({ error: 'Cannot delete the last view' });
+      return;
+    }
+    // The delete and the promotion commit together: between them the
+    // database has no default view, and `GET /:id/rows` resolves its view
+    // from exactly that flag.
+    await handle.transaction(async (tx) => {
+      await deleteDatabaseView(tx, view.id);
+      if (!view.isDefault) return;
+      const fallback = await findFirstViewByOrder(tx, db.id);
+      if (fallback) {
+        await updateDatabaseView(tx, fallback.id, { isDefault: true });
+      }
+    });
+    res.json({ success: true });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to delete view');
+    res.status(500).json({ error: 'Failed to delete view' });
+  }
+});
 
 export default router;

@@ -96,10 +96,7 @@ function toCommentRow(row: typeof comments.$inferSelect): CommentRow {
  * order by creation time — uuidv7 is not monotonic within a millisecond — it
  * only makes the result STABLE, which is what the thread grouping needs.
  */
-export async function listCommentsByPage(
-  db: NiloDatabase,
-  pageId: string,
-): Promise<CommentRow[]> {
+export async function listCommentsByPage(db: NiloDatabase, pageId: string): Promise<CommentRow[]> {
   const rows = await db
     .select()
     .from(comments)
@@ -121,10 +118,7 @@ export async function listCommentsByBlock(
   return rows.map(toCommentRow);
 }
 
-export async function findCommentById(
-  db: NiloDatabase,
-  id: string,
-): Promise<CommentRow | null> {
+export async function findCommentById(db: NiloDatabase, id: string): Promise<CommentRow | null> {
   const rows = await db.select().from(comments).where(eq(comments.id, id)).limit(1);
   const row = rows[0];
   return row ? toCommentRow(row) : null;
@@ -191,11 +185,7 @@ export async function setCommentResolvedAt(
   id: string,
   resolvedAt: Date | null,
 ): Promise<CommentRow | null> {
-  const rows = await db
-    .update(comments)
-    .set({ resolvedAt })
-    .where(eq(comments.id, id))
-    .returning();
+  const rows = await db.update(comments).set({ resolvedAt }).where(eq(comments.id, id)).returning();
   const row = rows[0];
   return row ? toCommentRow(row) : null;
 }
@@ -209,10 +199,7 @@ export async function setCommentResolvedAt(
  * alone: the count then covers the whole thread, and deleting a REPLY (which
  * has no children) goes through the same call with the same meaning.
  */
-export async function deleteCommentThread(
-  db: NiloDatabase,
-  id: string,
-): Promise<number> {
+export async function deleteCommentThread(db: NiloDatabase, id: string): Promise<number> {
   const rows = await db
     .delete(comments)
     .where(or(eq(comments.id, id), eq(comments.parentCommentId, id)))
@@ -236,10 +223,7 @@ export async function deleteComment(db: NiloDatabase, id: string): Promise<numbe
  * open. This is the same question asked of the database, for the callers that
  * only need the roots — it is not wired in by this change.
  */
-export async function listOpenThreadRoots(
-  db: NiloDatabase,
-  pageId: string,
-): Promise<CommentRow[]> {
+export async function listOpenThreadRoots(db: NiloDatabase, pageId: string): Promise<CommentRow[]> {
   const rows = await db
     .select()
     .from(comments)

@@ -57,7 +57,9 @@ describe('translation catalogs', () => {
   });
 
   it('have no empty strings', () => {
-    const empty = [...enKeys, ...esKeys].filter(([, v]) => typeof v === 'string' && v.trim() === '');
+    const empty = [...enKeys, ...esKeys].filter(
+      ([, v]) => typeof v === 'string' && v.trim() === '',
+    );
     expect(empty).toEqual([]);
   });
 

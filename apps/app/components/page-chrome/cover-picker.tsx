@@ -1,4 +1,4 @@
-import * as React from "react";
+import * as React from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -7,17 +7,13 @@ import {
   ScrollView,
   TextInput,
   View,
-} from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import { Trash2, X } from "lucide-react-native";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useTranslation } from "@/hooks/useTranslation";
+} from 'react-native';
+import { useQuery } from '@tanstack/react-query';
+import { Trash2, X } from 'lucide-react-native';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import {
   COVER_COLORS,
   COVER_GRADIENTS,
@@ -25,10 +21,10 @@ import {
   encodeCoverImage,
   encodeGradient,
   encodeUnsplash,
-} from "./cover-value";
-import { CoverDisplay } from "./cover-display";
+} from './cover-value';
+import { CoverDisplay } from './cover-display';
 
-type Tab = "gradient" | "color" | "unsplash" | "upload" | "link";
+type Tab = 'gradient' | 'color' | 'unsplash' | 'upload' | 'link';
 
 interface CoverPickerProps {
   open: boolean;
@@ -43,7 +39,7 @@ interface CoverPickerProps {
  * one we show a friendly disabled state.
  */
 export function CoverPicker({ open, onOpenChange, onSelect }: CoverPickerProps) {
-  const [tab, setTab] = React.useState<Tab>("gradient");
+  const [tab, setTab] = React.useState<Tab>('gradient');
   const { t } = useTranslation();
 
   const handleSelect = React.useCallback(
@@ -58,11 +54,11 @@ export function CoverPicker({ open, onOpenChange, onSelect }: CoverPickerProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl gap-3 p-4" showCloseButton={false}>
         <View className="flex-row items-center justify-between">
-          <DialogTitle>{t("pages.coverPicker.title")}</DialogTitle>
+          <DialogTitle>{t('pages.coverPicker.title')}</DialogTitle>
           <Pressable
             onPress={() => onOpenChange(false)}
             className="h-8 w-8 items-center justify-center rounded-md hover:bg-muted"
-            accessibilityLabel={t("common.close")}
+            accessibilityLabel={t('common.close')}
           >
             <X size={16} className="text-muted-foreground" />
           </Pressable>
@@ -70,43 +66,41 @@ export function CoverPicker({ open, onOpenChange, onSelect }: CoverPickerProps) 
 
         <View className="flex-row items-center gap-2">
           <CoverTabButton
-            label={t("pages.coverPicker.tabs.gallery")}
-            active={tab === "gradient"}
-            onPress={() => setTab("gradient")}
+            label={t('pages.coverPicker.tabs.gallery')}
+            active={tab === 'gradient'}
+            onPress={() => setTab('gradient')}
           />
           <CoverTabButton
-            label={t("pages.coverPicker.tabs.colors")}
-            active={tab === "color"}
-            onPress={() => setTab("color")}
+            label={t('pages.coverPicker.tabs.colors')}
+            active={tab === 'color'}
+            onPress={() => setTab('color')}
           />
           <CoverTabButton
             label="Unsplash"
-            active={tab === "unsplash"}
-            onPress={() => setTab("unsplash")}
+            active={tab === 'unsplash'}
+            onPress={() => setTab('unsplash')}
           />
           <CoverTabButton
-            label={t("pages.coverPicker.tabs.link")}
-            active={tab === "link"}
-            onPress={() => setTab("link")}
+            label={t('pages.coverPicker.tabs.link')}
+            active={tab === 'link'}
+            onPress={() => setTab('link')}
           />
           <CoverTabButton
-            label={t("pages.coverPicker.tabs.upload")}
-            active={tab === "upload"}
-            onPress={() => setTab("upload")}
+            label={t('pages.coverPicker.tabs.upload')}
+            active={tab === 'upload'}
+            onPress={() => setTab('upload')}
           />
           <View className="flex-1" />
           <RemoveCoverButton onPress={() => handleSelect(null)} />
         </View>
 
-        {tab === "gradient" ? (
-          <GradientGrid
-            onSelect={(idx) => handleSelect(encodeGradient(idx))}
-          />
-        ) : tab === "color" ? (
+        {tab === 'gradient' ? (
+          <GradientGrid onSelect={(idx) => handleSelect(encodeGradient(idx))} />
+        ) : tab === 'color' ? (
           <ColorGrid onSelect={(hex) => handleSelect(encodeColor(hex))} />
-        ) : tab === "unsplash" ? (
+        ) : tab === 'unsplash' ? (
           <UnsplashTab onSelect={(url) => handleSelect(encodeUnsplash(url))} />
-        ) : tab === "link" ? (
+        ) : tab === 'link' ? (
           <LinkTab onSelect={(url) => handleSelect(encodeCoverImage(url))} />
         ) : (
           <UploadTab onSelect={(url) => handleSelect(encodeCoverImage(url))} />
@@ -130,16 +124,12 @@ function CoverTabButton({ label, active, onPress }: CoverTabButtonProps) {
     <Pressable
       onPress={onPress}
       className={
-        active
-          ? "rounded-md bg-muted px-3 py-1.5"
-          : "rounded-md px-3 py-1.5 hover:bg-muted/60"
+        active ? 'rounded-md bg-muted px-3 py-1.5' : 'rounded-md px-3 py-1.5 hover:bg-muted/60'
       }
     >
       <Text
         className={
-          active
-            ? "text-sm font-semibold text-foreground"
-            : "text-sm text-muted-foreground"
+          active ? 'text-sm font-semibold text-foreground' : 'text-sm text-muted-foreground'
         }
       >
         {label}
@@ -154,11 +144,11 @@ function RemoveCoverButton({ onPress }: { onPress: () => void }) {
   return (
     <Pressable
       onPress={onPress}
-      accessibilityLabel={t("pages.coverPicker.removeCover")}
+      accessibilityLabel={t('pages.coverPicker.removeCover')}
       className="h-8 flex-row items-center gap-1 rounded-md border border-border px-2 hover:bg-destructive/10"
     >
       <Trash2 size={14} color={colors.foreground} />
-      <Text className="text-xs font-medium text-foreground">{t("pages.coverPicker.remove")}</Text>
+      <Text className="text-xs font-medium text-foreground">{t('pages.coverPicker.remove')}</Text>
     </Pressable>
   );
 }
@@ -177,13 +167,9 @@ function GradientGrid({ onSelect }: { onSelect: (idx: number) => void }) {
             key={g.name}
             onPress={() => onSelect(idx)}
             className="w-40 overflow-hidden rounded-md border border-border hover:opacity-90"
-            accessibilityLabel={t("pages.coverPicker.gradientLabel", { name: g.label() })}
+            accessibilityLabel={t('pages.coverPicker.gradientLabel', { name: g.label() })}
           >
-            <CoverDisplay
-              value={`gradient:${idx}`}
-              height={70}
-              preview
-            />
+            <CoverDisplay value={`gradient:${idx}`} height={70} preview />
             <View className="px-2 py-1">
               <Text className="text-xs text-muted-foreground">{g.label()}</Text>
             </View>
@@ -208,7 +194,7 @@ function ColorGrid({ onSelect }: { onSelect: (hex: string) => void }) {
             key={c.hex}
             onPress={() => onSelect(c.hex)}
             className="w-40 overflow-hidden rounded-md border border-border hover:opacity-90"
-            accessibilityLabel={t("pages.coverPicker.colorLabel", { name: c.label() })}
+            accessibilityLabel={t('pages.coverPicker.colorLabel', { name: c.label() })}
           >
             <CoverDisplay value={`color:${c.hex}`} height={70} preview />
             <View className="px-2 py-1">
@@ -232,14 +218,11 @@ interface UnsplashImage {
   author: string;
 }
 
-async function searchUnsplash(
-  query: string,
-  accessKey: string,
-): Promise<UnsplashImage[]> {
-  const url = new URL("https://api.unsplash.com/search/photos");
-  url.searchParams.set("query", query);
-  url.searchParams.set("per_page", "24");
-  url.searchParams.set("orientation", "landscape");
+async function searchUnsplash(query: string, accessKey: string): Promise<UnsplashImage[]> {
+  const url = new URL('https://api.unsplash.com/search/photos');
+  url.searchParams.set('query', query);
+  url.searchParams.set('per_page', '24');
+  url.searchParams.set('orientation', 'landscape');
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Client-ID ${accessKey}` },
   });
@@ -261,14 +244,14 @@ async function searchUnsplash(
 
 function UnsplashTab({ onSelect }: { onSelect: (url: string) => void }) {
   const accessKey = process.env.EXPO_PUBLIC_UNSPLASH_ACCESS_KEY;
-  const [query, setQuery] = React.useState("");
-  const [submitted, setSubmitted] = React.useState("nature");
+  const [query, setQuery] = React.useState('');
+  const [submitted, setSubmitted] = React.useState('nature');
   const { t } = useTranslation();
 
   const { data, isLoading, error } = useQuery<UnsplashImage[]>({
-    queryKey: ["unsplash", submitted],
+    queryKey: ['unsplash', submitted],
     queryFn: () => {
-      if (!accessKey) throw new Error("Unsplash key not configured");
+      if (!accessKey) throw new Error('Unsplash key not configured');
       return searchUnsplash(submitted, accessKey);
     },
     enabled: Boolean(accessKey),
@@ -279,15 +262,15 @@ function UnsplashTab({ onSelect }: { onSelect: (url: string) => void }) {
     return (
       <View className="items-center justify-center px-2 py-12">
         <Text className="text-sm text-muted-foreground">
-          {t("pages.coverPicker.unsplashNotConfigured")}
+          {t('pages.coverPicker.unsplashNotConfigured')}
         </Text>
       </View>
     );
   }
 
-  const handleSubmit = () => setSubmitted(query.trim() || "nature");
+  const handleSubmit = () => setSubmitted(query.trim() || 'nature');
   const errorMessage =
-    error instanceof Error ? error.message : error ? t("pages.coverPicker.searchFailed") : null;
+    error instanceof Error ? error.message : error ? t('pages.coverPicker.searchFailed') : null;
 
   return (
     <View className="gap-2">
@@ -296,22 +279,20 @@ function UnsplashTab({ onSelect }: { onSelect: (url: string) => void }) {
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={handleSubmit}
-          placeholder={t("pages.coverPicker.searchUnsplash")}
+          placeholder={t('pages.coverPicker.searchUnsplash')}
           className="flex-1 text-sm text-foreground"
           autoCapitalize="none"
           style={
-            Platform.OS === "web"
-              ? { outlineWidth: 0, borderWidth: 0, padding: 0 }
-              : undefined
+            Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined
           }
         />
         <Pressable
           onPress={handleSubmit}
           className="rounded-md bg-primary px-3 py-1.5"
-          accessibilityLabel={t("pages.coverPicker.searchUnsplash")}
+          accessibilityLabel={t('pages.coverPicker.searchUnsplash')}
         >
           <Text className="text-xs font-semibold text-primary-foreground">
-            {t("pages.coverPicker.search")}
+            {t('pages.coverPicker.search')}
           </Text>
         </Pressable>
       </View>
@@ -320,9 +301,7 @@ function UnsplashTab({ onSelect }: { onSelect: (url: string) => void }) {
           <ActivityIndicator />
         </View>
       ) : errorMessage ? (
-        <Text className="px-2 py-6 text-center text-sm text-destructive">
-          {errorMessage}
-        </Text>
+        <Text className="px-2 py-6 text-center text-sm text-destructive">{errorMessage}</Text>
       ) : (
         <ScrollView className="max-h-80">
           <View className="flex-row flex-wrap gap-2 pb-2">
@@ -331,17 +310,15 @@ function UnsplashTab({ onSelect }: { onSelect: (url: string) => void }) {
                 key={img.id}
                 onPress={() => onSelect(img.url)}
                 className="w-40 overflow-hidden rounded-md border border-border hover:opacity-90"
-                accessibilityLabel={t("pages.coverPicker.photoBy", { author: img.author })}
+                accessibilityLabel={t('pages.coverPicker.photoBy', { author: img.author })}
               >
                 <Image
                   source={{ uri: img.thumb }}
-                  style={{ width: "100%", height: 70 }}
+                  style={{ width: '100%', height: 70 }}
                   resizeMode="cover"
                 />
                 <View className="px-2 py-1">
-                  <Text className="text-xs text-muted-foreground">
-                    {img.author}
-                  </Text>
+                  <Text className="text-xs text-muted-foreground">{img.author}</Text>
                 </View>
               </Pressable>
             ))}
@@ -357,13 +334,11 @@ function UnsplashTab({ onSelect }: { onSelect: (url: string) => void }) {
  * ---------------------------------------------------------------- */
 
 function LinkTab({ onSelect }: { onSelect: (url: string) => void }) {
-  const [url, setUrl] = React.useState("");
+  const [url, setUrl] = React.useState('');
   const { t } = useTranslation();
   return (
     <View className="gap-3 px-1 py-4">
-      <Text className="text-sm text-foreground">
-        {t("pages.coverPicker.linkHint")}
-      </Text>
+      <Text className="text-sm text-foreground">{t('pages.coverPicker.linkHint')}</Text>
       <View className="flex-row items-center gap-2 rounded-lg border border-border px-3 py-1.5">
         <TextInput
           value={url}
@@ -373,9 +348,7 @@ function LinkTab({ onSelect }: { onSelect: (url: string) => void }) {
           autoCapitalize="none"
           autoCorrect={false}
           style={
-            Platform.OS === "web"
-              ? { outlineWidth: 0, borderWidth: 0, padding: 0 }
-              : undefined
+            Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined
           }
         />
       </View>
@@ -386,10 +359,10 @@ function LinkTab({ onSelect }: { onSelect: (url: string) => void }) {
           onSelect(trimmed);
         }}
         className="self-start rounded-md bg-primary px-4 py-2"
-        accessibilityLabel={t("pages.coverPicker.useImageLink")}
+        accessibilityLabel={t('pages.coverPicker.useImageLink')}
       >
         <Text className="text-sm font-medium text-primary-foreground">
-          {t("pages.coverPicker.useImage")}
+          {t('pages.coverPicker.useImage')}
         </Text>
       </Pressable>
     </View>
@@ -407,20 +380,16 @@ function UploadTab({ onSelect }: { onSelect: (url: string) => void }) {
   // surface the message clearly so users know to use Link in the interim.
   return (
     <View className="items-center gap-2 px-2 py-12">
-      <Text className="text-sm text-foreground">
-        {t("pages.coverPicker.uploadSoon")}
-      </Text>
-      <Text className="text-xs text-muted-foreground">
-        {t("pages.coverPicker.uploadUseLink")}
-      </Text>
+      <Text className="text-sm text-foreground">{t('pages.coverPicker.uploadSoon')}</Text>
+      <Text className="text-xs text-muted-foreground">{t('pages.coverPicker.uploadUseLink')}</Text>
       <Pressable
         onPress={() => {
           // No-op; tab acts as messaging. Provide an explicit handler so the
           // `onSelect` prop's purpose stays clear if someone wires a button
           // later.
-          onSelect("");
+          onSelect('');
         }}
-        accessibilityLabel={t("pages.coverPicker.acknowledgeUpload")}
+        accessibilityLabel={t('pages.coverPicker.acknowledgeUpload')}
         className="h-0 w-0 opacity-0"
       />
     </View>

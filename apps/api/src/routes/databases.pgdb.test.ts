@@ -128,11 +128,7 @@ interface ApiResponse {
  * used `fetch` still holds handles after `afterAll`. One connection per
  * request, closed with the response, leaves nothing behind.
  */
-async function api(
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<ApiResponse> {
+async function api(method: string, path: string, body?: unknown): Promise<ApiResponse> {
   const payload = body === undefined ? undefined : JSON.stringify(body);
   return new Promise<ApiResponse>((resolve, reject) => {
     const request = httpRequest(
@@ -186,9 +182,7 @@ function asArray(value: unknown): unknown[] {
 }
 
 /** Create a database through the route and return its id. */
-async function createDatabase(
-  overrides: Record<string, unknown> = {},
-): Promise<string> {
+async function createDatabase(overrides: Record<string, unknown> = {}): Promise<string> {
   const created = await api('POST', '/api/databases', {
     workspaceId: ctx.workspaceId,
     name: 'Tasks',
@@ -248,8 +242,7 @@ describe('id contract', () => {
     });
     expect(row.status).toBe(201);
 
-    const uuidV7 =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+    const uuidV7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
     expect(databaseId).toMatch(uuidV7);
     expect(idOf(asArray(created.body.views)[0])).toMatch(uuidV7);
     expect(idOf(row.body.row)).toMatch(uuidV7);
@@ -357,10 +350,7 @@ describe('GET /api/databases', () => {
     const archivedId = await createDatabase({ name: 'Archived' });
     await api('PATCH', `/api/databases/${archivedId}`, { archived: true });
 
-    const active = await api(
-      'GET',
-      `/api/databases?workspaceId=${ctx.workspaceId}`,
-    );
+    const active = await api('GET', `/api/databases?workspaceId=${ctx.workspaceId}`);
     const activeIds = asArray(active.body.databases).map((d) => idOf(d));
     expect(activeIds).toContain(listedId);
     expect(activeIds).not.toContain(archivedId);
@@ -401,10 +391,7 @@ describe('DELETE /api/databases/:id', () => {
     expect(deleted.status).toBe(200);
     expect(asRecord(deleted.body.database).archived).toBe(true);
 
-    const rows = await db
-      .select()
-      .from(pages)
-      .where(eq(pages.databaseId, databaseId));
+    const rows = await db.select().from(pages).where(eq(pages.databaseId, databaseId));
     expect(rows).toHaveLength(1);
   });
 
@@ -414,34 +401,21 @@ describe('DELETE /api/databases/:id', () => {
       title: 'Doomed',
     });
     const rowId = idOf(row.body.row);
-    await db
-      .insert(blocks)
-      .values({ pageId: rowId, type: 'paragraph', order: 0 });
+    await db.insert(blocks).values({ pageId: rowId, type: 'paragraph', order: 0 });
 
     // Positive control: everything this asserts the absence of is present now.
-    expect(
-      await db.select().from(blocks).where(eq(blocks.pageId, rowId)),
-    ).toHaveLength(1);
+    expect(await db.select().from(blocks).where(eq(blocks.pageId, rowId))).toHaveLength(1);
 
     const deleted = await api('DELETE', `/api/databases/${databaseId}?hard=true`);
     expect(deleted.status).toBe(200);
     expect(deleted.body.success).toBe(true);
 
+    expect(await db.select().from(pages).where(eq(pages.databaseId, databaseId))).toHaveLength(0);
+    expect(await db.select().from(blocks).where(eq(blocks.pageId, rowId))).toHaveLength(0);
     expect(
-      await db.select().from(pages).where(eq(pages.databaseId, databaseId)),
+      await db.select().from(databaseViews).where(eq(databaseViews.databaseId, databaseId)),
     ).toHaveLength(0);
-    expect(
-      await db.select().from(blocks).where(eq(blocks.pageId, rowId)),
-    ).toHaveLength(0);
-    expect(
-      await db
-        .select()
-        .from(databaseViews)
-        .where(eq(databaseViews.databaseId, databaseId)),
-    ).toHaveLength(0);
-    expect(
-      await db.select().from(databases).where(eq(databases.id, databaseId)),
-    ).toHaveLength(0);
+    expect(await db.select().from(databases).where(eq(databases.id, databaseId))).toHaveLength(0);
   });
 
   it('refuses a hard delete below owner role and destroys nothing', async () => {
@@ -450,21 +424,14 @@ describe('DELETE /api/databases/:id', () => {
 
     ctx.role = 'editor';
     try {
-      const refused = await api(
-        'DELETE',
-        `/api/databases/${databaseId}?hard=true`,
-      );
+      const refused = await api('DELETE', `/api/databases/${databaseId}?hard=true`);
       expect(refused.status).toBe(403);
     } finally {
       ctx.role = 'owner';
     }
 
-    expect(
-      await db.select().from(databases).where(eq(databases.id, databaseId)),
-    ).toHaveLength(1);
-    expect(
-      await db.select().from(pages).where(eq(pages.databaseId, databaseId)),
-    ).toHaveLength(1);
+    expect(await db.select().from(databases).where(eq(databases.id, databaseId))).toHaveLength(1);
+    expect(await db.select().from(pages).where(eq(pages.databaseId, databaseId))).toHaveLength(1);
   });
 });
 
@@ -482,70 +449,47 @@ describe('properties', () => {
     });
     expect(added.status).toBe(201);
 
-    const properties = asArray(
-      asRecord(asRecord(added.body.database).schema).properties,
-    ).map((p) => asRecord(p));
+    const properties = asArray(asRecord(asRecord(added.body.database).schema).properties).map((p) =>
+      asRecord(p),
+    );
     const priority = properties.find((p) => p.name === 'Priority');
     expect(priority).toBeDefined();
-    const options = asArray(asRecord(priority?.config).options).map((o) =>
-      asRecord(o),
-    );
+    const options = asArray(asRecord(priority?.config).options).map((o) => asRecord(o));
     expect(typeof options[0].id).toBe('string');
     expect(options[0].color).toBe('default');
   });
 
   it('409s a duplicate property id without touching the stored schema', async () => {
     const databaseId = await createDatabase();
-    const conflict = await api(
-      'POST',
-      `/api/databases/${databaseId}/properties`,
-      { id: 'name', name: 'Name again', type: 'text' },
-    );
+    const conflict = await api('POST', `/api/databases/${databaseId}/properties`, {
+      id: 'name',
+      name: 'Name again',
+      type: 'text',
+    });
     expect(conflict.status).toBe(409);
 
-    const [stored] = await db
-      .select()
-      .from(databases)
-      .where(eq(databases.id, databaseId));
-    expect(stored.propertiesSchema.properties.map((p) => p.id)).toEqual([
-      'name',
-      'status',
-    ]);
+    const [stored] = await db.select().from(databases).where(eq(databases.id, databaseId));
+    expect(stored.propertiesSchema.properties.map((p) => p.id)).toEqual(['name', 'status']);
   });
 
   it('renames a property in place', async () => {
     const databaseId = await createDatabase();
-    const renamed = await api(
-      'PATCH',
-      `/api/databases/${databaseId}/properties/status`,
-      { name: 'Stage' },
-    );
+    const renamed = await api('PATCH', `/api/databases/${databaseId}/properties/status`, {
+      name: 'Stage',
+    });
     expect(renamed.status).toBe(200);
-    const [stored] = await db
-      .select()
-      .from(databases)
-      .where(eq(databases.id, databaseId));
-    const status = stored.propertiesSchema.properties.find(
-      (p) => p.id === 'status',
-    );
+    const [stored] = await db.select().from(databases).where(eq(databases.id, databaseId));
+    const status = stored.propertiesSchema.properties.find((p) => p.id === 'status');
     expect(status?.name).toBe('Stage');
     expect(status?.type).toBe('status');
   });
 
   it('refuses to delete the Name property', async () => {
     const databaseId = await createDatabase();
-    const refused = await api(
-      'DELETE',
-      `/api/databases/${databaseId}/properties/name`,
-    );
+    const refused = await api('DELETE', `/api/databases/${databaseId}/properties/name`);
     expect(refused.status).toBe(400);
-    const [stored] = await db
-      .select()
-      .from(databases)
-      .where(eq(databases.id, databaseId));
-    expect(
-      stored.propertiesSchema.properties.some((p) => p.id === 'name'),
-    ).toBe(true);
+    const [stored] = await db.select().from(databases).where(eq(databases.id, databaseId));
+    expect(stored.propertiesSchema.properties.some((p) => p.id === 'name')).toBe(true);
   });
 
   it('drops the key from the schema and from every row that carries it', async () => {
@@ -561,38 +505,21 @@ describe('properties', () => {
     const withoutValueId = idOf(withoutValue.body.row);
 
     // Positive control: the key is there to be removed.
-    const [before] = await db
-      .select()
-      .from(pages)
-      .where(eq(pages.id, withValueId));
+    const [before] = await db.select().from(pages).where(eq(pages.id, withValueId));
     expect(Object.keys(before.properties)).toContain('status');
 
-    const dropped = await api(
-      'DELETE',
-      `/api/databases/${databaseId}/properties/status`,
-    );
+    const dropped = await api('DELETE', `/api/databases/${databaseId}/properties/status`);
     expect(dropped.status).toBe(200);
 
-    const [stored] = await db
-      .select()
-      .from(databases)
-      .where(eq(databases.id, databaseId));
-    expect(
-      stored.propertiesSchema.properties.some((p) => p.id === 'status'),
-    ).toBe(false);
+    const [stored] = await db.select().from(databases).where(eq(databases.id, databaseId));
+    expect(stored.propertiesSchema.properties.some((p) => p.id === 'status')).toBe(false);
 
-    const [after] = await db
-      .select()
-      .from(pages)
-      .where(eq(pages.id, withValueId));
+    const [after] = await db.select().from(pages).where(eq(pages.id, withValueId));
     expect(Object.keys(after.properties)).not.toContain('status');
 
     // The degenerate case: removing a key a row never had leaves `{}`, not
     // null. `jsonb - text` on a missing key is a no-op, unlike a replacement.
-    const [untouched] = await db
-      .select()
-      .from(pages)
-      .where(eq(pages.id, withoutValueId));
+    const [untouched] = await db.select().from(pages).where(eq(pages.id, withoutValueId));
     expect(untouched.properties).toEqual({});
   });
 });
@@ -660,26 +587,15 @@ describe('rows', () => {
     const listed = await api('GET', `/api/databases/${databaseId}/rows`);
     expect(listed.status).toBe(200);
     expect(listed.body.total).toBe(2);
-    expect(
-      asArray(listed.body.rows).map((r) => asRecord(r).title),
-    ).toEqual(['alpha', 'beta']);
+    expect(asArray(listed.body.rows).map((r) => asRecord(r).title)).toEqual(['alpha', 'beta']);
 
-    const searched = await api(
-      'GET',
-      `/api/databases/${databaseId}/rows?search=alp`,
-    );
+    const searched = await api('GET', `/api/databases/${databaseId}/rows?search=alp`);
     expect(searched.body.total).toBe(1);
 
-    const paged = await api(
-      'GET',
-      `/api/databases/${databaseId}/rows?pageSize=1`,
-    );
+    const paged = await api('GET', `/api/databases/${databaseId}/rows?pageSize=1`);
     expect(asArray(paged.body.rows)).toHaveLength(1);
     expect(paged.body.cursor).toBe('1');
-    const second = await api(
-      'GET',
-      `/api/databases/${databaseId}/rows?pageSize=1&cursor=1`,
-    );
+    const second = await api('GET', `/api/databases/${databaseId}/rows?pageSize=1&cursor=1`);
     expect(asRecord(asArray(second.body.rows)[0]).title).toBe('beta');
     expect(second.body.cursor).toBeNull();
   });
@@ -709,10 +625,7 @@ describe('rows', () => {
     });
     const viewId = idOf(view.body.view);
 
-    const listed = await api(
-      'GET',
-      `/api/databases/${databaseId}/rows?viewId=${viewId}`,
-    );
+    const listed = await api('GET', `/api/databases/${databaseId}/rows?viewId=${viewId}`);
     expect(asArray(listed.body.rows).map((r) => asRecord(r).title)).toEqual([
       'keep me',
       'keep also',
@@ -861,16 +774,11 @@ describe('views', () => {
     });
     expect(created.status).toBe(201);
     expect(asRecord(created.body.view).order).toBe(1);
-    expect(asRecord(asRecord(created.body.view).groupBy).propertyId).toBe(
-      'status',
-    );
+    expect(asRecord(asRecord(created.body.view).groupBy).propertyId).toBe('status');
     expect(asRecord(created.body.view).hiddenProperties).toEqual([]);
 
     const listed = await api('GET', `/api/databases/${databaseId}/views`);
-    expect(asArray(listed.body.views).map((v) => asRecord(v).name)).toEqual([
-      'All',
-      'Board',
-    ]);
+    expect(asArray(listed.body.views).map((v) => asRecord(v).name)).toEqual(['All', 'Board']);
   });
 
   it('honours an explicit order of 0 rather than treating it as absent', async () => {
@@ -891,20 +799,16 @@ describe('views', () => {
     });
     const promotedId = idOf(created.body.view);
 
-    const promoted = await api(
-      'PATCH',
-      `/api/databases/${databaseId}/views/${promotedId}`,
-      { isDefault: true },
-    );
+    const promoted = await api('PATCH', `/api/databases/${databaseId}/views/${promotedId}`, {
+      isDefault: true,
+    });
     expect(promoted.status).toBe(200);
 
     const stored = await db
       .select()
       .from(databaseViews)
       .where(eq(databaseViews.databaseId, databaseId));
-    expect(stored.filter((v) => v.isDefault).map((v) => v.id)).toEqual([
-      promotedId,
-    ]);
+    expect(stored.filter((v) => v.isDefault).map((v) => v.id)).toEqual([promotedId]);
   });
 
   it('distinguishes an omitted groupBy from an explicit null', async () => {
@@ -916,20 +820,14 @@ describe('views', () => {
     });
     const viewId = idOf(created.body.view);
 
-    const renamed = await api(
-      'PATCH',
-      `/api/databases/${databaseId}/views/${viewId}`,
-      { name: 'Renamed' },
-    );
-    expect(asRecord(asRecord(renamed.body.view).groupBy).propertyId).toBe(
-      'status',
-    );
+    const renamed = await api('PATCH', `/api/databases/${databaseId}/views/${viewId}`, {
+      name: 'Renamed',
+    });
+    expect(asRecord(asRecord(renamed.body.view).groupBy).propertyId).toBe('status');
 
-    const ungrouped = await api(
-      'PATCH',
-      `/api/databases/${databaseId}/views/${viewId}`,
-      { groupBy: null },
-    );
+    const ungrouped = await api('PATCH', `/api/databases/${databaseId}/views/${viewId}`, {
+      groupBy: null,
+    });
     expect(asRecord(ungrouped.body.view).groupBy).toBeNull();
   });
 
@@ -941,11 +839,9 @@ describe('views', () => {
       .from(databaseViews)
       .where(eq(databaseViews.databaseId, second));
 
-    const patched = await api(
-      'PATCH',
-      `/api/databases/${first}/views/${stolen[0].id}`,
-      { name: 'Nope' },
-    );
+    const patched = await api('PATCH', `/api/databases/${first}/views/${stolen[0].id}`, {
+      name: 'Nope',
+    });
     expect(patched.status).toBe(404);
     const [unchanged] = await db
       .select()
@@ -961,16 +857,10 @@ describe('views', () => {
       .from(databaseViews)
       .where(eq(databaseViews.databaseId, databaseId));
 
-    const refused = await api(
-      'DELETE',
-      `/api/databases/${databaseId}/views/${only.id}`,
-    );
+    const refused = await api('DELETE', `/api/databases/${databaseId}/views/${only.id}`);
     expect(refused.status).toBe(400);
     expect(
-      await db
-        .select()
-        .from(databaseViews)
-        .where(eq(databaseViews.databaseId, databaseId)),
+      await db.select().from(databaseViews).where(eq(databaseViews.databaseId, databaseId)),
     ).toHaveLength(1);
   });
 
@@ -986,10 +876,7 @@ describe('views', () => {
     });
     const extraId = idOf(extra.body.view);
 
-    const deleted = await api(
-      'DELETE',
-      `/api/databases/${databaseId}/views/${original.id}`,
-    );
+    const deleted = await api('DELETE', `/api/databases/${databaseId}/views/${original.id}`);
     expect(deleted.status).toBe(200);
 
     const remaining = await db

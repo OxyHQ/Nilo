@@ -75,9 +75,9 @@ export async function renderSchemaDdl(): Promise<string[]> {
 
 /** The table names the schema declares, unqualified. */
 export function schemaTableNames(): string[] {
-  return Object.keys(
-    generateDrizzleJson(schema, undefined, undefined, DATABASE_CASING).tables,
-  ).map((qualified) => qualified.replace(/^public\./u, ''));
+  return Object.keys(generateDrizzleJson(schema, undefined, undefined, DATABASE_CASING).tables).map(
+    (qualified) => qualified.replace(/^public\./u, ''),
+  );
 }
 
 let applied: Promise<void> | null = null;

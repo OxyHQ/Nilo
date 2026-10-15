@@ -13,9 +13,7 @@ export function TemplatesSection() {
   return (
     <SidebarSection sectionKey="templates" title={t('sidebar.sections.templates')}>
       <View className="px-4 py-1.5">
-        <Text className="text-xs text-muted-foreground">
-          {t('sidebar.templatesHint')}
-        </Text>
+        <Text className="text-xs text-muted-foreground">{t('sidebar.templatesHint')}</Text>
       </View>
     </SidebarSection>
   );

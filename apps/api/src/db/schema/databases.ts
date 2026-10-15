@@ -278,10 +278,7 @@ export const databases = pgTable(
     cover: text(),
     /** Oxy user id — text, not a foreign key. See `workspaces.ownerId`. */
     ownerId: text().notNull(),
-    propertiesSchema: jsonb()
-      .$type<DatabaseSchema>()
-      .notNull()
-      .default({ properties: [] }),
+    propertiesSchema: jsonb().$type<DatabaseSchema>().notNull().default({ properties: [] }),
     isInline: boolean().notNull().default(false),
     /**
      * The page an inline database is rendered inside.

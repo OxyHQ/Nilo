@@ -18,14 +18,14 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import i18n from '@/lib/i18n';
 import type { Page } from '@/lib/types/pages';
-import type {
-  PageItem,
-  MemberItem,
-  CommandItem,
-} from './types';
+import type { PageItem, MemberItem, CommandItem } from './types';
 
 function memberDisplayName(member: {
-  user?: { name?: { first?: string; last?: string } | null; username?: string | null; email?: string | null };
+  user?: {
+    name?: { first?: string; last?: string } | null;
+    username?: string | null;
+    email?: string | null;
+  };
   userId?: string;
 }): string {
   const name = member.user?.name;
@@ -34,7 +34,12 @@ function memberDisplayName(member: {
   if (first && last) return `${first} ${last}`;
   if (first) return first;
   if (last) return last;
-  return member.user?.username ?? member.user?.email ?? member.userId ?? i18n.t('commandPalette.memberFallback');
+  return (
+    member.user?.username ??
+    member.user?.email ??
+    member.userId ??
+    i18n.t('commandPalette.memberFallback')
+  );
 }
 
 /**
@@ -184,7 +189,10 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
         kind: 'command',
         id: 'cmd:settings',
         title: t('commandPalette.commands.settings.title'),
-        searchValue: keywords('settings preferences', t('commandPalette.commands.settings.keywords')),
+        searchValue: keywords(
+          'settings preferences',
+          t('commandPalette.commands.settings.keywords'),
+        ),
         icon: SettingsIcon,
         onSelect: () => {
           close();
@@ -195,7 +203,10 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
         kind: 'command',
         id: 'cmd:trash',
         title: t('commandPalette.commands.trash.title'),
-        searchValue: keywords('trash deleted archived', t('commandPalette.commands.trash.keywords')),
+        searchValue: keywords(
+          'trash deleted archived',
+          t('commandPalette.commands.trash.keywords'),
+        ),
         icon: Trash2,
         onSelect: () => {
           close();
@@ -223,7 +234,10 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
         kind: 'command',
         id: 'cmd:shortcuts',
         title: t('commandPalette.commands.shortcuts.title'),
-        searchValue: keywords('help keyboard shortcuts', t('commandPalette.commands.shortcuts.keywords')),
+        searchValue: keywords(
+          'help keyboard shortcuts',
+          t('commandPalette.commands.shortcuts.keywords'),
+        ),
         icon: HelpCircle,
         shortcut: '/',
         onSelect: () => {
@@ -240,7 +254,10 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
         kind: 'command',
         id: 'cmd:docs',
         title: t('commandPalette.commands.docs.title'),
-        searchValue: keywords('docs help documentation', t('commandPalette.commands.docs.keywords')),
+        searchValue: keywords(
+          'docs help documentation',
+          t('commandPalette.commands.docs.keywords'),
+        ),
         icon: FileText,
         onSelect: () => {
           close();

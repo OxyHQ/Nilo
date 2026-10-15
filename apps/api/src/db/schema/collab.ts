@@ -9,7 +9,14 @@ import {
   text,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { createdAt, generatedId, inList, textArrayLiteral, timestamptz, updatedAt } from '@oxy.so/db';
+import {
+  createdAt,
+  generatedId,
+  inList,
+  textArrayLiteral,
+  timestamptz,
+  updatedAt,
+} from '@oxy.so/db';
 import { blocks, pages } from './pages.js';
 import { workspaces } from './workspaces.js';
 
@@ -208,16 +215,10 @@ export const shareLinks = pgTable(
 
 /* ──────────────────────── notifications ──────────────────────── */
 
-export const NOTIFICATION_TYPES = [
-  'mention',
-  'comment_reply',
-] as const;
+export const NOTIFICATION_TYPES = ['mention', 'comment_reply'] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
-export const NOTIFICATION_CHANNELS = [
-  'push',
-  'in_app',
-] as const;
+export const NOTIFICATION_CHANNELS = ['push', 'in_app'] as const;
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 
 export const NOTIFICATION_STATUSES = ['pending', 'sent', 'read', 'dismissed'] as const;
@@ -319,7 +320,10 @@ export const notifications = pgTable(
       'notifications_channels',
       sql`${t.channels} <@ ${sql.raw(textArrayLiteral(NOTIFICATION_CHANNELS))}`,
     ),
-    check('notifications_delivery_status_is_object', sql`jsonb_typeof(${t.deliveryStatus}) = 'object'`),
+    check(
+      'notifications_delivery_status_is_object',
+      sql`jsonb_typeof(${t.deliveryStatus}) = 'object'`,
+    ),
   ],
 );
 

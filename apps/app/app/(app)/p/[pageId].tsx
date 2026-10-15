@@ -1,26 +1,21 @@
-import * as React from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { MessageCircle } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { Editor } from "@/components/editor/editor";
-import { ShareButton } from "@/components/sharing";
-import { CommentPanel } from "@/components/comments/comment-panel";
-import { PageChrome, PageHeader } from "@/components/page-chrome";
-import { RowPropertiesPanel } from "@/components/database/row-properties-panel";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useTranslation } from "@/hooks/useTranslation";
-import { usePage } from "@/lib/hooks/use-pages";
-import { usePageComments } from "@/lib/hooks/use-comments";
-import { useDatabase } from "@/lib/hooks/use-databases";
-import { useTrackRecentPage } from "@/lib/hooks/use-track-recent-page";
-import type { DatabaseRow, PropertyValue } from "@/lib/types/databases";
-import type { Page } from "@/lib/types/pages";
+import * as React from 'react';
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { MessageCircle } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { Editor } from '@/components/editor/editor';
+import { ShareButton } from '@/components/sharing';
+import { CommentPanel } from '@/components/comments/comment-panel';
+import { PageChrome, PageHeader } from '@/components/page-chrome';
+import { RowPropertiesPanel } from '@/components/database/row-properties-panel';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
+import { usePage } from '@/lib/hooks/use-pages';
+import { usePageComments } from '@/lib/hooks/use-comments';
+import { useDatabase } from '@/lib/hooks/use-databases';
+import { useTrackRecentPage } from '@/lib/hooks/use-track-recent-page';
+import type { DatabaseRow, PropertyValue } from '@/lib/types/databases';
+import type { Page } from '@/lib/types/pages';
 
 /**
  * Page detail route. Wraps the block editor with `PageChrome` (cover + icon
@@ -40,7 +35,7 @@ export default function PageDetailRoute() {
   if (!pageId) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-base text-muted-foreground">{t("pages.noneSelected")}</Text>
+        <Text className="text-base text-muted-foreground">{t('pages.noneSelected')}</Text>
       </View>
     );
   }
@@ -65,9 +60,7 @@ function PageDetail({ pageId }: { pageId: string }) {
 
   const openCommentCount = React.useMemo(() => {
     const comments = commentsData?.comments ?? [];
-    return comments.filter(
-      (c) => c.parentCommentId === null && c.resolvedAt === null,
-    ).length;
+    return comments.filter((c) => c.parentCommentId === null && c.resolvedAt === null).length;
   }, [commentsData?.comments]);
 
   const handleOpenPanel = (focusedBlockId: string | null = null) => {
@@ -83,18 +76,17 @@ function PageDetail({ pageId }: { pageId: string }) {
   }
 
   if (isError || !data?.page) {
-    const message =
-      error instanceof Error ? error.message : t("pages.loadFailed");
+    const message = error instanceof Error ? error.message : t('pages.loadFailed');
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <View className="max-w-md items-center gap-3">
           <Text className="text-base text-foreground">{message}</Text>
           <Pressable
-            onPress={() => router.replace("/(app)")}
+            onPress={() => router.replace('/(app)')}
             className="rounded-md bg-primary px-4 py-2"
           >
             <Text className="text-sm font-medium text-primary-foreground">
-              {t("pages.backToWorkspace")}
+              {t('pages.backToWorkspace')}
             </Text>
           </Pressable>
         </View>
@@ -108,12 +100,12 @@ function PageDetail({ pageId }: { pageId: string }) {
     <View className="flex-row items-center gap-2">
       <Pressable
         onPress={() => handleOpenPanel(null)}
-        accessibilityLabel={t("pages.comments.open")}
+        accessibilityLabel={t('pages.comments.open')}
         className="flex-row items-center gap-1.5 rounded-md px-2 py-1 hover:bg-muted"
       >
         <MessageCircle size={14} color={colors.foreground} />
         <Text className="text-xs font-medium text-foreground">
-          {openCommentCount > 0 ? openCommentCount : ""} {t("pages.comments.label")}
+          {openCommentCount > 0 ? openCommentCount : ''} {t('pages.comments.label')}
         </Text>
       </Pressable>
       <ShareButton pageId={page._id} />
@@ -131,10 +123,7 @@ function PageDetail({ pageId }: { pageId: string }) {
           <PageHeader page={page} />
           <View className="px-6 md:px-10 max-w-3xl w-full mx-auto pt-4">
             <DatabaseRowProperties page={page} />
-            <Editor
-              pageId={page._id}
-              onOpenBlockComments={(blockId) => handleOpenPanel(blockId)}
-            />
+            <Editor pageId={page._id} onOpenBlockComments={(blockId) => handleOpenPanel(blockId)} />
           </View>
         </ScrollView>
 
@@ -143,9 +132,7 @@ function PageDetail({ pageId }: { pageId: string }) {
           workspaceId={page.workspaceId}
           open={commentPanel.open}
           focusedBlockId={commentPanel.focusedBlockId}
-          onClose={() =>
-            setCommentPanel({ open: false, focusedBlockId: null })
-          }
+          onClose={() => setCommentPanel({ open: false, focusedBlockId: null })}
         />
       </View>
     </PageChrome>
@@ -161,8 +148,7 @@ function PageDetail({ pageId }: { pageId: string }) {
  * editor layout untouched.
  */
 function DatabaseRowProperties({ page }: { page: Page }) {
-  const databaseId =
-    typeof page.databaseId === "string" ? page.databaseId : null;
+  const databaseId = typeof page.databaseId === 'string' ? page.databaseId : null;
   const { data } = useDatabase(databaseId ?? undefined);
   if (!databaseId || !data?.database) return null;
   const row: DatabaseRow = {

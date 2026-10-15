@@ -6,12 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * Sidebar section keys — persisted collapsed state. New sections added here
  * default to expanded.
  */
-export type SidebarSectionKey =
-  | 'favorites'
-  | 'private'
-  | 'shared'
-  | 'databases'
-  | 'templates';
+export type SidebarSectionKey = 'favorites' | 'private' | 'shared' | 'databases' | 'templates';
 
 const MAX_RECENT_PAGES = 20;
 
@@ -62,13 +57,11 @@ export const useUIStore = create<UIState>()(
       sectionCollapsed: DEFAULT_SECTION_COLLAPSED,
       recentPageIds: [],
 
-      toggleSidebar: () =>
-        set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+      toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
 
-      toggleSidebarCollapsed: () =>
-        set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+      toggleSidebarCollapsed: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
 

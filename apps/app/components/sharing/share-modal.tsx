@@ -1,20 +1,20 @@
-import React from "react";
-import { View, Pressable, Platform, ActivityIndicator } from "react-native";
-import * as Clipboard from "expo-clipboard";
-import { Copy, Link2, Trash2, ChevronDown } from "lucide-react-native";
+import React from 'react';
+import { View, Pressable, Platform, ActivityIndicator } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Copy, Link2, Trash2, ChevronDown } from 'lucide-react-native';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Text } from "@/components/ui/text";
-import * as DropdownMenu from "@/components/ui/dropdown-menu";
-import { toast } from "@oxy.so/bloom/toast";
-import { useColorScheme } from "@/lib/useColorScheme";
+} from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Text } from '@/components/ui/text';
+import * as DropdownMenu from '@/components/ui/dropdown-menu';
+import { toast } from '@oxy.so/bloom/toast';
+import { useColorScheme } from '@/lib/useColorScheme';
 import {
   useShareLinks,
   useCreateShareLink,
@@ -22,31 +22,31 @@ import {
   SHARE_LINK_SCOPES,
   type ShareLink,
   type ShareLinkScope,
-} from "@/lib/hooks/use-share-links";
-import { buildShareUrl } from "./build-share-url";
-import { useTranslation } from "@/hooks/useTranslation";
-import i18n from "@/lib/i18n";
+} from '@/lib/hooks/use-share-links';
+import { buildShareUrl } from './build-share-url';
+import { useTranslation } from '@/hooks/useTranslation';
+import i18n from '@/lib/i18n';
 
 /** Resolved at call time so the label follows the active locale. */
 function scopeLabel(scope: ShareLinkScope): string {
   switch (scope) {
-    case "read":
-      return i18n.t("sharing.scopes.read.label");
-    case "comment":
-      return i18n.t("sharing.scopes.comment.label");
-    case "edit":
-      return i18n.t("sharing.scopes.edit.label");
+    case 'read':
+      return i18n.t('sharing.scopes.read.label');
+    case 'comment':
+      return i18n.t('sharing.scopes.comment.label');
+    case 'edit':
+      return i18n.t('sharing.scopes.edit.label');
   }
 }
 
 function scopeDescription(scope: ShareLinkScope): string {
   switch (scope) {
-    case "read":
-      return i18n.t("sharing.scopes.read.description");
-    case "comment":
-      return i18n.t("sharing.scopes.comment.description");
-    case "edit":
-      return i18n.t("sharing.scopes.edit.description");
+    case 'read':
+      return i18n.t('sharing.scopes.read.description');
+    case 'comment':
+      return i18n.t('sharing.scopes.comment.description');
+    case 'edit':
+      return i18n.t('sharing.scopes.edit.description');
   }
 }
 
@@ -56,12 +56,12 @@ function isExpired(link: ShareLink): boolean {
 }
 
 function formatExpiry(expiresAt: string | null): string {
-  if (!expiresAt) return i18n.t("sharing.expiry.never");
+  if (!expiresAt) return i18n.t('sharing.expiry.never');
   try {
     const date = new Date(expiresAt);
-    return i18n.t("sharing.expiry.expires", { date: date.toLocaleString() });
+    return i18n.t('sharing.expiry.expires', { date: date.toLocaleString() });
   } catch {
-    return i18n.t("sharing.expiry.hasExpiry");
+    return i18n.t('sharing.expiry.hasExpiry');
   }
 }
 
@@ -79,17 +79,15 @@ function ExistingLinkRow({ link, pageId }: ExistingLinkRowProps) {
 
   const handleCopy = React.useCallback(async () => {
     await Clipboard.setStringAsync(url);
-    toast.success(t("sharing.toasts.copied"));
+    toast.success(t('sharing.toasts.copied'));
   }, [url]);
 
   const handleRevoke = React.useCallback(() => {
     revoke(link._id, {
-      onSuccess: () => toast.success(t("sharing.toasts.revoked")),
+      onSuccess: () => toast.success(t('sharing.toasts.revoked')),
       onError: (err) => {
         const message =
-          err instanceof Error && err.message
-            ? err.message
-            : t("sharing.toasts.revokeFailed");
+          err instanceof Error && err.message ? err.message : t('sharing.toasts.revokeFailed');
         toast.error(message);
       },
     });
@@ -108,13 +106,13 @@ function ExistingLinkRow({ link, pageId }: ExistingLinkRowProps) {
         </Text>
         <Text className="text-[11px] text-muted-foreground">
           {scopeLabel(link.scope)} · {formatExpiry(link.expiresAt)}
-          {expired ? ` · ${t("sharing.expiry.expired")}` : ""}
+          {expired ? ` · ${t('sharing.expiry.expired')}` : ''}
         </Text>
       </View>
       <Pressable
         onPress={handleCopy}
         className="h-8 w-8 items-center justify-center rounded-lg hover:bg-muted"
-        accessibilityLabel={t("sharing.links.copy")}
+        accessibilityLabel={t('sharing.links.copy')}
         accessibilityRole="button"
       >
         <Copy size={14} color={colors.foreground} />
@@ -123,7 +121,7 @@ function ExistingLinkRow({ link, pageId }: ExistingLinkRowProps) {
         onPress={handleRevoke}
         disabled={isRevoking}
         className="h-8 w-8 items-center justify-center rounded-lg hover:bg-destructive/10"
-        accessibilityLabel={t("sharing.links.revoke")}
+        accessibilityLabel={t('sharing.links.revoke')}
         accessibilityRole="button"
       >
         {isRevoking ? (
@@ -145,23 +143,18 @@ interface ShareModalProps {
 export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const [scope, setScope] = React.useState<ShareLinkScope>("read");
+  const [scope, setScope] = React.useState<ShareLinkScope>('read');
   const {
     data: links,
     isLoading: isListLoading,
     isError,
     error,
   } = useShareLinks(pageId, { enabled: open && Boolean(pageId) });
-  const { mutate: createLink, isPending: isCreating } =
-    useCreateShareLink(pageId);
+  const { mutate: createLink, isPending: isCreating } = useCreateShareLink(pageId);
 
-  const activeLinks = React.useMemo(
-    () => (links ?? []).filter((l) => !l.revokedAt),
-    [links],
-  );
+  const activeLinks = React.useMemo(() => (links ?? []).filter((l) => !l.revokedAt), [links]);
   const matchingLink = React.useMemo(
-    () =>
-      activeLinks.find((l) => l.scope === scope && !isExpired(l)) ?? null,
+    () => activeLinks.find((l) => l.scope === scope && !isExpired(l)) ?? null,
     [activeLinks, scope],
   );
 
@@ -177,19 +170,19 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
             onSuccess: async (link) => {
               const url = buildShareUrl(link.token);
               await Clipboard.setStringAsync(url);
-              toast.success(t("sharing.toasts.created"));
+              toast.success(t('sharing.toasts.created'));
             },
             onError: (err) => {
               const message =
                 err instanceof Error && err.message
                   ? err.message
-                  : t("sharing.toasts.createFailed");
+                  : t('sharing.toasts.createFailed');
               toast.error(message);
             },
           },
         );
       } else {
-        toast(t("sharing.toasts.useRevoke"));
+        toast(t('sharing.toasts.useRevoke'));
       }
     },
     [createLink, matchingLink, scope],
@@ -198,17 +191,15 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
   const handleCopyActive = React.useCallback(async () => {
     if (!matchingLink) return;
     await Clipboard.setStringAsync(buildShareUrl(matchingLink.token));
-    toast.success(t("sharing.toasts.copied"));
+    toast.success(t('sharing.toasts.copied'));
   }, [matchingLink]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{t("sharing.modal.title")}</DialogTitle>
-          <DialogDescription>
-            {t("sharing.modal.description")}
-          </DialogDescription>
+          <DialogTitle>{t('sharing.modal.title')}</DialogTitle>
+          <DialogDescription>{t('sharing.modal.description')}</DialogDescription>
         </DialogHeader>
 
         <View className="gap-3">
@@ -216,43 +207,36 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
             <View className="flex-row items-center justify-between gap-3">
               <View className="flex-1 min-w-0">
                 <Text className="text-sm font-semibold text-foreground">
-                  {t("sharing.modal.anyoneWithLink")}
+                  {t('sharing.modal.anyoneWithLink')}
                 </Text>
                 <Text className="text-xs text-muted-foreground">
                   {isPublic
-                    ? t("sharing.modal.publicActive", { scope: scopeLabel(scope) })
-                    : t("sharing.modal.publicInactive")}
+                    ? t('sharing.modal.publicActive', { scope: scopeLabel(scope) })
+                    : t('sharing.modal.publicInactive')}
                 </Text>
               </View>
-              <Switch
-                value={isPublic}
-                onValueChange={handleTogglePublic}
-                disabled={isCreating}
-              />
+              <Switch value={isPublic} onValueChange={handleTogglePublic} disabled={isCreating} />
             </View>
 
             <View className="flex-row items-center gap-2">
-              <Text className="text-xs text-muted-foreground">{t("sharing.modal.access")}</Text>
+              <Text className="text-xs text-muted-foreground">{t('sharing.modal.access')}</Text>
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
                   <Pressable
                     className="h-8 px-2 flex-row items-center gap-1 rounded-lg border border-border hover:bg-muted"
                     accessibilityRole="button"
-                    accessibilityLabel={t("sharing.modal.selectedScope", { scope: scopeLabel(scope) })}
+                    accessibilityLabel={t('sharing.modal.selectedScope', {
+                      scope: scopeLabel(scope),
+                    })}
                   >
-                    <Text className="text-xs font-medium text-foreground">
-                      {scopeLabel(scope)}
-                    </Text>
+                    <Text className="text-xs font-medium text-foreground">{scopeLabel(scope)}</Text>
                     <ChevronDown size={12} color={colors.mutedForeground} />
                   </Pressable>
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Content>
                   {SHARE_LINK_SCOPES.map((option) => (
-                    <DropdownMenu.Item
-                      key={option}
-                      onSelect={() => setScope(option)}
-                    >
-                      {Platform.OS === "web" ? (
+                    <DropdownMenu.Item key={option} onSelect={() => setScope(option)}>
+                      {Platform.OS === 'web' ? (
                         <View className="gap-0.5">
                           <Text className="text-sm font-medium text-foreground">
                             {scopeLabel(option)}
@@ -263,9 +247,7 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
                         </View>
                       ) : (
                         <>
-                          <DropdownMenu.ItemTitle>
-                            {scopeLabel(option)}
-                          </DropdownMenu.ItemTitle>
+                          <DropdownMenu.ItemTitle>{scopeLabel(option)}</DropdownMenu.ItemTitle>
                           <DropdownMenu.ItemSubtitle>
                             {scopeDescription(option)}
                           </DropdownMenu.ItemSubtitle>
@@ -292,7 +274,7 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
                   <View className="flex-row items-center gap-1">
                     <Copy size={12} className="text-primary-foreground" />
                     <Text className="text-xs font-semibold text-primary-foreground">
-                      {t("sharing.modal.copy")}
+                      {t('sharing.modal.copy')}
                     </Text>
                   </View>
                 </Button>
@@ -302,7 +284,7 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
 
           <View className="gap-1">
             <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {t("sharing.modal.existingLinks")}
+              {t('sharing.modal.existingLinks')}
             </Text>
             {isListLoading ? (
               <View className="py-4 items-center">
@@ -310,21 +292,15 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
               </View>
             ) : isError ? (
               <Text className="text-sm text-destructive">
-                {error instanceof Error
-                  ? error.message
-                  : t("sharing.modal.loadFailed")}
+                {error instanceof Error ? error.message : t('sharing.modal.loadFailed')}
               </Text>
             ) : activeLinks.length === 0 ? (
-              <Text className="text-xs text-muted-foreground">
-                {t("sharing.modal.empty")}
-              </Text>
+              <Text className="text-xs text-muted-foreground">{t('sharing.modal.empty')}</Text>
             ) : (
               <View className="rounded-lg border border-border bg-card overflow-hidden">
                 {activeLinks.map((link, idx) => (
                   <View key={link._id}>
-                    {idx > 0 ? (
-                      <View className="h-px bg-border/50 mx-2" />
-                    ) : null}
+                    {idx > 0 ? <View className="h-px bg-border/50 mx-2" /> : null}
                     <ExistingLinkRow link={link} pageId={pageId} />
                   </View>
                 ))}

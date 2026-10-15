@@ -1,17 +1,13 @@
-import * as React from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  View,
-} from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useTranslation } from "@/hooks/useTranslation";
-import { useDatabase } from "@/lib/hooks/use-databases";
-import { useDatabaseRows } from "@/lib/hooks/use-database-rows";
-import { DatabaseHeader } from "@/components/database/database-header";
-import { DatabaseViewContainer } from "@/components/database/database-view";
+import * as React from 'react';
+import { ActivityIndicator, Pressable, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useDatabase } from '@/lib/hooks/use-databases';
+import { useDatabaseRows } from '@/lib/hooks/use-database-rows';
+import { DatabaseHeader } from '@/components/database/database-header';
+import { DatabaseViewContainer } from '@/components/database/database-view';
 
 /**
  * Full-page database route. Renders the header (name + cover + view tabs)
@@ -25,9 +21,7 @@ export default function DatabaseRoute() {
   if (!id) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-base text-muted-foreground">
-          {t("pages.database.noneSelected")}
-        </Text>
+        <Text className="text-base text-muted-foreground">{t('pages.database.noneSelected')}</Text>
       </View>
     );
   }
@@ -51,10 +45,7 @@ function DatabasePage({ id }: { id: string }) {
   const selectedViewId = activeViewId ?? defaultViewId;
 
   const selectedView = views.find((v) => v.id === selectedViewId) ?? null;
-  const { data: rowsData, isLoading: isLoadingRows } = useDatabaseRows(
-    id,
-    selectedViewId,
-  );
+  const { data: rowsData, isLoading: isLoadingRows } = useDatabaseRows(id, selectedViewId);
 
   if (isLoading) {
     return (
@@ -65,18 +56,17 @@ function DatabasePage({ id }: { id: string }) {
   }
 
   if (isError || !data?.database) {
-    const message =
-      error instanceof Error ? error.message : t("pages.database.loadFailed");
+    const message = error instanceof Error ? error.message : t('pages.database.loadFailed');
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <View className="max-w-md items-center gap-3">
           <Text className="text-base text-foreground">{message}</Text>
           <Pressable
-            onPress={() => router.replace("/(app)")}
+            onPress={() => router.replace('/(app)')}
             className="rounded-md bg-primary px-4 py-2"
           >
             <Text className="text-sm font-medium text-primary-foreground">
-              {t("pages.backToWorkspace")}
+              {t('pages.backToWorkspace')}
             </Text>
           </Pressable>
         </View>
@@ -101,9 +91,7 @@ function DatabasePage({ id }: { id: string }) {
         />
       ) : (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-sm text-muted-foreground">
-            {t("pages.database.noViews")}
-          </Text>
+          <Text className="text-sm text-muted-foreground">{t('pages.database.noViews')}</Text>
         </View>
       )}
     </View>

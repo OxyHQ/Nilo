@@ -1,7 +1,7 @@
-import * as React from "react";
-import { View } from "react-native";
-import { Text } from "@/components/ui/text";
-import type { BlockComponentProps } from "./types";
+import * as React from 'react';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/text';
+import type { BlockComponentProps } from './types';
 
 /**
  * A single column inside a `columns` container. Children blocks are blocks
@@ -10,13 +10,9 @@ import type { BlockComponentProps } from "./types";
  * `ColumnsBlock` (flex: 1 per default, optionally `ratio`).
  */
 export function ColumnBlock({ block, renderChildren }: BlockComponentProps) {
-  const ratio =
-    typeof block.content.ratio === "number" ? block.content.ratio : undefined;
+  const ratio = typeof block.content.ratio === 'number' ? block.content.ratio : undefined;
   return (
-    <View
-      style={ratio ? { flex: ratio } : { flex: 1 }}
-      className="min-w-[120px] gap-1 px-1"
-    >
+    <View style={ratio ? { flex: ratio } : { flex: 1 }} className="min-w-[120px] gap-1 px-1">
       {renderChildren ? (
         renderChildren(block._id)
       ) : (

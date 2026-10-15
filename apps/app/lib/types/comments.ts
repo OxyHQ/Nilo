@@ -7,10 +7,10 @@
  * render the same `MentionSegment` shape.
  */
 
-export type MentionKind = "user" | "page" | "date";
+export type MentionKind = 'user' | 'page' | 'date';
 
 export interface MentionSegment {
-  type: "mention";
+  type: 'mention';
   kind: MentionKind;
   /** Set when kind === 'user' or 'page'. */
   id?: string;
@@ -21,7 +21,7 @@ export interface MentionSegment {
 }
 
 export interface TextSegment {
-  type?: "text";
+  type?: 'text';
   text: string;
   bold?: boolean;
   italic?: boolean;
@@ -64,5 +64,5 @@ export interface CommentResponse {
  * Type guard — narrows a CommentSegment to MentionSegment.
  */
 export function isMentionSegment(seg: CommentSegment): seg is MentionSegment {
-  return "type" in seg && seg.type === "mention";
+  return 'type' in seg && seg.type === 'mention';
 }

@@ -1,5 +1,5 @@
-import * as React from "react";
-import { Pressable, View } from "react-native";
+import * as React from 'react';
+import { Pressable, View } from 'react-native';
 import {
   Check,
   CornerDownRight,
@@ -7,21 +7,21 @@ import {
   MoreHorizontal,
   Trash2,
   Undo2,
-} from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useOxy } from "@oxy.so/services";
+} from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useOxy } from '@oxy.so/services';
 import {
   useDeleteComment,
   useResolveComment,
   useUnresolveComment,
   useCreateComment,
   type CommentThread as CommentThreadType,
-} from "@/lib/hooks/use-comments";
-import { CommentContentView } from "./comment-content";
-import { CommentComposer } from "./comment-composer";
-import { useTranslation } from "@/hooks/useTranslation";
-import i18n from "@/lib/i18n";
+} from '@/lib/hooks/use-comments';
+import { CommentContentView } from './comment-content';
+import { CommentComposer } from './comment-composer';
+import { useTranslation } from '@/hooks/useTranslation';
+import i18n from '@/lib/i18n';
 
 interface CommentThreadProps {
   thread: CommentThreadType;
@@ -32,14 +32,16 @@ interface CommentThreadProps {
 function relativeTime(iso: string): string {
   const time = new Date(iso).getTime();
   const diffSec = Math.round((Date.now() - time) / 1000);
-  if (diffSec < 60) return i18n.t("comments.time.justNow");
-  if (diffSec < 3600) return i18n.t("comments.time.minutesAgo", { count: Math.round(diffSec / 60) });
-  if (diffSec < 86400) return i18n.t("comments.time.hoursAgo", { count: Math.round(diffSec / 3600) });
+  if (diffSec < 60) return i18n.t('comments.time.justNow');
+  if (diffSec < 3600)
+    return i18n.t('comments.time.minutesAgo', { count: Math.round(diffSec / 60) });
+  if (diffSec < 86400)
+    return i18n.t('comments.time.hoursAgo', { count: Math.round(diffSec / 3600) });
   const diffDay = Math.round(diffSec / 86400);
-  if (diffDay < 7) return i18n.t("comments.time.daysAgo", { count: diffDay });
+  if (diffDay < 7) return i18n.t('comments.time.daysAgo', { count: diffDay });
   return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
+    month: 'short',
+    day: 'numeric',
   });
 }
 
@@ -47,11 +49,7 @@ function relativeTime(iso: string): string {
  * Renders a single comment thread (top-level root + replies). Owns the
  * reply composer state and the per-comment action menu.
  */
-export function CommentThread({
-  thread,
-  workspaceId,
-  pageId,
-}: CommentThreadProps) {
+export function CommentThread({ thread, workspaceId, pageId }: CommentThreadProps) {
   const { user } = useOxy();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -71,7 +69,7 @@ export function CommentThread({
     }
   };
 
-  const handleSubmitReply = async (segments: import("@/lib/types/comments").CommentSegment[]) => {
+  const handleSubmitReply = async (segments: import('@/lib/types/comments').CommentSegment[]) => {
     await createMutation.mutateAsync({
       pageId,
       blockId: thread.root.blockId,
@@ -100,7 +98,9 @@ export function CommentThread({
             onPress={handleToggleResolve}
             disabled={resolveMutation.isPending || unresolveMutation.isPending}
             className="flex-row items-center gap-1 rounded-md px-2 py-1 hover:bg-muted"
-            accessibilityLabel={isResolved ? t("comments.thread.reopenThread") : t("comments.thread.resolveThread")}
+            accessibilityLabel={
+              isResolved ? t('comments.thread.reopenThread') : t('comments.thread.resolveThread')
+            }
           >
             {isResolved ? (
               <Undo2 size={12} color={colors.mutedForeground} />
@@ -108,7 +108,7 @@ export function CommentThread({
               <Check size={12} color={colors.mutedForeground} />
             )}
             <Text className="text-[10px] font-medium text-muted-foreground">
-              {isResolved ? t("comments.thread.reopen") : t("comments.thread.resolve")}
+              {isResolved ? t('comments.thread.reopen') : t('comments.thread.resolve')}
             </Text>
           </Pressable>
         }
@@ -141,7 +141,7 @@ export function CommentThread({
           <View className="pl-4">
             <CommentComposer
               workspaceId={workspaceId}
-              placeholder={t("comments.thread.replyPlaceholder")}
+              placeholder={t('comments.thread.replyPlaceholder')}
               autoFocus
               onSubmit={handleSubmitReply}
               onCancel={() => setReplyOpen(false)}
@@ -152,11 +152,11 @@ export function CommentThread({
           <Pressable
             onPress={() => setReplyOpen(true)}
             className="flex-row items-center gap-1.5 self-start rounded-md px-2 py-1 hover:bg-muted"
-            accessibilityLabel={t("comments.thread.replyToThread")}
+            accessibilityLabel={t('comments.thread.replyToThread')}
           >
             <CornerDownRight size={12} color={colors.mutedForeground} />
             <Text className="text-xs font-medium text-muted-foreground">
-              {t("comments.thread.reply")}
+              {t('comments.thread.reply')}
             </Text>
           </Pressable>
         )
@@ -166,7 +166,7 @@ export function CommentThread({
 }
 
 interface CommentRowProps {
-  comment: import("@/lib/types/comments").Comment;
+  comment: import('@/lib/types/comments').Comment;
   currentUserId: string | null;
   pageId: string;
   blockId: string | null;
@@ -175,13 +175,7 @@ interface CommentRowProps {
   rightSlot?: React.ReactNode;
 }
 
-function CommentRow({
-  comment,
-  currentUserId,
-  compact,
-  onDelete,
-  rightSlot,
-}: CommentRowProps) {
+function CommentRow({ comment, currentUserId, compact, onDelete, rightSlot }: CommentRowProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -193,22 +187,19 @@ function CommentRow({
         <View
           className={
             compact
-              ? "h-5 w-5 items-center justify-center rounded-full bg-muted"
-              : "h-7 w-7 items-center justify-center rounded-full bg-muted"
+              ? 'h-5 w-5 items-center justify-center rounded-full bg-muted'
+              : 'h-7 w-7 items-center justify-center rounded-full bg-muted'
           }
         >
-          <MessageSquare
-            size={compact ? 10 : 12}
-            color={colors.mutedForeground}
-          />
+          <MessageSquare size={compact ? 10 : 12} color={colors.mutedForeground} />
         </View>
         <Text className="text-xs font-medium text-foreground">
           {/* Phase 2 backend returns authorId only; profile hydration arrives later. */}
-          {isAuthor ? t("comments.thread.you") : shortAuthor(comment.authorId)}
+          {isAuthor ? t('comments.thread.you') : shortAuthor(comment.authorId)}
         </Text>
         <Text className="text-[10px] text-muted-foreground">
           {relativeTime(comment.createdAt)}
-          {comment.editedAt ? ` · ${t("comments.thread.edited")}` : ""}
+          {comment.editedAt ? ` · ${t('comments.thread.edited')}` : ''}
         </Text>
         <View className="flex-1" />
         {rightSlot}
@@ -217,7 +208,7 @@ function CommentRow({
             <Pressable
               onPress={() => setMenuOpen((v) => !v)}
               className="rounded-md p-1 hover:bg-muted"
-              accessibilityLabel={t("comments.thread.moreActions")}
+              accessibilityLabel={t('comments.thread.moreActions')}
             >
               <MoreHorizontal size={12} color={colors.mutedForeground} />
             </Pressable>
@@ -231,7 +222,7 @@ function CommentRow({
                   className="flex-row items-center gap-2 px-3 py-2 hover:bg-muted"
                 >
                   <Trash2 size={12} color={colors.foreground} />
-                  <Text className="text-xs text-foreground">{t("common.delete")}</Text>
+                  <Text className="text-xs text-foreground">{t('common.delete')}</Text>
                 </Pressable>
               </View>
             ) : null}

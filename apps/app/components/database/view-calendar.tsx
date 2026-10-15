@@ -1,20 +1,11 @@
-import * as React from "react";
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  View,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { ChevronLeft, ChevronRight } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useTranslation } from "@/hooks/useTranslation";
-import { useColorScheme } from "@/lib/useColorScheme";
-import type {
-  Database,
-  DatabaseRow,
-  DatabaseView,
-} from "@/lib/types/databases";
+import * as React from 'react';
+import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useColorScheme } from '@/lib/useColorScheme';
+import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 
 interface ViewCalendarProps {
   database: Database;
@@ -27,12 +18,7 @@ interface ViewCalendarProps {
  * Calendar view — month grid keyed on a date property. Web-first;
  * native rendering shows a list-style fallback per the Phase 4 spec.
  */
-export function ViewCalendar({
-  database,
-  view,
-  rows,
-  isLoading,
-}: ViewCalendarProps) {
+export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t, locale } = useTranslation();
@@ -42,9 +28,9 @@ export function ViewCalendar({
     const id = view.config.datePropertyId;
     if (id) {
       const p = database.schema.properties.find((x) => x.id === id);
-      if (p?.type === "date") return p;
+      if (p?.type === 'date') return p;
     }
-    return database.schema.properties.find((p) => p.type === "date") ?? null;
+    return database.schema.properties.find((p) => p.type === 'date') ?? null;
   }, [database.schema.properties, view.config.datePropertyId]);
 
   if (isLoading) {
@@ -59,19 +45,17 @@ export function ViewCalendar({
     return (
       <View className="px-6 py-10">
         <Text className="text-sm text-muted-foreground">
-          {t("databases.calendar.needsDateProperty")}
+          {t('databases.calendar.needsDateProperty')}
         </Text>
       </View>
     );
   }
 
-  if (Platform.OS !== "web") {
+  if (Platform.OS !== 'web') {
     // Native fallback — show rows grouped by month
     return (
       <View className="p-3">
-        <Text className="text-sm text-muted-foreground">
-          {t("databases.calendar.webOnly")}
-        </Text>
+        <Text className="text-sm text-muted-foreground">{t('databases.calendar.webOnly')}</Text>
       </View>
     );
   }
@@ -80,16 +64,14 @@ export function ViewCalendar({
   const rowsByDay = groupRowsByDay(rows, dateProperty.id);
 
   const monthLabel = cursor.toLocaleDateString(locale, {
-    month: "long",
-    year: "numeric",
+    month: 'long',
+    year: 'numeric',
   });
 
   return (
     <View className="p-3">
       <View className="flex-row items-center justify-between mb-3">
-        <Text className="text-base font-semibold text-foreground">
-          {monthLabel}
-        </Text>
+        <Text className="text-base font-semibold text-foreground">{monthLabel}</Text>
         <View className="flex-row gap-1">
           <Pressable
             onPress={() => setCursor(addMonths(cursor, -1))}
@@ -101,9 +83,7 @@ export function ViewCalendar({
             onPress={() => setCursor(startOfMonth(new Date()))}
             className="px-2 py-1 rounded hover:bg-muted"
           >
-            <Text className="text-xs text-foreground">
-              {t("databases.calendar.today")}
-            </Text>
+            <Text className="text-xs text-foreground">{t('databases.calendar.today')}</Text>
           </Pressable>
           <Pressable
             onPress={() => setCursor(addMonths(cursor, 1))}
@@ -116,10 +96,7 @@ export function ViewCalendar({
 
       <View className="flex-row">
         {weekdayLabels(locale).map((label, i) => (
-          <View
-            key={i}
-            className="flex-1 px-2 py-1 border-b border-border"
-          >
+          <View key={i} className="flex-1 px-2 py-1 border-b border-border">
             <Text className="text-[10px] uppercase tracking-wider text-muted-foreground">
               {label}
             </Text>
@@ -129,11 +106,7 @@ export function ViewCalendar({
 
       <View>
         {chunk(days, 7).map((week, i) => (
-          <View
-            key={i}
-            className="flex-row border-b border-border/60"
-            style={{ minHeight: 100 }}
-          >
+          <View key={i} className="flex-row border-b border-border/60" style={{ minHeight: 100 }}>
             {week.map((day) => {
               const inMonth = day.getMonth() === cursor.getMonth();
               const key = day.toISOString().slice(0, 10);
@@ -142,12 +115,10 @@ export function ViewCalendar({
                 <View
                   key={day.toISOString()}
                   className={`flex-1 border-r border-border/60 p-1.5 ${
-                    inMonth ? "" : "opacity-40"
+                    inMonth ? '' : 'opacity-40'
                   }`}
                 >
-                  <Text className="text-xs text-foreground mb-1">
-                    {day.getDate()}
-                  </Text>
+                  <Text className="text-xs text-foreground mb-1">{day.getDate()}</Text>
                   <View className="gap-1">
                     {dayRows.slice(0, 3).map((row) => (
                       <Pressable
@@ -155,11 +126,8 @@ export function ViewCalendar({
                         onPress={() => router.push(`/p/${row.id}`)}
                         className="bg-primary/10 rounded px-1.5 py-0.5"
                       >
-                        <Text
-                          className="text-xs text-foreground"
-                          numberOfLines={1}
-                        >
-                          {row.title || t("databases.untitled")}
+                        <Text className="text-xs text-foreground" numberOfLines={1}>
+                          {row.title || t('databases.untitled')}
                         </Text>
                       </Pressable>
                     ))}
@@ -183,7 +151,7 @@ export function ViewCalendar({
 function weekdayLabels(locale: string): string[] {
   // 7 January 2024 was a Sunday.
   return Array.from({ length: 7 }, (_, i) =>
-    new Date(2024, 0, 7 + i).toLocaleDateString(locale, { weekday: "short" }),
+    new Date(2024, 0, 7 + i).toLocaleDateString(locale, { weekday: 'short' }),
   );
 }
 
@@ -207,16 +175,13 @@ function buildMonthGrid(monthStart: Date): Date[] {
   return result;
 }
 
-function groupRowsByDay(
-  rows: DatabaseRow[],
-  propertyId: string,
-): Map<string, DatabaseRow[]> {
+function groupRowsByDay(rows: DatabaseRow[], propertyId: string): Map<string, DatabaseRow[]> {
   const result = new Map<string, DatabaseRow[]>();
   for (const row of rows) {
     const value = row.properties[propertyId];
-    if (!value || typeof value !== "object" || !("start" in value)) continue;
+    if (!value || typeof value !== 'object' || !('start' in value)) continue;
     const start = value.start;
-    if (typeof start !== "string") continue;
+    if (typeof start !== 'string') continue;
     const d = new Date(start);
     if (Number.isNaN(d.getTime())) continue;
     const key = d.toISOString().slice(0, 10);

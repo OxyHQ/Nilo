@@ -1,24 +1,18 @@
-import * as React from "react";
-import {
-  Platform,
-  Pressable,
-  TextInput,
-  View,
-  type GestureResponderEvent,
-} from "react-native";
-import { ImageIcon, Move, Smile } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useTranslation } from "@/hooks/useTranslation";
-import { useUpdatePage } from "@/lib/hooks/use-pages";
-import type { Page } from "@/lib/types/pages";
-import { Breadcrumb } from "./breadcrumb";
-import { CoverDisplay } from "./cover-display";
-import { CoverPicker } from "./cover-picker";
-import { FavoriteButton } from "./favorite-button";
-import { IconDisplay } from "./icon-display";
-import { IconPicker } from "./icon-picker";
-import { PageActionsMenu } from "./page-actions-menu";
+import * as React from 'react';
+import { Platform, Pressable, TextInput, View, type GestureResponderEvent } from 'react-native';
+import { ImageIcon, Move, Smile } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useUpdatePage } from '@/lib/hooks/use-pages';
+import type { Page } from '@/lib/types/pages';
+import { Breadcrumb } from './breadcrumb';
+import { CoverDisplay } from './cover-display';
+import { CoverPicker } from './cover-picker';
+import { FavoriteButton } from './favorite-button';
+import { IconDisplay } from './icon-display';
+import { IconPicker } from './icon-picker';
+import { PageActionsMenu } from './page-actions-menu';
 
 interface PageChromeProps {
   page: Page;
@@ -81,10 +75,7 @@ export function PageChrome({ page, children, rightHeader }: PageChromeProps) {
             <Breadcrumb pageId={page._id} workspaceId={page.workspaceId} />
           </View>
           <View className="flex-row items-center gap-1">
-            <FavoriteButton
-              pageId={page._id}
-              favorited={page.favorited ?? false}
-            />
+            <FavoriteButton pageId={page._id} favorited={page.favorited ?? false} />
             {rightHeader}
             <PageActionsMenu page={page} />
           </View>
@@ -94,16 +85,8 @@ export function PageChrome({ page, children, rightHeader }: PageChromeProps) {
           {children}
         </RepositioningContext.Provider>
 
-        <IconPicker
-          open={iconOpen}
-          onOpenChange={setIconOpen}
-          onSelect={handleIconSelect}
-        />
-        <CoverPicker
-          open={coverOpen}
-          onOpenChange={setCoverOpen}
-          onSelect={handleCoverSelect}
-        />
+        <IconPicker open={iconOpen} onOpenChange={setIconOpen} onSelect={handleIconSelect} />
+        <CoverPicker open={coverOpen} onOpenChange={setCoverOpen} onSelect={handleCoverSelect} />
       </View>
     </StateContext.Provider>
   );
@@ -157,21 +140,14 @@ export function PageHeader({ page }: { page: Page }) {
         className="px-6 md:px-10 max-w-3xl w-full mx-auto"
         style={{ marginTop: page.cover ? -32 : 24 }}
       >
-        <IconArea
-          icon={page.icon ?? null}
-          onOpenPicker={() => state?.setIconOpen(true)}
-        />
+        <IconArea icon={page.icon ?? null} onOpenPicker={() => state?.setIconOpen(true)} />
         <AddChromeRow
           hasIcon={Boolean(page.icon)}
           hasCover={Boolean(page.cover)}
           onAddIcon={() => state?.setIconOpen(true)}
           onAddCover={() => state?.setCoverOpen(true)}
         />
-        <TitleInput
-          value={title}
-          onChangeText={setTitleDraft}
-          onBlur={handleTitleBlur}
-        />
+        <TitleInput value={title} onChangeText={setTitleDraft} onBlur={handleTitleBlur} />
       </View>
     </View>
   );
@@ -241,7 +217,7 @@ function CoverArea({
         onResponderMove={handleMove}
         onResponderRelease={handleEnd}
         onResponderTerminate={handleEnd}
-        accessibilityLabel={t("pages.header.cover")}
+        accessibilityLabel={t('pages.header.cover')}
       >
         <CoverDisplay value={cover} position={effectivePosition} height={192} />
       </View>
@@ -250,36 +226,34 @@ function CoverArea({
           onPress={onToggleReposition}
           className={
             repositioning
-              ? "h-8 flex-row items-center gap-1 rounded-md bg-primary px-3"
-              : "h-8 flex-row items-center gap-1 rounded-md bg-card/90 px-3 hover:bg-card"
+              ? 'h-8 flex-row items-center gap-1 rounded-md bg-primary px-3'
+              : 'h-8 flex-row items-center gap-1 rounded-md bg-card/90 px-3 hover:bg-card'
           }
-          accessibilityLabel={t("pages.header.repositionCover")}
+          accessibilityLabel={t('pages.header.repositionCover')}
         >
           <Move
             size={14}
-            color={repositioning ? "white" : undefined}
-            className={repositioning ? undefined : "text-foreground"}
+            color={repositioning ? 'white' : undefined}
+            className={repositioning ? undefined : 'text-foreground'}
           />
           <Text
             className={
               repositioning
-                ? "text-xs font-medium text-primary-foreground"
-                : "text-xs font-medium text-foreground"
+                ? 'text-xs font-medium text-primary-foreground'
+                : 'text-xs font-medium text-foreground'
             }
           >
-            {repositioning
-              ? t("pages.header.savePosition")
-              : t("pages.header.reposition")}
+            {repositioning ? t('pages.header.savePosition') : t('pages.header.reposition')}
           </Text>
         </Pressable>
         <Pressable
           onPress={onOpenPicker}
           className="h-8 flex-row items-center gap-1 rounded-md bg-card/90 px-3 hover:bg-card"
-          accessibilityLabel={t("pages.header.changeCover")}
+          accessibilityLabel={t('pages.header.changeCover')}
         >
           <ImageIcon size={14} className="text-foreground" />
           <Text className="text-xs font-medium text-foreground">
-            {t("pages.header.changeCover")}
+            {t('pages.header.changeCover')}
           </Text>
         </Pressable>
       </View>
@@ -302,7 +276,7 @@ function IconArea({ icon, onOpenPicker }: IconAreaProps) {
     <Pressable
       onPress={onOpenPicker}
       className="self-start rounded-md p-1 hover:bg-muted"
-      accessibilityLabel={t("pages.header.changeIcon")}
+      accessibilityLabel={t('pages.header.changeIcon')}
     >
       <IconDisplay value={icon} size={64} />
     </Pressable>
@@ -319,28 +293,23 @@ interface AddChromeRowProps {
   onAddIcon: () => void;
   onAddCover: () => void;
 }
-function AddChromeRow({
-  hasIcon,
-  hasCover,
-  onAddIcon,
-  onAddCover,
-}: AddChromeRowProps) {
+function AddChromeRow({ hasIcon, hasCover, onAddIcon, onAddCover }: AddChromeRowProps) {
   const { t } = useTranslation();
   if (hasIcon && hasCover) return null;
   return (
     <View className="flex-row gap-2 pb-3">
       {!hasIcon ? (
-        <AddChromeButton icon="emoji" onPress={onAddIcon} label={t("pages.header.addIcon")} />
+        <AddChromeButton icon="emoji" onPress={onAddIcon} label={t('pages.header.addIcon')} />
       ) : null}
       {!hasCover ? (
-        <AddChromeButton icon="cover" onPress={onAddCover} label={t("pages.header.addCover")} />
+        <AddChromeButton icon="cover" onPress={onAddCover} label={t('pages.header.addCover')} />
       ) : null}
     </View>
   );
 }
 
 interface AddChromeButtonProps {
-  icon: "emoji" | "cover";
+  icon: 'emoji' | 'cover';
   label: string;
   onPress: () => void;
 }
@@ -352,7 +321,7 @@ function AddChromeButton({ icon, label, onPress }: AddChromeButtonProps) {
       className="flex-row items-center gap-1.5 rounded-md px-2 py-1 hover:bg-muted"
       accessibilityLabel={label}
     >
-      {icon === "emoji" ? (
+      {icon === 'emoji' ? (
         <Smile size={14} color={colors.mutedForeground} />
       ) : (
         <ImageIcon size={14} color={colors.mutedForeground} />
@@ -379,16 +348,12 @@ function TitleInput({ value, onChangeText, onBlur }: TitleInputProps) {
       value={value}
       onChangeText={onChangeText}
       onBlur={onBlur}
-      placeholder={t("pages.untitled")}
+      placeholder={t('pages.untitled')}
       placeholderTextColor={colors.mutedForeground}
       className="text-4xl font-bold text-foreground"
       multiline
       scrollEnabled={false}
-      style={
-        Platform.OS === "web"
-          ? { outlineWidth: 0, borderWidth: 0, padding: 0 }
-          : undefined
-      }
+      style={Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined}
       underlineColorAndroid="transparent"
     />
   );

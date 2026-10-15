@@ -42,10 +42,10 @@ export function CommandPalette() {
 
   const filteredPages = React.useMemo(
     () =>
-      fuzzyFilter<PageItem>(pages, query, [
-        (p) => p.title,
-        (p) => p.breadcrumb ?? null,
-      ]).slice(0, 30),
+      fuzzyFilter<PageItem>(pages, query, [(p) => p.title, (p) => p.breadcrumb ?? null]).slice(
+        0,
+        30,
+      ),
     [pages, query],
   );
   const filteredMembers = React.useMemo(
@@ -58,11 +58,7 @@ export function CommandPalette() {
     [members, query],
   );
   const filteredCommands = React.useMemo(
-    () =>
-      fuzzyFilter<CommandItem>(commands, query, [
-        (c) => c.title,
-        (c) => c.searchValue,
-      ]),
+    () => fuzzyFilter<CommandItem>(commands, query, [(c) => c.title, (c) => c.searchValue]),
     [commands, query],
   );
 
@@ -88,10 +84,7 @@ export function CommandPalette() {
       onRequestClose={() => setOpen(false)}
       statusBarTranslucent
     >
-      <Pressable
-        className="flex-1 bg-black/50"
-        onPress={() => setOpen(false)}
-      >
+      <Pressable className="flex-1 bg-black/50" onPress={() => setOpen(false)}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           className="flex-1 justify-end"
@@ -113,14 +106,14 @@ export function CommandPalette() {
                 autoFocus
                 value={query}
                 onChangeText={setQuery}
-                placeholder={t("commandPalette.placeholder")}
+                placeholder={t('commandPalette.placeholder')}
                 placeholderTextColor={colors.mutedForeground}
                 className="flex-1 text-base text-foreground"
                 returnKeyType="search"
               />
               <Pressable
                 onPress={() => setOpen(false)}
-                accessibilityLabel={t("commandPalette.close")}
+                accessibilityLabel={t('commandPalette.close')}
                 className="h-8 w-8 items-center justify-center rounded-full"
               >
                 <X size={16} color={colors.mutedForeground} />
@@ -137,13 +130,13 @@ export function CommandPalette() {
               {!hasResults ? (
                 <View className="px-4 py-10">
                   <Text className="text-center text-sm text-muted-foreground">
-                    {t("commandPalette.noResults")}
+                    {t('commandPalette.noResults')}
                   </Text>
                 </View>
               ) : null}
 
               {recents.length > 0 ? (
-                <Group title={t("commandPalette.groups.recent")}>
+                <Group title={t('commandPalette.groups.recent')}>
                   {recents.map((item) => (
                     <PageRow
                       key={item.id}
@@ -156,7 +149,7 @@ export function CommandPalette() {
               ) : null}
 
               {filteredPages.length > 0 ? (
-                <Group title={t("commandPalette.groups.pages")}>
+                <Group title={t('commandPalette.groups.pages')}>
                   {filteredPages.map(({ item }) => (
                     <PageRow key={item.id} item={item} onPress={openPage} />
                   ))}
@@ -164,7 +157,7 @@ export function CommandPalette() {
               ) : null}
 
               {filteredMembers.length > 0 ? (
-                <Group title={t("commandPalette.groups.people")}>
+                <Group title={t('commandPalette.groups.people')}>
                   {filteredMembers.map(({ item }) => (
                     <MemberRow key={item.id} item={item} />
                   ))}
@@ -172,7 +165,7 @@ export function CommandPalette() {
               ) : null}
 
               {filteredCommands.length > 0 ? (
-                <Group title={t("commandPalette.groups.commands")}>
+                <Group title={t('commandPalette.groups.commands')}>
                   {filteredCommands.map(({ item }) => (
                     <CommandRow key={item.id} item={item} />
                   ))}
@@ -219,7 +212,7 @@ function PageRow({ item, onPress, leadingIcon }: PageRowProps) {
         {item.icon ? (
           <Text className="text-base">{item.icon}</Text>
         ) : (
-          leadingIcon ?? <FileText size={14} color={colors.mutedForeground} />
+          (leadingIcon ?? <FileText size={14} color={colors.mutedForeground} />)
         )}
       </View>
       <View className="flex-1">
@@ -227,10 +220,7 @@ function PageRow({ item, onPress, leadingIcon }: PageRowProps) {
           {item.title}
         </Text>
         {item.subtitle ? (
-          <Text
-            className="text-xs text-muted-foreground"
-            numberOfLines={1}
-          >
+          <Text className="text-xs text-muted-foreground" numberOfLines={1}>
             {item.subtitle}
           </Text>
         ) : null}
@@ -247,19 +237,14 @@ function MemberRow({ item }: { item: MemberItem }) {
       className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-muted"
     >
       <View className="h-6 w-6 items-center justify-center rounded-full bg-muted">
-        <Text className="text-[10px] font-semibold text-muted-foreground">
-          {initial}
-        </Text>
+        <Text className="text-[10px] font-semibold text-muted-foreground">{initial}</Text>
       </View>
       <View className="flex-1">
         <Text className="text-sm text-foreground" numberOfLines={1}>
           {item.title}
         </Text>
         {item.subtitle ? (
-          <Text
-            className="text-xs text-muted-foreground"
-            numberOfLines={1}
-          >
+          <Text className="text-xs text-muted-foreground" numberOfLines={1}>
             {item.subtitle}
           </Text>
         ) : null}

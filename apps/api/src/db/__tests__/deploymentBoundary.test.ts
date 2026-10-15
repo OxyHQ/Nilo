@@ -100,9 +100,9 @@ describe('the web export fails closed before bundling', () => {
   });
 
   it('wires the checked preflight into both export commands and the deploy workflow', () => {
-    const manifest = JSON.parse(
-      readFileSync(resolve(APP_ROOT, 'package.json'), 'utf8'),
-    ) as { scripts?: Record<string, string> };
+    const manifest = JSON.parse(readFileSync(resolve(APP_ROOT, 'package.json'), 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
     const workflow = readFileSync(
       resolve(REPOSITORY_ROOT, '.github', 'workflows', 'deploy.yml'),
       'utf8',

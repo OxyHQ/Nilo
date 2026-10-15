@@ -87,9 +87,7 @@ export async function resolveRollup(
     case 'sum':
       return numbers.reduce((acc, n) => acc + n, 0);
     case 'avg':
-      return numbers.length > 0
-        ? numbers.reduce((acc, n) => acc + n, 0) / numbers.length
-        : null;
+      return numbers.length > 0 ? numbers.reduce((acc, n) => acc + n, 0) / numbers.length : null;
     case 'min':
       return numbers.length > 0 ? Math.min(...numbers) : null;
     case 'max':

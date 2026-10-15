@@ -1,31 +1,23 @@
-import * as React from "react";
-import {
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
-import { Check, ChevronDown, Plus, X } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useTranslation } from "@/hooks/useTranslation";
-import { useColorScheme } from "@/lib/useColorScheme";
+import * as React from 'react';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Check, ChevronDown, Plus, X } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useColorScheme } from '@/lib/useColorScheme';
 import type {
   DatabaseProperty,
   PropertyValue,
   SelectColor,
   SelectOption,
-} from "@/lib/types/databases";
-import { SELECT_COLOR_CLASSES } from "./select-color";
-import { centeredModalStyle } from "./centered-modal-style";
+} from '@/lib/types/databases';
+import { SELECT_COLOR_CLASSES } from './select-color';
+import { centeredModalStyle } from './centered-modal-style';
 
 export interface PropertyCellProps {
   property: DatabaseProperty;
   value: PropertyValue;
   /** Renders compact for table rows; expanded for the row detail panel. */
-  variant?: "table" | "panel" | "card";
+  variant?: 'table' | 'panel' | 'card';
   onChange: (next: PropertyValue) => void;
   /** Optional initial focus when becoming interactive (table double-click). */
   autoFocus?: boolean;
@@ -46,12 +38,12 @@ export interface PropertyCellProps {
 export function PropertyCell({
   property,
   value,
-  variant = "table",
+  variant = 'table',
   onChange,
   autoFocus,
 }: PropertyCellProps) {
   switch (property.type) {
-    case "text":
+    case 'text':
       return (
         <TextCell
           value={readText(value)}
@@ -60,7 +52,7 @@ export function PropertyCell({
           onChange={(text) => onChange({ text })}
         />
       );
-    case "number":
+    case 'number':
       return (
         <NumberCell
           property={property}
@@ -70,32 +62,29 @@ export function PropertyCell({
           onChange={(n) => onChange({ number: n })}
         />
       );
-    case "url":
-    case "email":
-    case "phone":
+    case 'url':
+    case 'email':
+    case 'phone':
       return (
         <TextCell
           value={readScalarString(value)}
           variant={variant}
           autoFocus={autoFocus}
           keyboardType={
-            property.type === "email"
-              ? "email-address"
-              : property.type === "phone"
-                ? "phone-pad"
-                : "url"
+            property.type === 'email'
+              ? 'email-address'
+              : property.type === 'phone'
+                ? 'phone-pad'
+                : 'url'
           }
           onChange={(v) => onChange({ value: v })}
         />
       );
-    case "checkbox":
+    case 'checkbox':
       return (
-        <CheckboxCell
-          value={readChecked(value)}
-          onChange={(checked) => onChange({ checked })}
-        />
+        <CheckboxCell value={readChecked(value)} onChange={(checked) => onChange({ checked })} />
       );
-    case "select":
+    case 'select':
       return (
         <SelectCell
           property={property}
@@ -104,7 +93,7 @@ export function PropertyCell({
           onChange={(id) => onChange({ optionId: id })}
         />
       );
-    case "status":
+    case 'status':
       return (
         <SelectCell
           property={property}
@@ -113,7 +102,7 @@ export function PropertyCell({
           onChange={(id) => onChange({ optionId: id })}
         />
       );
-    case "multi_select":
+    case 'multi_select':
       return (
         <MultiSelectCell
           property={property}
@@ -122,36 +111,28 @@ export function PropertyCell({
           onChange={(ids) => onChange({ optionIds: ids })}
         />
       );
-    case "date":
+    case 'date':
       return (
         <DateCell
           variant={variant}
           value={readDateStart(value)}
-          onChange={(start) =>
-            onChange({ start, end: null, includeTime: false })
-          }
+          onChange={(start) => onChange({ start, end: null, includeTime: false })}
         />
       );
-    case "person":
+    case 'person':
       return <PersonCell value={readUserIds(value)} variant={variant} />;
-    case "files":
+    case 'files':
       return <FilesCell value={readFiles(value)} variant={variant} />;
-    case "relation":
+    case 'relation':
       return <RelationCell value={readPageIds(value)} variant={variant} />;
-    case "rollup":
-    case "formula":
+    case 'rollup':
+    case 'formula':
       return <DerivedCell value={value} variant={variant} />;
-    case "created_time":
-    case "last_edited_time":
-      return (
-        <DerivedCell
-          value={value}
-          variant={variant}
-          format="date"
-        />
-      );
-    case "created_by":
-    case "last_edited_by":
+    case 'created_time':
+    case 'last_edited_time':
+      return <DerivedCell value={value} variant={variant} format="date" />;
+    case 'created_by':
+    case 'last_edited_by':
       return <PersonCell value={readUserIds(value)} variant={variant} />;
   }
 }
@@ -159,86 +140,86 @@ export function PropertyCell({
 // --- typed readers ---------------------------------------------------------
 
 function readText(v: PropertyValue): string {
-  if (v && typeof v === "object" && "text" in v && typeof v.text === "string") {
+  if (v && typeof v === 'object' && 'text' in v && typeof v.text === 'string') {
     return v.text;
   }
-  return "";
+  return '';
 }
 function readScalarString(v: PropertyValue): string {
-  if (v && typeof v === "object" && "value" in v && typeof v.value === "string") {
+  if (v && typeof v === 'object' && 'value' in v && typeof v.value === 'string') {
     return v.value;
   }
-  return "";
+  return '';
 }
 function readNumber(v: PropertyValue): number | null {
   if (
     v &&
-    typeof v === "object" &&
-    "number" in v &&
-    (typeof v.number === "number" || v.number === null)
+    typeof v === 'object' &&
+    'number' in v &&
+    (typeof v.number === 'number' || v.number === null)
   ) {
     return v.number;
   }
   return null;
 }
 function readChecked(v: PropertyValue): boolean {
-  if (v && typeof v === "object" && "checked" in v) {
+  if (v && typeof v === 'object' && 'checked' in v) {
     return Boolean(v.checked);
   }
   return false;
 }
 function readOptionId(v: PropertyValue): string | null {
-  if (v && typeof v === "object" && "optionId" in v) {
+  if (v && typeof v === 'object' && 'optionId' in v) {
     const id = v.optionId;
-    return typeof id === "string" ? id : null;
+    return typeof id === 'string' ? id : null;
   }
   return null;
 }
 function readOptionIds(v: PropertyValue): string[] {
-  if (v && typeof v === "object" && "optionIds" in v) {
+  if (v && typeof v === 'object' && 'optionIds' in v) {
     const ids = v.optionIds;
     if (Array.isArray(ids)) {
-      return ids.filter((id): id is string => typeof id === "string");
+      return ids.filter((id): id is string => typeof id === 'string');
     }
   }
   return [];
 }
 function readDateStart(v: PropertyValue): string | null {
-  if (v && typeof v === "object" && "start" in v) {
+  if (v && typeof v === 'object' && 'start' in v) {
     const start = v.start;
-    return typeof start === "string" ? start : null;
+    return typeof start === 'string' ? start : null;
   }
   return null;
 }
 function readUserIds(v: PropertyValue): string[] {
-  if (v && typeof v === "object" && "userIds" in v) {
+  if (v && typeof v === 'object' && 'userIds' in v) {
     const ids = v.userIds;
     if (Array.isArray(ids)) {
-      return ids.filter((id): id is string => typeof id === "string");
+      return ids.filter((id): id is string => typeof id === 'string');
     }
   }
   return [];
 }
 function readFiles(v: PropertyValue): { name: string; url: string }[] {
-  if (v && typeof v === "object" && "files" in v) {
+  if (v && typeof v === 'object' && 'files' in v) {
     const files = v.files;
     if (Array.isArray(files)) {
       return files.filter(
         (f): f is { name: string; url: string } =>
-          typeof f === "object" &&
+          typeof f === 'object' &&
           f !== null &&
-          typeof (f as { name?: unknown }).name === "string" &&
-          typeof (f as { url?: unknown }).url === "string",
+          typeof (f as { name?: unknown }).name === 'string' &&
+          typeof (f as { url?: unknown }).url === 'string',
       );
     }
   }
   return [];
 }
 function readPageIds(v: PropertyValue): string[] {
-  if (v && typeof v === "object" && "pageIds" in v) {
+  if (v && typeof v === 'object' && 'pageIds' in v) {
     const ids = v.pageIds;
     if (Array.isArray(ids)) {
-      return ids.filter((id): id is string => typeof id === "string");
+      return ids.filter((id): id is string => typeof id === 'string');
     }
   }
   return [];
@@ -247,23 +228,17 @@ function readPageIds(v: PropertyValue): string[] {
 // --- individual cell editors ----------------------------------------------
 
 interface CellVariantProps {
-  variant: PropertyCellProps["variant"];
+  variant: PropertyCellProps['variant'];
 }
 
 interface TextCellProps extends CellVariantProps {
   value: string;
   autoFocus?: boolean;
-  keyboardType?: "default" | "email-address" | "phone-pad" | "url";
+  keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'url';
   onChange: (next: string) => void;
 }
 
-function TextCell({
-  value,
-  autoFocus,
-  keyboardType,
-  onChange,
-  variant,
-}: TextCellProps) {
+function TextCell({ value, autoFocus, keyboardType, onChange, variant }: TextCellProps) {
   const { colors } = useColorScheme();
   const [draft, setDraft] = React.useState(value);
   React.useEffect(() => {
@@ -281,16 +256,12 @@ function TextCell({
       onBlur={commit}
       onSubmitEditing={commit}
       autoFocus={autoFocus}
-      keyboardType={keyboardType ?? "default"}
+      keyboardType={keyboardType ?? 'default'}
       placeholder=""
       placeholderTextColor={colors.mutedForeground}
-      className={
-        variant === "panel"
-          ? "text-sm text-foreground py-1"
-          : "text-sm text-foreground"
-      }
+      className={variant === 'panel' ? 'text-sm text-foreground py-1' : 'text-sm text-foreground'}
       style={
-        Platform.OS === "web"
+        Platform.OS === 'web'
           ? { outlineWidth: 0, borderWidth: 0, padding: 0, minWidth: 60 }
           : undefined
       }
@@ -306,22 +277,16 @@ interface NumberCellProps extends CellVariantProps {
   onChange: (next: number | null) => void;
 }
 
-function NumberCell({
-  property,
-  value,
-  autoFocus,
-  onChange,
-  variant,
-}: NumberCellProps) {
+function NumberCell({ property, value, autoFocus, onChange, variant }: NumberCellProps) {
   const { colors } = useColorScheme();
-  const [draft, setDraft] = React.useState(value === null ? "" : String(value));
+  const [draft, setDraft] = React.useState(value === null ? '' : String(value));
   React.useEffect(() => {
-    setDraft(value === null ? "" : String(value));
+    setDraft(value === null ? '' : String(value));
   }, [value]);
 
   const commit = () => {
     const trimmed = draft.trim();
-    if (trimmed === "") {
+    if (trimmed === '') {
       if (value !== null) onChange(null);
       return;
     }
@@ -329,7 +294,7 @@ function NumberCell({
     if (Number.isFinite(parsed)) {
       if (parsed !== value) onChange(parsed);
     } else {
-      setDraft(value === null ? "" : String(value));
+      setDraft(value === null ? '' : String(value));
     }
   };
 
@@ -337,7 +302,7 @@ function NumberCell({
 
   return (
     <View className="flex-row items-center">
-      {variant === "table" ? (
+      {variant === 'table' ? (
         <TextInput
           value={draft}
           onChangeText={setDraft}
@@ -350,7 +315,7 @@ function NumberCell({
           placeholderTextColor={colors.mutedForeground}
           className="text-sm text-foreground text-right flex-1"
           style={
-            Platform.OS === "web"
+            Platform.OS === 'web'
               ? { outlineWidth: 0, borderWidth: 0, padding: 0, minWidth: 40 }
               : undefined
           }
@@ -370,15 +335,13 @@ function NumberCell({
             placeholderTextColor={colors.mutedForeground}
             className="text-sm text-foreground py-1"
             style={
-              Platform.OS === "web"
+              Platform.OS === 'web'
                 ? { outlineWidth: 0, borderWidth: 0, padding: 0, minWidth: 60 }
                 : undefined
             }
           />
           {displayValue !== draft && draft.length > 0 ? (
-            <Text className="text-xs text-muted-foreground ml-2">
-              {displayValue}
-            </Text>
+            <Text className="text-xs text-muted-foreground ml-2">{displayValue}</Text>
           ) : null}
         </View>
       )}
@@ -387,17 +350,17 @@ function NumberCell({
 }
 
 function formatNumber(value: number | null, property: DatabaseProperty): string {
-  if (value === null) return "";
-  const format = property.config?.format ?? "number";
+  if (value === null) return '';
+  const format = property.config?.format ?? 'number';
   const precision = property.config?.precision ?? 2;
-  if (format === "percent") {
+  if (format === 'percent') {
     return `${(value * 100).toFixed(precision)}%`;
   }
-  if (format.startsWith("currency:")) {
-    const currency = format.slice("currency:".length);
+  if (format.startsWith('currency:')) {
+    const currency = format.slice('currency:'.length);
     try {
       return new Intl.NumberFormat(undefined, {
-        style: "currency",
+        style: 'currency',
         currency,
         maximumFractionDigits: precision,
       }).format(value);
@@ -420,9 +383,7 @@ function CheckboxCell({ value, onChange }: CheckboxCellProps) {
       accessibilityRole="checkbox"
       accessibilityState={{ checked: value }}
       className={`h-5 w-5 items-center justify-center rounded border ${
-        value
-          ? "bg-primary border-primary"
-          : "border-border bg-background"
+        value ? 'bg-primary border-primary' : 'border-border bg-background'
       }`}
     >
       {value ? <Check size={14} color="#ffffff" /> : null}
@@ -445,19 +406,15 @@ function SelectCell({ property, value, onChange, variant }: SelectCellProps) {
     <>
       <Pressable
         onPress={() => setOpen(true)}
-        className={`flex-row items-center ${
-          variant === "table" ? "py-0.5" : "py-1"
-        }`}
+        className={`flex-row items-center ${variant === 'table' ? 'py-0.5' : 'py-1'}`}
       >
-        {selected ? <SelectChip option={selected} /> : (
+        {selected ? (
+          <SelectChip option={selected} />
+        ) : (
           <Text className="text-sm text-muted-foreground">—</Text>
         )}
-        {variant !== "card" ? (
-          <ChevronDown
-            size={12}
-            color="#9ca3af"
-            style={{ marginLeft: 4 }}
-          />
+        {variant !== 'card' ? (
+          <ChevronDown size={12} color="#9ca3af" style={{ marginLeft: 4 }} />
         ) : null}
       </Pressable>
       <SelectPicker
@@ -485,12 +442,7 @@ interface MultiSelectCellProps extends CellVariantProps {
   onChange: (next: string[]) => void;
 }
 
-function MultiSelectCell({
-  property,
-  value,
-  onChange,
-  variant,
-}: MultiSelectCellProps) {
+function MultiSelectCell({ property, value, onChange, variant }: MultiSelectCellProps) {
   const [open, setOpen] = React.useState(false);
   const options = property.config?.options ?? [];
   const selected = options.filter((o) => value.includes(o.id));
@@ -500,7 +452,7 @@ function MultiSelectCell({
       <Pressable
         onPress={() => setOpen(true)}
         className={`flex-row flex-wrap items-center gap-1 ${
-          variant === "table" ? "py-0.5" : "py-1"
+          variant === 'table' ? 'py-0.5' : 'py-1'
         }`}
       >
         {selected.length === 0 ? (
@@ -516,9 +468,7 @@ function MultiSelectCell({
         selectedIds={value}
         multi
         onSelect={(id) => {
-          const next = value.includes(id)
-            ? value.filter((x) => x !== id)
-            : [...value, id];
+          const next = value.includes(id) ? value.filter((x) => x !== id) : [...value, id];
           onChange(next);
         }}
         onClear={() => onChange([])}
@@ -530,9 +480,7 @@ function MultiSelectCell({
 function SelectChip({ option }: { option: SelectOption }) {
   const palette = SELECT_COLOR_CLASSES[option.color] ?? SELECT_COLOR_CLASSES.default;
   return (
-    <View
-      className={`px-2 py-0.5 rounded-md ${palette.bg}`}
-    >
+    <View className={`px-2 py-0.5 rounded-md ${palette.bg}`}>
       <Text className={`text-xs ${palette.fg}`}>{option.name}</Text>
     </View>
   );
@@ -557,7 +505,7 @@ function SelectPicker({
   onSelect,
   onClear,
 }: SelectPickerProps) {
-  const [query, setQuery] = React.useState("");
+  const [query, setQuery] = React.useState('');
   const { colors } = useColorScheme();
   const { t } = useTranslation();
 
@@ -568,17 +516,8 @@ function SelectPicker({
   }, [options, query]);
 
   return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Pressable
-        style={StyleSheet.absoluteFill}
-        className="bg-black/40"
-        onPress={onClose}
-      />
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={StyleSheet.absoluteFill} className="bg-black/40" onPress={onClose} />
       <View className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2 max-w-md">
         <View
           className="bg-popover border border-border rounded-2xl shadow-xl p-3 m-3 web:m-0"
@@ -587,19 +526,17 @@ function SelectPicker({
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder={t("databases.properties.searchOptions")}
+            placeholder={t('databases.properties.searchOptions')}
             placeholderTextColor={colors.mutedForeground}
             className="text-sm text-foreground border border-border rounded-md px-2 py-1 mb-2"
-            style={
-              Platform.OS === "web" ? { outlineWidth: 0 } : undefined
-            }
+            style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
             underlineColorAndroid="transparent"
           />
           <ScrollView style={{ maxHeight: 280 }}>
             {filtered.length === 0 ? (
               <View className="px-3 py-3">
                 <Text className="text-sm text-muted-foreground">
-                  {t("databases.properties.noOptions")}
+                  {t('databases.properties.noOptions')}
                 </Text>
               </View>
             ) : (
@@ -612,9 +549,7 @@ function SelectPicker({
                     className="flex-row items-center justify-between px-2 py-1.5 rounded hover:bg-muted"
                   >
                     <SelectChip option={o} />
-                    {selected ? (
-                      <Check size={14} color={colors.foreground} />
-                    ) : null}
+                    {selected ? <Check size={14} color={colors.foreground} /> : null}
                   </Pressable>
                 );
               })
@@ -627,9 +562,7 @@ function SelectPicker({
             >
               <X size={12} color={colors.mutedForeground} />
               <Text className="text-xs text-muted-foreground">
-                {multi
-                  ? t("databases.actions.clearAll")
-                  : t("databases.actions.clear")}
+                {multi ? t('databases.actions.clearAll') : t('databases.actions.clear')}
               </Text>
             </Pressable>
           ) : null}
@@ -647,15 +580,13 @@ interface DateCellProps extends CellVariantProps {
 function DateCell({ value, onChange, variant }: DateCellProps) {
   const { colors } = useColorScheme();
   const { locale } = useTranslation();
-  const display = value ? new Date(value).toLocaleDateString(locale) : "—";
+  const display = value ? new Date(value).toLocaleDateString(locale) : '—';
   // On web, use a native date input. On native, render the date as text
   // and allow clearing — full picker is a Phase 4.5 stretch goal.
-  if (Platform.OS === "web") {
-    const [draft, setDraft] = React.useState<string>(
-      value ? toDateInput(value) : "",
-    );
+  if (Platform.OS === 'web') {
+    const [draft, setDraft] = React.useState<string>(value ? toDateInput(value) : '');
     React.useEffect(() => {
-      setDraft(value ? toDateInput(value) : "");
+      setDraft(value ? toDateInput(value) : '');
     }, [value]);
 
     return (
@@ -676,9 +607,9 @@ function DateCell({ value, onChange, variant }: DateCellProps) {
             if (iso !== value) onChange(iso);
           }}
           style={{
-            background: "transparent",
-            border: "none",
-            outline: "none",
+            background: 'transparent',
+            border: 'none',
+            outline: 'none',
             color: colors.foreground,
             fontSize: 13,
             padding: 0,
@@ -689,7 +620,7 @@ function DateCell({ value, onChange, variant }: DateCellProps) {
   }
   // Native fallback
   return (
-    <View className={variant === "panel" ? "py-1" : ""}>
+    <View className={variant === 'panel' ? 'py-1' : ''}>
       <Text className="text-sm text-foreground">{display}</Text>
     </View>
   );
@@ -697,10 +628,10 @@ function DateCell({ value, onChange, variant }: DateCellProps) {
 
 function toDateInput(iso: string): string {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
+  if (Number.isNaN(d.getTime())) return '';
   const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
@@ -713,12 +644,9 @@ function PersonCell({ value, variant }: ReadOnlyArrayCellProps) {
     return <Text className="text-sm text-muted-foreground">—</Text>;
   }
   return (
-    <View className={`flex-row flex-wrap gap-1 ${variant === "panel" ? "py-1" : ""}`}>
+    <View className={`flex-row flex-wrap gap-1 ${variant === 'panel' ? 'py-1' : ''}`}>
       {value.map((id) => (
-        <View
-          key={id}
-          className="px-2 py-0.5 rounded-md bg-muted"
-        >
+        <View key={id} className="px-2 py-0.5 rounded-md bg-muted">
           <Text className="text-xs text-foreground">{shortenUserId(id)}</Text>
         </View>
       ))}
@@ -749,9 +677,7 @@ function FilesCell({ value }: FilesCellProps) {
         </View>
       ))}
       {value.length > 3 ? (
-        <Text className="text-xs text-muted-foreground">
-          +{value.length - 3}
-        </Text>
+        <Text className="text-xs text-muted-foreground">+{value.length - 3}</Text>
       ) : null}
     </View>
   );
@@ -765,7 +691,7 @@ function RelationCell({ value }: ReadOnlyArrayCellProps) {
   return (
     <View className="flex-row items-center gap-1">
       <Text className="text-sm text-foreground">
-        {t("databases.properties.pageCount", { count: value.length })}
+        {t('databases.properties.pageCount', { count: value.length })}
       </Text>
     </View>
   );
@@ -773,32 +699,28 @@ function RelationCell({ value }: ReadOnlyArrayCellProps) {
 
 interface DerivedCellProps extends CellVariantProps {
   value: PropertyValue;
-  format?: "date";
+  format?: 'date';
 }
 
 function DerivedCell({ value, format }: DerivedCellProps) {
   const { locale } = useTranslation();
-  if (!value || typeof value !== "object") {
+  if (!value || typeof value !== 'object') {
     return <Text className="text-sm text-muted-foreground">—</Text>;
   }
-  if ("number" in value && typeof value.number === "number") {
+  if ('number' in value && typeof value.number === 'number') {
     return <Text className="text-sm text-foreground">{value.number}</Text>;
   }
-  if ("text" in value && typeof value.text === "string") {
+  if ('text' in value && typeof value.text === 'string') {
     return (
       <Text className="text-sm text-foreground" numberOfLines={1}>
-        {value.text || "—"}
+        {value.text || '—'}
       </Text>
     );
   }
-  if ("start" in value && typeof value.start === "string") {
+  if ('start' in value && typeof value.start === 'string') {
     const d = new Date(value.start);
-    if (format === "date" && !Number.isNaN(d.getTime())) {
-      return (
-        <Text className="text-sm text-foreground">
-          {d.toLocaleDateString(locale)}
-        </Text>
-      );
+    if (format === 'date' && !Number.isNaN(d.getTime())) {
+      return <Text className="text-sm text-foreground">{d.toLocaleDateString(locale)}</Text>;
     }
   }
   return <Text className="text-sm text-muted-foreground">—</Text>;
@@ -807,13 +729,7 @@ function DerivedCell({ value, format }: DerivedCellProps) {
 /**
  * "+ Add option" button for property menus.
  */
-export function AddOptionButton({
-  onPress,
-  label,
-}: {
-  onPress: () => void;
-  label: string;
-}) {
+export function AddOptionButton({ onPress, label }: { onPress: () => void; label: string }) {
   const { colors } = useColorScheme();
   return (
     <Pressable

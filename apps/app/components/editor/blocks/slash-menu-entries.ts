@@ -15,16 +15,12 @@ import {
   Table as TableIcon,
   Video as VideoIcon,
   Workflow,
-} from "lucide-react-native";
-import i18n from "@/lib/i18n";
-import {
-  registerSlashMenuOptions,
-  SLASH_MENU_OPTIONS,
-  type SlashMenuOption,
-} from "../slash-menu";
+} from 'lucide-react-native';
+import i18n from '@/lib/i18n';
+import { registerSlashMenuOptions, SLASH_MENU_OPTIONS, type SlashMenuOption } from '../slash-menu';
 
 /** Reads the English catalog regardless of the active locale. */
-const EN = { locale: "en" } as const;
+const EN = { locale: 'en' } as const;
 
 /**
  * Search keywords for an entry: the English label and keywords always match,
@@ -34,7 +30,7 @@ const EN = { locale: "en" } as const;
 function searchTerms(...lists: string[]): string[] {
   const out = new Set<string>();
   for (const list of lists) {
-    for (const raw of list.split(",")) {
+    for (const raw of list.split(',')) {
       const term = raw.trim();
       if (term) out.add(term);
     }
@@ -42,7 +38,7 @@ function searchTerms(...lists: string[]): string[] {
   return [...out];
 }
 
-type LocalizedText = Pick<SlashMenuOption, "label" | "description" | "keywords">;
+type LocalizedText = Pick<SlashMenuOption, 'label' | 'description' | 'keywords'>;
 
 /**
  * Phase 3 (more block types) slash-menu entries. Their text is read through
@@ -58,330 +54,330 @@ type LocalizedText = Pick<SlashMenuOption, "label" | "description" | "keywords">
 const PHASE_3_OPTIONS: readonly SlashMenuOption[] = [
   // Media
   {
-    id: "media:image",
-    type: "image",
+    id: 'media:image',
+    type: 'image',
     get label() {
-      return i18n.t("editor.slashMenu.image.label");
+      return i18n.t('editor.slashMenu.image.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.image.description");
+      return i18n.t('editor.slashMenu.image.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.image.label", EN),
-        i18n.t("editor.slashMenu.image.keywords", EN),
-        i18n.t("editor.slashMenu.image.keywords"),
+        i18n.t('editor.slashMenu.image.label', EN),
+        i18n.t('editor.slashMenu.image.keywords', EN),
+        i18n.t('editor.slashMenu.image.keywords'),
       );
     },
-    section: "media",
+    section: 'media',
     Icon: ImageIcon,
   },
   {
-    id: "media:video",
-    type: "video",
+    id: 'media:video',
+    type: 'video',
     get label() {
-      return i18n.t("editor.slashMenu.video.label");
+      return i18n.t('editor.slashMenu.video.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.video.description");
+      return i18n.t('editor.slashMenu.video.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.video.label", EN),
-        i18n.t("editor.slashMenu.video.keywords", EN),
-        i18n.t("editor.slashMenu.video.keywords"),
+        i18n.t('editor.slashMenu.video.label', EN),
+        i18n.t('editor.slashMenu.video.keywords', EN),
+        i18n.t('editor.slashMenu.video.keywords'),
       );
     },
-    section: "media",
+    section: 'media',
     Icon: VideoIcon,
   },
   {
-    id: "media:audio",
-    type: "audio",
+    id: 'media:audio',
+    type: 'audio',
     get label() {
-      return i18n.t("editor.slashMenu.audio.label");
+      return i18n.t('editor.slashMenu.audio.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.audio.description");
+      return i18n.t('editor.slashMenu.audio.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.audio.label", EN),
-        i18n.t("editor.slashMenu.audio.keywords", EN),
-        i18n.t("editor.slashMenu.audio.keywords"),
+        i18n.t('editor.slashMenu.audio.label', EN),
+        i18n.t('editor.slashMenu.audio.keywords', EN),
+        i18n.t('editor.slashMenu.audio.keywords'),
       );
     },
-    section: "media",
+    section: 'media',
     Icon: Music,
   },
   {
-    id: "media:file",
-    type: "file",
+    id: 'media:file',
+    type: 'file',
     get label() {
-      return i18n.t("editor.slashMenu.file.label");
+      return i18n.t('editor.slashMenu.file.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.file.description");
+      return i18n.t('editor.slashMenu.file.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.file.label", EN),
-        i18n.t("editor.slashMenu.file.keywords", EN),
-        i18n.t("editor.slashMenu.file.keywords"),
+        i18n.t('editor.slashMenu.file.label', EN),
+        i18n.t('editor.slashMenu.file.keywords', EN),
+        i18n.t('editor.slashMenu.file.keywords'),
       );
     },
-    section: "media",
+    section: 'media',
     Icon: FileIcon,
   },
   {
-    id: "media:pdf",
-    type: "pdf",
+    id: 'media:pdf',
+    type: 'pdf',
     get label() {
-      return i18n.t("editor.slashMenu.pdf.label");
+      return i18n.t('editor.slashMenu.pdf.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.pdf.description");
+      return i18n.t('editor.slashMenu.pdf.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.pdf.label", EN),
-        i18n.t("editor.slashMenu.pdf.keywords", EN),
-        i18n.t("editor.slashMenu.pdf.keywords"),
+        i18n.t('editor.slashMenu.pdf.label', EN),
+        i18n.t('editor.slashMenu.pdf.keywords', EN),
+        i18n.t('editor.slashMenu.pdf.keywords'),
       );
     },
-    section: "media",
+    section: 'media',
     Icon: FileText,
   },
 
   // Embeds
   {
-    id: "embeds:bookmark",
-    type: "bookmark",
+    id: 'embeds:bookmark',
+    type: 'bookmark',
     get label() {
-      return i18n.t("editor.slashMenu.bookmark.label");
+      return i18n.t('editor.slashMenu.bookmark.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.bookmark.description");
+      return i18n.t('editor.slashMenu.bookmark.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.bookmark.label", EN),
-        i18n.t("editor.slashMenu.bookmark.keywords", EN),
-        i18n.t("editor.slashMenu.bookmark.keywords"),
+        i18n.t('editor.slashMenu.bookmark.label', EN),
+        i18n.t('editor.slashMenu.bookmark.keywords', EN),
+        i18n.t('editor.slashMenu.bookmark.keywords'),
       );
     },
-    section: "embeds",
+    section: 'embeds',
     Icon: Bookmark,
   },
   {
-    id: "embeds:embed",
-    type: "embed",
+    id: 'embeds:embed',
+    type: 'embed',
     get label() {
-      return i18n.t("editor.slashMenu.embed.label");
+      return i18n.t('editor.slashMenu.embed.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.embed.description");
+      return i18n.t('editor.slashMenu.embed.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.embed.label", EN),
-        i18n.t("editor.slashMenu.embed.keywords", EN),
-        i18n.t("editor.slashMenu.embed.keywords"),
+        i18n.t('editor.slashMenu.embed.label', EN),
+        i18n.t('editor.slashMenu.embed.keywords', EN),
+        i18n.t('editor.slashMenu.embed.keywords'),
       );
     },
-    section: "embeds",
+    section: 'embeds',
     Icon: ExternalLink,
   },
   {
-    id: "embeds:youtube",
-    type: "video",
+    id: 'embeds:youtube',
+    type: 'video',
     get label() {
-      return i18n.t("editor.slashMenu.youtube.label");
+      return i18n.t('editor.slashMenu.youtube.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.youtube.description");
+      return i18n.t('editor.slashMenu.youtube.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.youtube.label", EN),
-        i18n.t("editor.slashMenu.youtube.keywords", EN),
-        i18n.t("editor.slashMenu.youtube.keywords"),
+        i18n.t('editor.slashMenu.youtube.label', EN),
+        i18n.t('editor.slashMenu.youtube.keywords', EN),
+        i18n.t('editor.slashMenu.youtube.keywords'),
       );
     },
-    section: "embeds",
+    section: 'embeds',
     Icon: VideoIcon,
   },
 
   // Advanced — layout, interactive, math
   {
-    id: "advanced:columns",
-    type: "columns",
+    id: 'advanced:columns',
+    type: 'columns',
     get label() {
-      return i18n.t("editor.slashMenu.columns.label");
+      return i18n.t('editor.slashMenu.columns.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.columns.description");
+      return i18n.t('editor.slashMenu.columns.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.columns.label", EN),
-        i18n.t("editor.slashMenu.columns.keywords", EN),
-        i18n.t("editor.slashMenu.columns.keywords"),
+        i18n.t('editor.slashMenu.columns.label', EN),
+        i18n.t('editor.slashMenu.columns.keywords', EN),
+        i18n.t('editor.slashMenu.columns.keywords'),
       );
     },
-    section: "advanced",
+    section: 'advanced',
     Icon: Rows3,
   },
   {
-    id: "advanced:table",
-    type: "table",
+    id: 'advanced:table',
+    type: 'table',
     get label() {
-      return i18n.t("editor.slashMenu.table.label");
+      return i18n.t('editor.slashMenu.table.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.table.description");
+      return i18n.t('editor.slashMenu.table.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.table.label", EN),
-        i18n.t("editor.slashMenu.table.keywords", EN),
-        i18n.t("editor.slashMenu.table.keywords"),
+        i18n.t('editor.slashMenu.table.label', EN),
+        i18n.t('editor.slashMenu.table.keywords', EN),
+        i18n.t('editor.slashMenu.table.keywords'),
       );
     },
-    section: "advanced",
+    section: 'advanced',
     Icon: TableIcon,
   },
   {
-    id: "advanced:button",
-    type: "button",
+    id: 'advanced:button',
+    type: 'button',
     get label() {
-      return i18n.t("editor.slashMenu.button.label");
+      return i18n.t('editor.slashMenu.button.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.button.description");
+      return i18n.t('editor.slashMenu.button.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.button.label", EN),
-        i18n.t("editor.slashMenu.button.keywords", EN),
-        i18n.t("editor.slashMenu.button.keywords"),
+        i18n.t('editor.slashMenu.button.label', EN),
+        i18n.t('editor.slashMenu.button.keywords', EN),
+        i18n.t('editor.slashMenu.button.keywords'),
       );
     },
-    section: "advanced",
+    section: 'advanced',
     Icon: SquareDashedBottom,
   },
   {
-    id: "advanced:link_to_page",
-    type: "link_to_page",
+    id: 'advanced:link_to_page',
+    type: 'link_to_page',
     get label() {
-      return i18n.t("editor.slashMenu.linkToPage.label");
+      return i18n.t('editor.slashMenu.linkToPage.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.linkToPage.description");
+      return i18n.t('editor.slashMenu.linkToPage.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.linkToPage.label", EN),
-        i18n.t("editor.slashMenu.linkToPage.keywords", EN),
-        i18n.t("editor.slashMenu.linkToPage.keywords"),
+        i18n.t('editor.slashMenu.linkToPage.label', EN),
+        i18n.t('editor.slashMenu.linkToPage.keywords', EN),
+        i18n.t('editor.slashMenu.linkToPage.keywords'),
       );
     },
-    section: "advanced",
+    section: 'advanced',
     Icon: Link2,
   },
   {
-    id: "advanced:equation",
-    type: "equation",
+    id: 'advanced:equation',
+    type: 'equation',
     get label() {
-      return i18n.t("editor.slashMenu.equation.label");
+      return i18n.t('editor.slashMenu.equation.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.equation.description");
+      return i18n.t('editor.slashMenu.equation.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.equation.label", EN),
-        i18n.t("editor.slashMenu.equation.keywords", EN),
-        i18n.t("editor.slashMenu.equation.keywords"),
+        i18n.t('editor.slashMenu.equation.label', EN),
+        i18n.t('editor.slashMenu.equation.keywords', EN),
+        i18n.t('editor.slashMenu.equation.keywords'),
       );
     },
-    section: "advanced",
+    section: 'advanced',
     Icon: Calculator,
   },
   {
-    id: "advanced:mermaid",
-    type: "mermaid",
+    id: 'advanced:mermaid',
+    type: 'mermaid',
     get label() {
-      return i18n.t("editor.slashMenu.mermaid.label");
+      return i18n.t('editor.slashMenu.mermaid.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.mermaid.description");
+      return i18n.t('editor.slashMenu.mermaid.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.mermaid.label", EN),
-        i18n.t("editor.slashMenu.mermaid.keywords", EN),
-        i18n.t("editor.slashMenu.mermaid.keywords"),
+        i18n.t('editor.slashMenu.mermaid.label', EN),
+        i18n.t('editor.slashMenu.mermaid.keywords', EN),
+        i18n.t('editor.slashMenu.mermaid.keywords'),
       );
     },
-    section: "advanced",
+    section: 'advanced',
     Icon: Workflow,
   },
   {
-    id: "advanced:table_of_contents",
-    type: "table_of_contents",
+    id: 'advanced:table_of_contents',
+    type: 'table_of_contents',
     get label() {
-      return i18n.t("editor.slashMenu.tableOfContents.label");
+      return i18n.t('editor.slashMenu.tableOfContents.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.tableOfContents.description");
+      return i18n.t('editor.slashMenu.tableOfContents.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.tableOfContents.label", EN),
-        i18n.t("editor.slashMenu.tableOfContents.keywords", EN),
-        i18n.t("editor.slashMenu.tableOfContents.keywords"),
+        i18n.t('editor.slashMenu.tableOfContents.label', EN),
+        i18n.t('editor.slashMenu.tableOfContents.keywords', EN),
+        i18n.t('editor.slashMenu.tableOfContents.keywords'),
       );
     },
-    section: "advanced",
+    section: 'advanced',
     Icon: ListTree,
   },
   {
-    id: "advanced:breadcrumb",
-    type: "breadcrumb",
+    id: 'advanced:breadcrumb',
+    type: 'breadcrumb',
     get label() {
-      return i18n.t("editor.slashMenu.breadcrumb.label");
+      return i18n.t('editor.slashMenu.breadcrumb.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.breadcrumb.description");
+      return i18n.t('editor.slashMenu.breadcrumb.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.breadcrumb.label", EN),
-        i18n.t("editor.slashMenu.breadcrumb.keywords", EN),
-        i18n.t("editor.slashMenu.breadcrumb.keywords"),
+        i18n.t('editor.slashMenu.breadcrumb.label', EN),
+        i18n.t('editor.slashMenu.breadcrumb.keywords', EN),
+        i18n.t('editor.slashMenu.breadcrumb.keywords'),
       );
     },
-    section: "advanced",
+    section: 'advanced',
     Icon: MapPin,
   },
   {
-    id: "advanced:sync_block",
-    type: "sync_block",
+    id: 'advanced:sync_block',
+    type: 'sync_block',
     get label() {
-      return i18n.t("editor.slashMenu.syncedBlock.label");
+      return i18n.t('editor.slashMenu.syncedBlock.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.syncedBlock.description");
+      return i18n.t('editor.slashMenu.syncedBlock.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.syncedBlock.label", EN),
-        i18n.t("editor.slashMenu.syncedBlock.keywords", EN),
-        i18n.t("editor.slashMenu.syncedBlock.keywords"),
+        i18n.t('editor.slashMenu.syncedBlock.label', EN),
+        i18n.t('editor.slashMenu.syncedBlock.keywords', EN),
+        i18n.t('editor.slashMenu.syncedBlock.keywords'),
       );
     },
-    section: "advanced",
+    section: 'advanced',
     Icon: RefreshCcw,
   },
 ];
@@ -393,183 +389,183 @@ const PHASE_3_OPTIONS: readonly SlashMenuOption[] = [
  * definition.
  */
 const DEFAULT_TEXT: Record<string, LocalizedText> = {
-  "basic:paragraph": {
+  'basic:paragraph': {
     get label() {
-      return i18n.t("editor.slashMenu.paragraph.label");
+      return i18n.t('editor.slashMenu.paragraph.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.paragraph.description");
+      return i18n.t('editor.slashMenu.paragraph.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.paragraph.label", EN),
-        i18n.t("editor.slashMenu.paragraph.keywords", EN),
-        i18n.t("editor.slashMenu.paragraph.keywords"),
+        i18n.t('editor.slashMenu.paragraph.label', EN),
+        i18n.t('editor.slashMenu.paragraph.keywords', EN),
+        i18n.t('editor.slashMenu.paragraph.keywords'),
       );
     },
   },
-  "basic:heading_1": {
+  'basic:heading_1': {
     get label() {
-      return i18n.t("editor.slashMenu.heading1.label");
+      return i18n.t('editor.slashMenu.heading1.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.heading1.description");
+      return i18n.t('editor.slashMenu.heading1.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.heading1.label", EN),
-        i18n.t("editor.slashMenu.heading1.keywords", EN),
-        i18n.t("editor.slashMenu.heading1.keywords"),
+        i18n.t('editor.slashMenu.heading1.label', EN),
+        i18n.t('editor.slashMenu.heading1.keywords', EN),
+        i18n.t('editor.slashMenu.heading1.keywords'),
       );
     },
   },
-  "basic:heading_2": {
+  'basic:heading_2': {
     get label() {
-      return i18n.t("editor.slashMenu.heading2.label");
+      return i18n.t('editor.slashMenu.heading2.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.heading2.description");
+      return i18n.t('editor.slashMenu.heading2.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.heading2.label", EN),
-        i18n.t("editor.slashMenu.heading2.keywords", EN),
-        i18n.t("editor.slashMenu.heading2.keywords"),
+        i18n.t('editor.slashMenu.heading2.label', EN),
+        i18n.t('editor.slashMenu.heading2.keywords', EN),
+        i18n.t('editor.slashMenu.heading2.keywords'),
       );
     },
   },
-  "basic:heading_3": {
+  'basic:heading_3': {
     get label() {
-      return i18n.t("editor.slashMenu.heading3.label");
+      return i18n.t('editor.slashMenu.heading3.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.heading3.description");
+      return i18n.t('editor.slashMenu.heading3.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.heading3.label", EN),
-        i18n.t("editor.slashMenu.heading3.keywords", EN),
-        i18n.t("editor.slashMenu.heading3.keywords"),
+        i18n.t('editor.slashMenu.heading3.label', EN),
+        i18n.t('editor.slashMenu.heading3.keywords', EN),
+        i18n.t('editor.slashMenu.heading3.keywords'),
       );
     },
   },
-  "basic:bulleted_list_item": {
+  'basic:bulleted_list_item': {
     get label() {
-      return i18n.t("editor.slashMenu.bulletedList.label");
+      return i18n.t('editor.slashMenu.bulletedList.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.bulletedList.description");
+      return i18n.t('editor.slashMenu.bulletedList.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.bulletedList.label", EN),
-        i18n.t("editor.slashMenu.bulletedList.keywords", EN),
-        i18n.t("editor.slashMenu.bulletedList.keywords"),
+        i18n.t('editor.slashMenu.bulletedList.label', EN),
+        i18n.t('editor.slashMenu.bulletedList.keywords', EN),
+        i18n.t('editor.slashMenu.bulletedList.keywords'),
       );
     },
   },
-  "basic:numbered_list_item": {
+  'basic:numbered_list_item': {
     get label() {
-      return i18n.t("editor.slashMenu.numberedList.label");
+      return i18n.t('editor.slashMenu.numberedList.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.numberedList.description");
+      return i18n.t('editor.slashMenu.numberedList.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.numberedList.label", EN),
-        i18n.t("editor.slashMenu.numberedList.keywords", EN),
-        i18n.t("editor.slashMenu.numberedList.keywords"),
+        i18n.t('editor.slashMenu.numberedList.label', EN),
+        i18n.t('editor.slashMenu.numberedList.keywords', EN),
+        i18n.t('editor.slashMenu.numberedList.keywords'),
       );
     },
   },
-  "basic:to_do": {
+  'basic:to_do': {
     get label() {
-      return i18n.t("editor.slashMenu.todo.label");
+      return i18n.t('editor.slashMenu.todo.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.todo.description");
+      return i18n.t('editor.slashMenu.todo.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.todo.label", EN),
-        i18n.t("editor.slashMenu.todo.keywords", EN),
-        i18n.t("editor.slashMenu.todo.keywords"),
+        i18n.t('editor.slashMenu.todo.label', EN),
+        i18n.t('editor.slashMenu.todo.keywords', EN),
+        i18n.t('editor.slashMenu.todo.keywords'),
       );
     },
   },
-  "basic:quote": {
+  'basic:quote': {
     get label() {
-      return i18n.t("editor.slashMenu.quote.label");
+      return i18n.t('editor.slashMenu.quote.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.quote.description");
+      return i18n.t('editor.slashMenu.quote.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.quote.label", EN),
-        i18n.t("editor.slashMenu.quote.keywords", EN),
-        i18n.t("editor.slashMenu.quote.keywords"),
+        i18n.t('editor.slashMenu.quote.label', EN),
+        i18n.t('editor.slashMenu.quote.keywords', EN),
+        i18n.t('editor.slashMenu.quote.keywords'),
       );
     },
   },
-  "basic:divider": {
+  'basic:divider': {
     get label() {
-      return i18n.t("editor.slashMenu.divider.label");
+      return i18n.t('editor.slashMenu.divider.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.divider.description");
+      return i18n.t('editor.slashMenu.divider.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.divider.label", EN),
-        i18n.t("editor.slashMenu.divider.keywords", EN),
-        i18n.t("editor.slashMenu.divider.keywords"),
+        i18n.t('editor.slashMenu.divider.label', EN),
+        i18n.t('editor.slashMenu.divider.keywords', EN),
+        i18n.t('editor.slashMenu.divider.keywords'),
       );
     },
   },
-  "advanced:code": {
+  'advanced:code': {
     get label() {
-      return i18n.t("editor.slashMenu.code.label");
+      return i18n.t('editor.slashMenu.code.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.code.description");
+      return i18n.t('editor.slashMenu.code.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.code.label", EN),
-        i18n.t("editor.slashMenu.code.keywords", EN),
-        i18n.t("editor.slashMenu.code.keywords"),
+        i18n.t('editor.slashMenu.code.label', EN),
+        i18n.t('editor.slashMenu.code.keywords', EN),
+        i18n.t('editor.slashMenu.code.keywords'),
       );
     },
   },
-  "advanced:callout": {
+  'advanced:callout': {
     get label() {
-      return i18n.t("editor.slashMenu.callout.label");
+      return i18n.t('editor.slashMenu.callout.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.callout.description");
+      return i18n.t('editor.slashMenu.callout.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.callout.label", EN),
-        i18n.t("editor.slashMenu.callout.keywords", EN),
-        i18n.t("editor.slashMenu.callout.keywords"),
+        i18n.t('editor.slashMenu.callout.label', EN),
+        i18n.t('editor.slashMenu.callout.keywords', EN),
+        i18n.t('editor.slashMenu.callout.keywords'),
       );
     },
   },
-  "advanced:toggle": {
+  'advanced:toggle': {
     get label() {
-      return i18n.t("editor.slashMenu.toggle.label");
+      return i18n.t('editor.slashMenu.toggle.label');
     },
     get description() {
-      return i18n.t("editor.slashMenu.toggle.description");
+      return i18n.t('editor.slashMenu.toggle.description');
     },
     get keywords() {
       return searchTerms(
-        i18n.t("editor.slashMenu.toggle.label", EN),
-        i18n.t("editor.slashMenu.toggle.keywords", EN),
-        i18n.t("editor.slashMenu.toggle.keywords"),
+        i18n.t('editor.slashMenu.toggle.label', EN),
+        i18n.t('editor.slashMenu.toggle.keywords', EN),
+        i18n.t('editor.slashMenu.toggle.keywords'),
       );
     },
   },

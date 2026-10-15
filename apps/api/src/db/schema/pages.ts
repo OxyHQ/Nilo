@@ -156,9 +156,7 @@ export const pages = pgTable(
      * Reshaped, not dropped: dropping it is the change that no functional test
      * could ever detect.
      */
-    index('pages_workspace_favorited_idx')
-      .on(t.workspaceId)
-      .where(sql`${t.favorited}`),
+    index('pages_workspace_favorited_idx').on(t.workspaceId).where(sql`${t.favorited}`),
     /**
      * No query performs jsonb containment today — `GET /api/databases/:id/rows`
      * loads a database's rows and filters them in JS

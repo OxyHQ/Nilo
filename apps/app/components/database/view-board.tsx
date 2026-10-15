@@ -1,26 +1,20 @@
-import * as React from "react";
-import {
-  ActivityIndicator,
-  Platform,
-  Pressable,
-  ScrollView,
-  View,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { Plus } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useTranslation } from "@/hooks/useTranslation";
-import { useColorScheme } from "@/lib/useColorScheme";
+import * as React from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Plus } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useColorScheme } from '@/lib/useColorScheme';
 import type {
   Database,
   DatabaseProperty,
   DatabaseRow,
   DatabaseView,
   SelectOption,
-} from "@/lib/types/databases";
-import { useCreateRow, useUpdateRow } from "@/lib/hooks/use-database-rows";
-import { PropertyCell } from "./property-cell";
-import { SELECT_COLOR_CLASSES } from "./select-color";
+} from '@/lib/types/databases';
+import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
+import { PropertyCell } from './property-cell';
+import { SELECT_COLOR_CLASSES } from './select-color';
 
 interface ViewBoardProps {
   database: Database;
@@ -40,12 +34,7 @@ const COLUMN_WIDTH = 280;
  * tap-to-move fallback (a "Move to…" affordance) — full DnD on native
  * is out of scope for Phase 4 (see spec).
  */
-export function ViewBoard({
-  database,
-  view,
-  rows,
-  isLoading,
-}: ViewBoardProps) {
+export function ViewBoard({ database, view, rows, isLoading }: ViewBoardProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -56,12 +45,10 @@ export function ViewBoard({
     const target = view.groupBy?.propertyId;
     if (target) {
       const p = database.schema.properties.find((x) => x.id === target);
-      if (p && (p.type === "select" || p.type === "status")) return p;
+      if (p && (p.type === 'select' || p.type === 'status')) return p;
     }
     return (
-      database.schema.properties.find(
-        (p) => p.type === "status" || p.type === "select",
-      ) ?? null
+      database.schema.properties.find((p) => p.type === 'status' || p.type === 'select') ?? null
     );
   }, [database.schema.properties, view.groupBy?.propertyId]);
 
@@ -77,8 +64,8 @@ export function ViewBoard({
       }
       const value = row.properties[groupByProperty.id];
       const optId =
-        value && typeof value === "object" && "optionId" in value
-          ? typeof value.optionId === "string"
+        value && typeof value === 'object' && 'optionId' in value
+          ? typeof value.optionId === 'string'
             ? value.optionId
             : null
           : null;
@@ -124,7 +111,7 @@ export function ViewBoard({
     return (
       <View className="px-6 py-10">
         <Text className="text-sm text-muted-foreground">
-          {t("databases.board.needsGroupProperty")}
+          {t('databases.board.needsGroupProperty')}
         </Text>
       </View>
     );
@@ -148,19 +135,15 @@ export function ViewBoard({
             }}
             onMoveTo={(rowId) => moveRow(rowId, opt.id)}
             renderCard={(row) => (
-              <BoardCard
-                row={row}
-                database={database}
-                onOpen={() => router.push(`/p/${row.id}`)}
-              />
+              <BoardCard row={row} database={database} onOpen={() => router.push(`/p/${row.id}`)} />
             )}
           />
         ))}
         <BoardColumn
           option={{
-            id: "__unassigned__",
-            name: t("databases.board.noStatus"),
-            color: "default",
+            id: '__unassigned__',
+            name: t('databases.board.noStatus'),
+            color: 'default',
           }}
           rows={columns.unassigned}
           onAddRow={async () => {
@@ -168,11 +151,7 @@ export function ViewBoard({
           }}
           onMoveTo={(rowId) => moveRow(rowId, null)}
           renderCard={(row) => (
-            <BoardCard
-              row={row}
-              database={database}
-              onOpen={() => router.push(`/p/${row.id}`)}
-            />
+            <BoardCard row={row} database={database} onOpen={() => router.push(`/p/${row.id}`)} />
           )}
         />
       </View>
@@ -188,27 +167,18 @@ interface BoardColumnProps {
   renderCard: (row: DatabaseRow) => React.ReactNode;
 }
 
-function BoardColumn({
-  option,
-  rows,
-  onAddRow,
-  onMoveTo,
-  renderCard,
-}: BoardColumnProps) {
+function BoardColumn({ option, rows, onAddRow, onMoveTo, renderCard }: BoardColumnProps) {
   const { colors } = useColorScheme();
   const palette = SELECT_COLOR_CLASSES[option.color] ?? SELECT_COLOR_CLASSES.default;
 
   // Web-only drag target — accept a row id payload from the dragged card.
   const dropHandlers =
-    Platform.OS === "web"
+    Platform.OS === 'web'
       ? {
           onDragOver: (e: { preventDefault: () => void }) => e.preventDefault(),
-          onDrop: (e: {
-            preventDefault: () => void;
-            dataTransfer: DataTransfer;
-          }) => {
+          onDrop: (e: { preventDefault: () => void; dataTransfer: DataTransfer }) => {
             e.preventDefault();
-            const id = e.dataTransfer.getData("text/plain");
+            const id = e.dataTransfer.getData('text/plain');
             if (id) onMoveTo(id);
           },
         }
@@ -227,10 +197,7 @@ function BoardColumn({
           </View>
           <Text className="text-xs text-muted-foreground">{rows.length}</Text>
         </View>
-        <Pressable
-          onPress={onAddRow}
-          className="p-1 rounded hover:bg-muted"
-        >
+        <Pressable onPress={onAddRow} className="p-1 rounded hover:bg-muted">
           <Plus size={14} color={colors.mutedForeground} />
         </Pressable>
       </View>
@@ -250,16 +217,16 @@ interface BoardCardProps {
 function BoardCard({ row, database, onOpen }: BoardCardProps) {
   const { t } = useTranslation();
   const visible = database.schema.properties.filter(
-    (p) => p.id !== "name" && p.type !== "rollup" && p.type !== "formula",
+    (p) => p.id !== 'name' && p.type !== 'rollup' && p.type !== 'formula',
   );
 
   const dragHandlers =
-    Platform.OS === "web"
+    Platform.OS === 'web'
       ? {
           draggable: true,
           onDragStart: (e: { dataTransfer: DataTransfer }) => {
-            e.dataTransfer.setData("text/plain", row.id);
-            e.dataTransfer.effectAllowed = "move";
+            e.dataTransfer.setData('text/plain', row.id);
+            e.dataTransfer.effectAllowed = 'move';
           },
         }
       : {};
@@ -270,11 +237,8 @@ function BoardCard({ row, database, onOpen }: BoardCardProps) {
       className="bg-card border border-border rounded-md px-3 py-2 shadow-sm"
       {...(dragHandlers as Record<string, unknown>)}
     >
-      <Text
-        className="text-sm font-medium text-foreground mb-1"
-        numberOfLines={2}
-      >
-        {row.title || t("databases.untitled")}
+      <Text className="text-sm font-medium text-foreground mb-1" numberOfLines={2}>
+        {row.title || t('databases.untitled')}
       </Text>
       <View className="gap-1">
         {visible.slice(0, 3).map((property) => (

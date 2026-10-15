@@ -133,10 +133,7 @@ export async function listActiveWebPushSubscriptions(
     .select()
     .from(webPushSubscriptions)
     .where(
-      and(
-        eq(webPushSubscriptions.oxyUserId, oxyUserId),
-        eq(webPushSubscriptions.active, true),
-      ),
+      and(eq(webPushSubscriptions.oxyUserId, oxyUserId), eq(webPushSubscriptions.active, true)),
     );
   return rows.map(toWebPushSubscriptionRow);
 }
@@ -150,10 +147,7 @@ export async function hasActiveWebPushSubscription(
     .select({ one: sql<number>`1` })
     .from(webPushSubscriptions)
     .where(
-      and(
-        eq(webPushSubscriptions.oxyUserId, oxyUserId),
-        eq(webPushSubscriptions.active, true),
-      ),
+      and(eq(webPushSubscriptions.oxyUserId, oxyUserId), eq(webPushSubscriptions.active, true)),
     )
     .limit(1);
   return rows.length > 0;

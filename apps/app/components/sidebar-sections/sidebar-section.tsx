@@ -40,9 +40,7 @@ export function SidebarSection({
 }: SidebarSectionProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const collapsed = useUIStore((s) =>
-    sectionKey ? s.sectionCollapsed[sectionKey] : false,
-  );
+  const collapsed = useUIStore((s) => (sectionKey ? s.sectionCollapsed[sectionKey] : false));
   const toggle = useUIStore((s) => s.toggleSection);
 
   const isOpen = !collapsed;
@@ -58,9 +56,7 @@ export function SidebarSection({
         <Pressable
           onPress={handleToggle}
           accessibilityLabel={
-            isOpen
-              ? t('sidebar.collapseSection', { title })
-              : t('sidebar.expandSection', { title })
+            isOpen ? t('sidebar.collapseSection', { title }) : t('sidebar.expandSection', { title })
           }
           accessibilityRole="button"
           disabled={!collapsible || !sectionKey}

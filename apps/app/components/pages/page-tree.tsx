@@ -1,19 +1,14 @@
-import * as React from "react";
-import { View, Pressable, ActivityIndicator } from "react-native";
-import { useRouter, usePathname } from "expo-router";
-import { ChevronRight, ChevronDown, Plus, FileText } from "lucide-react-native";
-import { Text } from "@/components/ui/text";
-import { useColorScheme } from "@/lib/useColorScheme";
-import { useTranslation } from "@/hooks/useTranslation";
-import { useWorkspaceStore } from "@/lib/stores/workspace-store";
-import {
-  buildPageTree,
-  useCreatePage,
-  useDeletePage,
-  usePages,
-} from "@/lib/hooks/use-pages";
-import type { Page } from "@/lib/types/pages";
-import * as DropdownMenu from "@/components/ui/dropdown-menu";
+import * as React from 'react';
+import { View, Pressable, ActivityIndicator } from 'react-native';
+import { useRouter, usePathname } from 'expo-router';
+import { ChevronRight, ChevronDown, Plus, FileText } from 'lucide-react-native';
+import { Text } from '@/components/ui/text';
+import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useWorkspaceStore } from '@/lib/stores/workspace-store';
+import { buildPageTree, useCreatePage, useDeletePage, usePages } from '@/lib/hooks/use-pages';
+import type { Page } from '@/lib/types/pages';
+import * as DropdownMenu from '@/components/ui/dropdown-menu';
 
 const INDENT_PX = 14;
 const ROW_HEIGHT = 28;
@@ -48,7 +43,7 @@ export function PageTree() {
       const page = await createPage.mutateAsync({
         workspaceId: currentWorkspaceId,
         parentId: null,
-        title: "",
+        title: '',
       });
       router.push(`/p/${page._id}`);
     } catch {
@@ -61,9 +56,7 @@ export function PageTree() {
   if (!currentWorkspaceId) {
     return (
       <View className="px-3 py-2">
-        <Text className="text-xs text-muted-foreground">
-          {t("pages.tree.selectWorkspace")}
-        </Text>
+        <Text className="text-xs text-muted-foreground">{t('pages.tree.selectWorkspace')}</Text>
       </View>
     );
   }
@@ -73,11 +66,11 @@ export function PageTree() {
       {/* Header */}
       <View className="flex-row items-center justify-between px-3 py-2">
         <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {t("pages.tree.heading")}
+          {t('pages.tree.heading')}
         </Text>
         <Pressable
           onPress={handleCreateRoot}
-          accessibilityLabel={t("pages.tree.addPage")}
+          accessibilityLabel={t('pages.tree.addPage')}
           className="h-6 w-6 items-center justify-center rounded-md hover:bg-muted active:bg-muted"
           disabled={createPage.isPending}
         >
@@ -92,19 +85,15 @@ export function PageTree() {
       {/* Loading */}
       {isLoading ? (
         <View className="px-3 py-2">
-          <Text className="text-xs text-muted-foreground">{t("pages.tree.loading")}</Text>
+          <Text className="text-xs text-muted-foreground">{t('pages.tree.loading')}</Text>
         </View>
       ) : isError ? (
         <View className="px-3 py-2">
-          <Text className="text-xs text-destructive">
-            {t("pages.tree.loadFailed")}
-          </Text>
+          <Text className="text-xs text-destructive">{t('pages.tree.loadFailed')}</Text>
         </View>
       ) : tree.roots.length === 0 ? (
         <View className="px-3 py-3">
-          <Text className="text-xs text-muted-foreground">
-            {t("pages.tree.empty")}
-          </Text>
+          <Text className="text-xs text-muted-foreground">{t('pages.tree.empty')}</Text>
         </View>
       ) : (
         <View className="pb-2">
@@ -154,9 +143,7 @@ function PageRowRecursive({
         depth={depth}
         hasChildren={children.length > 0}
         isOpen={isOpen}
-        onToggle={() =>
-          setExpanded((prev) => ({ ...prev, [page._id]: !prev[page._id] }))
-        }
+        onToggle={() => setExpanded((prev) => ({ ...prev, [page._id]: !prev[page._id] }))}
         activePath={activePath}
         workspaceId={workspaceId}
       />
@@ -214,7 +201,7 @@ const PageRow = React.memo(function PageRow({
       const child = await createPage.mutateAsync({
         workspaceId,
         parentId: page._id,
-        title: "",
+        title: '',
       });
       router.push(`/p/${child._id}`);
     } catch {
@@ -226,7 +213,7 @@ const PageRow = React.memo(function PageRow({
     deletePage.mutate({ id: page._id, workspaceId });
   }, [deletePage, page._id, workspaceId]);
 
-  const title = page.title.trim() ? page.title : t("pages.untitled");
+  const title = page.title.trim() ? page.title : t('pages.untitled');
   const indent = depth * INDENT_PX;
 
   return (
@@ -238,11 +225,11 @@ const PageRow = React.memo(function PageRow({
             // Long-press opens the dropdown via zeego on native; on web,
             // users can right-click the trigger.
           }}
-          accessibilityLabel={t("pages.openPage", { title })}
+          accessibilityLabel={t('pages.openPage', { title })}
           className={
             isActive
-              ? "flex-row items-center bg-muted"
-              : "flex-row items-center hover:bg-muted/60 active:bg-muted/60"
+              ? 'flex-row items-center bg-muted'
+              : 'flex-row items-center hover:bg-muted/60 active:bg-muted/60'
           }
           style={{ paddingLeft: 8 + indent, paddingRight: 8, height: ROW_HEIGHT }}
         >
@@ -251,7 +238,7 @@ const PageRow = React.memo(function PageRow({
               e.stopPropagation();
               if (hasChildren) onToggle();
             }}
-            accessibilityLabel={isOpen ? t("pages.collapse") : t("pages.expand")}
+            accessibilityLabel={isOpen ? t('pages.collapse') : t('pages.expand')}
             className="h-5 w-5 items-center justify-center rounded"
             disabled={!hasChildren}
           >
@@ -273,8 +260,8 @@ const PageRow = React.memo(function PageRow({
           <Text
             className={
               isActive
-                ? "ml-1 flex-1 truncate text-sm font-medium text-foreground"
-                : "ml-1 flex-1 truncate text-sm text-foreground"
+                ? 'ml-1 flex-1 truncate text-sm font-medium text-foreground'
+                : 'ml-1 flex-1 truncate text-sm text-foreground'
             }
             numberOfLines={1}
           >
@@ -284,17 +271,17 @@ const PageRow = React.memo(function PageRow({
       </DropdownMenu.Trigger>
       <DropdownMenu.Content>
         <DropdownMenu.Item key="add-sub" onSelect={handleAddChild}>
-          <DropdownMenu.ItemIcon ios={{ name: "doc" }} />
-          <DropdownMenu.ItemTitle>{t("pages.actions.addSubPage")}</DropdownMenu.ItemTitle>
+          <DropdownMenu.ItemIcon ios={{ name: 'doc' }} />
+          <DropdownMenu.ItemTitle>{t('pages.actions.addSubPage')}</DropdownMenu.ItemTitle>
         </DropdownMenu.Item>
         <DropdownMenu.Item key="rename" onSelect={handleOpen}>
-          <DropdownMenu.ItemIcon ios={{ name: "pencil" }} />
-          <DropdownMenu.ItemTitle>{t("pages.actions.openAndRename")}</DropdownMenu.ItemTitle>
+          <DropdownMenu.ItemIcon ios={{ name: 'pencil' }} />
+          <DropdownMenu.ItemTitle>{t('pages.actions.openAndRename')}</DropdownMenu.ItemTitle>
         </DropdownMenu.Item>
         <DropdownMenu.Separator />
         <DropdownMenu.Item key="delete" destructive onSelect={handleDelete}>
-          <DropdownMenu.ItemIcon ios={{ name: "trash" }} />
-          <DropdownMenu.ItemTitle>{t("common.delete")}</DropdownMenu.ItemTitle>
+          <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
+          <DropdownMenu.ItemTitle>{t('common.delete')}</DropdownMenu.ItemTitle>
         </DropdownMenu.Item>
       </DropdownMenu.Content>
     </DropdownMenu.Root>

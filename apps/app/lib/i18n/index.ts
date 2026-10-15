@@ -5,11 +5,11 @@ import { en, es } from './catalogs';
 // Create i18n instance with translations
 // Using BCP 47 locale codes (en-US, es-ES) with fallback to language codes (en, es)
 const i18n = new I18n({
-  'en': en,
+  en: en,
   'en-US': en,
   'en-GB': en,
   'en-CA': en,
-  'es': es,
+  es: es,
   'es-ES': es,
   'es-MX': es,
   'es-AR': es,
@@ -24,14 +24,7 @@ const i18n = new I18n({
  * whenever that resolution changes. This app keeps ownership only of the
  * catalogs themselves.
  */
-export const SUPPORTED_LOCALES = [
-  'en-US',
-  'en-GB',
-  'en-CA',
-  'es-ES',
-  'es-MX',
-  'es-AR',
-] as const;
+export const SUPPORTED_LOCALES = ['en-US', 'en-GB', 'en-CA', 'es-ES', 'es-MX', 'es-AR'] as const;
 
 /**
  * Get the device's current locale

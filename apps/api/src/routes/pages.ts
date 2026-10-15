@@ -13,19 +13,13 @@ import {
   nextSiblingOrder,
   updatePage,
 } from '../repositories/pages.js';
-import {
-  duplicateBlocksToPage,
-  listBlocksForPageByOrder,
-} from '../repositories/blocks.js';
+import { duplicateBlocksToPage, listBlocksForPageByOrder } from '../repositories/blocks.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
 import { checkWorkspaceAccess, ensureRole } from '../lib/workspace-access.js';
-import {
-  parsePropertyValue,
-  serializeParsedValue,
-} from '../lib/databases/property-values.js';
+import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
 import { NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
 
 const router = Router();
@@ -52,9 +46,7 @@ const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 
 const listQuerySchema = z.object({
   workspaceId: entityIdSchema,
-  parentId: z
-    .union([entityIdSchema, z.literal('null'), z.literal('root')])
-    .optional(),
+  parentId: z.union([entityIdSchema, z.literal('null'), z.literal('root')]).optional(),
   includeArchived: z
     .union([z.literal('true'), z.literal('false')])
     .optional()
@@ -159,50 +151,46 @@ function serializePage(page: PageRow) {
 // `requireWorkspaceMember` resolves the workspace id from (in order) route
 // param, ?workspaceId=..., or X-Workspace-Id header — so listing only needs
 // the query string.
-router.get(
-  '/',
-  requireWorkspaceMember,
-  async (req: Request, res: Response) => {
-    try {
-      const query = listQuerySchema.parse(req.query);
-      const workspaceId = assertWorkspace(req, res);
-      if (!workspaceId) return;
+router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
+  try {
+    const query = listQuerySchema.parse(req.query);
+    const workspaceId = assertWorkspace(req, res);
+    if (!workspaceId) return;
 
-      if (query.workspaceId !== workspaceId) {
-        res.status(403).json({ error: 'Workspace mismatch' });
-        return;
-      }
-
-      // `archived` is three-valued and the three cases are not symmetric:
-      // absent means "archived and active together", which only
-      // `?includeArchived=true` (without `?archivedOnly=true`) asks for.
-      let archived: boolean | undefined;
-      if (query.archivedOnly) {
-        archived = true;
-      } else if (!query.includeArchived) {
-        archived = false;
-      }
-
-      const pages = await listPages(getDb(), {
-        workspaceId,
-        parentId:
-          query.parentId === undefined
-            ? undefined
-            : query.parentId === 'null' || query.parentId === 'root'
-              ? null
-              : query.parentId,
-        archived,
-        favoritedOnly: query.favoritedOnly,
-      });
-
-      res.json({ pages: pages.map((p) => serializePage(p)) });
-    } catch (error: unknown) {
-      if (handleZodError(error, res)) return;
-      log.general.error({ err: error }, 'Failed to list pages');
-      res.status(500).json({ error: 'Failed to list pages' });
+    if (query.workspaceId !== workspaceId) {
+      res.status(403).json({ error: 'Workspace mismatch' });
+      return;
     }
-  },
-);
+
+    // `archived` is three-valued and the three cases are not symmetric:
+    // absent means "archived and active together", which only
+    // `?includeArchived=true` (without `?archivedOnly=true`) asks for.
+    let archived: boolean | undefined;
+    if (query.archivedOnly) {
+      archived = true;
+    } else if (!query.includeArchived) {
+      archived = false;
+    }
+
+    const pages = await listPages(getDb(), {
+      workspaceId,
+      parentId:
+        query.parentId === undefined
+          ? undefined
+          : query.parentId === 'null' || query.parentId === 'root'
+            ? null
+            : query.parentId,
+      archived,
+      favoritedOnly: query.favoritedOnly,
+    });
+
+    res.json({ pages: pages.map((p) => serializePage(p)) });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to list pages');
+    res.status(500).json({ error: 'Failed to list pages' });
+  }
+});
 
 /**
  * GET /api/pages/:id
@@ -364,9 +352,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
         res.status(404).json({ error: 'Database not found for row' });
         return;
       }
-      const schemaById = new Map(
-        database.propertiesSchema.properties.map((p) => [p.id, p]),
-      );
+      const schemaById = new Map(database.propertiesSchema.properties.map((p) => [p.id, p]));
       // Only the keys that survive validation are sent. `mergeProperties` is a
       // shallow top-level merge into the stored object, so the keys the request
       // does not mention keep their values — which is what `.set()` on the
@@ -623,16 +609,12 @@ function renderBlockMarkdown(
       line = '---';
       break;
     case 'code': {
-      const lang = typeof block.content.language === 'string'
-        ? block.content.language
-        : '';
+      const lang = typeof block.content.language === 'string' ? block.content.language : '';
       line = `\`\`\`${lang}\n${text}\n\`\`\``;
       break;
     }
     case 'callout': {
-      const icon = typeof block.content.icon === 'string'
-        ? block.content.icon
-        : '';
+      const icon = typeof block.content.icon === 'string' ? block.content.icon : '';
       line = `> ${icon ? `${icon} ` : ''}${text}`;
       break;
     }
@@ -692,9 +674,7 @@ router.get('/:id/export', async (req: Request, res: Response) => {
     }
 
     const title = page.title?.trim() ? page.title : 'Untitled';
-    const body = roots
-      .map((b) => renderBlockMarkdown(b, childrenByParent, 0))
-      .join('\n\n');
+    const body = roots.map((b) => renderBlockMarkdown(b, childrenByParent, 0)).join('\n\n');
 
     const markdown = `# ${title}\n\n${body}\n`;
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');

@@ -1,11 +1,11 @@
-import React from "react";
-import { View, Pressable } from "react-native";
-import { Text } from "@/components/ui/text";
-import { MONO_FONT_FAMILY } from "@/lib/fonts";
-import { Check } from "lucide-react-native";
-import { useColorScheme } from "@/lib/useColorScheme";
-import type { SharedBlock } from "@/lib/hooks/use-share-links";
-import { useTranslation } from "@/hooks/useTranslation";
+import React from 'react';
+import { View, Pressable } from 'react-native';
+import { Text } from '@/components/ui/text';
+import { MONO_FONT_FAMILY } from '@/lib/fonts';
+import { Check } from 'lucide-react-native';
+import { useColorScheme } from '@/lib/useColorScheme';
+import type { SharedBlock } from '@/lib/hooks/use-share-links';
+import { useTranslation } from '@/hooks/useTranslation';
 
 /**
  * SharedBlockRenderer — read-only block renderer for the public
@@ -21,7 +21,7 @@ interface SharedBlockRendererProps {
 
 function getText(content: Record<string, unknown>): string {
   const value = content.text;
-  return typeof value === "string" ? value : "";
+  return typeof value === 'string' ? value : '';
 }
 
 function getChecked(content: Record<string, unknown>): boolean {
@@ -29,11 +29,11 @@ function getChecked(content: Record<string, unknown>): boolean {
 }
 
 function getIcon(content: Record<string, unknown>): string {
-  return typeof content.icon === "string" ? content.icon : "💡";
+  return typeof content.icon === 'string' ? content.icon : '💡';
 }
 
 function getLanguage(content: Record<string, unknown>): string {
-  return typeof content.language === "string" ? content.language : "plain";
+  return typeof content.language === 'string' ? content.language : 'plain';
 }
 
 function ParagraphBlock({ content }: { content: Record<string, unknown> }) {
@@ -42,41 +42,29 @@ function ParagraphBlock({ content }: { content: Record<string, unknown> }) {
   return (
     <Text className="text-base leading-7 text-foreground">
       {text || (
-        <Text className="text-muted-foreground italic">{t("sharing.blocks.emptyParagraph")}</Text>
+        <Text className="text-muted-foreground italic">{t('sharing.blocks.emptyParagraph')}</Text>
       )}
     </Text>
   );
 }
 
-function HeadingBlock({
-  content,
-  level,
-}: {
-  content: Record<string, unknown>;
-  level: 1 | 2 | 3;
-}) {
+function HeadingBlock({ content, level }: { content: Record<string, unknown>; level: 1 | 2 | 3 }) {
   const { t } = useTranslation();
-  const text = getText(content) || t("sharing.blocks.untitledHeading");
+  const text = getText(content) || t('sharing.blocks.untitledHeading');
   const className =
     level === 1
-      ? "text-3xl font-bold text-foreground mt-4"
+      ? 'text-3xl font-bold text-foreground mt-4'
       : level === 2
-        ? "text-2xl font-bold text-foreground mt-3"
-        : "text-xl font-semibold text-foreground mt-2";
+        ? 'text-2xl font-bold text-foreground mt-3'
+        : 'text-xl font-semibold text-foreground mt-2';
   return <Text className={className}>{text}</Text>;
 }
 
-function BulletedListBlock({
-  content,
-}: {
-  content: Record<string, unknown>;
-}) {
+function BulletedListBlock({ content }: { content: Record<string, unknown> }) {
   return (
     <View className="flex-row gap-2">
-      <Text className="text-base leading-7 text-foreground">{"•"}</Text>
-      <Text className="text-base leading-7 text-foreground flex-1">
-        {getText(content)}
-      </Text>
+      <Text className="text-base leading-7 text-foreground">{'•'}</Text>
+      <Text className="text-base leading-7 text-foreground flex-1">{getText(content)}</Text>
     </View>
   );
 }
@@ -91,9 +79,7 @@ function NumberedListBlock({
   return (
     <View className="flex-row gap-2">
       <Text className="text-base leading-7 text-foreground">{`${index}.`}</Text>
-      <Text className="text-base leading-7 text-foreground flex-1">
-        {getText(content)}
-      </Text>
+      <Text className="text-base leading-7 text-foreground flex-1">{getText(content)}</Text>
     </View>
   );
 }
@@ -106,14 +92,14 @@ function TodoBlock({ content }: { content: Record<string, unknown> }) {
       <View
         className="h-5 w-5 rounded border border-border items-center justify-center mt-0.5"
         style={{
-          backgroundColor: checked ? colors.foreground : "transparent",
+          backgroundColor: checked ? colors.foreground : 'transparent',
         }}
       >
         {checked ? <Check size={12} color={colors.background} /> : null}
       </View>
       <Text
         className={`text-base leading-7 flex-1 ${
-          checked ? "text-muted-foreground line-through" : "text-foreground"
+          checked ? 'text-muted-foreground line-through' : 'text-foreground'
         }`}
       >
         {getText(content)}
@@ -125,9 +111,7 @@ function TodoBlock({ content }: { content: Record<string, unknown> }) {
 function QuoteBlock({ content }: { content: Record<string, unknown> }) {
   return (
     <View className="border-l-2 border-border pl-4 py-1">
-      <Text className="text-base leading-7 text-muted-foreground italic">
-        {getText(content)}
-      </Text>
+      <Text className="text-base leading-7 text-muted-foreground italic">{getText(content)}</Text>
     </View>
   );
 }
@@ -142,9 +126,7 @@ function CodeBlock({ content }: { content: Record<string, unknown> }) {
   return (
     <View className="rounded-lg border border-border bg-muted/40 overflow-hidden">
       <View className="flex-row items-center justify-between px-3 py-1.5 border-b border-border/60">
-        <Text className="text-[11px] font-mono text-muted-foreground">
-          {language}
-        </Text>
+        <Text className="text-[11px] font-mono text-muted-foreground">{language}</Text>
       </View>
       <View className="p-3">
         <Text
@@ -166,9 +148,7 @@ function CalloutBlock({ content }: { content: Record<string, unknown> }) {
       <Text className="text-2xl" style={{ lineHeight: 28 }}>
         {getIcon(content)}
       </Text>
-      <Text className="text-base leading-7 text-foreground flex-1">
-        {getText(content)}
-      </Text>
+      <Text className="text-base leading-7 text-foreground flex-1">{getText(content)}</Text>
     </View>
   );
 }
@@ -176,34 +156,32 @@ function CalloutBlock({ content }: { content: Record<string, unknown> }) {
 export function SharedBlockRenderer({ block }: SharedBlockRendererProps) {
   const { t } = useTranslation();
   switch (block.type) {
-    case "paragraph":
+    case 'paragraph':
       return <ParagraphBlock content={block.content} />;
-    case "heading_1":
+    case 'heading_1':
       return <HeadingBlock content={block.content} level={1} />;
-    case "heading_2":
+    case 'heading_2':
       return <HeadingBlock content={block.content} level={2} />;
-    case "heading_3":
+    case 'heading_3':
       return <HeadingBlock content={block.content} level={3} />;
-    case "bulleted_list_item":
+    case 'bulleted_list_item':
       return <BulletedListBlock content={block.content} />;
-    case "numbered_list_item":
-      return (
-        <NumberedListBlock content={block.content} index={block.order + 1} />
-      );
-    case "todo":
+    case 'numbered_list_item':
+      return <NumberedListBlock content={block.content} index={block.order + 1} />;
+    case 'todo':
       return <TodoBlock content={block.content} />;
-    case "quote":
+    case 'quote':
       return <QuoteBlock content={block.content} />;
-    case "divider":
+    case 'divider':
       return <DividerBlock />;
-    case "code":
+    case 'code':
       return <CodeBlock content={block.content} />;
-    case "callout":
+    case 'callout':
       return <CalloutBlock content={block.content} />;
     default:
       return (
         <Text className="text-sm text-muted-foreground italic">
-          {t("sharing.blocks.unsupported", { type: block.type })}
+          {t('sharing.blocks.unsupported', { type: block.type })}
         </Text>
       );
   }

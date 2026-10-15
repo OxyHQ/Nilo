@@ -99,7 +99,6 @@ describe('blocks repository (real database)', () => {
       expect(rows[0]?.def).toContain('ON DELETE CASCADE');
     });
 
-
     // Raw SQL rather than a cast on the query builder: the value under test is
     // one the TypeScript type deliberately cannot express, and reaching it
     // through `as never` would be a hole in the same type this schema relies on.
@@ -146,7 +145,12 @@ describe('blocks repository (real database)', () => {
     it('lists top-level blocks before nested ones, then by order', async () => {
       const page = await seedPage();
       const rootA = await createBlock(db, { pageId: page, type: 'toggle', content: {}, order: 0 });
-      const rootB = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 1 });
+      const rootB = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 1,
+      });
       const childSecond = await createBlock(db, {
         pageId: page,
         parentBlockId: rootA.id,
@@ -175,7 +179,12 @@ describe('blocks repository (real database)', () => {
 
     it('orders by order alone for the export and the shared-page read', async () => {
       const page = await seedPage();
-      const first = await createBlock(db, { pageId: page, type: 'heading_1', content: {}, order: 0 });
+      const first = await createBlock(db, {
+        pageId: page,
+        type: 'heading_1',
+        content: {},
+        order: 0,
+      });
       const nested = await createBlock(db, {
         pageId: page,
         parentBlockId: first.id,
@@ -183,7 +192,12 @@ describe('blocks repository (real database)', () => {
         content: {},
         order: 1,
       });
-      const last = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 2 });
+      const last = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 2,
+      });
 
       expect((await listBlocksForPageByOrder(db, page)).map((block) => block.id)).toEqual([
         first.id,
@@ -274,7 +288,12 @@ describe('blocks repository (real database)', () => {
         content: {},
         order: 0,
       });
-      const sibling = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 1 });
+      const sibling = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 1,
+      });
 
       expect(await deleteBlockTree(db, root.id)).toBe(3);
       expect(await findBlockById(db, child.id)).toBeUndefined();
@@ -323,8 +342,18 @@ describe('blocks repository (real database)', () => {
   describe('findBlocksByIds', () => {
     it('returns the rows it is asked for, and [] for no ids', async () => {
       const page = await seedPage();
-      const first = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 0 });
-      const second = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 1 });
+      const first = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 0,
+      });
+      const second = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 1,
+      });
 
       const found = await findBlocksByIds(db, [first.id, second.id, uuidv7()]);
       expect(found.map((block) => block.id).sort()).toEqual([first.id, second.id].sort());
@@ -337,9 +366,24 @@ describe('blocks repository (real database)', () => {
   describe('reorderBlocks', () => {
     it('assigns array position as order, and reports matched and modified as numbers', async () => {
       const page = await seedPage();
-      const first = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 0 });
-      const second = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 1 });
-      const third = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 2 });
+      const first = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 0,
+      });
+      const second = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 1,
+      });
+      const third = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 2,
+      });
 
       const reversed = await reorderBlocks(db, page, [third.id, second.id, first.id]);
       // `count(*)` is bigint and postgres.js decodes it as a STRING while
@@ -358,8 +402,18 @@ describe('blocks repository (real database)', () => {
 
     it('matches every submitted row but modifies none when nothing moves', async () => {
       const page = await seedPage();
-      const first = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 0 });
-      const second = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 1 });
+      const first = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 0,
+      });
+      const second = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 1,
+      });
 
       const before = await findBlockById(db, first.id);
       await new Promise((resolve) => setTimeout(resolve, 5));
@@ -377,8 +431,18 @@ describe('blocks repository (real database)', () => {
 
     it('stamps updatedAt on the rows that did move', async () => {
       const page = await seedPage();
-      const first = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 0 });
-      const second = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 1 });
+      const first = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 0,
+      });
+      const second = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 1,
+      });
 
       await new Promise((resolve) => setTimeout(resolve, 5));
       await reorderBlocks(db, page, [second.id, first.id]);
@@ -391,7 +455,12 @@ describe('blocks repository (real database)', () => {
     it('refuses to touch a block on another page, and answers 0/0 for no ids', async () => {
       const page = await seedPage();
       const otherPage = await seedPage();
-      const mine = await createBlock(db, { pageId: page, type: 'paragraph', content: {}, order: 0 });
+      const mine = await createBlock(db, {
+        pageId: page,
+        type: 'paragraph',
+        content: {},
+        order: 0,
+      });
       const theirs = await createBlock(db, {
         pageId: otherPage,
         type: 'paragraph',
@@ -419,7 +488,12 @@ describe('blocks repository (real database)', () => {
     it('copies the whole tree and rewires parent pointers within the copy', async () => {
       const source = await seedPage();
       const target = await seedPage();
-      const root = await createBlock(db, { pageId: source, type: 'toggle', content: { text: 'r' }, order: 0 });
+      const root = await createBlock(db, {
+        pageId: source,
+        type: 'toggle',
+        content: { text: 'r' },
+        order: 0,
+      });
       const child = await createBlock(db, {
         pageId: source,
         parentBlockId: root.id,

@@ -1,0 +1,122 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true,
+    "defaultBranch": "main"
+  },
+  "formatter": {
+    "enabled": true,
+    "includes": ["**"],
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all",
+      "arrowParentheses": "always",
+      "bracketSpacing": true
+    }
+  },
+  "json": {
+    "formatter": {
+      "trailingCommas": "none"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!.worktrees",
+      "!**/dist",
+      "!**/coverage",
+      "!**/.expo",
+      "!**/drizzle/meta",
+      "!**/*.generated.*",
+      "!apps/app/public",
+      "!apps/app/ios",
+      "!apps/app/android"
+    ]
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "a11y": {
+        "noAutofocus": "warn",
+        "noStaticElementInteractions": "warn",
+        "noSvgWithoutTitle": "warn",
+        "useKeyWithClickEvents": "warn",
+        "useMediaCaption": "warn"
+      },
+      "correctness": {
+        "noUnusedFunctionParameters": "warn",
+        "noUnusedVariables": "warn",
+        "useExhaustiveDependencies": "warn"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "warn"
+      },
+      "style": {
+        "noNonNullAssertion": "warn"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "warn",
+        "noConfusingVoidType": "warn",
+        "noExplicitAny": "warn",
+        "noTemplateCurlyInString": "warn"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["apps/app/**"],
+      "plugins": [
+        "./biome-plugins/expo-no-dynamic-env-var.grit",
+        "./biome-plugins/expo-no-env-var-destructuring.grit"
+      ]
+    },
+    {
+      "includes": ["apps/api/src/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUnusedVariables": {
+              "level": "error",
+              "options": {
+                "ignoreRestSiblings": true
+              }
+            },
+            "useHookAtTopLevel": "error"
+          },
+          "suspicious": {
+            "noTsIgnore": "error"
+          },
+          "nursery": {
+            "noFloatingPromises": "error"
+          }
+        }
+      }
+    }
+  ]
+}

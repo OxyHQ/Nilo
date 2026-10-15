@@ -25,9 +25,7 @@ export function PrivateSection() {
 
   const myPages = React.useMemo<Page[]>(() => {
     if (!data?.pages || !user) return [];
-    return data.pages.filter(
-      (p) => p.ownerId === user.id && !p.archived,
-    );
+    return data.pages.filter((p) => p.ownerId === user.id && !p.archived);
   }, [data?.pages, user]);
 
   const handleCreate = React.useCallback(async () => {
@@ -61,9 +59,7 @@ export function PrivateSection() {
           </View>
         ) : isError ? (
           <View className="px-3 py-2">
-            <Text className="text-xs text-destructive">
-              {t('sidebar.loadPagesFailed')}
-            </Text>
+            <Text className="text-xs text-destructive">{t('sidebar.loadPagesFailed')}</Text>
           </View>
         ) : (
           <SidebarPageTree

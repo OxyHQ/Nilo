@@ -101,7 +101,10 @@ async function main(): Promise<void> {
     },
     { type: 'heading_2', content: { text: 'What works' } },
     { type: 'bulleted_list_item', content: { text: 'Pages, sub-pages and the sidebar tree' } },
-    { type: 'bulleted_list_item', content: { text: 'Blocks: headings, lists, todos, code, quotes' } },
+    {
+      type: 'bulleted_list_item',
+      content: { text: 'Blocks: headings, lists, todos, code, quotes' },
+    },
     { type: 'bulleted_list_item', content: { text: 'Databases with typed properties and views' } },
     { type: 'bulleted_list_item', content: { text: 'Comments, including threads and mentions' } },
     { type: 'todo', content: { text: 'Open a page and edit a block', checked: true } },
@@ -128,7 +131,7 @@ async function main(): Promise<void> {
       pageId: welcome.id,
       type: block.type as never,
       content: block.content as never,
-      order: order += 1000,
+      order: (order += 1000),
     });
   }
   console.log(`  page "${welcome.title}" with ${blocks.length} blocks`);
@@ -145,7 +148,9 @@ async function main(): Promise<void> {
   await createBlock(db, {
     pageId: child.id,
     type: 'paragraph' as never,
-    content: { text: 'The API moved from MongoDB to PostgreSQL. Nothing reads Mongo any more.' } as never,
+    content: {
+      text: 'The API moved from MongoDB to PostgreSQL. Nothing reads Mongo any more.',
+    } as never,
     order: 1000,
   });
   console.log(`  sub-page "${child.title}"`);
@@ -206,7 +211,7 @@ async function main(): Promise<void> {
       ownerId: OWNER_ID,
       databaseId: tasks.id,
       title: row.title,
-      order: rowOrder += 1000,
+      order: (rowOrder += 1000),
       properties: {
         name: { text: row.title },
         status: { select: row.status },

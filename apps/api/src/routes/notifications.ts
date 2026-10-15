@@ -18,7 +18,12 @@ import {
   type PushPlatform,
 } from '../db/schema/collab.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { getUnreadCount, markAsRead, markAllAsRead, dismissNotification } from '../lib/notification-service.js';
+import {
+  getUnreadCount,
+  markAsRead,
+  markAllAsRead,
+  dismissNotification,
+} from '../lib/notification-service.js';
 import { VAPID_PUBLIC_KEY } from '../lib/web-push.js';
 import { log } from '../lib/logger.js';
 import type { Request, Response } from 'express';
@@ -233,7 +238,10 @@ router.post('/web-push-subscription', async (req: Request, res: Response) => {
       keys: { p256dh: keys.p256dh, auth: keys.auth },
     });
 
-    log.general.info({ userId, subscriptionId: subscription.id }, 'Web push subscription registered');
+    log.general.info(
+      { userId, subscriptionId: subscription.id },
+      'Web push subscription registered',
+    );
     res.json({ success: true, id: subscription.id });
   } catch (error: unknown) {
     log.general.error({ err: error }, 'Error registering web push subscription');
