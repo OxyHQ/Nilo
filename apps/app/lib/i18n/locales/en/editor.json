@@ -265,5 +265,19 @@
     "people": "People",
     "pages": "Pages",
     "date": "Date"
+  },
+  "canvas": {
+    "label": "Canvas",
+    "empty": "Double-click anywhere, or press New note, to place a note.",
+    "emptyReadOnly": "This canvas has no notes yet.",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "resetZoom": "Reset zoom to 100%",
+    "fit": "Fit all notes",
+    "newNote": "New note",
+    "moveNote": "Move note",
+    "resizeNote": "Resize note",
+    "deleteNote": "Delete note",
+    "writeInNote": "Write in this note"
   }
 }

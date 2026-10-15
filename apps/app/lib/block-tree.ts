@@ -39,3 +39,21 @@ export function buildBlockTree(blocks: readonly ReadOnlyBlock[]): BlockTreeNode[
   sort(roots);
   return roots;
 }
+
+const coordinate = (value: unknown) => (typeof value === 'number' ? value : 0);
+
+/**
+ * A canvas page's notes read as a page: top to bottom, then left to right,
+ * after anything not in a note. A document's blocks keep their order.
+ */
+export function inReadingOrder(tree: BlockTreeNode[]): BlockTreeNode[] {
+  if (!tree.some((node) => node.block.type === 'canvas_note')) return tree;
+  const notes = tree
+    .filter((node) => node.block.type === 'canvas_note')
+    .sort(
+      (a, b) =>
+        coordinate(a.block.content.y) - coordinate(b.block.content.y) ||
+        coordinate(a.block.content.x) - coordinate(b.block.content.x),
+    );
+  return [...tree.filter((node) => node.block.type !== 'canvas_note'), ...notes];
+}

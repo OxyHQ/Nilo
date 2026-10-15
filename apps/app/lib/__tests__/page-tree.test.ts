@@ -5,6 +5,7 @@ const page = (id: string, parentId: string | null, order = 0): Page => ({
   fullWidth: false,
   smallText: false,
   font: 'default',
+  mode: 'document',
   locked: false,
   id,
   parentId,

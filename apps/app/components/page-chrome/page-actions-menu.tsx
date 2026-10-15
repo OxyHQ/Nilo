@@ -14,6 +14,7 @@ import { Popover, PopoverTrigger, PopoverContent, PopoverSeparator } from '@oxy.
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Switch } from '@/components/ui/switch';
+import { CanvasSwitch } from './canvas-switch';
 import { OfflineSwitch } from './offline-switch';
 import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
 import { cn } from '@/lib/utils';
@@ -223,6 +224,7 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
                     />
                   </View>
                 ))}
+                <CanvasSwitch page={page} />
                 <PopoverSeparator />
               </View>
             ) : null}

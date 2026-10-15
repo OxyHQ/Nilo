@@ -18,6 +18,7 @@ const BEHAVIOUR = extendSchema(DEFAULT_SCHEMA, [
   { type: 'embed', hasText: false, canHaveChildren: false },
   { type: 'columns', hasText: false, canHaveChildren: true, isContainer: true },
   { type: 'column', hasText: false, canHaveChildren: true, isContainer: true },
+  { type: 'canvas_note', hasText: false, canHaveChildren: true, isContainer: true },
   { type: 'table', hasText: false, canHaveChildren: true, isContainer: true },
   { type: 'table_row', hasText: false, canHaveChildren: true, isContainer: true },
   { type: 'table_cell', hasText: true, canHaveChildren: false },

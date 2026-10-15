@@ -15,10 +15,14 @@ import type { WorkspaceRole } from '../hooks/use-workspaces';
 
 export type PageFont = 'default' | 'serif' | 'mono';
 
+/** How a page's blocks are laid out: top to bottom, or as notes on a canvas. */
+export type PageMode = 'document' | 'canvas';
+
 export interface Page {
   fullWidth: boolean;
   smallText: boolean;
   font: PageFont;
+  mode: PageMode;
   locked: boolean;
   id: string;
   workspaceId: string;

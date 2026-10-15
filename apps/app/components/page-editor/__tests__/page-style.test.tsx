@@ -24,6 +24,7 @@ const mockMentions = {};
 const mockOpenMention = jest.fn();
 const mockCreateDatabase = jest.fn();
 let mockPage: { font: PageFont; smallText: boolean; fullWidth: boolean; workspaceId: string };
+jest.mock('@/components/page-editor/page-canvas', () => ({ PageCanvas: () => null }));
 jest.mock('../database-picker', () => ({ DatabasePicker: () => null }));
 jest.mock('@oxy.so/bloom-editor', () => ({
   ...jest.requireActual('@oxy.so/bloom-editor/model'),
