@@ -75,6 +75,8 @@ export const DATABASE_PROPERTY_TYPES = [
   'created_by',
   'last_edited_by',
   'formula',
+  // A number every row gets in turn when it is created (with an optional prefix: TASK-12).
+  'unique_id',
 ] as const;
 export type DatabasePropertyType = (typeof DATABASE_PROPERTY_TYPES)[number];
 
@@ -123,6 +125,8 @@ export interface PropertyConfig {
   function?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'earliest' | 'latest';
   // formula
   expression?: string;
+  // unique_id
+  prefix?: string;
 }
 
 export interface DatabaseProperty {
@@ -332,6 +336,11 @@ export const databases = pgTable(
      * pair is uninsertable without `DEFERRABLE INITIALLY DEFERRED`.
      */
     parentPageId: text().references((): AnyPgColumn => pages.id, { onDelete: 'set null' }),
+    /**
+     * The number the next row's `unique_id` properties get: taken and
+     * advanced in one statement, so rows created at once never share one.
+     */
+    nextRowNumber: integer().notNull().default(1),
     /**
      * Soft delete — a boolean, matching `models/database.ts:194`.
      *

@@ -129,6 +129,16 @@ interface ApiResponse {
  * used `fetch` still holds handles after `afterAll`. One connection per
  * request, closed with the response, leaves nothing behind.
  */
+/** JSON bodies as objects; anything else (a CSV export) as `{ text }`. */
+function parseBody(text: string): Record<string, unknown> {
+  if (text.length === 0) return {};
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return { text };
+  }
+}
+
 async function api(method: string, path: string, body?: unknown): Promise<ApiResponse> {
   const payload = body === undefined ? undefined : JSON.stringify(body);
   return new Promise<ApiResponse>((resolve, reject) => {
@@ -148,7 +158,7 @@ async function api(method: string, path: string, body?: unknown): Promise<ApiRes
         response.on('end', () => {
           resolve({
             status: response.statusCode ?? 0,
-            body: text.length > 0 ? (JSON.parse(text) as Record<string, unknown>) : {},
+            body: parseBody(text),
           });
         });
       },
@@ -610,6 +620,34 @@ describe('rows', () => {
         })
       ).status,
     ).toBe(400);
+  });
+
+  it('numbers rows with an ID property, existing ones first, and never takes one from the client', async () => {
+    const databaseId = await createDatabase();
+    await api('POST', `/api/databases/${databaseId}/rows`, { title: 'first' });
+    await api('POST', `/api/databases/${databaseId}/rows`, { title: 'second' });
+    const added = await api('POST', `/api/databases/${databaseId}/properties`, {
+      id: 'tid',
+      name: 'ID',
+      type: 'unique_id',
+      config: { prefix: 'TASK' },
+    });
+    expect(added.status).toBe(201);
+    const third = await api('POST', `/api/databases/${databaseId}/rows`, {
+      title: 'third',
+      properties: { tid: { number: 999 } },
+    });
+    expect(asRecord(asRecord(third.body.row).properties).tid).toEqual({ number: 3 });
+    const rows = await db.select().from(pages).where(eq(pages.databaseId, databaseId));
+    expect(
+      rows.map((r) => [r.title, (r.properties.tid as { number: number }).number]).sort(),
+    ).toEqual([
+      ['first', 1],
+      ['second', 2],
+      ['third', 3],
+    ]);
+    const csv = await api('GET', `/api/databases/${databaseId}/export?format=csv`);
+    expect(String(csv.body.text)).toContain('TASK-3');
   });
 
   it('stores property values as jsonb and mirrors the name into the title', async () => {

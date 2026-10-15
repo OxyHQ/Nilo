@@ -1,0 +1,4 @@
+-- oxy:deploy-phase=pre
+ALTER TABLE "databases" DROP CONSTRAINT "databases_property_types";--> statement-breakpoint
+ALTER TABLE "databases" ADD COLUMN "next_row_number" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "databases" ADD CONSTRAINT "databases_property_types" CHECK (not jsonb_path_exists("databases"."properties_schema", '$.properties[*].type ? (!(@ == "text" || @ == "number" || @ == "select" || @ == "multi_select" || @ == "status" || @ == "date" || @ == "person" || @ == "files" || @ == "checkbox" || @ == "url" || @ == "email" || @ == "phone" || @ == "relation" || @ == "rollup" || @ == "created_time" || @ == "last_edited_time" || @ == "created_by" || @ == "last_edited_by" || @ == "formula" || @ == "unique_id"))'));

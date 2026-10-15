@@ -15,7 +15,8 @@ import {
   insertDatabase,
   insertDatabaseView,
 } from '../../repositories/databases.js';
-import { createPage, nextDatabaseRowOrder } from '../../repositories/pages.js';
+import { nextDatabaseRowOrder } from '../../repositories/pages.js';
+import { createRow } from './rows.js';
 import { parsePropertyValue, serializeParsedValue } from './property-values.js';
 import { NAME_PROPERTY_ID } from './schema-defaults.js';
 
@@ -115,13 +116,12 @@ export async function createDatabaseWithRows(
   let order = await nextDatabaseRowOrder(handle, database.id);
   for (const row of input.rows) {
     const { stored } = normalizeIncomingProperties(input.schema, row.properties);
-    const page = await createPage(handle, {
+    const page = await createRow(handle, database, {
       workspaceId: input.workspaceId,
       parentId: null,
       title: row.title,
       ownerId: input.ownerId,
       order: order++,
-      databaseId: database.id,
       properties: stored,
     });
     rowIds.push(page.id);

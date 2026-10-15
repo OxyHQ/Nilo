@@ -227,6 +227,10 @@ export function databaseToCsv(
         return property.id === NAME_PROPERTY_ID ? row.title : String(value.text ?? '');
       case 'number':
         return typeof value.number === 'number' ? String(value.number) : '';
+      case 'unique_id':
+        return typeof value.number === 'number'
+          ? `${property.config?.prefix ? `${property.config.prefix}-` : ''}${value.number}`
+          : '';
       case 'select':
       case 'status':
         return optionName(property, value.optionId);

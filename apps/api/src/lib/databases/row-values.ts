@@ -31,6 +31,7 @@ export function rowFormulaContext(
             ? value.text
             : '';
       case 'number':
+      case 'unique_id':
         return typeof value.number === 'number' ? value.number : null;
       case 'checkbox':
         return value.checked === true;

@@ -23,7 +23,8 @@ import { checkDatabaseAccess } from '../lib/page-access.js';
 import { rateLimit } from '../lib/rate-limit.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { findDatabaseById } from '../repositories/databases.js';
-import { createPage, nextDatabaseRowOrder } from '../repositories/pages.js';
+import { createRow } from '../lib/databases/rows.js';
+import { nextDatabaseRowOrder } from '../repositories/pages.js';
 
 const router = Router();
 const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
@@ -258,14 +259,13 @@ router.post(
         res.status(400).json({ error: 'The first field is required', field: NAME_PROPERTY_ID });
         return;
       }
-      await createPage(loaded.db, {
+      await createRow(loaded.db, loaded.database, {
         workspaceId: loaded.database.workspaceId,
         parentId: null,
         title,
         // Anonymous responses are owned by the form itself.
         ownerId: req.user?.id ?? `form:${loaded.form.id}`,
         order: await nextDatabaseRowOrder(loaded.db, loaded.database.id),
-        databaseId: loaded.database.id,
         properties: stored,
       });
       res.status(201).json({ ok: true });

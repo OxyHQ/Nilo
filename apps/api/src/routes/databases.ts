@@ -63,6 +63,7 @@ import {
   normalizeIncomingProperties,
 } from '../lib/databases/create.js';
 import { csvToDatabase, databaseToCsv } from '../lib/databases/csv.js';
+import { createRow, numberExistingRows } from '../lib/databases/rows.js';
 import {
   checkDatabaseAccess,
   checkPageAccess,
@@ -141,6 +142,11 @@ const propertyConfigSchema = z
     targetPropertyId: z.string().optional(),
     function: z.enum(['count', 'sum', 'avg', 'min', 'max', 'earliest', 'latest']).optional(),
     expression: z.string().max(2000).optional(),
+    /** An ID property's prefix: letters and digits (TASK → TASK-12). */
+    prefix: z
+      .string()
+      .regex(/^[A-Za-z0-9]{0,12}$/)
+      .optional(),
   })
   .strict();
 
@@ -709,7 +715,13 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
     }
 
     db.propertiesSchema.properties.push(property);
-    const updated = await writeDatabaseSchema(handle, db.id, normalizeSchema(db.propertiesSchema));
+    const updated = await handle.transaction(async (tx) => {
+      const written = await writeDatabaseSchema(tx, db.id, normalizeSchema(db.propertiesSchema));
+      // A new ID property numbers the rows already there, oldest first.
+      if (written && property.type === 'unique_id')
+        await numberExistingRows(tx, db.id, property.id);
+      return written;
+    });
     if (!updated) {
       res.status(404).json({ error: 'Database not found' });
       return;
@@ -953,7 +965,7 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
     }
 
     const row = await handle.transaction(async (tx) => {
-      const created = await createPage(tx, {
+      const created = await createRow(tx, db, {
         workspaceId: db.workspaceId,
         parentId: null,
         title:
@@ -965,7 +977,6 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
         ownerId: userId,
         archived: false,
         order: await nextDatabaseRowOrder(tx, db.id),
-        databaseId: db.id,
         properties: { ...(template?.properties ?? {}), ...stored },
       });
       if (template) await duplicateBlocksToPage(tx, template.id, created.id);

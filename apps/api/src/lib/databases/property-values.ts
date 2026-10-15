@@ -142,6 +142,8 @@ export function parsePropertyValue(
     case 'last_edited_time':
     case 'created_by':
     case 'last_edited_by':
+    // Assigned by the server when the row is created; never written.
+    case 'unique_id':
       return null;
   }
 }

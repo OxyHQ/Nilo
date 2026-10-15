@@ -22,6 +22,7 @@ export const OPERATORS_BY_TYPE: Record<DatabasePropertyType, readonly string[]> 
     'is_not_empty',
   ],
   number: ['=', '!=', '>', '<', '>=', '<=', 'is_empty', 'is_not_empty'],
+  unique_id: ['=', '!=', '>', '<', '>=', '<='],
   select: ['is', 'is_not', 'is_empty', 'is_not_empty'],
   multi_select: ['contains', 'does_not_contain', 'is_empty', 'is_not_empty'],
   status: ['is', 'is_not', 'is_empty', 'is_not_empty'],
@@ -240,6 +241,7 @@ export function evaluateFilter(
  * property's type.
  */
 export function valueType(property: DatabaseProperty, value: unknown): DatabasePropertyType {
+  if (property.type === 'unique_id') return 'number';
   if (property.type !== 'formula' && property.type !== 'rollup') return property.type;
   const v = (value ?? {}) as Record<string, unknown>;
   if (typeof v.number === 'number') return 'number';
