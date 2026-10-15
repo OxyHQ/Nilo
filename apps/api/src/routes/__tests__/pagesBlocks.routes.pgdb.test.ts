@@ -602,6 +602,74 @@ describe('POST /pages/:id/duplicate', () => {
     expect(copiedIds.has(nested.parentBlockId)).toBe(true);
     expect(nested.parentBlockId).not.toBe(parentBlock.id);
   });
+
+  it('copies the subpages too, with their blocks, under the copy', async () => {
+    const source = await createPage({ title: 'tree' });
+    const child = await createPage({ title: 'child', parentId: source.id });
+    await createBlock(child.id as string, { type: 'paragraph', content: { text: 'deep' } });
+    await createPage({ title: 'gone', parentId: source.id });
+    const goneId = (await api('GET', `/pages?workspaceId=${workspaceId}&parentId=${source.id}`))
+      .json.pages as {
+      id: string;
+      title: string;
+    }[];
+    await api('DELETE', `/pages/${goneId.find((p) => p.title === 'gone')?.id}`);
+
+    const res = await api('POST', `/pages/${source.id}/duplicate`);
+    const copyId = (res.json.page as { id: string }).id;
+    const children = (await api('GET', `/pages?workspaceId=${workspaceId}&parentId=${copyId}`)).json
+      .pages as {
+      id: string;
+      title: string;
+    }[];
+    // The archived subpage is not copied.
+    expect(children.map((p) => p.title)).toEqual(['child']);
+    const deep = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.pageId, children[0]?.id as string));
+    expect(deep.map((b) => b.content.text)).toEqual(['deep']);
+  });
+});
+
+describe('templates', () => {
+  it('stay out of the page tree, and copying one makes an ordinary page with its title', async () => {
+    const template = await createPage({ title: 'Weekly review' });
+    await createPage({ title: 'Wins', parentId: template.id });
+    expect((await api('PATCH', `/pages/${template.id}`, { template: true })).status).toBe(200);
+
+    const tree = (await api('GET', `/pages?workspaceId=${workspaceId}`)).json.pages as {
+      id: string;
+    }[];
+    expect(tree.map((p) => p.id)).not.toContain(template.id);
+    const listed = (await api('GET', `/pages?workspaceId=${workspaceId}&templates=only`)).json
+      .pages as {
+      id: string;
+    }[];
+    expect(listed.map((p) => p.id)).toEqual([template.id]);
+
+    const used = await api('POST', `/pages/${template.id}/duplicate`, { fromTemplate: true });
+    expect(used.status).toBe(201);
+    const page = used.json.page as {
+      id: string;
+      title: string;
+      template: boolean;
+      parentId: string | null;
+    };
+    expect(page).toMatchObject({ title: 'Weekly review', template: false, parentId: null });
+    const sub = (await api('GET', `/pages?workspaceId=${workspaceId}&parentId=${page.id}`)).json
+      .pages as {
+      title: string;
+    }[];
+    expect(sub.map((p) => p.title)).toEqual(['Wins']);
+  });
+
+  it('refuses to use a page that is not a template', async () => {
+    const plain = await createPage();
+    expect((await api('POST', `/pages/${plain.id}/duplicate`, { fromTemplate: true })).status).toBe(
+      400,
+    );
+  });
 });
 
 describe('GET /pages/:id/breadcrumb', () => {

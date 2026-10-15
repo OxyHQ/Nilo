@@ -96,6 +96,12 @@ export const pages = pgTable(
      */
     restricted: boolean().notNull().default(false),
     /**
+     * A template: kept out of the page tree and offered when creating a page,
+     * which copies it with its subpages (`POST /pages/:id/duplicate` with
+     * `fromTemplate`).
+     */
+    template: boolean().notNull().default(false),
+    /**
      * Sibling ordering. `double precision`, not an integer: `PATCH
      * /api/pages/:id` accepts `z.number().finite()`, so a client may write a
      * fractional order to insert between two neighbours without renumbering.

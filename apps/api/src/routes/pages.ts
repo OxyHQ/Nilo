@@ -14,7 +14,8 @@ import {
   nextSiblingOrder,
   updatePage,
 } from '../repositories/pages.js';
-import { duplicateBlocksToPage, listBlocksForPageByOrder } from '../repositories/blocks.js';
+import { listBlocksForPageByOrder } from '../repositories/blocks.js';
+import { copyPageTree } from '../repositories/pageCopies.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
@@ -69,6 +70,8 @@ const listQuerySchema = z.object({
     .union([z.literal('true'), z.literal('false')])
     .optional()
     .transform((v) => v === 'true'),
+  /** Templates are not part of the page tree: listed only on request. */
+  templates: z.enum(['exclude', 'only', 'include']).default('exclude'),
 });
 
 const createPageSchema = z.object({
@@ -91,6 +94,8 @@ const updatePageSchema = z
     favorited: z.boolean().optional(),
     /** Open only to the people it is shared with (see `lib/page-access.ts`). */
     restricted: z.boolean().optional(),
+    /** Make it a template, or an ordinary page again. */
+    template: z.boolean().optional(),
     // Database row property writes. Keys are propertyIds; shapes are
     // validated per-property type by `parsePropertyValue`.
     properties: z.record(z.unknown()).optional(),
@@ -144,6 +149,7 @@ function serializePage(page: PageRow) {
     archived: page.archived,
     favorited: page.favorited,
     restricted: page.restricted,
+    template: page.template,
     order: page.order,
     databaseId: page.databaseId,
     properties: page.properties,
@@ -196,6 +202,7 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
             : query.parentId,
       archived,
       favoritedOnly: query.favoritedOnly,
+      template: query.templates === 'include' ? undefined : query.templates === 'only',
     });
 
     // Leave out the restricted pages this member has no grant reaching.
@@ -430,6 +437,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       archived: body.archived,
       favorited: body.favorited,
       restricted: body.restricted,
+      template: body.template,
       mergeProperties: undefined as Record<string, unknown> | undefined,
     };
 
@@ -547,14 +555,28 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+const duplicateSchema = z
+  .object({
+    /** Where the copy goes; beside the source when absent. */
+    parentId: entityIdSchema.nullable().optional(),
+    /** Use a template: the copy keeps its title and is an ordinary page. */
+    fromTemplate: z.boolean().optional(),
+  })
+  .default({});
+
 /**
- * POST /api/pages/:id/duplicate
- * Duplicates the page and all its blocks. Children pages are NOT duplicated
- * in Phase 1 (matches Notion's "Duplicate" default of single-page copy).
+ * POST /api/pages/:id/duplicate [{ parentId?, fromTemplate? }]
+ *
+ * Copies the page with its subpages, their blocks and who may open them, as
+ * Notion's Duplicate does. By default the copy lands beside the source, is
+ * titled "… (copy)" and needs edit access to the source. `fromTemplate` uses
+ * a template instead: viewing it is enough, the copy keeps its title, is not
+ * a template, and goes to `parentId` (the top level when absent).
  */
 router.post('/:id/duplicate', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
+    const body = duplicateSchema.parse(req.body ?? {});
 
     const db = getDb();
     const source = await findPageById(db, params.id);
@@ -562,62 +584,55 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Page not found' });
       return;
     }
-
-    const access = await checkPageAccess(req, res, db, source.id, 'editor');
-    if (!access) return;
-    const userId = req.user?.id as string;
-    // The copy lands beside the source: that needs edit access to the parent,
-    // or a workspace editor for a top-level page.
-    if (source.parentId) {
-      if (!(await checkPageAccess(req, res, db, source.parentId, 'editor'))) return;
-    } else if (!access.memberRole || !hasRole(access.memberRole, 'editor')) {
-      res.status(403).json({ error: 'Duplicating a top-level page needs a workspace editor' });
+    if (body.fromTemplate && !source.template) {
+      res.status(400).json({ error: 'That page is not a template' });
       return;
     }
 
-    // The new page and its copied blocks are ONE logical write, so they commit
-    // together. The two-statement version this replaces could leave a page with
-    // no blocks behind a 500, and Mongo had no way to promise otherwise.
-    //
-    // The transaction does NOT close the sibling-order race — `nextSiblingOrder`
-    // takes no lock under READ COMMITTED — it is here for the page/blocks pair.
-    const duplicate = await db.transaction(async (tx) => {
-      const order = await nextSiblingOrder(tx, {
-        workspaceId: source.workspaceId,
-        parentId: source.parentId,
-      });
+    const access = await checkPageAccess(
+      req,
+      res,
+      db,
+      source.id,
+      body.fromTemplate ? 'viewer' : 'editor',
+    );
+    if (!access) return;
+    const userId = req.user?.id as string;
 
-      const created = await createPage(tx, {
-        workspaceId: source.workspaceId,
-        parentId: source.parentId,
-        title: source.title ? `${source.title} (copy)` : '(copy)',
-        icon: source.icon,
-        cover: source.cover,
-        ownerId: userId,
-        archived: false,
-        order,
-      });
-
-      // Children pages are NOT duplicated (see the route comment above), so the
-      // copy takes the source's blocks and nothing else.
-      await duplicateBlocksToPage(tx, source.id, created.id);
-      // And who may open it: a copy of a restricted page must not open up.
-      if (source.restricted) {
-        await updatePage(tx, created.id, { restricted: true });
-        for (const grant of await listGrantsOnPages(tx, [source.id])) {
-          await upsertGrant(tx, {
-            pageId: created.id,
-            userId: grant.userId,
-            role: grant.role,
-            grantedBy: userId,
-          });
-        }
-        if (!(access.memberRole && hasRole(access.memberRole, 'admin'))) {
-          await upsertGrant(tx, { pageId: created.id, userId, role: 'admin', grantedBy: userId });
-        }
-        return (await findPageById(tx, created.id)) ?? created;
+    // The destination: a page needs edit access there, the top level a
+    // workspace editor.
+    const parentId =
+      body.parentId !== undefined ? body.parentId : body.fromTemplate ? null : source.parentId;
+    if (parentId) {
+      const parent = await findPageById(db, parentId);
+      if (!parent || parent.workspaceId !== source.workspaceId) {
+        res.status(400).json({ error: 'The destination is not a page of this workspace' });
+        return;
       }
-      return created;
+      if (!(await checkPageAccess(req, res, db, parent.id, 'editor'))) return;
+    } else if (!access.memberRole || !hasRole(access.memberRole, 'editor')) {
+      res.status(403).json({ error: 'Adding a top-level page needs a workspace editor' });
+      return;
+    }
+
+    // One logical write: the pages, their blocks and their grants commit
+    // together. The transaction does not close the sibling-order race —
+    // `nextSiblingOrder` takes no lock under READ COMMITTED.
+    const duplicate = await db.transaction(async (tx) => {
+      const order = await nextSiblingOrder(tx, { workspaceId: source.workspaceId, parentId });
+      return copyPageTree(tx, {
+        sourceId: source.id,
+        parentId,
+        order,
+        title: body.fromTemplate
+          ? source.title
+          : source.title
+            ? `${source.title} (copy)`
+            : '(copy)',
+        template: !body.fromTemplate && source.template,
+        userId,
+        keepAccess: !(access.memberRole && hasRole(access.memberRole, 'admin')),
+      });
     });
 
     res.status(201).json({ page: serializePage(duplicate) });

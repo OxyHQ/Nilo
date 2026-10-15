@@ -47,6 +47,8 @@ export interface ListPagesFilter {
    * which matches nothing and returns an empty list with no error.
    */
   parentId?: string | null;
+  /** `true` — templates only; `false` — no templates; absent — both. */
+  template?: boolean;
   /**
    * `undefined` — archived and active together (`?includeArchived=true`).
    * `true` — the trash view (`?archivedOnly=true`).
@@ -75,6 +77,7 @@ export async function listPages(db: PgHandle, filter: ListPagesFilter): Promise<
   }
   if (filter.archived !== undefined) predicates.push(eq(pages.archived, filter.archived));
   if (filter.favoritedOnly) predicates.push(eq(pages.favorited, true));
+  if (filter.template !== undefined) predicates.push(eq(pages.template, filter.template));
 
   return db
     .select()
@@ -223,6 +226,7 @@ export interface UpdatePageInput {
   archived?: boolean;
   favorited?: boolean;
   restricted?: boolean;
+  template?: boolean;
   /**
    * Shallow top-level MERGE into the stored object, never a replacement.
    *
@@ -271,6 +275,7 @@ export async function updatePage(
   if (patch.archived !== undefined) values.archived = patch.archived;
   if (patch.favorited !== undefined) values.favorited = patch.favorited;
   if (patch.restricted !== undefined) values.restricted = patch.restricted;
+  if (patch.template !== undefined) values.template = patch.template;
   if (patch.mergeProperties !== undefined) {
     values.properties = sql`${pages.properties} || ${JSON.stringify(patch.mergeProperties)}::jsonb`;
   }
