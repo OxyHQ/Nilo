@@ -88,6 +88,7 @@ import { rowFormulaContext } from '../lib/databases/row-values.js';
 import { resolveRollups } from '../lib/databases/rollups.js';
 import { placeOrRefuse } from '../lib/placement.js';
 import { findMembership } from '../repositories/workspaces.js';
+import { announceChange } from '../collab/live-rooms.js';
 
 const router = Router();
 
@@ -612,6 +613,7 @@ router.post('/', async (req: Request, res: Response) => {
       return { db, views: await listViewsByDatabase(tx, db.id) };
     });
 
+    announceChange({ workspaceId });
     res.status(201).json({
       database: serializeDatabase(created.db),
       views: created.views.map((v) => serializeView(v)),
@@ -654,6 +656,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return;
     }
 
+    announceChange({ workspaceId: db.workspaceId, databaseId: db.id });
     res.json({ database: serializeDatabase(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -697,6 +700,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
         await deleteViewsByDatabase(tx, db.id);
         await deleteDatabase(tx, db.id);
       });
+      announceChange({ workspaceId: db.workspaceId, databaseId: db.id });
       res.json({ success: true });
       return;
     }
@@ -706,6 +710,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
+    announceChange({ workspaceId: db.workspaceId, databaseId: db.id });
     res.json({ database: serializeDatabase(archived) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -757,6 +762,7 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
       return;
     }
 
+    announceChange({ databaseId: db.id });
     res.status(201).json({ database: serializeDatabase(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -800,6 +806,7 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
       return;
     }
 
+    announceChange({ databaseId: db.id });
     res.json({ database: serializeDatabase(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -846,6 +853,7 @@ router.delete('/:id/properties/:propertyId', async (req: Request, res: Response)
       return;
     }
 
+    announceChange({ databaseId: db.id });
     res.json({ database: serializeDatabase(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1041,6 +1049,7 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
 
     const derived = await resolveDerivedProperties(handle, row, db.propertiesSchema);
 
+    announceChange({ databaseId: db.id });
     res.status(201).json({ row: serializeRow(row, { derived }) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1114,6 +1123,7 @@ router.post('/:id/views', async (req: Request, res: Response) => {
       order: nextOrder,
     });
 
+    announceChange({ databaseId: db.id });
     res.status(201).json({ view: serializeView(view) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1173,6 +1183,7 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
       return;
     }
 
+    announceChange({ databaseId: db.id });
     res.json({ view: serializeView(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1218,6 +1229,7 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
         await updateDatabaseView(tx, fallback.id, { isDefault: true });
       }
     });
+    announceChange({ databaseId: db.id });
     res.json({ success: true });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1343,6 +1355,7 @@ router.post('/import/csv', async (req: Request, res: Response) => {
         rows: parsed.rows,
       }),
     );
+    announceChange({ workspaceId: body.workspaceId, databaseId: created.database.id });
     res
       .status(201)
       .json({ database: serializeDatabase(created.database), rows: created.rowIds.length });

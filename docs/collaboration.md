@@ -113,6 +113,15 @@ when the editor saves — if they can open the page, and never the writer.
 `applyBlockTransaction` reports them (`mentioned`); only the editor's route
 notifies, so imports and restores do not.
 
+## Live outside the editor
+
+`collab/live-rooms.ts`: a member joins `workspace:<id>` (a guest with a page
+shared there too) and hears `workspace:changed` when its page tree changes;
+anyone who can open a database joins `database:<id>` and hears
+`database:changed` when its rows, properties or views change. Events carry
+ids only — clients read again through the API — and bursts are coalesced.
+The routes announce a change once their write is done (`announceChange`).
+
 ## Page history
 
 Before the first change after ten quiet minutes, and before every restore,

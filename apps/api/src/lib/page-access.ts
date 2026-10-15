@@ -374,6 +374,19 @@ export function rolesForPages(
  * sits in; one that sits in no page lives in a teamspace, or privately with
  * its owner, like a top-level page.
  */
+/** `userId`'s role on a database: its page's, or from where it lives. */
+export async function resolveDatabaseRole(
+  db: PgHandle,
+  userId: string,
+  database: { workspaceId: string } & DatabaseHome,
+): Promise<WorkspaceRole | null> {
+  if (database.parentPageId) {
+    return (await resolvePageAccess(db, userId, database.parentPageId))?.role ?? null;
+  }
+  const home = { teamspaceId: database.teamspaceId, ownerId: database.ownerId };
+  return baseRole(await viewerFor(db, database.workspaceId, userId, home), home).role;
+}
+
 export async function checkDatabaseAccess(
   req: Request,
   res: Response,

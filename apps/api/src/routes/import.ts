@@ -23,6 +23,7 @@ import { createDatabaseWithRows } from '../lib/databases/create.js';
 import { csvToDatabase } from '../lib/databases/csv.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { createPage, findPageById, nextSiblingOrder } from '../repositories/pages.js';
+import { announceChange } from '../collab/live-rooms.js';
 
 const router = Router();
 const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
@@ -303,6 +304,7 @@ async function runImport(
       rows: made.rowIds.length,
     });
   }
+  announceChange({ workspaceId: input.workspaceId });
   res.status(201).json({ pages: out, databases: databasesOut, skipped });
 }
 

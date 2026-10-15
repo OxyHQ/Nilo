@@ -25,6 +25,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { createRow } from '../lib/databases/rows.js';
 import { nextDatabaseRowOrder } from '../repositories/pages.js';
+import { announceChange } from '../collab/live-rooms.js';
 
 const router = Router();
 const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
@@ -268,6 +269,7 @@ router.post(
         order: await nextDatabaseRowOrder(loaded.db, loaded.database.id),
         properties: stored,
       });
+      announceChange({ databaseId: loaded.database.id });
       res.status(201).json({ ok: true });
     } catch (error: unknown) {
       if (badInput(error, res)) return;

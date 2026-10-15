@@ -41,6 +41,7 @@ import {
 import { findLiveWorkspaceById, listMembershipsForUser } from '../repositories/workspaces.js';
 import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
 import { NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
+import { announceChange } from '../collab/live-rooms.js';
 
 const router = Router();
 
@@ -396,6 +397,7 @@ router.post('/', async (req: Request, res: Response) => {
     // Whoever creates a page follows it.
     await follow(db, page.id, userId);
 
+    announceChange({ workspaceId });
     res.status(201).json({ page: serializePage(page) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -561,6 +563,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return;
     }
 
+    announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
     res.json({ page: serializePage(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -606,6 +609,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       // `blocks.pageId` is CASCADE.
       const deleted = await deletePageTree(db, page.id);
 
+      announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
       res.json({ success: true, deleted });
       return;
     }
@@ -616,6 +620,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return;
     }
 
+    announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
     res.json({ page: serializePage(archivedPage) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -727,6 +732,7 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
       });
     });
 
+    announceChange({ workspaceId: source.workspaceId });
     res.status(201).json({ page: serializePage(duplicate) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
