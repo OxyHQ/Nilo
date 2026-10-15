@@ -166,7 +166,7 @@ export function useNotificationSetup() {
 
     const socket = socketIO(config.apiUrl, {
       auth: (callback) => {
-        const token = oxyServices.getAccessToken();
+        const token = oxyServices.session.accessToken;
         callback(token ? { token } : {});
       },
       transports: ['websocket'],

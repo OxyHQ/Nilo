@@ -1,16 +1,15 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { OxyProvider, useOxy } from '@oxy.so/services';
-import { BloomThemeProvider } from '@oxy.so/bloom/theme';
+import { BloomProvider } from '@oxy.so/bloom/provider';
+import { ImageResolverProvider } from '@oxy.so/bloom/image-resolver';
+import { expoRouterScrollAdapter } from '@oxy.so/bloom/scroll/expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
 
 import { AppErrorBoundary } from '@/components/error-boundary';
-import { KeyboardProvider } from '@/lib/keyboard';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { setTokenGetter } from '@/lib/api/client';
 import { BLOOM_THEME_PERSIST_KEY, BLOOM_THEME_STORAGE } from '@/lib/themePersistence';
@@ -33,28 +32,47 @@ const AUTH_REDIRECT_URI = Linking.createURL('/');
 function AuthSetup({ children }: { children: React.ReactNode }) {
   const { oxyServices } = useOxy();
 
-  setTokenGetter(() => oxyServices.getAccessToken() || null);
+  // Registered during render, not in an effect: children's mount effects fire
+  // API calls before a parent effect would run. Guarded so it only re-runs if
+  // the SDK instance changes.
+  const registeredServicesRef = useRef<typeof oxyServices | null>(null);
+  if (registeredServicesRef.current !== oxyServices) {
+    registeredServicesRef.current = oxyServices;
+    setTokenGetter(() => oxyServices.session.accessToken || null);
+  }
 
-  return <>{children}</>;
+  // Bloom surfaces that take a bare Oxy file id (avatars) resolve it here.
+  const resolveImageSource = useMemo(
+    () => (id: string, variant?: string) => oxyServices.assets.publicUrl(id, variant ?? 'thumb'),
+    [oxyServices],
+  );
+
+  return <ImageResolverProvider value={resolveImageSource}>{children}</ImageResolverProvider>;
 }
 
 function AppContent() {
   const { colors } = useColorScheme();
 
+  // Mounted only once BloomProvider has loaded Bloom's fonts, so hiding the
+  // splash here leaves no unstyled-text flash.
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+
+  // No KeyboardProvider here: OxyProvider mounts the app's one, and a second
+  // provider leaves keyboard callbacks suspended after a modal closes.
   return (
     <AuthSetup>
-      <KeyboardProvider>
-        <Stack
-          screenOptions={{
-            contentStyle: {
-              backgroundColor: colors.background,
-            },
-          }}
-        >
-          <Stack.Screen name="(app)" options={{ headerShown: false }} />
-          <Stack.Screen name="share/[token]" options={{ headerShown: false }} />
-        </Stack>
-      </KeyboardProvider>
+      <Stack
+        screenOptions={{
+          contentStyle: {
+            backgroundColor: colors.background,
+          },
+        }}
+      >
+        <Stack.Screen name="(app)" options={{ headerShown: false }} />
+        <Stack.Screen name="share/[token]" options={{ headerShown: false }} />
+      </Stack>
     </AuthSetup>
   );
 }
@@ -70,32 +88,18 @@ function RootLayout() {
     },
   }));
 
-  const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-    Inter: require('../assets/fonts/Inter-VariableFont_opsz,wght.ttf'),
-    'Inter-Italic': require('../assets/fonts/Inter-Italic-VariableFont_opsz,wght.ttf'),
-    ...FontAwesome.font,
-  });
-
-  useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
-  }, [loaded]);
-
-  if (!loaded) return null;
-
   return (
-    <AppErrorBoundary>
-      <BloomThemeProvider
-        defaultMode="system"
-        defaultColorPreset="yellow"
-        persistKey={BLOOM_THEME_PERSIST_KEY}
-        storage={BLOOM_THEME_STORAGE}
-        fonts={false}
-      >
+    // The single Bloom root (theme, fonts, haptics, scroll restoration). It
+    // sits ABOVE the error boundary because the boundary's fallback reads the
+    // theme.
+    <BloomProvider
+      defaultMode="system"
+      defaultColorPreset="yellow"
+      persistKey={BLOOM_THEME_PERSIST_KEY}
+      storage={BLOOM_THEME_STORAGE}
+      scrollAdapter={expoRouterScrollAdapter}
+    >
+      <AppErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <OxyProvider
             baseURL={OXY_API_URL}
@@ -112,8 +116,8 @@ function RootLayout() {
             <AppContent />
           </OxyProvider>
         </QueryClientProvider>
-      </BloomThemeProvider>
-    </AppErrorBoundary>
+      </AppErrorBoundary>
+    </BloomProvider>
   );
 }
 

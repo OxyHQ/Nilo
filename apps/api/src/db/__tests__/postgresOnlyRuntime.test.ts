@@ -106,10 +106,10 @@ describe('the checked-in public surfaces describe routes that exist', () => {
       'utf8',
     );
 
-    expect(serverSocket).toContain('io.use(oxyClient.authSocket())');
+    expect(serverSocket).toContain('io.use(oxyClient.middleware.socket())');
     expect(serverSocket).toContain('socket.data.userId');
     expect(serverSocket).not.toContain("socket.on('subscribe-notifications'");
-    expect(clientSocket).toContain('oxyServices.getAccessToken()');
+    expect(clientSocket).toContain('oxyServices.session.accessToken');
     expect(clientSocket).not.toContain("socket.emit('subscribe-notifications'");
   });
 

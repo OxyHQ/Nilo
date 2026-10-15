@@ -227,7 +227,7 @@ export async function ensurePersonalWorkspace(
       name?: { full?: string; first?: string } | null;
     } | null = null;
     try {
-      const oxyUser = await oxyClient.getUserById(userId);
+      const oxyUser = await oxyClient.users.get(userId);
       if (oxyUser) {
         displayUser = {
           username: oxyUser.username,

@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Pressable, ScrollView, Platform } from 'react-native';
+import { View, Pressable, ScrollView } from 'react-native';
 import { Text } from '@/components/ui/text';
+import { MONO_FONT_FAMILY } from '@/lib/fonts';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -170,7 +171,7 @@ function ErrorFallback({
               style={{
                 fontSize: 12,
                 color: '#64748b',
-                fontFamily: Platform.OS === 'web' ? 'monospace' : 'SpaceMono',
+                fontFamily: MONO_FONT_FAMILY,
               }}
               selectable
             >

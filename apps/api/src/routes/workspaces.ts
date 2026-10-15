@@ -381,12 +381,12 @@ router.get(
 );
 
 /**
- * Find an Oxy user by email via the SDK's `searchProfiles` method. Returns
+ * Find an Oxy user by email via the SDK's `users.search` method. Returns
  * the matching user or null. Email match is case-insensitive and exact.
  */
 async function findUserByEmail(email: string): Promise<{ id: string; email?: string } | null> {
   try {
-    const response = await oxyClient.searchProfiles(email, { limit: 5 });
+    const response = await oxyClient.users.search(email, { limit: 5 });
     const target = email.toLowerCase();
     const hit = response.data.find(
       (u) => typeof u.email === 'string' && u.email.toLowerCase() === target,
@@ -394,7 +394,7 @@ async function findUserByEmail(email: string): Promise<{ id: string; email?: str
     if (!hit) return null;
     return { id: hit.id, email: hit.email };
   } catch (err: unknown) {
-    log.general.warn({ err, email }, 'searchProfiles failed during workspace invite');
+    log.general.warn({ err, email }, 'users.search failed during workspace invite');
     return null;
   }
 }

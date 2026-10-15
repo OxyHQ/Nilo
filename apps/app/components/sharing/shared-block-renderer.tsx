@@ -1,6 +1,7 @@
 import React from "react";
-import { View, Pressable, Platform } from "react-native";
+import { View, Pressable } from "react-native";
 import { Text } from "@/components/ui/text";
+import { MONO_FONT_FAMILY } from "@/lib/fonts";
 import { Check } from "lucide-react-native";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type { SharedBlock } from "@/lib/hooks/use-share-links";
@@ -146,10 +147,7 @@ function CodeBlock({ content }: { content: Record<string, unknown> }) {
         <Text
           className="text-sm text-foreground"
           style={{
-            fontFamily: Platform.select({
-              web: "SpaceMono, monospace",
-              default: "SpaceMono",
-            }),
+            fontFamily: MONO_FONT_FAMILY,
           }}
         >
           {text}
