@@ -1,7 +1,6 @@
 import { Drawer } from 'expo-router/drawer';
 import { Sidebar } from '@/components/sidebar';
 import { AppErrorBoundary } from '@/components/error-boundary';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View, Platform, useWindowDimensions } from 'react-native';
 import { useCallback } from 'react';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -12,6 +11,7 @@ import { useNotificationSetup } from '@/lib/hooks/use-notification-setup';
 import { useKeyboardShortcuts } from '@/lib/hooks/use-keyboard-shortcuts';
 import { CommandPalette } from '@/components/command-palette';
 import { ShortcutsDialog } from '@/components/shortcuts-dialog';
+import { AskAliaRoot } from '@/components/ask-alia';
 
 // Routes that handle their own top safe area insets
 const SELF_INSET_ROUTES = new Set(['index', 'settings']);
@@ -70,7 +70,7 @@ export default function AppLayout() {
 
   return (
     <AppErrorBoundary>
-      <GestureHandlerRootView style={{ flex: 1 }}>
+      <AskAliaRoot>
         {/* root: isolate flex h-screen */}
         <View className="isolate flex h-screen flex-row">
           {/* main: isolate flex h-auto max-h-screen min-w-0 grow flex-col */}
@@ -91,7 +91,7 @@ export default function AppLayout() {
         </View>
         <CommandPalette />
         <ShortcutsDialog />
-      </GestureHandlerRootView>
+      </AskAliaRoot>
     </AppErrorBoundary>
   );
 }

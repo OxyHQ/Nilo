@@ -1,9 +1,11 @@
 import { Platform, View } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
-import { Search, Inbox, Settings, Trash2 } from 'lucide-react-native';
+import { Search, Inbox, Settings, Sparkles, Trash2 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { useUIStore } from '@/lib/stores/ui-store';
+import { useAskAlia } from '@/components/ask-alia';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SidebarItem } from './sidebar-item';
 
 /**
@@ -44,6 +46,16 @@ export function SidebarSearchButton() {
       }
     />
   );
+}
+
+/**
+ * "Ask Alia" — opens the Alia chat sheet, or the Oxy sign-in dialog when
+ * signed out. Shown for everyone, unlike the workspace rows around it.
+ */
+export function SidebarAskAliaButton() {
+  const { t } = useTranslation();
+  const askAlia = useAskAlia();
+  return <SidebarItem icon={Sparkles} label={t('alia.ask')} onPress={askAlia} />;
 }
 
 interface InboxButtonProps {

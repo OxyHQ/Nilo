@@ -40,6 +40,13 @@
       "expo-asset",
       "expo-notifications",
       [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Nilo to hear what you dictate and say to Alia.",
+          "speechRecognitionPermission": "Allow Nilo to turn your speech into text."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/icon-512.png",

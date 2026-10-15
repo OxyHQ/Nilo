@@ -160,5 +160,14 @@
     "settings": "Settings",
     "shortcuts": "Keyboard shortcuts",
     "closeDialog": "Close dialog"
+  },
+  "alia": {
+    "ask": "Ask Alia",
+    "clientContext": "The person is using Nilo, a workspace for documents and databases. They write pages made of blocks, build databases with table, board and other views, organise pages into workspaces, and collaborate with members through sharing and comments.",
+    "suggestion": {
+      "write": "Help me draft a page",
+      "organise": "How should I organise my workspace?",
+      "database": "Set up a database to track my projects"
+    }
   }
 }

@@ -7,7 +7,7 @@ interface TextareaProps extends React.ComponentPropsWithoutRef<typeof TextInput>
 }
 
 const Textarea = React.forwardRef<TextInput, TextareaProps>(
-  ({ className, placeholderClassName, style, variant = 'default', ...props }, ref) => {
+  ({ className, style, variant = 'default', ...props }, ref) => {
     return (
       <TextInput
         ref={ref}
@@ -21,7 +21,6 @@ const Textarea = React.forwardRef<TextInput, TextareaProps>(
           props.editable === false && 'opacity-50 web:cursor-not-allowed',
           className,
         )}
-        placeholderClassName={cn('text-muted-foreground', placeholderClassName)}
         multiline
         scrollEnabled={false}
         textAlignVertical="top"
