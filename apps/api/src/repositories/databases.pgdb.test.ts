@@ -204,11 +204,12 @@ describe('findDatabaseById / findDatabaseWorkspaceId', () => {
     expect(await findDatabaseWorkspaceId(db, 'no-such-database')).toBeNull();
   });
 
-  it('returns just the id and workspace id for the membership check', async () => {
+  it('returns what the access check needs: the workspace and the host page', async () => {
     const record = await insertDatabase(db, databaseInput());
     expect(await findDatabaseWorkspaceId(db, record.id)).toEqual({
       id: record.id,
       workspaceId,
+      parentPageId: null,
     });
   });
 });

@@ -2,6 +2,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
 import { type PageGrantRole, pagePermissions } from '../db/schema/collab.js';
+import { databases } from '../db/schema/databases.js';
 import { pages } from '../db/schema/pages.js';
 import { BREADCRUMB_MAX_DEPTH } from './pages.js';
 
@@ -18,19 +19,26 @@ export interface ChainLink {
 /**
  * `id` and its ancestors, the page first. Stops at a cycle and at the same
  * depth as the breadcrumb, so a corrupted ancestry cannot loop.
+ *
+ * A database row has no parent page of its own: above it is the page its
+ * database sits in (`databases.parentPageId`), so a row of an inline
+ * database inherits that page's access — a restricted page's rows are as
+ * private as the page.
  */
 export async function findPageChain(db: PgHandle, id: string): Promise<ChainLink[]> {
   const col = (c: Parameters<typeof sqlColumnName>[0]) => sql.identifier(sqlColumnName(c));
   const rows = await db.execute(sql`
     with recursive chain as (
-      select ${pages.id}, ${pages.parentId}, ${pages.workspaceId}, ${pages.restricted}, 0 as depth
+      select ${pages.id}, ${pages.parentId}, ${pages.workspaceId}, ${pages.restricted}, ${pages.databaseId}, 0 as depth
       from ${pages}
       where ${pages.id} = ${id}
       union all
       select parent.${col(pages.id)}, parent.${col(pages.parentId)}, parent.${col(pages.workspaceId)},
-             parent.${col(pages.restricted)}, chain.depth + 1
-      from ${pages} parent
-      join chain on parent.${col(pages.id)} = chain.${col(pages.parentId)}
+             parent.${col(pages.restricted)}, parent.${col(pages.databaseId)}, chain.depth + 1
+      from chain
+      left join ${databases} host on host.${col(databases.id)} = chain.${col(pages.databaseId)}
+      join ${pages} parent
+        on parent.${col(pages.id)} = coalesce(chain.${col(pages.parentId)}, host.${col(databases.parentPageId)})
       where chain.depth < ${sql.raw(String(BREADCRUMB_MAX_DEPTH - 1))}
     ) cycle ${col(pages.id)} set is_cycle using cycle_path
     select ${col(pages.id)} as id, ${col(pages.parentId)} as parent_id,

@@ -23,6 +23,9 @@ import {
   findPageChain,
 } from '../repositories/pagePermissions.js';
 import { findMembership } from '../repositories/workspaces.js';
+import { checkWorkspaceAccess } from './workspace-access.js';
+import { databases } from '../db/schema/databases.js';
+import { eq } from 'drizzle-orm';
 
 export interface Grant {
   pageId: string;
@@ -147,11 +150,20 @@ export async function checkPageAccess(
  * same rule as `effectivePageRole`, over the whole list at once.
  */
 export function rolesForPages(
-  pages: readonly { id: string; parentId: string | null; restricted: boolean }[],
+  pages: readonly {
+    id: string;
+    parentId: string | null;
+    restricted: boolean;
+    databaseId?: string | null;
+  }[],
   memberRole: WorkspaceRole | null,
   grants: readonly Grant[],
+  /** Each database's host page (`databaseHosts`): what is above its rows. */
+  hosts: ReadonlyMap<string, string | null> = new Map(),
 ): Map<string, WorkspaceRole> {
   const byId = new Map(pages.map((p) => [p.id, p]));
+  const above = (link: (typeof pages)[number]) =>
+    link.parentId ?? (link.databaseId ? (hosts.get(link.databaseId) ?? null) : null);
   const out = new Map<string, WorkspaceRole>();
   for (const page of pages) {
     const chain: { id: string; restricted: boolean }[] = [];
@@ -159,7 +171,7 @@ export function rolesForPages(
     for (
       let link = byId.get(page.id);
       link && !seen.has(link.id);
-      link = link.parentId ? byId.get(link.parentId) : undefined
+      link = above(link) ? byId.get(above(link) as string) : undefined
     ) {
       seen.add(link.id);
       chain.push(link);
@@ -168,4 +180,32 @@ export function rolesForPages(
     if (role) out.set(page.id, role);
   }
   return out;
+}
+
+/** Every database of a workspace and the page it sits in, for `rolesForPages`. */
+export async function databaseHosts(
+  db: PgHandle,
+  workspaceId: string,
+): Promise<Map<string, string | null>> {
+  const rows = await db
+    .select({ id: databases.id, host: databases.parentPageId })
+    .from(databases)
+    .where(eq(databases.workspaceId, workspaceId));
+  return new Map(rows.map((r) => [r.id, r.host]));
+}
+
+/**
+ * Gate for a database route: an inline database is as open as the page it
+ * sits in; one that sits in no page is open to the workspace by role.
+ */
+export async function checkDatabaseAccess(
+  req: Request,
+  res: Response,
+  db: PgHandle,
+  database: { workspaceId: string; parentPageId: string | null },
+  minRole: WorkspaceRole,
+): Promise<boolean> {
+  if (database.parentPageId)
+    return (await checkPageAccess(req, res, db, database.parentPageId, minRole)) !== null;
+  return checkWorkspaceAccess(req, res, database.workspaceId, minRole);
 }

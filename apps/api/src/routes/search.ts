@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { getDb } from '../db/client.js';
 import { hasRole } from '../db/schema/workspaces.js';
 import { log } from '../lib/logger.js';
-import { rolesForPages } from '../lib/page-access.js';
+import { databaseHosts, rolesForPages } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
@@ -65,6 +65,7 @@ router.get('/', authenticateToken, requireWorkspaceMember, async (req: Request, 
             all,
             memberRole,
             await listGrantsOfUserInWorkspace(db, req.user?.id ?? '', workspaceId),
+            await databaseHosts(db, workspaceId),
           );
     const byId = new Map(all.map((p) => [p.id, p]));
 

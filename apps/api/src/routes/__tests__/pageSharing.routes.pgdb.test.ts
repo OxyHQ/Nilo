@@ -9,6 +9,8 @@ import { uuidv7 } from '@oxy.so/db';
 import express from 'express';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { closeDb } from '../../db/client.js';
+import { databases } from '../../db/schema/databases.js';
+import { pages } from '../../db/schema/pages.js';
 import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
 import {
   closeTestDb,
@@ -333,5 +335,27 @@ describe('duplicating a restricted page', () => {
     expect((copy.json.page as { restricted: boolean }).restricted).toBe(true);
     expect((await api(VIEWER, 'GET', `/pages/${copyId}`)).status).toBe(403);
     expect((await api(GUEST, 'GET', `/pages/${copyId}`)).status).toBe(200);
+  });
+});
+
+describe('database rows', () => {
+  it('are as private as the page their inline database sits in', async () => {
+    const host = await page(OWNER, { title: 'host' });
+    const [database] = await db
+      .insert(databases)
+      .values({ workspaceId, name: 'Inline', ownerId: OWNER, isInline: true, parentPageId: host })
+      .returning({ id: databases.id });
+    const [row] = await db
+      .insert(pages)
+      .values({ workspaceId, ownerId: OWNER, title: 'row', databaseId: database?.id })
+      .returning({ id: pages.id });
+    expect((await api(VIEWER, 'GET', `/pages/${row?.id}`)).status).toBe(200);
+
+    await api(OWNER, 'PATCH', `/pages/${host}`, { restricted: true });
+    expect((await api(VIEWER, 'GET', `/pages/${row?.id}`)).status).toBe(403);
+    expect(await listIds(VIEWER)).not.toContain(row?.id);
+    // A grant on the host page reaches its rows.
+    await share(OWNER, host, GUEST, 'viewer');
+    expect((await api(GUEST, 'GET', `/pages/${row?.id}`)).status).toBe(200);
   });
 });

@@ -169,16 +169,19 @@ export async function findDatabaseById(
 }
 
 /**
- * `Database.findById(id).select('workspaceId')` — `routes/databases.ts:1102,
- * 1126, 1186, 1252`. The four view routes need nothing but the workspace id to
- * run the membership check.
+ * What the view routes need to check access: the workspace, and the page an
+ * inline database sits in (whose access it shares).
  */
 export async function findDatabaseWorkspaceId(
   handle: NiloHandle,
   id: string,
-): Promise<{ id: string; workspaceId: string } | null> {
+): Promise<{ id: string; workspaceId: string; parentPageId: string | null } | null> {
   const [row] = await handle
-    .select({ id: databases.id, workspaceId: databases.workspaceId })
+    .select({
+      id: databases.id,
+      workspaceId: databases.workspaceId,
+      parentPageId: databases.parentPageId,
+    })
     .from(databases)
     .where(eq(databases.id, id))
     .limit(1);

@@ -4,6 +4,7 @@ import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { workspaceMembers } from '../db/schema/workspaces.js';
 import {
   closeTestDb,
   getTestDb,
@@ -203,6 +204,11 @@ beforeAll(async () => {
   ctx.workspaceId = await seedWorkspace(db, 'route-databases');
   otherWorkspaceId = await seedWorkspace(db, 'route-databases-other');
   ctx.userId = `owner-${ctx.workspaceId}`;
+  // Page access (an inline database shares its page's) reads membership from
+  // the database, not from the mocked middleware.
+  await db
+    .insert(workspaceMembers)
+    .values({ workspaceId: ctx.workspaceId, userId: ctx.userId, role: 'owner' });
 
   const app = express();
   app.use(express.json());

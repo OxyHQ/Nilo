@@ -48,13 +48,22 @@ import {
   deleteDatabaseRows,
   findPageById,
   listDatabaseRows,
+  listPages,
   nextDatabaseRowOrder,
   removePropertyFromDatabaseRows,
 } from '../repositories/pages.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
-import { checkWorkspaceAccess, ensureRole } from '../lib/workspace-access.js';
+import { checkWorkspaceAccess } from '../lib/workspace-access.js';
+import {
+  checkDatabaseAccess,
+  checkPageAccess,
+  databaseHosts,
+  rolesForPages,
+} from '../lib/page-access.js';
+import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
+import { hasRole } from '../db/schema/workspaces.js';
 import { buildDefaultSchema, NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
 import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
 import { evaluateFilter, filterGroupSchema } from '../lib/databases/filters.js';
@@ -497,12 +506,26 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
       return;
     }
 
-    const databases = await listDatabasesByWorkspace(getDb(), {
+    const handle = getDb();
+    const databases = await listDatabasesByWorkspace(handle, {
       workspaceId,
       includeArchived: query.includeArchived,
     });
 
-    res.json({ databases: databases.map((d) => serializeDatabase(d)) });
+    // An inline database is listed only to those who can open its page.
+    const memberRole = req.workspace?.role ?? null;
+    let visible = databases;
+    if (!memberRole || !hasRole(memberRole, 'admin')) {
+      const [all, grants, hosts] = await Promise.all([
+        listPages(handle, { workspaceId }),
+        listGrantsOfUserInWorkspace(handle, req.user?.id ?? '', workspaceId),
+        databaseHosts(handle, workspaceId),
+      ]);
+      const roles = rolesForPages(all, memberRole, grants, hosts);
+      visible = databases.filter((d) => !d.parentPageId || roles.has(d.parentPageId));
+    }
+
+    res.json({ databases: visible.map((d) => serializeDatabase(d)) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list databases');
@@ -523,7 +546,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'viewer');
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'viewer');
     if (!ok) return;
 
     const views = await listViewsByDatabase(handle, db.id);
@@ -542,85 +565,72 @@ router.get('/:id', async (req: Request, res: Response) => {
 /**
  * POST /databases
  */
-router.post(
-  '/',
-  (req, res, next) => {
-    const wsFromBody = typeof req.body?.workspaceId === 'string' ? req.body.workspaceId : undefined;
-    if (wsFromBody && !req.headers['x-workspace-id']) {
-      req.headers['x-workspace-id'] = wsFromBody;
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const body = createDatabaseSchema.parse(req.body);
+    const workspaceId = body.workspaceId;
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
-    next();
-  },
-  requireWorkspaceMember,
-  async (req: Request, res: Response) => {
-    try {
-      const body = createDatabaseSchema.parse(req.body);
-      const workspaceId = assertWorkspace(req, res);
-      if (!workspaceId) return;
-      if (!ensureRole(req, res, 'editor')) return;
-      if (body.workspaceId !== workspaceId) {
-        res.status(403).json({ error: 'Workspace mismatch' });
+
+    const handle = getDb();
+
+    // An inline database needs edit access to its page (which a guest can
+    // have); a full-page one, a workspace editor.
+    if (body.parentPageId) {
+      const parent = await findPageById(handle, body.parentPageId);
+      if (!parent) {
+        res.status(404).json({ error: 'Parent page not found' });
         return;
       }
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
+      if (parent.workspaceId !== workspaceId) {
+        res.status(400).json({ error: 'Parent page is in a different workspace' });
         return;
       }
-
-      const handle = getDb();
-
-      // Inline DBs must point to a page in the same workspace.
-      if (body.parentPageId) {
-        const parent = await findPageById(handle, body.parentPageId);
-        if (!parent) {
-          res.status(404).json({ error: 'Parent page not found' });
-          return;
-        }
-        if (parent.workspaceId !== workspaceId) {
-          res.status(400).json({ error: 'Parent page is in a different workspace' });
-          return;
-        }
-      }
-
-      const propertiesSchema: DatabaseSchema = body.schema
-        ? normalizeSchema({
-            properties: body.schema.properties.map((p) => ({
-              id: p.id ?? randomUUID(),
-              name: p.name,
-              type: p.type,
-              config: p.config as PropertyConfig | undefined,
-            })),
-          })
-        : buildDefaultSchema();
-
-      const created = await handle.transaction(async (tx) => {
-        const db = await insertDatabase(tx, {
-          workspaceId,
-          name: body.name ?? 'Untitled',
-          icon: body.icon ?? null,
-          cover: body.cover ?? null,
-          ownerId: userId,
-          propertiesSchema,
-          isInline: body.isInline ?? false,
-          parentPageId: body.parentPageId ?? null,
-          archived: false,
-        });
-        await createDefaultViewForDatabase(tx, db.id);
-        return { db, views: await listViewsByDatabase(tx, db.id) };
-      });
-
-      res.status(201).json({
-        database: serializeDatabase(created.db),
-        views: created.views.map((v) => serializeView(v)),
-      });
-    } catch (error: unknown) {
-      if (handleZodError(error, res)) return;
-      log.general.error({ err: error }, 'Failed to create database');
-      res.status(500).json({ error: 'Failed to create database' });
+      if (!(await checkPageAccess(req, res, handle, parent.id, 'editor'))) return;
+    } else if (!(await checkWorkspaceAccess(req, res, workspaceId, 'editor'))) {
+      return;
     }
-  },
-);
+
+    const propertiesSchema: DatabaseSchema = body.schema
+      ? normalizeSchema({
+          properties: body.schema.properties.map((p) => ({
+            id: p.id ?? randomUUID(),
+            name: p.name,
+            type: p.type,
+            config: p.config as PropertyConfig | undefined,
+          })),
+        })
+      : buildDefaultSchema();
+
+    const created = await handle.transaction(async (tx) => {
+      const db = await insertDatabase(tx, {
+        workspaceId,
+        name: body.name ?? 'Untitled',
+        icon: body.icon ?? null,
+        cover: body.cover ?? null,
+        ownerId: userId,
+        propertiesSchema,
+        isInline: body.isInline ?? false,
+        parentPageId: body.parentPageId ?? null,
+        archived: false,
+      });
+      await createDefaultViewForDatabase(tx, db.id);
+      return { db, views: await listViewsByDatabase(tx, db.id) };
+    });
+
+    res.status(201).json({
+      database: serializeDatabase(created.db),
+      views: created.views.map((v) => serializeView(v)),
+    });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to create database');
+    res.status(500).json({ error: 'Failed to create database' });
+  }
+});
 
 /**
  * PATCH /databases/:id
@@ -637,7 +647,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     // `undefined` and `null` are different instructions here: `icon` and
@@ -677,7 +687,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     if (hard) {
@@ -727,7 +737,7 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     const property: DatabaseProperty = {
@@ -770,7 +780,7 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     const idx = db.propertiesSchema.properties.findIndex((p) => p.id === params.propertyId);
@@ -812,7 +822,7 @@ router.delete('/:id/properties/:propertyId', async (req: Request, res: Response)
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     if (params.propertyId === NAME_PROPERTY_ID) {
@@ -861,7 +871,7 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'viewer');
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'viewer');
     if (!ok) return;
 
     // Find the view (or fall back to default if none given).
@@ -939,7 +949,7 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
     const userId = req.user?.id;
     if (!userId) {
@@ -999,7 +1009,7 @@ router.get('/:id/views', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'viewer');
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'viewer');
     if (!ok) return;
 
     const views = await listViewsByDatabase(handle, db.id);
@@ -1022,7 +1032,7 @@ router.post('/:id/views', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     // `??`, not `||`: `order: 0` is a legitimate explicit order.
@@ -1070,7 +1080,7 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     const view = await findViewById(handle, params.viewId, db.id);
@@ -1128,7 +1138,7 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     const view = await findViewById(handle, params.viewId, db.id);

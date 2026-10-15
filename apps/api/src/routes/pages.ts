@@ -22,7 +22,12 @@ import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
 import { checkWorkspaceAccess } from '../lib/workspace-access.js';
-import { accessibleAncestry, checkPageAccess, rolesForPages } from '../lib/page-access.js';
+import {
+  accessibleAncestry,
+  checkPageAccess,
+  databaseHosts,
+  rolesForPages,
+} from '../lib/page-access.js';
 import { hasRole } from '../db/schema/workspaces.js';
 import {
   listGrantsOfUser,
@@ -215,11 +220,12 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
     const memberRole = req.workspace?.role ?? null;
     let visible = pages;
     if (!memberRole || !hasRole(memberRole, 'admin')) {
-      const [all, grants] = await Promise.all([
+      const [all, grants, hosts] = await Promise.all([
         listPages(db, { workspaceId }),
         listGrantsOfUserInWorkspace(db, req.user?.id ?? '', workspaceId),
+        databaseHosts(db, workspaceId),
       ]);
-      const roles = rolesForPages(all, memberRole, grants);
+      const roles = rolesForPages(all, memberRole, grants, hosts);
       visible = pages.filter((p) => roles.has(p.id));
     }
 
@@ -265,7 +271,7 @@ router.get('/shared', async (req: Request, res: Response) => {
       const workspace = await findLiveWorkspaceById(db, workspaceId);
       if (!workspace) continue;
       const all = await listPages(db, { workspaceId, archived: false });
-      const roles = rolesForPages(all, null, grants);
+      const roles = rolesForPages(all, null, grants, await databaseHosts(db, workspaceId));
       out.push({
         workspace: { id: workspace.id, name: workspace.name, icon: workspace.icon ?? null },
         pages: all
