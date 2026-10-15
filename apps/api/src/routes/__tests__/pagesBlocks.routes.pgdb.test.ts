@@ -896,6 +896,40 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
     expect(await sorted()).toEqual([c, a, e, b, d]);
   });
 
+  it('answers a retry from the record instead of applying it again', async () => {
+    const page = await createPage();
+    const id = uuidv7();
+    const insert = {
+      kind: 'insert',
+      id,
+      parentBlockId: null,
+      afterId: null,
+      type: 'paragraph',
+      content: {},
+    };
+    const send = (key: string) =>
+      api(
+        'POST',
+        `/pages/${page.id}/blocks/transactions`,
+        { ops: [insert], key },
+        { 'x-workspace-id': workspaceId },
+      );
+    const first = await send('k-1');
+    expect(first.status).toBe(200);
+    // The response was lost; the editor sends the same transaction again.
+    const retry = await send('k-1');
+    expect(retry.status).toBe(200);
+    expect(retry.json).toEqual(first.json);
+    expect(await rowsOf(page.id as string)).toHaveLength(1);
+    const [row] = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.id, page.id as string));
+    expect(row?.blocksVersion).toBe(first.json.version);
+    // A different transaction that repeats the insert is still refused.
+    expect((await send('k-2')).status).toBe(409);
+  });
+
   it('rolls the whole batch back when one operation is invalid', async () => {
     const page = await createPage();
     const [a, b] = [uuidv7(), uuidv7()];

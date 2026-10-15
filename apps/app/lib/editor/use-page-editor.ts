@@ -89,12 +89,12 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
           session = new SyncSession(
             nextStore,
             {
-              send: async (tx, before): Promise<SendResult> => {
+              send: async (tx, before, key): Promise<SendResult> => {
                 const ops = transactionToWire(tx, before);
                 try {
                   const result = await apiClient.post<{ version: number; ops: AppliedOperation[] }>(
                     API_ROUTES.blocks.transactions(pageId),
-                    { ops, socketId: socket.id },
+                    { ops, key, socketId: socket.id },
                   );
                   // The orders the server chose for this change.
                   orders.recordApplied(result.data.ops, result.data.version);

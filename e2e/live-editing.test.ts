@@ -115,7 +115,12 @@ async function loadBlocks(pageId: string) {
 }
 
 /** An editor wired exactly as `usePageEditor` wires one, over fetch and socket.io. */
-async function openEditor(pageId: string, userId: string): Promise<Editor> {
+async function openEditor(
+  pageId: string,
+  userId: string,
+  /** Whether to lose the response to a transaction the server applied (a dropped connection). */
+  loseResponse: () => boolean = () => false,
+): Promise<Editor> {
   const loaded = await loadBlocks(pageId);
   const { doc, orders } = blocksToDocument(loaded.blocks, loaded.version);
   const store = new EditorStore({ document: doc, schema: NILO_SCHEMA, newId: uuidv7 });
@@ -132,7 +137,7 @@ async function openEditor(pageId: string, userId: string): Promise<Editor> {
   const session = new SyncSession(
     store,
     {
-      send: async (tx: Transaction, before) => {
+      send: async (tx: Transaction, before, key) => {
         const ops = transactionToWire(tx, before);
         log.push({ ev: 'send', local: tx.ops, ops });
         const res = await fetch(`${base}/pages/${pageId}/blocks/transactions`, {
@@ -142,8 +147,12 @@ async function openEditor(pageId: string, userId: string): Promise<Editor> {
             'x-test-user': userId,
             'X-Workspace-Id': workspaceId,
           },
-          body: JSON.stringify({ ops, socketId: socket.id }),
+          body: JSON.stringify({ ops, key, socketId: socket.id }),
         });
+        if (res.ok && loseResponse()) {
+          log.push({ ev: 'lost' });
+          return { ok: false, retry: true };
+        }
         if (res.ok) {
           const { version, ops: applied } = (await res.json()) as {
             version: number;
@@ -159,6 +168,7 @@ async function openEditor(pageId: string, userId: string): Promise<Editor> {
     },
     {
       version: loaded.version,
+      retryDelayMs: 20,
       reconcile: (d) => reconcileOrder(d, orders),
       onDesync: (reason) => desyncs.push(reason),
       onRejected: (tx) => log.push({ ev: 'rejected', ops: tx.ops }),
@@ -294,13 +304,14 @@ describe('live editing through the API', () => {
     'converges under random concurrent editing from both sides (seed %i)',
     async (start) => {
       const pageId = await createPage();
-      const ana = await openEditor(pageId, 'ana');
-      const ben = await openEditor(pageId, 'ben');
       let seed = start;
       const random = () => {
         seed = (seed * 1103515245 + 12345) % 2 ** 31;
         return seed / 2 ** 31;
       };
+      // One response in ten is lost after the server applied the transaction.
+      const ana = await openEditor(pageId, 'ana', () => random() < 0.1);
+      const ben = await openEditor(pageId, 'ben', () => random() < 0.1);
       const pick = <T>(items: readonly T[]): T => items[Math.floor(random() * items.length)] as T;
       for (let step = 0; step < steps; step += 1) {
         const editor = pick([ana, ben]);

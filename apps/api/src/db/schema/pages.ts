@@ -7,11 +7,16 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
+import { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
 import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
 import { workspaces } from './workspaces.js';
+
+/** Every block type the editor persists, and each one's content: the contract shared with the app. */
+export { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
 
 /**
  * Pages and blocks — the document primitive and its content units.
@@ -187,19 +192,6 @@ export const pages = pgTable(
   ],
 );
 
-/**
- * Every block type the editor persists.
- *
- * Declared here rather than imported from `src/models/block.ts`: the Mongoose
- * model is what this schema replaces, and pulling it into the drizzle schema
- * graph would make `drizzle-kit` load mongoose. The two lists must agree for as
- * long as both exist, which is asserted by `blocks.pgdb.test.ts` — a drift gate
- * that retires with the model file.
- */
-// Block types and content are the contract shared with the app.
-export { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
-import { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
-
 export const blocks = pgTable(
   'blocks',
   {
@@ -272,5 +264,33 @@ export const blocks = pgTable(
      * (`routes/blocks.ts:661`), sets only `order`.
      */
     check('blocks_type', sql`${t.type} in (${sql.raw(inList(BLOCK_TYPES))})`),
+  ],
+);
+
+/**
+ * Block transactions already applied, by the key the editor gave them, so a
+ * retry of one whose response was lost gets the original answer instead of
+ * being applied twice or refused (a re-sent insert would collide with the
+ * block it already created, and the editor would undo a change the page
+ * has). Rows only need to outlive a client's retries; the endpoint prunes
+ * rows older than a day for the page it writes.
+ */
+export const pageTransactions = pgTable(
+  'page_transactions',
+  {
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    /** The editor's key for the transaction, stable across its retries. */
+    key: text().notNull(),
+    /** The page's blocks version the transaction produced. */
+    version: integer().notNull(),
+    /** The operations as applied, returned again to a retry. */
+    ops: jsonb().$type<unknown[]>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pageId, t.key] }),
+    index('page_transactions_page_created_idx').on(t.pageId, t.createdAt),
   ],
 );

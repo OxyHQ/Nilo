@@ -36,6 +36,13 @@
       "when": 1792036938551,
       "tag": "0004_thick_ink",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792041698107,
+      "tag": "0005_fancy_swordsman",
+      "breakpoints": true
     }
   ]
 }

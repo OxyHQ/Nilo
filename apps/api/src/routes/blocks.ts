@@ -18,7 +18,13 @@ import {
   listBlocksForPage,
   updateBlock,
 } from '../repositories/blocks.js';
-import { bumpBlocksVersion, findPageById } from '../repositories/pages.js';
+import {
+  bumpBlocksVersion,
+  findPageById,
+  findPageTransaction,
+  lockPage,
+  recordPageTransaction,
+} from '../repositories/pages.js';
 import { broadcastPageTransaction } from '../collab/page-rooms.js';
 import { getIO } from '../socket.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -162,6 +168,12 @@ const blockTransactionSchema = z.object({
   ops: z.array(blockOperationSchema).min(1).max(500),
   /** The sender's socket, which is left out of the broadcast (it has the change). */
   socketId: z.string().max(64).optional(),
+  /**
+   * The editor's key for this transaction, the same on every retry of it. A
+   * transaction already applied under this key is answered from the record
+   * instead of being applied again.
+   */
+  key: z.string().min(1).max(64).optional(),
 });
 
 class TransactionRejected extends Error {
@@ -197,14 +209,22 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
     if (!ok) return;
 
     // The operations as applied, content normalized, for collaborators.
-    const applied: unknown[] = [];
-    const version = await db.transaction(async (tx) => {
-      // First, before anything is read: the version bump locks the page row,
-      // so transactions on one page run one after another and each validates
-      // against the blocks the previous one committed. Reading first let two
-      // concurrent transactions both validate against the same old state (a
-      // renumbering applied to a block another member had just moved away).
-      // A rejected transaction rolls the bump back with everything else.
+    let applied: unknown[] = [];
+    const { version, replayed } = await db.transaction(async (tx) => {
+      // First, before anything is read: lock the page row, so transactions on
+      // one page run one after another and each validates against the blocks
+      // the previous one committed. Reading first let two concurrent
+      // transactions both validate against the same old state (a renumbering
+      // applied to a block another member had just moved away). A rejected
+      // transaction rolls everything back, the version bump included.
+      await lockPage(tx, page.id);
+      if (body.key) {
+        const done = await findPageTransaction(tx, page.id, body.key);
+        if (done) {
+          applied = done.ops;
+          return { version: done.version, replayed: true };
+        }
+      }
       const version = await bumpBlocksVersion(tx, page.id);
       const rows = await listBlocksForPage(tx, page.id);
       const types = new Map<string, BlockType>(rows.map((b) => [b.id, b.type]));
@@ -319,14 +339,19 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
           }
         }
       }
-      return version;
+      if (body.key)
+        await recordPageTransaction(tx, { pageId: page.id, key: body.key, version, ops: applied });
+      return { version, replayed: false };
     });
 
-    broadcastPageTransaction(
-      getIO(),
-      { pageId: page.id, version, actorId: req.user?.id ?? '', ops: applied },
-      body.socketId,
-    );
+    // A replay was broadcast when it was first applied.
+    if (!replayed) {
+      broadcastPageTransaction(
+        getIO(),
+        { pageId: page.id, version, actorId: req.user?.id ?? '', ops: applied },
+        body.socketId,
+      );
+    }
     // The sender gets the operations as applied too: the orders the server chose.
     res.json({ ok: true, version, ops: applied });
   } catch (error: unknown) {

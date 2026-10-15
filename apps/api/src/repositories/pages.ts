@@ -10,10 +10,10 @@
  * action above all) live in `../db/schema/pages.ts`.
  */
 
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
-import { pages, type PageProperties } from '../db/schema/pages.js';
+import { pages, type PageProperties, pageTransactions } from '../db/schema/pages.js';
 
 export type PageRow = typeof pages.$inferSelect;
 
@@ -461,4 +461,47 @@ export async function bumpBlocksVersion(db: PgHandle, pageId: string): Promise<n
     .returning({ version: pages.blocksVersion });
   if (!row) throw new Error(`bumpBlocksVersion found no page ${pageId}`);
   return row.version;
+}
+
+/**
+ * Lock a page's row until the end of the transaction `db` is in: block
+ * transactions on one page take it first, so they run one after another.
+ */
+export async function lockPage(db: PgHandle, pageId: string): Promise<void> {
+  await db.select({ id: pages.id }).from(pages).where(eq(pages.id, pageId)).for('update');
+}
+
+/** The record of a block transaction already applied under `key`, if any. */
+export async function findPageTransaction(
+  db: PgHandle,
+  pageId: string,
+  key: string,
+): Promise<{ version: number; ops: unknown[] } | undefined> {
+  const [row] = await db
+    .select({ version: pageTransactions.version, ops: pageTransactions.ops })
+    .from(pageTransactions)
+    .where(and(eq(pageTransactions.pageId, pageId), eq(pageTransactions.key, key)));
+  return row;
+}
+
+/** How long an applied transaction's record answers retries. */
+const PAGE_TRANSACTION_RETENTION = '1 day';
+
+/**
+ * Record an applied block transaction under its key, and drop the page's
+ * records old enough that no client is still retrying them.
+ */
+export async function recordPageTransaction(
+  db: PgHandle,
+  record: { pageId: string; key: string; version: number; ops: unknown[] },
+): Promise<void> {
+  await db
+    .delete(pageTransactions)
+    .where(
+      and(
+        eq(pageTransactions.pageId, record.pageId),
+        lt(pageTransactions.createdAt, sql`now() - ${PAGE_TRANSACTION_RETENTION}::interval`),
+      ),
+    );
+  await db.insert(pageTransactions).values(record);
 }
