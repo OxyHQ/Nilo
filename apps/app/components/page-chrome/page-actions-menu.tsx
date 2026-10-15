@@ -1,3 +1,4 @@
+import { usePageFollow, useSetPageFollow } from '@/lib/hooks/use-page-follow';
 import { saveExport } from '@/lib/save-export';
 import { PageHistoryDialog } from './page-history-dialog';
 import { ReminderDialog } from '@/components/reminders/reminder-dialog';
@@ -30,6 +31,8 @@ interface PageActionsMenuProps {
  */
 export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps) {
   const router = useRouter();
+  const follow = usePageFollow(page.id);
+  const setFollow = useSetPageFollow(page.id);
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const { user } = useOxy();
@@ -132,7 +135,11 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
 
   return (
     <>
-      <DropdownMenu.Root>
+      <DropdownMenu.Root
+        onOpenChange={(open) => {
+          if (open) void follow.refetch();
+        }}
+      >
         <DropdownMenu.Trigger>
           <Pressable
             accessibilityLabel={t('pages.actions.menu')}
@@ -143,6 +150,29 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
           </Pressable>
         </DropdownMenu.Trigger>
         <DropdownMenu.Content>
+          <DropdownMenu.Item
+            key="follow"
+            disabled={follow.isFetching || follow.isPending || setFollow.isPending}
+            onSelect={() => {
+              if (follow.isError) {
+                void follow.refetch();
+                return;
+              }
+              setFollow.mutate(!follow.data?.following, {
+                onError: () => toast.error(t('pages.follow.failed')),
+              });
+            }}
+          >
+            <DropdownMenu.ItemTitle>
+              {t(
+                follow.isError
+                  ? 'pages.follow.retry'
+                  : follow.data?.following
+                    ? 'pages.follow.following'
+                    : 'pages.follow.follow',
+              )}
+            </DropdownMenu.ItemTitle>
+          </DropdownMenu.Item>
           <DropdownMenu.Item key="history" onSelect={() => setHistoryOpen(true)}>
             <DropdownMenu.ItemTitle>{t('pages.history.title')}</DropdownMenu.ItemTitle>
           </DropdownMenu.Item>
@@ -194,7 +224,11 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
               >
                 <DropdownMenu.ItemTitle>
                   {t(
-                    page.template ? 'pages.templates.makeRegular' : 'pages.templates.makeTemplate',
+                    page.template
+                      ? 'pages.templates.makeRegular'
+                      : page.databaseId
+                        ? 'databases.templates.makeTemplate'
+                        : 'pages.templates.makeTemplate',
                   )}
                 </DropdownMenu.ItemTitle>
               </DropdownMenu.Item>

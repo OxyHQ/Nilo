@@ -1,3 +1,6 @@
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { FormulaEditor } from './formula-editor';
+import { UniqueIdEditor } from './unique-id-editor';
 import * as React from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import {
@@ -53,6 +56,8 @@ interface PropertyHeaderMenuProps {
 /** Translated at call time: the locale can change while the app runs. */
 function propertyTypeLabel(type: DatabasePropertyType): string {
   switch (type) {
+    case 'unique_id':
+      return i18n.t('databases.propertyTypes.uniqueId');
     case 'text':
       return i18n.t('databases.propertyTypes.text');
     case 'number':
@@ -98,6 +103,7 @@ const PROPERTY_TYPE_ICONS: Record<
   DatabasePropertyType,
   React.ComponentType<{ size?: number; color?: string }>
 > = {
+  unique_id: Hash,
   text: TypeIcon,
   number: Hash,
   select: ListTodo,
@@ -190,93 +196,113 @@ export function PropertyHeaderMenu({
   };
 
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={close}>
-      <Pressable style={StyleSheet.absoluteFill} className="bg-black/40" onPress={close} />
-      <View
-        className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2"
-        style={centeredModalStyle(320, 360)}
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) close();
+      }}
+    >
+      <DialogContent
+        className={mode === 'config' && property.type === 'formula' ? 'max-w-lg' : 'max-w-sm'}
       >
-        <View className="bg-popover border border-border rounded-2xl shadow-xl p-3 m-3 web:m-0">
-          {mode === 'menu' ? (
-            <>
-              <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-sm font-semibold text-foreground">{property.name}</Text>
-                <Text className="text-xs text-muted-foreground">
-                  {propertyTypeLabel(property.type)}
-                </Text>
-              </View>
-              <MenuItem
-                icon={Pencil}
-                label={t('databases.properties.rename')}
-                onPress={() => setMode('rename')}
-              />
-              {property.type === 'select' ||
-              property.type === 'multi_select' ||
-              property.type === 'status' ? (
-                <MenuItem
-                  icon={ListTodo}
-                  label={t('databases.properties.editOptions')}
-                  onPress={() => setMode('config')}
-                />
-              ) : null}
-              <MenuItem
-                icon={ArrowUpAZ}
-                label={t('databases.properties.sortAscending')}
-                onPress={() => applySort('asc')}
-              />
-              <MenuItem
-                icon={ArrowDownAZ}
-                label={t('databases.properties.sortDescending')}
-                onPress={() => applySort('desc')}
-              />
-              <MenuItem icon={EyeOff} label={t('databases.properties.hideInView')} onPress={hide} />
-              {property.id !== 'name' ? (
-                <MenuItem
-                  icon={Trash2}
-                  label={t('databases.properties.delete')}
-                  destructive
-                  onPress={remove}
-                />
-              ) : null}
-            </>
-          ) : null}
-
-          {mode === 'rename' ? (
-            <View className="gap-2">
-              <Text className="text-xs uppercase tracking-wider text-muted-foreground">
-                {t('databases.properties.name')}
+        {mode === 'menu' ? (
+          <>
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-sm font-semibold text-foreground">{property.name}</Text>
+              <Text className="text-xs text-muted-foreground">
+                {propertyTypeLabel(property.type)}
               </Text>
-              <TextInput
-                value={nameDraft}
-                onChangeText={setNameDraft}
-                placeholder={t('databases.untitled')}
-                placeholderTextColor={colors.mutedForeground}
-                className="text-sm text-foreground border border-border rounded-md px-2 py-1"
-                style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
-                underlineColorAndroid="transparent"
-                autoFocus
-                onSubmitEditing={commitName}
-              />
-              <View className="flex-row justify-end gap-2 mt-1">
-                <Pressable
-                  onPress={() => setMode('menu')}
-                  className="px-3 py-1 rounded-md bg-muted"
-                >
-                  <Text className="text-sm text-foreground">{t('common.cancel')}</Text>
-                </Pressable>
-                <Pressable onPress={commitName} className="px-3 py-1 rounded-md bg-primary">
-                  <Text className="text-sm text-primary-foreground">{t('common.save')}</Text>
-                </Pressable>
-              </View>
             </View>
-          ) : null}
+            <MenuItem
+              icon={Pencil}
+              label={t('databases.properties.rename')}
+              onPress={() => setMode('rename')}
+            />
+            {property.type === 'select' ||
+            property.type === 'multi_select' ||
+            property.type === 'status' ? (
+              <MenuItem
+                icon={ListTodo}
+                label={t('databases.properties.editOptions')}
+                onPress={() => setMode('config')}
+              />
+            ) : null}
+            {property.type === 'formula' || property.type === 'unique_id' ? (
+              <MenuItem
+                icon={property.type === 'formula' ? Sigma : Hash}
+                label={t(
+                  property.type === 'formula'
+                    ? 'databases.formula.edit'
+                    : 'databases.uniqueId.configure',
+                )}
+                onPress={() => setMode('config')}
+              />
+            ) : null}
+            <MenuItem
+              icon={ArrowUpAZ}
+              label={t('databases.properties.sortAscending')}
+              onPress={() => applySort('asc')}
+            />
+            <MenuItem
+              icon={ArrowDownAZ}
+              label={t('databases.properties.sortDescending')}
+              onPress={() => applySort('desc')}
+            />
+            <MenuItem icon={EyeOff} label={t('databases.properties.hideInView')} onPress={hide} />
+            {property.id !== 'name' ? (
+              <MenuItem
+                icon={Trash2}
+                label={t('databases.properties.delete')}
+                destructive
+                onPress={remove}
+              />
+            ) : null}
+          </>
+        ) : null}
 
-          {mode === 'config' ? (
+        {mode === 'rename' ? (
+          <View className="gap-2">
+            <Text className="text-xs uppercase tracking-wider text-muted-foreground">
+              {t('databases.properties.name')}
+            </Text>
+            <TextInput
+              value={nameDraft}
+              onChangeText={setNameDraft}
+              placeholder={t('databases.untitled')}
+              placeholderTextColor={colors.mutedForeground}
+              className="text-sm text-foreground border border-border rounded-md px-2 py-1"
+              style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
+              underlineColorAndroid="transparent"
+              autoFocus
+              onSubmitEditing={commitName}
+            />
+            <View className="flex-row justify-end gap-2 mt-1">
+              <Pressable onPress={() => setMode('menu')} className="px-3 py-1 rounded-md bg-muted">
+                <Text className="text-sm text-foreground">{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable onPress={commitName} className="px-3 py-1 rounded-md bg-primary">
+                <Text className="text-sm text-primary-foreground">{t('common.save')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {mode === 'config' ? (
+          property.type === 'formula' ? (
+            <FormulaEditor
+              property={property}
+              database={database}
+              viewId={view.id}
+              onDone={close}
+            />
+          ) : property.type === 'unique_id' ? (
+            <UniqueIdEditor databaseId={database.id} property={property} onDone={close} />
+          ) : (
             <SelectOptionsEditor property={property} database={database} onDone={close} />
-          ) : null}
-        </View>
-      </View>
-    </Modal>
+          )
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -291,6 +317,8 @@ function MenuItem({ icon: Icon, label, onPress, destructive }: MenuItemProps) {
   const { colors } = useColorScheme();
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
       onPress={onPress}
       className="flex-row items-center gap-2 px-2 py-1.5 rounded hover:bg-muted"
     >
@@ -513,6 +541,7 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
                   'relation',
                   'rollup',
                   'formula',
+                  'unique_id',
                   'created_time',
                   'last_edited_time',
                   'created_by',

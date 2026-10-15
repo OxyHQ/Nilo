@@ -33,6 +33,7 @@ const TYPE_ICONS: Record<Notification['type'], typeof MessageSquare> = {
   reminder: Bell,
   mention: MessageSquare,
   comment_reply: MessageSquare,
+  page_comment: MessageSquare,
 };
 
 const PRIORITY_COLORS: Record<Notification['priority'], string> = {
@@ -113,7 +114,13 @@ export default function NotificationsScreen() {
       if (typeof pageId === 'string')
         router.push({
           pathname: '/p/[pageId]',
-          params: { pageId, ...(typeof blockId === 'string' ? { blockId } : {}) },
+          params: {
+            pageId,
+            ...(typeof blockId === 'string' ? { blockId } : {}),
+            ...(['page_comment', 'comment_reply'].includes(notification.type)
+              ? { comments: 'open' }
+              : {}),
+          },
         });
       if (notification.status !== 'read') {
         markAsRead.mutate(notification.id);

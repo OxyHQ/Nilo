@@ -1,8 +1,10 @@
+import { useTranslation } from '@/hooks/useTranslation';
+import { Button } from '@/components/ui/button';
 import * as React from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { Text } from '@/components/ui/text';
 import type { Database, DatabaseRow, PropertyValue } from '@/lib/types/databases';
-import { useUpdateRow } from '@/lib/hooks/use-database-rows';
+import { useDatabaseRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { PropertyCell } from './property-cell';
 
 interface RowPropertiesPanelProps {
@@ -18,6 +20,10 @@ interface RowPropertiesPanelProps {
  */
 export function RowPropertiesPanel({ database, row, readOnly = false }: RowPropertiesPanelProps) {
   const updateRow = useUpdateRow();
+  const { t } = useTranslation();
+  const hasFormula = database.schema.properties.some((property) => property.type === 'formula');
+  const computed = useDatabaseRow(hasFormula ? database.id : undefined, row.id);
+  const computedRow = computed.data;
 
   const onChange = React.useCallback(
     (propertyId: string, value: PropertyValue) => {
@@ -42,13 +48,32 @@ export function RowPropertiesPanel({ database, row, readOnly = false }: RowPrope
             <Text className="text-xs text-muted-foreground py-1">{property.name}</Text>
           </View>
           <View className="flex-1">
-            <PropertyCell
-              property={property}
-              value={row.properties[property.id] ?? null}
-              variant="panel"
-              readOnly={readOnly}
-              onChange={(value) => onChange(property.id, value)}
-            />
+            {property.type === 'formula' && !computedRow ? (
+              computed.isPending ? (
+                <ActivityIndicator accessibilityLabel={t('common.loading')} />
+              ) : computed.isError ? (
+                <Button
+                  variant="ghost"
+                  onPress={() => {
+                    void computed.refetch();
+                  }}
+                >
+                  <Text>{t('databases.formula.retry')}</Text>
+                </Button>
+              ) : null
+            ) : (
+              <PropertyCell
+                property={property}
+                value={
+                  (property.type === 'formula'
+                    ? computedRow?.properties[property.id]
+                    : row.properties[property.id]) ?? null
+                }
+                variant="panel"
+                readOnly={readOnly}
+                onChange={(value) => onChange(property.id, value)}
+              />
+            )}
           </View>
         </View>
       ))}

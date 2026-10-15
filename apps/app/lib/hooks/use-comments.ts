@@ -67,6 +67,7 @@ export function useCreateComment() {
       return res.data.comment;
     },
     onSuccess: (comment) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.pages.follow(comment.pageId) });
       queryClient.invalidateQueries({
         queryKey: ['comments', 'page', comment.pageId],
       });
@@ -96,6 +97,7 @@ export function useUpdateComment() {
       return res.data.comment;
     },
     onSuccess: (comment) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.pages.follow(comment.pageId) });
       queryClient.invalidateQueries({
         queryKey: ['comments', 'page', comment.pageId],
       });
@@ -121,6 +123,7 @@ export function useResolveComment() {
       return res.data.comment;
     },
     onSuccess: (comment) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.pages.follow(comment.pageId) });
       queryClient.invalidateQueries({
         queryKey: ['comments', 'page', comment.pageId],
       });
@@ -141,6 +144,7 @@ export function useUnresolveComment() {
       return res.data.comment;
     },
     onSuccess: (comment) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.pages.follow(comment.pageId) });
       queryClient.invalidateQueries({
         queryKey: ['comments', 'page', comment.pageId],
       });

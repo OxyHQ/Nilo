@@ -122,6 +122,9 @@ export function useUpdatePage() {
     },
     onSettled: (page) => {
       if (!page) return;
+      if (page.databaseId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.databases.detail(page.databaseId) });
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.search.workspace(page.workspaceId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.pages.shared });
       queryClient.invalidateQueries({
@@ -151,6 +154,9 @@ export function useDeletePage() {
       });
     },
     onSuccess: (_data, { workspaceId, id }) => {
+      const page = queryClient.getQueryData<PageResponse>(queryKeys.pages.detail(id))?.page;
+      if (page?.databaseId)
+        queryClient.invalidateQueries({ queryKey: queryKeys.databases.detail(page.databaseId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.search.workspace(workspaceId) });
       queryClient.invalidateQueries({
         queryKey: queryKeys.pages.list(workspaceId),

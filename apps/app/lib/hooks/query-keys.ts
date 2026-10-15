@@ -22,6 +22,7 @@ export const queryKeys = {
     results: (workspaceId: string | null, query: string) => ['search', workspaceId, query] as const,
   },
   pages: {
+    follow: (id: string) => ['page', id, 'follow'] as const,
     backlinks: (id: string) => ['page', id, 'backlinks'] as const,
     templates: (workspaceId: string | null) => ['pages', workspaceId, 'templates'] as const,
     shared: ['shared-pages'] as const,
@@ -40,9 +41,12 @@ export const queryKeys = {
     block: (blockId: string) => ['comments', 'block', blockId] as const,
   },
   databases: {
+    templates: (id: string) => ['database', id, 'templates'] as const,
     list: (workspaceId: string | null) => ['databases', workspaceId] as const,
     detail: (id: string) => ['database', id] as const,
     views: (id: string) => ['database', id, 'views'] as const,
     rows: (id: string, viewId: string | null) => ['database', id, 'rows', viewId] as const,
+    /** One row with its computed values (`rows` holds lists only). */
+    row: (id: string, rowId: string) => ['database', id, 'row', rowId] as const,
   },
 } as const;

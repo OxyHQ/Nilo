@@ -5,10 +5,28 @@ import { DatabaseViewContainer } from '../database-view';
 import { PropertyCell } from '../property-cell';
 import type { Database, DatabaseRow, DatabaseView, DatabaseViewType } from '@/lib/types/databases';
 
+jest.mock('@/components/ui/dropdown-menu', () => {
+  const { View, Text } = require('react-native');
+  return {
+    Root: View,
+    Trigger: View,
+    Content: View,
+    Item: View,
+    ItemTitle: Text,
+    Separator: View,
+    Sub: View,
+    SubTrigger: View,
+    SubContent: View,
+  };
+});
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock('@/lib/hooks/use-forms', () => ({
   useFormLink: jest.fn(),
   useChangeFormLink: jest.fn(),
+}));
+jest.mock('@/lib/hooks/use-row-templates', () => ({
+  useRowTemplates: () => ({ data: { templates: [] } }),
+  useCreateRowTemplate: () => ({ mutate: jest.fn(), isPending: false }),
 }));
 jest.mock('@/lib/hooks/use-database-views', () => ({ useUpdateView: jest.fn() }));
 

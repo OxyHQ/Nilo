@@ -99,7 +99,13 @@ export function useNotificationSetup() {
         const blockId = response.notification.request.content.data?.blockId;
         router.push({
           pathname: '/(app)/p/[pageId]',
-          params: { pageId, ...(typeof blockId === 'string' ? { blockId } : {}) },
+          params: {
+            pageId,
+            ...(typeof blockId === 'string' ? { blockId } : {}),
+            ...(typeof response.notification.request.content.data?.commentId === 'string'
+              ? { comments: 'open' }
+              : {}),
+          },
         });
       }
     });

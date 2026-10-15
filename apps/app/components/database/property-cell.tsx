@@ -1,3 +1,4 @@
+import { ComputedCell } from './computed-cell';
 import * as React from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Check, ChevronDown, Plus, X } from 'lucide-react-native';
@@ -39,6 +40,8 @@ export function PropertyCell({
   autoFocus,
   readOnly = false,
 }: PropertyCellProps) {
+  if (property.type === 'formula' || property.type === 'unique_id')
+    return <ComputedCell property={property} value={value} />;
   if (readOnly) return <PropertyValueText property={property} value={value} />;
   switch (property.type) {
     case 'text':
@@ -124,7 +127,6 @@ export function PropertyCell({
     case 'relation':
       return <RelationCell value={readPageIds(value)} variant={variant} />;
     case 'rollup':
-    case 'formula':
       return <DerivedCell value={value} variant={variant} />;
     case 'created_time':
     case 'last_edited_time':

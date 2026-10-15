@@ -241,9 +241,7 @@ interface BoardCardProps {
 
 function BoardCard({ row, database, onOpen, readOnly }: BoardCardProps) {
   const { t } = useTranslation();
-  const visible = database.schema.properties.filter(
-    (p) => p.id !== 'name' && p.type !== 'rollup' && p.type !== 'formula',
-  );
+  const visible = database.schema.properties.filter((p) => p.id !== 'name' && p.type !== 'rollup');
 
   const dragHandlers =
     Platform.OS === 'web' && !readOnly

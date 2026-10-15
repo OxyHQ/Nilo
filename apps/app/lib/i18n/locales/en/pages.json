@@ -303,5 +303,11 @@
       "other": "%{count} backlinks"
     },
     "retry": "Could not load backlinks. Retry"
+  },
+  "follow": {
+    "follow": "Follow",
+    "following": "Following",
+    "failed": "Could not change following. Try again.",
+    "retry": "Could not load following. Retry"
   }
 }

@@ -13,6 +13,8 @@ import { CoverPicker } from './cover-picker';
 import { FavoriteButton } from './favorite-button';
 import { IconDisplay } from './icon-display';
 import { IconPicker } from './icon-picker';
+import { useRouter } from 'expo-router';
+import { Button } from '@/components/ui/button';
 import { PageActionsMenu } from './page-actions-menu';
 
 interface PageChromeProps {
@@ -119,6 +121,7 @@ const RepositioningContext = React.createContext<boolean>(false);
  * the surrounding `<PageChrome>` via context.
  */
 export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: boolean }) {
+  const router = useRouter();
   const { t } = useTranslation();
   const state = React.useContext(StateContext);
   const repositioning = React.useContext(RepositioningContext);
@@ -181,10 +184,29 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
             onAddCover={() => state?.setCoverOpen(true)}
           />
         ) : null}
-        {page.template ? (
+        {page.template && !page.databaseId ? (
           <Text className="mb-2 self-start rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
             {t('pages.templates.badge')}
           </Text>
+        ) : null}
+        {page.template && page.databaseId ? (
+          <View className="mb-3 flex-row items-center justify-between gap-2 rounded-md bg-muted px-3 py-2">
+            <Text className="text-sm font-medium text-muted-foreground">
+              {t('pages.templates.badge')}
+            </Text>
+            {!readOnly ? (
+              <Button
+                variant="ghost"
+                accessibilityLabel={t('databases.templates.done')}
+                onPress={() => {
+                  if (page.databaseId)
+                    router.push({ pathname: '/db/[id]', params: { id: page.databaseId } });
+                }}
+              >
+                <Text>{t('databases.templates.done')}</Text>
+              </Button>
+            ) : null}
+          </View>
         ) : null}
         {readOnly ? (
           <Text accessibilityRole="header" className="text-4xl font-bold text-foreground">

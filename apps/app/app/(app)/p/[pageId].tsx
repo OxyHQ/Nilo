@@ -33,6 +33,7 @@ export default function PageDetailRoute() {
   const params = useLocalSearchParams<{
     pageId?: string | string[];
     blockId?: string | string[];
+    comments?: string;
   }>();
   const pageId = Array.isArray(params.pageId) ? params.pageId[0] : params.pageId;
   const { t } = useTranslation();
@@ -51,12 +52,21 @@ export default function PageDetailRoute() {
     <PageDetail
       pageId={pageId}
       key={pageId}
+      openComments={params.comments === 'open'}
       blockId={Array.isArray(params.blockId) ? params.blockId[0] : params.blockId}
     />
   );
 }
 
-function PageDetail({ pageId, blockId }: { pageId: string; blockId?: string }) {
+function PageDetail({
+  pageId,
+  blockId,
+  openComments,
+}: {
+  pageId: string;
+  blockId?: string;
+  openComments: boolean;
+}) {
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -69,6 +79,10 @@ function PageDetail({ pageId, blockId }: { pageId: string; blockId?: string }) {
     open: boolean;
     focusedBlockId: string | null;
   }>({ open: false, focusedBlockId: null });
+
+  React.useEffect(() => {
+    if (openComments) setCommentPanel({ open: true, focusedBlockId: blockId ?? null });
+  }, [openComments, blockId]);
 
   const openCommentCount = React.useMemo(() => {
     const comments = commentsData?.comments ?? [];

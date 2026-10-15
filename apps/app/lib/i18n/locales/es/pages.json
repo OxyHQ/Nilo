@@ -303,5 +303,11 @@
       "other": "%{count} enlaces entrantes"
     },
     "retry": "No se pudieron cargar los enlaces entrantes. Reintentar"
+  },
+  "follow": {
+    "follow": "Seguir",
+    "following": "Siguiendo",
+    "failed": "No se pudo cambiar el seguimiento. Inténtalo de nuevo.",
+    "retry": "No se pudo cargar el seguimiento. Reintentar"
   }
 }

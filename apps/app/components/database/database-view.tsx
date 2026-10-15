@@ -1,12 +1,12 @@
 import { ViewForm } from './view-form';
 import * as React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { ArrowUpDown, Filter as FilterIcon, Plus } from 'lucide-react-native';
+import { ArrowUpDown, Filter as FilterIcon } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
-import { useCreateRow } from '@/lib/hooks/use-database-rows';
+import { NewRowMenu } from './new-row-menu';
 import { ViewTable } from './view-table';
 import { ViewBoard } from './view-board';
 import { ViewGallery } from './view-gallery';
@@ -40,7 +40,6 @@ export function DatabaseViewContainer({
   const { t } = useTranslation();
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
-  const createRow = useCreateRow();
 
   if (view.type === 'form') return <ViewForm database={database} view={view} readOnly={readOnly} />;
 
@@ -74,20 +73,7 @@ export function DatabaseViewContainer({
             />
             <AddPropertyButton database={database} />
           </View>
-          <View className="flex-row items-center gap-1">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('databases.actions.new')}
-              disabled={createRow.isPending}
-              onPress={() => createRow.mutate({ databaseId: database.id })}
-              className="flex-row items-center gap-1 px-2 py-1 rounded bg-primary"
-            >
-              <Plus size={12} color={colors.primaryForeground} />
-              <Text className="text-xs text-primary-foreground">
-                {createRow.isPending ? t('databases.actions.adding') : t('databases.actions.new')}
-              </Text>
-            </Pressable>
-          </View>
+          <NewRowMenu databaseId={database.id} />
         </View>
       ) : null}
 
@@ -145,6 +131,7 @@ export function DatabaseViewContainer({
       {!readOnly ? (
         <>
           <FilterBuilder
+            rows={rows}
             open={filterOpen}
             onClose={() => setFilterOpen(false)}
             database={database}

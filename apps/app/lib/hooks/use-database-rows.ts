@@ -38,6 +38,7 @@ function pageToDatabaseRow(page: Page): DatabaseRow {
 }
 
 interface CreateRowInput {
+  templateId?: string;
   databaseId: string;
   title?: string;
   properties?: Record<string, PropertyValue | unknown>;
@@ -109,6 +110,22 @@ export function useDatabaseRows(databaseId: string | undefined, viewId: string |
   });
 }
 
+/** One row with its computed values (formulas, rollups), whatever view it falls in. */
+export function useDatabaseRow(databaseId: string | undefined, rowId: string) {
+  const { isAuthenticated } = useOxy();
+  return useQuery<DatabaseRow>({
+    queryKey: databaseId ? queryKeys.databases.row(databaseId, rowId) : ['database', 'none', 'row'],
+    queryFn: async () => {
+      if (!databaseId) throw new Error('Database id required');
+      const res = await apiClient.get<DatabaseRowResponse>(
+        API_ROUTES.databases.getRow(databaseId, rowId),
+      );
+      return res.data.row;
+    },
+    enabled: isAuthenticated && Boolean(databaseId),
+  });
+}
+
 export function useCreateRow() {
   const queryClient = useQueryClient();
   return useMutation<DatabaseRow, Error, CreateRowInput>({
@@ -120,6 +137,7 @@ export function useCreateRow() {
       return res.data.row;
     },
     onSettled: (_data, _err, { databaseId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.databases.templates(databaseId) });
       queryClient.invalidateQueries({
         queryKey: ['database', databaseId, 'rows'],
       });
@@ -184,12 +202,14 @@ export function useUpdateRow() {
       }
     },
     onSettled: (_data, _err, { databaseId, rowId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.databases.templates(databaseId) });
       queryClient.invalidateQueries({
         queryKey: ['database', databaseId, 'rows'],
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.pages.detail(rowId),
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.databases.row(databaseId, rowId) });
     },
   });
 }
@@ -203,6 +223,7 @@ export function useDeleteRow() {
       await apiClient.delete(API_ROUTES.pages.delete(rowId));
     },
     onSettled: (_data, _err, { databaseId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.databases.templates(databaseId) });
       queryClient.invalidateQueries({
         queryKey: ['database', databaseId, 'rows'],
       });

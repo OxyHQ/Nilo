@@ -1,3 +1,4 @@
+import { resultPropertyFromRows } from '@/lib/formula-results';
 import * as React from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ChevronDown, Plus, Trash2 } from 'lucide-react-native';
@@ -8,6 +9,7 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import type {
   Database,
   DatabaseProperty,
+  DatabaseRow,
   DatabaseView,
   FilterCondition,
   FilterGroup,
@@ -20,6 +22,7 @@ interface FilterBuilderProps {
   onClose: () => void;
   database: Database;
   view: DatabaseView;
+  rows: DatabaseRow[];
 }
 
 /** Operator values (sent to the API) offered per property type. */
@@ -89,7 +92,21 @@ function operatorsFor(type: string): { value: string; label: string }[] {
  * conditions (groups inside groups exist in the data model but aren't
  * exposed in the MVP UI to keep things simple).
  */
-export function FilterBuilder({ open, onClose, database, view }: FilterBuilderProps) {
+export function FilterBuilder({
+  open,
+  onClose,
+  database: sourceDatabase,
+  view,
+  rows,
+}: FilterBuilderProps) {
+  const database = {
+    ...sourceDatabase,
+    schema: {
+      properties: sourceDatabase.schema.properties.map((property) =>
+        resultPropertyFromRows(property, rows),
+      ),
+    },
+  };
   const { t } = useTranslation();
   const updateView = useUpdateView();
   const [draft, setDraft] = React.useState<FilterGroup>(() => cloneFilterGroup(view.filters));
@@ -132,7 +149,7 @@ export function FilterBuilder({ open, onClose, database, view }: FilterBuilderPr
           kind: 'condition',
           propertyId: property.id,
           operator,
-          value: '',
+          value: property.type === 'checkbox' ? true : '',
         } satisfies FilterCondition,
       ],
     }));
@@ -205,7 +222,12 @@ export function FilterBuilder({ open, onClose, database, view }: FilterBuilderPr
             <Pressable onPress={onClose} className="px-3 py-1.5 rounded-md bg-muted">
               <Text className="text-sm text-foreground">{t('common.cancel')}</Text>
             </Pressable>
-            <Pressable onPress={apply} className="px-3 py-1.5 rounded-md bg-primary">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('databases.actions.apply')}
+              onPress={apply}
+              className="px-3 py-1.5 rounded-md bg-primary"
+            >
               <Text className="text-sm text-primary-foreground">
                 {t('databases.actions.apply')}
               </Text>
@@ -296,7 +318,7 @@ function ConditionRow({ database, filter, onChange, onRemove }: ConditionRowProp
             onChange({
               propertyId: id,
               operator: operatorsFor(next.type)[0]?.value ?? 'is_empty',
-              value: '',
+              value: next.type === 'checkbox' ? true : '',
             });
             setPropertyOpen(false);
           }}
@@ -440,7 +462,15 @@ function ConditionValueInput({ property, operator, value, onChange }: ConditionV
   return (
     <TextInput
       value={text}
-      onChangeText={onChange}
+      onChangeText={(text) =>
+        onChange(
+          property?.type === 'number' && text.trim() && Number.isFinite(Number(text))
+            ? Number(text)
+            : text,
+        )
+      }
+      keyboardType={property?.type === 'number' ? 'numeric' : 'default'}
+      accessibilityLabel={t('databases.filters.value')}
       placeholder={t('databases.filters.value')}
       placeholderTextColor={colors.mutedForeground}
       className="text-sm text-foreground border border-border rounded-md px-2 py-1"

@@ -30,7 +30,8 @@ export type DatabasePropertyType =
   | 'last_edited_time'
   | 'created_by'
   | 'last_edited_by'
-  | 'formula';
+  | 'formula'
+  | 'unique_id';
 
 export type SelectColor =
   | 'default'
@@ -82,6 +83,7 @@ export interface PropertyConfig {
   targetPropertyId?: string;
   function?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'earliest' | 'latest';
   expression?: string;
+  prefix?: string;
 }
 
 export interface DatabaseProperty {
@@ -175,6 +177,7 @@ export interface DatabaseView {
  */
 export interface TextValue {
   text: string;
+  error?: string;
 }
 export interface NumberValue {
   number: number | null;
