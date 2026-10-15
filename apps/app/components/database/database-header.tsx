@@ -20,6 +20,8 @@ import {
   TimerReset,
 } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
+import { useTranslation } from "@/hooks/useTranslation";
+import i18n from "@/lib/i18n";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type {
   Database,
@@ -46,14 +48,23 @@ const VIEW_ICONS: Record<
   timeline: TimerReset,
 };
 
-const VIEW_LABELS: Record<DatabaseViewType, string> = {
-  table: "Table",
-  board: "Board",
-  gallery: "Gallery",
-  list: "List",
-  calendar: "Calendar",
-  timeline: "Timeline",
-};
+/** Translated at call time: the locale can change while the app runs. */
+function viewTypeLabel(type: DatabaseViewType): string {
+  switch (type) {
+    case "table":
+      return i18n.t("databases.views.table");
+    case "board":
+      return i18n.t("databases.views.board");
+    case "gallery":
+      return i18n.t("databases.views.gallery");
+    case "list":
+      return i18n.t("databases.views.list");
+    case "calendar":
+      return i18n.t("databases.views.calendar");
+    case "timeline":
+      return i18n.t("databases.views.timeline");
+  }
+}
 
 interface DatabaseHeaderProps {
   database: Database;
@@ -69,6 +80,7 @@ export function DatabaseHeader({
   onSelectView,
 }: DatabaseHeaderProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const updateDatabase = useUpdateDatabase();
   const createView = useCreateView();
   const [titleDraft, setTitleDraft] = React.useState<string | null>(null);
@@ -87,7 +99,7 @@ export function DatabaseHeader({
   const handleAddView = async (type: DatabaseViewType) => {
     const created = await createView.mutateAsync({
       databaseId: database.id,
-      name: VIEW_LABELS[type],
+      name: viewTypeLabel(type),
       type,
     });
     setNewViewOpen(false);
@@ -116,7 +128,7 @@ export function DatabaseHeader({
               value={titleDraft ?? database.name}
               onChangeText={setTitleDraft}
               onBlur={handleTitleBlur}
-              placeholder="Untitled database"
+              placeholder={t("databases.untitledDatabase")}
               placeholderTextColor={colors.mutedForeground}
               className="text-3xl font-bold text-foreground"
               style={
@@ -149,7 +161,9 @@ export function DatabaseHeader({
             className="flex-row items-center gap-1 px-2 py-1 rounded hover:bg-muted"
           >
             <Plus size={12} color={colors.mutedForeground} />
-            <Text className="text-xs text-muted-foreground">New view</Text>
+            <Text className="text-xs text-muted-foreground">
+              {t("databases.views.new")}
+            </Text>
           </Pressable>
         </ScrollView>
       </View>
@@ -171,6 +185,7 @@ interface ViewTabProps {
 
 function ViewTab({ view, active, onPress, database }: ViewTabProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const Icon = VIEW_ICONS[view.type] ?? TableIcon;
   const [menuOpen, setMenuOpen] = React.useState(false);
   const updateView = useUpdateView();
@@ -243,7 +258,9 @@ function ViewTab({ view, active, onPress, database }: ViewTabProps) {
                   onPress={() => setRenameDraft(view.name)}
                   className="px-2 py-1.5 rounded hover:bg-muted"
                 >
-                  <Text className="text-sm text-foreground">Rename view</Text>
+                  <Text className="text-sm text-foreground">
+                    {t("databases.views.rename")}
+                  </Text>
                 </Pressable>
                 <Pressable
                   onPress={async () => {
@@ -255,7 +272,9 @@ function ViewTab({ view, active, onPress, database }: ViewTabProps) {
                   }}
                   className="px-2 py-1.5 rounded hover:bg-muted"
                 >
-                  <Text className="text-sm text-red-500">Delete view</Text>
+                  <Text className="text-sm text-red-500">
+                    {t("databases.views.delete")}
+                  </Text>
                 </Pressable>
               </>
             ) : (
@@ -263,7 +282,7 @@ function ViewTab({ view, active, onPress, database }: ViewTabProps) {
                 <TextInput
                   value={renameDraft}
                   onChangeText={setRenameDraft}
-                  placeholder="View name"
+                  placeholder={t("databases.views.namePlaceholder")}
                   placeholderTextColor={colors.mutedForeground}
                   className="text-sm text-foreground border border-border rounded-md px-2 py-1"
                   style={Platform.OS === "web" ? { outlineWidth: 0 } : undefined}
@@ -276,14 +295,16 @@ function ViewTab({ view, active, onPress, database }: ViewTabProps) {
                     onPress={close}
                     className="px-3 py-1 rounded-md bg-muted"
                   >
-                    <Text className="text-sm text-foreground">Cancel</Text>
+                    <Text className="text-sm text-foreground">
+                      {t("common.cancel")}
+                    </Text>
                   </Pressable>
                   <Pressable
                     onPress={commitRename}
                     className="px-3 py-1 rounded-md bg-primary"
                   >
                     <Text className="text-sm text-primary-foreground">
-                      Save
+                      {t("common.save")}
                     </Text>
                   </Pressable>
                 </View>
@@ -304,6 +325,7 @@ interface NewViewPickerProps {
 
 function NewViewPicker({ open, onClose, onChoose }: NewViewPickerProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const types: DatabaseViewType[] = [
     "table",
     "board",
@@ -331,19 +353,19 @@ function NewViewPicker({ open, onClose, onChoose }: NewViewPickerProps) {
       >
         <View className="bg-popover border border-border rounded-2xl shadow-xl p-3 m-3 web:m-0">
           <Text className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-            New view
+            {t("databases.views.new")}
           </Text>
-          {types.map((t) => {
-            const Icon = VIEW_ICONS[t];
+          {types.map((type) => {
+            const Icon = VIEW_ICONS[type];
             return (
               <Pressable
-                key={t}
-                onPress={() => onChoose(t)}
+                key={type}
+                onPress={() => onChoose(type)}
                 className="flex-row items-center gap-2 px-2 py-2 rounded hover:bg-muted"
               >
                 <Icon size={14} color={colors.foreground} />
                 <Text className="text-sm text-foreground">
-                  {VIEW_LABELS[t]}
+                  {viewTypeLabel(type)}
                 </Text>
               </Pressable>
             );

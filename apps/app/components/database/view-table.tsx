@@ -9,6 +9,7 @@ import {
 import { useRouter } from "expo-router";
 import { Plus } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type {
   Database,
@@ -39,6 +40,7 @@ const TITLE_COL_WIDTH = 280;
 export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const createRow = useCreateRow();
   const updateRow = useUpdateRow();
 
@@ -95,7 +97,7 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
             style={{ width: TITLE_COL_WIDTH }}
           >
             <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Name
+              {t("common.name")}
             </Text>
           </View>
           {visibleProperties.map((property) => (
@@ -115,7 +117,9 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
         {/* rows */}
         {rows.length === 0 ? (
           <View className="py-10 items-center w-full">
-            <Text className="text-sm text-muted-foreground">No rows yet</Text>
+            <Text className="text-sm text-muted-foreground">
+              {t("databases.table.empty")}
+            </Text>
           </View>
         ) : (
           rows.map((row) => (
@@ -161,7 +165,9 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
         >
           <Plus size={14} color={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">
-            {createRow.isPending ? "Adding…" : "New"}
+            {createRow.isPending
+              ? t("databases.actions.adding")
+              : t("databases.actions.new")}
           </Text>
         </Pressable>
       </View>
@@ -208,6 +214,7 @@ interface TitleCellProps {
 
 function TitleCell({ initial, onChange }: TitleCellProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [draft, setDraft] = React.useState(initial);
   React.useEffect(() => {
     setDraft(initial);
@@ -230,7 +237,7 @@ function TitleCell({ initial, onChange }: TitleCellProps) {
             (e.target as HTMLInputElement).blur();
           }
         }}
-        placeholder="Untitled"
+        placeholder={t("databases.untitled")}
         style={{
           background: "transparent",
           border: "none",
@@ -245,7 +252,7 @@ function TitleCell({ initial, onChange }: TitleCellProps) {
   // Native: simple read-only label that opens the row on tap.
   return (
     <Text className="text-sm text-foreground" numberOfLines={1}>
-      {draft || "Untitled"}
+      {draft || t("databases.untitled")}
     </Text>
   );
 }

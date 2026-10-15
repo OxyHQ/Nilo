@@ -20,6 +20,8 @@ import {
 } from "@/lib/hooks/use-comments";
 import { CommentContentView } from "./comment-content";
 import { CommentComposer } from "./comment-composer";
+import { useTranslation } from "@/hooks/useTranslation";
+import i18n from "@/lib/i18n";
 
 interface CommentThreadProps {
   thread: CommentThreadType;
@@ -28,13 +30,13 @@ interface CommentThreadProps {
 }
 
 function relativeTime(iso: string): string {
-  const t = new Date(iso).getTime();
-  const diffSec = Math.round((Date.now() - t) / 1000);
-  if (diffSec < 60) return "just now";
-  if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
-  if (diffSec < 86400) return `${Math.round(diffSec / 3600)}h ago`;
+  const time = new Date(iso).getTime();
+  const diffSec = Math.round((Date.now() - time) / 1000);
+  if (diffSec < 60) return i18n.t("comments.time.justNow");
+  if (diffSec < 3600) return i18n.t("comments.time.minutesAgo", { count: Math.round(diffSec / 60) });
+  if (diffSec < 86400) return i18n.t("comments.time.hoursAgo", { count: Math.round(diffSec / 3600) });
   const diffDay = Math.round(diffSec / 86400);
-  if (diffDay < 7) return `${diffDay}d ago`;
+  if (diffDay < 7) return i18n.t("comments.time.daysAgo", { count: diffDay });
   return new Date(iso).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -52,6 +54,7 @@ export function CommentThread({
 }: CommentThreadProps) {
   const { user } = useOxy();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [replyOpen, setReplyOpen] = React.useState(false);
   const resolveMutation = useResolveComment();
   const unresolveMutation = useUnresolveComment();
@@ -97,7 +100,7 @@ export function CommentThread({
             onPress={handleToggleResolve}
             disabled={resolveMutation.isPending || unresolveMutation.isPending}
             className="flex-row items-center gap-1 rounded-md px-2 py-1 hover:bg-muted"
-            accessibilityLabel={isResolved ? "Reopen thread" : "Resolve thread"}
+            accessibilityLabel={isResolved ? t("comments.thread.reopenThread") : t("comments.thread.resolveThread")}
           >
             {isResolved ? (
               <Undo2 size={12} color={colors.mutedForeground} />
@@ -105,7 +108,7 @@ export function CommentThread({
               <Check size={12} color={colors.mutedForeground} />
             )}
             <Text className="text-[10px] font-medium text-muted-foreground">
-              {isResolved ? "Reopen" : "Resolve"}
+              {isResolved ? t("comments.thread.reopen") : t("comments.thread.resolve")}
             </Text>
           </Pressable>
         }
@@ -138,7 +141,7 @@ export function CommentThread({
           <View className="pl-4">
             <CommentComposer
               workspaceId={workspaceId}
-              placeholder="Reply…"
+              placeholder={t("comments.thread.replyPlaceholder")}
               autoFocus
               onSubmit={handleSubmitReply}
               onCancel={() => setReplyOpen(false)}
@@ -149,11 +152,11 @@ export function CommentThread({
           <Pressable
             onPress={() => setReplyOpen(true)}
             className="flex-row items-center gap-1.5 self-start rounded-md px-2 py-1 hover:bg-muted"
-            accessibilityLabel="Reply to thread"
+            accessibilityLabel={t("comments.thread.replyToThread")}
           >
             <CornerDownRight size={12} color={colors.mutedForeground} />
             <Text className="text-xs font-medium text-muted-foreground">
-              Reply
+              {t("comments.thread.reply")}
             </Text>
           </Pressable>
         )
@@ -180,6 +183,7 @@ function CommentRow({
   rightSlot,
 }: CommentRowProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const isAuthor = currentUserId === comment.authorId;
 
@@ -200,11 +204,11 @@ function CommentRow({
         </View>
         <Text className="text-xs font-medium text-foreground">
           {/* Phase 2 backend returns authorId only; profile hydration arrives later. */}
-          {isAuthor ? "You" : shortAuthor(comment.authorId)}
+          {isAuthor ? t("comments.thread.you") : shortAuthor(comment.authorId)}
         </Text>
         <Text className="text-[10px] text-muted-foreground">
           {relativeTime(comment.createdAt)}
-          {comment.editedAt ? " · edited" : ""}
+          {comment.editedAt ? ` · ${t("comments.thread.edited")}` : ""}
         </Text>
         <View className="flex-1" />
         {rightSlot}
@@ -213,7 +217,7 @@ function CommentRow({
             <Pressable
               onPress={() => setMenuOpen((v) => !v)}
               className="rounded-md p-1 hover:bg-muted"
-              accessibilityLabel="More actions"
+              accessibilityLabel={t("comments.thread.moreActions")}
             >
               <MoreHorizontal size={12} color={colors.mutedForeground} />
             </Pressable>
@@ -227,7 +231,7 @@ function CommentRow({
                   className="flex-row items-center gap-2 px-3 py-2 hover:bg-muted"
                 >
                   <Trash2 size={12} color={colors.foreground} />
-                  <Text className="text-xs text-foreground">Delete</Text>
+                  <Text className="text-xs text-foreground">{t("common.delete")}</Text>
                 </Pressable>
               </View>
             ) : null}

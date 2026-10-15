@@ -1,1 +1,13 @@
-{}
+{
+  "boundary": {
+    "title": "Algo salió mal",
+    "description": "Se produjo un error inesperado. Puedes volver a intentarlo; si el problema continúa, nuestro equipo ya ha sido notificado."
+  },
+  "notFound": {
+    "documentTitle": "404 - Página no encontrada | Nilo",
+    "metaDescription": "La página que buscas no existe. Vuelve a Nilo para seguir trabajando en tu espacio de trabajo.",
+    "screenTitle": "¡Vaya!",
+    "message": "Esta pantalla no existe.",
+    "goHome": "¡Ir a la pantalla de inicio!"
+  }
+}

@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Text } from "@/components/ui/text";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type {
   Database,
@@ -38,6 +39,7 @@ export function ViewTimeline({
 }: ViewTimelineProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t, locale } = useTranslation();
 
   const startProperty = React.useMemo(() => {
     const id = view.config.startPropertyId;
@@ -67,7 +69,7 @@ export function ViewTimeline({
     return (
       <View className="px-6 py-10">
         <Text className="text-sm text-muted-foreground">
-          Add a date property to enable the timeline view.
+          {t("databases.timeline.needsDateProperty")}
         </Text>
       </View>
     );
@@ -77,8 +79,7 @@ export function ViewTimeline({
     return (
       <View className="p-3">
         <Text className="text-sm text-muted-foreground">
-          Timeline view is web-only in Phase 4. Open the table view on
-          native to see your rows.
+          {t("databases.timeline.webOnly")}
         </Text>
       </View>
     );
@@ -103,7 +104,7 @@ export function ViewTimeline({
             className="px-3 py-1 justify-center border-r border-border"
           >
             <Text className="text-xs font-semibold uppercase text-muted-foreground">
-              Row
+              {t("databases.timeline.row")}
             </Text>
           </View>
           {Array.from({ length: DAYS_WINDOW }).map((_, i) => {
@@ -118,7 +119,7 @@ export function ViewTimeline({
               >
                 <Text className="text-[10px] text-muted-foreground">
                   {isFirstOfMonth
-                    ? day.toLocaleString(undefined, { month: "short" })
+                    ? day.toLocaleString(locale, { month: "short" })
                     : day.getDate()}
                 </Text>
               </View>
@@ -160,7 +161,7 @@ export function ViewTimeline({
                 className="px-3 justify-center border-r border-border/60"
               >
                 <Text className="text-sm text-foreground" numberOfLines={1}>
-                  {row.title || "Untitled"}
+                  {row.title || t("databases.untitled")}
                 </Text>
               </View>
               <View style={{ position: "relative", flexDirection: "row" }}>
@@ -186,7 +187,7 @@ export function ViewTimeline({
                     className="text-[11px] text-primary"
                     numberOfLines={1}
                   >
-                    {row.title || "Untitled"}
+                    {row.title || t("databases.untitled")}
                   </Text>
                 </Pressable>
               </View>

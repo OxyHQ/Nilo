@@ -4,6 +4,7 @@ import { Share2 } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { useColorScheme } from "@/lib/useColorScheme";
 import { ShareModal } from "./share-modal";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface ShareButtonProps {
   pageId: string;
@@ -18,6 +19,7 @@ interface ShareButtonProps {
  */
 export function ShareButton({ pageId, compact = false }: ShareButtonProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
 
   if (!pageId) return null;
@@ -32,11 +34,11 @@ export function ShareButton({ pageId, compact = false }: ShareButtonProps) {
             : "h-9 px-3 flex-row items-center gap-1.5 rounded-lg border border-border hover:bg-muted"
         }
         accessibilityRole="button"
-        accessibilityLabel="Share page"
+        accessibilityLabel={t("sharing.button.label")}
       >
         <Share2 size={14} color={colors.foreground} />
         {!compact && (
-          <Text className="text-xs font-semibold text-foreground">Share</Text>
+          <Text className="text-xs font-semibold text-foreground">{t("sharing.button.share")}</Text>
         )}
       </Pressable>
       <ShareModal open={open} onOpenChange={setOpen} pageId={pageId} />

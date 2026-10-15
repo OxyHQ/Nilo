@@ -19,6 +19,7 @@ import {
 import { CommentComposer } from "./comment-composer";
 import { CommentThread } from "./comment-thread";
 import type { CommentSegment } from "@/lib/types/comments";
+import { useTranslation } from "@/hooks/useTranslation";
 
 type FilterMode = "all" | "open" | "resolved";
 
@@ -48,6 +49,7 @@ export function CommentPanel({
   focusedBlockId,
 }: CommentPanelProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [filter, setFilter] = React.useState<FilterMode>("open");
   const includeResolved = filter !== "open";
   const { data, isLoading } = usePageComments(pageId, includeResolved);
@@ -84,7 +86,7 @@ export function CommentPanel({
     });
   };
 
-  const headerTitle = focusedBlockId ? "Block comments" : "Comments";
+  const headerTitle = focusedBlockId ? t("comments.panel.blockTitle") : t("comments.panel.title");
 
   const body = (
     <View
@@ -100,7 +102,7 @@ export function CommentPanel({
         </View>
         <Pressable
           onPress={onClose}
-          accessibilityLabel="Close comments"
+          accessibilityLabel={t("comments.panel.close")}
           className="rounded-md p-1 hover:bg-muted"
         >
           <X size={16} color={colors.mutedForeground} />
@@ -125,7 +127,11 @@ export function CommentPanel({
                   : "text-xs text-muted-foreground capitalize"
               }
             >
-              {mode}
+              {mode === "open"
+                ? t("comments.filters.open")
+                : mode === "all"
+                  ? t("comments.filters.all")
+                  : t("comments.filters.resolved")}
             </Text>
           </Pressable>
         ))}
@@ -141,10 +147,10 @@ export function CommentPanel({
             <CheckCheck size={24} color={colors.mutedForeground} />
             <Text className="text-sm text-muted-foreground text-center">
               {filter === "resolved"
-                ? "No resolved comments yet."
+                ? t("comments.panel.emptyResolved")
                 : filter === "open"
-                  ? "No open comments. Hover a block to comment, or add a page-level note below."
-                  : "No comments yet."}
+                  ? t("comments.panel.emptyOpen")
+                  : t("comments.panel.emptyAll")}
             </Text>
           </View>
         ) : (
@@ -162,7 +168,7 @@ export function CommentPanel({
       <View className="border-t border-border p-3">
         <CommentComposer
           workspaceId={workspaceId}
-          placeholder={focusedBlockId ? "Comment on this block…" : "Add a page comment…"}
+          placeholder={focusedBlockId ? t("comments.panel.blockPlaceholder") : t("comments.panel.pagePlaceholder")}
           onSubmit={handleSubmit}
           submitting={createMutation.isPending}
         />
@@ -190,7 +196,7 @@ export function CommentPanel({
         <Pressable
           onPress={onClose}
           style={StyleSheet.absoluteFill}
-          accessibilityLabel="Dismiss comment panel"
+          accessibilityLabel={t("comments.panel.dismiss")}
         />
         <View className="mt-20 flex-1 rounded-t-2xl overflow-hidden">{body}</View>
       </View>

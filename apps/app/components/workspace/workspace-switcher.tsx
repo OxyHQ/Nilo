@@ -7,10 +7,11 @@ import { useColorScheme } from "@/lib/useColorScheme";
 import {
   useWorkspaces,
   type Workspace,
-  type WorkspaceRole,
 } from "@/lib/hooks/use-workspaces";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { CreateWorkspaceModal } from "./create-workspace-modal";
+import { roleLabel } from "./role-labels";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface WorkspaceSwitcherProps {
   /**
@@ -19,14 +20,6 @@ interface WorkspaceSwitcherProps {
    */
   collapsed?: boolean;
 }
-
-const ROLE_LABELS: Record<WorkspaceRole, string> = {
-  owner: "Owner",
-  admin: "Admin",
-  editor: "Editor",
-  commenter: "Commenter",
-  viewer: "Viewer",
-};
 
 function getWorkspaceInitial(workspace: Pick<Workspace, "name">): string {
   return (workspace.name?.[0] ?? "W").toUpperCase();
@@ -67,6 +60,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
   collapsed = false,
 }: WorkspaceSwitcherProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [createOpen, setCreateOpen] = React.useState(false);
 
   const { data: workspaces, isLoading } = useWorkspaces();
@@ -122,13 +116,13 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
         <Pressable
           onPress={handleCreate}
           className="h-9 flex-row items-center gap-2 px-2 rounded-lg hover:bg-muted"
-          accessibilityLabel="Create your first workspace"
+          accessibilityLabel={t("workspace.switcher.createFirst")}
           accessibilityRole="button"
         >
           <Plus size={16} color={colors.mutedForeground} />
           {!collapsed && (
             <Text className="text-sm text-muted-foreground">
-              Create workspace
+              {t("workspace.create.submit")}
             </Text>
           )}
         </Pressable>
@@ -141,7 +135,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
     );
   }
 
-  const triggerLabel = activeWorkspace?.name ?? "Workspace";
+  const triggerLabel = activeWorkspace?.name ?? t("workspace.fallbackName");
 
   return (
     <View className={collapsed ? "" : "flex-1 min-w-0"}>
@@ -153,7 +147,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
                 ? "h-10 w-10 items-center justify-center rounded-xl hover:bg-muted"
                 : "h-9 flex-row items-center gap-2 px-1.5 rounded-lg hover:bg-muted"
             }
-            accessibilityLabel={`Switch workspace, current ${triggerLabel}`}
+            accessibilityLabel={t("workspace.switcher.switchLabel", { name: triggerLabel })}
             accessibilityRole="button"
           >
             {activeWorkspace ? (
@@ -192,11 +186,11 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
           {Platform.OS === "web" ? (
             <View className="px-2 pt-2 pb-1">
               <Text className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Your workspaces
+                {t("workspace.switcher.yourWorkspaces")}
               </Text>
             </View>
           ) : (
-            <DropdownMenu.Label>Your workspaces</DropdownMenu.Label>
+            <DropdownMenu.Label>{t("workspace.switcher.yourWorkspaces")}</DropdownMenu.Label>
           )}
           {(workspaces ?? []).map((workspace) => {
             const isActive = workspace._id === activeWorkspace?._id;
@@ -218,7 +212,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
                       </Text>
                       {role ? (
                         <Text className="text-[11px] text-muted-foreground">
-                          {ROLE_LABELS[role]}
+                          {roleLabel(role)}
                         </Text>
                       ) : null}
                     </View>
@@ -237,7 +231,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
                     </DropdownMenu.ItemTitle>
                     {role ? (
                       <DropdownMenu.ItemSubtitle>
-                        {ROLE_LABELS[role]}
+                        {roleLabel(role)}
                       </DropdownMenu.ItemSubtitle>
                     ) : null}
                   </>
@@ -251,13 +245,13 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
               <View className="flex-row items-center gap-2">
                 <Plus size={14} color={colors.foreground} />
                 <Text className="text-sm font-medium text-foreground">
-                  New workspace
+                  {t("workspace.create.title")}
                 </Text>
               </View>
             ) : (
               <>
                 <DropdownMenu.ItemIcon ios={{ name: "plus" }} />
-                <DropdownMenu.ItemTitle>New workspace</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("workspace.create.title")}</DropdownMenu.ItemTitle>
               </>
             )}
           </DropdownMenu.Item>

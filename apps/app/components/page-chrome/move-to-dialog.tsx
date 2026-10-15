@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Text } from "@/components/ui/text";
 import { useColorScheme } from "@/lib/useColorScheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import { usePages, useUpdatePage } from "@/lib/hooks/use-pages";
 import type { Page } from "@/lib/types/pages";
 import { IconDisplay } from "./icon-display";
@@ -26,6 +27,7 @@ interface MoveToDialogProps {
  */
 export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [query, setQuery] = React.useState("");
   const { data, isLoading } = usePages(page.workspaceId);
   const updatePage = useUpdatePage();
@@ -39,11 +41,11 @@ export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
       .filter((p) => !p.archived && !descendantIds.has(p._id))
       .filter((p) => {
         if (!normalized) return true;
-        const title = (p.title || "Untitled").toLowerCase();
+        const title = (p.title || t("pages.untitled")).toLowerCase();
         return title.includes(normalized);
       })
       .slice(0, 100);
-  }, [data?.pages, page._id, query]);
+  }, [data?.pages, page._id, query, t]);
 
   const handleMove = React.useCallback(
     (parentId: string | null) => {
@@ -57,11 +59,11 @@ export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md gap-3 p-4" showCloseButton={false}>
         <View className="flex-row items-center justify-between">
-          <DialogTitle>Move page</DialogTitle>
+          <DialogTitle>{t("pages.moveDialog.title")}</DialogTitle>
           <Pressable
             onPress={() => onOpenChange(false)}
             className="h-8 w-8 items-center justify-center rounded-md hover:bg-muted"
-            accessibilityLabel="Close"
+            accessibilityLabel={t("common.close")}
           >
             <X size={16} className="text-muted-foreground" />
           </Pressable>
@@ -71,7 +73,7 @@ export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search pages…"
+            placeholder={t("pages.moveDialog.searchPlaceholder")}
             className="flex-1 text-sm text-foreground"
             autoCorrect={false}
             autoCapitalize="none"
@@ -87,18 +89,18 @@ export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
           <Pressable
             onPress={() => handleMove(null)}
             className="flex-row items-center gap-2 rounded-md px-2 py-2 hover:bg-muted"
-            accessibilityLabel="Move to root"
+            accessibilityLabel={t("pages.moveDialog.moveToRoot")}
           >
             <Home size={14} color={colors.mutedForeground} />
-            <Text className="text-sm text-foreground">Move to root</Text>
+            <Text className="text-sm text-foreground">{t("pages.moveDialog.moveToRoot")}</Text>
           </Pressable>
           {isLoading ? (
             <Text className="px-2 py-2 text-sm text-muted-foreground">
-              Loading…
+              {t("common.loading")}
             </Text>
           ) : candidates.length === 0 ? (
             <Text className="px-2 py-4 text-center text-sm text-muted-foreground">
-              No pages match “{query}”.
+              {t("pages.moveDialog.noMatches", { query })}
             </Text>
           ) : (
             candidates.map((p) => (
@@ -106,13 +108,15 @@ export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
                 key={p._id}
                 onPress={() => handleMove(p._id)}
                 className="flex-row items-center gap-2 rounded-md px-2 py-2 hover:bg-muted"
-                accessibilityLabel={`Move under ${p.title || "Untitled"}`}
+                accessibilityLabel={t("pages.moveDialog.moveUnder", {
+                  title: p.title || t("pages.untitled"),
+                })}
               >
                 <View className="h-4 w-4 items-center justify-center">
                   <IconDisplay value={p.icon} size={14} showPlaceholder />
                 </View>
                 <Text className="flex-1 text-sm text-foreground" numberOfLines={1}>
-                  {p.title.trim() || "Untitled"}
+                  {p.title.trim() || t("pages.untitled")}
                 </Text>
               </Pressable>
             ))

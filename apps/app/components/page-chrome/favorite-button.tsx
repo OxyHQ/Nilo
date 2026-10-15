@@ -2,6 +2,7 @@ import * as React from "react";
 import { Pressable } from "react-native";
 import { Star } from "lucide-react-native";
 import { useColorScheme } from "@/lib/useColorScheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useUpdatePage } from "@/lib/hooks/use-pages";
 
 interface FavoriteButtonProps {
@@ -16,6 +17,7 @@ interface FavoriteButtonProps {
  */
 export function FavoriteButton({ pageId, favorited }: FavoriteButtonProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const updatePage = useUpdatePage();
 
   const handleToggle = React.useCallback(() => {
@@ -25,7 +27,9 @@ export function FavoriteButton({ pageId, favorited }: FavoriteButtonProps) {
   return (
     <Pressable
       onPress={handleToggle}
-      accessibilityLabel={favorited ? "Unfavorite" : "Favorite"}
+      accessibilityLabel={
+        favorited ? t("pages.favorite.remove") : t("pages.favorite.add")
+      }
       className="h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
     >
       <Star

@@ -2,6 +2,16 @@
   "title": "Notificaciones",
   "subtitle": "Gestiona tus preferencias de notificaciones",
   "pushNotifications": "Notificaciones push",
-  "pushDescription": "Recibe alertas sobre la actividad del workspace",
-  "permissionDenied": "Las notificaciones están bloqueadas. Habilítalas en los ajustes del dispositivo para recibirlas."
+  "pushDescription": "Recibe alertas sobre la actividad del espacio de trabajo",
+  "permissionDenied": "Las notificaciones están bloqueadas. Habilítalas en los ajustes del dispositivo para recibirlas.",
+  "unread": "%{count} sin leer",
+  "markAllRead": "Marcar todo como leído",
+  "emptyTitle": "Todavía no hay notificaciones",
+  "emptyBody": "Las menciones y respuestas de tu espacio de trabajo aparecerán aquí.",
+  "time": {
+    "justNow": "ahora mismo",
+    "minutesAgo": "hace %{count} min",
+    "hoursAgo": "hace %{count} h",
+    "daysAgo": "hace %{count} d"
+  }
 }

@@ -17,6 +17,7 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { fuzzyFilter } from '@/lib/fuzzy';
 import { usePaletteData } from './use-palette-data';
 import type { PageItem, MemberItem, CommandItem } from './types';
+import { useTranslation } from '@/hooks/useTranslation';
 
 /**
  * Native command palette — bottom sheet variant with the same item set as the
@@ -29,6 +30,7 @@ export function CommandPalette() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
 
   const [query, setQuery] = React.useState('');
 
@@ -111,14 +113,14 @@ export function CommandPalette() {
                 autoFocus
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search pages, people and commands…"
+                placeholder={t("commandPalette.placeholder")}
                 placeholderTextColor={colors.mutedForeground}
                 className="flex-1 text-base text-foreground"
                 returnKeyType="search"
               />
               <Pressable
                 onPress={() => setOpen(false)}
-                accessibilityLabel="Close search"
+                accessibilityLabel={t("commandPalette.close")}
                 className="h-8 w-8 items-center justify-center rounded-full"
               >
                 <X size={16} color={colors.mutedForeground} />
@@ -135,13 +137,13 @@ export function CommandPalette() {
               {!hasResults ? (
                 <View className="px-4 py-10">
                   <Text className="text-center text-sm text-muted-foreground">
-                    No results.
+                    {t("commandPalette.noResults")}
                   </Text>
                 </View>
               ) : null}
 
               {recents.length > 0 ? (
-                <Group title="Recent">
+                <Group title={t("commandPalette.groups.recent")}>
                   {recents.map((item) => (
                     <PageRow
                       key={item.id}
@@ -154,7 +156,7 @@ export function CommandPalette() {
               ) : null}
 
               {filteredPages.length > 0 ? (
-                <Group title="Pages">
+                <Group title={t("commandPalette.groups.pages")}>
                   {filteredPages.map(({ item }) => (
                     <PageRow key={item.id} item={item} onPress={openPage} />
                   ))}
@@ -162,7 +164,7 @@ export function CommandPalette() {
               ) : null}
 
               {filteredMembers.length > 0 ? (
-                <Group title="People">
+                <Group title={t("commandPalette.groups.people")}>
                   {filteredMembers.map(({ item }) => (
                     <MemberRow key={item.id} item={item} />
                   ))}
@@ -170,7 +172,7 @@ export function CommandPalette() {
               ) : null}
 
               {filteredCommands.length > 0 ? (
-                <Group title="Commands">
+                <Group title={t("commandPalette.groups.commands")}>
                   {filteredCommands.map(({ item }) => (
                     <CommandRow key={item.id} item={item} />
                   ))}

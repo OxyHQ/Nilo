@@ -29,6 +29,8 @@ import {
   ChevronRight,
 } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
+import { useTranslation } from "@/hooks/useTranslation";
+import i18n from "@/lib/i18n";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type {
   Database,
@@ -56,27 +58,49 @@ interface PropertyHeaderMenuProps {
   property: DatabaseProperty;
 }
 
-const PROPERTY_TYPE_LABELS: Record<DatabasePropertyType, string> = {
-  text: "Text",
-  number: "Number",
-  select: "Select",
-  multi_select: "Multi-select",
-  status: "Status",
-  date: "Date",
-  person: "Person",
-  files: "Files",
-  checkbox: "Checkbox",
-  url: "URL",
-  email: "Email",
-  phone: "Phone",
-  relation: "Relation",
-  rollup: "Rollup",
-  created_time: "Created time",
-  last_edited_time: "Last edited time",
-  created_by: "Created by",
-  last_edited_by: "Last edited by",
-  formula: "Formula",
-};
+/** Translated at call time: the locale can change while the app runs. */
+function propertyTypeLabel(type: DatabasePropertyType): string {
+  switch (type) {
+    case "text":
+      return i18n.t("databases.propertyTypes.text");
+    case "number":
+      return i18n.t("databases.propertyTypes.number");
+    case "select":
+      return i18n.t("databases.propertyTypes.select");
+    case "multi_select":
+      return i18n.t("databases.propertyTypes.multiSelect");
+    case "status":
+      return i18n.t("databases.propertyTypes.status");
+    case "date":
+      return i18n.t("databases.propertyTypes.date");
+    case "person":
+      return i18n.t("databases.propertyTypes.person");
+    case "files":
+      return i18n.t("databases.propertyTypes.files");
+    case "checkbox":
+      return i18n.t("databases.propertyTypes.checkbox");
+    case "url":
+      return i18n.t("databases.propertyTypes.url");
+    case "email":
+      return i18n.t("databases.propertyTypes.email");
+    case "phone":
+      return i18n.t("databases.propertyTypes.phone");
+    case "relation":
+      return i18n.t("databases.propertyTypes.relation");
+    case "rollup":
+      return i18n.t("databases.propertyTypes.rollup");
+    case "created_time":
+      return i18n.t("databases.propertyTypes.createdTime");
+    case "last_edited_time":
+      return i18n.t("databases.propertyTypes.lastEditedTime");
+    case "created_by":
+      return i18n.t("databases.propertyTypes.createdBy");
+    case "last_edited_by":
+      return i18n.t("databases.propertyTypes.lastEditedBy");
+    case "formula":
+      return i18n.t("databases.propertyTypes.formula");
+  }
+}
 
 const PROPERTY_TYPE_ICONS: Record<
   DatabasePropertyType,
@@ -116,6 +140,7 @@ export function PropertyHeaderMenu({
   property,
 }: PropertyHeaderMenuProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [mode, setMode] = React.useState<"menu" | "rename" | "config">("menu");
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
@@ -198,12 +223,12 @@ export function PropertyHeaderMenu({
                   {property.name}
                 </Text>
                 <Text className="text-xs text-muted-foreground">
-                  {PROPERTY_TYPE_LABELS[property.type]}
+                  {propertyTypeLabel(property.type)}
                 </Text>
               </View>
               <MenuItem
                 icon={Pencil}
-                label="Rename"
+                label={t("databases.properties.rename")}
                 onPress={() => setMode("rename")}
               />
               {property.type === "select" ||
@@ -211,29 +236,29 @@ export function PropertyHeaderMenu({
               property.type === "status" ? (
                 <MenuItem
                   icon={ListTodo}
-                  label="Edit options"
+                  label={t("databases.properties.editOptions")}
                   onPress={() => setMode("config")}
                 />
               ) : null}
               <MenuItem
                 icon={ArrowUpAZ}
-                label="Sort ascending"
+                label={t("databases.properties.sortAscending")}
                 onPress={() => applySort("asc")}
               />
               <MenuItem
                 icon={ArrowDownAZ}
-                label="Sort descending"
+                label={t("databases.properties.sortDescending")}
                 onPress={() => applySort("desc")}
               />
               <MenuItem
                 icon={EyeOff}
-                label="Hide in view"
+                label={t("databases.properties.hideInView")}
                 onPress={hide}
               />
               {property.id !== "name" ? (
                 <MenuItem
                   icon={Trash2}
-                  label="Delete property"
+                  label={t("databases.properties.delete")}
                   destructive
                   onPress={remove}
                 />
@@ -244,12 +269,12 @@ export function PropertyHeaderMenu({
           {mode === "rename" ? (
             <View className="gap-2">
               <Text className="text-xs uppercase tracking-wider text-muted-foreground">
-                Property name
+                {t("databases.properties.name")}
               </Text>
               <TextInput
                 value={nameDraft}
                 onChangeText={setNameDraft}
-                placeholder="Untitled"
+                placeholder={t("databases.untitled")}
                 placeholderTextColor={colors.mutedForeground}
                 className="text-sm text-foreground border border-border rounded-md px-2 py-1"
                 style={Platform.OS === "web" ? { outlineWidth: 0 } : undefined}
@@ -262,13 +287,17 @@ export function PropertyHeaderMenu({
                   onPress={() => setMode("menu")}
                   className="px-3 py-1 rounded-md bg-muted"
                 >
-                  <Text className="text-sm text-foreground">Cancel</Text>
+                  <Text className="text-sm text-foreground">
+                    {t("common.cancel")}
+                  </Text>
                 </Pressable>
                 <Pressable
                   onPress={commitName}
                   className="px-3 py-1 rounded-md bg-primary"
                 >
-                  <Text className="text-sm text-primary-foreground">Save</Text>
+                  <Text className="text-sm text-primary-foreground">
+                    {t("common.save")}
+                  </Text>
                 </Pressable>
               </View>
             </View>
@@ -333,6 +362,7 @@ function SelectOptionsEditor({
   onDone,
 }: SelectOptionsEditorProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const updateProperty = useUpdateProperty();
   const [options, setOptions] = React.useState<SelectOption[]>(
     property.config?.options ?? [],
@@ -370,7 +400,7 @@ function SelectOptionsEditor({
   return (
     <View className="gap-2">
       <Text className="text-xs uppercase tracking-wider text-muted-foreground">
-        Options
+        {t("databases.properties.options")}
       </Text>
       <ScrollView style={{ maxHeight: 240 }}>
         {options.map((o) => (
@@ -386,7 +416,7 @@ function SelectOptionsEditor({
         <TextInput
           value={draftName}
           onChangeText={setDraftName}
-          placeholder="New option"
+          placeholder={t("databases.properties.newOption")}
           placeholderTextColor={colors.mutedForeground}
           className="text-sm text-foreground border border-border rounded-md px-2 py-1 flex-1"
           onSubmitEditing={addOption}
@@ -398,7 +428,9 @@ function SelectOptionsEditor({
           className="px-2 py-1 rounded-md bg-primary flex-row items-center gap-1"
         >
           <Plus size={12} color="#ffffff" />
-          <Text className="text-xs text-primary-foreground">Add</Text>
+          <Text className="text-xs text-primary-foreground">
+            {t("databases.actions.add")}
+          </Text>
         </Pressable>
       </View>
       <View className="flex-row justify-end gap-2 mt-2">
@@ -406,7 +438,7 @@ function SelectOptionsEditor({
           onPress={onDone}
           className="px-3 py-1 rounded-md bg-muted"
         >
-          <Text className="text-sm text-foreground">Done</Text>
+          <Text className="text-sm text-foreground">{t("common.done")}</Text>
         </Pressable>
       </View>
     </View>
@@ -490,6 +522,7 @@ export interface AddPropertyButtonProps {
 
 export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
   const { mutate: addProperty, isPending } = useAddPropertyOptimistic(
     database,
@@ -507,7 +540,9 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
       >
         <Plus size={14} color={colors.mutedForeground} />
         <Text className="text-xs text-muted-foreground">
-          {isPending ? "Adding…" : "Add property"}
+          {isPending
+            ? t("databases.actions.adding")
+            : t("databases.properties.add")}
         </Text>
       </Pressable>
       <Modal
@@ -527,7 +562,7 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
         >
           <View className="bg-popover border border-border rounded-2xl shadow-xl p-3 m-3 web:m-0">
             <Text className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-              Add property
+              {t("databases.properties.add")}
             </Text>
             <ScrollView style={{ maxHeight: 360 }}>
               {(
@@ -552,23 +587,23 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
                   "created_by",
                   "last_edited_by",
                 ] as DatabasePropertyType[]
-              ).map((t) => {
-                const Icon = PROPERTY_TYPE_ICONS[t];
+              ).map((type) => {
+                const Icon = PROPERTY_TYPE_ICONS[type];
                 return (
                   <Pressable
-                    key={t}
+                    key={type}
                     onPress={() =>
                       addProperty({
                         databaseId: database.id,
-                        name: PROPERTY_TYPE_LABELS[t],
-                        type: t,
+                        name: propertyTypeLabel(type),
+                        type,
                       })
                     }
                     className="flex-row items-center gap-2 px-2 py-1.5 rounded hover:bg-muted"
                   >
                     <Icon size={14} color={colors.foreground} />
                     <Text className="text-sm text-foreground">
-                      {PROPERTY_TYPE_LABELS[t]}
+                      {propertyTypeLabel(type)}
                     </Text>
                   </Pressable>
                 );

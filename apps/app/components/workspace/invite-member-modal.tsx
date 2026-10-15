@@ -17,7 +17,9 @@ import axios from "axios";
 import { toast } from "@oxy.so/bloom/toast";
 import { useColorScheme } from "@/lib/useColorScheme";
 import { useInviteMember } from "@/lib/hooks/use-workspace-members";
-import { ROLE_LABELS, ROLE_DESCRIPTIONS } from "@/lib/hooks/workspace-roles";
+import { roleDescription, roleLabel } from "./role-labels";
+import { useTranslation } from "@/hooks/useTranslation";
+import i18n from "@/lib/i18n";
 import type { WorkspaceRole } from "@/lib/hooks/use-workspaces";
 
 const ASSIGNABLE_ROLES: WorkspaceRole[] = [
@@ -44,10 +46,10 @@ function extractErrorMessage(err: unknown, fallback: string): string {
     if (data?.message) return data.message;
     if (data?.error) return data.error;
     if (err.response?.status === 404) {
-      return "User not found. Ask them to sign up at oxy.so first.";
+      return i18n.t("workspace.invite.userNotFound");
     }
     if (err.response?.status === 409) {
-      return "That user is already a member of this workspace.";
+      return i18n.t("workspace.invite.alreadyMember");
     }
   }
   if (err instanceof Error && err.message) return err.message;
@@ -60,6 +62,7 @@ export function InviteMemberModal({
   workspaceId,
 }: InviteMemberModalProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [email, setEmail] = React.useState("");
   const [role, setRole] = React.useState<WorkspaceRole>("editor");
   const { mutate, isPending } = useInviteMember(workspaceId);
@@ -81,11 +84,11 @@ export function InviteMemberModal({
       { email: trimmedEmail, role },
       {
         onSuccess: () => {
-          toast.success(`Invited ${trimmedEmail} as ${ROLE_LABELS[role]}`);
+          toast.success(t("workspace.invite.invited", { email: trimmedEmail, role: roleLabel(role) }));
           onOpenChange(false);
         },
         onError: (err) => {
-          toast.error(extractErrorMessage(err, "Failed to invite member"));
+          toast.error(extractErrorMessage(err, t("workspace.invite.failed")));
         },
       },
     );
@@ -95,20 +98,19 @@ export function InviteMemberModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Invite a member</DialogTitle>
+          <DialogTitle>{t("workspace.invite.title")}</DialogTitle>
           <DialogDescription>
-            Invite an existing Oxy user to this workspace. They must
-            already have an account at oxy.so.
+            {t("workspace.invite.description")}
           </DialogDescription>
         </DialogHeader>
 
         <View className="gap-3">
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-foreground">Email</Text>
+            <Text className="text-sm font-medium text-foreground">{t("workspace.invite.email")}</Text>
             <Input
               value={email}
               onChangeText={setEmail}
-              placeholder="teammate@example.com"
+              placeholder={t("workspace.invite.emailPlaceholder")}
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
@@ -118,19 +120,19 @@ export function InviteMemberModal({
             />
             {email.length > 0 && !emailValid ? (
               <Text className="text-xs text-destructive">
-                Enter a valid email address.
+                {t("workspace.invite.invalidEmail")}
               </Text>
             ) : null}
           </View>
 
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-foreground">Role</Text>
+            <Text className="text-sm font-medium text-foreground">{t("workspace.invite.role")}</Text>
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
                 <Pressable
                   className="h-9 flex-row items-center justify-between rounded-xl border border-input bg-background px-3"
                   accessibilityRole="button"
-                  accessibilityLabel={`Selected role ${ROLE_LABELS[role]}`}
+                  accessibilityLabel={t("workspace.invite.selectedRole", { role: roleLabel(role) })}
                   disabled={isPending}
                 >
                   <View className="flex-1 min-w-0">
@@ -138,7 +140,7 @@ export function InviteMemberModal({
                       className="text-sm text-foreground"
                       numberOfLines={1}
                     >
-                      {ROLE_LABELS[role]}
+                      {roleLabel(role)}
                     </Text>
                   </View>
                   <ChevronDown size={14} color={colors.mutedForeground} />
@@ -153,19 +155,19 @@ export function InviteMemberModal({
                     {Platform.OS === "web" ? (
                       <View className="gap-0.5">
                         <Text className="text-sm font-medium text-foreground">
-                          {ROLE_LABELS[option]}
+                          {roleLabel(option)}
                         </Text>
                         <Text className="text-xs text-muted-foreground">
-                          {ROLE_DESCRIPTIONS[option]}
+                          {roleDescription(option)}
                         </Text>
                       </View>
                     ) : (
                       <>
                         <DropdownMenu.ItemTitle>
-                          {ROLE_LABELS[option]}
+                          {roleLabel(option)}
                         </DropdownMenu.ItemTitle>
                         <DropdownMenu.ItemSubtitle>
-                          {ROLE_DESCRIPTIONS[option]}
+                          {roleDescription(option)}
                         </DropdownMenu.ItemSubtitle>
                       </>
                     )}
@@ -174,7 +176,7 @@ export function InviteMemberModal({
               </DropdownMenu.Content>
             </DropdownMenu.Root>
             <Text className="text-xs text-muted-foreground">
-              {ROLE_DESCRIPTIONS[role]}
+              {roleDescription(role)}
             </Text>
           </View>
         </View>
@@ -185,14 +187,14 @@ export function InviteMemberModal({
             onPress={() => onOpenChange(false)}
             disabled={isPending}
           >
-            <Text>Cancel</Text>
+            <Text>{t("common.cancel")}</Text>
           </Button>
           <Button
             onPress={handleSubmit}
             disabled={!canSubmit}
             isLoading={isPending}
           >
-            <Text>Send invite</Text>
+            <Text>{t("workspace.invite.submit")}</Text>
           </Button>
         </DialogFooter>
       </DialogContent>

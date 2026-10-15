@@ -1,1 +1,13 @@
-{}
+{
+  "boundary": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. You can try again, and if the problem persists, our team has been notified."
+  },
+  "notFound": {
+    "documentTitle": "404 - Page Not Found | Nilo",
+    "metaDescription": "The page you're looking for doesn't exist. Return to Nilo to continue working in your workspace.",
+    "screenTitle": "Oops!",
+    "message": "This screen doesn't exist.",
+    "goHome": "Go to home screen!"
+  }
+}

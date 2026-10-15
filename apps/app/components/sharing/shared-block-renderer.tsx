@@ -5,6 +5,7 @@ import { MONO_FONT_FAMILY } from "@/lib/fonts";
 import { Check } from "lucide-react-native";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type { SharedBlock } from "@/lib/hooks/use-share-links";
+import { useTranslation } from "@/hooks/useTranslation";
 
 /**
  * SharedBlockRenderer — read-only block renderer for the public
@@ -36,11 +37,12 @@ function getLanguage(content: Record<string, unknown>): string {
 }
 
 function ParagraphBlock({ content }: { content: Record<string, unknown> }) {
+  const { t } = useTranslation();
   const text = getText(content);
   return (
     <Text className="text-base leading-7 text-foreground">
       {text || (
-        <Text className="text-muted-foreground italic">Empty paragraph</Text>
+        <Text className="text-muted-foreground italic">{t("sharing.blocks.emptyParagraph")}</Text>
       )}
     </Text>
   );
@@ -53,7 +55,8 @@ function HeadingBlock({
   content: Record<string, unknown>;
   level: 1 | 2 | 3;
 }) {
-  const text = getText(content) || "Untitled heading";
+  const { t } = useTranslation();
+  const text = getText(content) || t("sharing.blocks.untitledHeading");
   const className =
     level === 1
       ? "text-3xl font-bold text-foreground mt-4"
@@ -171,6 +174,7 @@ function CalloutBlock({ content }: { content: Record<string, unknown> }) {
 }
 
 export function SharedBlockRenderer({ block }: SharedBlockRendererProps) {
+  const { t } = useTranslation();
   switch (block.type) {
     case "paragraph":
       return <ParagraphBlock content={block.content} />;
@@ -199,7 +203,7 @@ export function SharedBlockRenderer({ block }: SharedBlockRendererProps) {
     default:
       return (
         <Text className="text-sm text-muted-foreground italic">
-          Unsupported block type: {block.type}
+          {t("sharing.blocks.unsupported", { type: block.type })}
         </Text>
       );
   }

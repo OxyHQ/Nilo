@@ -7,6 +7,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Text } from "@/components/ui/text";
 import { useColorScheme } from "@/lib/useColorScheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useDatabase } from "@/lib/hooks/use-databases";
 import { useDatabaseRows } from "@/lib/hooks/use-database-rows";
 import { DatabaseHeader } from "@/components/database/database-header";
@@ -20,11 +21,12 @@ import { DatabaseViewContainer } from "@/components/database/database-view";
 export default function DatabaseRoute() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
+  const { t } = useTranslation();
   if (!id) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <Text className="text-base text-muted-foreground">
-          No database selected.
+          {t("pages.database.noneSelected")}
         </Text>
       </View>
     );
@@ -35,6 +37,7 @@ export default function DatabaseRoute() {
 function DatabasePage({ id }: { id: string }) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const { data, isLoading, isError, error } = useDatabase(id);
 
   const [activeViewId, setActiveViewId] = React.useState<string | null>(null);
@@ -63,7 +66,7 @@ function DatabasePage({ id }: { id: string }) {
 
   if (isError || !data?.database) {
     const message =
-      error instanceof Error ? error.message : "We couldn’t load this database.";
+      error instanceof Error ? error.message : t("pages.database.loadFailed");
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <View className="max-w-md items-center gap-3">
@@ -73,7 +76,7 @@ function DatabasePage({ id }: { id: string }) {
             className="rounded-md bg-primary px-4 py-2"
           >
             <Text className="text-sm font-medium text-primary-foreground">
-              Back to workspace
+              {t("pages.backToWorkspace")}
             </Text>
           </Pressable>
         </View>
@@ -99,7 +102,7 @@ function DatabasePage({ id }: { id: string }) {
       ) : (
         <View className="flex-1 items-center justify-center">
           <Text className="text-sm text-muted-foreground">
-            No views configured yet.
+            {t("pages.database.noViews")}
           </Text>
         </View>
       )}

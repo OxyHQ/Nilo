@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Check, ChevronDown, Plus, X } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type {
   DatabaseProperty,
@@ -558,6 +559,7 @@ function SelectPicker({
 }: SelectPickerProps) {
   const [query, setQuery] = React.useState("");
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -585,7 +587,7 @@ function SelectPicker({
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search options"
+            placeholder={t("databases.properties.searchOptions")}
             placeholderTextColor={colors.mutedForeground}
             className="text-sm text-foreground border border-border rounded-md px-2 py-1 mb-2"
             style={
@@ -597,7 +599,7 @@ function SelectPicker({
             {filtered.length === 0 ? (
               <View className="px-3 py-3">
                 <Text className="text-sm text-muted-foreground">
-                  No options
+                  {t("databases.properties.noOptions")}
                 </Text>
               </View>
             ) : (
@@ -625,7 +627,9 @@ function SelectPicker({
             >
               <X size={12} color={colors.mutedForeground} />
               <Text className="text-xs text-muted-foreground">
-                {multi ? "Clear all" : "Clear"}
+                {multi
+                  ? t("databases.actions.clearAll")
+                  : t("databases.actions.clear")}
               </Text>
             </Pressable>
           ) : null}
@@ -642,7 +646,8 @@ interface DateCellProps extends CellVariantProps {
 
 function DateCell({ value, onChange, variant }: DateCellProps) {
   const { colors } = useColorScheme();
-  const display = value ? new Date(value).toLocaleDateString() : "—";
+  const { locale } = useTranslation();
+  const display = value ? new Date(value).toLocaleDateString(locale) : "—";
   // On web, use a native date input. On native, render the date as text
   // and allow clearing — full picker is a Phase 4.5 stretch goal.
   if (Platform.OS === "web") {
@@ -753,13 +758,14 @@ function FilesCell({ value }: FilesCellProps) {
 }
 
 function RelationCell({ value }: ReadOnlyArrayCellProps) {
+  const { t } = useTranslation();
   if (value.length === 0) {
     return <Text className="text-sm text-muted-foreground">—</Text>;
   }
   return (
     <View className="flex-row items-center gap-1">
       <Text className="text-sm text-foreground">
-        {value.length} {value.length === 1 ? "page" : "pages"}
+        {t("databases.properties.pageCount", { count: value.length })}
       </Text>
     </View>
   );
@@ -771,6 +777,7 @@ interface DerivedCellProps extends CellVariantProps {
 }
 
 function DerivedCell({ value, format }: DerivedCellProps) {
+  const { locale } = useTranslation();
   if (!value || typeof value !== "object") {
     return <Text className="text-sm text-muted-foreground">—</Text>;
   }
@@ -789,7 +796,7 @@ function DerivedCell({ value, format }: DerivedCellProps) {
     if (format === "date" && !Number.isNaN(d.getTime())) {
       return (
         <Text className="text-sm text-foreground">
-          {d.toLocaleDateString()}
+          {d.toLocaleDateString(locale)}
         </Text>
       );
     }

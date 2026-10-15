@@ -3,6 +3,7 @@ import { View, Pressable, ActivityIndicator } from 'react-native';
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useUIStore, type SidebarSectionKey } from '@/lib/stores/ui-store';
 
 interface SidebarSectionProps {
@@ -38,6 +39,7 @@ export function SidebarSection({
   trailing,
 }: SidebarSectionProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const collapsed = useUIStore((s) =>
     sectionKey ? s.sectionCollapsed[sectionKey] : false,
   );
@@ -55,7 +57,11 @@ export function SidebarSection({
       <View className="group/section flex-row items-center px-2">
         <Pressable
           onPress={handleToggle}
-          accessibilityLabel={`${isOpen ? 'Collapse' : 'Expand'} ${title}`}
+          accessibilityLabel={
+            isOpen
+              ? t('sidebar.collapseSection', { title })
+              : t('sidebar.expandSection', { title })
+          }
           accessibilityRole="button"
           disabled={!collapsible || !sectionKey}
           className="flex-1 flex-row items-center gap-1 rounded-md px-1 py-1 hover:bg-muted/50"
@@ -77,7 +83,7 @@ export function SidebarSection({
         {onAdd ? (
           <Pressable
             onPress={onAdd}
-            accessibilityLabel={`Add to ${title}`}
+            accessibilityLabel={t('sidebar.addToSection', { title })}
             accessibilityRole="button"
             disabled={adding}
             className="h-6 w-6 items-center justify-center rounded-md hover:bg-muted"

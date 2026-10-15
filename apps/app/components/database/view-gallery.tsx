@@ -8,6 +8,7 @@ import {
 import { useRouter } from "expo-router";
 import { ImageIcon, Plus } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type {
   Database,
@@ -38,6 +39,7 @@ export function ViewGallery({
 }: ViewGalleryProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const createRow = useCreateRow();
 
   const visibleProperties = React.useMemo(() => {
@@ -95,7 +97,7 @@ export function ViewGallery({
                   className="text-sm font-medium text-foreground"
                   numberOfLines={2}
                 >
-                  {row.title || "Untitled"}
+                  {row.title || t("databases.untitled")}
                 </Text>
                 <View className="gap-1">
                   {visibleProperties.slice(0, 3).map((property) => (
@@ -124,7 +126,9 @@ export function ViewGallery({
         >
           <Plus size={20} color={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground mt-1">
-            {createRow.isPending ? "Adding…" : "New card"}
+            {createRow.isPending
+              ? t("databases.actions.adding")
+              : t("databases.gallery.newCard")}
           </Text>
         </Pressable>
       </View>

@@ -21,7 +21,7 @@
   "featurePlaceholder": "Describe la función que te gustaría. ¿Cómo te ayudaría?",
   "improvementPlaceholder": "¿Qué mejorarías? ¿Cómo lo mejorarías?",
   "otherPlaceholder": "Comparte tus comentarios...",
-  "characterCount": "{{count}}/1000 caracteres",
+  "characterCount": "%{count}/1000 caracteres",
   "submitButton": "Enviar comentarios",
   "submitting": "Enviando...",
   "footerText": "Tus comentarios nos ayudan a mejorar Nilo. Gracias por compartir tu opinión.",

@@ -8,6 +8,7 @@ import {
 import { useRouter } from "expo-router";
 import { ChevronRight, Plus } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type {
   Database,
@@ -36,6 +37,7 @@ export function ViewList({
 }: ViewListProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const createRow = useCreateRow();
 
   const visibleProperties = React.useMemo(() => {
@@ -65,7 +67,7 @@ export function ViewList({
               className="text-sm font-medium text-foreground"
               numberOfLines={1}
             >
-              {row.title || "Untitled"}
+              {row.title || t("databases.untitled")}
             </Text>
           </View>
           <View className="flex-row items-center gap-3">
@@ -89,7 +91,9 @@ export function ViewList({
       >
         <Plus size={14} color={colors.mutedForeground} />
         <Text className="text-sm text-muted-foreground">
-          {createRow.isPending ? "Adding…" : "New"}
+          {createRow.isPending
+            ? t("databases.actions.adding")
+            : t("databases.actions.new")}
         </Text>
       </Pressable>
     </ScrollView>

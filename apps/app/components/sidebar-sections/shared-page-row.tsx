@@ -10,6 +10,7 @@ import {
 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import * as DropdownMenu from '@/components/ui/dropdown-menu';
 import {
   useCreatePage,
@@ -72,12 +73,13 @@ export function SharedPageRow({
 }: SharedRowProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const createPage = useCreatePage();
   const deletePage = useDeletePage();
   const duplicatePage = useDuplicatePage();
   const updatePage = useUpdatePage();
 
-  const title = page.title.trim() ? page.title : 'Untitled';
+  const title = page.title.trim() ? page.title : t('pages.untitled');
   const indent = depth * INDENT_PX;
   const isFavorite = Boolean(page.favorited);
 
@@ -127,7 +129,7 @@ export function SharedPageRow({
       <Pressable
         id={platformDrag?.domId}
         onPress={handleOpen}
-        accessibilityLabel={`Open ${title}`}
+        accessibilityLabel={t('pages.openPage', { title })}
         className={`group/row ${containerClass} ${platformDrag?.isDragging ? 'opacity-40' : ''}`}
         style={{
           paddingLeft: 8 + indent,
@@ -140,7 +142,7 @@ export function SharedPageRow({
             e.stopPropagation();
             if (hasChildren) onToggle();
           }}
-          accessibilityLabel={isOpen ? 'Collapse' : 'Expand'}
+          accessibilityLabel={isOpen ? t('pages.collapse') : t('pages.expand')}
           className="h-5 w-5 items-center justify-center rounded"
           disabled={!hasChildren}
         >
@@ -176,7 +178,7 @@ export function SharedPageRow({
             <DropdownMenu.Trigger>
               <Pressable
                 onPress={(e) => e.stopPropagation()}
-                accessibilityLabel={`Actions for ${title}`}
+                accessibilityLabel={t('pages.actions.actionsFor', { title })}
                 className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
               >
                 <MoreHorizontal size={14} color={colors.mutedForeground} />
@@ -188,23 +190,25 @@ export function SharedPageRow({
                   ios={{ name: isFavorite ? 'star.slash' : 'star' }}
                 />
                 <DropdownMenu.ItemTitle>
-                  {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                  {isFavorite
+                    ? t('pages.actions.removeFromFavorites')
+                    : t('pages.actions.addToFavorites')}
                 </DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Item key="duplicate" onSelect={handleDuplicate}>
                 <DropdownMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
-                <DropdownMenu.ItemTitle>Duplicate</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t('pages.actions.duplicate')}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               {page.parentId ? (
                 <DropdownMenu.Item key="move-root" onSelect={handleMoveToRoot}>
                   <DropdownMenu.ItemIcon ios={{ name: 'arrow.up.left' }} />
-                  <DropdownMenu.ItemTitle>Move to top</DropdownMenu.ItemTitle>
+                  <DropdownMenu.ItemTitle>{t('pages.actions.moveToTop')}</DropdownMenu.ItemTitle>
                 </DropdownMenu.Item>
               ) : null}
               <DropdownMenu.Separator />
               <DropdownMenu.Item key="delete" destructive onSelect={handleDelete}>
                 <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
-                <DropdownMenu.ItemTitle>Move to trash</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t('pages.actions.moveToTrash')}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
@@ -213,7 +217,7 @@ export function SharedPageRow({
               e.stopPropagation();
               handleAddChild();
             }}
-            accessibilityLabel={`Add sub-page to ${title}`}
+            accessibilityLabel={t('pages.actions.addSubPageTo', { title })}
             disabled={createPage.isPending}
             className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
           >

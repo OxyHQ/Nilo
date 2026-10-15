@@ -15,6 +15,7 @@ import { FileText, Clock } from 'lucide-react-native';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { usePaletteData } from './use-palette-data';
 import type { PageItem, MemberItem, CommandItem as CmdItem } from './types';
+import { useTranslation } from '@/hooks/useTranslation';
 
 /**
  * Web command palette built on top of `cmdk`. Opens on Cmd+K (handled by
@@ -26,6 +27,7 @@ export function CommandPalette() {
   const open = useUIStore((s) => s.commandPaletteOpen);
   const setOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const router = useRouter();
+  const { t } = useTranslation();
   const [query, setQuery] = React.useState('');
 
   // Reset query when the palette closes so it opens fresh next time.
@@ -92,16 +94,16 @@ export function CommandPalette() {
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput
-        placeholder="Search pages, people and commands…"
+        placeholder={t("commandPalette.placeholder")}
         value={query}
         onValueChange={setQuery}
       />
       <div ref={listRef}>
         <CommandList>
-          <CommandEmpty>No results.</CommandEmpty>
+          <CommandEmpty>{t("commandPalette.noResults")}</CommandEmpty>
 
           {recents.length > 0 ? (
-            <CommandGroup heading="Recent">
+            <CommandGroup heading={t("commandPalette.groups.recent")}>
               {recents.map((item) => (
                 <PageRow key={item.id} item={item} onSelect={handlePageSelect} icon={<Clock />} />
               ))}
@@ -111,7 +113,7 @@ export function CommandPalette() {
           {pages.length > 0 ? (
             <>
               {recents.length > 0 ? <CommandSeparator /> : null}
-              <CommandGroup heading="Pages">
+              <CommandGroup heading={t("commandPalette.groups.pages")}>
                 {pages.map((item) => (
                   <PageRow key={item.id} item={item} onSelect={handlePageSelect} />
                 ))}
@@ -122,7 +124,7 @@ export function CommandPalette() {
           {members.length > 0 ? (
             <>
               <CommandSeparator />
-              <CommandGroup heading="People">
+              <CommandGroup heading={t("commandPalette.groups.people")}>
                 {members.map((item) => (
                   <MemberRow key={item.id} item={item} onSelect={handleMemberSelect} />
                 ))}
@@ -131,7 +133,7 @@ export function CommandPalette() {
           ) : null}
 
           <CommandSeparator />
-          <CommandGroup heading="Commands">
+          <CommandGroup heading={t("commandPalette.groups.commands")}>
             {commands.map((item) => (
               <CommandRow key={item.id} item={item} />
             ))}

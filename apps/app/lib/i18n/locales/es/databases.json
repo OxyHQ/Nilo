@@ -1,1 +1,121 @@
-{}
+{
+  "untitled": "Sin título",
+  "untitledDatabase": "Base de datos sin título",
+  "actions": {
+    "new": "Nueva",
+    "adding": "Añadiendo…",
+    "add": "Añadir",
+    "apply": "Aplicar",
+    "clear": "Borrar",
+    "clearAll": "Borrar todo"
+  },
+  "toolbar": {
+    "filter": "Filtro",
+    "filterCount": "Filtro (%{count})",
+    "sort": "Orden",
+    "sortCount": "Orden (%{count})"
+  },
+  "views": {
+    "table": "Tabla",
+    "board": "Tablero",
+    "gallery": "Galería",
+    "list": "Lista",
+    "calendar": "Calendario",
+    "timeline": "Cronograma",
+    "new": "Nueva vista",
+    "rename": "Cambiar nombre de la vista",
+    "delete": "Eliminar vista",
+    "namePlaceholder": "Nombre de la vista"
+  },
+  "propertyTypes": {
+    "text": "Texto",
+    "number": "Número",
+    "select": "Selección",
+    "multiSelect": "Selección múltiple",
+    "status": "Estado",
+    "date": "Fecha",
+    "person": "Persona",
+    "files": "Archivos",
+    "checkbox": "Casilla de verificación",
+    "url": "URL",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "relation": "Relación",
+    "rollup": "Resumen (rollup)",
+    "createdTime": "Fecha de creación",
+    "lastEditedTime": "Última edición",
+    "createdBy": "Creado por",
+    "lastEditedBy": "Editado por última vez por",
+    "formula": "Fórmula"
+  },
+  "properties": {
+    "property": "Propiedad",
+    "add": "Añadir propiedad",
+    "rename": "Cambiar nombre",
+    "editOptions": "Editar opciones",
+    "sortAscending": "Orden ascendente",
+    "sortDescending": "Orden descendente",
+    "hideInView": "Ocultar en la vista",
+    "delete": "Eliminar propiedad",
+    "name": "Nombre de la propiedad",
+    "options": "Opciones",
+    "newOption": "Nueva opción",
+    "searchOptions": "Buscar opciones",
+    "noOptions": "No hay opciones",
+    "pageCount": {
+      "one": "%{count} página",
+      "other": "%{count} páginas"
+    }
+  },
+  "filters": {
+    "title": "Filtros",
+    "empty": "Aún no hay filtros. Añade uno abajo.",
+    "add": "Añadir filtro",
+    "value": "Valor",
+    "checked": "Marcada",
+    "unchecked": "Sin marcar",
+    "and": "y",
+    "or": "o",
+    "operators": {
+      "contains": "contiene",
+      "doesNotContain": "no contiene",
+      "equals": "es igual a",
+      "startsWith": "empieza por",
+      "endsWith": "termina en",
+      "isEmpty": "está vacío",
+      "isNotEmpty": "no está vacío",
+      "is": "es",
+      "isNot": "no es",
+      "before": "antes de",
+      "after": "después de",
+      "onOrBefore": "en o antes de",
+      "onOrAfter": "en o después de"
+    }
+  },
+  "sorts": {
+    "title": "Orden",
+    "empty": "Aún no hay órdenes. Añade una propiedad abajo.",
+    "add": "Añadir orden",
+    "allAdded": "Ya se añadieron todas las propiedades"
+  },
+  "table": {
+    "empty": "Aún no hay filas"
+  },
+  "board": {
+    "needsGroupProperty": "Añade una propiedad de estado o de selección para usar la vista de tablero.",
+    "noStatus": "Sin estado"
+  },
+  "gallery": {
+    "newCard": "Nueva tarjeta"
+  },
+  "calendar": {
+    "needsDateProperty": "Añade una propiedad de fecha para activar la vista de calendario.",
+    "webOnly": "La vista de calendario solo está disponible en la web en la fase 4. Abre la vista de tabla en el móvil para editar las filas.",
+    "today": "Hoy"
+  },
+  "timeline": {
+    "needsDateProperty": "Añade una propiedad de fecha para activar la vista de cronograma.",
+    "webOnly": "La vista de cronograma solo está disponible en la web en la fase 4. Abre la vista de tabla en el móvil para ver tus filas.",
+    "row": "Fila"
+  }
+}

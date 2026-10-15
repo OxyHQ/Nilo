@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Text } from "@/components/ui/text";
 import { useCreateWorkspace, type Workspace } from "@/lib/hooks/use-workspaces";
 import { toast } from "@oxy.so/bloom/toast";
+import { useTranslation } from "@/hooks/useTranslation";
 
 /**
  * Curated set of safe, cross-platform emoji glyphs for the icon picker.
@@ -50,6 +51,7 @@ export function CreateWorkspaceModal({
   onOpenChange,
   onCreated,
 }: CreateWorkspaceModalProps) {
+  const { t } = useTranslation();
   const [name, setName] = React.useState("");
   const [icon, setIcon] = React.useState<string>(EMOJI_OPTIONS[0] ?? "");
   const { mutate, isPending } = useCreateWorkspace();
@@ -71,14 +73,14 @@ export function CreateWorkspaceModal({
       { name: trimmed, icon: icon || null },
       {
         onSuccess: (workspace) => {
-          toast.success(`Workspace "${workspace.name}" created`);
+          toast.success(t("workspace.create.created", { name: workspace.name }));
           onCreated?.(workspace);
         },
         onError: (error) => {
           const message =
             error instanceof Error && error.message
               ? error.message
-              : "Failed to create workspace";
+              : t("workspace.create.failed");
           toast.error(message);
         },
       },
@@ -89,20 +91,19 @@ export function CreateWorkspaceModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New workspace</DialogTitle>
+          <DialogTitle>{t("workspace.create.title")}</DialogTitle>
           <DialogDescription>
-            Workspaces are containers for pages, databases, and team
-            members.
+            {t("workspace.create.description")}
           </DialogDescription>
         </DialogHeader>
 
         <View className="gap-3">
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-foreground">Name</Text>
+            <Text className="text-sm font-medium text-foreground">{t("common.name")}</Text>
             <Input
               value={name}
               onChangeText={setName}
-              placeholder="e.g. Acme Co."
+              placeholder={t("workspace.create.namePlaceholder")}
               autoCapitalize="words"
               autoFocus
               maxLength={80}
@@ -112,7 +113,7 @@ export function CreateWorkspaceModal({
           </View>
 
           <View className="gap-1.5">
-            <Text className="text-sm font-medium text-foreground">Icon</Text>
+            <Text className="text-sm font-medium text-foreground">{t("workspace.create.icon")}</Text>
             <View className="flex-row flex-wrap gap-1.5">
               {EMOJI_OPTIONS.map((emoji) => {
                 const selected = emoji === icon;
@@ -126,7 +127,7 @@ export function CreateWorkspaceModal({
                         : "border-border bg-background hover:bg-muted"
                     }`}
                     accessibilityRole="button"
-                    accessibilityLabel={`Use ${emoji} as icon`}
+                    accessibilityLabel={t("workspace.create.useIcon", { emoji })}
                   >
                     <Text className="text-lg" style={{ lineHeight: 22 }}>
                       {emoji}
@@ -144,14 +145,14 @@ export function CreateWorkspaceModal({
             onPress={() => onOpenChange(false)}
             disabled={isPending}
           >
-            <Text>Cancel</Text>
+            <Text>{t("common.cancel")}</Text>
           </Button>
           <Button
             onPress={handleSubmit}
             disabled={!canSubmit}
             isLoading={isPending}
           >
-            <Text>Create workspace</Text>
+            <Text>{t("workspace.create.submit")}</Text>
           </Button>
         </DialogFooter>
       </DialogContent>

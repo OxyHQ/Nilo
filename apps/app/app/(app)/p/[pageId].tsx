@@ -14,6 +14,7 @@ import { CommentPanel } from "@/components/comments/comment-panel";
 import { PageChrome, PageHeader } from "@/components/page-chrome";
 import { RowPropertiesPanel } from "@/components/database/row-properties-panel";
 import { useColorScheme } from "@/lib/useColorScheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import { usePage } from "@/lib/hooks/use-pages";
 import { usePageComments } from "@/lib/hooks/use-comments";
 import { useDatabase } from "@/lib/hooks/use-databases";
@@ -34,11 +35,12 @@ import type { Page } from "@/lib/types/pages";
 export default function PageDetailRoute() {
   const params = useLocalSearchParams<{ pageId?: string | string[] }>();
   const pageId = Array.isArray(params.pageId) ? params.pageId[0] : params.pageId;
+  const { t } = useTranslation();
 
   if (!pageId) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-base text-muted-foreground">No page selected.</Text>
+        <Text className="text-base text-muted-foreground">{t("pages.noneSelected")}</Text>
       </View>
     );
   }
@@ -51,6 +53,7 @@ export default function PageDetailRoute() {
 function PageDetail({ pageId }: { pageId: string }) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const { data, isLoading, isError, error } = usePage(pageId);
   const { data: commentsData } = usePageComments(pageId, false);
   useTrackRecentPage(pageId);
@@ -81,7 +84,7 @@ function PageDetail({ pageId }: { pageId: string }) {
 
   if (isError || !data?.page) {
     const message =
-      error instanceof Error ? error.message : "We couldn’t load this page.";
+      error instanceof Error ? error.message : t("pages.loadFailed");
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <View className="max-w-md items-center gap-3">
@@ -91,7 +94,7 @@ function PageDetail({ pageId }: { pageId: string }) {
             className="rounded-md bg-primary px-4 py-2"
           >
             <Text className="text-sm font-medium text-primary-foreground">
-              Back to workspace
+              {t("pages.backToWorkspace")}
             </Text>
           </Pressable>
         </View>
@@ -105,12 +108,12 @@ function PageDetail({ pageId }: { pageId: string }) {
     <View className="flex-row items-center gap-2">
       <Pressable
         onPress={() => handleOpenPanel(null)}
-        accessibilityLabel="Open comments"
+        accessibilityLabel={t("pages.comments.open")}
         className="flex-row items-center gap-1.5 rounded-md px-2 py-1 hover:bg-muted"
       >
         <MessageCircle size={14} color={colors.foreground} />
         <Text className="text-xs font-medium text-foreground">
-          {openCommentCount > 0 ? openCommentCount : ""} Comments
+          {openCommentCount > 0 ? openCommentCount : ""} {t("pages.comments.label")}
         </Text>
       </Pressable>
       <ShareButton pageId={page._id} />

@@ -1,1 +1,56 @@
-{}
+{
+  "button": {
+    "label": "Share page",
+    "share": "Share"
+  },
+  "scopes": {
+    "read": {
+      "label": "Can view",
+      "description": "View page contents."
+    },
+    "comment": {
+      "label": "Can comment",
+      "description": "View and add comments."
+    },
+    "edit": {
+      "label": "Can edit",
+      "description": "View, comment, and edit."
+    }
+  },
+  "expiry": {
+    "never": "Never expires",
+    "expires": "Expires %{date}",
+    "hasExpiry": "Has expiry",
+    "expired": "expired"
+  },
+  "links": {
+    "copy": "Copy share link",
+    "revoke": "Revoke share link"
+  },
+  "toasts": {
+    "copied": "Link copied",
+    "revoked": "Link revoked",
+    "revokeFailed": "Failed to revoke link",
+    "created": "Public link created — copied to clipboard",
+    "createFailed": "Failed to create share link",
+    "useRevoke": "Use the revoke button next to a link to disable it."
+  },
+  "modal": {
+    "title": "Share this page",
+    "description": "Create a public link to share this page with anyone — even people without an Oxy account.",
+    "anyoneWithLink": "Anyone with the link",
+    "publicActive": "%{scope} — no sign-in required",
+    "publicInactive": "No public link is active",
+    "access": "Access:",
+    "selectedScope": "Selected scope %{scope}",
+    "copy": "Copy",
+    "existingLinks": "Existing links",
+    "loadFailed": "Failed to load share links",
+    "empty": "No share links yet."
+  },
+  "blocks": {
+    "emptyParagraph": "Empty paragraph",
+    "untitledHeading": "Untitled heading",
+    "unsupported": "Unsupported block type: %{type}"
+  }
+}

@@ -6,6 +6,7 @@ import { useColorScheme } from "@/lib/useColorScheme";
 import { useWorkspaceMembers } from "@/lib/hooks/use-workspace-members";
 import { usePages } from "@/lib/hooks/use-pages";
 import type { MentionKind, MentionSegment } from "@/lib/types/comments";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface MentionPickerProps {
   open: boolean;
@@ -62,6 +63,7 @@ export function MentionPicker({
   onClose,
 }: MentionPickerProps) {
   const { colors } = useColorScheme();
+  const { t, locale } = useTranslation();
   const { data: members } = useWorkspaceMembers(workspaceId);
   const { data: pagesData } = usePages(workspaceId);
 
@@ -91,12 +93,14 @@ export function MentionPicker({
     const pages: PickerItem[] = (pagesData?.pages ?? [])
       .filter((p) => !p.archived)
       .map((p) => {
-        const title = p.title?.trim() || "Untitled";
+        const title = p.title?.trim() || t("comments.mentions.untitled");
         return {
           key: `page:${p._id}`,
           kind: "page",
           label: title,
-          detail: p.icon ? `${p.icon} page` : "page",
+          detail: p.icon
+            ? t("comments.mentions.pageWithIcon", { icon: p.icon })
+            : t("comments.mentions.page"),
           build: (): MentionSegment => ({
             type: "mention",
             kind: "page",
@@ -113,11 +117,11 @@ export function MentionPicker({
     nextWeek.setDate(today.getDate() + 7);
 
     const dates: PickerItem[] = [
-      { label: "Today", d: today },
-      { label: "Tomorrow", d: tomorrow },
-      { label: "Next week", d: nextWeek },
-    ].map(({ label, d }) => ({
-      key: `date:${label}`,
+      { id: "today", label: t("comments.mentions.today"), d: today },
+      { id: "tomorrow", label: t("comments.mentions.tomorrow"), d: tomorrow },
+      { id: "nextWeek", label: t("comments.mentions.nextWeek"), d: nextWeek },
+    ].map(({ id, label, d }) => ({
+      key: `date:${id}`,
       kind: "date",
       label,
       detail: formatDisplayDate(d),
@@ -139,7 +143,8 @@ export function MentionPicker({
         );
       })
       .slice(0, 12);
-  }, [members, pagesData?.pages, query]);
+    // `locale` re-labels the date and page fallbacks when the language changes.
+  }, [members, pagesData?.pages, query, locale]);
 
   if (!open) return null;
 
@@ -153,14 +158,14 @@ export function MentionPicker({
     <View className="w-72 rounded-2xl border border-border bg-popover py-1 shadow-lg">
       <View className="px-3 pt-2 pb-1">
         <Text className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Mention
+          {t("comments.mentions.header")}
         </Text>
       </View>
       <View className="max-h-72">
         {items.length === 0 ? (
           <View className="px-3 py-3">
             <Text className="text-sm text-muted-foreground">
-              No matches for &quot;{query}&quot;
+              {t("comments.mentions.noMatches", { query })}
             </Text>
           </View>
         ) : (

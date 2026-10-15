@@ -1,1 +1,27 @@
-{}
+{
+  "title": "Trash",
+  "subtitle": "Archived pages live here for 30 days, then are deleted forever.",
+  "selectWorkspace": "Select a workspace to view trash.",
+  "empty": "Trash is empty.",
+  "emptyTrash": "Empty trash",
+  "archivedAt": "Archived %{date}",
+  "restore": "Restore",
+  "restorePage": "Restore page",
+  "deletePagePermanently": "Delete page permanently",
+  "emptyFailed": "Failed to empty trash",
+  "removed": {
+    "one": "Removed %{count} page",
+    "other": "Removed %{count} pages"
+  },
+  "emptyDialog": {
+    "title": "Empty trash?",
+    "description": {
+      "one": "This will permanently delete %{count} page and every block it contains.",
+      "other": "This will permanently delete %{count} pages and every block they contain."
+    }
+  },
+  "deleteDialog": {
+    "title": "Delete permanently?",
+    "description": "“%{title}” will be removed forever."
+  }
+}

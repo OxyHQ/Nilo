@@ -144,7 +144,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
             <Pressable
               onPress={handleHome}
               className="h-14 items-center justify-center"
-              accessibilityLabel="Home"
+              accessibilityLabel={t("sidebar.home")}
             >
               <NiloWordmark width={20} color={colors.foreground} />
             </Pressable>
@@ -158,7 +158,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
         <View className="flex flex-col items-center gap-2 p-2 pt-1 shrink-0">
           <Pressable
             onPress={toggleSidebarCollapsed}
-            accessibilityLabel="Expand sidebar"
+            accessibilityLabel={t("sidebar.expandSidebar")}
             className="h-10 w-10 rounded-xl items-center justify-center hover:bg-muted"
           >
             <ChevronsRight size={18} color={colors.mutedForeground} />
@@ -166,7 +166,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           {isAuthenticated ? (
             <Pressable
               onPress={handleAccount}
-              accessibilityLabel="Account"
+              accessibilityLabel={t("sidebar.account")}
               className="rounded-full h-10 w-10 flex p-1 items-center justify-center overflow-visible"
             >
               <UserAvatar size={32} />
@@ -174,7 +174,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           ) : (
             <Pressable
               onPress={handleLogin}
-              accessibilityLabel="Sign in"
+              accessibilityLabel={t("login.signInButton")}
               className="rounded-full h-10 w-10 flex items-center justify-center bg-primary/10"
             >
               <Text className="text-sm font-bold text-primary">
@@ -203,7 +203,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           <Pressable
             onPress={handleHome}
             className="p-1 mx-0.5 shrink-0 rounded-xl hover:bg-muted"
-            accessibilityLabel="Home"
+            accessibilityLabel={t("sidebar.home")}
           >
             <NiloWordmark
               height={24}
@@ -216,7 +216,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           <View className="shrink-0">
             <Pressable
               onPress={toggleSidebarCollapsed}
-              accessibilityLabel="Collapse sidebar"
+              accessibilityLabel={t("sidebar.collapseSidebar")}
               className="h-10 w-10 rounded-xl items-center justify-center hover:bg-muted"
             >
               <ChevronsLeft size={18} color={colors.mutedForeground} />
@@ -261,13 +261,13 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
         <View className="px-2 pt-1">
           <Pressable
             onPress={handleCreatePage}
-            accessibilityLabel="New page"
+            accessibilityLabel={t("sidebar.newPage")}
             accessibilityRole="button"
             disabled={createPage.isPending}
             className="flex-row items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60 active:bg-muted/60"
           >
             <Plus size={14} color={colors.mutedForeground} />
-            <Text className="text-sm text-muted-foreground">New page</Text>
+            <Text className="text-sm text-muted-foreground">{t("sidebar.newPage")}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -281,7 +281,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
               <Pressable
-                accessibilityLabel="Account menu"
+                accessibilityLabel={t("sidebar.accountMenu")}
                 accessibilityRole="button"
                 className="flex-row items-center gap-2 rounded-md px-1 py-1 hover:bg-muted/60"
               >

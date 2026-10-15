@@ -1,1 +1,149 @@
-{}
+{
+  "slashMenu": {
+    "paragraph": {
+      "label": "Text",
+      "description": "Plain text paragraph.",
+      "keywords": "text, paragraph, p"
+    },
+    "heading1": {
+      "label": "Heading 1",
+      "description": "Large section heading.",
+      "keywords": "h1, title"
+    },
+    "heading2": {
+      "label": "Heading 2",
+      "description": "Medium section heading.",
+      "keywords": "h2"
+    },
+    "heading3": {
+      "label": "Heading 3",
+      "description": "Small section heading.",
+      "keywords": "h3"
+    },
+    "bulletedList": {
+      "label": "Bulleted list",
+      "description": "Create a simple bulleted list.",
+      "keywords": "bullet, ul, list"
+    },
+    "numberedList": {
+      "label": "Numbered list",
+      "description": "Create a list with numbering.",
+      "keywords": "ol, 1., ordered"
+    },
+    "todo": {
+      "label": "To-do list",
+      "description": "Track tasks with checkboxes.",
+      "keywords": "todo, task, checkbox"
+    },
+    "quote": {
+      "label": "Quote",
+      "description": "Capture a quote.",
+      "keywords": "blockquote"
+    },
+    "divider": {
+      "label": "Divider",
+      "description": "Visually divide blocks.",
+      "keywords": "hr, line"
+    },
+    "code": {
+      "label": "Code",
+      "description": "Monospace code block.",
+      "keywords": "snippet, monospace"
+    },
+    "callout": {
+      "label": "Callout",
+      "description": "Highlight important info.",
+      "keywords": "note, info"
+    },
+    "toggle": {
+      "label": "Toggle",
+      "description": "Click to expand or collapse content.",
+      "keywords": "dropdown, collapsible, details"
+    },
+    "image": {
+      "label": "Image",
+      "description": "Upload, embed, or paste an image URL.",
+      "keywords": "picture, photo, img"
+    },
+    "video": {
+      "label": "Video",
+      "description": "Embed YouTube, Vimeo, Loom, or a video URL.",
+      "keywords": "movie, mp4"
+    },
+    "audio": {
+      "label": "Audio",
+      "description": "Play an audio clip from a URL.",
+      "keywords": "mp3, sound"
+    },
+    "file": {
+      "label": "File",
+      "description": "Attach any file as a downloadable pill.",
+      "keywords": "attachment, upload"
+    },
+    "pdf": {
+      "label": "PDF",
+      "description": "Embed a PDF document.",
+      "keywords": "document"
+    },
+    "bookmark": {
+      "label": "Bookmark",
+      "description": "Save a URL as a rich preview card.",
+      "keywords": "link, url, preview"
+    },
+    "embed": {
+      "label": "Embed",
+      "description": "Embed a tweet, Figma, Codepen, Gist…",
+      "keywords": "iframe, media"
+    },
+    "youtube": {
+      "label": "YouTube",
+      "description": "Paste a YouTube URL.",
+      "keywords": "youtube, yt"
+    },
+    "columns": {
+      "label": "Columns",
+      "description": "Split content into side-by-side columns.",
+      "keywords": "layout, grid"
+    },
+    "table": {
+      "label": "Table",
+      "description": "Simple editable table.",
+      "keywords": "grid, spreadsheet"
+    },
+    "button": {
+      "label": "Button",
+      "description": "Add a clickable button with an action.",
+      "keywords": "cta, action"
+    },
+    "linkToPage": {
+      "label": "Link to page",
+      "description": "Inline link to another page in this workspace.",
+      "keywords": "mention, wiki"
+    },
+    "equation": {
+      "label": "Equation",
+      "description": "Render LaTeX math.",
+      "keywords": "math, latex, tex"
+    },
+    "mermaid": {
+      "label": "Mermaid",
+      "description": "Render a diagram from Mermaid source.",
+      "keywords": "diagram, flowchart"
+    },
+    "tableOfContents": {
+      "label": "Table of contents",
+      "description": "Auto-generated from page headings.",
+      "keywords": "toc, outline"
+    },
+    "breadcrumb": {
+      "label": "Breadcrumb",
+      "description": "Path from workspace root to current page.",
+      "keywords": "path, nav"
+    },
+    "syncedBlock": {
+      "label": "Synced block",
+      "description": "Reference another block (Phase 3 placeholder).",
+      "keywords": "mirror, reference"
+    }
+  }
+}

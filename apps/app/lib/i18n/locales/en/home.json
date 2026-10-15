@@ -1,1 +1,7 @@
-{}
+{
+  "signInPrompt": "Sign in to start building your workspace.",
+  "selectWorkspace": "Select a workspace from the sidebar to get started.",
+  "empty": "Your workspace is empty. Create your first page to begin.",
+  "creating": "Creating…",
+  "createFirstPage": "Create your first page"
+}

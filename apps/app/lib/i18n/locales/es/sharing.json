@@ -1,1 +1,56 @@
-{}
+{
+  "button": {
+    "label": "Compartir página",
+    "share": "Compartir"
+  },
+  "scopes": {
+    "read": {
+      "label": "Puede ver",
+      "description": "Ver el contenido de la página."
+    },
+    "comment": {
+      "label": "Puede comentar",
+      "description": "Ver y añadir comentarios."
+    },
+    "edit": {
+      "label": "Puede editar",
+      "description": "Ver, comentar y editar."
+    }
+  },
+  "expiry": {
+    "never": "No caduca",
+    "expires": "Caduca el %{date}",
+    "hasExpiry": "Tiene caducidad",
+    "expired": "caducado"
+  },
+  "links": {
+    "copy": "Copiar enlace para compartir",
+    "revoke": "Revocar enlace para compartir"
+  },
+  "toasts": {
+    "copied": "Enlace copiado",
+    "revoked": "Enlace revocado",
+    "revokeFailed": "No se pudo revocar el enlace",
+    "created": "Enlace público creado y copiado al portapapeles",
+    "createFailed": "No se pudo crear el enlace para compartir",
+    "useRevoke": "Usa el botón de revocar junto a un enlace para desactivarlo."
+  },
+  "modal": {
+    "title": "Compartir esta página",
+    "description": "Crea un enlace público para compartir esta página con cualquier persona, incluso sin una cuenta de Oxy.",
+    "anyoneWithLink": "Cualquier persona con el enlace",
+    "publicActive": "%{scope}: no hace falta iniciar sesión",
+    "publicInactive": "No hay ningún enlace público activo",
+    "access": "Acceso:",
+    "selectedScope": "Permiso seleccionado: %{scope}",
+    "copy": "Copiar",
+    "existingLinks": "Enlaces existentes",
+    "loadFailed": "No se pudieron cargar los enlaces para compartir",
+    "empty": "Todavía no hay enlaces para compartir."
+  },
+  "blocks": {
+    "emptyParagraph": "Párrafo vacío",
+    "untitledHeading": "Encabezado sin título",
+    "unsupported": "Tipo de bloque no compatible: %{type}"
+  }
+}

@@ -4,5 +4,30 @@
   "notifications": "Notificaciones",
   "logOut": "Cerrar sesión",
   "termsOfService": "Términos del servicio",
-  "privacyPolicy": "Política de privacidad"
+  "privacyPolicy": "Política de privacidad",
+  "home": "Inicio",
+  "expandSidebar": "Expandir barra lateral",
+  "collapseSidebar": "Contraer barra lateral",
+  "accountMenu": "Menú de la cuenta",
+  "newPage": "Nueva página",
+  "search": "Buscar",
+  "searchLabel": "Buscar páginas, personas y comandos",
+  "inbox": "Bandeja de entrada",
+  "settingsAndMembers": "Ajustes y miembros",
+  "trash": "Papelera",
+  "recent": "Recientes",
+  "sections": {
+    "favorites": "Favoritos",
+    "private": "Privado",
+    "shared": "Compartido",
+    "databases": "Bases de datos",
+    "templates": "Plantillas"
+  },
+  "collapseSection": "Contraer %{title}",
+  "expandSection": "Expandir %{title}",
+  "addToSection": "Añadir a %{title}",
+  "databasesComingSoon": "Las bases de datos llegarán pronto.",
+  "templatesHint": "Guarda una página como plantilla para reutilizarla más adelante.",
+  "loadPagesFailed": "No se pudieron cargar las páginas.",
+  "noPrivatePages": "Todavía no hay páginas privadas."
 }

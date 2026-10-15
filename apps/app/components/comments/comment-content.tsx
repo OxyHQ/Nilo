@@ -6,6 +6,7 @@ import { Text } from "@/components/ui/text";
 import { useOxy } from "@oxy.so/services";
 import { useColorScheme } from "@/lib/useColorScheme";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/hooks/useTranslation";
 import {
   isMentionSegment,
   type CommentContent as CommentContentType,
@@ -62,6 +63,7 @@ function MentionChip({ mention }: { mention: MentionSegment }) {
   const router = useRouter();
   const { showBottomSheet } = useOxy();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
 
   const Icon = mention.kind === "user" ? User : mention.kind === "page" ? FileText : Calendar;
 
@@ -83,7 +85,7 @@ function MentionChip({ mention }: { mention: MentionSegment }) {
       onPress={handlePress}
       className="flex-row items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 mx-0.5"
       accessibilityRole="link"
-      accessibilityLabel={`Mention: ${mention.originalText}`}
+      accessibilityLabel={t("comments.mentionLabel", { name: mention.originalText })}
     >
       <Icon size={12} color={colors.primary} />
       <Text className="text-xs font-medium text-primary">

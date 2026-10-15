@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { ChevronDown, Plus, Trash2 } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
+import { useTranslation } from "@/hooks/useTranslation";
+import i18n from "@/lib/i18n";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type {
   Database,
@@ -29,87 +31,66 @@ interface FilterBuilderProps {
   view: DatabaseView;
 }
 
-const OPERATORS_BY_TYPE: Record<string, { value: string; label: string }[]> = {
-  text: [
-    { value: "contains", label: "contains" },
-    { value: "equals", label: "equals" },
-    { value: "starts_with", label: "starts with" },
-    { value: "ends_with", label: "ends with" },
-    { value: "is_empty", label: "is empty" },
-    { value: "is_not_empty", label: "is not empty" },
-  ],
-  number: [
-    { value: "=", label: "=" },
-    { value: "!=", label: "≠" },
-    { value: ">", label: ">" },
-    { value: "<", label: "<" },
-    { value: ">=", label: "≥" },
-    { value: "<=", label: "≤" },
-    { value: "is_empty", label: "is empty" },
-  ],
-  select: [
-    { value: "is", label: "is" },
-    { value: "is_not", label: "is not" },
-    { value: "is_empty", label: "is empty" },
-  ],
-  status: [
-    { value: "is", label: "is" },
-    { value: "is_not", label: "is not" },
-    { value: "is_empty", label: "is empty" },
-  ],
-  multi_select: [
-    { value: "contains", label: "contains" },
-    { value: "does_not_contain", label: "does not contain" },
-    { value: "is_empty", label: "is empty" },
-  ],
-  date: [
-    { value: "before", label: "before" },
-    { value: "after", label: "after" },
-    { value: "on_or_before", label: "on or before" },
-    { value: "on_or_after", label: "on or after" },
-    { value: "equals", label: "equals" },
-    { value: "is_empty", label: "is empty" },
-  ],
-  checkbox: [
-    { value: "is", label: "is" },
-    { value: "is_not", label: "is not" },
-  ],
-  url: [
-    { value: "contains", label: "contains" },
-    { value: "equals", label: "equals" },
-    { value: "is_empty", label: "is empty" },
-  ],
-  email: [
-    { value: "contains", label: "contains" },
-    { value: "equals", label: "equals" },
-    { value: "is_empty", label: "is empty" },
-  ],
-  phone: [
-    { value: "contains", label: "contains" },
-    { value: "equals", label: "equals" },
-    { value: "is_empty", label: "is empty" },
-  ],
-  person: [
-    { value: "contains", label: "contains" },
-    { value: "does_not_contain", label: "does not contain" },
-    { value: "is_empty", label: "is empty" },
-  ],
-  relation: [
-    { value: "contains", label: "contains" },
-    { value: "does_not_contain", label: "does not contain" },
-    { value: "is_empty", label: "is empty" },
-  ],
-  files: [
-    { value: "is_empty", label: "is empty" },
-    { value: "is_not_empty", label: "is not empty" },
-  ],
+/** Operator values (sent to the API) offered per property type. */
+const OPERATORS_BY_TYPE: Record<string, string[]> = {
+  text: ["contains", "equals", "starts_with", "ends_with", "is_empty", "is_not_empty"],
+  number: ["=", "!=", ">", "<", ">=", "<=", "is_empty"],
+  select: ["is", "is_not", "is_empty"],
+  status: ["is", "is_not", "is_empty"],
+  multi_select: ["contains", "does_not_contain", "is_empty"],
+  date: ["before", "after", "on_or_before", "on_or_after", "equals", "is_empty"],
+  checkbox: ["is", "is_not"],
+  url: ["contains", "equals", "is_empty"],
+  email: ["contains", "equals", "is_empty"],
+  phone: ["contains", "equals", "is_empty"],
+  person: ["contains", "does_not_contain", "is_empty"],
+  relation: ["contains", "does_not_contain", "is_empty"],
+  files: ["is_empty", "is_not_empty"],
 };
 
+/** Translated at call time: the locale can change while the app runs. */
+function operatorLabel(operator: string): string {
+  switch (operator) {
+    case "contains":
+      return i18n.t("databases.filters.operators.contains");
+    case "does_not_contain":
+      return i18n.t("databases.filters.operators.doesNotContain");
+    case "equals":
+      return i18n.t("databases.filters.operators.equals");
+    case "starts_with":
+      return i18n.t("databases.filters.operators.startsWith");
+    case "ends_with":
+      return i18n.t("databases.filters.operators.endsWith");
+    case "is_empty":
+      return i18n.t("databases.filters.operators.isEmpty");
+    case "is_not_empty":
+      return i18n.t("databases.filters.operators.isNotEmpty");
+    case "is":
+      return i18n.t("databases.filters.operators.is");
+    case "is_not":
+      return i18n.t("databases.filters.operators.isNot");
+    case "before":
+      return i18n.t("databases.filters.operators.before");
+    case "after":
+      return i18n.t("databases.filters.operators.after");
+    case "on_or_before":
+      return i18n.t("databases.filters.operators.onOrBefore");
+    case "on_or_after":
+      return i18n.t("databases.filters.operators.onOrAfter");
+    case "!=":
+      return "≠";
+    case ">=":
+      return "≥";
+    case "<=":
+      return "≤";
+    default:
+      return operator;
+  }
+}
+
 function operatorsFor(type: string): { value: string; label: string }[] {
-  return OPERATORS_BY_TYPE[type] ?? [
-    { value: "is_empty", label: "is empty" },
-    { value: "is_not_empty", label: "is not empty" },
-  ];
+  const values = OPERATORS_BY_TYPE[type] ?? ["is_empty", "is_not_empty"];
+  return values.map((value) => ({ value, label: operatorLabel(value) }));
 }
 
 /**
@@ -123,6 +104,7 @@ export function FilterBuilder({
   database,
   view,
 }: FilterBuilderProps) {
+  const { t } = useTranslation();
   const updateView = useUpdateView();
   const [draft, setDraft] = React.useState<FilterGroup>(() =>
     cloneFilterGroup(view.filters),
@@ -215,7 +197,7 @@ export function FilterBuilder({
         <View className="bg-popover border border-border rounded-2xl shadow-xl p-4 m-3 web:m-0 gap-3">
           <View className="flex-row items-center justify-between">
             <Text className="text-base font-semibold text-foreground">
-              Filters
+              {t("databases.filters.title")}
             </Text>
             <CombinatorPicker
               value={draft.combinator}
@@ -227,7 +209,7 @@ export function FilterBuilder({
             {draft.filters.length === 0 ? (
               <View className="py-4">
                 <Text className="text-sm text-muted-foreground">
-                  No filters yet. Add one below.
+                  {t("databases.filters.empty")}
                 </Text>
               </View>
             ) : (
@@ -255,19 +237,25 @@ export function FilterBuilder({
               onPress={reset}
               className="px-3 py-1.5 rounded-md bg-muted"
             >
-              <Text className="text-sm text-foreground">Clear all</Text>
+              <Text className="text-sm text-foreground">
+                {t("databases.actions.clearAll")}
+              </Text>
             </Pressable>
             <Pressable
               onPress={onClose}
               className="px-3 py-1.5 rounded-md bg-muted"
             >
-              <Text className="text-sm text-foreground">Cancel</Text>
+              <Text className="text-sm text-foreground">
+                {t("common.cancel")}
+              </Text>
             </Pressable>
             <Pressable
               onPress={apply}
               className="px-3 py-1.5 rounded-md bg-primary"
             >
-              <Text className="text-sm text-primary-foreground">Apply</Text>
+              <Text className="text-sm text-primary-foreground">
+                {t("databases.actions.apply")}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -282,6 +270,7 @@ interface CombinatorPickerProps {
 }
 
 function CombinatorPicker({ value, onChange }: CombinatorPickerProps) {
+  const { t } = useTranslation();
   return (
     <View className="flex-row rounded-md border border-border overflow-hidden">
       {(["and", "or"] as const).map((option) => (
@@ -299,7 +288,9 @@ function CombinatorPicker({ value, onChange }: CombinatorPickerProps) {
                 : "text-foreground"
             }`}
           >
-            {option}
+            {option === "and"
+              ? t("databases.filters.and")
+              : t("databases.filters.or")}
           </Text>
         </Pressable>
       ))}
@@ -321,6 +312,7 @@ function ConditionRow({
   onRemove,
 }: ConditionRowProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [propertyOpen, setPropertyOpen] = React.useState(false);
   const [operatorOpen, setOperatorOpen] = React.useState(false);
 
@@ -332,7 +324,7 @@ function ConditionRow({
   return (
     <View className="flex-row items-center gap-2 py-1">
       <PickerButton
-        label={property?.name ?? "Property"}
+        label={property?.name ?? t("databases.properties.property")}
         onPress={() => setPropertyOpen((s) => !s)}
       />
       <PickerButton
@@ -463,6 +455,7 @@ function ConditionValueInput({
   onChange,
 }: ConditionValueInputProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   // Operators that don't take a value
   if (operator === "is_empty" || operator === "is_not_empty") {
     return <View />;
@@ -482,7 +475,7 @@ function ConditionValueInput({
               value === true ? "text-primary-foreground" : "text-foreground"
             }`}
           >
-            Checked
+            {t("databases.filters.checked")}
           </Text>
         </Pressable>
         <Pressable
@@ -496,7 +489,7 @@ function ConditionValueInput({
               value === false ? "text-primary-foreground" : "text-foreground"
             }`}
           >
-            Unchecked
+            {t("databases.filters.unchecked")}
           </Text>
         </Pressable>
       </View>
@@ -533,7 +526,7 @@ function ConditionValueInput({
     <TextInput
       value={text}
       onChangeText={onChange}
-      placeholder="Value"
+      placeholder={t("databases.filters.value")}
       placeholderTextColor={colors.mutedForeground}
       className="text-sm text-foreground border border-border rounded-md px-2 py-1"
       style={Platform.OS === "web" ? { outlineWidth: 0 } : undefined}
@@ -549,6 +542,7 @@ interface AddConditionButtonProps {
 
 function AddConditionButton({ database, onPick }: AddConditionButtonProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -558,7 +552,9 @@ function AddConditionButton({ database, onPick }: AddConditionButtonProps) {
         className="flex-row items-center gap-1 self-start px-2 py-1 rounded hover:bg-muted"
       >
         <Plus size={12} color={colors.mutedForeground} />
-        <Text className="text-xs text-muted-foreground">Add filter</Text>
+        <Text className="text-xs text-muted-foreground">
+          {t("databases.filters.add")}
+        </Text>
       </Pressable>
       {open ? (
         <ListPopover

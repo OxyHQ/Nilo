@@ -1,1 +1,121 @@
-{}
+{
+  "untitled": "Untitled",
+  "untitledDatabase": "Untitled database",
+  "actions": {
+    "new": "New",
+    "adding": "Adding…",
+    "add": "Add",
+    "apply": "Apply",
+    "clear": "Clear",
+    "clearAll": "Clear all"
+  },
+  "toolbar": {
+    "filter": "Filter",
+    "filterCount": "Filter (%{count})",
+    "sort": "Sort",
+    "sortCount": "Sort (%{count})"
+  },
+  "views": {
+    "table": "Table",
+    "board": "Board",
+    "gallery": "Gallery",
+    "list": "List",
+    "calendar": "Calendar",
+    "timeline": "Timeline",
+    "new": "New view",
+    "rename": "Rename view",
+    "delete": "Delete view",
+    "namePlaceholder": "View name"
+  },
+  "propertyTypes": {
+    "text": "Text",
+    "number": "Number",
+    "select": "Select",
+    "multiSelect": "Multi-select",
+    "status": "Status",
+    "date": "Date",
+    "person": "Person",
+    "files": "Files",
+    "checkbox": "Checkbox",
+    "url": "URL",
+    "email": "Email",
+    "phone": "Phone",
+    "relation": "Relation",
+    "rollup": "Rollup",
+    "createdTime": "Created time",
+    "lastEditedTime": "Last edited time",
+    "createdBy": "Created by",
+    "lastEditedBy": "Last edited by",
+    "formula": "Formula"
+  },
+  "properties": {
+    "property": "Property",
+    "add": "Add property",
+    "rename": "Rename",
+    "editOptions": "Edit options",
+    "sortAscending": "Sort ascending",
+    "sortDescending": "Sort descending",
+    "hideInView": "Hide in view",
+    "delete": "Delete property",
+    "name": "Property name",
+    "options": "Options",
+    "newOption": "New option",
+    "searchOptions": "Search options",
+    "noOptions": "No options",
+    "pageCount": {
+      "one": "%{count} page",
+      "other": "%{count} pages"
+    }
+  },
+  "filters": {
+    "title": "Filters",
+    "empty": "No filters yet. Add one below.",
+    "add": "Add filter",
+    "value": "Value",
+    "checked": "Checked",
+    "unchecked": "Unchecked",
+    "and": "and",
+    "or": "or",
+    "operators": {
+      "contains": "contains",
+      "doesNotContain": "does not contain",
+      "equals": "equals",
+      "startsWith": "starts with",
+      "endsWith": "ends with",
+      "isEmpty": "is empty",
+      "isNotEmpty": "is not empty",
+      "is": "is",
+      "isNot": "is not",
+      "before": "before",
+      "after": "after",
+      "onOrBefore": "on or before",
+      "onOrAfter": "on or after"
+    }
+  },
+  "sorts": {
+    "title": "Sort",
+    "empty": "No sorts yet. Add a property below.",
+    "add": "Add sort",
+    "allAdded": "All properties added"
+  },
+  "table": {
+    "empty": "No rows yet"
+  },
+  "board": {
+    "needsGroupProperty": "Add a status or select property to use the board view.",
+    "noStatus": "No status"
+  },
+  "gallery": {
+    "newCard": "New card"
+  },
+  "calendar": {
+    "needsDateProperty": "Add a date property to enable the calendar view.",
+    "webOnly": "Calendar view is web-only in Phase 4. Open the table view on native to edit rows.",
+    "today": "Today"
+  },
+  "timeline": {
+    "needsDateProperty": "Add a date property to enable the timeline view.",
+    "webOnly": "Timeline view is web-only in Phase 4. Open the table view on native to see your rows.",
+    "row": "Row"
+  }
+}

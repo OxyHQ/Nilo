@@ -9,6 +9,7 @@ import {
 import { ImageIcon, Move, Smile } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { useColorScheme } from "@/lib/useColorScheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useUpdatePage } from "@/lib/hooks/use-pages";
 import type { Page } from "@/lib/types/pages";
 import { Breadcrumb } from "./breadcrumb";
@@ -196,6 +197,7 @@ function CoverArea({
   onToggleReposition,
   onCommitPosition,
 }: CoverAreaProps) {
+  const { t } = useTranslation();
   const [localPosition, setLocalPosition] = React.useState<number | null>(null);
   const startY = React.useRef<number | null>(null);
   const startPos = React.useRef<number>(position);
@@ -239,7 +241,7 @@ function CoverArea({
         onResponderMove={handleMove}
         onResponderRelease={handleEnd}
         onResponderTerminate={handleEnd}
-        accessibilityLabel="Cover"
+        accessibilityLabel={t("pages.header.cover")}
       >
         <CoverDisplay value={cover} position={effectivePosition} height={192} />
       </View>
@@ -251,7 +253,7 @@ function CoverArea({
               ? "h-8 flex-row items-center gap-1 rounded-md bg-primary px-3"
               : "h-8 flex-row items-center gap-1 rounded-md bg-card/90 px-3 hover:bg-card"
           }
-          accessibilityLabel="Reposition cover"
+          accessibilityLabel={t("pages.header.repositionCover")}
         >
           <Move
             size={14}
@@ -265,17 +267,19 @@ function CoverArea({
                 : "text-xs font-medium text-foreground"
             }
           >
-            {repositioning ? "Save position" : "Reposition"}
+            {repositioning
+              ? t("pages.header.savePosition")
+              : t("pages.header.reposition")}
           </Text>
         </Pressable>
         <Pressable
           onPress={onOpenPicker}
           className="h-8 flex-row items-center gap-1 rounded-md bg-card/90 px-3 hover:bg-card"
-          accessibilityLabel="Change cover"
+          accessibilityLabel={t("pages.header.changeCover")}
         >
           <ImageIcon size={14} className="text-foreground" />
           <Text className="text-xs font-medium text-foreground">
-            Change cover
+            {t("pages.header.changeCover")}
           </Text>
         </Pressable>
       </View>
@@ -292,12 +296,13 @@ interface IconAreaProps {
   onOpenPicker: () => void;
 }
 function IconArea({ icon, onOpenPicker }: IconAreaProps) {
+  const { t } = useTranslation();
   if (!icon) return null;
   return (
     <Pressable
       onPress={onOpenPicker}
       className="self-start rounded-md p-1 hover:bg-muted"
-      accessibilityLabel="Change icon"
+      accessibilityLabel={t("pages.header.changeIcon")}
     >
       <IconDisplay value={icon} size={64} />
     </Pressable>
@@ -320,14 +325,15 @@ function AddChromeRow({
   onAddIcon,
   onAddCover,
 }: AddChromeRowProps) {
+  const { t } = useTranslation();
   if (hasIcon && hasCover) return null;
   return (
     <View className="flex-row gap-2 pb-3">
       {!hasIcon ? (
-        <AddChromeButton icon="emoji" onPress={onAddIcon} label="Add icon" />
+        <AddChromeButton icon="emoji" onPress={onAddIcon} label={t("pages.header.addIcon")} />
       ) : null}
       {!hasCover ? (
-        <AddChromeButton icon="cover" onPress={onAddCover} label="Add cover" />
+        <AddChromeButton icon="cover" onPress={onAddCover} label={t("pages.header.addCover")} />
       ) : null}
     </View>
   );
@@ -367,12 +373,13 @@ interface TitleInputProps {
 }
 function TitleInput({ value, onChangeText, onBlur }: TitleInputProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   return (
     <TextInput
       value={value}
       onChangeText={onChangeText}
       onBlur={onBlur}
-      placeholder="Untitled"
+      placeholder={t("pages.untitled")}
       placeholderTextColor={colors.mutedForeground}
       className="text-4xl font-bold text-foreground"
       multiline

@@ -9,6 +9,7 @@ import * as ExpoNotifications from "expo-notifications";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 import { useTranslation } from "@/hooks/useTranslation";
+import i18n from "@/lib/i18n";
 import {
   useNotifications,
   useMarkAsRead,
@@ -32,12 +33,12 @@ const PRIORITY_COLORS: Record<Notification['priority'], string> = {
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return i18n.t('notifications.time.justNow');
+  if (minutes < 60) return i18n.t('notifications.time.minutesAgo', { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return i18n.t('notifications.time.hoursAgo', { count: hours });
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return i18n.t('notifications.time.daysAgo', { count: days });
 }
 
 export default function NotificationsScreen() {
@@ -122,7 +123,7 @@ export default function NotificationsScreen() {
             <Text className="text-2xl font-semibold text-foreground">{t('notifications.title')}</Text>
             {unreadCount > 0 && (
               <Text className="text-sm text-muted-foreground mt-1">
-                {unreadCount} unread
+                {t('notifications.unread', { count: unreadCount })}
               </Text>
             )}
           </View>
@@ -132,7 +133,7 @@ export default function NotificationsScreen() {
               className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted active:bg-muted/80"
             >
               <CheckCheck size={14} className="text-muted-foreground" />
-              <Text className="text-xs text-muted-foreground">Mark all read</Text>
+              <Text className="text-xs text-muted-foreground">{t('notifications.markAllRead')}</Text>
             </Pressable>
           )}
         </View>
@@ -172,14 +173,14 @@ export default function NotificationsScreen() {
       {/* Notification Feed */}
       {isLoading ? (
         <View className="items-center justify-center py-12">
-          <Text className="text-sm text-muted-foreground">Loading...</Text>
+          <Text className="text-sm text-muted-foreground">{t('common.loading')}</Text>
         </View>
       ) : notifications.length === 0 ? (
         <View className="items-center justify-center py-16 px-6">
           <Bell size={32} className="text-muted-foreground mb-3" />
-          <Text className="text-base font-medium text-foreground mb-1">No notifications yet</Text>
+          <Text className="text-base font-medium text-foreground mb-1">{t('notifications.emptyTitle')}</Text>
           <Text className="text-sm text-muted-foreground text-center">
-            Mentions and replies from your workspace will appear here.
+            {t('notifications.emptyBody')}
           </Text>
         </View>
       ) : (

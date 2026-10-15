@@ -1,1 +1,186 @@
-{}
+{
+  "untitled": "Sin título",
+  "openPage": "Abrir %{title}",
+  "noneSelected": "No hay ninguna página seleccionada.",
+  "loadFailed": "No pudimos cargar esta página.",
+  "backToWorkspace": "Volver al espacio de trabajo",
+  "collapse": "Contraer",
+  "expand": "Expandir",
+  "comments": {
+    "open": "Abrir comentarios",
+    "label": "Comentarios"
+  },
+  "database": {
+    "noneSelected": "No hay ninguna base de datos seleccionada.",
+    "loadFailed": "No pudimos cargar esta base de datos.",
+    "noViews": "Todavía no hay vistas configuradas."
+  },
+  "actions": {
+    "menu": "Acciones de la página",
+    "actionsFor": "Acciones de %{title}",
+    "duplicate": "Duplicar",
+    "addToFavorites": "Añadir a favoritos",
+    "removeFromFavorites": "Quitar de favoritos",
+    "moveTo": "Mover a…",
+    "moveToTop": "Mover al nivel superior",
+    "copyLink": "Copiar enlace",
+    "exportMarkdown": "Exportar como Markdown",
+    "moveToTrash": "Mover a la papelera",
+    "restoreFromTrash": "Restaurar de la papelera",
+    "deletePermanently": "Eliminar definitivamente",
+    "addSubPage": "Añadir subpágina",
+    "addSubPageTo": "Añadir subpágina a %{title}",
+    "openAndRename": "Abrir y renombrar"
+  },
+  "toasts": {
+    "duplicated": "Página duplicada",
+    "duplicateFailed": "No se pudo duplicar la página",
+    "linkCopied": "Enlace copiado",
+    "markdownDownloaded": "Markdown descargado",
+    "markdownCopied": "Markdown copiado al portapapeles",
+    "exportFailed": "No se pudo exportar",
+    "movedToTrash": "Movida a la papelera",
+    "moveToTrashFailed": "No se pudo mover a la papelera",
+    "restored": "Página restaurada",
+    "restoreFailed": "No se pudo restaurar",
+    "deletedPermanently": "Página eliminada definitivamente",
+    "deleteFailed": "No se pudo eliminar la página"
+  },
+  "deleteDialog": {
+    "title": "¿Eliminar definitivamente?",
+    "description": "«%{title}» y todos sus bloques se eliminarán para siempre. Esta acción no se puede deshacer."
+  },
+  "favorite": {
+    "add": "Añadir a favoritos",
+    "remove": "Quitar de favoritos"
+  },
+  "breadcrumb": {
+    "workspaceHome": "Inicio del espacio de trabajo",
+    "workspace": "Espacio de trabajo"
+  },
+  "header": {
+    "cover": "Portada",
+    "pageCover": "Portada de la página",
+    "pageIcon": "Icono de la página",
+    "reposition": "Reposicionar",
+    "repositionCover": "Reposicionar portada",
+    "savePosition": "Guardar posición",
+    "changeCover": "Cambiar portada",
+    "changeIcon": "Cambiar icono",
+    "addIcon": "Añadir icono",
+    "addCover": "Añadir portada"
+  },
+  "moveDialog": {
+    "title": "Mover página",
+    "searchPlaceholder": "Buscar páginas…",
+    "moveToRoot": "Mover a la raíz",
+    "noMatches": "Ninguna página coincide con «%{query}».",
+    "moveUnder": "Mover dentro de %{title}"
+  },
+  "iconPicker": {
+    "title": "Elige un icono",
+    "tabs": {
+      "emoji": "Emoji",
+      "icon": "Icono",
+      "upload": "Subir"
+    },
+    "random": "Aleatorio",
+    "randomEmoji": "Emoji aleatorio",
+    "remove": "Quitar",
+    "removeIcon": "Quitar icono",
+    "searchEmojis": "Buscar emojis…",
+    "searchIcons": "Buscar iconos…",
+    "skinTone": "Tono de piel:",
+    "skinTones": {
+      "default": "Predeterminado",
+      "light": "Claro",
+      "mediumLight": "Medio claro",
+      "medium": "Medio",
+      "mediumDark": "Medio oscuro",
+      "dark": "Oscuro"
+    },
+    "categories": {
+      "smileys": "Caras y personas",
+      "animals": "Animales y naturaleza",
+      "food": "Comida y bebida",
+      "activities": "Actividades",
+      "travel": "Viajes y lugares",
+      "objects": "Objetos",
+      "symbols": "Símbolos",
+      "flags": "Banderas"
+    },
+    "noEmojis": "Ningún emoji coincide con «%{query}».",
+    "noIcons": "Ningún icono coincide con «%{query}».",
+    "uploadHint": "Pega la URL de una imagen para usarla como icono. La subida directa llegará pronto.",
+    "useImage": "Usar imagen"
+  },
+  "coverPicker": {
+    "title": "Elige una portada",
+    "tabs": {
+      "gallery": "Galería",
+      "colors": "Colores",
+      "link": "Enlace",
+      "upload": "Subir"
+    },
+    "remove": "Quitar",
+    "removeCover": "Quitar portada",
+    "gradientLabel": "Degradado %{name}",
+    "colorLabel": "Color %{name}",
+    "unsplashNotConfigured": "La clave de Unsplash no está configurada.",
+    "searchFailed": "No se pudo buscar",
+    "searchUnsplash": "Buscar en Unsplash",
+    "search": "Buscar",
+    "photoBy": "Foto de %{author}",
+    "linkHint": "Pega la URL de una imagen para usarla como portada.",
+    "useImage": "Usar imagen",
+    "useImageLink": "Usar enlace de imagen",
+    "uploadSoon": "La subida directa llegará pronto.",
+    "uploadUseLink": "Mientras tanto, usa la pestaña Enlace para pegar la URL de una imagen.",
+    "acknowledgeUpload": "Entendido: la subida aún no está disponible",
+    "gradients": {
+      "sunset": "Atardecer",
+      "aurora": "Aurora",
+      "tropics": "Trópico",
+      "lavender": "Lavanda",
+      "mint": "Menta",
+      "ocean": "Océano",
+      "sherbet": "Sorbete",
+      "plum": "Ciruela",
+      "crimson": "Carmesí",
+      "slate": "Pizarra"
+    },
+    "colors": {
+      "slate": "Pizarra",
+      "stone": "Piedra",
+      "brick": "Ladrillo",
+      "marigold": "Caléndula",
+      "moss": "Musgo",
+      "sea": "Mar",
+      "sky": "Cielo",
+      "violet": "Violeta",
+      "rose": "Rosa",
+      "charcoal": "Carbón"
+    }
+  },
+  "tree": {
+    "selectWorkspace": "Selecciona un espacio de trabajo para ver las páginas.",
+    "heading": "Páginas",
+    "addPage": "Añadir página",
+    "loading": "Cargando páginas…",
+    "loadFailed": "No se pudieron cargar las páginas. Inténtalo de nuevo en breve.",
+    "empty": "Todavía no hay páginas. Pulsa + para crear una."
+  },
+  "share": {
+    "invalidTitle": "Enlace para compartir no válido",
+    "invalidBody": "A esta URL le falta el token para compartir. Revisa el enlace que abriste.",
+    "unavailableTitle": "Enlace no disponible",
+    "unavailableBody": "No pudimos cargar esta página compartida.",
+    "notFoundTitle": "Enlace no encontrado",
+    "notFoundBody": "Este enlace se revocó o nunca existió. Pide un enlace nuevo a quien creó la página.",
+    "expiredTitle": "Enlace caducado",
+    "expiredBody": "Este enlace ha caducado. Pide un enlace nuevo a quien creó la página.",
+    "empty": "Esta página está vacía.",
+    "madeWith": "Hecho con",
+    "madeWithNilo": "Hecho con Nilo"
+  }
+}

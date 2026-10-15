@@ -9,6 +9,7 @@ import {
 import { useRouter } from "expo-router";
 import { Plus } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type {
   Database,
@@ -47,6 +48,7 @@ export function ViewBoard({
 }: ViewBoardProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const createRow = useCreateRow();
   const updateRow = useUpdateRow();
 
@@ -122,7 +124,7 @@ export function ViewBoard({
     return (
       <View className="px-6 py-10">
         <Text className="text-sm text-muted-foreground">
-          Add a status or select property to use the board view.
+          {t("databases.board.needsGroupProperty")}
         </Text>
       </View>
     );
@@ -157,7 +159,7 @@ export function ViewBoard({
         <BoardColumn
           option={{
             id: "__unassigned__",
-            name: "No status",
+            name: t("databases.board.noStatus"),
             color: "default",
           }}
           rows={columns.unassigned}
@@ -246,6 +248,7 @@ interface BoardCardProps {
 }
 
 function BoardCard({ row, database, onOpen }: BoardCardProps) {
+  const { t } = useTranslation();
   const visible = database.schema.properties.filter(
     (p) => p.id !== "name" && p.type !== "rollup" && p.type !== "formula",
   );
@@ -271,7 +274,7 @@ function BoardCard({ row, database, onOpen }: BoardCardProps) {
         className="text-sm font-medium text-foreground mb-1"
         numberOfLines={2}
       >
-        {row.title || "Untitled"}
+        {row.title || t("databases.untitled")}
       </Text>
       <View className="gap-1">
         {visible.slice(0, 3).map((property) => (

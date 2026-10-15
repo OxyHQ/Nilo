@@ -7,6 +7,7 @@ import {
   Settings2,
 } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type {
   Database,
@@ -42,6 +43,7 @@ export function DatabaseViewContainer({
   isLoading,
 }: DatabaseViewContainerProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
   const createRow = useCreateRow();
@@ -58,14 +60,20 @@ export function DatabaseViewContainer({
             active={filterCount > 0}
             icon={FilterIcon}
             label={
-              filterCount > 0 ? `Filter (${filterCount})` : "Filter"
+              filterCount > 0
+                ? t("databases.toolbar.filterCount", { count: filterCount })
+                : t("databases.toolbar.filter")
             }
           />
           <ToolButton
             onPress={() => setSortOpen(true)}
             active={sortCount > 0}
             icon={ArrowUpDown}
-            label={sortCount > 0 ? `Sort (${sortCount})` : "Sort"}
+            label={
+              sortCount > 0
+                ? t("databases.toolbar.sortCount", { count: sortCount })
+                : t("databases.toolbar.sort")
+            }
           />
           <AddPropertyButton database={database} />
         </View>
@@ -76,7 +84,9 @@ export function DatabaseViewContainer({
           >
             <Plus size={12} color="#ffffff" />
             <Text className="text-xs text-primary-foreground">
-              {createRow.isPending ? "Adding…" : "New"}
+              {createRow.isPending
+                ? t("databases.actions.adding")
+                : t("databases.actions.new")}
             </Text>
           </Pressable>
         </View>

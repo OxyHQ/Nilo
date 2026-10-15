@@ -4,5 +4,30 @@
   "notifications": "Notifications",
   "logOut": "Log out",
   "termsOfService": "Terms of Service",
-  "privacyPolicy": "Privacy Policy"
+  "privacyPolicy": "Privacy Policy",
+  "home": "Home",
+  "expandSidebar": "Expand sidebar",
+  "collapseSidebar": "Collapse sidebar",
+  "accountMenu": "Account menu",
+  "newPage": "New page",
+  "search": "Search",
+  "searchLabel": "Search pages, people and commands",
+  "inbox": "Inbox",
+  "settingsAndMembers": "Settings & members",
+  "trash": "Trash",
+  "recent": "Recent",
+  "sections": {
+    "favorites": "Favorites",
+    "private": "Private",
+    "shared": "Shared",
+    "databases": "Databases",
+    "templates": "Templates"
+  },
+  "collapseSection": "Collapse %{title}",
+  "expandSection": "Expand %{title}",
+  "addToSection": "Add to %{title}",
+  "databasesComingSoon": "Databases coming soon.",
+  "templatesHint": "Save a page as a template to reuse it later.",
+  "loadPagesFailed": "Couldn’t load pages.",
+  "noPrivatePages": "No private pages yet."
 }

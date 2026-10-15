@@ -5,6 +5,7 @@ import { usePages } from '@/lib/hooks/use-pages';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import type { Page } from '@/lib/types/pages';
 import { SidebarSection } from './sidebar-section';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SidebarPageTree } from './sidebar-page-tree';
 
 /**
@@ -15,6 +16,7 @@ import { SidebarPageTree } from './sidebar-page-tree';
 export function SharedSection() {
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const { user } = useOxy();
+  const { t } = useTranslation();
   const { data } = usePages(currentWorkspaceId);
 
   const sharedPages = React.useMemo<Page[]>(() => {
@@ -28,7 +30,7 @@ export function SharedSection() {
   if (!currentWorkspaceId) return null;
 
   return (
-    <SidebarSection sectionKey="shared" title="Shared">
+    <SidebarSection sectionKey="shared" title={t('sidebar.sections.shared')}>
       <View className="px-1">
         <SidebarPageTree
           pages={sharedPages}

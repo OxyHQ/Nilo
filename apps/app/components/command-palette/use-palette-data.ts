@@ -15,6 +15,8 @@ import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { usePages, useCreatePage } from '@/lib/hooks/use-pages';
 import { useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
+import i18n from '@/lib/i18n';
 import type { Page } from '@/lib/types/pages';
 import type {
   PageItem,
@@ -32,7 +34,15 @@ function memberDisplayName(member: {
   if (first && last) return `${first} ${last}`;
   if (first) return first;
   if (last) return last;
-  return member.user?.username ?? member.user?.email ?? member.userId ?? 'Member';
+  return member.user?.username ?? member.user?.email ?? member.userId ?? i18n.t('commandPalette.memberFallback');
+}
+
+/**
+ * Search text for a command: the English keywords always match, and the
+ * active locale's keywords are appended so search works in either language.
+ */
+function keywords(english: string, localized: string): string {
+  return localized === english ? english : `${english} ${localized}`;
 }
 
 interface UsePaletteDataParams {
@@ -59,6 +69,7 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
   const setShortcutsDialogOpen = useUIStore((s) => s.setShortcutsDialogOpen);
   const { setColorScheme, colorScheme } = useColorScheme();
   const createPage = useCreatePage();
+  const { t, locale } = useTranslation();
 
   const { data: pageData } = usePages(currentWorkspaceId);
   const { data: members } = useWorkspaceMembers(currentWorkspaceId);
@@ -80,21 +91,22 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
       // Guard against cycles by capping depth.
       let depth = 0;
       while (cursor && depth < 16) {
-        parts.unshift(cursor.title.trim() || 'Untitled');
+        parts.unshift(cursor.title.trim() || i18n.t('commandPalette.untitled'));
         if (!cursor.parentId) break;
         cursor = pageById.get(cursor.parentId);
         depth += 1;
       }
       return parts.slice(0, -1).join(' / ');
     },
-    [pageById],
+    // `locale` re-labels untitled ancestors when the language changes.
+    [pageById, locale],
   );
 
   const pages: PageItem[] = React.useMemo(() => {
     const visible = (pageData?.pages ?? []).filter((p) => !p.archived);
     return visible.map<PageItem>((p) => {
       const breadcrumb = buildBreadcrumb(p);
-      const title = p.title.trim() || 'Untitled';
+      const title = p.title.trim() || t('commandPalette.untitled');
       return {
         kind: 'page',
         id: `page:${p._id}`,
@@ -106,7 +118,7 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
         breadcrumb: breadcrumb || undefined,
       };
     });
-  }, [pageData?.pages, buildBreadcrumb]);
+  }, [pageData?.pages, buildBreadcrumb, locale]);
 
   const recents: PageItem[] = React.useMemo(() => {
     if (query.trim().length > 0) return [];
@@ -138,7 +150,7 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
         userId: m.userId,
       };
     });
-  }, [members]);
+  }, [members, locale]);
 
   const commands: CommandItem[] = React.useMemo(() => {
     const close = () => setCommandPaletteOpen(false);
@@ -146,9 +158,9 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
       {
         kind: 'command',
         id: 'cmd:new-page',
-        title: 'New page',
-        subtitle: 'Create a page in the current workspace',
-        searchValue: 'new page create',
+        title: t('commandPalette.commands.newPage.title'),
+        subtitle: t('commandPalette.commands.newPage.subtitle'),
+        searchValue: keywords('new page create', t('commandPalette.commands.newPage.keywords')),
         icon: Plus,
         shortcut: 'N',
         onSelect: () => {
@@ -171,8 +183,8 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
       {
         kind: 'command',
         id: 'cmd:settings',
-        title: 'Open settings',
-        searchValue: 'settings preferences',
+        title: t('commandPalette.commands.settings.title'),
+        searchValue: keywords('settings preferences', t('commandPalette.commands.settings.keywords')),
         icon: SettingsIcon,
         onSelect: () => {
           close();
@@ -182,8 +194,8 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
       {
         kind: 'command',
         id: 'cmd:trash',
-        title: 'Open trash',
-        searchValue: 'trash deleted archived',
+        title: t('commandPalette.commands.trash.title'),
+        searchValue: keywords('trash deleted archived', t('commandPalette.commands.trash.keywords')),
         icon: Trash2,
         onSelect: () => {
           close();
@@ -193,8 +205,14 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
       {
         kind: 'command',
         id: 'cmd:toggle-theme',
-        title: colorScheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode',
-        searchValue: 'theme dark light mode toggle',
+        title:
+          colorScheme === 'dark'
+            ? t('commandPalette.commands.theme.toLight')
+            : t('commandPalette.commands.theme.toDark'),
+        searchValue: keywords(
+          'theme dark light mode toggle',
+          t('commandPalette.commands.theme.keywords'),
+        ),
         icon: colorScheme === 'dark' ? Sun : Moon,
         onSelect: () => {
           close();
@@ -204,8 +222,8 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
       {
         kind: 'command',
         id: 'cmd:shortcuts',
-        title: 'Keyboard shortcuts',
-        searchValue: 'help keyboard shortcuts',
+        title: t('commandPalette.commands.shortcuts.title'),
+        searchValue: keywords('help keyboard shortcuts', t('commandPalette.commands.shortcuts.keywords')),
         icon: HelpCircle,
         shortcut: '/',
         onSelect: () => {
@@ -221,8 +239,8 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
       list.push({
         kind: 'command',
         id: 'cmd:docs',
-        title: 'Open Oxy docs',
-        searchValue: 'docs help documentation',
+        title: t('commandPalette.commands.docs.title'),
+        searchValue: keywords('docs help documentation', t('commandPalette.commands.docs.keywords')),
         icon: FileText,
         onSelect: () => {
           close();
@@ -235,6 +253,7 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
     colorScheme,
     createPage,
     currentWorkspaceId,
+    locale,
     router,
     setColorScheme,
     setCommandPaletteOpen,

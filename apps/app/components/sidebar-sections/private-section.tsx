@@ -7,6 +7,7 @@ import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { useCreatePage, usePages } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import { SidebarSection } from './sidebar-section';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SidebarPageTree } from './sidebar-page-tree';
 
 /**
@@ -18,6 +19,7 @@ export function PrivateSection() {
   const router = useRouter();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const { user } = useOxy();
+  const { t } = useTranslation();
   const { data, isLoading, isError } = usePages(currentWorkspaceId);
   const createPage = useCreatePage();
 
@@ -47,7 +49,7 @@ export function PrivateSection() {
   return (
     <SidebarSection
       sectionKey="private"
-      title="Private"
+      title={t('sidebar.sections.private')}
       onAdd={handleCreate}
       adding={createPage.isPending}
     >
@@ -55,19 +57,19 @@ export function PrivateSection() {
         {isLoading ? (
           <View className="px-3 py-2 flex-row items-center gap-2">
             <ActivityIndicator size="small" />
-            <Text className="text-xs text-muted-foreground">Loading…</Text>
+            <Text className="text-xs text-muted-foreground">{t('common.loading')}</Text>
           </View>
         ) : isError ? (
           <View className="px-3 py-2">
             <Text className="text-xs text-destructive">
-              Couldn’t load pages.
+              {t('sidebar.loadPagesFailed')}
             </Text>
           </View>
         ) : (
           <SidebarPageTree
             pages={myPages}
             workspaceId={currentWorkspaceId}
-            emptyText="No private pages yet."
+            emptyText={t('sidebar.noPrivatePages')}
           />
         )}
       </View>

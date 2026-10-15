@@ -4,6 +4,7 @@ import { MessageSquare } from "lucide-react-native";
 import { Text } from "@/components/ui/text";
 import { useColorScheme } from "@/lib/useColorScheme";
 import { useBlockComments } from "@/lib/hooks/use-comments";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface CommentIndicatorProps {
   blockId: string;
@@ -27,6 +28,7 @@ export function CommentIndicator({
   alwaysVisible,
 }: CommentIndicatorProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const { data } = useBlockComments(blockId);
 
   const openCount = React.useMemo(() => {
@@ -45,8 +47,8 @@ export function CommentIndicator({
       className="flex-row items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted"
       accessibilityLabel={
         openCount > 0
-          ? `${openCount} comment${openCount === 1 ? "" : "s"}`
-          : "Add a comment"
+          ? t("comments.indicator.count", { count: openCount })
+          : t("comments.indicator.add")
       }
     >
       <MessageSquare
@@ -57,7 +59,7 @@ export function CommentIndicator({
         <Text className="text-[10px] font-medium text-primary">{openCount}</Text>
       ) : null}
       {openCount === 0 && alwaysVisible ? (
-        <Text className="text-[10px] text-muted-foreground">Comment</Text>
+        <Text className="text-[10px] text-muted-foreground">{t("comments.indicator.label")}</Text>
       ) : (
         <View />
       )}

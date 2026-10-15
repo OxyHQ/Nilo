@@ -18,11 +18,12 @@ import {
 } from "@/lib/hooks/use-workspace-members";
 import type { WorkspaceRole } from "@/lib/hooks/use-workspaces";
 import {
-  ROLE_LABELS,
   WORKSPACE_ROLES,
   hasRole,
 } from "@/lib/hooks/workspace-roles";
 import { InviteMemberModal } from "./invite-member-modal";
+import { roleLabel } from "./role-labels";
+import { useTranslation } from "@/hooks/useTranslation";
 
 const ASSIGNABLE_ROLES: WorkspaceRole[] = [
   "viewer",
@@ -95,6 +96,7 @@ function MemberRow({
   callerUserId,
 }: MemberRowProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const { mutate: updateRole, isPending: isUpdating } =
     useUpdateMemberRole(workspaceId);
   const { mutate: removeMember, isPending: isRemoving } =
@@ -113,14 +115,17 @@ function MemberRow({
         {
           onSuccess: () => {
             toast.success(
-              `Role updated to ${ROLE_LABELS[role]} for ${memberDisplayName(member)}`,
+              t("workspace.members.roleUpdated", {
+                role: roleLabel(role),
+                name: memberDisplayName(member),
+              }),
             );
           },
           onError: (error) => {
             const message =
               error instanceof Error && error.message
                 ? error.message
-                : "Failed to update role";
+                : t("workspace.members.roleUpdateFailed");
             toast.error(message);
           },
         },
@@ -132,13 +137,13 @@ function MemberRow({
   const handleRemove = React.useCallback(() => {
     removeMember(member._id, {
       onSuccess: () => {
-        toast.success(`Removed ${memberDisplayName(member)}`);
+        toast.success(t("workspace.members.removed", { name: memberDisplayName(member) }));
       },
       onError: (error) => {
         const message =
           error instanceof Error && error.message
             ? error.message
-            : "Failed to remove member";
+            : t("workspace.members.removeFailed");
         toast.error(message);
       },
     });
@@ -151,7 +156,7 @@ function MemberRow({
         <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
           {memberDisplayName(member)}
           {isSelf ? (
-            <Text className="text-xs text-muted-foreground"> (you)</Text>
+            <Text className="text-xs text-muted-foreground"> {t("workspace.members.you")}</Text>
           ) : null}
         </Text>
         {member.user?.email ? (
@@ -172,11 +177,11 @@ function MemberRow({
               <Pressable
                 className="h-8 px-2 flex-row items-center gap-1 rounded-lg border border-border hover:bg-muted"
                 accessibilityRole="button"
-                accessibilityLabel={`Change role for ${memberDisplayName(member)}`}
+                accessibilityLabel={t("workspace.members.changeRole", { name: memberDisplayName(member) })}
                 disabled={isUpdating || isRemoving}
               >
                 <Text className="text-xs font-medium text-foreground">
-                  {ROLE_LABELS[member.role]}
+                  {roleLabel(member.role)}
                 </Text>
               </Pressable>
             </DropdownMenu.Trigger>
@@ -187,7 +192,7 @@ function MemberRow({
                   onSelect={() => handleChangeRole(role)}
                 >
                   <DropdownMenu.ItemTitle>
-                    {ROLE_LABELS[role]}
+                    {roleLabel(role)}
                   </DropdownMenu.ItemTitle>
                 </DropdownMenu.Item>
               ))}
@@ -199,7 +204,7 @@ function MemberRow({
               <Pressable
                 className="h-8 w-8 items-center justify-center rounded-lg hover:bg-muted"
                 accessibilityRole="button"
-                accessibilityLabel={`More actions for ${memberDisplayName(member)}`}
+                accessibilityLabel={t("workspace.members.moreActions", { name: memberDisplayName(member) })}
                 disabled={isUpdating || isRemoving}
               >
                 <MoreHorizontal size={16} color={colors.mutedForeground} />
@@ -212,7 +217,7 @@ function MemberRow({
                 onSelect={handleRemove}
               >
                 <DropdownMenu.ItemIcon ios={{ name: "trash" }} />
-                <DropdownMenu.ItemTitle>Remove from workspace</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("workspace.members.remove")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
@@ -220,7 +225,7 @@ function MemberRow({
       ) : (
         <View className="h-8 px-2 items-center justify-center shrink-0">
           <Text className="text-xs font-medium text-muted-foreground">
-            {ROLE_LABELS[member.role]}
+            {roleLabel(member.role)}
           </Text>
         </View>
       )}
@@ -230,6 +235,7 @@ function MemberRow({
 
 export function MembersSection() {
   const { user } = useOxy();
+  const { t } = useTranslation();
   const [inviteOpen, setInviteOpen] = React.useState(false);
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
 
@@ -267,11 +273,10 @@ export function MembersSection() {
       <View className="flex-row items-center justify-between">
         <View className="flex-1 min-w-0">
           <Text className="text-sm font-medium text-foreground">
-            {currentWorkspace?.name ?? "Workspace"}
+            {currentWorkspace?.name ?? t("workspace.fallbackName")}
           </Text>
           <Text className="text-xs text-muted-foreground">
-            {members?.length ?? 0} member
-            {(members?.length ?? 0) === 1 ? "" : "s"}
+            {t("workspace.members.count", { count: members?.length ?? 0 })}
           </Text>
         </View>
         {canInvite && currentWorkspaceId ? (
@@ -282,7 +287,7 @@ export function MembersSection() {
                 className="text-primary-foreground"
               />
               <Text className="text-xs font-semibold text-primary-foreground">
-                Invite member
+                {t("workspace.members.invite")}
               </Text>
             </View>
           </Button>
@@ -299,13 +304,13 @@ export function MembersSection() {
             <Text className="text-sm text-destructive">
               {error instanceof Error
                 ? error.message
-                : "Failed to load members"}
+                : t("workspace.members.loadFailed")}
             </Text>
           </View>
         ) : sortedMembers.length === 0 ? (
           <View className="py-10 items-center justify-center px-4">
             <Text className="text-sm text-muted-foreground text-center">
-              No members yet.
+              {t("workspace.members.empty")}
             </Text>
           </View>
         ) : (
@@ -344,7 +349,7 @@ export function MembersSection() {
           }
         >
           <Text className="text-xs text-muted-foreground">
-            Only admins and owners can invite members or change roles.
+            {t("workspace.members.adminOnly")}
           </Text>
         </View>
       ) : null}

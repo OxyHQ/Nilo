@@ -1,1 +1,63 @@
-{}
+{
+  "composer": {
+    "placeholder": "Add a comment…",
+    "hint": "@ to mention",
+    "hintWeb": "@ to mention · Cmd/Ctrl+Enter to send",
+    "send": "Send comment",
+    "posting": "Posting…",
+    "submit": "Comment"
+  },
+  "mentionLabel": "Mention: %{name}",
+  "indicator": {
+    "count": {
+      "one": "%{count} comment",
+      "other": "%{count} comments"
+    },
+    "add": "Add a comment",
+    "label": "Comment"
+  },
+  "panel": {
+    "title": "Comments",
+    "blockTitle": "Block comments",
+    "close": "Close comments",
+    "dismiss": "Dismiss comment panel",
+    "emptyResolved": "No resolved comments yet.",
+    "emptyOpen": "No open comments. Hover a block to comment, or add a page-level note below.",
+    "emptyAll": "No comments yet.",
+    "blockPlaceholder": "Comment on this block…",
+    "pagePlaceholder": "Add a page comment…"
+  },
+  "filters": {
+    "open": "Open",
+    "all": "All",
+    "resolved": "Resolved"
+  },
+  "time": {
+    "justNow": "just now",
+    "minutesAgo": "%{count}m ago",
+    "hoursAgo": "%{count}h ago",
+    "daysAgo": "%{count}d ago"
+  },
+  "thread": {
+    "resolve": "Resolve",
+    "reopen": "Reopen",
+    "resolveThread": "Resolve thread",
+    "reopenThread": "Reopen thread",
+    "reply": "Reply",
+    "replyPlaceholder": "Reply…",
+    "replyToThread": "Reply to thread",
+    "you": "You",
+    "edited": "edited",
+    "moreActions": "More actions"
+  },
+  "mentions": {
+    "header": "Mention",
+    "noMatches": "No matches for \"%{query}\"",
+    "untitled": "Untitled",
+    "page": "page",
+    "pageWithIcon": "%{icon} page",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "nextWeek": "Next week"
+  }
+}

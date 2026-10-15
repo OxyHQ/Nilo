@@ -8,7 +8,12 @@
  *
  * Skin-tone variants are generated on the fly by appending Fitzpatrick
  * codepoints; entries marked with `tone: true` opt in.
+ *
+ * Labels are functions so they are translated when rendered, not when this
+ * module loads (the locale can change at runtime).
  */
+
+import i18n from "@/lib/i18n";
 
 export interface EmojiEntry {
   /** The emoji character (base form, no skin tone). */
@@ -21,18 +26,19 @@ export interface EmojiEntry {
 
 export interface EmojiCategory {
   id: string;
-  name: string;
+  /** Translated category heading. */
+  label: () => string;
   emojis: ReadonlyArray<EmojiEntry>;
 }
 
 /** Fitzpatrick skin-tone modifier codepoints. */
-export const SKIN_TONES: ReadonlyArray<{ id: string; label: string; modifier: string }> = [
-  { id: "default", label: "Default", modifier: "" },
-  { id: "light", label: "Light", modifier: "\u{1F3FB}" },
-  { id: "medium-light", label: "Medium light", modifier: "\u{1F3FC}" },
-  { id: "medium", label: "Medium", modifier: "\u{1F3FD}" },
-  { id: "medium-dark", label: "Medium dark", modifier: "\u{1F3FE}" },
-  { id: "dark", label: "Dark", modifier: "\u{1F3FF}" },
+export const SKIN_TONES: ReadonlyArray<{ id: string; label: () => string; modifier: string }> = [
+  { id: "default", label: () => i18n.t("pages.iconPicker.skinTones.default"), modifier: "" },
+  { id: "light", label: () => i18n.t("pages.iconPicker.skinTones.light"), modifier: "\u{1F3FB}" },
+  { id: "medium-light", label: () => i18n.t("pages.iconPicker.skinTones.mediumLight"), modifier: "\u{1F3FC}" },
+  { id: "medium", label: () => i18n.t("pages.iconPicker.skinTones.medium"), modifier: "\u{1F3FD}" },
+  { id: "medium-dark", label: () => i18n.t("pages.iconPicker.skinTones.mediumDark"), modifier: "\u{1F3FE}" },
+  { id: "dark", label: () => i18n.t("pages.iconPicker.skinTones.dark"), modifier: "\u{1F3FF}" },
 ];
 
 /**
@@ -48,7 +54,7 @@ export function applySkinTone(entry: EmojiEntry, modifier: string): string {
 export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
   {
     id: "smileys",
-    name: "Smileys & People",
+    label: () => i18n.t("pages.iconPicker.categories.smileys"),
     emojis: [
       { emoji: "😀", keywords: "grinning face smile happy" },
       { emoji: "😃", keywords: "grinning big eyes smile" },
@@ -165,7 +171,7 @@ export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
   },
   {
     id: "animals",
-    name: "Animals & Nature",
+    label: () => i18n.t("pages.iconPicker.categories.animals"),
     emojis: [
       { emoji: "🐶", keywords: "dog face pet animal" },
       { emoji: "🐱", keywords: "cat face pet" },
@@ -240,7 +246,7 @@ export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
   },
   {
     id: "food",
-    name: "Food & Drink",
+    label: () => i18n.t("pages.iconPicker.categories.food"),
     emojis: [
       { emoji: "🍎", keywords: "red apple fruit" },
       { emoji: "🍏", keywords: "green apple fruit" },
@@ -333,7 +339,7 @@ export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
   },
   {
     id: "activities",
-    name: "Activities",
+    label: () => i18n.t("pages.iconPicker.categories.activities"),
     emojis: [
       { emoji: "⚽", keywords: "soccer ball" },
       { emoji: "🏀", keywords: "basketball" },
@@ -405,7 +411,7 @@ export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
   },
   {
     id: "travel",
-    name: "Travel & Places",
+    label: () => i18n.t("pages.iconPicker.categories.travel"),
     emojis: [
       { emoji: "🚗", keywords: "automobile car" },
       { emoji: "🚕", keywords: "taxi cab" },
@@ -519,7 +525,7 @@ export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
   },
   {
     id: "objects",
-    name: "Objects",
+    label: () => i18n.t("pages.iconPicker.categories.objects"),
     emojis: [
       { emoji: "⌚", keywords: "watch wrist" },
       { emoji: "📱", keywords: "mobile phone" },
@@ -672,7 +678,7 @@ export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
   },
   {
     id: "symbols",
-    name: "Symbols",
+    label: () => i18n.t("pages.iconPicker.categories.symbols"),
     emojis: [
       { emoji: "❤️", keywords: "heart red love" },
       { emoji: "🧡", keywords: "orange heart" },
@@ -849,7 +855,7 @@ export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
   },
   {
     id: "flags",
-    name: "Flags",
+    label: () => i18n.t("pages.iconPicker.categories.flags"),
     emojis: [
       { emoji: "🏳️", keywords: "white flag" },
       { emoji: "🏴", keywords: "black flag" },

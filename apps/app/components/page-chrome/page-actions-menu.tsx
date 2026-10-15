@@ -8,6 +8,7 @@ import { toast } from "@oxy.so/bloom/toast";
 import * as DropdownMenu from "@/components/ui/dropdown-menu";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { useColorScheme } from "@/lib/useColorScheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import {
   useDeletePage,
   useDuplicatePage,
@@ -30,6 +31,7 @@ interface PageActionsMenuProps {
 export function PageActionsMenu({ page }: PageActionsMenuProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const { user } = useOxy();
   const duplicatePage = useDuplicatePage();
   const updatePage = useUpdatePage();
@@ -45,15 +47,15 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
       { id: page._id, workspaceId: page.workspaceId },
       {
         onSuccess: (created) => {
-          toast.success("Page duplicated");
+          toast.success(t("pages.toasts.duplicated"));
           router.push(`/p/${created._id}`);
         },
         onError: (err) => {
-          toast.error(err.message || "Failed to duplicate page");
+          toast.error(err.message || t("pages.toasts.duplicateFailed"));
         },
       },
     );
-  }, [duplicatePage, page._id, page.workspaceId, router]);
+  }, [duplicatePage, page._id, page.workspaceId, router, t]);
 
   const handleFavorite = React.useCallback(() => {
     updatePage.mutate({ id: page._id, favorited: !page.favorited });
@@ -66,8 +68,8 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
         : "https://nilo.so";
     const url = `${origin}/p/${page._id}`;
     await Clipboard.setStringAsync(url);
-    toast.success("Link copied");
-  }, [page._id]);
+    toast.success(t("pages.toasts.linkCopied"));
+  }, [page._id, t]);
 
   const handleExportMarkdown = React.useCallback(async () => {
     try {
@@ -92,64 +94,64 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(href);
-        toast.success("Markdown downloaded");
+        toast.success(t("pages.toasts.markdownDownloaded"));
       } else {
         await Clipboard.setStringAsync(markdown);
-        toast.success("Markdown copied to clipboard");
+        toast.success(t("pages.toasts.markdownCopied"));
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Export failed";
+      const msg = err instanceof Error ? err.message : t("pages.toasts.exportFailed");
       toast.error(msg);
     }
-  }, [page._id, page.title]);
+  }, [page._id, page.title, t]);
 
   const handleMoveToTrash = React.useCallback(() => {
     deletePage.mutate(
       { id: page._id, workspaceId: page.workspaceId },
       {
         onSuccess: () => {
-          toast.success("Moved to trash");
+          toast.success(t("pages.toasts.movedToTrash"));
           router.replace("/(app)");
         },
         onError: (err) => {
-          toast.error(err.message || "Failed to move to trash");
+          toast.error(err.message || t("pages.toasts.moveToTrashFailed"));
         },
       },
     );
-  }, [deletePage, page._id, page.workspaceId, router]);
+  }, [deletePage, page._id, page.workspaceId, router, t]);
 
   const handleRestore = React.useCallback(() => {
     updatePage.mutate(
       { id: page._id, archived: false },
       {
         onSuccess: () => {
-          toast.success("Page restored");
+          toast.success(t("pages.toasts.restored"));
         },
       },
     );
-  }, [updatePage, page._id]);
+  }, [updatePage, page._id, t]);
 
   const handleHardDelete = React.useCallback(() => {
     deletePage.mutate(
       { id: page._id, workspaceId: page.workspaceId, hard: true },
       {
         onSuccess: () => {
-          toast.success("Page deleted permanently");
+          toast.success(t("pages.toasts.deletedPermanently"));
           router.replace("/trash");
         },
         onError: (err) => {
-          toast.error(err.message || "Failed to delete page");
+          toast.error(err.message || t("pages.toasts.deleteFailed"));
         },
       },
     );
-  }, [deletePage, page._id, page.workspaceId, router]);
+  }, [deletePage, page._id, page.workspaceId, router, t]);
 
   return (
     <>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger>
           <Pressable
-            accessibilityLabel="Page actions"
+            accessibilityLabel={t("pages.actions.menu")}
             accessibilityRole="button"
             className="h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
           >
@@ -161,14 +163,16 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
             <>
               <DropdownMenu.Item key="duplicate" onSelect={handleDuplicate}>
                 <DropdownMenu.ItemIcon ios={{ name: "doc.on.doc" }} />
-                <DropdownMenu.ItemTitle>Duplicate</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("pages.actions.duplicate")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Item key="favorite" onSelect={handleFavorite}>
                 <DropdownMenu.ItemIcon
                   ios={{ name: page.favorited ? "star.slash" : "star" }}
                 />
                 <DropdownMenu.ItemTitle>
-                  {page.favorited ? "Remove from favorites" : "Add to favorites"}
+                  {page.favorited
+                    ? t("pages.actions.removeFromFavorites")
+                    : t("pages.actions.addToFavorites")}
                 </DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Item
@@ -176,11 +180,11 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
                 onSelect={() => setMoveOpen(true)}
               >
                 <DropdownMenu.ItemIcon ios={{ name: "folder" }} />
-                <DropdownMenu.ItemTitle>Move to…</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("pages.actions.moveTo")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Item key="copy-link" onSelect={handleCopyLink}>
                 <DropdownMenu.ItemIcon ios={{ name: "link" }} />
-                <DropdownMenu.ItemTitle>Copy link</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("pages.actions.copyLink")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Separator />
               <DropdownMenu.Item
@@ -188,7 +192,7 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
                 onSelect={handleExportMarkdown}
               >
                 <DropdownMenu.ItemIcon ios={{ name: "arrow.down.doc" }} />
-                <DropdownMenu.ItemTitle>Export as Markdown</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("pages.actions.exportMarkdown")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Separator />
               <DropdownMenu.Item
@@ -197,14 +201,14 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
                 onSelect={handleMoveToTrash}
               >
                 <DropdownMenu.ItemIcon ios={{ name: "trash" }} />
-                <DropdownMenu.ItemTitle>Move to trash</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("pages.actions.moveToTrash")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
             </>
           ) : (
             <>
               <DropdownMenu.Item key="restore" onSelect={handleRestore}>
                 <DropdownMenu.ItemIcon ios={{ name: "arrow.uturn.backward" }} />
-                <DropdownMenu.ItemTitle>Restore from trash</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t("pages.actions.restoreFromTrash")}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               {isOwner ? (
                 <>
@@ -215,7 +219,7 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
                     onSelect={() => setDeleteOpen(true)}
                   >
                     <DropdownMenu.ItemIcon ios={{ name: "trash.slash" }} />
-                    <DropdownMenu.ItemTitle>Delete permanently</DropdownMenu.ItemTitle>
+                    <DropdownMenu.ItemTitle>{t("pages.actions.deletePermanently")}</DropdownMenu.ItemTitle>
                   </DropdownMenu.Item>
                 </>
               ) : null}
@@ -229,9 +233,11 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
       <ConfirmationDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Delete permanently?"
-        description={`“${page.title || "Untitled"}” and all its blocks will be removed forever. This can't be undone.`}
-        confirmText="Delete"
+        title={t("pages.deleteDialog.title")}
+        description={t("pages.deleteDialog.description", {
+          title: page.title || t("pages.untitled"),
+        })}
+        confirmText={t("common.delete")}
         confirmVariant="destructive"
         onConfirm={handleHardDelete}
       />

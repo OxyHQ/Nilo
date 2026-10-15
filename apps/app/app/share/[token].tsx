@@ -12,6 +12,7 @@ import axios from "axios";
 import { Text } from "@/components/ui/text";
 import { NiloWordmark } from "@/components/ui/nilo-wordmark";
 import { useColorScheme } from "@/lib/useColorScheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useSharedPage,
@@ -38,6 +39,7 @@ function ShareLoadState({ title, body }: ShareLoadStateProps) {
 }
 
 function ShareFooter() {
+  const { t } = useTranslation();
   const handlePress = React.useCallback(() => {
     const url = "https://nilo.so";
     if (Platform.OS === "web") {
@@ -56,9 +58,9 @@ function ShareFooter() {
       onPress={handlePress}
       className="flex-row items-center justify-center gap-2 py-4"
       accessibilityRole="link"
-      accessibilityLabel="Made with Nilo"
+      accessibilityLabel={t("pages.share.madeWithNilo")}
     >
-      <Text className="text-xs text-muted-foreground">Made with</Text>
+      <Text className="text-xs text-muted-foreground">{t("pages.share.madeWith")}</Text>
       <NiloWordmark width={70} />
     </Pressable>
   );
@@ -67,6 +69,7 @@ function ShareFooter() {
 export default function PublicSharePage() {
   const insets = useSafeAreaInsets();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{ token: string }>();
   const token = typeof params.token === "string" ? params.token : null;
 
@@ -79,8 +82,8 @@ export default function PublicSharePage() {
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
         <ShareLoadState
-          title="Invalid share link"
-          body="This URL is missing its share token. Double-check the link you opened."
+          title={t("pages.share.invalidTitle")}
+          body={t("pages.share.invalidBody")}
         />
         <ShareFooter />
       </View>
@@ -100,15 +103,14 @@ export default function PublicSharePage() {
 
   if (isError || !data) {
     const status = axios.isAxiosError(error) ? error.response?.status : null;
-    let title = "Link unavailable";
-    let body = "We couldn't load this shared page.";
+    let title = t("pages.share.unavailableTitle");
+    let body = t("pages.share.unavailableBody");
     if (status === 404) {
-      title = "Link not found";
-      body =
-        "This share link has been revoked or never existed. Ask the page owner for a new link.";
+      title = t("pages.share.notFoundTitle");
+      body = t("pages.share.notFoundBody");
     } else if (status === 410) {
-      title = "Link expired";
-      body = "This share link has expired. Ask the page owner for a new link.";
+      title = t("pages.share.expiredTitle");
+      body = t("pages.share.expiredBody");
     } else if (error instanceof Error && error.message) {
       body = error.message;
     }
@@ -137,7 +139,7 @@ export default function PublicSharePage() {
           <View className="gap-1.5">
             {data.blocks.length === 0 ? (
               <Text className="text-sm text-muted-foreground">
-                This page is empty.
+                {t("pages.share.empty")}
               </Text>
             ) : (
               data.blocks.map((block) => (
@@ -153,6 +155,7 @@ export default function PublicSharePage() {
 }
 
 function SharedPageHeader({ page }: { page: SharedPage["page"] }) {
+  const { t } = useTranslation();
   return (
     <View className="gap-2">
       {page.icon ? (
@@ -161,7 +164,7 @@ function SharedPageHeader({ page }: { page: SharedPage["page"] }) {
         </Text>
       ) : null}
       <Text className="text-3xl font-bold text-foreground sm:text-4xl">
-        {page.title?.trim() ? page.title : "Untitled"}
+        {page.title?.trim() ? page.title : t("pages.untitled")}
       </Text>
     </View>
   );

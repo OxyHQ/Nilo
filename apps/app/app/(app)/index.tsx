@@ -5,6 +5,7 @@ import { Redirect, useRouter } from "expo-router";
 import { useOxy } from "@oxy.so/services";
 import { Text } from "@/components/ui/text";
 import { useColorScheme } from "@/lib/useColorScheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import { useWorkspaceStore } from "@/lib/stores/workspace-store";
 import { useCreatePage, usePages } from "@/lib/hooks/use-pages";
 
@@ -14,6 +15,7 @@ import { useCreatePage, usePages } from "@/lib/hooks/use-pages";
  */
 export default function HomePage() {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const { isAuthenticated } = useOxy();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
@@ -58,18 +60,18 @@ export default function HomePage() {
 
         {!isAuthenticated ? (
           <Text className="text-base text-muted-foreground text-center">
-            Sign in to start building your workspace.
+            {t("home.signInPrompt")}
           </Text>
         ) : !currentWorkspaceId ? (
           <Text className="text-base text-muted-foreground text-center">
-            Select a workspace from the sidebar to get started.
+            {t("home.selectWorkspace")}
           </Text>
         ) : isLoading ? (
           <ActivityIndicator color={colors.mutedForeground} />
         ) : (
           <>
             <Text className="text-base text-muted-foreground text-center">
-              Your workspace is empty. Create your first page to begin.
+              {t("home.empty")}
             </Text>
             <Pressable
               onPress={handleCreate}
@@ -78,7 +80,7 @@ export default function HomePage() {
             >
               <Plus size={16} color={colors.primaryForeground} />
               <Text className="text-sm font-semibold text-primary-foreground">
-                {createPage.isPending ? "Creating…" : "Create your first page"}
+                {createPage.isPending ? t("home.creating") : t("home.createFirstPage")}
               </Text>
             </Pressable>
           </>

@@ -5,6 +5,7 @@ import { Search, Inbox, Settings, Trash2 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { useUIStore } from '@/lib/stores/ui-store';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SidebarItem } from './sidebar-item';
 
 /**
@@ -27,14 +28,15 @@ function modifierKey(): string {
  */
 export function SidebarSearchButton() {
   const setOpen = useUIStore((s) => s.setCommandPaletteOpen);
+  const { t } = useTranslation();
   const showShortcut = Platform.OS === 'web';
   const mod = modifierKey();
   return (
     <SidebarItem
       icon={Search}
-      label="Search"
+      label={t('sidebar.search')}
       onPress={() => setOpen(true)}
-      accessibilityLabel="Search pages, people and commands"
+      accessibilityLabel={t('sidebar.searchLabel')}
       trailing={
         showShortcut ? (
           <KbdGroup>
@@ -59,11 +61,12 @@ export function SidebarInboxButton({ unreadCount }: InboxButtonProps) {
   const router = useRouter();
   const pathname = usePathname();
   const isActive = pathname.startsWith('/(app)/notifications');
+  const { t } = useTranslation();
 
   return (
     <SidebarItem
       icon={Inbox}
-      label="Inbox"
+      label={t('sidebar.inbox')}
       isActive={isActive}
       onPress={() => router.push('/(app)/notifications')}
       trailing={
@@ -83,10 +86,11 @@ export function SidebarSettingsButton() {
   const router = useRouter();
   const pathname = usePathname();
   const isActive = pathname.startsWith('/(app)/settings');
+  const { t } = useTranslation();
   return (
     <SidebarItem
       icon={Settings}
-      label="Settings & members"
+      label={t('sidebar.settingsAndMembers')}
       isActive={isActive}
       onPress={() => router.push('/(app)/settings')}
     />
@@ -97,10 +101,11 @@ export function SidebarTrashButton() {
   const router = useRouter();
   const pathname = usePathname();
   const isActive = pathname.startsWith('/trash');
+  const { t } = useTranslation();
   return (
     <SidebarItem
       icon={Trash2}
-      label="Trash"
+      label={t('sidebar.trash')}
       isActive={isActive}
       onPress={() => router.push('/trash')}
     />

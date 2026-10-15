@@ -1,1 +1,149 @@
-{}
+{
+  "slashMenu": {
+    "paragraph": {
+      "label": "Texto",
+      "description": "Párrafo de texto sin formato.",
+      "keywords": "texto, párrafo, parrafo"
+    },
+    "heading1": {
+      "label": "Encabezado 1",
+      "description": "Encabezado de sección grande.",
+      "keywords": "encabezado, título, titulo"
+    },
+    "heading2": {
+      "label": "Encabezado 2",
+      "description": "Encabezado de sección mediano.",
+      "keywords": "encabezado, subtítulo, subtitulo"
+    },
+    "heading3": {
+      "label": "Encabezado 3",
+      "description": "Encabezado de sección pequeño.",
+      "keywords": "encabezado"
+    },
+    "bulletedList": {
+      "label": "Lista con viñetas",
+      "description": "Crea una lista simple con viñetas.",
+      "keywords": "viñeta, vineta, lista"
+    },
+    "numberedList": {
+      "label": "Lista numerada",
+      "description": "Crea una lista con numeración.",
+      "keywords": "numerada, ordenada, lista"
+    },
+    "todo": {
+      "label": "Lista de tareas",
+      "description": "Sigue tus tareas con casillas.",
+      "keywords": "tarea, tareas, casilla, pendiente"
+    },
+    "quote": {
+      "label": "Cita",
+      "description": "Destaca una cita.",
+      "keywords": "cita"
+    },
+    "divider": {
+      "label": "Divisor",
+      "description": "Separa bloques visualmente.",
+      "keywords": "divisor, línea, linea, separador"
+    },
+    "code": {
+      "label": "Código",
+      "description": "Bloque de código monoespaciado.",
+      "keywords": "código, codigo, fragmento"
+    },
+    "callout": {
+      "label": "Destacado",
+      "description": "Resalta información importante.",
+      "keywords": "destacado, nota, aviso"
+    },
+    "toggle": {
+      "label": "Desplegable",
+      "description": "Haz clic para expandir o contraer el contenido.",
+      "keywords": "desplegable, plegable, detalles"
+    },
+    "image": {
+      "label": "Imagen",
+      "description": "Sube, inserta o pega la URL de una imagen.",
+      "keywords": "imagen, foto, fotografía"
+    },
+    "video": {
+      "label": "Video",
+      "description": "Inserta YouTube, Vimeo, Loom o la URL de un video.",
+      "keywords": "video, vídeo, película"
+    },
+    "audio": {
+      "label": "Audio",
+      "description": "Reproduce un clip de audio desde una URL.",
+      "keywords": "audio, sonido, música"
+    },
+    "file": {
+      "label": "Archivo",
+      "description": "Adjunta cualquier archivo para descargarlo.",
+      "keywords": "archivo, adjunto, subir"
+    },
+    "pdf": {
+      "label": "PDF",
+      "description": "Inserta un documento PDF.",
+      "keywords": "documento"
+    },
+    "bookmark": {
+      "label": "Marcador",
+      "description": "Guarda una URL como tarjeta con vista previa.",
+      "keywords": "marcador, enlace, vista previa"
+    },
+    "embed": {
+      "label": "Insertar",
+      "description": "Inserta un tuit, Figma, Codepen, Gist…",
+      "keywords": "insertar, incrustar, contenido"
+    },
+    "youtube": {
+      "label": "YouTube",
+      "description": "Pega una URL de YouTube.",
+      "keywords": "youtube, video"
+    },
+    "columns": {
+      "label": "Columnas",
+      "description": "Divide el contenido en columnas lado a lado.",
+      "keywords": "columnas, diseño, cuadrícula"
+    },
+    "table": {
+      "label": "Tabla",
+      "description": "Tabla editable sencilla.",
+      "keywords": "tabla, cuadrícula, hoja de cálculo"
+    },
+    "button": {
+      "label": "Botón",
+      "description": "Añade un botón con una acción.",
+      "keywords": "botón, boton, acción"
+    },
+    "linkToPage": {
+      "label": "Enlace a página",
+      "description": "Enlace a otra página de este espacio de trabajo.",
+      "keywords": "enlace, mención, página"
+    },
+    "equation": {
+      "label": "Ecuación",
+      "description": "Muestra fórmulas matemáticas en LaTeX.",
+      "keywords": "ecuación, ecuacion, matemáticas, fórmula"
+    },
+    "mermaid": {
+      "label": "Mermaid",
+      "description": "Genera un diagrama a partir de código Mermaid.",
+      "keywords": "diagrama, diagrama de flujo"
+    },
+    "tableOfContents": {
+      "label": "Tabla de contenido",
+      "description": "Se genera a partir de los encabezados de la página.",
+      "keywords": "índice, indice, contenido, esquema"
+    },
+    "breadcrumb": {
+      "label": "Ruta de navegación",
+      "description": "Ruta desde la raíz del espacio de trabajo hasta la página actual.",
+      "keywords": "ruta, navegación, migas de pan"
+    },
+    "syncedBlock": {
+      "label": "Bloque sincronizado",
+      "description": "Hace referencia a otro bloque (marcador de posición de la fase 3).",
+      "keywords": "sincronizado, espejo, referencia"
+    }
+  }
+}

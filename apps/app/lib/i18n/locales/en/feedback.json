@@ -21,7 +21,7 @@
   "featurePlaceholder": "Describe the feature you'd like to see. How would it help you?",
   "improvementPlaceholder": "What would you like us to improve? How could we make it better?",
   "otherPlaceholder": "Share your thoughts with us...",
-  "characterCount": "{{count}}/1000 characters",
+  "characterCount": "%{count}/1000 characters",
   "submitButton": "Submit Feedback",
   "submitting": "Submitting...",
   "footerText": "Your feedback helps us improve Nilo. Thank you for taking the time to share your thoughts.",

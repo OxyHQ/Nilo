@@ -41,5 +41,9 @@
     "sky": "Sky",
     "orange": "Orange",
     "mint": "Mint"
+  },
+  "members": {
+    "title": "Workspace members",
+    "description": "Invite people to your workspace and manage their roles. Only workspace admins and owners can change roles or remove members."
   }
 }
