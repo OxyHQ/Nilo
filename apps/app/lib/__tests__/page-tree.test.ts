@@ -9,6 +9,7 @@ const page = (id: string, parentId: string | null, order = 0): Page => ({
   id,
   parentId,
   order,
+  teamspaceId: null,
   workspaceId: 'guest-workspace',
   title: id,
   ownerId: 'owner',

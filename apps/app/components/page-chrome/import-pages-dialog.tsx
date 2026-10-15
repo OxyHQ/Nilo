@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '@/lib/api/error-message';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -13,11 +14,13 @@ import { useColorScheme } from '@/lib/useColorScheme';
 export function ImportPagesDialog({
   workspaceId,
   parentId,
+  teamspaceId,
   onClose,
   csvOnly = false,
 }: {
   workspaceId: string;
   parentId?: string | null;
+  teamspaceId?: string | null;
   onClose: () => void;
   csvOnly?: boolean;
 }) {
@@ -53,6 +56,7 @@ export function ImportPagesDialog({
       const imported = await mutation.mutateAsync({
         workspaceId,
         parentId,
+        teamspaceId,
         assets: selection.assets,
         onProgress: setProgress,
       });
@@ -112,7 +116,7 @@ export function ImportPagesDialog({
         ) : null}
         {errorKey ? (
           <Text accessibilityRole="alert" className="text-sm text-destructive">
-            {t(`pages.import.${errorKey}`)}
+            {apiErrorMessage(mutation.error, t(`pages.import.${errorKey}`))}
           </Text>
         ) : null}
         {result ? (

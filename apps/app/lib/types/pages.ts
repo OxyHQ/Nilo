@@ -22,6 +22,9 @@ export interface Page {
   locked: boolean;
   id: string;
   workspaceId: string;
+  teamspaceId: string | null;
+  /** In workspace page lists: reached only because it was shared with the caller. */
+  sharedWithMe?: boolean;
   parentId: string | null;
   ownerId: string;
   title: string;

@@ -13,6 +13,7 @@ import type {
 } from '../types/databases';
 
 interface CreateDatabaseInput {
+  teamspaceId?: string | null;
   workspaceId: string;
   name?: string;
   icon?: string | null;

@@ -16,6 +16,7 @@ export interface ImportResult {
 interface ImportInput {
   workspaceId: string;
   parentId?: string | null;
+  teamspaceId?: string | null;
   assets: DocumentPickerAsset[];
   onProgress: (percent: number | null) => void;
 }
@@ -23,7 +24,7 @@ interface ImportInput {
 export function useImportPages() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async ({ workspaceId, parentId, assets, onProgress }: ImportInput) => {
+    mutationFn: async ({ workspaceId, parentId, teamspaceId, assets, onProgress }: ImportInput) => {
       const kind = importSelection(assets);
       const config = {
         timeout: 120_000,
@@ -34,6 +35,7 @@ export function useImportPages() {
         const csv = await (await fetch(assets[0].uri)).text();
         const body = JSON.stringify({
           workspaceId,
+          teamspaceId,
           parentPageId: parentId ?? undefined,
           name: assets[0].name.replace(/\.csv$/i, ''),
           csv,
@@ -51,7 +53,11 @@ export function useImportPages() {
         if (body.byteLength > MAX_IMPORT_BYTES) throw new Error('tooLarge');
         const response = await apiClient.post<ImportResult>(API_ROUTES.pages.importZip, body, {
           ...config,
-          params: { workspaceId, parentId: parentId ?? undefined },
+          params: {
+            workspaceId,
+            parentId: parentId ?? undefined,
+            teamspaceId: teamspaceId === null ? 'private' : teamspaceId,
+          },
           headers: { 'Content-Type': 'application/zip' },
         });
         return response.data;
@@ -64,7 +70,7 @@ export function useImportPages() {
         if (bytes > MAX_IMPORT_BYTES) throw new Error('tooLarge');
         files.push({ path: asset.name, content });
       }
-      const body = JSON.stringify({ workspaceId, parentId, files });
+      const body = JSON.stringify({ workspaceId, parentId, teamspaceId, files });
       if (new Blob([body]).size > MAX_IMPORT_BYTES) throw new Error('tooLarge');
       const response = await apiClient.post<ImportResult>(API_ROUTES.pages.import, body, config);
       return response.data;

@@ -174,3 +174,49 @@ it('exports a database using the CSV endpoint and server filename', async () => 
     responseType: 'blob',
   });
 });
+
+it.each(['team', null, undefined])(
+  'sends %s placement in ZIP query parameters',
+  async (teamspaceId) => {
+    fetchFile.mockResolvedValue({ arrayBuffer: async () => new ArrayBuffer(4) } as Response);
+    await act(async () => {
+      await imports.mutateAsync({
+        workspaceId: 'workspace',
+        parentId: null,
+        teamspaceId,
+        assets: [{ lastModified: 0, uri: 'blob:zip', name: 'export.zip' }],
+        onProgress,
+      });
+    });
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/pages/import/zip',
+      expect.any(ArrayBuffer),
+      expect.objectContaining({
+        params: {
+          workspaceId: 'workspace',
+          parentId: undefined,
+          teamspaceId: teamspaceId === null ? 'private' : teamspaceId,
+        },
+      }),
+    );
+  },
+);
+
+it.each([
+  ['csv', null],
+  ['md', 'team'],
+] as const)('sends %s placement in its JSON body', async (extension, teamspaceId) => {
+  fetchFile.mockResolvedValue({ text: async () => 'Title\nBody' } as Response);
+  await act(async () => {
+    await imports.mutateAsync({
+      workspaceId: 'workspace',
+      teamspaceId,
+      assets: [{ lastModified: 0, uri: 'blob:file', name: `import.${extension}` }],
+      onProgress,
+    });
+  });
+  const body = jest.mocked(apiClient.post).mock.calls[0][1];
+  expect(JSON.parse(String(body))).toEqual(
+    expect.objectContaining({ workspaceId: 'workspace', teamspaceId }),
+  );
+});

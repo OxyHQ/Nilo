@@ -10,6 +10,7 @@ import type { BreadcrumbResponse, Page, PageResponse, PagesListResponse } from '
 interface CreatePageInput {
   workspaceId: string;
   parentId?: string | null;
+  teamspaceId?: string | null;
   title?: string;
   icon?: string | null;
 }
@@ -25,6 +26,7 @@ interface UpdatePageInput {
   cover?: string | null;
   coverPosition?: number;
   parentId?: string | null;
+  teamspaceId?: string | null;
   archived?: boolean;
   template?: boolean;
   /**
@@ -124,7 +126,13 @@ export function useUpdatePage() {
         queryClient.setQueryData(queryKeys.pages.detail(id), ctx.previous);
       }
     },
-    onSettled: (page, _error, { id }) => {
+    onSettled: (page, _error, { id, parentId, teamspaceId }) => {
+      if (parentId !== undefined || teamspaceId !== undefined) {
+        queryClient.invalidateQueries({ queryKey: ['page'] });
+        queryClient.invalidateQueries({ queryKey: ['page-permissions'] });
+        queryClient.invalidateQueries({ queryKey: ['database'] });
+        queryClient.invalidateQueries({ queryKey: ['databases'] });
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.pages.detail(id) });
       if (!page) return;
       if (page.databaseId) {
@@ -181,13 +189,20 @@ export function useDuplicatePage() {
   return useMutation<
     Page,
     Error,
-    { id: string; workspaceId: string; fromTemplate?: true; parentId?: string | null }
+    {
+      id: string;
+      workspaceId: string;
+      fromTemplate?: true;
+      parentId?: string | null;
+      teamspaceId?: string | null;
+    }
   >({
-    mutationFn: async ({ id, fromTemplate, parentId }) => {
-      const res = await apiClient.post<PageResponse>(
-        API_ROUTES.pages.duplicate(id),
-        fromTemplate ? { fromTemplate, parentId: parentId ?? null } : undefined,
-      );
+    mutationFn: async ({ id, fromTemplate, parentId, teamspaceId }) => {
+      const res = await apiClient.post<PageResponse>(API_ROUTES.pages.duplicate(id), {
+        fromTemplate,
+        parentId: fromTemplate ? (parentId ?? null) : parentId,
+        teamspaceId,
+      });
       return res.data.page;
     },
     onSuccess: (_page, { workspaceId }) => {

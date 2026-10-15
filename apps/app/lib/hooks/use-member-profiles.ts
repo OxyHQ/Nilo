@@ -11,7 +11,11 @@ export function useMemberProfiles(userIds: string[]) {
   const ids = [...new Set(userIds)].sort();
   return useQuery({
     queryKey: ['member-profiles', ids],
-    queryFn: () => oxyServices.users.getMany(ids),
+    queryFn: async () => {
+      const batches: string[][] = [];
+      for (let i = 0; i < ids.length; i += 100) batches.push(ids.slice(i, i + 100));
+      return (await Promise.all(batches.map((batch) => oxyServices.users.getMany(batch)))).flat();
+    },
     enabled: ids.length > 0,
     staleTime: 5 * 60_000,
   });

@@ -1,3 +1,6 @@
+import { MoveToDialog } from '@/components/page-chrome/move-to-dialog';
+import { apiErrorMessage } from '@/lib/api/error-message';
+import { toast } from '@oxy.so/bloom/toast';
 import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
 import { View, Pressable } from 'react-native';
@@ -70,6 +73,7 @@ export function SharedPageRow({
   const deletePage = useDeletePage();
   const duplicatePage = useDuplicatePage();
   const updatePage = useUpdatePage();
+  const [moveOpen, setMoveOpen] = React.useState(false);
 
   const title = page.title.trim() ? page.title : t('pages.untitled');
   const indent = depth * INDENT_PX;
@@ -88,8 +92,13 @@ export function SharedPageRow({
   }, [deletePage, page.id, workspaceId]);
 
   const handleDuplicate = React.useCallback(() => {
-    duplicatePage.mutate({ id: page.id, workspaceId });
-  }, [duplicatePage, page.id, workspaceId]);
+    duplicatePage.mutate(
+      { id: page.id, workspaceId },
+      {
+        onError: (error) => toast.error(apiErrorMessage(error, t('pages.toasts.duplicateFailed'))),
+      },
+    );
+  }, [duplicatePage, page.id, workspaceId, t]);
 
   const handleToggleFavorite = React.useCallback(() => {
     // Optimistic toggle. The Page chrome agent owns the canonical UI in the
@@ -97,17 +106,13 @@ export function SharedPageRow({
     updatePage.mutate({ id: page.id, favorited: !isFavorite });
   }, [updatePage, page.id, isFavorite]);
 
-  const handleMoveToRoot = React.useCallback(() => {
-    if (!page.parentId) return;
-    updatePage.mutate({ id: page.id, parentId: null });
-  }, [updatePage, page.id, page.parentId]);
-
   const containerClass = isActive
     ? 'flex-row items-center bg-muted'
     : 'flex-row items-center hover:bg-muted/60 active:bg-muted/60';
 
   return (
     <View>
+      <MoveToDialog open={moveOpen} onOpenChange={setMoveOpen} page={page} />
       {platformDrag?.dropIndicator === 'before' ? <DropLine /> : null}
       <Pressable
         id={platformDrag?.domId}
@@ -185,12 +190,9 @@ export function SharedPageRow({
                   <DropdownMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
                   <DropdownMenu.ItemTitle>{t('pages.actions.duplicate')}</DropdownMenu.ItemTitle>
                 </DropdownMenu.Item>
-                {page.parentId ? (
-                  <DropdownMenu.Item key="move-root" onSelect={handleMoveToRoot}>
-                    <DropdownMenu.ItemIcon ios={{ name: 'arrow.up.left' }} />
-                    <DropdownMenu.ItemTitle>{t('pages.actions.moveToTop')}</DropdownMenu.ItemTitle>
-                  </DropdownMenu.Item>
-                ) : null}
+                <DropdownMenu.Item key="move" onSelect={() => setMoveOpen(true)}>
+                  <DropdownMenu.ItemTitle>{t('pages.actions.moveTo')}</DropdownMenu.ItemTitle>
+                </DropdownMenu.Item>
                 <DropdownMenu.Separator />
                 <DropdownMenu.Item key="delete" destructive onSelect={handleDelete}>
                   <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />

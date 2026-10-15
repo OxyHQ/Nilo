@@ -1,3 +1,4 @@
+import { PlacementSections } from './sidebar-sections/placement-sections';
 import { useNewPageStore } from '@/lib/stores/new-page-store';
 import { SharedWithMeSection } from './sidebar-sections/shared-with-me-section';
 import React from 'react';
@@ -25,10 +26,7 @@ import {
   SidebarTrashButton,
   RecentsSection,
   FavoritesSection,
-  PrivateSection,
-  SharedSection,
   TemplatesSection,
-  DatabaseSection,
 } from '@/components/sidebar-sections';
 
 /* ================================================================
@@ -208,9 +206,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           <View className="mt-2">
             <RecentsSection />
             <FavoritesSection />
-            <PrivateSection />
-            <SharedSection />
-            <DatabaseSection />
+            <PlacementSections />
             <TemplatesSection />
           </View>
         ) : null}

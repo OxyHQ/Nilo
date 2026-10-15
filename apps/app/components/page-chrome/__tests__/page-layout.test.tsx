@@ -53,6 +53,7 @@ jest.mock('../page-info', () => ({ PageInfo: () => null }));
 
 const initial: Page = {
   id: 'page',
+  teamspaceId: null,
   workspaceId: 'workspace',
   ownerId: 'owner',
   parentId: null,

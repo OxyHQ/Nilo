@@ -68,5 +68,51 @@
     "createFirst": "Crea tu primer espacio de trabajo",
     "switchLabel": "Cambiar de espacio de trabajo, actual: %{name}",
     "yourWorkspaces": "Tus espacios de trabajo"
+  },
+  "teamspaces": {
+    "title": "Espacios de equipo",
+    "browse": "Explorar espacios de equipo",
+    "create": "Crear espacio de equipo",
+    "settings": "Ajustes del espacio de equipo",
+    "settingsFor": "Ajustes de %{name}",
+    "name": "Nombre",
+    "icon": "Icono (emoji)",
+    "description": "Descripción",
+    "privacyLabel": "Privacidad",
+    "privacy": {
+      "open": "Abierto",
+      "closed": "Cerrado",
+      "private": "Privado"
+    },
+    "explanation": {
+      "open": "Todos los miembros del espacio de trabajo pueden abrir las páginas y unirse.",
+      "closed": "Todos pueden encontrar este espacio de equipo. Solo sus miembros pueden abrir sus páginas.",
+      "private": "Solo los miembros pueden encontrar este espacio y abrir sus páginas. Los propietarios y administradores del espacio de trabajo también tienen acceso."
+    },
+    "defaultInfo": "Todos pertenecen al espacio de equipo predeterminado. Siempre está abierto y no se puede archivar.",
+    "join": "Unirse",
+    "joinName": "Unirse a %{name}",
+    "joined": "Ya eres miembro",
+    "members": "Miembros (%{count})",
+    "roles": {
+      "owner": "Propietario",
+      "member": "Miembro"
+    },
+    "changeRoleFor": "Cambiar el rol de %{name}",
+    "makeMember": "Hacer miembro",
+    "makeOwner": "Hacer propietario",
+    "remove": "Eliminar",
+    "removeName": "Eliminar a %{name}",
+    "addMember": "Añadir miembro del espacio de trabajo",
+    "findMember": "Buscar un miembro",
+    "addName": "Añadir a %{name}",
+    "lastOwner": "Añade otro propietario antes de salir o eliminar al último propietario.",
+    "leave": "Salir del espacio de equipo",
+    "archive": "Archivar espacio de equipo",
+    "confirmArchive": "Confirmar archivo",
+    "archiveInfo": "Este espacio de equipo dejará de aparecer en Espacios de equipo.",
+    "failed": "No se pudo completar la acción. Inténtalo de nuevo.",
+    "newDatabase": "Nueva base de datos",
+    "search": "Buscar un espacio de equipo"
   }
 }

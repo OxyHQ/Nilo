@@ -48,6 +48,7 @@ jest.mock('../sort-builder', () => ({ SortBuilder: () => null }));
 
 const database: Database = {
   id: 'db',
+  teamspaceId: null,
   workspaceId: 'workspace',
   name: 'Projects',
   icon: null,

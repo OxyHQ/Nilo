@@ -100,6 +100,7 @@ export interface DatabaseSchema {
 export interface Database {
   id: string;
   workspaceId: string;
+  teamspaceId: string | null;
   name: string;
   icon: string | null;
   cover: string | null;

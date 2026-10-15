@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '@/lib/api/error-message';
 import { usePageFollow, useSetPageFollow } from '@/lib/hooks/use-page-follow';
 import { saveExport } from '@/lib/save-export';
 import { PageHistoryDialog } from './page-history-dialog';
@@ -64,7 +65,7 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
           router.push(`/p/${created.id}`);
         },
         onError: (err) => {
-          toast.error(err.message || t('pages.toasts.duplicateFailed'));
+          toast.error(apiErrorMessage(err, t('pages.toasts.duplicateFailed')));
         },
       },
     );

@@ -1,3 +1,4 @@
+import { apiErrorMessage } from '@/lib/api/error-message';
 import { useRouter } from 'expo-router';
 import { toast } from '@oxy.so/bloom/toast';
 import { TemplateList } from '@/components/templates/template-list';
@@ -23,7 +24,8 @@ export function TemplatesSection() {
             { id: page.id, workspaceId, fromTemplate: true, parentId: null },
             {
               onSuccess: (created) => router.push(`/p/${created.id}`),
-              onError: () => toast.error(t('pages.templates.createFailed')),
+              onError: (error) =>
+                toast.error(apiErrorMessage(error, t('pages.templates.createFailed'))),
             },
           )
         }

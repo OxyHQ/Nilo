@@ -1,3 +1,5 @@
+import { apiErrorMessage } from '@/lib/api/error-message';
+import { useCreateDatabase } from '@/lib/hooks/use-databases';
 import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -15,7 +17,7 @@ export function NewPageDialog() {
   if (!destination) return null;
   return (
     <PageChoices
-      key={`${destination.workspaceId}:${destination.parentId}`}
+      key={`${destination.workspaceId}:${destination.parentId}:${destination.teamspaceId}`}
       destination={destination}
     />
   );
@@ -27,10 +29,11 @@ function PageChoices({ destination }: { destination: NewPageDestination }) {
   const close = useNewPageStore((s) => s.close);
   const create = useCreatePage();
   const duplicate = useDuplicatePage();
+  const database = useCreateDatabase();
   const [importOpen, setImportOpen] = useState(false);
   const [csvOnly, setCsvOnly] = useState(false);
   const [templates, setTemplates] = useState(false);
-  const pending = create.isPending || duplicate.isPending;
+  const pending = create.isPending || duplicate.isPending || database.isPending;
   const created = (page: { id: string }) => {
     close();
     router.push(`/p/${page.id}`);
@@ -78,6 +81,31 @@ function PageChoices({ destination }: { destination: NewPageDestination }) {
           </ScrollView>
         ) : (
           <View className="gap-2">
+            {destination.parentId === null ? (
+              <Button
+                variant="outline"
+                disabled={pending}
+                accessibilityLabel={t('workspace.teamspaces.newDatabase')}
+                onPress={() =>
+                  database.mutate(
+                    {
+                      workspaceId: destination.workspaceId,
+                      teamspaceId: destination.teamspaceId,
+                      parentPageId: destination.parentId,
+                      name: t('workspace.teamspaces.newDatabase'),
+                    },
+                    {
+                      onSuccess: ({ database: createdDatabase }) => {
+                        close();
+                        router.push(`/db/${createdDatabase.id}`);
+                      },
+                    },
+                  )
+                }
+              >
+                <Text>{t('workspace.teamspaces.newDatabase')}</Text>
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               accessibilityLabel={t('databases.csv.import')}
@@ -119,9 +147,12 @@ function PageChoices({ destination }: { destination: NewPageDestination }) {
             {t('pages.templates.creating')}
           </Text>
         ) : null}
-        {create.isError || duplicate.isError ? (
+        {create.isError || duplicate.isError || database.isError ? (
           <Text accessibilityRole="alert" className="text-sm text-destructive">
-            {t('pages.templates.createFailed')}
+            {apiErrorMessage(
+              create.error ?? duplicate.error ?? database.error,
+              t('pages.templates.createFailed'),
+            )}
           </Text>
         ) : null}
       </DialogContent>

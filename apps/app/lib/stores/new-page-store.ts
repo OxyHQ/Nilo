@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export interface NewPageDestination {
   workspaceId: string;
   parentId: string | null;
+  teamspaceId?: string | null;
 }
 
 export const useNewPageStore = create<{
