@@ -391,24 +391,28 @@ export async function resolveDatabaseRole(
   return baseRole(await viewerFor(db, database.workspaceId, userId, home), home).role;
 }
 
+/**
+ * The caller's role on a database when it is at least `minRole`; otherwise the
+ * refusal is sent and null returned.
+ */
 export async function checkDatabaseAccess(
   req: Request,
   res: Response,
   db: PgHandle,
   database: { workspaceId: string } & DatabaseHome,
   minRole: WorkspaceRole,
-): Promise<boolean> {
+): Promise<WorkspaceRole | null> {
   if (database.parentPageId)
-    return (await checkPageAccess(req, res, db, database.parentPageId, minRole)) !== null;
+    return (await checkPageAccess(req, res, db, database.parentPageId, minRole))?.role ?? null;
   const userId = req.user?.id;
   if (!userId) {
     res.status(401).json({ error: 'Unauthorized' });
-    return false;
+    return null;
   }
   const home = { teamspaceId: database.teamspaceId, ownerId: database.ownerId };
   const viewer = await viewerFor(db, database.workspaceId, userId, home);
   const role = baseRole(viewer, home).role;
-  if (role && hasRole(role, minRole)) return true;
+  if (role && hasRole(role, minRole)) return role;
   forbidden(res, minRole, role);
-  return false;
+  return null;
 }

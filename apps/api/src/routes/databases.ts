@@ -541,14 +541,16 @@ router.get('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkDatabaseAccess(req, res, handle, db, 'viewer');
-    if (!ok) return;
+    const role = await checkDatabaseAccess(req, res, handle, db, 'viewer');
+    if (!role) return;
 
     const views = await listViewsByDatabase(handle, db.id);
 
     res.json({
       database: serializeDatabase(db),
       views: views.map((v) => serializeView(v)),
+      // The caller's role on the database, so a client never re-derives it.
+      role,
     });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1117,7 +1119,7 @@ async function checkViewsAccess(
   write: boolean,
 ): Promise<boolean> {
   if (blockId === null)
-    return checkDatabaseAccess(req, res, handle, db, write ? 'editor' : 'viewer');
+    return (await checkDatabaseAccess(req, res, handle, db, write ? 'editor' : 'viewer')) !== null;
   const block = await findBlockById(handle, blockId);
   if (!block || block.type !== 'inline_database' || block.content.databaseId !== db.id) {
     res.status(404).json({ error: 'Linked view not found' });
@@ -1126,7 +1128,7 @@ async function checkViewsAccess(
   if (!(await checkPageAccess(req, res, handle, block.pageId, write ? 'editor' : 'viewer'))) {
     return false;
   }
-  return checkDatabaseAccess(req, res, handle, db, 'viewer');
+  return (await checkDatabaseAccess(req, res, handle, db, 'viewer')) !== null;
 }
 
 router.get('/:id/views', async (req: Request, res: Response) => {

@@ -286,6 +286,17 @@ describe('databases in no page', () => {
       .databases as { id: string }[];
     expect(list.map((d) => d.id)).not.toContain(id);
   });
+
+  it('tell the caller their role, so the app never re-derives it', async () => {
+    const mine = (
+      await api(EDITOR, 'POST', '/databases', { workspaceId, name: 'Mine', teamspaceId: null })
+    ).json.database as { id: string };
+    expect((await api(EDITOR, 'GET', `/databases/${mine.id}`)).json.role).toBe('admin');
+    const shared = (await api(EDITOR, 'POST', '/databases', { workspaceId, name: 'Everyone' })).json
+      .database as { id: string };
+    expect((await api(VIEWER, 'GET', `/databases/${shared.id}`)).json.role).toBe('viewer');
+    expect((await api(EDITOR, 'GET', `/databases/${shared.id}`)).json.role).toBe('editor');
+  });
 });
 
 describe('leaving the workspace', () => {
