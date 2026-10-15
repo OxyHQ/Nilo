@@ -30,6 +30,7 @@ export const BLOCK_TYPES = [
   'embed',
   'columns',
   'column',
+  'canvas_note',
   'table',
   'table_row',
   'table_cell',
@@ -239,6 +240,17 @@ const columnContentSchema = z.object({
   ...styleFields,
 });
 
+/**
+ * A note on a canvas page: its blocks are its children, and it sits at `x`,
+ * `y` (the canvas's own units, which may be negative) with a `width`.
+ */
+const canvasNoteContentSchema = z.object({
+  x: z.number().finite().default(0),
+  y: z.number().finite().default(0),
+  width: z.number().finite().min(160).max(2400).default(360),
+  ...styleFields,
+});
+
 const tableContentSchema = z.object({
   rows: z.number().int().positive().default(2),
   cols: z.number().int().positive().default(2),
@@ -381,6 +393,8 @@ export function normalizeContent(type: BlockType, content: unknown): BlockConten
       return columnsContentSchema.parse(incoming);
     case 'column':
       return columnContentSchema.parse(incoming);
+    case 'canvas_note':
+      return canvasNoteContentSchema.parse(incoming);
     case 'table':
       return tableContentSchema.parse(incoming);
     case 'table_row':
@@ -446,6 +460,8 @@ function schemaFor(type: BlockType): z.AnyZodObject {
       return columnsContentSchema;
     case 'column':
       return columnContentSchema;
+    case 'canvas_note':
+      return canvasNoteContentSchema;
     case 'table':
       return tableContentSchema;
     case 'table_row':

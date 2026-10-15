@@ -435,6 +435,49 @@ describe('PATCH /pages/:id', () => {
     expect((await api('PATCH', `/pages/${page.id}`, { font: 'comic' })).status).toBe(400);
   });
 
+  it('lays a page out as a canvas of notes, and back', async () => {
+    const page = await createPage();
+    const note = uuidv7();
+    const placed = await api(
+      'POST',
+      `/pages/${page.id}/blocks/transactions`,
+      {
+        ops: [
+          {
+            kind: 'insert',
+            id: note,
+            parentBlockId: null,
+            afterId: null,
+            type: 'canvas_note',
+            content: { x: -120, y: 40.5, width: 320 },
+          },
+          {
+            kind: 'insert',
+            id: uuidv7(),
+            parentBlockId: note,
+            afterId: null,
+            type: 'paragraph',
+            content: { text: 'On the canvas' },
+          },
+        ],
+      },
+      { 'x-workspace-id': workspaceId },
+    );
+    expect(placed.status).toBe(200);
+    const canvas = await api('PATCH', `/pages/${page.id}`, { mode: 'canvas' });
+    expect(canvas.json.page).toMatchObject({ mode: 'canvas' });
+    const blocks = await api('GET', `/pages/${page.id}/blocks`);
+    expect(
+      (blocks.json.blocks as { type: string; content: Record<string, unknown> }[]).find(
+        (b) => b.type === 'canvas_note',
+      )?.content,
+    ).toMatchObject({ x: -120, y: 40.5, width: 320 });
+    expect((await api('PATCH', `/pages/${page.id}`, { mode: 'board' })).status).toBe(400);
+    expect((await api('PATCH', `/pages/${page.id}`, { mode: 'document' })).json.page).toMatchObject(
+      { mode: 'document' },
+    );
+  });
+
   it('keeps a locked page as it is until it is unlocked', async () => {
     const page = await createPage({ title: 'Policy' });
     const write = () =>

@@ -34,7 +34,7 @@ import {
   loadViewer,
   rolesForPages,
 } from '../lib/page-access.js';
-import { PAGE_FONTS } from '../db/schema/pages.js';
+import { PAGE_FONTS, PAGE_MODES } from '../db/schema/pages.js';
 import { hasRole } from '../db/schema/workspaces.js';
 import {
   listGrantsOfUser,
@@ -118,6 +118,7 @@ const updatePageSchema = z
     fullWidth: z.boolean().optional(),
     smallText: z.boolean().optional(),
     font: z.enum(PAGE_FONTS).optional(),
+    mode: z.enum(PAGE_MODES).optional(),
     /** Lock against edits, or unlock (see `pages.locked`). */
     locked: z.boolean().optional(),
     // Database row property writes. Keys are propertyIds; shapes are
@@ -179,6 +180,7 @@ function serializePage(page: PageRow) {
     fullWidth: page.fullWidth,
     smallText: page.smallText,
     font: page.font,
+    mode: page.mode,
     locked: page.locked,
     publishedAt: page.publishedAt,
     publishSlug: page.publishSlug,
@@ -513,6 +515,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       fullWidth: body.fullWidth,
       smallText: body.smallText,
       font: body.font,
+      mode: body.mode,
       locked: body.locked,
       teamspaceId,
       lastEditedBy: userId,

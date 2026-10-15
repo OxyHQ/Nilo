@@ -21,6 +21,8 @@ import { workspaces } from './workspaces.js';
 /** A page's typeface (`pages.font`). */
 export const PAGE_FONTS = ['default', 'serif', 'mono'] as const;
 export type PageFont = (typeof PAGE_FONTS)[number];
+export const PAGE_MODES = ['document', 'canvas'] as const;
+export type PageMode = (typeof PAGE_MODES)[number];
 
 /** Every block type the editor persists, and each one's content: the contract shared with the app. */
 export { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
@@ -118,6 +120,11 @@ export const pages = pgTable(
     smallText: boolean().notNull().default(false),
     /** The page's typeface: `default`, `serif` or `mono`. */
     font: text().$type<PageFont>().notNull().default('default'),
+    /**
+     * How its blocks are laid out: `document`, top to bottom, or `canvas`,
+     * as notes (`canvas_note` blocks) placed on an infinite surface.
+     */
+    mode: text().$type<PageMode>().notNull().default('document'),
     /**
      * Locked against edits — a guard, not a permission: nobody changes its
      * blocks, title, icon, cover or properties until an editor unlocks it.
@@ -239,6 +246,7 @@ export const pages = pgTable(
      * also rejects `'NaN'::double precision`.
      */
     check('pages_font', sql`${t.font} in ('default', 'serif', 'mono')`),
+    check('pages_mode', sql`${t.mode} in ('document', 'canvas')`),
     check(
       'pages_cover_position_range',
       sql`${t.coverPosition} between ${sql.raw(String(COVER_POSITION_MIN))} and ${sql.raw(String(COVER_POSITION_MAX))}`,

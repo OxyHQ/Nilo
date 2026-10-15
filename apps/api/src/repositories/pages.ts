@@ -14,7 +14,13 @@ import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { TRANSACTION_KEY_RETENTION_MS } from '@nilo/contracts';
 import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
-import { type PageFont, pages, type PageProperties, pageTransactions } from '../db/schema/pages.js';
+import {
+  type PageFont,
+  type PageMode,
+  pages,
+  type PageProperties,
+  pageTransactions,
+} from '../db/schema/pages.js';
 
 export type PageRow = typeof pages.$inferSelect;
 
@@ -238,6 +244,7 @@ export interface UpdatePageInput {
   fullWidth?: boolean;
   smallText?: boolean;
   font?: PageFont;
+  mode?: PageMode;
   locked?: boolean;
   /** Where a top-level page lives (null: private to its owner). */
   teamspaceId?: string | null;
@@ -297,6 +304,7 @@ export async function updatePage(
   if (patch.fullWidth !== undefined) values.fullWidth = patch.fullWidth;
   if (patch.smallText !== undefined) values.smallText = patch.smallText;
   if (patch.font !== undefined) values.font = patch.font;
+  if (patch.mode !== undefined) values.mode = patch.mode;
   if (patch.locked !== undefined) values.locked = patch.locked;
   if (patch.teamspaceId !== undefined) values.teamspaceId = patch.teamspaceId;
   if (patch.publishedAt !== undefined) values.publishedAt = patch.publishedAt;
