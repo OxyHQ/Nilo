@@ -438,12 +438,25 @@ describe('DELETE /api/databases/:id', () => {
     const databaseId = await createDatabase();
     await api('POST', `/api/databases/${databaseId}/rows`, { title: 'Safe' });
 
+    // The membership itself, which the route reads.
+    const setRole = (role: WorkspaceRole) =>
+      db
+        .update(workspaceMembers)
+        .set({ role })
+        .where(
+          and(
+            eq(workspaceMembers.workspaceId, ctx.workspaceId),
+            eq(workspaceMembers.userId, ctx.userId),
+          ),
+        );
     ctx.role = 'editor';
+    await setRole('editor');
     try {
       const refused = await api('DELETE', `/api/databases/${databaseId}?hard=true`);
       expect(refused.status).toBe(403);
     } finally {
       ctx.role = 'owner';
+      await setRole('owner');
     }
 
     expect(await db.select().from(databases).where(eq(databases.id, databaseId))).toHaveLength(1);

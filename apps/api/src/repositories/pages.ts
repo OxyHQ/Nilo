@@ -187,6 +187,8 @@ export interface CreatePageInput {
   properties?: PageProperties;
   /** A database row created as a template (`POST /databases/:id/rows { template }`). */
   template?: boolean;
+  /** Where a top-level page lives: its teamspace, or null — private to its owner. */
+  teamspaceId?: string | null;
 }
 
 /**
@@ -214,6 +216,8 @@ export async function createPage(db: PgHandle, input: CreatePageInput): Promise<
       databaseId: input.databaseId ?? null,
       properties: input.properties ?? {},
       template: input.template ?? false,
+      // Read only at the top of a tree: a subpage lives where its tree starts.
+      teamspaceId: input.parentId ? null : (input.teamspaceId ?? null),
     })
     .returning();
   if (!row) throw new Error('createPage inserted no row');
@@ -235,6 +239,8 @@ export interface UpdatePageInput {
   smallText?: boolean;
   font?: PageFont;
   locked?: boolean;
+  /** Where a top-level page lives (null: private to its owner). */
+  teamspaceId?: string | null;
   publishedAt?: Date | null;
   publishSlug?: string;
   publishIndexing?: boolean;
@@ -292,6 +298,7 @@ export async function updatePage(
   if (patch.smallText !== undefined) values.smallText = patch.smallText;
   if (patch.font !== undefined) values.font = patch.font;
   if (patch.locked !== undefined) values.locked = patch.locked;
+  if (patch.teamspaceId !== undefined) values.teamspaceId = patch.teamspaceId;
   if (patch.publishedAt !== undefined) values.publishedAt = patch.publishedAt;
   if (patch.publishSlug !== undefined) values.publishSlug = patch.publishSlug;
   if (patch.publishIndexing !== undefined) values.publishIndexing = patch.publishIndexing;

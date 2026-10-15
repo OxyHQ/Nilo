@@ -18,7 +18,7 @@ import { getDb } from '../db/client.js';
 import { applyBlockTransaction, type BlockOperation } from '../lib/block-transactions.js';
 import { log } from '../lib/logger.js';
 import { checkPageAccess } from '../lib/page-access.js';
-import { checkWorkspaceAccess } from '../lib/workspace-access.js';
+import { placeOrRefuse } from '../lib/placement.js';
 import { createDatabaseWithRows } from '../lib/databases/create.js';
 import { csvToDatabase } from '../lib/databases/csv.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -35,6 +35,8 @@ const fileSchema = z.object({ path: z.string().min(1).max(1024), content: z.stri
 const importSchema = z.object({
   workspaceId: entityIdSchema,
   parentId: entityIdSchema.nullable().optional(),
+  /** At the top level: a teamspace, null for private; absent, the default one. */
+  teamspaceId: entityIdSchema.nullable().optional(),
   files: z.array(fileSchema).min(1).max(MAX_FILES),
 });
 
@@ -195,7 +197,12 @@ function insertOperations(blocks: readonly BlockNode[]): BlockOperation[] {
 async function runImport(
   req: Request,
   res: Response,
-  input: { workspaceId: string; parentId: string | null; files: readonly ImportFile[] },
+  input: {
+    workspaceId: string;
+    parentId: string | null;
+    teamspaceId: string | null | undefined;
+    files: readonly ImportFile[];
+  },
 ): Promise<void> {
   const db = getDb();
   if (input.parentId) {
@@ -205,10 +212,13 @@ async function runImport(
       return;
     }
     if (!(await checkPageAccess(req, res, db, parent.id, 'editor'))) return;
-  } else if (!(await checkWorkspaceAccess(req, res, input.workspaceId, 'editor'))) {
-    return;
   }
   const userId = req.user?.id as string;
+  // What lands at the top level lives in one place (`lib/placement.ts`).
+  const place = input.parentId
+    ? { teamspaceId: null }
+    : await placeOrRefuse(res, db, input.workspaceId, userId, input.teamspaceId);
+  if (!place) return;
   const { pages, databases, skipped } = planImport(input.files);
   if (pages.length === 0 && databases.length === 0) {
     res.status(400).json({ error: 'Nothing to import: no Markdown or CSV files', skipped });
@@ -229,6 +239,7 @@ async function runImport(
       title: planned.title,
       ownerId: userId,
       order: await nextSiblingOrder(db, { workspaceId: input.workspaceId, parentId }),
+      teamspaceId: place.teamspaceId,
     });
     created.set(planned.key, page.id);
     const ops = insertOperations(planned.blocks);
@@ -253,6 +264,7 @@ async function runImport(
         schema: parsed.schema,
         isInline: host !== null,
         parentPageId: host,
+        teamspaceId: place.teamspaceId,
         rows: parsed.rows,
       }),
     );
@@ -311,6 +323,7 @@ router.post(
       await runImport(req, res, {
         workspaceId: body.workspaceId,
         parentId: body.parentId ?? null,
+        teamspaceId: body.teamspaceId,
         files: body.files as ImportFile[],
       });
     } catch (error: unknown) {
@@ -324,7 +337,10 @@ router.post(
   },
 );
 
-/** POST /pages/import/zip?workspaceId=…[&parentId=…] with the ZIP as the body (`application/zip`). */
+/**
+ * POST /pages/import/zip?workspaceId=…[&parentId=…][&teamspaceId=…|private] with the
+ * ZIP as the body (`application/zip`).
+ */
 router.post(
   '/pages/import/zip',
   authenticateToken,
@@ -335,7 +351,15 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const query = z
-        .object({ workspaceId: entityIdSchema, parentId: entityIdSchema.optional() })
+        .object({
+          workspaceId: entityIdSchema,
+          parentId: entityIdSchema.optional(),
+          // A teamspace's id, or `private`; the default teamspace when absent.
+          teamspaceId: z
+            .union([entityIdSchema, z.literal('private')])
+            .optional()
+            .transform((v) => (v === 'private' ? null : v)),
+        })
         .parse(req.query);
       if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
         res.status(400).json({ error: 'Send the ZIP file as the request body' });
@@ -363,6 +387,7 @@ router.post(
       await runImport(req, res, {
         workspaceId: query.workspaceId,
         parentId: query.parentId ?? null,
+        teamspaceId: query.teamspaceId,
         files,
       });
     } catch (error: unknown) {

@@ -22,9 +22,11 @@ export interface CopyPageTreeInput {
   template: boolean;
   /** Owner of every copied page, and grantor of every copied grant. */
   userId: string;
+  /** Where the copy lives when it is a top-level page (`lib/placement.ts`). */
+  teamspaceId: string | null;
   /**
    * Give `userId` full access to every restricted copy, so they are not shut
-   * out of what they just copied (workspace admins need no grant).
+   * out of what they just copied.
    */
   keepAccess: boolean;
 }
@@ -76,6 +78,7 @@ export async function copyPageTree(db: PgHandle, input: CopyPageTreeInput): Prom
       ownerId: input.userId,
       archived: false,
       order: isRoot ? input.order : source.order,
+      teamspaceId: isRoot ? input.teamspaceId : null,
     });
     copied.set(id, copy.id);
     await duplicateBlocksToPage(db, source.id, copy.id);

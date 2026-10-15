@@ -296,6 +296,8 @@ describe('columns', () => {
       new Set([
         'id',
         'workspace_id',
+        // Where a database in no page lives (teamspaces, not in the Mongo document).
+        'teamspace_id',
         'name',
         'icon',
         'cover',
@@ -408,11 +410,12 @@ describe('indexes and foreign keys', () => {
     );
 
     /**
-     * Exactly three: the workspace, the view's database, and the inline
-     * database's host page (`databases_parent_page_idx` covers it). An
+     * Exactly four: the workspace, the view's database, the inline
+     * database's host page (`databases_parent_page_idx` covers it) and the
+     * teamspace of a database in no page (`databases_teamspace_idx`). An
      * equality, not a floor, so a new foreign key meets this assertion.
      */
-    expect(foreignKeys).toHaveLength(3);
+    expect(foreignKeys).toHaveLength(4);
 
     const leadsWith = new Set(indexes.map((i) => `${i.tbl}.${i.first_col}`));
     // Floor: a query that returned nothing would make the loop below vacuous.

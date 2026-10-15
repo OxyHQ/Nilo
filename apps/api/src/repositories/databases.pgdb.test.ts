@@ -67,6 +67,7 @@ function databaseInput(overrides: Partial<InsertDatabaseInput> = {}): InsertData
     propertiesSchema: SCHEMA,
     isInline: false,
     parentPageId: null,
+    teamspaceId: null,
     archived: false,
     ...overrides,
   };
@@ -210,6 +211,8 @@ describe('findDatabaseById / findDatabaseWorkspaceId', () => {
       id: record.id,
       workspaceId,
       parentPageId: null,
+      teamspaceId: null,
+      ownerId: 'user-1',
     });
   });
 });

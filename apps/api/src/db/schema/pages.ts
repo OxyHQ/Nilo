@@ -15,6 +15,7 @@ import {
 import { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
 import { createdAt, generatedId, inList, timestamptz, updatedAt } from '@oxy.so/db';
 import { databases } from './databases.js';
+import { teamspaces } from './teamspaces.js';
 import { workspaces } from './workspaces.js';
 
 /** A page's typeface (`pages.font`). */
@@ -83,6 +84,13 @@ export const pages = pgTable(
      * `pages.pgdb.test.ts`).
      */
     parentId: text().references((): AnyPgColumn => pages.id, { onDelete: 'set null' }),
+    /**
+     * Where a top-level page lives (`docs/access.md`): its teamspace, or null
+     * — private to `ownerId`. Read only at the top of a tree; subpages live
+     * where their tree starts. A deleted teamspace leaves its pages private
+     * to their owners, never more open.
+     */
+    teamspaceId: text().references(() => teamspaces.id, { onDelete: 'set null' }),
     title: text().notNull().default(''),
     icon: text(),
     cover: text(),
@@ -225,6 +233,7 @@ export const pages = pgTable(
      * ahead of its reader rather than ported from Mongo.
      */
     index('pages_properties_gin_idx').using('gin', t.properties),
+    index('pages_teamspace_idx').on(t.teamspaceId),
     /**
      * Full-text search over titles (`GET /search`). `nilo_search` is `simple`
      * (no stemming or stop words, so it behaves the same for every language a

@@ -14,6 +14,7 @@ import {
 import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
 import { pages } from './pages.js';
 import { workspaces } from './workspaces.js';
+import { teamspaces } from './teamspaces.js';
 
 /**
  * The Notion-style typed database feature: a `databases` row owns a schema of
@@ -287,6 +288,12 @@ export const databases = pgTable(
     cover: text(),
     /** Oxy user id — text, not a foreign key. See `workspaces.ownerId`. */
     ownerId: text().notNull(),
+    /**
+     * Where a database that sits in no page lives (`docs/access.md`): its
+     * teamspace, or null — private to `ownerId`. An inline database lives
+     * where its page does; this is read only when `parentPageId` is null.
+     */
+    teamspaceId: text().references(() => teamspaces.id, { onDelete: 'set null' }),
     propertiesSchema: jsonb().$type<DatabaseSchema>().notNull().default({ properties: [] }),
     isInline: boolean().notNull().default(false),
     /**
@@ -363,6 +370,7 @@ export const databases = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
+    index('databases_teamspace_idx').on(t.teamspaceId),
     /**
      * `GET /databases?workspaceId=` filters on workspace + not-archived and
      * sorts `updatedAt` DESC, so all three columns are in the index.

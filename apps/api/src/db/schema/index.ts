@@ -18,6 +18,7 @@
  */
 
 export * from './workspaces.js';
+export * from './teamspaces.js';
 export * from './pages.js';
 export * from './databases.js';
 export * from './collab.js';

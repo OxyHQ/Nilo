@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { getDb } from '../db/client.js';
 import { hasRole } from '../db/schema/workspaces.js';
 import { log } from '../lib/logger.js';
-import { checkPageAccess, databaseHosts, rolesForPages } from '../lib/page-access.js';
+import { checkPageAccess, databaseHomes, loadViewer, rolesForPages } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
 import { findPageById, listPages } from '../repositories/pages.js';
@@ -53,18 +53,15 @@ router.get('/pages/:id/backlinks', authenticateToken, async (req: Request, res: 
       order by b.page_id, b."order"
     `);
 
-    const memberRole = access.memberRole;
+    const userId = req.user?.id ?? '';
     const all = await listPages(db, { workspaceId: page.workspaceId });
     const byId = new Map(all.map((p) => [p.id, p]));
-    const visible =
-      memberRole && hasRole(memberRole, 'admin')
-        ? null
-        : rolesForPages(
-            all,
-            memberRole,
-            await listGrantsOfUserInWorkspace(db, req.user?.id ?? '', page.workspaceId),
-            await databaseHosts(db, page.workspaceId),
-          );
+    const visible = rolesForPages(
+      all,
+      await loadViewer(db, page.workspaceId, userId),
+      await listGrantsOfUserInWorkspace(db, userId, page.workspaceId),
+      await databaseHomes(db, page.workspaceId),
+    );
 
     const backlinks = rows
       .map((row) => ({

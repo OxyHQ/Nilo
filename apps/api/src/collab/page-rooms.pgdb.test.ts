@@ -14,6 +14,7 @@ import { closeDb } from '../db/client.js';
 import { pages } from '../db/schema/pages.js';
 import { workspaceMembers } from '../db/schema/workspaces.js';
 import { broadcastPageTransaction, registerPageRooms } from './page-rooms.js';
+import { ensureDefaultTeamspace } from '../repositories/teamspaces.js';
 
 let db: TestDatabase;
 let httpServer: http.Server;
@@ -70,9 +71,17 @@ beforeAll(async () => {
     { workspaceId, userId: 'alice', role: 'editor' },
     { workspaceId, userId: 'bob', role: 'viewer' },
   ]);
+  // In the workspace's open teamspace: every member reaches it.
+  const teamspace = await ensureDefaultTeamspace(db, workspaceId, 'alice');
   const [page] = await db
     .insert(pages)
-    .values({ workspaceId, ownerId: 'alice', title: 'Shared', blocksVersion: 7 })
+    .values({
+      workspaceId,
+      ownerId: 'alice',
+      title: 'Shared',
+      blocksVersion: 7,
+      teamspaceId: teamspace.id,
+    })
     .returning({ id: pages.id });
   pageId = page?.id as string;
 

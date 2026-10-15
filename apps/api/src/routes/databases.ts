@@ -67,7 +67,9 @@ import { createRow, numberExistingRows } from '../lib/databases/rows.js';
 import {
   checkDatabaseAccess,
   checkPageAccess,
-  databaseHosts,
+  baseRole,
+  databaseHomes,
+  loadViewer,
   rolesForPages,
 } from '../lib/page-access.js';
 import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
@@ -84,6 +86,8 @@ import { compareBySorts } from '../lib/databases/sorts.js';
 import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js';
 import { rowFormulaContext } from '../lib/databases/row-values.js';
 import { resolveRollups } from '../lib/databases/rollups.js';
+import { placeOrRefuse } from '../lib/placement.js';
+import { findMembership } from '../repositories/workspaces.js';
 
 const router = Router();
 
@@ -169,6 +173,8 @@ const createDatabaseSchema = z.object({
   schema: databaseSchemaSchema.optional(),
   isInline: z.boolean().optional(),
   parentPageId: entityIdSchema.nullable().optional(),
+  /** A database in no page: its teamspace, null for private; absent, the default one. */
+  teamspaceId: entityIdSchema.nullable().optional(),
 });
 
 const updateDatabaseSchema = z
@@ -314,6 +320,7 @@ function serializeDatabase(db: DatabaseRecord) {
     schema: db.propertiesSchema,
     isInline: db.isInline,
     parentPageId: db.parentPageId,
+    teamspaceId: db.teamspaceId,
     archived: db.archived,
     createdAt: db.createdAt,
     updatedAt: db.updatedAt,
@@ -490,18 +497,21 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
       includeArchived: query.includeArchived,
     });
 
-    // An inline database is listed only to those who can open its page.
-    const memberRole = req.workspace?.role ?? null;
-    let visible = databases;
-    if (!memberRole || !hasRole(memberRole, 'admin')) {
-      const [all, grants, hosts] = await Promise.all([
-        listPages(handle, { workspaceId }),
-        listGrantsOfUserInWorkspace(handle, req.user?.id ?? '', workspaceId),
-        databaseHosts(handle, workspaceId),
-      ]);
-      const roles = rolesForPages(all, memberRole, grants, hosts);
-      visible = databases.filter((d) => !d.parentPageId || roles.has(d.parentPageId));
-    }
+    // An inline database is listed to those who can open its page; one in
+    // no page, to those its place lets in.
+    const userId = req.user?.id ?? '';
+    const [all, viewer, grants, homes] = await Promise.all([
+      listPages(handle, { workspaceId }),
+      loadViewer(handle, workspaceId, userId),
+      listGrantsOfUserInWorkspace(handle, userId, workspaceId),
+      databaseHomes(handle, workspaceId),
+    ]);
+    const roles = rolesForPages(all, viewer, grants, homes);
+    const visible = databases.filter((d) =>
+      d.parentPageId
+        ? roles.has(d.parentPageId)
+        : baseRole(viewer, { teamspaceId: d.teamspaceId, ownerId: d.ownerId }).role !== null,
+    );
 
     res.json({ databases: visible.map((d) => serializeDatabase(d)) });
   } catch (error: unknown) {
@@ -568,9 +578,11 @@ router.post('/', async (req: Request, res: Response) => {
         return;
       }
       if (!(await checkPageAccess(req, res, handle, parent.id, 'editor'))) return;
-    } else if (!(await checkWorkspaceAccess(req, res, workspaceId, 'editor'))) {
-      return;
     }
+    const place = body.parentPageId
+      ? { teamspaceId: null }
+      : await placeOrRefuse(res, handle, workspaceId, userId, body.teamspaceId);
+    if (!place) return;
 
     const propertiesSchema: DatabaseSchema = body.schema
       ? normalizeSchema({
@@ -593,6 +605,7 @@ router.post('/', async (req: Request, res: Response) => {
         propertiesSchema,
         isInline: body.isInline ?? false,
         parentPageId: body.parentPageId ?? null,
+        teamspaceId: place.teamspaceId,
         archived: false,
       });
       await createDefaultViewForDatabase(tx, db.id);
@@ -669,7 +682,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
     if (!ok) return;
 
     if (hard) {
-      if (req.workspace?.role !== 'owner') {
+      const membership = await findMembership(handle, db.workspaceId, req.user?.id ?? '');
+      if (membership?.role !== 'owner') {
         res.status(403).json({ error: 'Hard delete requires workspace owner role' });
         return;
       }
@@ -1283,6 +1297,8 @@ const importCsvSchema = z.object({
   workspaceId: entityIdSchema,
   /** An inline database in this page; a full-page database when absent. */
   parentPageId: entityIdSchema.nullable().optional(),
+  /** A full-page database's place: a teamspace, null for private; absent, the default. */
+  teamspaceId: entityIdSchema.nullable().optional(),
   name: z.string().trim().max(500).optional(),
   csv: z
     .string()
@@ -1309,9 +1325,11 @@ router.post('/import/csv', async (req: Request, res: Response) => {
         return;
       }
       if (!(await checkPageAccess(req, res, handle, parent.id, 'editor'))) return;
-    } else if (!(await checkWorkspaceAccess(req, res, body.workspaceId, 'editor'))) {
-      return;
     }
+    const place = body.parentPageId
+      ? { teamspaceId: null }
+      : await placeOrRefuse(res, handle, body.workspaceId, userId, body.teamspaceId);
+    if (!place) return;
     const parsed = csvToDatabase(body.csv);
     const created = await handle.transaction((tx) =>
       createDatabaseWithRows(tx, {
@@ -1321,6 +1339,7 @@ router.post('/import/csv', async (req: Request, res: Response) => {
         schema: parsed.schema,
         isInline: Boolean(body.parentPageId),
         parentPageId: body.parentPageId ?? null,
+        teamspaceId: place.teamspaceId,
         rows: parsed.rows,
       }),
     );

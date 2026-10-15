@@ -39,6 +39,7 @@ import {
 import { closeDb } from '../apps/api/src/db/client.js';
 import { pages } from '../apps/api/src/db/schema/pages.js';
 import { workspaceMembers } from '../apps/api/src/db/schema/workspaces.js';
+import { ensureDefaultTeamspace } from '../apps/api/src/repositories/teamspaces.js';
 import { RemoteFollower } from '../apps/app/lib/editor/follower';
 import { NILO_SCHEMA } from '../apps/app/lib/editor/schema';
 import {
@@ -104,9 +105,11 @@ function uuidv7(): string {
 }
 
 async function createPage(): Promise<string> {
+  // In the workspace's open teamspace, where every member reaches it.
+  const teamspace = await ensureDefaultTeamspace(db, workspaceId, 'ana');
   const [page] = await db
     .insert(pages)
-    .values({ workspaceId, ownerId: 'ana', title: 'Live' })
+    .values({ workspaceId, ownerId: 'ana', title: 'Live', teamspaceId: teamspace.id })
     .returning({ id: pages.id });
   return page?.id as string;
 }

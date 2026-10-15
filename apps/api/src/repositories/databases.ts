@@ -66,6 +66,8 @@ export interface DatabaseRecord {
   propertiesSchema: DatabaseSchema;
   isInline: boolean;
   parentPageId: string | null;
+  /** Where it lives when it sits in no page (`docs/access.md`). */
+  teamspaceId: string | null;
   archived: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -103,6 +105,7 @@ function toDatabaseRecord(row: DatabaseRow): DatabaseRecord {
     propertiesSchema: row.propertiesSchema,
     isInline: row.isInline,
     parentPageId: row.parentPageId,
+    teamspaceId: row.teamspaceId,
     archived: row.archived,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -175,12 +178,20 @@ export async function findDatabaseById(
 export async function findDatabaseWorkspaceId(
   handle: NiloHandle,
   id: string,
-): Promise<{ id: string; workspaceId: string; parentPageId: string | null } | null> {
+): Promise<{
+  id: string;
+  workspaceId: string;
+  parentPageId: string | null;
+  teamspaceId: string | null;
+  ownerId: string;
+} | null> {
   const [row] = await handle
     .select({
       id: databases.id,
       workspaceId: databases.workspaceId,
       parentPageId: databases.parentPageId,
+      teamspaceId: databases.teamspaceId,
+      ownerId: databases.ownerId,
     })
     .from(databases)
     .where(eq(databases.id, id))
@@ -197,6 +208,8 @@ export interface InsertDatabaseInput {
   propertiesSchema: DatabaseSchema;
   isInline: boolean;
   parentPageId: string | null;
+  /** For a database in no page: its teamspace, or null — private to its owner. */
+  teamspaceId: string | null;
   archived: boolean;
 }
 
@@ -216,6 +229,7 @@ export async function insertDatabase(
       propertiesSchema: input.propertiesSchema,
       isInline: input.isInline,
       parentPageId: input.parentPageId,
+      teamspaceId: input.parentPageId ? null : input.teamspaceId,
       archived: input.archived,
     })
     .returning();

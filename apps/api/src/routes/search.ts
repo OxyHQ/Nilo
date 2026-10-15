@@ -13,7 +13,7 @@ import { z } from 'zod';
 import { getDb } from '../db/client.js';
 import { hasRole, type WorkspaceRole } from '../db/schema/workspaces.js';
 import { log } from '../lib/logger.js';
-import { databaseHosts, rolesForPages } from '../lib/page-access.js';
+import { databaseHomes, loadViewer, rolesForPages } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
 import { listPages } from '../repositories/pages.js';
@@ -73,11 +73,12 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       listPages(db, { workspaceId, archived: false }),
     ]);
 
-    const memberRole = (member?.role as WorkspaceRole | undefined) ?? null;
-    const visible =
-      memberRole && hasRole(memberRole, 'admin')
-        ? null
-        : rolesForPages(all, memberRole, grants, await databaseHosts(db, workspaceId));
+    const visible = rolesForPages(
+      all,
+      await loadViewer(db, workspaceId, userId),
+      grants,
+      await databaseHomes(db, workspaceId),
+    );
     const byId = new Map(all.map((p) => [p.id, p]));
 
     const scored = new Map<

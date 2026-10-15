@@ -99,6 +99,8 @@ describe('pages repository (real database)', () => {
       'restricted',
       // Written by `PATCH /pages/:id` and by copying a template.
       'template',
+      // Where a top-level page lives: creating and moving pages.
+      'teamspaceId',
       // Layout and the lock, written by `PATCH /pages/:id`.
       'fullWidth',
       'smallText',
@@ -122,7 +124,7 @@ describe('pages repository (real database)', () => {
       // spells. `sqlColumnName` is used below where the SQL identifier is what
       // matters — reading one for the other is the 42703 trap.
       const declared = getTableConfig(pages).columns.map((column) => column.name);
-      expect(WRITER_FIELDS.length).toBe(23);
+      expect(WRITER_FIELDS.length).toBe(24);
       for (const field of WRITER_FIELDS) expect(declared).toContain(field);
       expect(new Set(declared)).toEqual(
         new Set([...WRITER_FIELDS, 'id', 'createdAt', 'updatedAt']),
@@ -136,7 +138,7 @@ describe('pages repository (real database)', () => {
       `);
       const live = new Set(rows.map((row) => row.column_name));
       const config = getTableConfig(pages);
-      expect(config.columns.length).toBe(26);
+      expect(config.columns.length).toBe(27);
       for (const column of config.columns) expect(live).toContain(sqlColumnName(column));
       expect(live.size).toBe(config.columns.length);
     });
@@ -160,6 +162,8 @@ describe('pages repository (real database)', () => {
           'pages_parent_idx',
           'pages_workspace_favorited_idx',
           'pages_properties_gin_idx',
+          // Top-level pages per teamspace (the sidebar).
+          'pages_teamspace_idx',
           // Full-text search (`GET /search`).
           'pages_title_fts_idx',
           // The public address of a published page.

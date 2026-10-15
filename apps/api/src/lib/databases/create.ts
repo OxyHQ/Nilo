@@ -97,6 +97,8 @@ export async function createDatabaseWithRows(
     schema: DatabaseSchema;
     isInline: boolean;
     parentPageId: string | null;
+    /** Where it lives when it sits in no page (`lib/placement.ts`). */
+    teamspaceId: string | null;
     rows: readonly { title: string; properties: Record<string, unknown> }[];
   },
 ): Promise<{ database: DatabaseRecord; rowIds: string[] }> {
@@ -109,6 +111,7 @@ export async function createDatabaseWithRows(
     propertiesSchema: input.schema,
     isInline: input.isInline,
     parentPageId: input.parentPageId,
+    teamspaceId: input.teamspaceId,
     archived: false,
   });
   await createDefaultViewForDatabase(handle, database.id);

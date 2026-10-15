@@ -22,11 +22,12 @@ import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
-import { checkWorkspaceAccess } from '../lib/workspace-access.js';
+import { placeOrRefuse } from '../lib/placement.js';
 import {
   accessibleAncestry,
   checkPageAccess,
-  databaseHosts,
+  databaseHomes,
+  loadViewer,
   rolesForPages,
 } from '../lib/page-access.js';
 import { PAGE_FONTS } from '../db/schema/pages.js';
@@ -88,6 +89,11 @@ const createPageSchema = z.object({
   title: z.string().max(2000).optional(),
   icon: z.string().max(200).nullable().optional(),
   cover: z.string().max(2000).nullable().optional(),
+  /**
+   * For a top-level page: its teamspace, null for private (to its creator);
+   * absent, the workspace's default teamspace.
+   */
+  teamspaceId: entityIdSchema.nullable().optional(),
 });
 
 const updatePageSchema = z
@@ -112,6 +118,11 @@ const updatePageSchema = z
     // Database row property writes. Keys are propertyIds; shapes are
     // validated per-property type by `parsePropertyValue`.
     properties: z.record(z.unknown()).optional(),
+    /**
+     * Where the page lives when it is (or becomes) a top-level page: a
+     * teamspace, or null for private to its owner.
+     */
+    teamspaceId: entityIdSchema.nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field is required',
@@ -163,6 +174,7 @@ function serializePage(page: PageRow) {
     favorited: page.favorited,
     restricted: page.restricted,
     template: page.template,
+    teamspaceId: page.teamspaceId,
     fullWidth: page.fullWidth,
     smallText: page.smallText,
     font: page.font,
@@ -226,20 +238,18 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
       template: query.templates === 'include' ? undefined : query.templates === 'only',
     });
 
-    // Leave out the restricted pages this member has no grant reaching.
-    // Owners and admins see everything; for everyone else the rule needs
-    // each page's ancestry, so it runs over the whole workspace.
-    const memberRole = req.workspace?.role ?? null;
-    let visible = pages;
-    if (!memberRole || !hasRole(memberRole, 'admin')) {
-      const [all, grants, hosts] = await Promise.all([
-        listPages(db, { workspaceId }),
-        listGrantsOfUserInWorkspace(db, req.user?.id ?? '', workspaceId),
-        databaseHosts(db, workspaceId),
-      ]);
-      const roles = rolesForPages(all, memberRole, grants, hosts);
-      visible = pages.filter((p) => roles.has(p.id));
-    }
+    // Only the pages the caller can open: the rule needs each page's
+    // ancestry and where its tree lives, so it runs over the whole workspace
+    // (owners and admins too: others' private pages are not theirs to see).
+    const userId = req.user?.id ?? '';
+    const [all, viewer, grants, homes] = await Promise.all([
+      listPages(db, { workspaceId }),
+      loadViewer(db, workspaceId, userId),
+      listGrantsOfUserInWorkspace(db, userId, workspaceId),
+      databaseHomes(db, workspaceId),
+    ]);
+    const roles = rolesForPages(all, viewer, grants, homes);
+    const visible = pages.filter((p) => roles.has(p.id));
 
     res.json({ pages: visible.map((p) => serializePage(p)) });
   } catch (error: unknown) {
@@ -283,7 +293,8 @@ router.get('/shared', async (req: Request, res: Response) => {
       const workspace = await findLiveWorkspaceById(db, workspaceId);
       if (!workspace) continue;
       const all = await listPages(db, { workspaceId, archived: false });
-      const roles = rolesForPages(all, null, grants, await databaseHosts(db, workspaceId));
+      const guest = { userId, memberRole: null, teamspaces: new Map() };
+      const roles = rolesForPages(all, guest, grants, await databaseHomes(db, workspaceId));
       out.push({
         workspace: { id: workspace.id, name: workspace.name, icon: workspace.icon ?? null },
         pages: all
@@ -341,7 +352,7 @@ router.post('/', async (req: Request, res: Response) => {
     const db = getDb();
 
     // A subpage needs edit access to its parent, which a guest can have; a
-    // top-level page needs a workspace editor.
+    // top-level page, a place it may go (`lib/placement.ts`).
     if (body.parentId) {
       const parent = await findPageById(db, body.parentId);
       if (!parent) {
@@ -353,9 +364,12 @@ router.post('/', async (req: Request, res: Response) => {
         return;
       }
       if (!(await checkPageAccess(req, res, db, parent.id, 'editor'))) return;
-    } else if (!(await checkWorkspaceAccess(req, res, workspaceId, 'editor'))) {
-      return;
     }
+    // A top-level page lives in a teamspace or privately with its creator.
+    const place = body.parentId
+      ? { teamspaceId: null }
+      : await placeOrRefuse(res, db, workspaceId, userId, body.teamspaceId);
+    if (!place) return;
 
     // `max(order) + 1` among siblings, then insert. Read and write are
     // deliberately NOT wrapped in a transaction: under READ COMMITTED one
@@ -377,6 +391,7 @@ router.post('/', async (req: Request, res: Response) => {
       ownerId: userId,
       archived: false,
       order,
+      teamspaceId: place.teamspaceId,
     });
     // Whoever creates a page follows it.
     await follow(db, page.id, userId);
@@ -424,12 +439,23 @@ router.patch('/:id', async (req: Request, res: Response) => {
       }
       // Moving a page under another needs edit access there too.
       if (!(await checkPageAccess(req, res, db, parent.id, 'editor'))) return;
-    } else if (body.parentId === null && page.parentId !== null) {
-      // To the top level: a workspace editor's place.
-      if (!access.memberRole || !hasRole(access.memberRole, 'editor')) {
-        res.status(403).json({ error: 'Moving a page to the top level needs a workspace editor' });
-        return;
-      }
+    }
+
+    // Where it lives at the top level: a page moved there, or a top-level
+    // page given another place. Moved there without one, it stays where its
+    // tree lived — a private page's subpage never becomes the workspace's.
+    const staysAtTop = body.parentId === undefined && page.parentId === null;
+    const movesToTop = body.parentId === null && page.parentId !== null;
+    const replaced = (staysAtTop || body.parentId === null) && body.teamspaceId !== undefined;
+    let teamspaceId: string | null | undefined;
+    if (movesToTop || replaced) {
+      const requested = body.teamspaceId !== undefined ? body.teamspaceId : access.home.teamspaceId;
+      const place = await placeOrRefuse(res, db, page.workspaceId, userId, requested);
+      if (!place) return;
+      teamspaceId = place.teamspaceId;
+    } else if (body.parentId) {
+      // Below another page it lives where that tree does.
+      teamspaceId = null;
     }
 
     // Restricting a page shuts other members out: full access, or the page's
@@ -479,6 +505,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       smallText: body.smallText,
       font: body.font,
       locked: body.locked,
+      teamspaceId,
       lastEditedBy: userId,
       mergeProperties: undefined as Record<string, unknown> | undefined,
     };
@@ -603,6 +630,11 @@ const duplicateSchema = z
     parentId: entityIdSchema.nullable().optional(),
     /** Use a template: the copy keeps its title and is an ordinary page. */
     fromTemplate: z.boolean().optional(),
+    /**
+     * A copy at the top level: its teamspace, null for private. Absent: where
+     * the source lives (a duplicate) or the default teamspace (a template).
+     */
+    teamspaceId: entityIdSchema.nullable().optional(),
   })
   .default({});
 
@@ -652,10 +684,27 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
         return;
       }
       if (!(await checkPageAccess(req, res, db, parent.id, 'editor'))) return;
-    } else if (!access.memberRole || !hasRole(access.memberRole, 'editor')) {
-      res.status(403).json({ error: 'Adding a top-level page needs a workspace editor' });
-      return;
     }
+    // At the top level it lives where the caller places it; a duplicate of
+    // someone's private page is private to the caller.
+    const sourceHome =
+      access.home.teamspaceId === null && access.home.ownerId !== userId
+        ? null
+        : access.home.teamspaceId;
+    const place = parentId
+      ? { teamspaceId: null }
+      : await placeOrRefuse(
+          res,
+          db,
+          source.workspaceId,
+          userId,
+          body.teamspaceId !== undefined
+            ? body.teamspaceId
+            : body.fromTemplate
+              ? undefined
+              : sourceHome,
+        );
+    if (!place) return;
 
     // One logical write: the pages, their blocks and their grants commit
     // together. The transaction does not close the sibling-order race —
@@ -673,7 +722,8 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
             : '(copy)',
         template: !body.fromTemplate && source.template,
         userId,
-        keepAccess: !(access.memberRole && hasRole(access.memberRole, 'admin')),
+        teamspaceId: place.teamspaceId,
+        keepAccess: true,
       });
     });
 

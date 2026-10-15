@@ -14,6 +14,14 @@ export interface ChainLink {
   parentId: string | null;
   workspaceId: string;
   restricted: boolean;
+  /** Where the tree lives, read at its top (`docs/access.md`). */
+  teamspaceId: string | null;
+  ownerId: string;
+  /**
+   * For a database row: its database, which says where the tree lives when
+   * the database sits in no page.
+   */
+  database: { parentPageId: string | null; teamspaceId: string | null; ownerId: string } | null;
 }
 
 /**
@@ -41,17 +49,34 @@ export async function findPageChain(db: PgHandle, id: string): Promise<ChainLink
         on parent.${col(pages.id)} = coalesce(chain.${col(pages.parentId)}, host.${col(databases.parentPageId)})
       where chain.depth < ${sql.raw(String(BREADCRUMB_MAX_DEPTH - 1))}
     ) cycle ${col(pages.id)} set is_cycle using cycle_path
-    select ${col(pages.id)} as id, ${col(pages.parentId)} as parent_id,
-           ${col(pages.workspaceId)} as workspace_id, ${col(pages.restricted)} as restricted
+    select chain.${col(pages.id)} as id, chain.${col(pages.parentId)} as parent_id,
+           chain.${col(pages.workspaceId)} as workspace_id, chain.${col(pages.restricted)} as restricted,
+           p.${col(pages.teamspaceId)} as teamspace_id, p.${col(pages.ownerId)} as owner_id,
+           d.${col(databases.id)} as database_id, d.${col(databases.parentPageId)} as database_host,
+           d.${col(databases.teamspaceId)} as database_teamspace_id,
+           d.${col(databases.ownerId)} as database_owner_id
     from chain
+    join ${pages} p on p.${col(pages.id)} = chain.${col(pages.id)}
+    left join ${databases} d on d.${col(databases.id)} = chain.${col(pages.databaseId)}
     where not is_cycle
     order by depth asc
   `);
+  const text = (value: unknown) => (value === null || value === undefined ? null : String(value));
   return rows.map((row) => ({
     id: String(row.id),
-    parentId: row.parent_id === null ? null : String(row.parent_id),
+    parentId: text(row.parent_id),
     workspaceId: String(row.workspace_id),
     restricted: row.restricted === true,
+    teamspaceId: text(row.teamspace_id),
+    ownerId: String(row.owner_id),
+    database:
+      row.database_id === null
+        ? null
+        : {
+            parentPageId: text(row.database_host),
+            teamspaceId: text(row.database_teamspace_id),
+            ownerId: String(row.database_owner_id),
+          },
   }));
 }
 
