@@ -16,11 +16,13 @@ WORKDIR /build
 # Copy root workspace files
 COPY package.json bun.lock ./
 COPY apps/api/package.json ./apps/api/
+COPY packages/contracts/package.json ./packages/contracts/
 
 # Install all dependencies (including devDependencies for build)
 RUN bun install --frozen-lockfile
 
-# Copy API source
+# Copy API source and the shared contract it bundles
+COPY packages/contracts/ ./packages/contracts/
 COPY apps/api/ ./apps/api/
 
 # Build the API
@@ -34,9 +36,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends g++ make python
 
 WORKDIR /app
 
-# Copy root workspace files
+# Copy root workspace files. The API bundles @nilo/contracts; its manifest is
+# here only so the workspace dependency resolves.
 COPY package.json bun.lock ./
 COPY apps/api/package.json ./apps/api/
+COPY packages/contracts/package.json ./packages/contracts/
 
 # Optional native accelerators have JavaScript fallbacks and are not part of
 # Nilo's runtime contract. Skipping lifecycle scripts keeps the production

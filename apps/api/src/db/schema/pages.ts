@@ -196,48 +196,9 @@ export const pages = pgTable(
  * long as both exist, which is asserted by `blocks.pgdb.test.ts` — a drift gate
  * that retires with the model file.
  */
-export const BLOCK_TYPES = [
-  'paragraph',
-  'heading_1',
-  'heading_2',
-  'heading_3',
-  'bulleted_list_item',
-  'numbered_list_item',
-  'todo',
-  'quote',
-  'divider',
-  'code',
-  'callout',
-  'toggle',
-  'image',
-  'video',
-  'audio',
-  'file',
-  'pdf',
-  'bookmark',
-  'embed',
-  'columns',
-  'column',
-  'table',
-  'table_row',
-  'table_cell',
-  'button',
-  'link_to_page',
-  'sync_block',
-  'breadcrumb',
-  'table_of_contents',
-  'equation',
-  'mermaid',
-  'inline_database',
-] as const;
-export type BlockType = (typeof BLOCK_TYPES)[number];
-
-/**
- * Block payload. Per-type shape lives in `routes/blocks.ts`, which normalises
- * every write through Zod — the storage layer holds the object and validates
- * nothing about it, exactly as the Mongoose `Mixed` did.
- */
-export type BlockContent = Record<string, unknown>;
+// Block types and content are the contract shared with the app.
+export { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
+import { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
 
 export const blocks = pgTable(
   'blocks',

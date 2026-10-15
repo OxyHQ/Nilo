@@ -20,7 +20,10 @@
   "dependencies": {
     "@expo/html-elements": "^0.13.8",
     "@hugeicons/react-native": "^1.0.11",
+    "@nilo/contracts": "workspace:*",
     "@oxy.so/bloom": "10.4.0",
+    "@oxy.so/bloom-editor": "file:../../.local-packages/oxy.so-bloom-editor-0.1.0.tgz",
+    "@oxy.so/bloom-text": "file:../../.local-packages/oxy.so-bloom-text-0.1.0.tgz",
     "@oxy.so/contracts": "4.12.0",
     "@oxy.so/core": "4.5.0",
     "@oxy.so/services": "11.2.0",
@@ -56,6 +59,7 @@
     "expo-blur": "~56.0.3",
     "expo-clipboard": "~56.0.4",
     "expo-constants": "~56.0.18",
+    "expo-crypto": "~56.0.5",
     "expo-dev-client": "~56.0.20",
     "expo-device": "~56.0.4",
     "expo-document-picker": "~56.0.4",
@@ -90,6 +94,7 @@
     "react-native": "0.85.3",
     "react-native-css": "^3.0.6",
     "react-native-drawer-layout": "^4.2.2",
+    "react-native-enriched-html": "1.1.1",
     "react-native-gesture-handler": "~2.31.1",
     "react-native-ios-context-menu": "^3.1.0",
     "react-native-ios-utilities": "^5.1.2",
@@ -134,7 +139,12 @@
   },
   "private": true,
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "transformIgnorePatterns": [
+      "/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|standard-navigation|@oxy\\.so))",
+      "/node_modules/react-native-reanimated/plugin/",
+      "/node_modules/@react-native/babel-preset/"
+    ]
   },
   "expo": {
     "install": {

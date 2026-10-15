@@ -23,21 +23,17 @@ export type BlockRow = typeof blocks.$inferSelect;
  * The client nests by `parentBlockId` and does not re-sort, so the difference
  * is visible in the editor.
  *
- * `id` is appended as a final tiebreak — `created_at` is millisecond-precision,
- * so blocks created in the same millisecond at the same order tied and the
- * resulting sequence was the storage engine's to choose.
+ * Siblings sort by `(order, id)` and nothing else, so every editor can
+ * reproduce the server's order from what a transaction carries: two
+ * collaborators inserting into the same gap can pick the same `order`, and the
+ * id (a UUIDv7, creation-time ordered) settles it identically everywhere.
  */
 export async function listBlocksForPage(db: PgHandle, pageId: string): Promise<BlockRow[]> {
   return db
     .select()
     .from(blocks)
     .where(eq(blocks.pageId, pageId))
-    .orderBy(
-      sql`${blocks.parentBlockId} asc nulls first`,
-      asc(blocks.order),
-      asc(blocks.createdAt),
-      asc(blocks.id),
-    );
+    .orderBy(sql`${blocks.parentBlockId} asc nulls first`, asc(blocks.order), asc(blocks.id));
 }
 
 /**
@@ -52,7 +48,7 @@ export async function listBlocksForPageByOrder(db: PgHandle, pageId: string): Pr
     .select()
     .from(blocks)
     .where(eq(blocks.pageId, pageId))
-    .orderBy(asc(blocks.order), asc(blocks.createdAt), asc(blocks.id));
+    .orderBy(asc(blocks.order), asc(blocks.id));
 }
 
 /**

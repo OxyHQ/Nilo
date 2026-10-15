@@ -3,7 +3,13 @@ import type { Request, Response } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
-import { BLOCK_TYPES, type BlockContent, type BlockType } from '../db/schema/pages.js';
+import {
+  type BlockContent,
+  type BlockType,
+  blockTypeSchema,
+  normalizeContent,
+  placeAfter,
+} from '@nilo/contracts';
 import type { BlockRow } from '../repositories/blocks.js';
 import {
   createBlock,
@@ -35,354 +41,7 @@ router.use(authenticateToken);
  */
 const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 
-/**
- * The id a content payload carries when the UI has not chosen a target yet —
- * `link_to_page` before a page is picked, `inline_database` between the block
- * being created and its database existing.
- *
- * It survives the move off ObjectIds unchanged because it is a well-formed
- * ObjectId hex that names no row, which is exactly what it has to be: a
- * sentinel the id validator accepts and no lookup ever resolves. Changing its
- * shape would be a wire-format change for the two block types that read it.
- */
-const UNRESOLVED_TARGET_ID = '000000000000000000000000';
-
-const blockTypeSchema = z.enum(BLOCK_TYPES);
-
-/**
- * Notion-style named colours a block or a rich-text segment may carry.
- *
- * Declared here rather than in `db/schema/pages.ts`: `blocks.content` is jsonb
- * the table validates nothing about, and this route is the only thing that has
- * ever validated its shape. The `BlockColor` union that used to sit beside this
- * array is gone — `z.enum` derives the type from the array, so the two cannot
- * drift.
- */
-const BLOCK_COLORS = [
-  'default',
-  'gray',
-  'brown',
-  'orange',
-  'yellow',
-  'green',
-  'blue',
-  'purple',
-  'pink',
-  'red',
-] as const;
-
-const blockColorSchema = z.enum(BLOCK_COLORS);
-
-/**
- * Rich-text segment — single run of text plus optional annotations.
- * Editors that don't read `segments` keep working against `text`; both stay
- * in sync at the route boundary (see `syncSegmentsAndText`).
- */
-/**
- * Link targets a reader may follow. Anything else (`javascript:`, `data:`) is
- * rejected: page text is rendered as links in every reader's browser.
- */
-const SAFE_LINK = /^(https?:|mailto:|tel:|\/|#)/i;
-
-const mentionSchema = z.object({
-  indicator: z.string().min(1).max(4),
-  attributes: z.record(z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/i), z.string().max(512)),
-});
-
-const segmentSchema = z.object({
-  text: z.string(),
-  bold: z.boolean().optional(),
-  italic: z.boolean().optional(),
-  underline: z.boolean().optional(),
-  strike: z.boolean().optional(),
-  code: z.boolean().optional(),
-  color: blockColorSchema.optional(),
-  background: blockColorSchema.optional(),
-  link: z
-    .string()
-    .max(2048)
-    .refine((href) => SAFE_LINK.test(href.trim()), 'Unsafe link')
-    .optional(),
-  mention: mentionSchema.optional(),
-});
-
-/**
- * Common optional block-level styling fields. Kept on every content variant
- * so client code can read `content.color` uniformly.
- */
-const styleFields = {
-  color: blockColorSchema.optional(),
-  backgroundColor: blockColorSchema.optional(),
-} as const;
-
-/**
- * Per-type content schemas with defaults. Concretely typed so each
- * `.parse()` returns the exact `BlockContent` variant without casts.
- *
- * Defaults are applied via Zod (`.default()`) so missing keys are filled
- * before validation and the output types remain non-optional strings/bools.
- */
-const textContentSchema = z.object({
-  text: z.string().default(''),
-  segments: z.array(segmentSchema).optional(),
-  ...styleFields,
-});
-const todoContentSchema = z.object({
-  text: z.string().default(''),
-  segments: z.array(segmentSchema).optional(),
-  checked: z.boolean().default(false),
-  ...styleFields,
-});
-const codeContentSchema = z.object({
-  text: z.string().default(''),
-  language: z.string().default('plain'),
-  ...styleFields,
-});
-const calloutContentSchema = z.object({
-  text: z.string().default(''),
-  segments: z.array(segmentSchema).optional(),
-  icon: z.string().default('lightbulb'),
-  ...styleFields,
-});
-const toggleContentSchema = z.object({
-  text: z.string().default(''),
-  segments: z.array(segmentSchema).optional(),
-  expanded: z.boolean().default(true),
-  ...styleFields,
-});
-const dividerContentSchema = z.object(styleFields);
-
-// --- Phase 3: media blocks ---
-const imageAlignmentSchema = z.enum(['left', 'center', 'right', 'full']);
-const imageContentSchema = z.object({
-  url: z.string().default(''),
-  caption: z.string().optional(),
-  alt: z.string().optional(),
-  width: z.number().finite().positive().optional(),
-  alignment: imageAlignmentSchema.optional(),
-  ...styleFields,
-});
-
-const videoSourceSchema = z.enum(['upload', 'youtube', 'vimeo', 'loom', 'other']);
-const videoContentSchema = z.object({
-  url: z.string().default(''),
-  source: videoSourceSchema.default('other'),
-  caption: z.string().optional(),
-  ...styleFields,
-});
-
-const audioContentSchema = z.object({
-  url: z.string().default(''),
-  caption: z.string().optional(),
-  ...styleFields,
-});
-
-const fileContentSchema = z.object({
-  url: z.string().default(''),
-  name: z.string().default(''),
-  size: z.number().int().nonnegative().default(0),
-  mimeType: z.string().default('application/octet-stream'),
-  ...styleFields,
-});
-
-const pdfContentSchema = z.object({
-  url: z.string().default(''),
-  ...styleFields,
-});
-
-// --- Phase 3: embeds ---
-const bookmarkContentSchema = z.object({
-  url: z.string().default(''),
-  title: z.string().optional(),
-  description: z.string().optional(),
-  image: z.string().optional(),
-  favicon: z.string().optional(),
-  ...styleFields,
-});
-
-const embedContentSchema = z.object({
-  url: z.string().default(''),
-  source: z.string().optional(),
-  ...styleFields,
-});
-
-// --- Phase 3: layout ---
-const columnsContentSchema = z.object({
-  columnCount: z.union([z.literal(2), z.literal(3), z.literal(4)]).default(2),
-  ...styleFields,
-});
-
-const columnContentSchema = z.object({
-  /** Optional 0..1 fractional ratio. Defaults to even split when unset. */
-  ratio: z.number().min(0).max(1).optional(),
-  ...styleFields,
-});
-
-const tableContentSchema = z.object({
-  rows: z.number().int().positive().default(2),
-  cols: z.number().int().positive().default(2),
-  withHeader: z.boolean().default(false),
-  ...styleFields,
-});
-
-const tableRowContentSchema = z.object(styleFields);
-
-const tableCellContentSchema = z.object({
-  text: z.string().default(''),
-  segments: z.array(segmentSchema).optional(),
-  ...styleFields,
-});
-
-// --- Phase 3: interactive ---
-const buttonActionSchema = z.enum(['duplicate-template', 'new-page', 'navigate', 'webhook']);
-const buttonContentSchema = z.object({
-  label: z.string().default('Button'),
-  action: buttonActionSchema.default('navigate'),
-  /** Action-specific params kept loose — validated by callers when fired. */
-  url: z.string().optional(),
-  pageId: entityIdSchema.optional(),
-  templateId: entityIdSchema.optional(),
-  webhookUrl: z.string().optional(),
-  ...styleFields,
-});
-
-const linkToPageContentSchema = z.object({
-  pageId: entityIdSchema.default(UNRESOLVED_TARGET_ID),
-  ...styleFields,
-});
-
-const syncBlockContentSchema = z.object({
-  sourceBlockId: entityIdSchema.optional(),
-  ...styleFields,
-});
-
-const breadcrumbContentSchema = z.object(styleFields);
-const tableOfContentsContentSchema = z.object(styleFields);
-
-// --- Phase 3: math + diagram ---
-const equationContentSchema = z.object({
-  latex: z.string().default(''),
-  ...styleFields,
-});
-
-const mermaidContentSchema = z.object({
-  code: z.string().default(''),
-  ...styleFields,
-});
-
-// --- Phase 4: database ---
-const inlineDatabaseContentSchema = z.object({
-  /**
-   * The database to render — a `databases` row id. Defaults to
-   * `UNRESOLVED_TARGET_ID` so the type-changed-to-inline_database path doesn't
-   * fail validation; UI immediately replaces it after creating the DB.
-   */
-  databaseId: entityIdSchema.default(UNRESOLVED_TARGET_ID),
-  /** Optional starting view; falls back to the database's default view. */
-  viewId: entityIdSchema.optional(),
-  ...styleFields,
-});
-
-/**
- * Keep plain `text` consistent with `segments`. When both are present, the
- * concatenated segment text wins (more expressive). When only `text` is
- * present, segments are left undefined so older readers keep working.
- *
- * Mutates and returns the same object — caller owns it (fresh from a Zod
- * parse), so this is safe and avoids spread-typing pain across heterogeneous
- * content variants.
- */
-function syncTextFromSegments(value: BlockContent): BlockContent {
-  const segments = value.segments;
-  if (Array.isArray(segments) && segments.length > 0) {
-    const flat = segments
-      .map((s) =>
-        s && typeof s === 'object' && 'text' in s
-          ? String((s as { text: unknown }).text ?? '')
-          : '',
-      )
-      .join('');
-    value.text = flat;
-  }
-  return value;
-}
-
-/**
- * Normalize content by filling in type-specific defaults and validating shape.
- * Throws ZodError on validation failure (handled by the caller).
- *
- * Exported for `__tests__/blocks.phase3.test.ts`, which used to assert these
- * shapes against a hand-written COPY of the schemas below — so it measured the
- * copy, and went on passing when the copy and this file disagreed about what an
- * id looks like. It is the unit under test, not a seam invented for the test.
- */
-export function normalizeContent(type: BlockType, content: unknown): BlockContent {
-  const incoming =
-    content && typeof content === 'object' && !Array.isArray(content)
-      ? (content as Record<string, unknown>)
-      : {};
-
-  switch (type) {
-    case 'paragraph':
-    case 'heading_1':
-    case 'heading_2':
-    case 'heading_3':
-    case 'bulleted_list_item':
-    case 'numbered_list_item':
-    case 'quote':
-      return syncTextFromSegments(textContentSchema.parse(incoming));
-    case 'todo':
-      return syncTextFromSegments(todoContentSchema.parse(incoming));
-    case 'code':
-      return codeContentSchema.parse(incoming);
-    case 'callout':
-      return syncTextFromSegments(calloutContentSchema.parse(incoming));
-    case 'toggle':
-      return syncTextFromSegments(toggleContentSchema.parse(incoming));
-    case 'divider':
-      return dividerContentSchema.parse(incoming);
-    case 'image':
-      return imageContentSchema.parse(incoming);
-    case 'video':
-      return videoContentSchema.parse(incoming);
-    case 'audio':
-      return audioContentSchema.parse(incoming);
-    case 'file':
-      return fileContentSchema.parse(incoming);
-    case 'pdf':
-      return pdfContentSchema.parse(incoming);
-    case 'bookmark':
-      return bookmarkContentSchema.parse(incoming);
-    case 'embed':
-      return embedContentSchema.parse(incoming);
-    case 'columns':
-      return columnsContentSchema.parse(incoming);
-    case 'column':
-      return columnContentSchema.parse(incoming);
-    case 'table':
-      return tableContentSchema.parse(incoming);
-    case 'table_row':
-      return tableRowContentSchema.parse(incoming);
-    case 'table_cell':
-      return syncTextFromSegments(tableCellContentSchema.parse(incoming));
-    case 'button':
-      return buttonContentSchema.parse(incoming);
-    case 'link_to_page':
-      return linkToPageContentSchema.parse(incoming);
-    case 'sync_block':
-      return syncBlockContentSchema.parse(incoming);
-    case 'breadcrumb':
-      return breadcrumbContentSchema.parse(incoming);
-    case 'table_of_contents':
-      return tableOfContentsContentSchema.parse(incoming);
-    case 'equation':
-      return equationContentSchema.parse(incoming);
-    case 'mermaid':
-      return mermaidContentSchema.parse(incoming);
-    case 'inline_database':
-      return inlineDatabaseContentSchema.parse(incoming);
-  }
-}
+// Block content schemas and normalizeContent live in @nilo/contracts.
 
 const createBlockSchema = z.object({
   type: blockTypeSchema,
@@ -729,15 +388,23 @@ function isDescendantOrSelf(
 
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/**
+ * Positions are anchors, not numbers: a block goes right after `afterId`
+ * among `parentBlockId`'s children (first when null). The server turns an
+ * anchor into an `order` against the blocks as they are when the operation
+ * runs, renumbering siblings when two orders leave no room between them, and
+ * reports every order it wrote. Clients never invent orders, so every client
+ * and the database agree on sibling order however edits interleave.
+ */
 const blockOperationSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('insert'),
     /** Client-minted, so an operation can name a block created earlier in the batch. */
     id: z.string().regex(UUID_V7, 'New block ids must be UUIDv7'),
     parentBlockId: entityIdSchema.nullable(),
+    afterId: entityIdSchema.nullable(),
     type: blockTypeSchema,
     content: z.unknown().optional(),
-    order: z.number().finite(),
   }),
   z.object({
     kind: z.literal('update'),
@@ -749,7 +416,7 @@ const blockOperationSchema = z.discriminatedUnion('kind', [
     kind: z.literal('move'),
     id: entityIdSchema,
     parentBlockId: entityIdSchema.nullable(),
-    order: z.number().finite(),
+    afterId: entityIdSchema.nullable(),
   }),
   z.object({ kind: z.literal('remove'), id: entityIdSchema }),
 ]);
@@ -795,10 +462,41 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
     // The operations as applied, content normalized, for collaborators.
     const applied: unknown[] = [];
     const version = await db.transaction(async (tx) => {
+      // First, before anything is read: the version bump locks the page row,
+      // so transactions on one page run one after another and each validates
+      // against the blocks the previous one committed. Reading first let two
+      // concurrent transactions both validate against the same old state (a
+      // renumbering applied to a block another member had just moved away).
+      // A rejected transaction rolls the bump back with everything else.
+      const version = await bumpBlocksVersion(tx, page.id);
       const rows = await listBlocksForPage(tx, page.id);
       const types = new Map<string, BlockType>(rows.map((b) => [b.id, b.type]));
       const contents = new Map<string, BlockContent>(rows.map((b) => [b.id, b.content]));
       const parentOf = new Map<string, string | null>(rows.map((b) => [b.id, b.parentBlockId]));
+      const orderOf = new Map<string, number>(rows.map((b) => [b.id, b.order]));
+
+      /** The order for a block going after `afterId` under `parent`; renumbers when there is no room. */
+      const orderAfter = async (
+        parent: string | null,
+        afterId: string | null,
+        self: string,
+      ): Promise<number> => {
+        const siblings = [...parentOf]
+          .filter(([id, p]) => p === parent && id !== self)
+          .map(([id]) => ({ id, order: orderOf.get(id) as number }));
+        const { order, renumbered } = placeAfter(siblings, afterId);
+        for (const sibling of renumbered) {
+          await updateBlock(tx, sibling.id, { order: sibling.order });
+          orderOf.set(sibling.id, sibling.order);
+          applied.push({
+            kind: 'reorder',
+            id: sibling.id,
+            parentBlockId: parent,
+            order: sibling.order,
+          });
+        }
+        return order;
+      };
 
       const requireBlock = (id: string) => {
         if (!types.has(id)) throw new TransactionRejected(404, `Block ${id} is not on this page`);
@@ -817,18 +515,27 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
             }
             requireParent(op.parentBlockId);
             const content = normalizeContent(op.type, op.content);
+            const order = await orderAfter(op.parentBlockId, op.afterId, op.id);
             await createBlock(tx, {
               id: op.id,
               pageId: page.id,
               parentBlockId: op.parentBlockId,
               type: op.type,
               content,
-              order: op.order,
+              order,
             });
             types.set(op.id, op.type);
             contents.set(op.id, content);
             parentOf.set(op.id, op.parentBlockId);
-            applied.push({ ...op, content });
+            orderOf.set(op.id, order);
+            applied.push({
+              kind: 'insert',
+              id: op.id,
+              parentBlockId: op.parentBlockId,
+              type: op.type,
+              content,
+              order,
+            });
             break;
           }
           case 'update': {
@@ -848,9 +555,11 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
             if (isDescendantOrSelf(parentOf, op.parentBlockId, op.id)) {
               throw new TransactionRejected(400, 'A block cannot be nested inside itself');
             }
-            await updateBlock(tx, op.id, { parentBlockId: op.parentBlockId, order: op.order });
+            const order = await orderAfter(op.parentBlockId, op.afterId, op.id);
+            await updateBlock(tx, op.id, { parentBlockId: op.parentBlockId, order });
             parentOf.set(op.id, op.parentBlockId);
-            applied.push(op);
+            orderOf.set(op.id, order);
+            applied.push({ kind: 'move', id: op.id, parentBlockId: op.parentBlockId, order });
             break;
           }
           case 'remove': {
@@ -862,13 +571,18 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
                 contents.delete(id);
               }
             }
-            for (const id of [...parentOf.keys()]) if (!types.has(id)) parentOf.delete(id);
+            for (const id of [...parentOf.keys()]) {
+              if (!types.has(id)) {
+                parentOf.delete(id);
+                orderOf.delete(id);
+              }
+            }
             applied.push(op);
             break;
           }
         }
       }
-      return bumpBlocksVersion(tx, page.id);
+      return version;
     });
 
     broadcastPageTransaction(
@@ -876,7 +590,8 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
       { pageId: page.id, version, actorId: req.user?.id ?? '', ops: applied },
       body.socketId,
     );
-    res.json({ ok: true, version });
+    // The sender gets the operations as applied too: the orders the server chose.
+    res.json({ ok: true, version, ops: applied });
   } catch (error: unknown) {
     if (error instanceof TransactionRejected) {
       res.status(error.status).json({ error: error.message });

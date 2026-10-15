@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from '@oxy.so/db';
-import { normalizeContent } from '../blocks.js';
+import { normalizeContent } from '@nilo/contracts';
 
 describe('block content normalization', () => {
   it('validates image content', () => {

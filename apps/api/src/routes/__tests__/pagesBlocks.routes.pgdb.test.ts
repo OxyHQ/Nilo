@@ -856,7 +856,7 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
         parentBlockId: null,
         type: 'toggle',
         content: { text: 'T' },
-        order: 1,
+        afterId: null,
       },
       {
         kind: 'insert',
@@ -864,7 +864,7 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
         parentBlockId: parent,
         type: 'paragraph',
         content: { segments: [{ text: 'hi', bold: true }] },
-        order: 1,
+        afterId: null,
       },
     ]);
     expect(res.status).toBe(200);
@@ -878,13 +878,13 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
     const page = await createPage();
     const [a, b, c] = [uuidv7(), uuidv7(), uuidv7()];
     await tx(page.id, [
-      { kind: 'insert', id: a, parentBlockId: null, type: 'paragraph', content: {}, order: 1 },
-      { kind: 'insert', id: b, parentBlockId: null, type: 'paragraph', content: {}, order: 2 },
-      { kind: 'insert', id: c, parentBlockId: b, type: 'paragraph', content: {}, order: 1 },
+      { kind: 'insert', id: a, parentBlockId: null, type: 'paragraph', afterId: null, content: {} },
+      { kind: 'insert', id: b, parentBlockId: null, type: 'paragraph', afterId: a, content: {} },
+      { kind: 'insert', id: c, parentBlockId: b, type: 'paragraph', afterId: null, content: {} },
     ]);
     const res = await tx(page.id, [
       { kind: 'update', id: a, type: 'heading_1', content: { text: 'Title' } },
-      { kind: 'move', id: a, parentBlockId: null, order: 3 },
+      { kind: 'move', id: a, parentBlockId: null, afterId: b },
       { kind: 'remove', id: b },
     ]);
     expect(res.status).toBe(200);
@@ -893,16 +893,58 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
     expect(rows[0]).toMatchObject({ type: 'heading_1', order: 3 });
   });
 
+  it('turns anchors into orders, renumbering when there is no room', async () => {
+    const page = await createPage();
+    const [a, b, c, d, gone] = [uuidv7(), uuidv7(), uuidv7(), uuidv7(), uuidv7()];
+    const first = await tx(page.id, [
+      { kind: 'insert', id: a, parentBlockId: null, afterId: null, type: 'paragraph', content: {} },
+      { kind: 'insert', id: b, parentBlockId: null, afterId: a, type: 'paragraph', content: {} },
+      // Before `a`: first.
+      { kind: 'insert', id: c, parentBlockId: null, afterId: null, type: 'paragraph', content: {} },
+      // An anchor that is not there puts the block last.
+      { kind: 'insert', id: d, parentBlockId: null, afterId: gone, type: 'paragraph', content: {} },
+    ]);
+    expect(first.status).toBe(200);
+    // The sender is told every order the server chose.
+    expect(first.json.ops).toEqual([
+      expect.objectContaining({ kind: 'insert', id: a, order: 1 }),
+      expect.objectContaining({ kind: 'insert', id: b, order: 2 }),
+      expect.objectContaining({ kind: 'insert', id: c, order: 0 }),
+      expect.objectContaining({ kind: 'insert', id: d, order: 3 }),
+    ]);
+    const sorted = async () =>
+      (await rowsOf(page.id as string))
+        .sort((x, y) => x.order - y.order || (x.id < y.id ? -1 : 1))
+        .map((r) => r.id);
+    expect(await sorted()).toEqual([c, a, b, d]);
+
+    // Squeeze `a` and `b` together until there is no room between them.
+    await db
+      .update(blocks)
+      .set({ order: 1 + 1e-12 })
+      .where(eq(blocks.id, b));
+    const e = uuidv7();
+    const squeezed = await tx(page.id, [
+      { kind: 'insert', id: e, parentBlockId: null, afterId: a, type: 'paragraph', content: {} },
+    ]);
+    expect(squeezed.json.ops).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'reorder', id: b, parentBlockId: null }),
+      ]),
+    );
+    expect(await sorted()).toEqual([c, a, e, b, d]);
+  });
+
   it('rolls the whole batch back when one operation is invalid', async () => {
     const page = await createPage();
     const [a, b] = [uuidv7(), uuidv7()];
     await tx(page.id, [
-      { kind: 'insert', id: a, parentBlockId: null, type: 'paragraph', content: {}, order: 1 },
+      { kind: 'insert', id: a, parentBlockId: null, type: 'paragraph', afterId: null, content: {} },
     ]);
     const res = await tx(page.id, [
-      { kind: 'insert', id: b, parentBlockId: a, type: 'paragraph', content: {}, order: 1 },
+      { kind: 'insert', id: b, parentBlockId: a, type: 'paragraph', afterId: null, content: {} },
       // `a` into its own child: a cycle.
-      { kind: 'move', id: a, parentBlockId: b, order: 1 },
+      { kind: 'move', id: a, parentBlockId: b, afterId: null },
     ]);
     expect(res.status).toBe(400);
     expect((await rowsOf(page.id as string)).map((r) => r.id)).toEqual([a]);
@@ -919,21 +961,27 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
         parentBlockId: null,
         type: 'paragraph',
         content: {},
-        order: 1,
+        afterId: null,
       },
     ]);
 
     expect(
       (
         await tx(page.id, [
-          { kind: 'insert', id: foreign, parentBlockId: null, type: 'paragraph', order: 1 },
+          { kind: 'insert', id: foreign, parentBlockId: null, type: 'paragraph', afterId: null },
         ])
       ).status,
     ).toBe(409);
     expect(
       (
         await tx(page.id, [
-          { kind: 'insert', id: uuidv7(), parentBlockId: foreign, type: 'paragraph', order: 1 },
+          {
+            kind: 'insert',
+            id: uuidv7(),
+            parentBlockId: foreign,
+            type: 'paragraph',
+            afterId: null,
+          },
         ])
       ).status,
     ).toBe(400);
@@ -944,7 +992,7 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
         parentBlockId: null,
         type: 'paragraph',
         content: { segments: [{ text: 'x', link: 'javascript:alert(1)' }] },
-        order: 1,
+        afterId: null,
       },
     ]);
     expect(unsafe.status).toBe(400);
@@ -956,7 +1004,7 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
     ctx.role = 'viewer';
     try {
       const res = await tx(page.id, [
-        { kind: 'insert', id: uuidv7(), parentBlockId: null, type: 'paragraph', order: 1 },
+        { kind: 'insert', id: uuidv7(), parentBlockId: null, type: 'paragraph', afterId: null },
       ]);
       expect(res.status).toBe(403);
     } finally {
@@ -995,14 +1043,22 @@ describe('blocks version', () => {
     const a = await api(
       'POST',
       `/pages/${page.id}/blocks/transactions`,
-      { ops: [{ kind: 'insert', id: uuidv7(), parentBlockId: null, type: 'paragraph', order: 1 }] },
+      {
+        ops: [
+          { kind: 'insert', id: uuidv7(), parentBlockId: null, afterId: null, type: 'paragraph' },
+        ],
+      },
       ws,
     );
-    expect(a.json).toEqual({ ok: true, version: 1 });
+    expect(a.json).toMatchObject({ ok: true, version: 1 });
     const b = await api(
       'POST',
       `/pages/${page.id}/blocks/transactions`,
-      { ops: [{ kind: 'insert', id: uuidv7(), parentBlockId: null, type: 'paragraph', order: 2 }] },
+      {
+        ops: [
+          { kind: 'insert', id: uuidv7(), parentBlockId: null, afterId: null, type: 'paragraph' },
+        ],
+      },
       ws,
     );
     expect(b.json.version).toBe(2);
