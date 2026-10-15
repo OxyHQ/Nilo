@@ -4,14 +4,14 @@ import apiClient from '../api/client';
 
 export interface Notification {
   id: string;
-  type: 'mention' | 'comment_reply';
+  type: 'page_edited' | 'mention' | 'page_comment' | 'comment_reply' | 'page_shared' | 'reminder';
   title: string;
   body: string;
   status: 'pending' | 'sent' | 'read' | 'dismissed';
   priority: 'low' | 'normal' | 'high' | 'urgent';
-  data?: Record<string, unknown>;
+  data: Record<string, unknown> | null;
   createdAt: string;
-  readAt?: string;
+  readAt: string | null;
 }
 
 interface NotificationsResponse {

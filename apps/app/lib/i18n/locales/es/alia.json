@@ -1,0 +1,9 @@
+{
+  "ask": "Preguntar a Alia",
+  "clientContext": "La persona usa Nilo, un espacio de trabajo para documentos y bases de datos. Escribe páginas hechas de bloques, crea bases de datos con vistas de tabla, tablero y otras, organiza las páginas en espacios de trabajo y colabora con otros miembros mediante el uso compartido y los comentarios.",
+  "suggestion": {
+    "write": "Ayúdame a redactar una página",
+    "organise": "¿Cómo debería organizar mi espacio de trabajo?",
+    "database": "Crea una base de datos para seguir mis proyectos"
+  }
+}

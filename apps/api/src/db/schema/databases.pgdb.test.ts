@@ -88,7 +88,7 @@ describe('databases_property_types', () => {
   it('accepts every value in DATABASE_PROPERTY_TYPES', async () => {
     // The positive control for the rejections below: if the CHECK rejected
     // everything, or the insert path were broken, this fails first.
-    expect(DATABASE_PROPERTY_TYPES.length).toBe(19);
+    expect(DATABASE_PROPERTY_TYPES.length).toBe(20);
     for (const type of DATABASE_PROPERTY_TYPES) {
       await expect(
         insertRawSchema(`{"properties":[{"id":"p","name":"P","type":"${type}"}]}`),
@@ -167,7 +167,7 @@ describe('database_views_type', () => {
       .values({ workspaceId, ownerId: 'owner' })
       .returning({ id: databases.id });
 
-    expect(DATABASE_VIEW_TYPES.length).toBe(6);
+    expect(DATABASE_VIEW_TYPES.length).toBe(7);
     for (const type of DATABASE_VIEW_TYPES) {
       await expect(
         db.insert(databaseViews).values({ databaseId: database.id, type }),
@@ -296,6 +296,8 @@ describe('columns', () => {
       new Set([
         'id',
         'workspace_id',
+        // Where a database in no page lives (teamspaces).
+        'teamspace_id',
         'name',
         'icon',
         'cover',
@@ -303,6 +305,7 @@ describe('columns', () => {
         'properties_schema',
         'is_inline',
         'parent_page_id',
+        'next_row_number',
         'archived',
         'created_at',
         'updated_at',
@@ -319,6 +322,8 @@ describe('columns', () => {
       new Set([
         'id',
         'database_id',
+        // A linked view's block.
+        'block_id',
         'name',
         'type',
         'is_default',
@@ -407,13 +412,13 @@ describe('indexes and foreign keys', () => {
     );
 
     /**
-     * Exactly two today. This is deliberately an equality, not a floor: when
-     * `databases.parentPageId -> pages.id` lands it becomes three, and that
-     * failure is the point — it puts whoever adds the foreign key in front of
-     * this assertion at the moment they need it. The coverage itself will
-     * already pass, via `databases_parent_page_idx`.
+     * Exactly five: the workspace, the view's database, the inline
+     * database's host page (`databases_parent_page_idx` covers it), the
+     * teamspace of a database in no page (`databases_teamspace_idx`) and a
+     * linked view's block (`database_views_block_idx`). An equality, not a
+     * floor, so a new foreign key meets this assertion.
      */
-    expect(foreignKeys).toHaveLength(2);
+    expect(foreignKeys).toHaveLength(5);
 
     const leadsWith = new Set(indexes.map((i) => `${i.tbl}.${i.first_col}`));
     // Floor: a query that returned nothing would make the loop below vacuous.

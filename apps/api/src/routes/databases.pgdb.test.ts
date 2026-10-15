@@ -4,6 +4,7 @@ import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { workspaceMembers } from '../db/schema/workspaces.js';
 import {
   closeTestDb,
   getTestDb,
@@ -32,8 +33,8 @@ import type { WorkspaceRole } from '../db/schema/workspaces.js';
  * not under test here — but the mock does resolve the workspace id the same way
  * the real middleware does (param, then query, then the `X-Workspace-Id`
  * header) and refuses a workspace the caller is not a member of, because
- * several route paths depend on `checkWorkspaceMembership` rejecting rather
- * than passing.
+ * several route paths depend on `checkWorkspaceAccess` rejecting rather than
+ * passing.
  *
  * Every assertion is scoped to a workspace, database or page id this file
  * created: the suite shares one database with every other `*.pgdb.test.ts`.
@@ -107,6 +108,7 @@ vi.mock('../middleware/workspace.js', () => ({
 
 // `vi.mock` is hoisted above this, so the router resolves the mocks.
 import databasesRouter from './databases.js';
+import pagesRouter from './pages.js';
 
 let db: TestDatabase;
 let originalDatabaseUrl: string | undefined;
@@ -127,6 +129,16 @@ interface ApiResponse {
  * used `fetch` still holds handles after `afterAll`. One connection per
  * request, closed with the response, leaves nothing behind.
  */
+/** JSON bodies as objects; anything else (a CSV export) as `{ text }`. */
+function parseBody(text: string): Record<string, unknown> {
+  if (text.length === 0) return {};
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return { text };
+  }
+}
+
 async function api(method: string, path: string, body?: unknown): Promise<ApiResponse> {
   const payload = body === undefined ? undefined : JSON.stringify(body);
   return new Promise<ApiResponse>((resolve, reject) => {
@@ -146,7 +158,7 @@ async function api(method: string, path: string, body?: unknown): Promise<ApiRes
         response.on('end', () => {
           resolve({
             status: response.statusCode ?? 0,
-            body: text.length > 0 ? (JSON.parse(text) as Record<string, unknown>) : {},
+            body: parseBody(text),
           });
         });
       },
@@ -202,10 +214,17 @@ beforeAll(async () => {
   ctx.workspaceId = await seedWorkspace(db, 'route-databases');
   otherWorkspaceId = await seedWorkspace(db, 'route-databases-other');
   ctx.userId = `owner-${ctx.workspaceId}`;
+  // Page access (an inline database shares its page's) reads membership from
+  // the database, not from the mocked middleware.
+  await db
+    .insert(workspaceMembers)
+    .values({ workspaceId: ctx.workspaceId, userId: ctx.userId, role: 'owner' });
 
   const app = express();
   app.use(express.json());
   app.use('/api/databases', databasesRouter);
+  // Row edits go through the page route.
+  app.use('/api/pages', pagesRouter);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as AddressInfo;
@@ -421,12 +440,25 @@ describe('DELETE /api/databases/:id', () => {
     const databaseId = await createDatabase();
     await api('POST', `/api/databases/${databaseId}/rows`, { title: 'Safe' });
 
+    // The membership itself, which the route reads.
+    const setRole = (role: WorkspaceRole) =>
+      db
+        .update(workspaceMembers)
+        .set({ role })
+        .where(
+          and(
+            eq(workspaceMembers.workspaceId, ctx.workspaceId),
+            eq(workspaceMembers.userId, ctx.userId),
+          ),
+        );
     ctx.role = 'editor';
+    await setRole('editor');
     try {
       const refused = await api('DELETE', `/api/databases/${databaseId}?hard=true`);
       expect(refused.status).toBe(403);
     } finally {
       ctx.role = 'owner';
+      await setRole('owner');
     }
 
     expect(await db.select().from(databases).where(eq(databases.id, databaseId))).toHaveLength(1);
@@ -437,6 +469,92 @@ describe('DELETE /api/databases/:id', () => {
 // ---------------------------------------------------------------------------
 // Properties
 // ---------------------------------------------------------------------------
+
+describe('two-way relations', () => {
+  const schemaOf = async (id: string) =>
+    asArray(
+      asRecord((await api('GET', `/api/databases/${id}`)).body.database).schema
+        ? asRecord(asRecord((await api('GET', `/api/databases/${id}`)).body.database).schema)
+            .properties
+        : [],
+    ) as { id: string; name: string; type: string; config?: Record<string, unknown> }[];
+  const rowProps = async (rowId: string) =>
+    asRecord(asRecord((await db.select().from(pages).where(eq(pages.id, rowId)))[0]).properties);
+  const row = async (databaseId: string, title: string, properties: Record<string, unknown> = {}) =>
+    idOf((await api('POST', `/api/databases/${databaseId}/rows`, { title, properties })).body.row);
+
+  it('keep the other side in step as rows are linked and unlinked, and go together', async () => {
+    const projects = await createDatabase({ name: 'Projects' });
+    const tasks = await createDatabase({ name: 'Tasks' });
+    const added = await api('POST', `/api/databases/${tasks}/properties`, {
+      id: 'project',
+      name: 'Project',
+      type: 'relation',
+      config: { targetDatabaseId: projects, twoWay: true },
+    });
+    expect(added.status).toBe(201);
+    const other = (await schemaOf(projects)).find((p) => p.type === 'relation');
+    expect(other).toMatchObject({
+      name: 'Tasks',
+      config: { targetDatabaseId: tasks, twoWay: true, syncedPropertyId: 'project' },
+    });
+
+    const launch = await row(projects, 'Launch');
+    const write = await row(tasks, 'Write', { project: { pageIds: [launch] } });
+    const test = await row(tasks, 'Test', { project: { pageIds: [launch] } });
+    expect(asRecord((await rowProps(launch))[other?.id as string]).pageIds).toEqual([write, test]);
+
+    // Unlinked from one side, gone from the other.
+    expect(
+      (await api('PATCH', `/api/pages/${write}`, { properties: { project: { pageIds: [] } } }))
+        .status,
+    ).toBe(200);
+    expect(asRecord((await rowProps(launch))[other?.id as string]).pageIds).toEqual([test]);
+
+    // Deleting the relation takes its other side with it.
+    expect((await api('DELETE', `/api/databases/${tasks}/properties/project`)).status).toBe(200);
+    expect((await schemaOf(projects)).some((p) => p.type === 'relation')).toBe(false);
+    expect((await rowProps(launch))[other?.id as string]).toBeUndefined();
+  });
+
+  it('relate a database to itself: sub-items and their parent', async () => {
+    const tasks = await createDatabase({ name: 'Plan' });
+    await api('POST', `/api/databases/${tasks}/properties`, {
+      id: 'subs',
+      name: 'Sub-items',
+      type: 'relation',
+      config: { targetDatabaseId: tasks, twoWay: true },
+    });
+    const parentProp = (await schemaOf(tasks)).find((p) => p.name === 'Sub-items (parent)');
+    expect(parentProp).toBeDefined();
+    const child = await row(tasks, 'Child');
+    const parent = await row(tasks, 'Parent', { subs: { pageIds: [child] } });
+    expect(asRecord((await rowProps(child))[parentProp?.id as string]).pageIds).toEqual([parent]);
+  });
+
+  it('fill the other side from existing links when made two-way later', async () => {
+    const teams = await createDatabase({ name: 'Teams' });
+    const people = await createDatabase({ name: 'People' });
+    await api('POST', `/api/databases/${people}/properties`, {
+      id: 'team',
+      name: 'Team',
+      type: 'relation',
+      config: { targetDatabaseId: teams },
+    });
+    const core = await row(teams, 'Core');
+    const ana = await row(people, 'Ana', { team: { pageIds: [core] } });
+    const made = await api('PATCH', `/api/databases/${people}/properties/team`, {
+      config: { targetDatabaseId: teams, twoWay: true },
+    });
+    expect(made.status).toBe(200);
+    const other = (await schemaOf(teams)).find((p) => p.type === 'relation');
+    expect(asRecord((await rowProps(core))[other?.id as string]).pageIds).toEqual([ana]);
+    // Renaming it keeps the link.
+    await api('PATCH', `/api/databases/${people}/properties/team`, { name: 'Squad' });
+    const renamed = (await schemaOf(people)).find((p) => p.id === 'team');
+    expect(renamed?.config).toMatchObject({ twoWay: true, syncedPropertyId: other?.id });
+  });
+});
 
 describe('properties', () => {
   it('adds a property, assigning option ids', async () => {
@@ -528,6 +646,145 @@ describe('properties', () => {
 // ---------------------------------------------------------------------------
 
 describe('rows', () => {
+  it('computes formulas from the row, and marks a cycle as an error', async () => {
+    const databaseId = await createDatabase({
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'pts', name: 'Points', type: 'number' },
+          {
+            id: 'dbl',
+            name: 'Double',
+            type: 'formula',
+            config: { expression: 'prop("Points") * 2' },
+          },
+          {
+            id: 'lbl',
+            name: 'Label',
+            type: 'formula',
+            config: { expression: 'prop("Name") + " (" + prop("Double") + ")"' },
+          },
+          { id: 'a', name: 'A', type: 'formula', config: { expression: 'prop("B") + 1' } },
+          { id: 'b', name: 'B', type: 'formula', config: { expression: 'prop("A") + 1' } },
+        ],
+      },
+    });
+    const created = await api('POST', `/api/databases/${databaseId}/rows`, {
+      title: 'Spec',
+      properties: { pts: { number: 4 } },
+    });
+    const row = asRecord(created.body.row);
+    const props = asRecord(row.properties);
+    expect(props.dbl).toEqual({ number: 8 });
+    expect(props.lbl).toEqual({ text: 'Spec (8)' });
+    expect(asRecord(props.a).error).toMatch(/refers to itself/);
+    expect(asRecord(props.b).error).toMatch(/refers to itself/);
+  });
+
+  it('creates rows from a row template, which is not itself listed as a row', async () => {
+    const databaseId = await createDatabase();
+    const made = await api('POST', `/api/databases/${databaseId}/rows`, { title: 'Bug report' });
+    const templateId = idOf(made.body.row);
+    await db
+      .update(pages)
+      .set({ template: true, icon: 'emoji:🐞' })
+      .where(eq(pages.id, templateId));
+    await db
+      .insert(blocks)
+      .values({ pageId: templateId, type: 'paragraph', content: { text: 'Steps:' }, order: 1 });
+
+    const listed = await api('GET', `/api/databases/${databaseId}/rows`);
+    expect((listed.body.rows as unknown[]).length).toBe(0);
+    const templates = await api('GET', `/api/databases/${databaseId}/templates`);
+    expect((templates.body.templates as { id: string }[]).map((t) => t.id)).toEqual([templateId]);
+
+    const fromTemplate = await api('POST', `/api/databases/${databaseId}/rows`, { templateId });
+    expect(fromTemplate.status).toBe(201);
+    const row = asRecord(fromTemplate.body.row);
+    expect(row.title).toBe('Bug report');
+    const [stored] = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.id, idOf(fromTemplate.body.row)));
+    expect(stored?.icon).toBe('emoji:🐞');
+    expect(stored?.template).toBe(false);
+    const copied = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.pageId, stored?.id as string));
+    expect(copied.map((b) => b.content.text)).toEqual(['Steps:']);
+
+    expect(
+      (
+        await api('POST', `/api/databases/${databaseId}/rows`, {
+          templateId: idOf(fromTemplate.body.row),
+        })
+      ).status,
+    ).toBe(400);
+  });
+
+  it('creates a template in one step, and reads one row with its formulas whatever the view', async () => {
+    const databaseId = await createDatabase();
+    await api('POST', `/api/databases/${databaseId}/properties`, {
+      id: 'pts',
+      name: 'Points',
+      type: 'number',
+    });
+    await api('POST', `/api/databases/${databaseId}/properties`, {
+      id: 'dbl',
+      name: 'Double',
+      type: 'formula',
+      config: { expression: 'prop("Points") * 2' },
+    });
+    const made = await api('POST', `/api/databases/${databaseId}/rows`, {
+      title: 'Estimate',
+      properties: { pts: { number: 3 } },
+      template: true,
+    });
+    expect(made.status).toBe(201);
+    const templateId = idOf(made.body.row);
+    // Never a row, not even for a moment.
+    const listed = await api('GET', `/api/databases/${databaseId}/rows`);
+    expect(listed.body.rows).toEqual([]);
+    const templates = await api('GET', `/api/databases/${databaseId}/templates`);
+    const [template] = templates.body.templates as Record<string, unknown>[];
+    expect(asRecord(asRecord(template).properties).dbl).toEqual({ number: 6 });
+
+    const one = await api('GET', `/api/databases/${databaseId}/rows/${templateId}`);
+    expect(one.status).toBe(200);
+    expect(asRecord(asRecord(one.body.row).properties).dbl).toEqual({ number: 6 });
+    const other = await createDatabase();
+    expect((await api('GET', `/api/databases/${other}/rows/${templateId}`)).status).toBe(404);
+  });
+
+  it('numbers rows with an ID property, existing ones first, and never takes one from the client', async () => {
+    const databaseId = await createDatabase();
+    await api('POST', `/api/databases/${databaseId}/rows`, { title: 'first' });
+    await api('POST', `/api/databases/${databaseId}/rows`, { title: 'second' });
+    const added = await api('POST', `/api/databases/${databaseId}/properties`, {
+      id: 'tid',
+      name: 'ID',
+      type: 'unique_id',
+      config: { prefix: 'TASK' },
+    });
+    expect(added.status).toBe(201);
+    const third = await api('POST', `/api/databases/${databaseId}/rows`, {
+      title: 'third',
+      properties: { tid: { number: 999 } },
+    });
+    expect(asRecord(asRecord(third.body.row).properties).tid).toEqual({ number: 3 });
+    const rows = await db.select().from(pages).where(eq(pages.databaseId, databaseId));
+    expect(
+      rows.map((r) => [r.title, (r.properties.tid as { number: number }).number]).sort(),
+    ).toEqual([
+      ['first', 1],
+      ['second', 2],
+      ['third', 3],
+    ]);
+    const csv = await api('GET', `/api/databases/${databaseId}/export?format=csv`);
+    expect(String(csv.body.text)).toContain('TASK-3');
+  });
+
   it('stores property values as jsonb and mirrors the name into the title', async () => {
     const databaseId = await createDatabase();
     const created = await api('POST', `/api/databases/${databaseId}/rows`, {
@@ -632,6 +889,78 @@ describe('rows', () => {
     expect(listed.body.total).toBe(2);
   });
 
+  it('filters and sorts on a formula, and sorts options in their listed order', async () => {
+    const databaseId = await createDatabase({
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'pts', name: 'Points', type: 'number' },
+          {
+            id: 'dbl',
+            name: 'Double',
+            type: 'formula',
+            config: { expression: 'prop("Points") * 2' },
+          },
+          {
+            id: 'pri',
+            name: 'Priority',
+            type: 'select',
+            config: {
+              options: [
+                { id: 'zz-high', name: 'High' },
+                { id: 'aa-low', name: 'Low' },
+              ],
+            },
+          },
+        ],
+      },
+    });
+    for (const [title, pts, pri] of [
+      ['one', 1, 'aa-low'],
+      ['five', 5, 'zz-high'],
+      ['three', 3, 'aa-low'],
+    ] as const) {
+      await api('POST', `/api/databases/${databaseId}/rows`, {
+        title,
+        properties: { pts: { number: pts }, pri: { optionId: pri } },
+      });
+    }
+    const byFormula = await api('POST', `/api/databases/${databaseId}/views`, {
+      name: 'Big',
+      type: 'table',
+      filters: {
+        kind: 'group',
+        combinator: 'and',
+        filters: [{ kind: 'condition', propertyId: 'dbl', operator: '>', value: 4 }],
+      },
+      sorts: [{ propertyId: 'dbl', direction: 'desc' }],
+    });
+    const big = await api(
+      'GET',
+      `/api/databases/${databaseId}/rows?viewId=${idOf(byFormula.body.view)}`,
+    );
+    expect(asArray(big.body.rows).map((r) => asRecord(r).title)).toEqual(['five', 'three']);
+
+    const byPriority = await api('POST', `/api/databases/${databaseId}/views`, {
+      name: 'Priority',
+      type: 'table',
+      sorts: [
+        { propertyId: 'pri', direction: 'asc' },
+        { propertyId: 'pts', direction: 'asc' },
+      ],
+    });
+    const sorted = await api(
+      'GET',
+      `/api/databases/${databaseId}/rows?viewId=${idOf(byPriority.body.view)}`,
+    );
+    // High is listed first, whatever its id.
+    expect(asArray(sorted.body.rows).map((r) => asRecord(r).title)).toEqual([
+      'five',
+      'one',
+      'three',
+    ]);
+  });
+
   it('resolves created_time, created_by and formula properties at read time', async () => {
     const databaseId = await createDatabase({
       schema: {
@@ -714,6 +1043,78 @@ describe('rows', () => {
     const listed = await api('GET', `/api/databases/${sourceId}/rows`);
     const properties = asRecord(asRecord(asArray(listed.body.rows)[0]).properties);
     expect(asRecord(properties.total).number).toBe(12);
+  });
+
+  it('rolls up every row of a view from its own relations, and sorts by it', async () => {
+    const targetId = await createDatabase({
+      name: 'Points',
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'pts', name: 'Points', type: 'number' },
+        ],
+      },
+    });
+    const targets: string[] = [];
+    for (let i = 1; i <= 10; i += 1) {
+      const made = await api('POST', `/api/databases/${targetId}/rows`, {
+        title: `t${i}`,
+        properties: { pts: { number: i } },
+      });
+      targets.push(idOf(made.body.row));
+    }
+    const sourceId = await createDatabase({
+      name: 'Many rollups',
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'rel', name: 'Related', type: 'relation', config: { targetDatabaseId: targetId } },
+          {
+            id: 'sum',
+            name: 'Sum',
+            type: 'rollup',
+            config: { relationPropertyId: 'rel', targetPropertyId: 'pts', function: 'sum' },
+          },
+          {
+            id: 'double',
+            name: 'Double',
+            type: 'formula',
+            config: { expression: 'prop("Sum") * 2' },
+          },
+        ],
+      },
+    });
+    // Row k relates to targets 1..k (sum k(k+1)/2); 60 rows.
+    const ROWS = 60;
+    for (let k = 1; k <= ROWS; k += 1) {
+      await api('POST', `/api/databases/${sourceId}/rows`, {
+        title: `r${k}`,
+        properties: { rel: { pageIds: targets.slice(0, Math.min(k, 10)) } },
+      });
+    }
+    const listed = await api('GET', `/api/databases/${sourceId}/rows?pageSize=500`);
+    const rows = asArray(listed.body.rows).map((r) => asRecord(r));
+    expect(rows).toHaveLength(ROWS);
+    for (const row of rows) {
+      const k = Math.min(Number(String(row.title).slice(1)), 10);
+      const props = asRecord(row.properties);
+      expect(asRecord(props.sum).number).toBe((k * (k + 1)) / 2);
+      expect(asRecord(props.double).number).toBe(k * (k + 1));
+    }
+
+    // Sorted by the formula over the rollup, largest first.
+    const views = await api('GET', `/api/databases/${sourceId}/views`);
+    const viewId = idOf(asArray(views.body.views)[0]);
+    const patched = await api('PATCH', `/api/databases/${sourceId}/views/${viewId}`, {
+      sorts: [{ propertyId: 'double', direction: 'desc' }],
+    });
+    expect(patched.status).toBe(200);
+    const sorted = await api(
+      'GET',
+      `/api/databases/${sourceId}/rows?viewId=${viewId}&pageSize=500`,
+    );
+    const first = asRecord(asArray(sorted.body.rows)[0]);
+    expect(asRecord(asRecord(first.properties).double).number).toBe(110);
   });
 
   it('counts an empty relation as 0 and a missing one as blank', async () => {

@@ -1,13 +1,17 @@
 import React from 'react';
 import { View, ScrollView, Pressable, Platform, Linking, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useOxy } from '@oxy.so/services';
+import { Button } from '@/components/ui/button';
+import { useJoinShareLink } from '@/lib/hooks/use-page-permissions';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 import { Text } from '@/components/ui/text';
 import { NiloWordmark } from '@/components/ui/nilo-wordmark';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSharedPage, type SharedPage } from '@/lib/hooks/use-share-links';
-import { SharedBlockRenderer } from '@/components/sharing/shared-block-renderer';
+import { SharedBlockTree } from '@/components/sharing/shared-block-renderer';
 
 interface ShareLoadStateProps {
   title: string;
@@ -24,6 +28,7 @@ function ShareLoadState({ title, body }: ShareLoadStateProps) {
 }
 
 function ShareFooter() {
+  const { t } = useTranslation();
   const handlePress = React.useCallback(() => {
     const url = 'https://nilo.so';
     if (Platform.OS === 'web') {
@@ -42,9 +47,9 @@ function ShareFooter() {
       onPress={handlePress}
       className="flex-row items-center justify-center gap-2 py-4"
       accessibilityRole="link"
-      accessibilityLabel="Made with Nilo"
+      accessibilityLabel={t('pages.share.madeWithNilo')}
     >
-      <Text className="text-xs text-muted-foreground">Made with</Text>
+      <Text className="text-xs text-muted-foreground">{t('pages.share.madeWith')}</Text>
       <NiloWordmark width={70} />
     </Pressable>
   );
@@ -53,6 +58,10 @@ function ShareFooter() {
 export default function PublicSharePage() {
   const insets = useSafeAreaInsets();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
+  const { isAuthenticated } = useOxy();
+  const router = useRouter();
+  const join = useJoinShareLink();
   const params = useLocalSearchParams<{ token: string }>();
   const token = typeof params.token === 'string' ? params.token : null;
 
@@ -64,10 +73,7 @@ export default function PublicSharePage() {
         className="flex-1 bg-background"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
-        <ShareLoadState
-          title="Invalid share link"
-          body="This URL is missing its share token. Double-check the link you opened."
-        />
+        <ShareLoadState title={t('pages.share.invalidTitle')} body={t('pages.share.invalidBody')} />
         <ShareFooter />
       </View>
     );
@@ -84,17 +90,17 @@ export default function PublicSharePage() {
     );
   }
 
-  if (isError || !data) {
-    const status = axios.isAxiosError(error) ? error.response?.status : null;
-    let title = 'Link unavailable';
-    let body = "We couldn't load this shared page.";
+  const joinStatus = axios.isAxiosError(join.error) ? join.error.response?.status : null;
+  if (isError || !data || joinStatus === 404 || joinStatus === 410) {
+    const status = joinStatus ?? (axios.isAxiosError(error) ? error.response?.status : null);
+    let title = t('pages.share.unavailableTitle');
+    let body = t('pages.share.unavailableBody');
     if (status === 404) {
-      title = 'Link not found';
-      body =
-        'This share link has been revoked or never existed. Ask the page owner for a new link.';
+      title = t('pages.share.notFoundTitle');
+      body = t('pages.share.notFoundBody');
     } else if (status === 410) {
-      title = 'Link expired';
-      body = 'This share link has expired. Ask the page owner for a new link.';
+      title = t('pages.share.expiredTitle');
+      body = t('pages.share.expiredBody');
     } else if (error instanceof Error && error.message) {
       body = error.message;
     }
@@ -119,13 +125,31 @@ export default function PublicSharePage() {
         contentContainerClassName="px-5 py-8 sm:px-8 sm:py-12 md:px-12"
       >
         <View className="w-full max-w-3xl mx-auto gap-4">
+          {data.share.scope !== 'read' ? (
+            <Text className="text-sm text-muted-foreground">{t('sharing.joinExplanation')}</Text>
+          ) : null}
+          {isAuthenticated ? (
+            <View className="gap-2 items-start">
+              <Button
+                accessibilityLabel={t('sharing.openInNilo')}
+                disabled={join.isPending}
+                isLoading={join.isPending}
+                onPress={() =>
+                  join.mutate(token, { onSuccess: ({ pageId }) => router.push(`/p/${pageId}`) })
+                }
+              >
+                <Text>{t('sharing.openInNilo')}</Text>
+              </Button>
+              {join.isError ? (
+                <Text accessibilityRole="alert" className="text-sm text-destructive">
+                  {t('sharing.joinFailed')}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
           <SharedPageHeader page={data.page} />
           <View className="gap-1.5">
-            {data.blocks.length === 0 ? (
-              <Text className="text-sm text-muted-foreground">This page is empty.</Text>
-            ) : (
-              data.blocks.map((block) => <SharedBlockRenderer key={block._id} block={block} />)
-            )}
+            <SharedBlockTree blocks={data.blocks} />
           </View>
         </View>
       </ScrollView>
@@ -135,6 +159,7 @@ export default function PublicSharePage() {
 }
 
 function SharedPageHeader({ page }: { page: SharedPage['page'] }) {
+  const { t } = useTranslation();
   return (
     <View className="gap-2">
       {page.icon ? (
@@ -143,7 +168,7 @@ function SharedPageHeader({ page }: { page: SharedPage['page'] }) {
         </Text>
       ) : null}
       <Text className="text-3xl font-bold text-foreground sm:text-4xl">
-        {page.title?.trim() ? page.title : 'Untitled'}
+        {page.title?.trim() ? page.title : t('pages.untitled')}
       </Text>
     </View>
   );

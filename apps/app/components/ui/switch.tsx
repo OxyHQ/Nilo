@@ -3,6 +3,7 @@ import { Pressable, Animated } from 'react-native';
 import { cn } from '@/lib/utils';
 
 interface SwitchProps {
+  accessibilityLabel?: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
   disabled?: boolean;
@@ -16,7 +17,7 @@ const PADDING = 2;
 const SQUEEZE_RATIO = 0.75; // thumb height shrinks to 75% when pressed
 
 const Switch = React.forwardRef<React.ElementRef<typeof Pressable>, SwitchProps>(
-  ({ value, onValueChange, disabled, className, size = 'default' }, ref) => {
+  ({ value, onValueChange, disabled, className, accessibilityLabel, size = 'default' }, ref) => {
     const anim = React.useRef(new Animated.Value(value ? 1 : 0)).current;
     const pressAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -78,6 +79,8 @@ const Switch = React.forwardRef<React.ElementRef<typeof Pressable>, SwitchProps>
       <Pressable
         ref={ref}
         role="switch"
+        disabled={disabled}
+        accessibilityLabel={accessibilityLabel}
         aria-checked={value}
         accessibilityState={{ checked: value, disabled }}
         onPress={() => !disabled && onValueChange(!value)}

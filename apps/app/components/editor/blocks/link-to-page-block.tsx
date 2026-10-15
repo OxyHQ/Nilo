@@ -35,9 +35,9 @@ export function LinkToPageBlock({ block, onChangeContent }: BlockComponentProps)
   });
 
   const [draft, setDraft] = React.useState(pageId);
-  const lastBlockId = React.useRef(block._id);
-  if (lastBlockId.current !== block._id) {
-    lastBlockId.current = block._id;
+  const lastBlockId = React.useRef(block.id);
+  if (lastBlockId.current !== block.id) {
+    lastBlockId.current = block.id;
     setDraft(pageId);
   }
 

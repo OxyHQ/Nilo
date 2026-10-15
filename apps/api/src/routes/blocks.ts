@@ -1,24 +1,24 @@
 import { Router } from 'express';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
-import { BLOCK_TYPES, type BlockContent, type BlockType } from '../db/schema/pages.js';
 import type { BlockRow } from '../repositories/blocks.js';
-import {
-  createBlock,
-  deleteBlockTree,
-  findBlockById,
-  findBlocksByIds,
-  listBlocksForPage,
-  nextBlockOrder,
-  reorderBlocks,
-  updateBlock,
-} from '../repositories/blocks.js';
-import { findPageById } from '../repositories/pages.js';
+import { listBlocksForPage } from '../repositories/blocks.js';
+import { findAppliedTransactionKeys, findPageById } from '../repositories/pages.js';
+import { snapshotPage } from '../repositories/pageVersions.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
+import { sendNotification } from '../lib/notification-service.js';
+import { recentlyNotified } from '../repositories/notifications.js';
+import { listFollowers } from '../repositories/pageFollows.js';
+import { checkPageAccess, resolvePageAccess } from '../lib/page-access.js';
+import {
+  applyBlockTransaction,
+  blockTransactionSchema,
+  type NewMention,
+  TransactionRejected,
+} from '../lib/block-transactions.js';
 
 const router = Router();
 
@@ -33,375 +33,7 @@ router.use(authenticateToken);
  */
 const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 
-/**
- * The id a content payload carries when the UI has not chosen a target yet —
- * `link_to_page` before a page is picked, `inline_database` between the block
- * being created and its database existing.
- *
- * It survives the move off ObjectIds unchanged because it is a well-formed
- * ObjectId hex that names no row, which is exactly what it has to be: a
- * sentinel the id validator accepts and no lookup ever resolves. Changing its
- * shape would be a wire-format change for the two block types that read it.
- */
-const UNRESOLVED_TARGET_ID = '000000000000000000000000';
-
-const blockTypeSchema = z.enum(BLOCK_TYPES);
-
-/**
- * Notion-style named colours a block or a rich-text segment may carry.
- *
- * Declared here rather than in `db/schema/pages.ts`: `blocks.content` is jsonb
- * the table validates nothing about, and this route is the only thing that has
- * ever validated its shape. The `BlockColor` union that used to sit beside this
- * array is gone — `z.enum` derives the type from the array, so the two cannot
- * drift.
- */
-const BLOCK_COLORS = [
-  'default',
-  'gray',
-  'brown',
-  'orange',
-  'yellow',
-  'green',
-  'blue',
-  'purple',
-  'pink',
-  'red',
-] as const;
-
-const blockColorSchema = z.enum(BLOCK_COLORS);
-
-/**
- * Rich-text segment — single run of text plus optional annotations.
- * Editors that don't read `segments` keep working against `text`; both stay
- * in sync at the route boundary (see `syncSegmentsAndText`).
- */
-const segmentSchema = z.object({
-  text: z.string(),
-  bold: z.boolean().optional(),
-  italic: z.boolean().optional(),
-  underline: z.boolean().optional(),
-  strike: z.boolean().optional(),
-  code: z.boolean().optional(),
-  color: blockColorSchema.optional(),
-  background: blockColorSchema.optional(),
-  link: z.string().optional(),
-});
-
-/**
- * Common optional block-level styling fields. Kept on every content variant
- * so client code can read `content.color` uniformly.
- */
-const styleFields = {
-  color: blockColorSchema.optional(),
-  backgroundColor: blockColorSchema.optional(),
-} as const;
-
-/**
- * Per-type content schemas with defaults. Concretely typed so each
- * `.parse()` returns the exact `BlockContent` variant without casts.
- *
- * Defaults are applied via Zod (`.default()`) so missing keys are filled
- * before validation and the output types remain non-optional strings/bools.
- */
-const textContentSchema = z.object({
-  text: z.string().default(''),
-  segments: z.array(segmentSchema).optional(),
-  ...styleFields,
-});
-const todoContentSchema = z.object({
-  text: z.string().default(''),
-  segments: z.array(segmentSchema).optional(),
-  checked: z.boolean().default(false),
-  ...styleFields,
-});
-const codeContentSchema = z.object({
-  text: z.string().default(''),
-  language: z.string().default('plain'),
-  ...styleFields,
-});
-const calloutContentSchema = z.object({
-  text: z.string().default(''),
-  segments: z.array(segmentSchema).optional(),
-  icon: z.string().default('lightbulb'),
-  ...styleFields,
-});
-const toggleContentSchema = z.object({
-  text: z.string().default(''),
-  segments: z.array(segmentSchema).optional(),
-  expanded: z.boolean().default(true),
-  ...styleFields,
-});
-const dividerContentSchema = z.object(styleFields);
-
-// --- Phase 3: media blocks ---
-const imageAlignmentSchema = z.enum(['left', 'center', 'right', 'full']);
-const imageContentSchema = z.object({
-  url: z.string().default(''),
-  caption: z.string().optional(),
-  alt: z.string().optional(),
-  width: z.number().finite().positive().optional(),
-  alignment: imageAlignmentSchema.optional(),
-  ...styleFields,
-});
-
-const videoSourceSchema = z.enum(['upload', 'youtube', 'vimeo', 'loom', 'other']);
-const videoContentSchema = z.object({
-  url: z.string().default(''),
-  source: videoSourceSchema.default('other'),
-  caption: z.string().optional(),
-  ...styleFields,
-});
-
-const audioContentSchema = z.object({
-  url: z.string().default(''),
-  caption: z.string().optional(),
-  ...styleFields,
-});
-
-const fileContentSchema = z.object({
-  url: z.string().default(''),
-  name: z.string().default(''),
-  size: z.number().int().nonnegative().default(0),
-  mimeType: z.string().default('application/octet-stream'),
-  ...styleFields,
-});
-
-const pdfContentSchema = z.object({
-  url: z.string().default(''),
-  ...styleFields,
-});
-
-// --- Phase 3: embeds ---
-const bookmarkContentSchema = z.object({
-  url: z.string().default(''),
-  title: z.string().optional(),
-  description: z.string().optional(),
-  image: z.string().optional(),
-  favicon: z.string().optional(),
-  ...styleFields,
-});
-
-const embedContentSchema = z.object({
-  url: z.string().default(''),
-  source: z.string().optional(),
-  ...styleFields,
-});
-
-// --- Phase 3: layout ---
-const columnsContentSchema = z.object({
-  columnCount: z.union([z.literal(2), z.literal(3), z.literal(4)]).default(2),
-  ...styleFields,
-});
-
-const columnContentSchema = z.object({
-  /** Optional 0..1 fractional ratio. Defaults to even split when unset. */
-  ratio: z.number().min(0).max(1).optional(),
-  ...styleFields,
-});
-
-const tableContentSchema = z.object({
-  rows: z.number().int().positive().default(2),
-  cols: z.number().int().positive().default(2),
-  withHeader: z.boolean().default(false),
-  ...styleFields,
-});
-
-const tableRowContentSchema = z.object(styleFields);
-
-const tableCellContentSchema = z.object({
-  text: z.string().default(''),
-  segments: z.array(segmentSchema).optional(),
-  ...styleFields,
-});
-
-// --- Phase 3: interactive ---
-const buttonActionSchema = z.enum(['duplicate-template', 'new-page', 'navigate', 'webhook']);
-const buttonContentSchema = z.object({
-  label: z.string().default('Button'),
-  action: buttonActionSchema.default('navigate'),
-  /** Action-specific params kept loose — validated by callers when fired. */
-  url: z.string().optional(),
-  pageId: entityIdSchema.optional(),
-  templateId: entityIdSchema.optional(),
-  webhookUrl: z.string().optional(),
-  ...styleFields,
-});
-
-const linkToPageContentSchema = z.object({
-  pageId: entityIdSchema.default(UNRESOLVED_TARGET_ID),
-  ...styleFields,
-});
-
-const syncBlockContentSchema = z.object({
-  sourceBlockId: entityIdSchema.optional(),
-  ...styleFields,
-});
-
-const breadcrumbContentSchema = z.object(styleFields);
-const tableOfContentsContentSchema = z.object(styleFields);
-
-// --- Phase 3: math + diagram ---
-const equationContentSchema = z.object({
-  latex: z.string().default(''),
-  ...styleFields,
-});
-
-const mermaidContentSchema = z.object({
-  code: z.string().default(''),
-  ...styleFields,
-});
-
-// --- Phase 4: database ---
-const inlineDatabaseContentSchema = z.object({
-  /**
-   * The database to render — a `databases` row id. Defaults to
-   * `UNRESOLVED_TARGET_ID` so the type-changed-to-inline_database path doesn't
-   * fail validation; UI immediately replaces it after creating the DB.
-   */
-  databaseId: entityIdSchema.default(UNRESOLVED_TARGET_ID),
-  /** Optional starting view; falls back to the database's default view. */
-  viewId: entityIdSchema.optional(),
-  ...styleFields,
-});
-
-/**
- * Keep plain `text` consistent with `segments`. When both are present, the
- * concatenated segment text wins (more expressive). When only `text` is
- * present, segments are left undefined so older readers keep working.
- *
- * Mutates and returns the same object — caller owns it (fresh from a Zod
- * parse), so this is safe and avoids spread-typing pain across heterogeneous
- * content variants.
- */
-function syncTextFromSegments(value: BlockContent): BlockContent {
-  const segments = value.segments;
-  if (Array.isArray(segments) && segments.length > 0) {
-    const flat = segments
-      .map((s) =>
-        s && typeof s === 'object' && 'text' in s
-          ? String((s as { text: unknown }).text ?? '')
-          : '',
-      )
-      .join('');
-    value.text = flat;
-  }
-  return value;
-}
-
-/**
- * Normalize content by filling in type-specific defaults and validating shape.
- * Throws ZodError on validation failure (handled by the caller).
- *
- * Exported for `__tests__/blocks.phase3.test.ts`, which used to assert these
- * shapes against a hand-written COPY of the schemas below — so it measured the
- * copy, and went on passing when the copy and this file disagreed about what an
- * id looks like. It is the unit under test, not a seam invented for the test.
- */
-export function normalizeContent(type: BlockType, content: unknown): BlockContent {
-  const incoming =
-    content && typeof content === 'object' && !Array.isArray(content)
-      ? (content as Record<string, unknown>)
-      : {};
-
-  switch (type) {
-    case 'paragraph':
-    case 'heading_1':
-    case 'heading_2':
-    case 'heading_3':
-    case 'bulleted_list_item':
-    case 'numbered_list_item':
-    case 'quote':
-      return syncTextFromSegments(textContentSchema.parse(incoming));
-    case 'todo':
-      return syncTextFromSegments(todoContentSchema.parse(incoming));
-    case 'code':
-      return codeContentSchema.parse(incoming);
-    case 'callout':
-      return syncTextFromSegments(calloutContentSchema.parse(incoming));
-    case 'toggle':
-      return syncTextFromSegments(toggleContentSchema.parse(incoming));
-    case 'divider':
-      return dividerContentSchema.parse(incoming);
-    case 'image':
-      return imageContentSchema.parse(incoming);
-    case 'video':
-      return videoContentSchema.parse(incoming);
-    case 'audio':
-      return audioContentSchema.parse(incoming);
-    case 'file':
-      return fileContentSchema.parse(incoming);
-    case 'pdf':
-      return pdfContentSchema.parse(incoming);
-    case 'bookmark':
-      return bookmarkContentSchema.parse(incoming);
-    case 'embed':
-      return embedContentSchema.parse(incoming);
-    case 'columns':
-      return columnsContentSchema.parse(incoming);
-    case 'column':
-      return columnContentSchema.parse(incoming);
-    case 'table':
-      return tableContentSchema.parse(incoming);
-    case 'table_row':
-      return tableRowContentSchema.parse(incoming);
-    case 'table_cell':
-      return syncTextFromSegments(tableCellContentSchema.parse(incoming));
-    case 'button':
-      return buttonContentSchema.parse(incoming);
-    case 'link_to_page':
-      return linkToPageContentSchema.parse(incoming);
-    case 'sync_block':
-      return syncBlockContentSchema.parse(incoming);
-    case 'breadcrumb':
-      return breadcrumbContentSchema.parse(incoming);
-    case 'table_of_contents':
-      return tableOfContentsContentSchema.parse(incoming);
-    case 'equation':
-      return equationContentSchema.parse(incoming);
-    case 'mermaid':
-      return mermaidContentSchema.parse(incoming);
-    case 'inline_database':
-      return inlineDatabaseContentSchema.parse(incoming);
-  }
-}
-
-const createBlockSchema = z.object({
-  type: blockTypeSchema,
-  content: z.unknown().optional(),
-  order: z.number().finite().optional(),
-  parentBlockId: entityIdSchema.nullable().optional(),
-});
-
-const updateBlockSchema = z
-  .object({
-    type: blockTypeSchema.optional(),
-    content: z.unknown().optional(),
-    order: z.number().finite().optional(),
-    parentBlockId: entityIdSchema.nullable().optional(),
-  })
-  .refine((data) => Object.keys(data).length > 0, {
-    message: 'At least one field is required',
-  });
-
-const reorderSchema = z.object({
-  /**
-   * The page's new block sequence; each block takes its index as its `order`.
-   *
-   * Distinctness is enforced rather than left unspecified. The payload means
-   * "this is the sequence", and a sequence cannot hold the same block twice —
-   * Postgres joins against `(values ...)` and, where two rows match one block,
-   * would apply an unspecified one of them. A 400 replaces an unspecified
-   * outcome with a stated one, and rejects nothing the editor sends — a
-   * repeated id there would mean an already-corrupted block list.
-   */
-  blockIds: z
-    .array(entityIdSchema)
-    .min(1)
-    .refine((ids) => new Set(ids).size === ids.length, {
-      message: 'blockIds must not contain duplicates',
-    }),
-});
+// Block content schemas and normalizeContent live in @nilo/contracts.
 
 function handleZodError(err: unknown, res: Response): boolean {
   if (err instanceof z.ZodError) {
@@ -431,32 +63,23 @@ function serializeBlock(block: BlockRow) {
 }
 
 /**
- * Sets the X-Workspace-Id header from the loaded resource's workspaceId
- * and runs `requireWorkspaceMember` inline. Returns true if the caller is
- * a member; false (with a response already sent) otherwise.
+ * A page's blocks and the version they are at, read in one snapshot: a
+ * transaction committing between two separate reads would hand out blocks one
+ * version ahead of the version they are labelled with. With `keys`, also which
+ * of those transaction keys the blocks already include.
  */
-async function checkWorkspaceMembership(
-  req: Request,
-  res: Response,
-  workspaceId: string,
-): Promise<boolean> {
-  req.headers['x-workspace-id'] = workspaceId;
-  const passed = await new Promise<boolean>((resolve) => {
-    const next: NextFunction = (err?: unknown) => {
-      if (err) {
-        log.general.error({ err }, 'Workspace membership middleware errored');
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Workspace membership check failed' });
-        }
-        resolve(false);
-        return;
-      }
-      resolve(true);
-    };
-    requireWorkspaceMember(req, res, next);
-  });
-  if (!passed) return false;
-  return !res.headersSent;
+async function readBlocks(pageId: string, keys: readonly string[] = []) {
+  return getDb().transaction(
+    async (tx) => {
+      const current = await findPageById(tx, pageId);
+      return {
+        blocks: (await listBlocksForPage(tx, pageId)).map((b) => serializeBlock(b)),
+        version: current?.blocksVersion ?? 0,
+        applied: await findAppliedTransactionKeys(tx, pageId, keys),
+      };
+    },
+    { isolationLevel: 'repeatable read' },
+  );
 }
 
 /**
@@ -474,12 +97,11 @@ router.get('/pages/:pageId/blocks', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkPageAccess(req, res, db, page.id, 'viewer');
     if (!ok) return;
 
-    const blocks = await listBlocksForPage(db, page.id);
-
-    res.json({ blocks: blocks.map((b) => serializeBlock(b)) });
+    const { blocks, version } = await readBlocks(page.id);
+    res.json({ blocks, version });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list blocks');
@@ -488,183 +110,18 @@ router.get('/pages/:pageId/blocks', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/pages/:pageId/blocks
- */
-router.post('/pages/:pageId/blocks', async (req: Request, res: Response) => {
-  try {
-    const params = z.object({ pageId: entityIdSchema }).parse(req.params);
-    const body = createBlockSchema.parse(req.body);
-
-    const db = getDb();
-    const page = await findPageById(db, params.pageId);
-    if (!page) {
-      res.status(404).json({ error: 'Page not found' });
-      return;
-    }
-
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
-    if (!ok) return;
-
-    if (body.parentBlockId) {
-      const parent = await findBlockById(db, body.parentBlockId);
-      if (!parent) {
-        res.status(404).json({ error: 'Parent block not found' });
-        return;
-      }
-      if (parent.pageId !== page.id) {
-        res.status(400).json({ error: 'Parent block belongs to a different page' });
-        return;
-      }
-    }
-
-    const content = normalizeContent(body.type, body.content);
-
-    // Default order = max(order) + 1 among siblings if not provided. Same race
-    // as `POST /api/pages` and the same reasoning: a transaction would take no
-    // lock here, so it would not close it.
-    const order =
-      body.order ??
-      (await nextBlockOrder(db, {
-        pageId: page.id,
-        parentBlockId: body.parentBlockId ?? null,
-      }));
-
-    const block = await createBlock(db, {
-      pageId: page.id,
-      parentBlockId: body.parentBlockId ?? null,
-      type: body.type,
-      content,
-      order,
-    });
-
-    res.status(201).json({ block: serializeBlock(block) });
-  } catch (error: unknown) {
-    if (handleZodError(error, res)) return;
-    log.general.error({ err: error }, 'Failed to create block');
-    res.status(500).json({ error: 'Failed to create block' });
-  }
-});
-
-/**
- * PATCH /api/blocks/:id
- */
-router.patch('/blocks/:id', async (req: Request, res: Response) => {
-  try {
-    const params = z.object({ id: entityIdSchema }).parse(req.params);
-    const body = updateBlockSchema.parse(req.body);
-
-    const db = getDb();
-    const block = await findBlockById(db, params.id);
-    if (!block) {
-      res.status(404).json({ error: 'Block not found' });
-      return;
-    }
-
-    const page = await findPageById(db, block.pageId);
-    if (!page) {
-      res.status(404).json({ error: 'Page not found' });
-      return;
-    }
-
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
-    if (!ok) return;
-
-    if (body.parentBlockId !== undefined && body.parentBlockId !== null) {
-      if (body.parentBlockId === block.id) {
-        res.status(400).json({ error: 'A block cannot be its own parent' });
-        return;
-      }
-      const parent = await findBlockById(db, body.parentBlockId);
-      if (!parent) {
-        res.status(404).json({ error: 'Parent block not found' });
-        return;
-      }
-      if (parent.pageId !== block.pageId) {
-        res.status(400).json({ error: 'Parent block belongs to a different page' });
-        return;
-      }
-    }
-
-    let content: BlockContent | undefined;
-    if (body.content !== undefined || body.type !== undefined) {
-      // Re-normalize content against the (possibly new) type. If only the
-      // type changed, fall back to defaults so we never persist mismatched shapes.
-      // `block.type` is a `BlockType` rather than a bare `string` because the
-      // column carries `$type<BlockType>()`, matching its CHECK.
-      const effectiveType = body.type ?? block.type;
-      const incoming = body.content !== undefined ? body.content : block.content;
-      content = normalizeContent(effectiveType, incoming);
-    }
-
-    const updated = await updateBlock(db, block.id, {
-      parentBlockId: body.parentBlockId,
-      type: body.type,
-      content,
-      order: body.order,
-    });
-    if (!updated) {
-      res.status(404).json({ error: 'Block not found' });
-      return;
-    }
-
-    res.json({ block: serializeBlock(updated) });
-  } catch (error: unknown) {
-    if (handleZodError(error, res)) return;
-    log.general.error({ err: error }, 'Failed to update block');
-    res.status(500).json({ error: 'Failed to update block' });
-  }
-});
-
-/**
- * DELETE /api/blocks/:id
- * Hard-delete. Cascades to child blocks (parentBlockId chain).
- */
-router.delete('/blocks/:id', async (req: Request, res: Response) => {
-  try {
-    const params = z.object({ id: entityIdSchema }).parse(req.params);
-
-    const db = getDb();
-    const block = await findBlockById(db, params.id);
-    if (!block) {
-      res.status(404).json({ error: 'Block not found' });
-      return;
-    }
-
-    const page = await findPageById(db, block.pageId);
-    if (!page) {
-      res.status(404).json({ error: 'Page not found' });
-      return;
-    }
-
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
-    if (!ok) return;
-
-    // One recursive statement in place of the BFS. The descendants are named
-    // explicitly rather than left to `blocks.parentBlockId`'s CASCADE because
-    // this route answers with the COUNT and a cascade reports none.
-    const deleted = await deleteBlockTree(db, block.id);
-
-    res.json({ success: true, deleted });
-  } catch (error: unknown) {
-    if (handleZodError(error, res)) return;
-    log.general.error({ err: error }, 'Failed to delete block');
-    res.status(500).json({ error: 'Failed to delete block' });
-  }
-});
-
-/**
- * POST /api/pages/:pageId/blocks/reorder
- * Bulk reorder. All items must already belong to `pageId` — we verify
- * before issuing writes.
+ * POST /api/pages/:pageId/blocks/resume { keys }
  *
- * `blocksRepository.reorderBlocks` counts and writes inside one transaction, so
- * a partial write is impossible; the up-front validation exists to produce the
- * 404 and 400, not to narrow a window.
+ * Opening a page with changes that were never confirmed (a reload, or work
+ * kept offline): the blocks, their version and which of the changes' keys the
+ * blocks already include — applied by the server though the answer was lost —
+ * so the editor drops those instead of applying them a second time. One
+ * snapshot, so "applied" means exactly "in these blocks".
  */
-router.post('/pages/:pageId/blocks/reorder', async (req: Request, res: Response) => {
+router.post('/pages/:pageId/blocks/resume', async (req: Request, res: Response) => {
   try {
     const params = z.object({ pageId: entityIdSchema }).parse(req.params);
-    const body = reorderSchema.parse(req.body);
+    const body = z.object({ keys: z.array(z.string().min(1).max(64)).max(2000) }).parse(req.body);
 
     const db = getDb();
     const page = await findPageById(db, params.pageId);
@@ -672,38 +129,139 @@ router.post('/pages/:pageId/blocks/reorder', async (req: Request, res: Response)
       res.status(404).json({ error: 'Page not found' });
       return;
     }
-
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkPageAccess(req, res, db, page.id, 'editor');
     if (!ok) return;
 
-    const existing = await findBlocksByIds(db, body.blockIds);
-    if (existing.length !== body.blockIds.length) {
-      res.status(404).json({ error: 'One or more blocks not found' });
-      return;
-    }
-    for (const b of existing) {
-      if (b.pageId !== page.id) {
-        res.status(400).json({ error: 'All blocks must belong to the same page' });
-        return;
-      }
-    }
-
-    // Order from frontend = index in blockIds array.
-    //
-    // `matched` is the row count of submitted blocks on the page; `modified` is
-    // deliberately narrower — only the blocks whose `order` actually changed.
-    // Neither field is read: the only caller discards the response body.
-    const result = await reorderBlocks(db, page.id, body.blockIds);
-
-    res.json({
-      success: true,
-      matched: result.matched,
-      modified: result.modified,
-    });
+    res.json(await readBlocks(page.id, body.keys));
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
-    log.general.error({ err: error }, 'Failed to reorder blocks');
-    res.status(500).json({ error: 'Failed to reorder blocks' });
+    log.general.error({ err: error }, 'Failed to resume blocks');
+    res.status(500).json({ error: 'Failed to resume blocks' });
+  }
+});
+
+/**
+ * Tell the people newly mentioned in a page's text, as Notion does — those
+ * who can open the page, never the writer. Best effort: the edit is saved.
+ */
+async function notifyMentioned(
+  mentioned: readonly NewMention[],
+  page: { id: string; title: string },
+  authorId: string,
+): Promise<void> {
+  for (const { userId, blockId, text } of mentioned) {
+    if (userId === authorId) continue;
+    try {
+      if (!(await resolvePageAccess(getDb(), userId, page.id))) continue;
+      await sendNotification({
+        userId,
+        type: 'mention',
+        title: `You were mentioned in ${page.title || 'Untitled'}`,
+        body: text.slice(0, 280),
+        priority: 'normal',
+        data: { pageId: page.id, blockId, authorId },
+      });
+    } catch (err: unknown) {
+      log.general.warn({ err, userId, pageId: page.id }, 'Failed to send mention notification');
+    }
+  }
+}
+
+/** How often one process looks at a page's followers while it is being edited. */
+const EDIT_CHECK_MS = 60_000;
+/** One unread "edited" notification per follower and page in this window. */
+const EDIT_NOTICE_WINDOW = '1 hour';
+const lastEditCheck = new Map<string, number>();
+
+/**
+ * Tell the people following a page that someone edited it, as Notion's
+ * updates do — never the editor, only those who can still open it, in the app
+ * only, and grouped: nothing more while an earlier one is unread and recent.
+ * The editor saves as you type, so a page is looked at once a minute at most.
+ */
+async function notifyFollowersOfEdit(page: { id: string; title: string }, authorId: string) {
+  const now = Date.now();
+  if (now - (lastEditCheck.get(page.id) ?? 0) < EDIT_CHECK_MS) return;
+  lastEditCheck.set(page.id, now);
+  if (lastEditCheck.size > 10_000) lastEditCheck.clear();
+  try {
+    const db = getDb();
+    const followers = (await listFollowers(db, page.id)).filter((id) => id !== authorId);
+    if (followers.length === 0) return;
+    const told = new Set(
+      await recentlyNotified(db, {
+        type: 'page_edited',
+        pageId: page.id,
+        userIds: followers,
+        within: EDIT_NOTICE_WINDOW,
+      }),
+    );
+    for (const userId of followers) {
+      if (told.has(userId) || !(await resolvePageAccess(db, userId, page.id))) continue;
+      await sendNotification({
+        userId,
+        type: 'page_edited',
+        title: `${page.title || 'Untitled'} was edited`,
+        body: '',
+        priority: 'low',
+        channels: ['in_app'],
+        data: { pageId: page.id, authorId },
+      });
+    }
+  } catch (err: unknown) {
+    log.general.warn({ err, pageId: page.id }, 'Failed to tell followers of an edit');
+  }
+}
+
+/**
+ * POST /pages/:pageId/blocks/transactions
+ *
+ * Applies one editor transaction — an ordered list of insert / update / move
+ * / remove operations — atomically: every operation is validated against the
+ * page's blocks as the earlier operations left them, and any failure rolls
+ * the whole list back. This is how the editor saves: one request per user
+ * action, in order, with the ids it minted.
+ */
+router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ pageId: entityIdSchema }).parse(req.params);
+    const body = blockTransactionSchema.parse(req.body);
+
+    const db = getDb();
+    const page = await findPageById(db, params.pageId);
+    if (!page) {
+      res.status(404).json({ error: 'Page not found' });
+      return;
+    }
+    const ok = await checkPageAccess(req, res, db, page.id, 'editor');
+    if (!ok) return;
+
+    const result = await applyBlockTransaction(db, {
+      pageId: page.id,
+      ops: body.ops,
+      key: body.key,
+      actorId: req.user?.id ?? '',
+      socketId: body.socketId,
+      // Page history: the state before the first change after a quiet spell.
+      beforeChange: async (tx, rows) => {
+        await snapshotPage(tx, { pageId: page.id, rows, actorId: req.user?.id ?? '' });
+      },
+    });
+    // The sender gets the operations as applied too: the orders the server chose.
+    res.json({ ok: true, version: result.version, ops: result.ops });
+    void notifyMentioned(result.mentioned, { id: page.id, title: page.title }, req.user?.id ?? '');
+    if (!result.replayed)
+      void notifyFollowersOfEdit({ id: page.id, title: page.title }, req.user?.id ?? '');
+  } catch (error: unknown) {
+    if (error instanceof TransactionRejected) {
+      res
+        .status(error.status)
+        .json({ error: error.message, ...(error.code && { code: error.code }) });
+      return;
+    }
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to apply block transaction');
+    res.status(500).json({ error: 'Failed to apply block transaction' });
   }
 });
 

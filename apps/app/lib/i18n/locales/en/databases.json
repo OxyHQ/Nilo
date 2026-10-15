@@ -1,0 +1,349 @@
+{
+  "untitled": "Untitled",
+  "untitledDatabase": "Untitled database",
+  "actions": {
+    "new": "New",
+    "adding": "Adding…",
+    "add": "Add",
+    "apply": "Apply",
+    "clear": "Clear",
+    "clearAll": "Clear all"
+  },
+  "toolbar": {
+    "filter": "Filter",
+    "filterCount": "Filter (%{count})",
+    "sort": "Sort",
+    "sortCount": "Sort (%{count})"
+  },
+  "views": {
+    "table": "Table",
+    "board": "Board",
+    "gallery": "Gallery",
+    "list": "List",
+    "calendar": "Calendar",
+    "timeline": "Timeline",
+    "new": "New view",
+    "rename": "Rename view",
+    "delete": "Delete view",
+    "namePlaceholder": "View name",
+    "form": "Form",
+    "createFailed": "Could not create the view. Please try again.",
+    "settings": "Settings for %{name}",
+    "updateFailed": "Could not update the view.",
+    "deleteFailed": "Could not delete the view."
+  },
+  "propertyTypes": {
+    "text": "Text",
+    "number": "Number",
+    "select": "Select",
+    "multiSelect": "Multi-select",
+    "status": "Status",
+    "date": "Date",
+    "person": "Person",
+    "files": "Files",
+    "checkbox": "Checkbox",
+    "url": "URL",
+    "email": "Email",
+    "phone": "Phone",
+    "relation": "Relation",
+    "rollup": "Rollup",
+    "createdTime": "Created time",
+    "lastEditedTime": "Last edited time",
+    "createdBy": "Created by",
+    "lastEditedBy": "Last edited by",
+    "formula": "Formula",
+    "uniqueId": "ID"
+  },
+  "properties": {
+    "property": "Property",
+    "add": "Add property",
+    "rename": "Rename",
+    "editOptions": "Edit options",
+    "sortAscending": "Sort ascending",
+    "sortDescending": "Sort descending",
+    "hideInView": "Hide in view",
+    "delete": "Delete property",
+    "name": "Property name",
+    "options": "Options",
+    "newOption": "New option",
+    "searchOptions": "Search options",
+    "noOptions": "No options",
+    "pageCount": {
+      "one": "%{count} page",
+      "other": "%{count} pages"
+    }
+  },
+  "filters": {
+    "title": "Filters",
+    "empty": "No filters yet. Add one below.",
+    "add": "Add filter",
+    "value": "Value",
+    "checked": "Checked",
+    "unchecked": "Unchecked",
+    "and": "and",
+    "or": "or",
+    "operators": {
+      "contains": "contains",
+      "doesNotContain": "does not contain",
+      "equals": "equals",
+      "startsWith": "starts with",
+      "endsWith": "ends with",
+      "isEmpty": "is empty",
+      "isNotEmpty": "is not empty",
+      "is": "is",
+      "isNot": "is not",
+      "before": "before",
+      "after": "after",
+      "onOrBefore": "on or before",
+      "onOrAfter": "on or after"
+    }
+  },
+  "sorts": {
+    "title": "Sort",
+    "empty": "No sorts yet. Add a property below.",
+    "add": "Add sort",
+    "allAdded": "All properties added"
+  },
+  "table": {
+    "empty": "No rows yet"
+  },
+  "board": {
+    "needsGroupProperty": "Add a status or select property to use the board view.",
+    "noStatus": "No status"
+  },
+  "gallery": {
+    "newCard": "New card"
+  },
+  "calendar": {
+    "needsDateProperty": "Add a date property to enable the calendar view.",
+    "webOnly": "Calendar view is web-only in Phase 4. Open the table view on native to edit rows.",
+    "today": "Today"
+  },
+  "timeline": {
+    "needsDateProperty": "Add a date property to enable the timeline view.",
+    "webOnly": "Timeline view is web-only in Phase 4. Open the table view on native to see your rows.",
+    "row": "Row"
+  },
+  "form": {
+    "builder": "Form builder",
+    "title": "Form title",
+    "description": "Description",
+    "fields": "Fields",
+    "requiredLabel": "%{name} (required)",
+    "showField": "Show %{name}",
+    "preview": "Preview",
+    "previewHint": "Preview only. Answers entered here are not submitted.",
+    "saved": "Form saved",
+    "saveFailed": "Could not save the form. Check your access and try again.",
+    "editorsOnly": "Only database editors can manage this form.",
+    "link": "Form link",
+    "createLink": "Create link",
+    "copyLink": "Copy link",
+    "copyFailed": "Could not copy the link.",
+    "deleteLink": "Delete link",
+    "deleteHint": "This link will stop working. Creating another link generates a new address.",
+    "open": "Accepting responses",
+    "requireSignIn": "Require sign-in",
+    "loadFailed": "Could not load or submit the form. Please try again.",
+    "retry": "Try again",
+    "required": "Enter a value for %{name}.",
+    "invalid": "Enter a valid value for %{name}.",
+    "timeFor": "Time for %{name} (optional)",
+    "optionalTime": "Time (HH:MM, optional)",
+    "submit": "Submit",
+    "submitting": "Submitting…",
+    "thanks": "Thank you for your response!",
+    "another": "Submit another response",
+    "unavailable": "This form is unavailable or no longer accepting responses.",
+    "signInRequired": "Sign in to respond to this form.",
+    "rateLimited": "Too many requests. Try again in %{seconds} seconds.",
+    "invalidResponse": "Some answers are invalid. Check the required fields and your answers, then try again."
+  },
+  "csv": {
+    "import": "Import CSV",
+    "export": "Export CSV",
+    "menu": "Database actions"
+  },
+  "templates": {
+    "menu": "Row templates",
+    "new": "New template",
+    "use": "Create from template",
+    "edit": "Edit template",
+    "done": "Done editing template",
+    "makeTemplate": "Make this row a template",
+    "createFailed": "Could not create the row template. Try again.",
+    "retry": "Could not load templates. Retry"
+  },
+  "uniqueId": {
+    "prefix": "Prefix (up to 12 letters and digits)",
+    "invalid": "Use only letters and digits.",
+    "configure": "Configure ID"
+  },
+  "formula": {
+    "edit": "Edit formula",
+    "expression": "Formula expression",
+    "properties": "Insert property",
+    "functions": "Functions",
+    "preview": "First row result",
+    "empty": "No rows in this view to preview.",
+    "saveFailed": "Could not save the property. Try again.",
+    "refreshFailed": "Saved, but the preview could not be loaded. Save again to retry.",
+    "saved": "Saved formula result",
+    "error": "Formula error: %{message}",
+    "insert": "Insert %{name}",
+    "operators": "Operators: + - * / % ^ == != > >= < <= and or not",
+    "help": {
+      "if": {
+        "description": "Choose a value using a condition.",
+        "example": "if(true, 1, 0)"
+      },
+      "ifs": {
+        "description": "Return the value for the first true condition.",
+        "example": "ifs(false, 1, true, 2, 0)"
+      },
+      "empty": {
+        "description": "Check whether a value is empty.",
+        "example": "empty(\"\")"
+      },
+      "length": {
+        "description": "Count characters or items.",
+        "example": "length(\"abc\")"
+      },
+      "concat": {
+        "description": "Combine text values.",
+        "example": "concat(\"a\", \"b\")"
+      },
+      "join": {
+        "description": "Join items with a separator.",
+        "example": "join(prop(\"Tags\"), \", \")"
+      },
+      "contains": {
+        "description": "Check for matching text or an item.",
+        "example": "contains(\"hello\", \"ell\")"
+      },
+      "replace": {
+        "description": "Replace the first matching text.",
+        "example": "replace(\"hello\", \"l\", \"r\")"
+      },
+      "replaceAll": {
+        "description": "Replace every matching text.",
+        "example": "replaceAll(\"hello\", \"l\", \"r\")"
+      },
+      "slice": {
+        "description": "Extract part of text or a list.",
+        "example": "slice(\"hello\", 1, 3)"
+      },
+      "lower": {
+        "description": "Convert text to lowercase.",
+        "example": "lower(\"ABC\")"
+      },
+      "upper": {
+        "description": "Convert text to uppercase.",
+        "example": "upper(\"abc\")"
+      },
+      "format": {
+        "description": "Convert a value to text.",
+        "example": "format(12)"
+      },
+      "toNumber": {
+        "description": "Convert text to a number.",
+        "example": "toNumber(\"12\")"
+      },
+      "round": {
+        "description": "Round a number to the given precision.",
+        "example": "round(1.234, 2)"
+      },
+      "floor": {
+        "description": "Round down to an integer.",
+        "example": "floor(1.9)"
+      },
+      "ceil": {
+        "description": "Round up to an integer.",
+        "example": "ceil(1.1)"
+      },
+      "abs": {
+        "description": "Return the absolute value.",
+        "example": "abs(-3)"
+      },
+      "sqrt": {
+        "description": "Return the square root.",
+        "example": "sqrt(9)"
+      },
+      "pow": {
+        "description": "Raise a number to a power.",
+        "example": "pow(2, 3)"
+      },
+      "min": {
+        "description": "Return the smallest number.",
+        "example": "min(1, 2, 3)"
+      },
+      "max": {
+        "description": "Return the largest number.",
+        "example": "max(1, 2, 3)"
+      },
+      "sum": {
+        "description": "Add numbers together.",
+        "example": "sum(1, 2, 3)"
+      },
+      "now": {
+        "description": "Return the current date and time.",
+        "example": "now()"
+      },
+      "today": {
+        "description": "Return the current date.",
+        "example": "today()"
+      },
+      "dateAdd": {
+        "description": "Add time to a date.",
+        "example": "dateAdd(today(), 1, \"days\")"
+      },
+      "dateSubtract": {
+        "description": "Subtract time from a date.",
+        "example": "dateSubtract(today(), 1, \"days\")"
+      },
+      "dateBetween": {
+        "description": "Find the difference between two dates.",
+        "example": "dateBetween(now(), today(), \"hours\")"
+      },
+      "formatDate": {
+        "description": "Format a date as text.",
+        "example": "formatDate(today(), \"YYYY-MM-DD\")"
+      },
+      "year": {
+        "description": "Return the year of a date.",
+        "example": "year(today())"
+      },
+      "month": {
+        "description": "Return the month of a date.",
+        "example": "month(today())"
+      },
+      "day": {
+        "description": "Return the day of the month.",
+        "example": "day(today())"
+      }
+    },
+    "retry": "Could not load formula results. Retry"
+  },
+  "relations": {
+    "target": "Related database",
+    "showOn": "Show on %{database}",
+    "explanation": "Create a matching relation in the other database and keep both sides in sync.",
+    "removeTitle": "Remove the other side?",
+    "removeDescription": "The matching property and its links will be removed from the other database.",
+    "configure": "Edit relation",
+    "failed": "Could not save the relation. Try again.",
+    "unavailable": "Unavailable page"
+  },
+  "subItems": {
+    "name": "Sub-items",
+    "disable": "Turn off sub-items",
+    "new": "+ New sub-item",
+    "expand": "Expand sub-items of %{title}",
+    "collapse": "Collapse sub-items of %{title}",
+    "removeDescription": "Remove the sub-item and parent properties and their links? Pages will be kept.",
+    "failed": "Could not create the row. Try again."
+  },
+  "rows": {
+    "total": "%{count} rows"
+  }
+}

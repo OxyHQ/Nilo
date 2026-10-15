@@ -25,9 +25,9 @@ export function BookmarkBlock({ block, onChangeContent }: BlockComponentProps) {
 
   // Reset the draft when the block id changes (effectively "key-based reset").
   const [urlDraft, setUrlDraft] = React.useState(url);
-  const lastBlockId = React.useRef(block._id);
-  if (lastBlockId.current !== block._id) {
-    lastBlockId.current = block._id;
+  const lastBlockId = React.useRef(block.id);
+  if (lastBlockId.current !== block.id) {
+    lastBlockId.current = block.id;
     setUrlDraft(url);
   }
 

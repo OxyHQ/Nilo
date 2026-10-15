@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { toast } from '@oxy.so/bloom/toast';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { useWorkspace } from '@/lib/hooks/use-workspaces';
 import {
@@ -26,6 +27,7 @@ import type { Page } from '@/lib/types/pages';
  */
 export default function TrashRoute() {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const { user } = useOxy();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const { data: workspace } = useWorkspace(currentWorkspaceId ?? undefined);
@@ -49,32 +51,32 @@ export default function TrashRoute() {
   const handleRestore = React.useCallback(
     (page: Page) => {
       updatePage.mutate(
-        { id: page._id, archived: false },
+        { id: page.id, archived: false },
         {
-          onSuccess: () => toast.success('Page restored'),
-          onError: (err) => toast.error(err.message || 'Failed to restore'),
+          onSuccess: () => toast.success(t('pages.toasts.restored')),
+          onError: (err) => toast.error(err.message || t('pages.toasts.restoreFailed')),
         },
       );
     },
-    [updatePage],
+    [updatePage, t],
   );
 
   const handleHardDelete = React.useCallback(() => {
     if (!deleteTarget || !currentWorkspaceId) return;
     const target = deleteTarget;
     deletePage.mutate(
-      { id: target._id, workspaceId: currentWorkspaceId, hard: true },
+      { id: target.id, workspaceId: currentWorkspaceId, hard: true },
       {
         onSuccess: () => {
-          toast.success('Page deleted permanently');
+          toast.success(t('pages.toasts.deletedPermanently'));
         },
         onError: (err) => {
-          toast.error(err.message || 'Failed to delete page');
+          toast.error(err.message || t('pages.toasts.deleteFailed'));
         },
       },
     );
     setDeleteTarget(null);
-  }, [deleteTarget, currentWorkspaceId, deletePage]);
+  }, [deleteTarget, currentWorkspaceId, deletePage, t]);
 
   const handleEmptyTrash = React.useCallback(() => {
     if (!currentWorkspaceId) return;
@@ -82,19 +84,19 @@ export default function TrashRoute() {
       { workspaceId: currentWorkspaceId },
       {
         onSuccess: (result) => {
-          toast.success(`Removed ${result.deleted} page${result.deleted === 1 ? '' : 's'}`);
+          toast.success(t('trash.removed', { count: result.deleted }));
         },
         onError: (err) => {
-          toast.error(err.message || 'Failed to empty trash');
+          toast.error(err.message || t('trash.emptyFailed'));
         },
       },
     );
-  }, [emptyTrash, currentWorkspaceId]);
+  }, [emptyTrash, currentWorkspaceId, t]);
 
   if (!currentWorkspaceId) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-base text-muted-foreground">Select a workspace to view trash.</Text>
+        <Text className="text-base text-muted-foreground">{t('trash.selectWorkspace')}</Text>
       </View>
     );
   }
@@ -104,10 +106,8 @@ export default function TrashRoute() {
       {/* Header */}
       <View className="flex-row items-center justify-between border-b border-border/30 px-4 py-3 md:px-8">
         <View>
-          <Text className="text-lg font-semibold text-foreground">Trash</Text>
-          <Text className="text-xs text-muted-foreground">
-            Archived pages live here for 30 days, then are deleted forever.
-          </Text>
+          <Text className="text-lg font-semibold text-foreground">{t('trash.title')}</Text>
+          <Text className="text-xs text-muted-foreground">{t('trash.subtitle')}</Text>
         </View>
         {isOwner ? (
           <Button
@@ -119,7 +119,7 @@ export default function TrashRoute() {
           >
             <View className="flex-row items-center gap-1.5">
               <Trash2 size={14} color={colors.foreground} />
-              <Text className="text-sm font-medium">Empty trash</Text>
+              <Text className="text-sm font-medium">{t('trash.emptyTrash')}</Text>
             </View>
           </Button>
         ) : null}
@@ -131,13 +131,13 @@ export default function TrashRoute() {
         </View>
       ) : pages.length === 0 ? (
         <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-sm text-muted-foreground">Trash is empty.</Text>
+          <Text className="text-sm text-muted-foreground">{t('trash.empty')}</Text>
         </View>
       ) : (
         <ScrollView className="flex-1" contentContainerClassName="px-4 py-3 md:px-8">
           {pages.map((page) => (
             <TrashRow
-              key={page._id}
+              key={page.id}
               page={page}
               onRestore={() => handleRestore(page)}
               onHardDelete={() => setDeleteTarget(page)}
@@ -150,9 +150,9 @@ export default function TrashRoute() {
       <ConfirmationDialog
         open={emptyOpen}
         onOpenChange={setEmptyOpen}
-        title="Empty trash?"
-        description={`This will permanently delete ${pages.length} page${pages.length === 1 ? '' : 's'} and every block they contain.`}
-        confirmText="Empty trash"
+        title={t('trash.emptyDialog.title')}
+        description={t('trash.emptyDialog.description', { count: pages.length })}
+        confirmText={t('trash.emptyTrash')}
         confirmVariant="destructive"
         loading={emptyTrash.isPending}
         onConfirm={handleEmptyTrash}
@@ -162,9 +162,11 @@ export default function TrashRoute() {
         onOpenChange={(next) => {
           if (!next) setDeleteTarget(null);
         }}
-        title="Delete permanently?"
-        description={`“${deleteTarget?.title || 'Untitled'}” will be removed forever.`}
-        confirmText="Delete"
+        title={t('trash.deleteDialog.title')}
+        description={t('trash.deleteDialog.description', {
+          title: deleteTarget?.title || t('pages.untitled'),
+        })}
+        confirmText={t('common.delete')}
         confirmVariant="destructive"
         loading={deletePage.isPending}
         onConfirm={handleHardDelete}
@@ -182,38 +184,42 @@ interface TrashRowProps {
 function TrashRow({ page, onRestore, onHardDelete, canHardDelete }: TrashRowProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
+  const title = page.title.trim() || t('pages.untitled');
 
   return (
     <View className="flex-row items-center gap-3 rounded-md border border-border/40 px-3 py-2 mb-2 hover:bg-muted/40">
       <Pressable
-        onPress={() => router.push(`/p/${page._id}`)}
-        accessibilityLabel={`Open ${page.title || 'Untitled'}`}
+        onPress={() => router.push(`/p/${page.id}`)}
+        accessibilityLabel={t('pages.openPage', { title })}
         className="h-8 w-8 items-center justify-center rounded-md"
       >
         <IconDisplay value={page.icon} size={20} showPlaceholder />
       </Pressable>
-      <Pressable onPress={() => router.push(`/p/${page._id}`)} className="flex-1 min-w-0">
+      <Pressable onPress={() => router.push(`/p/${page.id}`)} className="flex-1 min-w-0">
         <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
-          {page.title.trim() || 'Untitled'}
+          {title}
         </Text>
-        <Text className="text-xs text-muted-foreground">Archived {formatTime(page.updatedAt)}</Text>
+        <Text className="text-xs text-muted-foreground">
+          {t('trash.archivedAt', { date: formatTime(page.updatedAt) })}
+        </Text>
       </Pressable>
       <Pressable
         onPress={onRestore}
-        accessibilityLabel="Restore page"
+        accessibilityLabel={t('trash.restorePage')}
         className="h-8 flex-row items-center gap-1 rounded-md border border-border px-2 hover:bg-muted"
       >
         <RotateCcw size={14} color={colors.foreground} />
-        <Text className="text-xs font-medium text-foreground">Restore</Text>
+        <Text className="text-xs font-medium text-foreground">{t('trash.restore')}</Text>
       </Pressable>
       {canHardDelete ? (
         <Pressable
           onPress={onHardDelete}
-          accessibilityLabel="Delete page permanently"
+          accessibilityLabel={t('trash.deletePagePermanently')}
           className="h-8 flex-row items-center gap-1 rounded-md border border-border px-2 hover:bg-destructive/10"
         >
           <Trash2 size={14} color={colors.foreground} />
-          <Text className="text-xs font-medium text-foreground">Delete</Text>
+          <Text className="text-xs font-medium text-foreground">{t('common.delete')}</Text>
         </Pressable>
       ) : null}
     </View>

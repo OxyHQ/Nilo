@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
@@ -48,18 +48,49 @@ import {
   deleteDatabaseRows,
   findPageById,
   listDatabaseRows,
+  listPages,
   nextDatabaseRowOrder,
   removePropertyFromDatabaseRows,
 } from '../repositories/pages.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
+import { checkWorkspaceAccess } from '../lib/workspace-access.js';
+import { duplicateBlocksToPage } from '../repositories/blocks.js';
+import {
+  createDatabaseWithRows,
+  createDefaultViewForDatabase,
+  normalizeIncomingProperties,
+} from '../lib/databases/create.js';
+import { csvToDatabase, databaseToCsv } from '../lib/databases/csv.js';
+import { createRow, numberExistingRows } from '../lib/databases/rows.js';
+import {
+  checkDatabaseAccess,
+  checkPageAccess,
+  baseRole,
+  databaseHomes,
+  loadViewer,
+  rolesForPages,
+} from '../lib/page-access.js';
+import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
+import { hasRole } from '../db/schema/workspaces.js';
 import { buildDefaultSchema, NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
 import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
-import { evaluateFilter, filterGroupSchema } from '../lib/databases/filters.js';
+import {
+  evaluateFilter,
+  filterGroupSchema,
+  filterPropertyIds,
+  readsComputed,
+} from '../lib/databases/filters.js';
 import { compareBySorts } from '../lib/databases/sorts.js';
-import { evaluateFormulaExpression } from '../lib/databases/formula.js';
-import { resolveRollup } from '../lib/databases/rollups.js';
+import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js';
+import { rowFormulaContext } from '../lib/databases/row-values.js';
+import { linkTwoWay, syncRelations, unlinkTwoWay } from '../lib/databases/relations.js';
+import { resolveRollups } from '../lib/databases/rollups.js';
+import { placeOrRefuse } from '../lib/placement.js';
+import { findBlockById } from '../repositories/blocks.js';
+import { findMembership } from '../repositories/workspaces.js';
+import { announceChange } from '../collab/live-rooms.js';
 
 const router = Router();
 
@@ -118,6 +149,11 @@ const propertyConfigSchema = z
     targetPropertyId: z.string().optional(),
     function: z.enum(['count', 'sum', 'avg', 'min', 'max', 'earliest', 'latest']).optional(),
     expression: z.string().max(2000).optional(),
+    /** An ID property's prefix: letters and digits (TASK → TASK-12). */
+    prefix: z
+      .string()
+      .regex(/^[A-Za-z0-9]{0,12}$/)
+      .optional(),
   })
   .strict();
 
@@ -140,6 +176,8 @@ const createDatabaseSchema = z.object({
   schema: databaseSchemaSchema.optional(),
   isInline: z.boolean().optional(),
   parentPageId: entityIdSchema.nullable().optional(),
+  /** A database in no page: its teamspace, null for private; absent, the default one. */
+  teamspaceId: entityIdSchema.nullable().optional(),
 });
 
 const updateDatabaseSchema = z
@@ -168,6 +206,10 @@ const updatePropertySchema = z
 const createRowSchema = z.object({
   title: z.string().max(2000).optional(),
   properties: z.record(z.unknown()).optional(),
+  /** A row template of this database to start from (its values, icon, cover and content). */
+  templateId: entityIdSchema.optional(),
+  /** Create the row as a template ("New template"): never listed among the rows. */
+  template: z.boolean().optional(),
 });
 
 const updateViewSchema = z
@@ -205,6 +247,8 @@ const updateViewSchema = z
   });
 
 const createViewSchema = z.object({
+  /** A linked view: the `inline_database` block showing this database elsewhere. */
+  blockId: entityIdSchema.nullable().optional(),
   name: z.string().min(1).max(200),
   type: viewTypeSchema,
   isDefault: z.boolean().optional(),
@@ -266,30 +310,6 @@ function assertWorkspace(req: Request, res: Response): string | null {
   return workspaceId;
 }
 
-async function checkWorkspaceMembership(
-  req: Request,
-  res: Response,
-  workspaceId: string,
-): Promise<boolean> {
-  req.headers['x-workspace-id'] = workspaceId;
-  const passed = await new Promise<boolean>((resolve) => {
-    const next: NextFunction = (err?: unknown) => {
-      if (err) {
-        log.general.error({ err }, 'Workspace membership middleware errored');
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Workspace membership check failed' });
-        }
-        resolve(false);
-        return;
-      }
-      resolve(true);
-    };
-    requireWorkspaceMember(req, res, next);
-  });
-  if (!passed) return false;
-  return !res.headersSent;
-}
-
 /**
  * Wire format exposes the property schema as `schema` (mirrors the design
  * doc), even though the stored column is `properties_schema`.
@@ -305,6 +325,7 @@ function serializeDatabase(db: DatabaseRecord) {
     schema: db.propertiesSchema,
     isInline: db.isInline,
     parentPageId: db.parentPageId,
+    teamspaceId: db.teamspaceId,
     archived: db.archived,
     createdAt: db.createdAt,
     updatedAt: db.updatedAt,
@@ -315,6 +336,8 @@ function serializeView(view: DatabaseViewRecord) {
   return {
     id: view.id,
     databaseId: view.databaseId,
+    /** A linked view's block; null for the database's own views. */
+    blockId: view.blockId,
     name: view.name,
     type: view.type,
     isDefault: view.isDefault,
@@ -361,51 +384,37 @@ function serializeRow(row: PageRow, opts?: RowSerializationOpts) {
 }
 
 /**
- * Normalize incoming property values for create/update. Returns a
- * key->stored-shape map. Throws ZodError for invalid shapes.
- *
- * Drops keys that:
- *   - reference an unknown property id
- *   - reference a server-derived property (rollup, formula, created_time,
- *     created_by, last_edited_time, last_edited_by)
+ * Server-derived properties (rollup, formula, created_time, etc.) of rows at
+ * read time: row id → property id → value, merged by the caller into the row
+ * payload. Rollups are read for all the rows at once (`resolveRollups`).
  */
-function normalizeIncomingProperties(
+async function resolveDerivedForRows(
+  handle: PgHandle,
+  rows: readonly PageRow[],
   schema: DatabaseSchema,
-  incoming: Record<string, unknown>,
-): { stored: Record<string, unknown>; nameFromProperty: string | null } {
-  const byId = new Map<string, DatabaseProperty>();
-  for (const prop of schema.properties) byId.set(prop.id, prop);
-
-  const stored: Record<string, unknown> = {};
-  let nameFromProperty: string | null = null;
-
-  for (const [key, raw] of Object.entries(incoming)) {
-    const prop = byId.get(key);
-    if (!prop) continue;
-    const parsed = parsePropertyValue(prop.type, raw);
-    if (!parsed) continue;
-    const serialized = serializeParsedValue(parsed);
-    stored[key] = serialized;
-    if (key === NAME_PROPERTY_ID && parsed.kind === 'text') {
-      nameFromProperty = parsed.text;
-    }
-  }
-
-  return { stored, nameFromProperty };
+): Promise<Map<string, Record<string, unknown>>> {
+  const rollups = await resolveRollups(handle, schema, rows);
+  return new Map(rows.map((row) => [row.id, deriveRow(row, schema, rollups.get(row.id))]));
 }
 
-/**
- * Resolve server-derived properties (rollup, formula, created_time, etc.)
- * for a row at read time. Returns a plain key->value map keyed by
- * propertyId. The caller merges this into the row payload sent to the
- * client.
- */
 async function resolveDerivedProperties(
   handle: PgHandle,
   row: PageRow,
   schema: DatabaseSchema,
 ): Promise<Record<string, unknown>> {
+  return (await resolveDerivedForRows(handle, [row], schema)).get(row.id) ?? {};
+}
+
+/** One row's derived properties, its rollups already resolved. */
+function deriveRow(
+  row: PageRow,
+  schema: DatabaseSchema,
+  rollupValues: ReadonlyMap<string, FormulaValue> | undefined,
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  // Rollups first: formulas can read them.
+  const rollups = new Map<string, FormulaValue>(rollupValues ?? []);
+  const formulaContext = rowFormulaContext(row, schema, rollups);
   for (const prop of schema.properties) {
     switch (prop.type) {
       case 'created_time':
@@ -421,23 +430,19 @@ async function resolveDerivedProperties(
       case 'created_by':
         out[prop.id] = { userIds: row.ownerId ? [row.ownerId] : [] };
         break;
-      case 'last_edited_by':
-        // No separate "last editor" tracking yet — fall back to owner.
-        out[prop.id] = { userIds: row.ownerId ? [row.ownerId] : [] };
+      case 'last_edited_by': {
+        // Never edited since it was created: its creator.
+        const editor = row.lastEditedBy ?? row.ownerId;
+        out[prop.id] = { userIds: editor ? [editor] : [] };
         break;
+      }
       case 'formula': {
-        const expr = prop.config?.expression ?? '';
-        const value = evaluateFormulaExpression(expr);
-        out[prop.id] =
-          typeof value === 'number'
-            ? { number: value }
-            : typeof value === 'string'
-              ? { text: value }
-              : { text: '' };
+        const { value, error } = formulaContext.evaluate(prop);
+        out[prop.id] = formulaCellValue(value, error);
         break;
       }
       case 'rollup': {
-        const value = await resolveRollup(handle, prop, row);
+        const value = rollups.get(prop.id) ?? null;
         out[prop.id] =
           value === null
             ? { text: '' }
@@ -451,33 +456,6 @@ async function resolveDerivedProperties(
     }
   }
   return out;
-}
-
-/**
- * The view every new database is created with.
- *
- * Takes a handle rather than reaching for the pool: `POST /databases` creates
- * the database and this view in ONE transaction, so a failure between them
- * cannot leave a database with no views at all — a state the rest of the route
- * refuses to produce (`DELETE
- * /:id/views/:viewId` will not remove the last one). This makes the storage
- * uphold an invariant the code already tried to hold; it does not invent one.
- */
-async function createDefaultViewForDatabase(handle: PgHandle, databaseId: string): Promise<void> {
-  await insertDatabaseView(handle, {
-    databaseId,
-    name: 'All',
-    type: 'table',
-    isDefault: true,
-    filters: EMPTY_FILTER_GROUP,
-    sorts: [],
-    groupBy: null,
-    hiddenProperties: [],
-    frozenProperties: [],
-    pageSize: DEFAULT_VIEW_PAGE_SIZE,
-    config: {},
-    order: 0,
-  });
 }
 
 /**
@@ -519,12 +497,29 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
       return;
     }
 
-    const databases = await listDatabasesByWorkspace(getDb(), {
+    const handle = getDb();
+    const databases = await listDatabasesByWorkspace(handle, {
       workspaceId,
       includeArchived: query.includeArchived,
     });
 
-    res.json({ databases: databases.map((d) => serializeDatabase(d)) });
+    // An inline database is listed to those who can open its page; one in
+    // no page, to those its place lets in.
+    const userId = req.user?.id ?? '';
+    const [all, viewer, grants, homes] = await Promise.all([
+      listPages(handle, { workspaceId }),
+      loadViewer(handle, workspaceId, userId),
+      listGrantsOfUserInWorkspace(handle, userId, workspaceId),
+      databaseHomes(handle, workspaceId),
+    ]);
+    const roles = rolesForPages(all, viewer, grants, homes);
+    const visible = databases.filter((d) =>
+      d.parentPageId
+        ? roles.has(d.parentPageId)
+        : baseRole(viewer, { teamspaceId: d.teamspaceId, ownerId: d.ownerId }).role !== null,
+    );
+
+    res.json({ databases: visible.map((d) => serializeDatabase(d)) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list databases');
@@ -545,14 +540,16 @@ router.get('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
-    if (!ok) return;
+    const role = await checkDatabaseAccess(req, res, handle, db, 'viewer');
+    if (!role) return;
 
     const views = await listViewsByDatabase(handle, db.id);
 
     res.json({
       database: serializeDatabase(db),
       views: views.map((v) => serializeView(v)),
+      // The caller's role on the database, so a client never re-derives it.
+      role,
     });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -564,84 +561,85 @@ router.get('/:id', async (req: Request, res: Response) => {
 /**
  * POST /databases
  */
-router.post(
-  '/',
-  (req, _res, next) => {
-    const wsFromBody = typeof req.body?.workspaceId === 'string' ? req.body.workspaceId : undefined;
-    if (wsFromBody && !req.headers['x-workspace-id']) {
-      req.headers['x-workspace-id'] = wsFromBody;
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const body = createDatabaseSchema.parse(req.body);
+    const workspaceId = body.workspaceId;
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
-    next();
-  },
-  requireWorkspaceMember,
-  async (req: Request, res: Response) => {
-    try {
-      const body = createDatabaseSchema.parse(req.body);
-      const workspaceId = assertWorkspace(req, res);
-      if (!workspaceId) return;
-      if (body.workspaceId !== workspaceId) {
-        res.status(403).json({ error: 'Workspace mismatch' });
+
+    const handle = getDb();
+
+    // An inline database needs edit access to its page (which a guest can
+    // have); a full-page one, a workspace editor.
+    if (body.parentPageId) {
+      const parent = await findPageById(handle, body.parentPageId);
+      if (!parent) {
+        res.status(404).json({ error: 'Parent page not found' });
         return;
       }
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
+      if (parent.workspaceId !== workspaceId) {
+        res.status(400).json({ error: 'Parent page is in a different workspace' });
         return;
       }
-
-      const handle = getDb();
-
-      // Inline DBs must point to a page in the same workspace.
-      if (body.parentPageId) {
-        const parent = await findPageById(handle, body.parentPageId);
-        if (!parent) {
-          res.status(404).json({ error: 'Parent page not found' });
-          return;
-        }
-        if (parent.workspaceId !== workspaceId) {
-          res.status(400).json({ error: 'Parent page is in a different workspace' });
-          return;
-        }
-      }
-
-      const propertiesSchema: DatabaseSchema = body.schema
-        ? normalizeSchema({
-            properties: body.schema.properties.map((p) => ({
-              id: p.id ?? randomUUID(),
-              name: p.name,
-              type: p.type,
-              config: p.config as PropertyConfig | undefined,
-            })),
-          })
-        : buildDefaultSchema();
-
-      const created = await handle.transaction(async (tx) => {
-        const db = await insertDatabase(tx, {
-          workspaceId,
-          name: body.name ?? 'Untitled',
-          icon: body.icon ?? null,
-          cover: body.cover ?? null,
-          ownerId: userId,
-          propertiesSchema,
-          isInline: body.isInline ?? false,
-          parentPageId: body.parentPageId ?? null,
-          archived: false,
-        });
-        await createDefaultViewForDatabase(tx, db.id);
-        return { db, views: await listViewsByDatabase(tx, db.id) };
-      });
-
-      res.status(201).json({
-        database: serializeDatabase(created.db),
-        views: created.views.map((v) => serializeView(v)),
-      });
-    } catch (error: unknown) {
-      if (handleZodError(error, res)) return;
-      log.general.error({ err: error }, 'Failed to create database');
-      res.status(500).json({ error: 'Failed to create database' });
+      if (!(await checkPageAccess(req, res, handle, parent.id, 'editor'))) return;
     }
-  },
-);
+    const place = body.parentPageId
+      ? { teamspaceId: null }
+      : await placeOrRefuse(res, handle, workspaceId, userId, body.teamspaceId);
+    if (!place) return;
+
+    const propertiesSchema: DatabaseSchema = body.schema
+      ? normalizeSchema({
+          properties: body.schema.properties.map((p) => ({
+            id: p.id ?? randomUUID(),
+            name: p.name,
+            type: p.type,
+            config: p.config as PropertyConfig | undefined,
+          })),
+        })
+      : buildDefaultSchema();
+
+    const created = await handle.transaction(async (tx) => {
+      const db = await insertDatabase(tx, {
+        workspaceId,
+        name: body.name ?? 'Untitled',
+        icon: body.icon ?? null,
+        cover: body.cover ?? null,
+        ownerId: userId,
+        propertiesSchema,
+        isInline: body.isInline ?? false,
+        parentPageId: body.parentPageId ?? null,
+        teamspaceId: place.teamspaceId,
+        archived: false,
+      });
+      // Two-way relations in the schema get their other side.
+      let linked = db;
+      const twoWayIds = db.propertiesSchema.properties
+        .filter((p) => p.type === 'relation' && p.config?.twoWay)
+        .map((p) => p.id);
+      for (const id of twoWayIds) {
+        const property = linked.propertiesSchema.properties.find((p) => p.id === id);
+        if (property) linked = (await linkTwoWay(tx, linked, property)) ?? linked;
+      }
+      await createDefaultViewForDatabase(tx, db.id);
+      return { db: linked, views: await listViewsByDatabase(tx, db.id) };
+    });
+
+    announceChange({ workspaceId });
+    res.status(201).json({
+      database: serializeDatabase(created.db),
+      views: created.views.map((v) => serializeView(v)),
+    });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to create database');
+    res.status(500).json({ error: 'Failed to create database' });
+  }
+});
 
 /**
  * PATCH /databases/:id
@@ -658,7 +656,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     // `undefined` and `null` are different instructions here: `icon` and
@@ -674,6 +672,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return;
     }
 
+    announceChange({ workspaceId: db.workspaceId, databaseId: db.id });
     res.json({ database: serializeDatabase(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -698,11 +697,12 @@ router.delete('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     if (hard) {
-      if (req.workspace?.role !== 'owner') {
+      const membership = await findMembership(handle, db.workspaceId, req.user?.id ?? '');
+      if (membership?.role !== 'owner') {
         res.status(403).json({ error: 'Hard delete requires workspace owner role' });
         return;
       }
@@ -715,6 +715,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
         await deleteViewsByDatabase(tx, db.id);
         await deleteDatabase(tx, db.id);
       });
+      announceChange({ workspaceId: db.workspaceId, databaseId: db.id });
       res.json({ success: true });
       return;
     }
@@ -724,6 +725,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
+    announceChange({ workspaceId: db.workspaceId, databaseId: db.id });
     res.json({ database: serializeDatabase(archived) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -747,7 +749,7 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     const property: DatabaseProperty = {
@@ -763,12 +765,24 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
     }
 
     db.propertiesSchema.properties.push(property);
-    const updated = await writeDatabaseSchema(handle, db.id, normalizeSchema(db.propertiesSchema));
+    normalizeSchema(db.propertiesSchema);
+    const twoWay = property.type === 'relation' && property.config?.twoWay === true;
+    const updated = await handle.transaction(async (tx) => {
+      // A two-way relation gets its other side in the target database.
+      const written = twoWay
+        ? await linkTwoWay(tx, db, property)
+        : await writeDatabaseSchema(tx, db.id, db.propertiesSchema);
+      // A new ID property numbers the rows already there, oldest first.
+      if (written && property.type === 'unique_id')
+        await numberExistingRows(tx, db.id, property.id);
+      return written;
+    });
     if (!updated) {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
 
+    announceChange({ databaseId: db.id });
     res.status(201).json({ database: serializeDatabase(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -790,7 +804,7 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     const idx = db.propertiesSchema.properties.findIndex((p) => p.id === params.propertyId);
@@ -805,13 +819,26 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
       type: body.type ?? current.type,
       config: body.config !== undefined ? (body.config as PropertyConfig) : current.config,
     };
+    // Two-way links are the server's: kept, made or undone as the property changes.
+    const wasTwoWay = current.type === 'relation' && current.config?.twoWay === true;
+    const isTwoWay = next.type === 'relation' && next.config?.twoWay === true;
+    const sameTarget = current.config?.targetDatabaseId === next.config?.targetDatabaseId;
+    if (wasTwoWay && isTwoWay && sameTarget) {
+      next.config = { ...next.config, syncedPropertyId: current.config?.syncedPropertyId };
+    }
     db.propertiesSchema.properties[idx] = next;
-    const updated = await writeDatabaseSchema(handle, db.id, normalizeSchema(db.propertiesSchema));
+    normalizeSchema(db.propertiesSchema);
+    const updated = await handle.transaction(async (tx) => {
+      if (wasTwoWay && !(isTwoWay && sameTarget)) await unlinkTwoWay(tx, db, current);
+      if (isTwoWay && !(wasTwoWay && sameTarget)) return linkTwoWay(tx, db, next);
+      return writeDatabaseSchema(tx, db.id, db.propertiesSchema);
+    });
     if (!updated) {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
 
+    announceChange({ databaseId: db.id });
     res.json({ database: serializeDatabase(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -832,22 +859,27 @@ router.delete('/:id/properties/:propertyId', async (req: Request, res: Response)
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
 
     if (params.propertyId === NAME_PROPERTY_ID) {
       res.status(400).json({ error: 'Cannot delete the Name property' });
       return;
     }
-    const propertiesSchema: DatabaseSchema = {
-      properties: db.propertiesSchema.properties.filter((p) => p.id !== params.propertyId),
-    };
+    const removed = db.propertiesSchema.properties.find((p) => p.id === params.propertyId);
 
     // Dropping the property from the schema and from every row is one
     // logical write: the schema is what tells a reader the key exists, so a
     // failure between the two leaves values no reader can reach and no
     // writer will overwrite.
     const updated = await handle.transaction(async (tx) => {
+      // A two-way relation's other side goes with it.
+      if (removed?.type === 'relation' && removed.config?.twoWay) {
+        await unlinkTwoWay(tx, db, removed);
+      }
+      const propertiesSchema: DatabaseSchema = {
+        properties: db.propertiesSchema.properties.filter((p) => p.id !== params.propertyId),
+      };
       const row = await writeDatabaseSchema(tx, db.id, propertiesSchema);
       if (!row) return null;
       await removePropertyFromDatabaseRows(tx, db.id, params.propertyId);
@@ -858,6 +890,7 @@ router.delete('/:id/properties/:propertyId', async (req: Request, res: Response)
       return;
     }
 
+    announceChange({ databaseId: db.id });
     res.json({ database: serializeDatabase(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -881,7 +914,7 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'viewer');
     if (!ok) return;
 
     // Find the view (or fall back to default if none given).
@@ -899,12 +932,28 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     // Load all rows for the database. Filter / sort in JS — Phase 4 keeps
     // the typed property layer simple and database sizes are bounded by
     // the soft cap (10k rows in Phase 5 is the design target).
-    const rowDocs = await listDatabaseRows(handle, db.id, { archived: false });
+    const rowDocs = await listDatabaseRows(handle, db.id, { archived: false, template: false });
 
     const propertyById = new Map<string, DatabaseProperty>();
     for (const p of db.propertiesSchema.properties) propertyById.set(p.id, p);
 
-    let filtered = rowDocs;
+    // Formulas and rollups are computed, not stored: a view that filters or
+    // sorts on one needs every row's computed values first.
+    const viewReads = [
+      ...(view?.filters ? filterPropertyIds(view.filters as Filter) : []),
+      ...(view?.sorts ?? []).map((s) => s.propertyId),
+    ];
+    const derivedAll = readsComputed(viewReads, propertyById)
+      ? await resolveDerivedForRows(handle, rowDocs, db.propertiesSchema)
+      : null;
+    const rowsWithComputed = derivedAll
+      ? rowDocs.map((row) => ({
+          ...row,
+          properties: { ...row.properties, ...derivedAll.get(row.id) },
+        }))
+      : rowDocs;
+
+    let filtered = rowsWithComputed;
     if (query.search) {
       const needle = query.search.toLowerCase();
       filtered = filtered.filter((r) => r.title.toLowerCase().includes(needle));
@@ -929,11 +978,10 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     const nextCursor =
       cursorOffset + pageSize < filtered.length ? String(cursorOffset + pageSize) : null;
 
-    const serializedRows = await Promise.all(
-      slice.map(async (row) => {
-        const derived = await resolveDerivedProperties(handle, row, db.propertiesSchema);
-        return serializeRow(row, { derived });
-      }),
+    const derivedSlice =
+      derivedAll ?? (await resolveDerivedForRows(handle, slice, db.propertiesSchema));
+    const serializedRows = slice.map((row) =>
+      serializeRow(row, { derived: derivedSlice.get(row.id) ?? {} }),
     );
 
     res.json({
@@ -949,6 +997,34 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /databases/:id/rows/:rowId — one row (a template too) with its computed
+ * values, whatever view it falls in: for the row's own page.
+ */
+router.get('/:id/rows/:rowId', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ id: entityIdSchema, rowId: entityIdSchema }).parse(req.params);
+    const handle = getDb();
+    const db = await findDatabaseById(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+    if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
+    const row = await findPageById(handle, params.rowId);
+    if (!row || row.databaseId !== db.id || row.archived) {
+      res.status(404).json({ error: 'Row not found' });
+      return;
+    }
+    const derived = await resolveDerivedProperties(handle, row, db.propertiesSchema);
+    res.json({ row: serializeRow(row, { derived }) });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to read row');
+    res.status(500).json({ error: 'Failed to read row' });
+  }
+});
+
 router.post('/:id/rows', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
@@ -960,7 +1036,7 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
     const userId = req.user?.id;
     if (!userId) {
@@ -982,23 +1058,38 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
           ? nameFromProperty
           : '';
 
-    const nextOrder = await nextDatabaseRowOrder(handle, db.id);
+    // A template gives its values (the request's win), icon, cover and content.
+    const template = body.templateId ? await findPageById(handle, body.templateId) : null;
+    if (body.templateId && (!template || template.databaseId !== db.id || !template.template)) {
+      res.status(400).json({ error: 'That is not a row template of this database' });
+      return;
+    }
 
-    const row = await createPage(handle, {
-      workspaceId: db.workspaceId,
-      parentId: null,
-      title,
-      icon: null,
-      cover: null,
-      ownerId: userId,
-      archived: false,
-      order: nextOrder,
-      databaseId: db.id,
-      properties: stored,
+    const row = await handle.transaction(async (tx) => {
+      const created = await createRow(tx, db, {
+        workspaceId: db.workspaceId,
+        parentId: null,
+        title:
+          template && typeof body.title !== 'string' && nameFromProperty === null
+            ? template.title
+            : title,
+        icon: template?.icon ?? null,
+        cover: template?.cover ?? null,
+        ownerId: userId,
+        archived: false,
+        order: await nextDatabaseRowOrder(tx, db.id),
+        properties: { ...(template?.properties ?? {}), ...stored },
+        template: body.template === true,
+      });
+      if (template) await duplicateBlocksToPage(tx, template.id, created.id);
+      // Its two-way relations show it on their other side (not a template's).
+      if (!created.template) await syncRelations(tx, db, created.id, {}, created.properties);
+      return created;
     });
 
     const derived = await resolveDerivedProperties(handle, row, db.propertiesSchema);
 
+    announceChange({ databaseId: db.id });
     res.status(201).json({ row: serializeRow(row, { derived }) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1011,19 +1102,47 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
 // Views
 // ---------------------------------------------------------------------------
 
+/**
+ * Who may read or change a set of views. The database's own: read with the
+ * database, changed by its editors. A linked block's (an `inline_database`
+ * block showing the database in another page): read and changed by those who
+ * may read or edit that page, as long as they may open the database — so a
+ * linked view of a database you only read is yours to filter, as in Notion.
+ */
+async function checkViewsAccess(
+  req: Request,
+  res: Response,
+  handle: ReturnType<typeof getDb>,
+  db: NonNullable<Awaited<ReturnType<typeof findDatabaseWorkspaceId>>>,
+  blockId: string | null,
+  write: boolean,
+): Promise<boolean> {
+  if (blockId === null)
+    return (await checkDatabaseAccess(req, res, handle, db, write ? 'editor' : 'viewer')) !== null;
+  const block = await findBlockById(handle, blockId);
+  if (!block || block.type !== 'inline_database' || block.content.databaseId !== db.id) {
+    res.status(404).json({ error: 'Linked view not found' });
+    return false;
+  }
+  if (!(await checkPageAccess(req, res, handle, block.pageId, write ? 'editor' : 'viewer'))) {
+    return false;
+  }
+  return (await checkDatabaseAccess(req, res, handle, db, 'viewer')) !== null;
+}
+
 router.get('/:id/views', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
+    const { blockId } = z.object({ blockId: entityIdSchema.optional() }).parse(req.query);
     const handle = getDb();
     const db = await findDatabaseWorkspaceId(handle, params.id);
     if (!db) {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
-    if (!ok) return;
+    if (!(await checkViewsAccess(req, res, handle, db, blockId ?? null, false))) return;
 
-    const views = await listViewsByDatabase(handle, db.id);
+    const views = await listViewsByDatabase(handle, db.id, blockId ?? null);
     res.json({ views: views.map((v) => serializeView(v)) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1043,11 +1162,11 @@ router.post('/:id/views', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
-    if (!ok) return;
+    const blockId = body.blockId ?? null;
+    if (!(await checkViewsAccess(req, res, handle, db, blockId, true))) return;
 
     // `??`, not `||`: `order: 0` is a legitimate explicit order.
-    const nextOrder = body.order ?? (await nextViewOrder(handle, db.id));
+    const nextOrder = body.order ?? (await nextViewOrder(handle, db.id, blockId));
 
     // Convert nullable groupBy { propertyId } into the storage shape.
     const groupByValue: { propertyId: string } | null =
@@ -1059,6 +1178,7 @@ router.post('/:id/views', async (req: Request, res: Response) => {
 
     const view = await insertDatabaseView(handle, {
       databaseId: db.id,
+      blockId,
       name: body.name,
       type: body.type,
       isDefault: body.isDefault ?? false,
@@ -1072,6 +1192,7 @@ router.post('/:id/views', async (req: Request, res: Response) => {
       order: nextOrder,
     });
 
+    announceChange({ databaseId: db.id });
     res.status(201).json({ view: serializeView(view) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1091,21 +1212,19 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
-    if (!ok) return;
-
     const view = await findViewById(handle, params.viewId, db.id);
     if (!view) {
       res.status(404).json({ error: 'View not found' });
       return;
     }
+    if (!(await checkViewsAccess(req, res, handle, db, view.blockId, true))) return;
 
     // Promoting a view and demoting the previous default(s) commit
     // together, so a failure between the two cannot leave the database with
     // no default at all.
     const updated = await handle.transaction(async (tx) => {
       if (body.isDefault) {
-        await demoteOtherDefaultViews(tx, db.id, view.id);
+        await demoteOtherDefaultViews(tx, db.id, view.id, view.blockId);
       }
       return updateDatabaseView(tx, view.id, {
         name: body.name,
@@ -1131,6 +1250,7 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
       return;
     }
 
+    announceChange({ databaseId: db.id });
     res.json({ view: serializeView(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1149,18 +1269,16 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
-    if (!ok) return;
-
     const view = await findViewById(handle, params.viewId, db.id);
     if (!view) {
       res.status(404).json({ error: 'View not found' });
       return;
     }
+    if (!(await checkViewsAccess(req, res, handle, db, view.blockId, true))) return;
 
     // Don't allow deleting the last view — promote another to default
     // if we're removing the default.
-    const total = await countViews(handle, db.id);
+    const total = await countViews(handle, db.id, view.blockId);
     if (total <= 1) {
       res.status(400).json({ error: 'Cannot delete the last view' });
       return;
@@ -1171,16 +1289,145 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
     await handle.transaction(async (tx) => {
       await deleteDatabaseView(tx, view.id);
       if (!view.isDefault) return;
-      const fallback = await findFirstViewByOrder(tx, db.id);
+      const fallback = await findFirstViewByOrder(tx, db.id, view.blockId);
       if (fallback) {
         await updateDatabaseView(tx, fallback.id, { isDefault: true });
       }
     });
+    announceChange({ databaseId: db.id });
     res.json({ success: true });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to delete view');
     res.status(500).json({ error: 'Failed to delete view' });
+  }
+});
+
+/**
+ * GET /databases/:id/templates — the database's row templates (rows marked
+ * `template`, kept out of the rows themselves).
+ */
+router.get('/:id/templates', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ id: entityIdSchema }).parse(req.params);
+    const handle = getDb();
+    const db = await findDatabaseById(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+    if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
+    const templates = await listDatabaseRows(handle, db.id, { archived: false, template: true });
+    const derived = await resolveDerivedForRows(handle, templates, db.propertiesSchema);
+    res.json({
+      templates: templates.map((t) => serializeRow(t, { derived: derived.get(t.id) ?? {} })),
+    });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to list row templates');
+    res.status(500).json({ error: 'Failed to list row templates' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// CSV
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /databases/:id/export?format=csv — the rows as CSV, one column per
+ * stored property (formulas and rollups are computed, not stored, and left
+ * out), values as people read them.
+ */
+router.get('/:id/export', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ id: entityIdSchema }).parse(req.params);
+    z.object({ format: z.literal('csv').default('csv') }).parse(req.query);
+    const handle = getDb();
+    const db = await findDatabaseById(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+    if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
+    const rows = await listDatabaseRows(handle, db.id, { archived: false, template: false });
+    const name = db.name?.trim() || 'Untitled';
+    const ascii =
+      name
+        .normalize('NFKD')
+        .replace(/[^a-zA-Z0-9-_]+/gu, '-')
+        .replace(/^-+|-+$/g, '') || 'database';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${ascii}.csv"; filename*=UTF-8''${encodeURIComponent(`${name}.csv`)}`,
+    );
+    // A BOM so spreadsheet apps read the file as UTF-8.
+    res.send(`\uFEFF${databaseToCsv(db.propertiesSchema, rows)}`);
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to export database');
+    res.status(500).json({ error: 'Failed to export database' });
+  }
+});
+
+const importCsvSchema = z.object({
+  workspaceId: entityIdSchema,
+  /** An inline database in this page; a full-page database when absent. */
+  parentPageId: entityIdSchema.nullable().optional(),
+  /** A full-page database's place: a teamspace, null for private; absent, the default. */
+  teamspaceId: entityIdSchema.nullable().optional(),
+  name: z.string().trim().max(500).optional(),
+  csv: z
+    .string()
+    .min(1)
+    .max(10 * 1024 * 1024),
+});
+
+/**
+ * POST /databases/import/csv { workspaceId, parentPageId?, name?, csv }
+ *
+ * A database from a CSV with a header row: the first column is the Name,
+ * the others get the type every value fits (checkbox, number, date, URL,
+ * email, select, multi-select, else text).
+ */
+router.post('/import/csv', async (req: Request, res: Response) => {
+  try {
+    const body = importCsvSchema.parse(req.body);
+    const userId = req.user?.id as string;
+    const handle = getDb();
+    if (body.parentPageId) {
+      const parent = await findPageById(handle, body.parentPageId);
+      if (!parent || parent.workspaceId !== body.workspaceId) {
+        res.status(400).json({ error: 'The destination is not a page of this workspace' });
+        return;
+      }
+      if (!(await checkPageAccess(req, res, handle, parent.id, 'editor'))) return;
+    }
+    const place = body.parentPageId
+      ? { teamspaceId: null }
+      : await placeOrRefuse(res, handle, body.workspaceId, userId, body.teamspaceId);
+    if (!place) return;
+    const parsed = csvToDatabase(body.csv);
+    const created = await handle.transaction((tx) =>
+      createDatabaseWithRows(tx, {
+        workspaceId: body.workspaceId,
+        name: body.name || 'Imported',
+        ownerId: userId,
+        schema: parsed.schema,
+        isInline: Boolean(body.parentPageId),
+        parentPageId: body.parentPageId ?? null,
+        teamspaceId: place.teamspaceId,
+        rows: parsed.rows,
+      }),
+    );
+    announceChange({ workspaceId: body.workspaceId, databaseId: created.database.id });
+    res
+      .status(201)
+      .json({ database: serializeDatabase(created.database), rows: created.rowIds.length });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to import CSV');
+    res.status(500).json({ error: 'Failed to import CSV' });
   }
 });
 

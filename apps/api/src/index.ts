@@ -6,6 +6,7 @@ import {
 import express from 'express';
 import http from 'node:http';
 import cors from 'cors';
+import { allowedOrigins } from './lib/allowed-origins.js';
 import { sql } from 'drizzle-orm';
 import { closeDb, getDb } from './db/client.js';
 import { log } from './lib/logger.js';
@@ -17,6 +18,17 @@ import feedbackRouter from './routes/feedback.js';
 import notificationsRouter from './routes/notifications.js';
 import workspacesRouter from './routes/workspaces.js';
 import shareLinksRouter from './routes/share-links.js';
+import pagePermissionsRouter from './routes/page-permissions.js';
+import searchRouter from './routes/search.js';
+import teamspacesRouter from './routes/teamspaces.js';
+import publishRouter from './routes/publish.js';
+import pageHistoryRouter from './routes/page-history.js';
+import remindersRouter from './routes/reminders.js';
+import importRouter from './routes/import.js';
+import backlinksRouter from './routes/backlinks.js';
+import formsRouter from './routes/forms.js';
+import pageFollowsRouter from './routes/page-follows.js';
+import { startReminderSweep, stopReminderSweep } from './lib/reminders.js';
 import pagesRouter from './routes/pages.js';
 import blocksRouter from './routes/blocks.js';
 import databasesRouter from './routes/databases.js';
@@ -66,21 +78,7 @@ startEcosystemActivity(() => server.listening);
 initSocket(server);
 
 // Internal routes - restricted to known origins
-const PRODUCTION_ORIGINS = ['https://nilo.so'];
-
-const DEV_ORIGINS = [
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'http://localhost:8081',
-  'exp://localhost:8081',
-  'http://10.0.2.2:8081',
-];
-
-const allowedOrigins = [
-  ...(process.env.WEB_URL ? [process.env.WEB_URL] : []),
-  ...PRODUCTION_ORIGINS,
-  ...DEV_ORIGINS,
-];
+const corsOrigins = allowedOrigins();
 
 app.use((req, res, next) => {
   cors({
@@ -88,7 +86,7 @@ app.use((req, res, next) => {
       // Allow requests with no origin (like mobile apps or curl)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
+      if (corsOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
@@ -107,6 +105,8 @@ app.use((req, res, next) => {
       'X-Oxy-Edge-Region',
       'X-Oxy-Activity-Id',
     ],
+    // Downloads name their file, and rate-limited answers say when to retry.
+    exposedHeaders: ['Content-Disposition', 'Retry-After'],
     optionsSuccessStatus: 200,
   })(req, res, next);
 });
@@ -117,24 +117,59 @@ app.use((_req, res, next) => {
   next();
 });
 
+// The API runs behind one load balancer: the client's address is the last hop
+// it adds to X-Forwarded-For. Rate limits key on it (`lib/rate-limit.ts`).
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
+
 // Block payloads and database properties may contain structured document data.
-app.use(express.json({ limit: '10mb' }));
+// Imports parse their own, larger bodies (`routes/import.ts`).
+const jsonBody = express.json({ limit: '10mb' });
+app.use((req, res, next) => (req.path === '/pages/import' ? next() : jsonBody(req, res, next)));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Routes
 app.use('/health', healthRouter);
 app.use('/feedback', feedbackRouter);
 app.use('/notifications', notificationsRouter);
+app.use(teamspacesRouter);
 app.use('/workspaces', workspacesRouter);
+app.use(formsRouter);
+app.use(pageFollowsRouter);
 app.use(shareLinksRouter);
+app.use(publishRouter);
+app.use(pageHistoryRouter);
+app.use(remindersRouter);
+app.use(importRouter);
+app.use(backlinksRouter);
+app.use(pagePermissionsRouter);
 app.use(blocksRouter);
 app.use(commentsRouter);
 app.use('/pages', pagesRouter);
+app.use('/search', searchRouter);
 app.use('/databases', databasesRouter);
 app.use('/uploads', uploadsRouter);
 app.use('/embed', embedRouter);
 // Serve local-disk uploads (only used when Spaces creds are not configured)
-app.use('/uploads', express.static(LOCAL_UPLOAD_ROOT, { fallthrough: true }));
+// Local uploads (no object storage configured) come from this origin: they
+// must never run as pages here. Nothing is sniffed, nothing scripts, and only
+// media and PDFs display inline.
+app.use(
+  '/uploads',
+  express.static(LOCAL_UPLOAD_ROOT, {
+    fallthrough: true,
+    setHeaders: (res, filePath) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+      if (
+        !/\.(png|jpe?g|gif|webp|avif|heic|heif|bmp|mp4|webm|mov|ogg|mp3|m4a|wav|aac|flac|pdf)$/i.test(
+          filePath,
+        )
+      ) {
+        res.setHeader('Content-Disposition', 'attachment');
+      }
+    },
+  }),
+);
 
 // Root route
 app.get('/', (_req, res) => {
@@ -230,6 +265,7 @@ getDb()
   .then(() => {
     server.listen(PORT, '0.0.0.0', () => {
       log.general.info({ port: PORT }, 'API server listening');
+      startReminderSweep();
       // Verify Redis connectivity (non-blocking)
       import('./lib/redis.js')
         .then(({ getRedisClient }) => {
@@ -269,6 +305,7 @@ getDb()
       // by the event loop draining — which, without this, would be exit 0.
       process.exitCode = 1;
 
+      stopReminderSweep();
       // Stop accepting new connections
       server.close(() => {
         log.general.info('HTTP server closed (no new connections)');

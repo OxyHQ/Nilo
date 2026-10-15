@@ -15,7 +15,7 @@ export function TableBlock({ block, renderChildren }: BlockComponentProps) {
     <View className="rounded-md border border-border overflow-hidden my-1">
       <View accessibilityLabel={`Table with ${cols} columns`} className="bg-background">
         {renderChildren ? (
-          renderChildren(block._id)
+          renderChildren(block.id)
         ) : (
           <View className="px-3 py-2">
             <Text className="text-xs text-muted-foreground">Empty table</Text>

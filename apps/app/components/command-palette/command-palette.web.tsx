@@ -1,3 +1,7 @@
+import { IconDisplay } from '@/components/page-chrome/icon-display';
+import { SearchSnippet } from './search-snippet';
+import { SearchStatus } from './search-status';
+import { searchPageHref } from './search-results';
 import * as React from 'react';
 import { useRouter } from 'expo-router';
 import {
@@ -14,6 +18,7 @@ import { FileText, Clock } from 'lucide-react-native';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { usePaletteData } from './use-palette-data';
 import type { PageItem, MemberItem, CommandItem as CmdItem } from './types';
+import { useTranslation } from '@/hooks/useTranslation';
 
 /**
  * Web command palette built on top of `cmdk`. Opens on Cmd+K (handled by
@@ -25,6 +30,7 @@ export function CommandPalette() {
   const open = useUIStore((s) => s.commandPaletteOpen);
   const setOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const router = useRouter();
+  const { t } = useTranslation();
   const [query, setQuery] = React.useState('');
 
   // Reset query when the palette closes so it opens fresh next time.
@@ -36,21 +42,22 @@ export function CommandPalette() {
     }
   }, [open]);
 
-  const { recents, pages, members, commands } = usePaletteData({ query });
+  const { recents, pages, members, commands, searchLoading, searchError, retrySearch } =
+    usePaletteData({ query, enabled: open });
 
   const openPage = React.useCallback(
-    (pageId: string, newTab = false) => {
+    (item: PageItem, newTab = false) => {
       setOpen(false);
       if (newTab && typeof window !== 'undefined') {
-        window.open(`/p/${pageId}`, '_blank', 'noopener,noreferrer');
+        window.open(searchPageHref(item), '_blank', 'noopener,noreferrer');
         return;
       }
-      router.push(`/p/${pageId}`);
+      router.push(searchPageHref(item));
     },
     [router, setOpen],
   );
 
-  const handlePageSelect = React.useCallback((item: PageItem) => openPage(item.pageId), [openPage]);
+  const handlePageSelect = React.useCallback((item: PageItem) => openPage(item), [openPage]);
 
   const handleMemberSelect = React.useCallback(
     (_member: MemberItem) => {
@@ -76,36 +83,46 @@ export function CommandPalette() {
       if (itemId.startsWith('page:')) {
         e.preventDefault();
         e.stopPropagation();
-        openPage(itemId.slice('page:'.length), true);
+        const item = [...pages, ...recents].find((page) => page.id === itemId);
+        if (item) openPage(item, true);
       }
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [open, openPage]);
+  }, [open, openPage, pages, recents]);
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
       <CommandInput
-        placeholder="Search pages, people and commands…"
+        aria-label={t('commandPalette.placeholder')}
+        placeholder={t('commandPalette.placeholder')}
         value={query}
         onValueChange={setQuery}
       />
       <div ref={listRef}>
         <CommandList>
-          <CommandEmpty>No results.</CommandEmpty>
+          {!query.trim() ? <CommandEmpty>{t('commandPalette.noResults')}</CommandEmpty> : null}
 
           {recents.length > 0 ? (
-            <CommandGroup heading="Recent">
+            <CommandGroup heading={t('commandPalette.groups.recent')}>
               {recents.map((item) => (
                 <PageRow key={item.id} item={item} onSelect={handlePageSelect} icon={<Clock />} />
               ))}
             </CommandGroup>
           ) : null}
 
-          {pages.length > 0 ? (
+          {pages.length > 0 || query.trim() ? (
             <>
               {recents.length > 0 ? <CommandSeparator /> : null}
-              <CommandGroup heading="Pages">
+              <CommandGroup heading={t('commandPalette.groups.pages')}>
+                {query.trim() ? (
+                  <SearchStatus
+                    loading={searchLoading}
+                    error={searchError}
+                    empty={pages.length === 0}
+                    retry={retrySearch}
+                  />
+                ) : null}
                 {pages.map((item) => (
                   <PageRow key={item.id} item={item} onSelect={handlePageSelect} />
                 ))}
@@ -116,7 +133,7 @@ export function CommandPalette() {
           {members.length > 0 ? (
             <>
               <CommandSeparator />
-              <CommandGroup heading="People">
+              <CommandGroup heading={t('commandPalette.groups.people')}>
                 {members.map((item) => (
                   <MemberRow key={item.id} item={item} onSelect={handleMemberSelect} />
                 ))}
@@ -125,7 +142,7 @@ export function CommandPalette() {
           ) : null}
 
           <CommandSeparator />
-          <CommandGroup heading="Commands">
+          <CommandGroup heading={t('commandPalette.groups.commands')}>
             {commands.map((item) => (
               <CommandRow key={item.id} item={item} />
             ))}
@@ -150,13 +167,14 @@ function PageRow({ item, onSelect, icon }: PageRowProps) {
       onSelect={() => onSelect(item)}
     >
       <span className="flex h-5 w-5 items-center justify-center text-base">
-        {item.icon ? item.icon : (icon ?? <FileText />)}
+        {item.icon ? <IconDisplay value={item.icon} size={16} /> : (icon ?? <FileText />)}
       </span>
       <span className="flex flex-1 flex-col min-w-0">
         <span className="truncate text-sm text-foreground">{item.title}</span>
         {item.subtitle ? (
           <span className="truncate text-xs text-muted-foreground">{item.subtitle}</span>
         ) : null}
+        <SearchSnippet parts={item.snippet} />
       </span>
     </CommandItem>
   );

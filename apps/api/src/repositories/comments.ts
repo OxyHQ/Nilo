@@ -10,7 +10,7 @@
 
 import { and, asc, eq, inArray, isNull, or } from 'drizzle-orm';
 import type { NiloDatabase } from '../db/client.js';
-import { comments } from '../db/schema/collab.js';
+import { commentReactions, comments } from '../db/schema/collab.js';
 
 /** Inline reference inside comment content. */
 export type MentionKind = 'user' | 'page' | 'date';
@@ -257,4 +257,54 @@ export async function findCommentsByIds(
     .where(inArray(comments.id, [...ids]))
     .orderBy(asc(comments.createdAt), asc(comments.id));
   return rows.map(toCommentRow);
+}
+
+/** One emoji on a comment and who reacted with it, first reaction first. */
+export interface ReactionSummary {
+  emoji: string;
+  userIds: string[];
+}
+
+/** The reactions of each comment, emojis in the order they were first used. */
+export async function listReactions(
+  db: NiloDatabase,
+  commentIds: readonly string[],
+): Promise<Map<string, ReactionSummary[]>> {
+  const out = new Map<string, ReactionSummary[]>();
+  if (commentIds.length === 0) return out;
+  const rows = await db
+    .select()
+    .from(commentReactions)
+    .where(inArray(commentReactions.commentId, [...commentIds]))
+    .orderBy(asc(commentReactions.createdAt));
+  for (const row of rows) {
+    const list = out.get(row.commentId) ?? [];
+    const entry = list.find((r) => r.emoji === row.emoji);
+    if (entry) entry.userIds.push(row.userId);
+    else list.push({ emoji: row.emoji, userIds: [row.userId] });
+    out.set(row.commentId, list);
+  }
+  return out;
+}
+
+export async function addReaction(
+  db: NiloDatabase,
+  reaction: { commentId: string; userId: string; emoji: string },
+): Promise<void> {
+  await db.insert(commentReactions).values(reaction).onConflictDoNothing();
+}
+
+export async function removeReaction(
+  db: NiloDatabase,
+  reaction: { commentId: string; userId: string; emoji: string },
+): Promise<void> {
+  await db
+    .delete(commentReactions)
+    .where(
+      and(
+        eq(commentReactions.commentId, reaction.commentId),
+        eq(commentReactions.userId, reaction.userId),
+        eq(commentReactions.emoji, reaction.emoji),
+      ),
+    );
 }

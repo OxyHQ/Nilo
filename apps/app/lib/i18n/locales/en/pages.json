@@ -1,0 +1,329 @@
+{
+  "untitled": "Untitled",
+  "openPage": "Open %{title}",
+  "noneSelected": "No page selected.",
+  "loadFailed": "We couldn’t load this page.",
+  "backToWorkspace": "Back to workspace",
+  "collapse": "Collapse",
+  "expand": "Expand",
+  "comments": {
+    "open": "Open comments",
+    "label": "Comments"
+  },
+  "database": {
+    "noneSelected": "No database selected.",
+    "loadFailed": "We couldn’t load this database.",
+    "noViews": "No views configured yet."
+  },
+  "actions": {
+    "menu": "Page actions",
+    "actionsFor": "Actions for %{title}",
+    "duplicate": "Duplicate",
+    "addToFavorites": "Add to favorites",
+    "removeFromFavorites": "Remove from favorites",
+    "moveTo": "Move to…",
+    "moveToTop": "Move to top",
+    "copyLink": "Copy link",
+    "exportMarkdown": "Export as Markdown",
+    "moveToTrash": "Move to trash",
+    "restoreFromTrash": "Restore from trash",
+    "deletePermanently": "Delete permanently",
+    "addSubPage": "Add sub-page",
+    "addSubPageTo": "Add sub-page to %{title}",
+    "openAndRename": "Open & rename"
+  },
+  "toasts": {
+    "duplicated": "Page duplicated",
+    "duplicateFailed": "Failed to duplicate page",
+    "linkCopied": "Link copied",
+    "markdownDownloaded": "Markdown downloaded",
+    "markdownCopied": "Markdown copied to clipboard",
+    "exportFailed": "Export failed",
+    "movedToTrash": "Moved to trash",
+    "moveToTrashFailed": "Failed to move to trash",
+    "restored": "Page restored",
+    "restoreFailed": "Failed to restore",
+    "deletedPermanently": "Page deleted permanently",
+    "deleteFailed": "Failed to delete page"
+  },
+  "deleteDialog": {
+    "title": "Delete permanently?",
+    "description": "“%{title}” and all its blocks will be removed forever. This can't be undone."
+  },
+  "favorite": {
+    "add": "Favorite",
+    "remove": "Unfavorite"
+  },
+  "breadcrumb": {
+    "workspaceHome": "Workspace home",
+    "workspace": "Workspace"
+  },
+  "header": {
+    "cover": "Cover",
+    "pageCover": "Page cover",
+    "pageIcon": "Page icon",
+    "reposition": "Reposition",
+    "repositionCover": "Reposition cover",
+    "savePosition": "Save position",
+    "changeCover": "Change cover",
+    "changeIcon": "Change icon",
+    "addIcon": "Add icon",
+    "addCover": "Add cover"
+  },
+  "moveDialog": {
+    "title": "Move page",
+    "searchPlaceholder": "Search pages…",
+    "moveToRoot": "Move to root",
+    "noMatches": "No pages match “%{query}”.",
+    "moveUnder": "Move under %{title}"
+  },
+  "iconPicker": {
+    "title": "Choose an icon",
+    "tabs": {
+      "emoji": "Emoji",
+      "icon": "Icon",
+      "upload": "Upload"
+    },
+    "random": "Random",
+    "randomEmoji": "Random emoji",
+    "remove": "Remove",
+    "removeIcon": "Remove icon",
+    "searchEmojis": "Search emojis…",
+    "searchIcons": "Search icons…",
+    "skinTone": "Skin tone:",
+    "skinTones": {
+      "default": "Default",
+      "light": "Light",
+      "mediumLight": "Medium light",
+      "medium": "Medium",
+      "mediumDark": "Medium dark",
+      "dark": "Dark"
+    },
+    "categories": {
+      "smileys": "Smileys & People",
+      "animals": "Animals & Nature",
+      "food": "Food & Drink",
+      "activities": "Activities",
+      "travel": "Travel & Places",
+      "objects": "Objects",
+      "symbols": "Symbols",
+      "flags": "Flags"
+    },
+    "noEmojis": "No emojis match “%{query}”.",
+    "noIcons": "No icons match “%{query}”.",
+    "uploadHint": "Paste an image URL to use as your icon. Direct upload is rolling out soon.",
+    "useImage": "Use image"
+  },
+  "coverPicker": {
+    "title": "Choose a cover",
+    "tabs": {
+      "gallery": "Gallery",
+      "colors": "Colors",
+      "link": "Link",
+      "upload": "Upload"
+    },
+    "remove": "Remove",
+    "removeCover": "Remove cover",
+    "gradientLabel": "%{name} gradient",
+    "colorLabel": "%{name} color",
+    "unsplashNotConfigured": "Unsplash key not configured.",
+    "searchFailed": "Failed to search",
+    "searchUnsplash": "Search Unsplash",
+    "search": "Search",
+    "photoBy": "Photo by %{author}",
+    "linkHint": "Paste an image URL to use as the cover.",
+    "useImage": "Use image",
+    "useImageLink": "Use image link",
+    "uploadSoon": "Direct upload is rolling out soon.",
+    "uploadUseLink": "Until then, use the Link tab to paste an image URL.",
+    "acknowledgeUpload": "Acknowledge upload limitation",
+    "gradients": {
+      "sunset": "Sunset",
+      "aurora": "Aurora",
+      "tropics": "Tropics",
+      "lavender": "Lavender",
+      "mint": "Mint",
+      "ocean": "Ocean",
+      "sherbet": "Sherbet",
+      "plum": "Plum",
+      "crimson": "Crimson",
+      "slate": "Slate"
+    },
+    "colors": {
+      "slate": "Slate",
+      "stone": "Stone",
+      "brick": "Brick",
+      "marigold": "Marigold",
+      "moss": "Moss",
+      "sea": "Sea",
+      "sky": "Sky",
+      "violet": "Violet",
+      "rose": "Rose",
+      "charcoal": "Charcoal"
+    }
+  },
+  "tree": {
+    "selectWorkspace": "Select a workspace to see pages.",
+    "heading": "Pages",
+    "addPage": "Add page",
+    "loading": "Loading pages…",
+    "loadFailed": "Couldn’t load pages. Retry shortly.",
+    "empty": "No pages yet. Press + to create one."
+  },
+  "share": {
+    "invalidTitle": "Invalid share link",
+    "invalidBody": "This URL is missing its share token. Double-check the link you opened.",
+    "unavailableTitle": "Link unavailable",
+    "unavailableBody": "We couldn't load this shared page.",
+    "notFoundTitle": "Link not found",
+    "notFoundBody": "This share link has been revoked or never existed. Ask the page owner for a new link.",
+    "expiredTitle": "Link expired",
+    "expiredBody": "This share link has expired. Ask the page owner for a new link.",
+    "empty": "This page is empty.",
+    "madeWith": "Made with",
+    "madeWithNilo": "Made with Nilo"
+  },
+  "noAccess": "You don't have access to this page",
+  "restricted": "Restricted page",
+  "templates": {
+    "badge": "Template",
+    "makeTemplate": "Make template",
+    "makeRegular": "Turn into a regular page",
+    "updateFailed": "Could not update the template status. Please try again.",
+    "loadFailed": "Could not load templates.",
+    "retry": "Try again",
+    "empty": "No templates yet. Make a page a template from its options menu.",
+    "open": "Open template %{title}",
+    "useNamed": "Use template %{title}",
+    "use": "Use",
+    "choose": "Choose a template",
+    "newPage": "New page",
+    "blank": "Blank page",
+    "fromTemplate": "From template…",
+    "creating": "Creating page…",
+    "createFailed": "Could not create the page. Check your access to the destination and try again."
+  },
+  "publish": {
+    "title": "Publish",
+    "enabled": "Publish to web",
+    "description": "Anyone with the public link can read this page and its unrestricted subpages.",
+    "noPermission": "Only the page creator or members with full access can publish this page.",
+    "failed": "Could not update publishing. Check your access and try again.",
+    "copy": "Copy public link",
+    "copyFailed": "Could not copy the link.",
+    "indexing": "Allow search engines",
+    "published": "Published to web",
+    "notFound": "Page not found",
+    "notFoundBody": "This page is not published or is no longer publicly available.",
+    "loadFailed": "Could not load this page",
+    "tryAgain": "Please check your connection and try again.",
+    "retry": "Try again",
+    "breadcrumb": "Page breadcrumb",
+    "subpages": "Subpages"
+  },
+  "history": {
+    "title": "Page history",
+    "description": "Previous versions are saved automatically after quiet periods and before a restore.",
+    "empty": "No previous versions yet.",
+    "loadFailed": "Could not load page history.",
+    "entry": "%{time} · %{name} · %{count} blocks",
+    "preview": "Version preview",
+    "restore": "Restore this version",
+    "noPermission": "Editor access is required to restore a version.",
+    "confirmTitle": "Restore this version?",
+    "confirmBody": "The current blocks will be replaced. The current state will be saved as another version.",
+    "restored": "Version restored",
+    "restoreFailed": "Could not restore this version. Check your access and try again."
+  },
+  "reminders": {
+    "title": "Remind me…",
+    "description": "Create a personal reminder for this page.",
+    "upcoming": "Reminders",
+    "empty": "No reminders yet.",
+    "loadFailed": "Could not load reminders.",
+    "date": "Date (YYYY-MM-DD)",
+    "dateFormat": "YYYY-MM-DD",
+    "time": "Time (24-hour HH:MM)",
+    "timeFormat": "HH:MM",
+    "localTime": "Dates and times use your device’s local time zone.",
+    "invalid": "Enter a valid future date and time within the next five years.",
+    "note": "Note (optional)",
+    "save": "Create reminder",
+    "created": "Reminder created",
+    "createFailed": "Could not create the reminder.",
+    "delete": "Delete reminder",
+    "deleteFailed": "Could not delete the reminder.",
+    "sent": "Delivered",
+    "choices": {
+      "hour": "In 1 hour",
+      "tomorrow": "Tomorrow 9:00",
+      "week": "Next week"
+    }
+  },
+  "export": {
+    "title": "Export",
+    "markdown": "Markdown",
+    "html": "HTML",
+    "webOnly": "Export is available on the web for now. Open this page in your browser to download it.",
+    "downloaded": "Export downloaded"
+  },
+  "import": {
+    "title": "Import",
+    "intoPage": "Import into this page",
+    "description": "Choose Markdown (.md) files, one CSV, or one Notion Markdown ZIP export (up to 20 MB).",
+    "chooseFiles": "Choose files",
+    "reading": "Choosing and reading files…",
+    "uploading": "Uploading… %{percent}%",
+    "processing": "Creating pages…",
+    "openFirst": "Open first page",
+    "tooLarge": "This import exceeds the 20 MB limit. Choose smaller files or a smaller ZIP.",
+    "noAccess": "You do not have permission to import into this destination.",
+    "noMarkdown": "No importable Markdown was found. Choose .md files or a Markdown ZIP export.",
+    "invalidFiles": "Choose .md files, one .csv, or one .zip. Do not mix formats.",
+    "failed": "Import failed. Please try again.",
+    "result": {
+      "one": "%{count} page created",
+      "other": "%{count} pages created"
+    },
+    "skipped": {
+      "one": "%{count} skipped file",
+      "other": "%{count} skipped files"
+    },
+    "csvHint": "A CSV creates a full-page database. CSV files inside a ZIP are skipped; import them separately.",
+    "invalidContent": "The file could not be imported. Check its format and contents."
+  },
+  "info": {
+    "editedBy": "Edited %{time} by %{name}",
+    "edited": "Edited %{time}",
+    "unknownMember": "Unknown member"
+  },
+  "backlinks": {
+    "count": {
+      "one": "%{count} backlink",
+      "other": "%{count} backlinks"
+    },
+    "retry": "Could not load backlinks. Retry"
+  },
+  "follow": {
+    "follow": "Follow",
+    "following": "Following",
+    "failed": "Could not change following. Try again.",
+    "retry": "Could not load following. Retry"
+  },
+  "style": {
+    "title": "Style",
+    "default": "Default",
+    "serif": "Serif",
+    "mono": "Mono",
+    "sample": "Ag",
+    "smallText": "Small text",
+    "fullWidth": "Full width",
+    "locked": "Lock page",
+    "updateFailed": "Could not update page settings."
+  },
+  "lock": {
+    "banner": "This page is locked.",
+    "unlock": "Unlock"
+  },
+  "title": "Page title"
+}

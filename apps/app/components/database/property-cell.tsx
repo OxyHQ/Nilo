@@ -1,13 +1,17 @@
+import { RelationCell } from './relation-cell';
+import { ComputedCell } from './computed-cell';
 import * as React from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Check, ChevronDown, Plus, X } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { DatabaseProperty, PropertyValue, SelectOption } from '@/lib/types/databases';
 import { SELECT_COLOR_CLASSES } from './select-color';
 import { centeredModalStyle } from './centered-modal-style';
 
 export interface PropertyCellProps {
+  readOnly?: boolean;
   property: DatabaseProperty;
   value: PropertyValue;
   /** Renders compact for table rows; expanded for the row detail panel. */
@@ -35,7 +39,11 @@ export function PropertyCell({
   variant = 'table',
   onChange,
   autoFocus,
+  readOnly = false,
 }: PropertyCellProps) {
+  if (property.type === 'formula' || property.type === 'unique_id')
+    return <ComputedCell property={property} value={value} />;
+  if (readOnly) return <PropertyValueText property={property} value={value} />;
   switch (property.type) {
     case 'text':
       return (
@@ -118,9 +126,13 @@ export function PropertyCell({
     case 'files':
       return <FilesCell value={readFiles(value)} variant={variant} />;
     case 'relation':
-      return <RelationCell value={readPageIds(value)} variant={variant} />;
+      return (
+        <RelationCell
+          value={readPageIds(value)}
+          targetDatabaseId={property.config?.targetDatabaseId}
+        />
+      );
     case 'rollup':
-    case 'formula':
       return <DerivedCell value={value} variant={variant} />;
     case 'created_time':
     case 'last_edited_time':
@@ -129,6 +141,60 @@ export function PropertyCell({
     case 'last_edited_by':
       return <PersonCell value={readUserIds(value)} variant={variant} />;
   }
+}
+
+/** Static rendering keeps read-only values out of the keyboard edit path. */
+function PropertyValueText({ property, value }: Pick<PropertyCellProps, 'property' | 'value'>) {
+  const { t } = useTranslation();
+  let display: string;
+  switch (property.type) {
+    case 'text':
+      display = readText(value);
+      break;
+    case 'number':
+      display = formatNumber(readNumber(value), property);
+      break;
+    case 'url':
+    case 'email':
+    case 'phone':
+      display = readScalarString(value);
+      break;
+    case 'checkbox':
+      display = t(readChecked(value) ? 'sharing.checked' : 'sharing.unchecked');
+      break;
+    case 'select':
+    case 'status':
+      display =
+        property.config?.options?.find((option) => option.id === readOptionId(value))?.name ?? '';
+      break;
+    case 'multi_select':
+      display = (property.config?.options ?? [])
+        .filter((option) => readOptionIds(value).includes(option.id))
+        .map((option) => option.name)
+        .join(', ');
+      break;
+    case 'date': {
+      const start = readDateStart(value);
+      display = start ? new Date(start).toLocaleDateString() : '';
+      break;
+    }
+    case 'person':
+    case 'created_by':
+    case 'last_edited_by':
+      return <PersonCell value={readUserIds(value)} variant="card" />;
+    case 'files':
+      return <FilesCell value={readFiles(value)} variant="card" />;
+    case 'relation':
+      return (
+        <RelationCell
+          value={readPageIds(value)}
+          targetDatabaseId={property.config?.targetDatabaseId}
+        />
+      );
+    default:
+      return <DerivedCell value={value} variant="card" />;
+  }
+  return <Text className="text-sm text-foreground py-1">{display || '—'}</Text>;
 }
 
 // --- typed readers ---------------------------------------------------------
@@ -501,6 +567,7 @@ function SelectPicker({
 }: SelectPickerProps) {
   const [query, setQuery] = React.useState('');
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -519,7 +586,7 @@ function SelectPicker({
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search options"
+            placeholder={t('databases.properties.searchOptions')}
             placeholderTextColor={colors.mutedForeground}
             className="text-sm text-foreground border border-border rounded-md px-2 py-1 mb-2"
             style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
@@ -528,7 +595,9 @@ function SelectPicker({
           <ScrollView style={{ maxHeight: 280 }}>
             {filtered.length === 0 ? (
               <View className="px-3 py-3">
-                <Text className="text-sm text-muted-foreground">No options</Text>
+                <Text className="text-sm text-muted-foreground">
+                  {t('databases.properties.noOptions')}
+                </Text>
               </View>
             ) : (
               filtered.map((o) => {
@@ -552,7 +621,9 @@ function SelectPicker({
               className="mt-2 flex-row items-center gap-2 px-2 py-1 rounded hover:bg-muted"
             >
               <X size={12} color={colors.mutedForeground} />
-              <Text className="text-xs text-muted-foreground">{multi ? 'Clear all' : 'Clear'}</Text>
+              <Text className="text-xs text-muted-foreground">
+                {multi ? t('databases.actions.clearAll') : t('databases.actions.clear')}
+              </Text>
             </Pressable>
           ) : null}
         </View>
@@ -567,14 +638,16 @@ interface DateCellProps extends CellVariantProps {
 }
 
 function DateCell({ value, onChange, variant }: DateCellProps) {
+  const { colors } = useColorScheme();
+  const { locale } = useTranslation();
+  const display = value ? new Date(value).toLocaleDateString(locale) : '—';
   // On web, use a native date input. On native, render the date as text
   // and allow clearing — full picker is a Phase 4.5 stretch goal. The web
   // input is its own component so its state hooks are never called
   // conditionally from this one.
   if (Platform.OS === 'web') {
-    return <WebDateInput value={value} onChange={onChange} />;
+    return <WebDateInput value={value} onChange={onChange} color={colors.foreground} />;
   }
-  const display = value ? new Date(value).toLocaleDateString() : '—';
   // Native fallback
   return (
     <View className={variant === 'panel' ? 'py-1' : ''}>
@@ -583,8 +656,16 @@ function DateCell({ value, onChange, variant }: DateCellProps) {
   );
 }
 
-function WebDateInput({ value, onChange }: Pick<DateCellProps, 'value' | 'onChange'>) {
-  const { colors } = useColorScheme();
+/** The browser's own date input; commits on blur. */
+function WebDateInput({
+  value,
+  onChange,
+  color,
+}: {
+  value: string | null;
+  onChange: (next: string | null) => void;
+  color: string;
+}) {
   const [draft, setDraft] = React.useState<string>(value ? toDateInput(value) : '');
   React.useEffect(() => {
     setDraft(value ? toDateInput(value) : '');
@@ -595,10 +676,7 @@ function WebDateInput({ value, onChange }: Pick<DateCellProps, 'value' | 'onChan
       <input
         type="date"
         value={draft}
-        onChange={(e) => {
-          const next = e.target.value;
-          setDraft(next);
-        }}
+        onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {
           if (!draft) {
             if (value) onChange(null);
@@ -611,7 +689,7 @@ function WebDateInput({ value, onChange }: Pick<DateCellProps, 'value' | 'onChan
           background: 'transparent',
           border: 'none',
           outline: 'none',
-          color: colors.foreground,
+          color,
           fontSize: 13,
           padding: 0,
         }}
@@ -677,25 +755,13 @@ function FilesCell({ value }: FilesCellProps) {
   );
 }
 
-function RelationCell({ value }: ReadOnlyArrayCellProps) {
-  if (value.length === 0) {
-    return <Text className="text-sm text-muted-foreground">—</Text>;
-  }
-  return (
-    <View className="flex-row items-center gap-1">
-      <Text className="text-sm text-foreground">
-        {value.length} {value.length === 1 ? 'page' : 'pages'}
-      </Text>
-    </View>
-  );
-}
-
 interface DerivedCellProps extends CellVariantProps {
   value: PropertyValue;
   format?: 'date';
 }
 
 function DerivedCell({ value, format }: DerivedCellProps) {
+  const { locale } = useTranslation();
   if (!value || typeof value !== 'object') {
     return <Text className="text-sm text-muted-foreground">—</Text>;
   }
@@ -712,7 +778,7 @@ function DerivedCell({ value, format }: DerivedCellProps) {
   if ('start' in value && typeof value.start === 'string') {
     const d = new Date(value.start);
     if (format === 'date' && !Number.isNaN(d.getTime())) {
-      return <Text className="text-sm text-foreground">{d.toLocaleDateString()}</Text>;
+      return <Text className="text-sm text-foreground">{d.toLocaleDateString(locale)}</Text>;
     }
   }
   return <Text className="text-sm text-muted-foreground">—</Text>;

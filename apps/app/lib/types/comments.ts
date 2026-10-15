@@ -38,7 +38,13 @@ export interface CommentContent {
   plainText: string;
 }
 
+export interface CommentReaction {
+  emoji: string;
+  userIds: string[];
+}
+
 export interface Comment {
+  reactions: CommentReaction[];
   id: string;
   workspaceId: string;
   pageId: string;

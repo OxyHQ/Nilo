@@ -4,9 +4,10 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
-import { useOxy } from '@oxy.so/services';
 import { useRouter } from 'expo-router';
-import { generateAPIUrl } from '@/lib/generate-api-url';
+import apiClient from '@/lib/api/client';
+import Constants from 'expo-constants';
+import { isAxiosError } from 'axios';
 import { MessageSquare, Bug, Lightbulb, Sparkles, Star } from 'lucide-react-native';
 import { SettingsHeader } from '@/components/settings/settings-header';
 import { toast } from '@oxy.so/bloom/toast';
@@ -52,7 +53,6 @@ const feedbackTypes: FeedbackTypeOption[] = [
 export default function FeedbackScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { oxyServices } = useOxy();
   const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
   const [message, setMessage] = useState('');
   const [rating, setRating] = useState<number | null>(null);
@@ -77,38 +77,26 @@ export default function FeedbackScreen() {
     try {
       setSubmitting(true);
 
-      const apiUrl = generateAPIUrl('/feedback');
-      const token = oxyServices.session.accessToken;
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) headers.Authorization = `Bearer ${token}`;
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          type: selectedType,
-          message: message.trim(),
-          rating: rating,
-          metadata: {
-            platform: Platform.OS,
-            appVersion: '1.0.0',
-          },
-        }),
+      await apiClient.post('/feedback', {
+        type: selectedType,
+        message: message.trim(),
+        // Rating is optional; an unrated report sends none.
+        ...(rating !== null && { rating }),
+        metadata: {
+          platform: Platform.OS,
+          appVersion: Constants.expoConfig?.version ?? 'unknown',
+        },
       });
-
-      if (response.ok) {
-        toast.success(t('feedback.thankYou'));
-        setSelectedType(null);
-        setMessage('');
-        setRating(null);
-        router.back();
-      } else {
-        const error = await response.json();
-        toast.error(error.error || t('feedback.submitFailed'));
-      }
-    } catch (_error: unknown) {
-      toast.error(t('feedback.submitFailed'));
+      toast.success(t('feedback.thankYou'));
+      setSelectedType(null);
+      setMessage('');
+      setRating(null);
+      router.back();
+    } catch (error: unknown) {
+      const serverMessage = isAxiosError<{ error?: string }>(error)
+        ? error.response?.data?.error
+        : undefined;
+      toast.error(serverMessage || t('feedback.submitFailed'));
     } finally {
       setSubmitting(false);
     }

@@ -1,23 +1,40 @@
 /** Routes consumed by the Nilo workspace client. */
 export const API_ROUTES = {
+  search: '/search',
+  publicPage: (slug: string, pageId?: string) =>
+    `/public/pages/${encodeURIComponent(slug)}${pageId ? `/${encodeURIComponent(pageId)}` : ''}`,
+  reminders: { list: '/reminders', delete: (id: string) => `/reminders/${id}` },
   pages: {
+    import: '/pages/import',
+    importZip: '/pages/import/zip',
     list: '/pages',
+    publish: (id: string) => `/pages/${id}/publish`,
+    versions: (id: string) => `/pages/${id}/versions`,
+    version: (id: string, versionId: string) => `/pages/${id}/versions/${versionId}`,
+    restoreVersion: (id: string, versionId: string) => `/pages/${id}/versions/${versionId}/restore`,
+    reminders: (id: string) => `/pages/${id}/reminders`,
+    shared: '/pages/shared',
+    permissions: (id: string) => `/pages/${id}/permissions`,
+    permission: (id: string, userId: string) =>
+      `/pages/${id}/permissions/${encodeURIComponent(userId)}`,
     create: '/pages',
     get: (id: string) => `/pages/${id}`,
     update: (id: string) => `/pages/${id}`,
     delete: (id: string) => `/pages/${id}`,
     blocks: (id: string) => `/pages/${id}/blocks`,
+    follow: (id: string) => `/pages/${id}/follow`,
+    resumeBlocks: (id: string) => `/pages/${id}/blocks/resume`,
     duplicate: (id: string) => `/pages/${id}/duplicate`,
     breadcrumb: (id: string) => `/pages/${id}/breadcrumb`,
     export: (id: string) => `/pages/${id}/export`,
   },
+  share: { join: (token: string) => `/share/${encodeURIComponent(token)}/join` },
   workspaces: {
     emptyTrash: (id: string) => `/workspaces/${id}/trash/empty`,
   },
   blocks: {
-    update: (id: string) => `/blocks/${id}`,
-    delete: (id: string) => `/blocks/${id}`,
-    reorder: (pageId: string) => `/pages/${pageId}/blocks/reorder`,
+    // Blocks are written only through `/pages/:id/blocks/transactions` (lib/editor).
+    transactions: (pageId: string) => `/pages/${pageId}/blocks/transactions`,
     comments: (id: string) => `/blocks/${id}/comments`,
   },
   comments: {
@@ -46,6 +63,8 @@ export const API_ROUTES = {
     deleteProperty: (id: string, propertyId: string) => `/databases/${id}/properties/${propertyId}`,
     listRows: (id: string) => `/databases/${id}/rows`,
     createRow: (id: string) => `/databases/${id}/rows`,
+    getRow: (id: string, rowId: string) => `/databases/${id}/rows/${rowId}`,
+    templates: (id: string) => `/databases/${id}/templates`,
     listViews: (id: string) => `/databases/${id}/views`,
     createView: (id: string) => `/databases/${id}/views`,
     updateView: (id: string, viewId: string) => `/databases/${id}/views/${viewId}`,

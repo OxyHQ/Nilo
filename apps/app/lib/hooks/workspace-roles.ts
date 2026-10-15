@@ -15,19 +15,3 @@ export function hasRole(actual: WorkspaceRole | undefined, required: WorkspaceRo
   if (!actual) return false;
   return compareRoles(actual, required) >= 0;
 }
-
-export const ROLE_LABELS: Record<WorkspaceRole, string> = {
-  owner: 'Owner',
-  admin: 'Admin',
-  editor: 'Editor',
-  commenter: 'Commenter',
-  viewer: 'Viewer',
-};
-
-export const ROLE_DESCRIPTIONS: Record<WorkspaceRole, string> = {
-  owner: 'Full access. Can delete workspace and transfer ownership.',
-  admin: 'Full access. Can invite and manage members.',
-  editor: 'Can create and edit pages.',
-  commenter: 'Can comment but not edit.',
-  viewer: 'Read-only access.',
-};

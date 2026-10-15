@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Image, View, Platform, type ImageStyle, type ViewStyle } from 'react-native';
 import { parseCover, COVER_GRADIENTS, type CoverValue } from './cover-value';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface CoverDisplayProps {
   value: string | null | undefined;
@@ -37,6 +38,7 @@ export function CoverDisplay({
   preview = false,
 }: CoverDisplayProps) {
   const parsed = React.useMemo<CoverValue>(() => parseCover(value), [value]);
+  const { t } = useTranslation();
 
   if (parsed.kind === 'none') return null;
 
@@ -80,7 +82,7 @@ export function CoverDisplay({
       source={{ uri }}
       style={imageStyle as ImageStyle}
       resizeMode="cover"
-      accessibilityLabel="Page cover"
+      accessibilityLabel={t('pages.header.pageCover')}
     />
   );
 }

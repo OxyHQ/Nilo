@@ -1,3 +1,4 @@
+import { queryKeys } from './query-keys';
 /**
  * useNotificationSetup — Push notification registration, foreground handling,
  * tap deep-linking, and real-time Socket.IO notification subscription.
@@ -11,16 +12,16 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { useQueryClient } from '@tanstack/react-query';
 import { useOxy } from '@oxy.so/services';
-import { io as socketIO } from 'socket.io-client';
+import { acquireSocket, releaseSocket } from '@/lib/realtime/socket';
 import { useRouter } from 'expo-router';
-import config from '@/lib/config';
 import apiClient from '@/lib/api/client';
+import { invalidatePageAccess } from './use-page-permissions';
 
 // ── Constants ──────────────────────────────────────────────────────
 const PROJECT_ID = Constants.expoConfig?.extra?.eas?.projectId;
 
 export function useNotificationSetup() {
-  const { user, isAuthenticated, oxyServices } = useOxy();
+  const { user, isAuthenticated } = useOxy();
   const router = useRouter();
   const queryClient = useQueryClient();
   const tokenRef = useRef<string | null>(null);
@@ -95,7 +96,17 @@ export function useNotificationSetup() {
       if (!isAuthenticated) return;
       const pageId = response.notification.request.content.data?.pageId;
       if (typeof pageId === 'string') {
-        router.push({ pathname: '/(app)/p/[pageId]', params: { pageId } });
+        const blockId = response.notification.request.content.data?.blockId;
+        router.push({
+          pathname: '/(app)/p/[pageId]',
+          params: {
+            pageId,
+            ...(typeof blockId === 'string' ? { blockId } : {}),
+            ...(typeof response.notification.request.content.data?.commentId === 'string'
+              ? { comments: 'open' }
+              : {}),
+          },
+        });
       }
     });
 
@@ -162,27 +173,20 @@ export function useNotificationSetup() {
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return;
 
-    const socket = socketIO(config.apiUrl, {
-      auth: (callback) => {
-        const token = oxyServices.session.accessToken;
-        callback(token ? { token } : {});
-      },
-      transports: ['websocket'],
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 10000,
-    });
-
-    socket.on('notification', () => {
+    const socket = acquireSocket();
+    const onNotification = () => {
       // Invalidate React Query caches so notification list + unread count refresh
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reminders.all });
+      void invalidatePageAccess(queryClient);
+    };
+    socket.on('notification', onNotification);
 
     return () => {
-      socket.disconnect();
+      socket.off('notification', onNotification);
+      releaseSocket();
     };
-  }, [isAuthenticated, user?.id, oxyServices, queryClient]);
+  }, [isAuthenticated, user?.id, queryClient]);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────

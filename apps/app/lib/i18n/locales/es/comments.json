@@ -1,0 +1,71 @@
+{
+  "composer": {
+    "placeholder": "Añade un comentario…",
+    "hint": "@ para mencionar",
+    "hintWeb": "@ para mencionar · Cmd/Ctrl+Enter para enviar",
+    "send": "Enviar comentario",
+    "posting": "Publicando…",
+    "submit": "Comentar"
+  },
+  "mentionLabel": "Mención: %{name}",
+  "indicator": {
+    "count": {
+      "one": "%{count} comentario",
+      "other": "%{count} comentarios"
+    },
+    "add": "Añadir un comentario",
+    "label": "Comentar"
+  },
+  "panel": {
+    "title": "Comentarios",
+    "blockTitle": "Comentarios del bloque",
+    "close": "Cerrar comentarios",
+    "dismiss": "Cerrar el panel de comentarios",
+    "emptyResolved": "Todavía no hay comentarios resueltos.",
+    "emptyOpen": "No hay comentarios abiertos. Pasa el cursor sobre un bloque para comentar o añade una nota a la página abajo.",
+    "emptyAll": "Todavía no hay comentarios.",
+    "blockPlaceholder": "Comenta este bloque…",
+    "pagePlaceholder": "Añade un comentario a la página…"
+  },
+  "filters": {
+    "open": "Abiertos",
+    "all": "Todos",
+    "resolved": "Resueltos"
+  },
+  "time": {
+    "justNow": "ahora mismo",
+    "minutesAgo": "hace %{count} min",
+    "hoursAgo": "hace %{count} h",
+    "daysAgo": "hace %{count} d"
+  },
+  "thread": {
+    "resolve": "Resolver",
+    "reopen": "Reabrir",
+    "resolveThread": "Resolver hilo",
+    "reopenThread": "Reabrir hilo",
+    "reply": "Responder",
+    "replyPlaceholder": "Responde…",
+    "replyToThread": "Responder al hilo",
+    "you": "Tú",
+    "edited": "editado",
+    "moreActions": "Más acciones"
+  },
+  "mentions": {
+    "header": "Mencionar",
+    "noMatches": "No hay resultados para \"%{query}\"",
+    "untitled": "Sin título",
+    "page": "página",
+    "pageWithIcon": "%{icon} página",
+    "today": "Hoy",
+    "tomorrow": "Mañana",
+    "nextWeek": "La próxima semana"
+  },
+  "reactions": {
+    "add": "Añadir reacción",
+    "choose": "Reaccionar con %{emoji}",
+    "toggle": "%{emoji}, %{count} reacciones",
+    "someone": "Alguien",
+    "closePeople": "Cerrar detalles de la reacción",
+    "failed": "No se pudo actualizar la reacción. Inténtalo de nuevo."
+  }
+}

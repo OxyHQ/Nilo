@@ -1,10 +1,13 @@
+import { useWorkspaceLive, useDatabaseLive } from '../realtime/use-live-updates';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import { useOxy } from '@oxy.so/services';
 import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
 import { queryKeys } from './query-keys';
 import type {
   Database,
+  DatabaseDetail,
   DatabaseResponse,
   DatabaseSchema,
   DatabasesListResponse,
@@ -12,6 +15,7 @@ import type {
 } from '../types/databases';
 
 interface CreateDatabaseInput {
+  teamspaceId?: string | null;
   workspaceId: string;
   name?: string;
   icon?: string | null;
@@ -36,6 +40,7 @@ interface UpdateDatabaseInput {
  *  - the inline-database block picker.
  */
 export function useDatabases(workspaceId: string | null) {
+  useWorkspaceLive(workspaceId);
   const { isAuthenticated } = useOxy();
   return useQuery<DatabasesListResponse>({
     queryKey: queryKeys.databases.list(workspaceId),
@@ -55,19 +60,19 @@ export function useDatabases(workspaceId: string | null) {
  * so we co-locate them in one query and one cache key.
  */
 export function useDatabase(id: string | undefined) {
+  useDatabaseLive(id);
   const { isAuthenticated } = useOxy();
-  return useQuery<{ database: Database; views: DatabaseView[] }>({
+  return useQuery<DatabaseDetail>({
     queryKey: id ? queryKeys.databases.detail(id) : ['database', 'none'],
     queryFn: async () => {
       if (!id) throw new Error('Database id required');
-      const res = await apiClient.get<{
-        database: Database;
-        views: DatabaseView[];
-      }>(API_ROUTES.databases.get(id));
-      return {
-        database: res.data.database,
-        views: res.data.views ?? [],
-      };
+      const res = await apiClient.get<DatabaseDetail>(API_ROUTES.databases.get(id));
+      return res.data;
+    },
+    retry: (count, error) => {
+      if (axios.isAxiosError(error) && [403, 404].includes(error.response?.status ?? 0))
+        return false;
+      return count < 2;
     },
     enabled: isAuthenticated && Boolean(id),
   });
@@ -86,7 +91,8 @@ export function useCreateDatabase() {
         views: res.data.views ?? [],
       };
     },
-    onSuccess: ({ database }) => {
+    onSuccess: ({ database, views }) => {
+      queryClient.setQueryData(queryKeys.databases.detail(database.id), { database, views });
       queryClient.invalidateQueries({
         queryKey: queryKeys.databases.list(database.workspaceId),
       });

@@ -1,0 +1,19 @@
+{
+  "title": "Keyboard Shortcuts",
+  "navigation": "Navigation",
+  "general": "General",
+  "commandPalette": "Command palette / Search",
+  "settings": "Settings",
+  "shortcuts": "Keyboard shortcuts",
+  "closeDialog": "Close dialog",
+  "description": "Move faster in Nilo with these shortcuts.",
+  "inPalette": "In the palette",
+  "openPalette": "Open search & command palette",
+  "createPage": "Create new page",
+  "toggleSidebar": "Toggle sidebar",
+  "showShortcuts": "Show keyboard shortcuts",
+  "moveSelection": "Move selection up / down",
+  "openResult": "Open selected result",
+  "openInNewTab": "Open in new tab",
+  "close": "Close"
+}

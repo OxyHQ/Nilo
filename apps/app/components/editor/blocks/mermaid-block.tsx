@@ -12,9 +12,9 @@ function loadMermaid(): Promise<typeof import('mermaid')> {
   }
   if (!mermaidLoader) {
     mermaidLoader = import('mermaid').then((mod) => {
-      // 'strict' (Mermaid's default) sanitizes link URLs and runs DOMPurify over
-      // the rendered SVG. 'loose' skipped both, so a diagram written by any
-      // collaborator could carry a `javascript:` link into every viewer's DOM.
+      // 'strict' encodes HTML in labels and disables click handlers. The
+      // source is page content any editor can write and every reader renders,
+      // so 'loose' would let one member run script in another's session.
       mod.default.initialize({ startOnLoad: false, securityLevel: 'strict' });
       return mod;
     });
@@ -31,9 +31,9 @@ export function MermaidBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
   const code = typeof block.content.code === 'string' ? block.content.code : '';
   const [draft, setDraft] = React.useState(code);
-  const lastBlockId = React.useRef(block._id);
-  if (lastBlockId.current !== block._id) {
-    lastBlockId.current = block._id;
+  const lastBlockId = React.useRef(block.id);
+  if (lastBlockId.current !== block.id) {
+    lastBlockId.current = block.id;
     setDraft(code);
   }
 

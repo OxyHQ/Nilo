@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
 import { findBlockById } from '../repositories/blocks.js';
@@ -18,11 +18,19 @@ import {
   type CommentSegment,
   type CommentRow,
   type MentionSegment,
+  addReaction,
+  listReactions,
+  type ReactionSummary,
+  removeReaction,
 } from '../repositories/comments.js';
+import { announceComments } from '../collab/live-rooms.js';
+import { REACTION_MAX } from '../db/schema/collab.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { sendNotification } from '../lib/notification-service.js';
 import { log } from '../lib/logger.js';
+import { checkPageAccess, resolvePageAccess } from '../lib/page-access.js';
+import { follow, listFollowers } from '../repositories/pageFollows.js';
+import { hasRole } from '../db/schema/workspaces.js';
 
 const router = Router();
 router.use(authenticateToken);
@@ -96,13 +104,15 @@ function flattenSegments(segments: CommentSegment[]): string {
  * normalized segment list (with explicit `type: 'text'` on text segments)
  * plus the set of mentioned user ids.
  *
- * - `kind: 'user'`: `id` must be a workspace member.
+ * - `kind: 'user'`: `id` must be someone who can open the page (a member
+ *   with access, or a guest it is shared with) — a mention notifies them.
  * - `kind: 'page'`: `id` must be a Page in the same workspace.
  * - `kind: 'date'`: `date` must be present (validated as ISO yyyy-mm-dd).
  */
 async function validateAndNormalizeContent(
   segments: z.infer<typeof segmentSchema>[],
   workspaceId: string,
+  pageId: string,
 ): Promise<{ segments: CommentSegment[]; mentionedUserIds: string[] }> {
   const userIds = new Set<string>();
   const pageIds = new Set<string>();
@@ -161,20 +171,16 @@ async function validateAndNormalizeContent(
     }
   }
 
-  // Verify user mentions belong to the workspace.
-  if (userIds.size > 0) {
-    const members = await listMembershipsForUsers(getDb(), workspaceId, Array.from(userIds));
-    const validUserIds = new Set(members.map((m) => m.userId));
-    for (const id of userIds) {
-      if (!validUserIds.has(id)) {
-        throw new z.ZodError([
-          {
-            code: 'custom',
-            path: ['segments'],
-            message: `User ${id} is not a member of this workspace`,
-          },
-        ]);
-      }
+  // Verify mentioned people can open the page.
+  for (const id of userIds) {
+    if (!(await resolvePageAccess(getDb(), id, pageId))) {
+      throw new z.ZodError([
+        {
+          code: 'custom',
+          path: ['segments'],
+          message: `User ${id} cannot open this page`,
+        },
+      ]);
     }
   }
 
@@ -228,8 +234,10 @@ async function validateAndNormalizeContent(
 
 type SerializableComment = CommentRow;
 
-function serializeComment(c: SerializableComment) {
+function serializeComment(c: SerializableComment, reactions: readonly ReactionSummary[] = []) {
   return {
+    /** Emoji reactions: each emoji with who reacted, first used first. */
+    reactions,
     id: c.id,
     workspaceId: c.workspaceId,
     pageId: c.pageId,
@@ -244,41 +252,24 @@ function serializeComment(c: SerializableComment) {
   };
 }
 
+/** Comments as the API returns them, with their reactions. */
+async function serializeComments(
+  db: ReturnType<typeof getDb>,
+  list: readonly SerializableComment[],
+) {
+  const reactions = await listReactions(
+    db,
+    list.map((c) => c.id),
+  );
+  return list.map((c) => serializeComment(c, reactions.get(c.id)));
+}
+
 function handleZodError(err: unknown, res: Response): boolean {
   if (err instanceof z.ZodError) {
     res.status(400).json({ error: 'Invalid input', details: err.errors });
     return true;
   }
   return false;
-}
-
-/**
- * Inline workspace-membership check by resource workspace id. Mirrors the
- * pattern used by blocks.ts so we can authorize without forcing callers to
- * pass `X-Workspace-Id` for every comment route.
- */
-async function checkWorkspaceMembership(
-  req: Request,
-  res: Response,
-  workspaceId: string,
-): Promise<boolean> {
-  req.headers['x-workspace-id'] = String(workspaceId);
-  const passed = await new Promise<boolean>((resolve) => {
-    const next: NextFunction = (err?: unknown) => {
-      if (err) {
-        log.general.error({ err }, 'Workspace membership middleware errored');
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Workspace membership check failed' });
-        }
-        resolve(false);
-        return;
-      }
-      resolve(true);
-    };
-    requireWorkspaceMember(req, res, next);
-  });
-  if (!passed) return false;
-  return !res.headersSent;
 }
 
 /**
@@ -320,6 +311,43 @@ async function notifyMentions(
       }
     }),
   );
+}
+
+/**
+ * Tell the page's followers about a new comment: everyone following it who
+ * can still open it, except its author and those already told.
+ */
+async function notifyFollowers(
+  comment: CommentRow,
+  alreadyTold: ReadonlySet<string>,
+  page: { id: string; title: string },
+): Promise<void> {
+  try {
+    const db = getDb();
+    const followers = (await listFollowers(db, page.id)).filter(
+      (id) => id !== comment.authorId && !alreadyTold.has(id),
+    );
+    await Promise.all(
+      followers.map(async (userId) => {
+        if (!(await resolvePageAccess(db, userId, page.id))) return;
+        await sendNotification({
+          userId,
+          type: 'page_comment',
+          title: `New comment in ${page.title || 'Untitled'}`,
+          body: comment.content.plainText.slice(0, 280),
+          priority: 'normal',
+          data: {
+            commentId: comment.id,
+            pageId: page.id,
+            blockId: comment.blockId ? String(comment.blockId) : null,
+            authorId: comment.authorId,
+          },
+        });
+      }),
+    );
+  } catch (err: unknown) {
+    log.general.warn({ err, commentId: comment.id }, 'Failed to notify page followers');
+  }
 }
 
 /**
@@ -374,7 +402,7 @@ router.get('/pages/:pageId/comments', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkPageAccess(req, res, getDb(), page.id, 'viewer');
     if (!ok) return;
 
     // Thread listing: when hiding resolved threads we still need replies to
@@ -383,7 +411,7 @@ router.get('/pages/:pageId/comments', async (req: Request, res: Response) => {
     const all = await listCommentsByPage(db, page.id);
 
     if (includeResolved) {
-      res.json({ comments: all.map((c) => serializeComment(c)) });
+      res.json({ comments: await serializeComments(db, all) });
       return;
     }
 
@@ -397,7 +425,7 @@ router.get('/pages/:pageId/comments', async (req: Request, res: Response) => {
       return !resolvedTopIds.has(rootId);
     });
 
-    res.json({ comments: filtered.map((c) => serializeComment(c)) });
+    res.json({ comments: await serializeComments(db, filtered) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list page comments');
@@ -427,12 +455,12 @@ router.get('/blocks/:blockId/comments', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkPageAccess(req, res, getDb(), page.id, 'viewer');
     if (!ok) return;
 
     const comments = await listCommentsByBlock(db, block.id);
 
-    res.json({ comments: comments.map((c) => serializeComment(c)) });
+    res.json({ comments: await serializeComments(getDb(), comments) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list block comments');
@@ -460,7 +488,7 @@ router.post('/pages/:pageId/comments', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkPageAccess(req, res, getDb(), page.id, 'commenter');
     if (!ok) return;
 
     // Validate block belongs to the same page (if provided).
@@ -503,6 +531,7 @@ router.post('/pages/:pageId/comments', async (req: Request, res: Response) => {
     const { segments, mentionedUserIds } = await validateAndNormalizeContent(
       body.content.segments,
       page.workspaceId,
+      page.id,
     );
 
     const content: CommentContent = {
@@ -519,12 +548,25 @@ router.post('/pages/:pageId/comments', async (req: Request, res: Response) => {
       content,
     });
 
+    // Whoever comments on a page follows it.
+    await follow(getDb(), page.id, comment.authorId);
+
     // Notifications: fan-out non-blocking. Errors logged inside the helpers.
     void notifyMentions(comment, mentionedUserIds, { id: page.id, title: page.title });
     if (parentAuthorId) {
       void notifyReply(comment, parentAuthorId, { id: page.id, title: page.title });
     }
+    // Followers hear of it too — once: not those mentioned or replied to.
+    void notifyFollowers(
+      comment,
+      new Set([...mentionedUserIds, ...(parentAuthorId ? [parentAuthorId] : [])]),
+      {
+        id: page.id,
+        title: page.title,
+      },
+    );
 
+    announceComments(comment.pageId);
     res.status(201).json({ comment: serializeComment(comment) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -553,7 +595,7 @@ router.patch('/comments/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, comment.workspaceId);
+    const ok = await checkPageAccess(req, res, getDb(), comment.pageId, 'commenter');
     if (!ok) return;
 
     if (comment.authorId !== req.user.id) {
@@ -572,6 +614,7 @@ router.patch('/comments/:id', async (req: Request, res: Response) => {
     const { segments } = await validateAndNormalizeContent(
       body.content.segments,
       comment.workspaceId,
+      comment.pageId,
     );
 
     const updated = await updateCommentContent(
@@ -586,7 +629,8 @@ router.patch('/comments/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    res.json({ comment: serializeComment(updated) });
+    announceComments(updated.pageId);
+    res.json({ comment: (await serializeComments(db, [updated]))[0] });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to update comment');
@@ -613,7 +657,7 @@ router.post('/comments/:id/resolve', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, comment.workspaceId);
+    const ok = await checkPageAccess(req, res, getDb(), comment.pageId, 'commenter');
     if (!ok) return;
 
     // Already-resolved is not an error and not a write: the repository's
@@ -622,7 +666,8 @@ router.post('/comments/:id/resolve', async (req: Request, res: Response) => {
     const resolved =
       comment.resolvedAt === null ? await setCommentResolvedAt(db, comment.id, new Date()) : null;
 
-    res.json({ comment: serializeComment(resolved ?? comment) });
+    announceComments(comment.pageId);
+    res.json({ comment: (await serializeComments(db, [resolved ?? comment]))[0] });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to resolve comment');
@@ -649,13 +694,14 @@ router.post('/comments/:id/unresolve', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, comment.workspaceId);
+    const ok = await checkPageAccess(req, res, getDb(), comment.pageId, 'commenter');
     if (!ok) return;
 
     const unresolved =
       comment.resolvedAt !== null ? await setCommentResolvedAt(db, comment.id, null) : null;
 
-    res.json({ comment: serializeComment(unresolved ?? comment) });
+    announceComments(comment.pageId);
+    res.json({ comment: (await serializeComments(db, [unresolved ?? comment]))[0] });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to unresolve comment');
@@ -683,12 +729,12 @@ router.delete('/comments/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, comment.workspaceId);
+    const ok = await checkPageAccess(req, res, getDb(), comment.pageId, 'commenter');
     if (!ok) return;
 
     const isAuthor = comment.authorId === req.user.id;
-    const role = req.member?.role;
-    const isAdmin = role === 'admin' || role === 'owner';
+    // Full access to the page (a workspace admin, or an admin grant).
+    const isAdmin = hasRole(ok.role, 'admin');
     if (!isAuthor && !isAdmin) {
       res.status(403).json({ error: 'Only the author or an admin can delete this comment' });
       return;
@@ -701,6 +747,7 @@ router.delete('/comments/:id', async (req: Request, res: Response) => {
       await deleteComment(db, comment.id);
     }
 
+    announceComments(comment.pageId);
     res.json({ success: true });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -708,5 +755,46 @@ router.delete('/comments/:id', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to delete comment' });
   }
 });
+
+/** An emoji, with its modifiers — not words, not whitespace. */
+const emojiSchema = z
+  .string()
+  .min(1)
+  .max(REACTION_MAX)
+  .refine(
+    (value) =>
+      /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(value) &&
+      !/[\s\p{L}\p{N}]/u.test(value.replace(/[\u{1F3FB}-\u{1F3FF}]/gu, '')),
+    'Not an emoji',
+  );
+
+/**
+ * PUT /comments/:id/reactions/:emoji — react; DELETE takes the reaction back.
+ * Whoever may comment on the page may react. Answers the comment's reactions.
+ */
+async function react(req: Request, res: Response, adding: boolean): Promise<void> {
+  try {
+    const params = z.object({ id: objectIdSchema, emoji: emojiSchema }).parse(req.params);
+    const db = getDb();
+    const comment = await findCommentById(db, params.id);
+    if (!comment) {
+      res.status(404).json({ error: 'Comment not found' });
+      return;
+    }
+    if (!(await checkPageAccess(req, res, db, comment.pageId, 'commenter'))) return;
+    const reaction = { commentId: comment.id, userId: req.user?.id ?? '', emoji: params.emoji };
+    if (adding) await addReaction(db, reaction);
+    else await removeReaction(db, reaction);
+    announceComments(comment.pageId);
+    res.json({ reactions: (await listReactions(db, [comment.id])).get(comment.id) ?? [] });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to react to comment');
+    res.status(500).json({ error: 'Failed to react to comment' });
+  }
+}
+
+router.put('/comments/:id/reactions/:emoji', (req, res) => react(req, res, true));
+router.delete('/comments/:id/reactions/:emoji', (req, res) => react(req, res, false));
 
 export default router;

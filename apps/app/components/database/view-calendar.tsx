@@ -3,6 +3,7 @@ import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 
@@ -20,6 +21,7 @@ interface ViewCalendarProps {
 export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t, locale } = useTranslation();
   const [cursor, setCursor] = React.useState(() => startOfMonth(new Date()));
 
   const dateProperty = React.useMemo(() => {
@@ -43,7 +45,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
     return (
       <View className="px-6 py-10">
         <Text className="text-sm text-muted-foreground">
-          Add a date property to enable the calendar view.
+          {t('databases.calendar.needsDateProperty')}
         </Text>
       </View>
     );
@@ -53,9 +55,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
     // Native fallback — show rows grouped by month
     return (
       <View className="p-3">
-        <Text className="text-sm text-muted-foreground">
-          Calendar view is web-only in Phase 4. Open the table view on native to edit rows.
-        </Text>
+        <Text className="text-sm text-muted-foreground">{t('databases.calendar.webOnly')}</Text>
       </View>
     );
   }
@@ -63,7 +63,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
   const days = buildMonthGrid(cursor);
   const rowsByDay = groupRowsByDay(rows, dateProperty.id);
 
-  const monthLabel = cursor.toLocaleDateString(undefined, {
+  const monthLabel = cursor.toLocaleDateString(locale, {
     month: 'long',
     year: 'numeric',
   });
@@ -83,7 +83,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
             onPress={() => setCursor(startOfMonth(new Date()))}
             className="px-2 py-1 rounded hover:bg-muted"
           >
-            <Text className="text-xs text-foreground">Today</Text>
+            <Text className="text-xs text-foreground">{t('databases.calendar.today')}</Text>
           </Pressable>
           <Pressable
             onPress={() => setCursor(addMonths(cursor, 1))}
@@ -95,7 +95,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
       </View>
 
       <View className="flex-row">
-        {WEEKDAY_LABELS.map((label) => (
+        {weekdayLabels(locale).map((label) => (
           <View key={label} className="flex-1 px-2 py-1 border-b border-border">
             <Text className="text-[10px] uppercase tracking-wider text-muted-foreground">
               {label}
@@ -131,7 +131,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
                         className="bg-primary/10 rounded px-1.5 py-0.5"
                       >
                         <Text className="text-xs text-foreground" numberOfLines={1}>
-                          {row.title || 'Untitled'}
+                          {row.title || t('databases.untitled')}
                         </Text>
                       </Pressable>
                     ))}
@@ -151,7 +151,13 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
   );
 }
 
-const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** Short weekday names, Sunday first, in the app's current locale. */
+function weekdayLabels(locale: string): string[] {
+  // 7 January 2024 was a Sunday.
+  return Array.from({ length: 7 }, (_, i) =>
+    new Date(2024, 0, 7 + i).toLocaleDateString(locale, { weekday: 'short' }),
+  );
+}
 
 function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);

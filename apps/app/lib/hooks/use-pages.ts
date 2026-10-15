@@ -1,25 +1,35 @@
+import { useWorkspaceLive } from '../realtime/use-live-updates';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOxy } from '@oxy.so/services';
+import axios from 'axios';
 import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
+import { useAuthQuery } from './create-query';
 import { queryKeys } from './query-keys';
 import type { BreadcrumbResponse, Page, PageResponse, PagesListResponse } from '../types/pages';
 
 interface CreatePageInput {
   workspaceId: string;
   parentId?: string | null;
+  teamspaceId?: string | null;
   title?: string;
   icon?: string | null;
 }
 
 interface UpdatePageInput {
   id: string;
+  fullWidth?: boolean;
+  smallText?: boolean;
+  font?: Page['font'];
+  locked?: boolean;
   title?: string;
   icon?: string | null;
   cover?: string | null;
   coverPosition?: number;
   parentId?: string | null;
+  teamspaceId?: string | null;
   archived?: boolean;
+  template?: boolean;
   /**
    * Owned by the Page chrome agent (#14). Forwarded as-is to the API; if the
    * backend hasn't shipped the column yet, the update is a safe no-op.
@@ -30,6 +40,7 @@ interface UpdatePageInput {
 }
 
 export function usePages(workspaceId: string | null) {
+  useWorkspaceLive(workspaceId);
   const { isAuthenticated } = useOxy();
 
   return useQuery<PagesListResponse>({
@@ -45,6 +56,18 @@ export function usePages(workspaceId: string | null) {
   });
 }
 
+/** Templates use a separate cache below the workspace page-list key. */
+export function useTemplates(workspaceId: string | null) {
+  useWorkspaceLive(workspaceId);
+  const { isAuthenticated } = useOxy();
+  return useAuthQuery<PagesListResponse>(
+    queryKeys.pages.templates(workspaceId),
+    API_ROUTES.pages.list,
+    { workspaceId, templates: 'only' },
+    { enabled: isAuthenticated && Boolean(workspaceId), staleTime: 30_000 },
+  );
+}
+
 export function usePage(id: string | undefined) {
   const { isAuthenticated } = useOxy();
 
@@ -54,6 +77,11 @@ export function usePage(id: string | undefined) {
       if (!id) throw new Error('Page id required');
       const res = await apiClient.get(API_ROUTES.pages.get(id));
       return res.data;
+    },
+    retry: (count, error) => {
+      if (axios.isAxiosError(error) && [403, 404].includes(error.response?.status ?? 0))
+        return false;
+      return count < 2;
     },
     enabled: isAuthenticated && Boolean(id),
   });
@@ -68,6 +96,7 @@ export function useCreatePage() {
       return res.data.page;
     },
     onSuccess: (page) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.search.workspace(page.workspaceId) });
       queryClient.invalidateQueries({
         queryKey: queryKeys.pages.list(page.workspaceId),
       });
@@ -88,6 +117,7 @@ export function useUpdatePage() {
       const previous = queryClient.getQueryData<PageResponse>(queryKeys.pages.detail(id));
       if (previous) {
         queryClient.setQueryData<PageResponse>(queryKeys.pages.detail(id), {
+          ...previous,
           page: { ...previous.page, ...patch } as Page,
         });
       }
@@ -99,13 +129,22 @@ export function useUpdatePage() {
         queryClient.setQueryData(queryKeys.pages.detail(id), ctx.previous);
       }
     },
-    onSettled: (page) => {
+    onSettled: (page, _error, { id, parentId, teamspaceId }) => {
+      if (parentId !== undefined || teamspaceId !== undefined) {
+        queryClient.invalidateQueries({ queryKey: ['page'] });
+        queryClient.invalidateQueries({ queryKey: ['page-permissions'] });
+        queryClient.invalidateQueries({ queryKey: ['database'] });
+        queryClient.invalidateQueries({ queryKey: ['databases'] });
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.pages.detail(id) });
       if (!page) return;
+      if (page.databaseId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.databases.detail(page.databaseId) });
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.search.workspace(page.workspaceId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pages.shared });
       queryClient.invalidateQueries({
         queryKey: queryKeys.pages.list(page.workspaceId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.pages.detail(page._id),
       });
     },
   });
@@ -128,6 +167,10 @@ export function useDeletePage() {
       });
     },
     onSuccess: (_data, { workspaceId, id }) => {
+      const page = queryClient.getQueryData<PageResponse>(queryKeys.pages.detail(id))?.page;
+      if (page?.databaseId)
+        queryClient.invalidateQueries({ queryKey: queryKeys.databases.detail(page.databaseId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.search.workspace(workspaceId) });
       queryClient.invalidateQueries({
         queryKey: queryKeys.pages.list(workspaceId),
       });
@@ -141,17 +184,32 @@ export function useDeletePage() {
 
 /**
  * Server-side duplicate (POST /pages/:id/duplicate). The backend copies the
- * page and its blocks and returns the new page.
+ * page, its blocks and its subpages and returns the new page.
  */
 export function useDuplicatePage() {
   const queryClient = useQueryClient();
 
-  return useMutation<Page, Error, { id: string; workspaceId: string }>({
-    mutationFn: async ({ id }) => {
-      const res = await apiClient.post<PageResponse>(API_ROUTES.pages.duplicate(id));
+  return useMutation<
+    Page,
+    Error,
+    {
+      id: string;
+      workspaceId: string;
+      fromTemplate?: true;
+      parentId?: string | null;
+      teamspaceId?: string | null;
+    }
+  >({
+    mutationFn: async ({ id, fromTemplate, parentId, teamspaceId }) => {
+      const res = await apiClient.post<PageResponse>(API_ROUTES.pages.duplicate(id), {
+        fromTemplate,
+        parentId: fromTemplate ? (parentId ?? null) : parentId,
+        teamspaceId,
+      });
       return res.data.page;
     },
     onSuccess: (_page, { workspaceId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.search.workspace(workspaceId) });
       queryClient.invalidateQueries({
         queryKey: queryKeys.pages.list(workspaceId),
       });
@@ -182,6 +240,7 @@ export function useBreadcrumb(pageId: string | null | undefined) {
  * Lists archived pages for a workspace. Backs the /trash route.
  */
 export function useArchivedPages(workspaceId: string | null) {
+  useWorkspaceLive(workspaceId);
   const { isAuthenticated } = useOxy();
 
   return useQuery<PagesListResponse>({
@@ -189,7 +248,7 @@ export function useArchivedPages(workspaceId: string | null) {
     queryFn: async () => {
       const res = await apiClient.get(API_ROUTES.pages.list, {
         params: workspaceId
-          ? { workspaceId, archivedOnly: 'true', includeArchived: 'true' }
+          ? { workspaceId, archivedOnly: 'true', includeArchived: 'true', templates: 'include' }
           : undefined,
       });
       return res.data;
@@ -231,10 +290,12 @@ export function useEmptyTrash() {
 export function buildPageTree(pages: Page[]) {
   const byId = new Map<string, { page: Page; children: Page[] }>();
   for (const page of pages) {
-    byId.set(page._id, { page, children: [] });
+    if (page.template) continue;
+    byId.set(page.id, { page, children: [] });
   }
   const roots: Page[] = [];
   for (const page of pages) {
+    if (page.template) continue;
     if (page.parentId && byId.has(page.parentId)) {
       byId.get(page.parentId)?.children.push(page);
     } else {

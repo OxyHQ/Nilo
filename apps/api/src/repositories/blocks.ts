@@ -22,21 +22,17 @@ export type BlockRow = typeof blocks.$inferSelect;
  * The client nests by `parentBlockId` and does not re-sort, so the difference
  * is visible in the editor.
  *
- * `id` is appended as a final tiebreak — `created_at` is millisecond-precision,
- * so blocks created in the same millisecond at the same order would otherwise
- * tie and the resulting sequence would be the storage engine's to choose.
+ * Siblings sort by `(order, id)` and nothing else, so every editor can
+ * reproduce the server's order from what a transaction carries: two
+ * collaborators inserting into the same gap can pick the same `order`, and the
+ * id (a UUIDv7, creation-time ordered) settles it identically everywhere.
  */
 export async function listBlocksForPage(db: PgHandle, pageId: string): Promise<BlockRow[]> {
   return db
     .select()
     .from(blocks)
     .where(eq(blocks.pageId, pageId))
-    .orderBy(
-      sql`${blocks.parentBlockId} asc nulls first`,
-      asc(blocks.order),
-      asc(blocks.createdAt),
-      asc(blocks.id),
-    );
+    .orderBy(sql`${blocks.parentBlockId} asc nulls first`, asc(blocks.order), asc(blocks.id));
 }
 
 /**
@@ -51,7 +47,7 @@ export async function listBlocksForPageByOrder(db: PgHandle, pageId: string): Pr
     .select()
     .from(blocks)
     .where(eq(blocks.pageId, pageId))
-    .orderBy(asc(blocks.order), asc(blocks.createdAt), asc(blocks.id));
+    .orderBy(asc(blocks.order), asc(blocks.id));
 }
 
 /**
@@ -80,36 +76,16 @@ export async function findBlocksByIds(db: PgHandle, ids: readonly string[]): Pro
     .where(inArray(blocks.id, [...ids]));
 }
 
-/**
- * The order a new sibling takes within `(pageId, parentBlockId)` —
- * `routes/blocks.ts:478-482`. See `pagesRepository.nextSiblingOrder` for why
- * `max()` is safe to read as a `number` here while `count(*)` is not.
- */
-export async function nextBlockOrder(
-  db: PgHandle,
-  scope: { pageId: string; parentBlockId: string | null },
-): Promise<number> {
-  const [row] = await db
-    .select({ maxOrder: sql<number | null>`max(${blocks.order})` })
-    .from(blocks)
-    .where(
-      and(
-        eq(blocks.pageId, scope.pageId),
-        scope.parentBlockId === null
-          ? isNull(blocks.parentBlockId)
-          : eq(blocks.parentBlockId, scope.parentBlockId),
-      ),
-    );
-  const maxOrder = row?.maxOrder;
-  return maxOrder === null || maxOrder === undefined ? 0 : maxOrder + 1;
-}
-
 export interface CreateBlockInput {
+  /** A client-minted UUIDv7; the database mints one when absent. */
+  id?: string;
   pageId: string;
   parentBlockId?: string | null;
   type: BlockType;
   content: BlockContent;
   order: number;
+  /** The page version that wrote this content (`blocks.contentVersion`). */
+  contentVersion?: number;
 }
 
 /** `POST /api/pages/:pageId/blocks` — `routes/blocks.ts:485`. */
@@ -117,11 +93,13 @@ export async function createBlock(db: PgHandle, input: CreateBlockInput): Promis
   const [row] = await db
     .insert(blocks)
     .values({
+      ...(input.id && { id: input.id }),
       pageId: input.pageId,
       parentBlockId: input.parentBlockId ?? null,
       type: input.type,
       content: input.content,
       order: input.order,
+      ...(input.contentVersion !== undefined && { contentVersion: input.contentVersion }),
     })
     .returning();
   if (!row) throw new Error('createBlock inserted no row');
@@ -133,6 +111,8 @@ export interface UpdateBlockInput {
   type?: BlockType;
   /** Always a full replacement — the route re-normalises the whole payload. */
   content?: BlockContent;
+  /** The page version writing `content`. */
+  contentVersion?: number;
   order?: number;
 }
 
@@ -158,6 +138,7 @@ export async function updateBlock(
   if (patch.parentBlockId !== undefined) values.parentBlockId = patch.parentBlockId;
   if (patch.type !== undefined) values.type = patch.type;
   if (patch.content !== undefined) values.content = patch.content;
+  if (patch.contentVersion !== undefined) values.contentVersion = patch.contentVersion;
   if (patch.order !== undefined) values.order = patch.order;
 
   if (Object.keys(values).length === 0) {
@@ -203,71 +184,6 @@ export async function deleteBlockTree(db: PgHandle, rootId: string): Promise<num
     throw new Error(`deleteBlockTree read a non-numeric count: ${typeof deleted}`);
   }
   return deleted;
-}
-
-export interface ReorderResult {
-  /** Rows on the page whose id was submitted. Postgres `rowCount` semantics. */
-  matched: number;
-  /**
-   * Rows whose `order` actually changed.
-   *
-   * Deliberately narrower than `matched`: reporting every matched row would
-   * mean rewriting rows that did not move purely to keep a count company, and
-   * bumping their `updatedAt` — signal a collab layer reads. Nothing consumes
-   * either field: the single caller discards the response body
-   * (`apps/app/lib/hooks/use-blocks.ts:164`).
-   */
-  modified: number;
-}
-
-/**
- * `POST /api/pages/:pageId/blocks/reorder` — `routes/blocks.ts:654-667`.
- *
- * The route assigns each block its index in the submitted array. The count and
- * the write happen inside one transaction, so a partial-write outcome is
- * impossible.
- *
- * Both counts are read with an explicit `::int`. `count(*)` is `bigint`, which
- * postgres.js decodes as a STRING while drizzle types it `number`; without the
- * cast, `matched === blockIds.length` compares a string to a number and is
- * false for every non-empty input.
- */
-export async function reorderBlocks(
-  db: PgHandle,
-  pageId: string,
-  blockIds: readonly string[],
-): Promise<ReorderResult> {
-  if (blockIds.length === 0) return { matched: 0, modified: 0 };
-
-  const targets = sql.join(
-    blockIds.map((id, index) => sql`(${id}::text, ${index}::double precision)`),
-    sql`, `,
-  );
-  // `updatedAt` is maintained by the application, and `$onUpdate` only fires
-  // through the query builder — a hand-written UPDATE has to stamp it. Bound as
-  // an ISO string with an explicit cast rather than as a `Date`: postgres.js
-  // fails to serialise a bare `Date` into a statement built this way.
-  const now = new Date().toISOString();
-
-  return db.transaction(async (tx) => {
-    const [matchedRow] = await tx
-      .select({ total: sql<number>`count(*)::int` })
-      .from(blocks)
-      .where(and(eq(blocks.pageId, pageId), inArray(blocks.id, [...blockIds])));
-
-    const moved = await tx.execute(sql`
-      update ${blocks}
-      set ${sql.identifier(sqlColumnName(blocks.order))} = target.ord,
-          ${sql.identifier(sqlColumnName(blocks.updatedAt))} = ${now}::timestamptz
-      from (values ${targets}) as target(id, ord)
-      where ${qualified(blocks.id)} = target.id
-        and ${qualified(blocks.pageId)} = ${pageId}
-        and ${qualified(blocks.order)} is distinct from target.ord
-      returning ${qualified(blocks.id)}
-    `);
-
-    return { matched: matchedRow?.total ?? 0, modified: moved.length };
-  });
 }
 
 /**

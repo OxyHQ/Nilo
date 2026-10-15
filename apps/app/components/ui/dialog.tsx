@@ -1,5 +1,6 @@
+import { useTranslation } from '@/hooks/useTranslation';
 import * as React from 'react';
-import { Modal, View, Pressable } from 'react-native';
+import { Modal, View, Pressable, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import { cn } from '@/lib/utils';
@@ -54,10 +55,15 @@ interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof View>
 }
 
 const DialogContent = React.forwardRef<React.ElementRef<typeof View>, DialogContentProps>(
-  ({ className, overlayClassName, showCloseButton, closeButton, children, ...props }, ref) => {
+  (
+    { className, overlayClassName, showCloseButton, closeButton, children, style, ...props },
+    ref,
+  ) => {
     const { open, onOpenChange } = React.useContext(DialogContext);
     const shouldShowClose = showCloseButton ?? closeButton ?? true;
     const insets = useSafeAreaInsets();
+    const { height } = useWindowDimensions();
+    const { t } = useTranslation();
 
     return (
       <Modal
@@ -81,11 +87,17 @@ const DialogContent = React.forwardRef<React.ElementRef<typeof View>, DialogCont
               'w-full max-w-lg gap-4 rounded-lg border border-border bg-background p-6 shadow-lg',
               className,
             )}
+            role="dialog"
+            accessibilityViewIsModal
+            style={[{ maxHeight: Math.max(120, height - insets.top - insets.bottom - 32) }, style]}
             onPress={(e) => e.stopPropagation()}
             {...props}
           >
             {shouldShowClose && (
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+                hitSlop={8}
                 className="absolute right-4 top-4 z-10 rounded-sm opacity-70 active:opacity-100"
                 onPress={() => onOpenChange?.(false)}
               >

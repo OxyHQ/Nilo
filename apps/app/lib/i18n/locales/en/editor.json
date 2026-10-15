@@ -1,0 +1,268 @@
+{
+  "slashMenu": {
+    "paragraph": {
+      "label": "Text",
+      "description": "Plain text paragraph.",
+      "keywords": "text, paragraph, p"
+    },
+    "heading1": {
+      "label": "Heading 1",
+      "description": "Large section heading.",
+      "keywords": "h1, title"
+    },
+    "heading2": {
+      "label": "Heading 2",
+      "description": "Medium section heading.",
+      "keywords": "h2"
+    },
+    "heading3": {
+      "label": "Heading 3",
+      "description": "Small section heading.",
+      "keywords": "h3"
+    },
+    "bulletedList": {
+      "label": "Bulleted list",
+      "description": "Create a simple bulleted list.",
+      "keywords": "bullet, ul, list"
+    },
+    "numberedList": {
+      "label": "Numbered list",
+      "description": "Create a list with numbering.",
+      "keywords": "ol, 1., ordered"
+    },
+    "todo": {
+      "label": "To-do list",
+      "description": "Track tasks with checkboxes.",
+      "keywords": "todo, task, checkbox"
+    },
+    "quote": {
+      "label": "Quote",
+      "description": "Capture a quote.",
+      "keywords": "blockquote"
+    },
+    "divider": {
+      "label": "Divider",
+      "description": "Visually divide blocks.",
+      "keywords": "hr, line"
+    },
+    "code": {
+      "label": "Code",
+      "description": "Monospace code block.",
+      "keywords": "snippet, monospace"
+    },
+    "callout": {
+      "label": "Callout",
+      "description": "Highlight important info.",
+      "keywords": "note, info"
+    },
+    "toggle": {
+      "label": "Toggle",
+      "description": "Click to expand or collapse content.",
+      "keywords": "dropdown, collapsible, details"
+    },
+    "image": {
+      "label": "Image",
+      "description": "Upload, embed, or paste an image URL.",
+      "keywords": "picture, photo, img"
+    },
+    "video": {
+      "label": "Video",
+      "description": "Embed YouTube, Vimeo, Loom, or a video URL.",
+      "keywords": "movie, mp4"
+    },
+    "audio": {
+      "label": "Audio",
+      "description": "Play an audio clip from a URL.",
+      "keywords": "mp3, sound"
+    },
+    "file": {
+      "label": "File",
+      "description": "Attach any file as a downloadable pill.",
+      "keywords": "attachment, upload"
+    },
+    "pdf": {
+      "label": "PDF",
+      "description": "Embed a PDF document.",
+      "keywords": "document"
+    },
+    "bookmark": {
+      "label": "Bookmark",
+      "description": "Save a URL as a rich preview card.",
+      "keywords": "link, url, preview"
+    },
+    "embed": {
+      "label": "Embed",
+      "description": "Embed a tweet, Figma, Codepen, Gist…",
+      "keywords": "iframe, media"
+    },
+    "youtube": {
+      "label": "YouTube",
+      "description": "Paste a YouTube URL.",
+      "keywords": "youtube, yt"
+    },
+    "columns": {
+      "label": "Columns",
+      "description": "Split content into side-by-side columns.",
+      "keywords": "layout, grid"
+    },
+    "table": {
+      "label": "Table",
+      "description": "Simple editable table.",
+      "keywords": "grid, spreadsheet"
+    },
+    "button": {
+      "label": "Button",
+      "description": "Add a clickable button with an action.",
+      "keywords": "cta, action"
+    },
+    "linkToPage": {
+      "label": "Link to page",
+      "description": "Inline link to another page in this workspace.",
+      "keywords": "mention, wiki"
+    },
+    "equation": {
+      "label": "Equation",
+      "description": "Render LaTeX math.",
+      "keywords": "math, latex, tex"
+    },
+    "mermaid": {
+      "label": "Mermaid",
+      "description": "Render a diagram from Mermaid source.",
+      "keywords": "diagram, flowchart"
+    },
+    "tableOfContents": {
+      "label": "Table of contents",
+      "description": "Auto-generated from page headings.",
+      "keywords": "toc, outline"
+    },
+    "breadcrumb": {
+      "label": "Breadcrumb",
+      "description": "Path from workspace root to current page.",
+      "keywords": "path, nav"
+    },
+    "syncedBlock": {
+      "label": "Synced block",
+      "description": "Reference another block (Phase 3 placeholder).",
+      "keywords": "mirror, reference"
+    },
+    "inlineDatabase": {
+      "label": "Database — Inline",
+      "description": "Create a database inside this page.",
+      "keywords": "database,inline,table,board,list"
+    },
+    "toggleHeading1": {
+      "label": "Toggle heading 1",
+      "description": "A heading that folds its children.",
+      "keywords": "toggle, heading, h1, collapse, disclosure"
+    },
+    "toggleHeading2": {
+      "label": "Toggle heading 2",
+      "description": "A heading that folds its children.",
+      "keywords": "toggle, heading, h2, collapse, disclosure"
+    },
+    "toggleHeading3": {
+      "label": "Toggle heading 3",
+      "description": "A heading that folds its children.",
+      "keywords": "toggle, heading, h3, collapse, disclosure"
+    },
+    "linkedDatabase": {
+      "label": "Linked view of database",
+      "description": "Show another database with views of your own.",
+      "keywords": "linked, database, reference, view"
+    }
+  },
+  "ui": {
+    "placeholder": "Type '/' for commands",
+    "emptyHeading": "Heading",
+    "emptyListItem": "List",
+    "emptyToggle": "Toggle",
+    "slashNoResults": "No results",
+    "turnInto": "Turn into",
+    "duplicate": "Duplicate",
+    "delete": "Delete",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "indent": "Indent",
+    "outdent": "Outdent",
+    "color": "Color",
+    "background": "Background",
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "strike": "Strikethrough",
+    "code": "Code",
+    "link": "Link",
+    "linkPlaceholder": "Paste a link",
+    "removeLink": "Remove link",
+    "apply": "Apply",
+    "cancel": "Cancel",
+    "open": "Open",
+    "mention": "Mention",
+    "undo": "Undo",
+    "redo": "Redo",
+    "formatting": "Formatting",
+    "blockMenu": "Block options",
+    "dragHandle": "Drag to move",
+    "addBelow": "Add a block below",
+    "toggleOpen": "Collapse",
+    "toggleClosed": "Expand",
+    "checkbox": "Done",
+    "comment": "Comment",
+    "mentionNoResults": "No results",
+    "mentionSearching": "Searching…"
+  },
+  "slashGroups": {
+    "basic": "Basic blocks",
+    "media": "Media",
+    "advanced": "Advanced",
+    "embeds": "Embeds",
+    "database": "Database"
+  },
+  "colors": {
+    "default": "Default",
+    "gray": "Gray",
+    "brown": "Brown",
+    "orange": "Orange",
+    "yellow": "Yellow",
+    "green": "Green",
+    "blue": "Blue",
+    "purple": "Purple",
+    "pink": "Pink",
+    "red": "Red"
+  },
+  "status": {
+    "saving": "Saving…",
+    "saved": "Saved",
+    "offline": "Offline — changes will sync when you reconnect",
+    "error": "A change could not be saved",
+    "rejected": "Someone else changed this block; your edit was undone.",
+    "collaborators": {
+      "one": "%{count} other person here",
+      "other": "%{count} other people here"
+    },
+    "present": "%{name} is on this page",
+    "morePresent": "%{count} more members"
+  },
+  "tableOfContents": {
+    "empty": "Add headings to populate the table of contents."
+  },
+  "inlineDatabase": {
+    "defaultName": "Untitled database",
+    "setup": "This inline database needs to be set up.",
+    "create": "Create database",
+    "creating": "Creating database…",
+    "createFailed": "Could not create the database. Please try again.",
+    "noAccess": "You do not have access to this database.",
+    "loading": "Loading database",
+    "loadFailed": "Could not load this database.",
+    "retry": "Try again",
+    "openFullPage": "Open as full page",
+    "search": "Search databases",
+    "noResults": "No databases found"
+  },
+  "mentions": {
+    "people": "People",
+    "pages": "Pages",
+    "date": "Date"
+  }
+}

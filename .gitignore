@@ -79,3 +79,6 @@ Perplexity_files/
 
 # Per-agent worktrees (AGENTS.md: one worktree per agent)
 .worktrees/
+
+# Locally packed Bloom packages, until @oxy.so/bloom-text and @oxy.so/bloom-editor are on npm.
+.local-packages/

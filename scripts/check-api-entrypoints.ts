@@ -232,8 +232,12 @@ async function main(): Promise<void> {
   );
 
   // 5. Positive control: a dry run reaches its report and exits 0, writing nothing.
+  //    The database is a harness with no ledger, so the whole journal is
+  //    pending: `all` is the run for that (`@oxy.so/db/migrate` phases). A
+  //    `pre` run from zero refuses as soon as a `pre` migration follows a `post`
+  //    one, which says nothing about whether this artefact runs.
   const dryRun = await start(
-    [MIGRATOR, `--target-database=${targetDatabase}`, '--phase=pre', '--dry-run'],
+    [MIGRATOR, `--target-database=${targetDatabase}`, '--phase=all', '--dry-run'],
     { DATABASE_URL: databaseUrl },
     60_000,
   ).done;

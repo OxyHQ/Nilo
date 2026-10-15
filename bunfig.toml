@@ -1,2 +1,4 @@
 [install]
 logLevel = "warn"
+# Nilo uses the hoisted layout; pin it so a lockfile rewrite cannot switch to isolated.
+linker = "hoisted"

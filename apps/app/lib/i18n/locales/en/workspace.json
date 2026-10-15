@@ -1,0 +1,118 @@
+{
+  "fallbackName": "Workspace",
+  "roles": {
+    "owner": {
+      "label": "Owner",
+      "description": "Full access. Can delete workspace and transfer ownership."
+    },
+    "admin": {
+      "label": "Admin",
+      "description": "Full access. Can invite and manage members."
+    },
+    "editor": {
+      "label": "Editor",
+      "description": "Can create and edit pages."
+    },
+    "commenter": {
+      "label": "Commenter",
+      "description": "Can comment but not edit."
+    },
+    "viewer": {
+      "label": "Viewer",
+      "description": "Read-only access."
+    }
+  },
+  "create": {
+    "title": "New workspace",
+    "description": "Workspaces are containers for pages, databases, and team members.",
+    "namePlaceholder": "e.g. Acme Co.",
+    "icon": "Icon",
+    "useIcon": "Use %{emoji} as icon",
+    "submit": "Create workspace",
+    "created": "Workspace \"%{name}\" created",
+    "failed": "Failed to create workspace"
+  },
+  "invite": {
+    "title": "Invite a member",
+    "description": "Invite an existing Oxy user to this workspace. They must already have an account at oxy.so.",
+    "email": "Email",
+    "emailPlaceholder": "teammate@example.com",
+    "invalidEmail": "Enter a valid email address.",
+    "role": "Role",
+    "selectedRole": "Selected role %{role}",
+    "submit": "Send invite",
+    "invited": "Invited %{email} as %{role}",
+    "failed": "Failed to invite member",
+    "userNotFound": "User not found. Ask them to sign up at oxy.so first.",
+    "alreadyMember": "That user is already a member of this workspace."
+  },
+  "members": {
+    "count": {
+      "one": "%{count} member",
+      "other": "%{count} members"
+    },
+    "invite": "Invite member",
+    "you": "(you)",
+    "changeRole": "Change role for %{name}",
+    "moreActions": "More actions for %{name}",
+    "remove": "Remove from workspace",
+    "roleUpdated": "Role updated to %{role} for %{name}",
+    "roleUpdateFailed": "Failed to update role",
+    "removed": "Removed %{name}",
+    "removeFailed": "Failed to remove member",
+    "loadFailed": "Failed to load members",
+    "empty": "No members yet.",
+    "adminOnly": "Only admins and owners can invite members or change roles."
+  },
+  "switcher": {
+    "createFirst": "Create your first workspace",
+    "switchLabel": "Switch workspace, current %{name}",
+    "yourWorkspaces": "Your workspaces"
+  },
+  "teamspaces": {
+    "title": "Teamspaces",
+    "browse": "Browse teamspaces",
+    "create": "Create teamspace",
+    "settings": "Teamspace settings",
+    "settingsFor": "Settings for %{name}",
+    "name": "Name",
+    "icon": "Icon (emoji)",
+    "description": "Description",
+    "privacyLabel": "Privacy",
+    "privacy": {
+      "open": "Open",
+      "closed": "Closed",
+      "private": "Private"
+    },
+    "explanation": {
+      "open": "Everyone in the workspace can open pages and join this teamspace.",
+      "closed": "Everyone can find this teamspace. Only its members can open its pages.",
+      "private": "Only members can find this teamspace and open its pages. Workspace owners and admins can also access it."
+    },
+    "defaultInfo": "Everyone belongs to the default teamspace. It stays open and cannot be archived.",
+    "join": "Join",
+    "joinName": "Join %{name}",
+    "joined": "Joined",
+    "members": "Members (%{count})",
+    "roles": {
+      "owner": "Owner",
+      "member": "Member"
+    },
+    "changeRoleFor": "Change role for %{name}",
+    "makeMember": "Make member",
+    "makeOwner": "Make owner",
+    "remove": "Remove",
+    "removeName": "Remove %{name}",
+    "addMember": "Add workspace member",
+    "findMember": "Find a member",
+    "addName": "Add %{name}",
+    "lastOwner": "Add another owner before leaving or removing the last owner.",
+    "leave": "Leave teamspace",
+    "archive": "Archive teamspace",
+    "confirmArchive": "Confirm archive",
+    "archiveInfo": "This teamspace will no longer appear under Teamspaces.",
+    "failed": "Could not complete this action. Please try again.",
+    "newDatabase": "New database",
+    "search": "Find a teamspace"
+  }
+}

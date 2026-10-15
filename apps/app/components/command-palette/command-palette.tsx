@@ -1,3 +1,7 @@
+import { IconDisplay } from '@/components/page-chrome/icon-display';
+import { SearchSnippet } from './search-snippet';
+import { SearchStatus } from './search-status';
+import { searchPageHref } from './search-results';
 import * as React from 'react';
 import {
   Modal,
@@ -14,9 +18,9 @@ import { Search, FileText, Clock, X } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { fuzzyFilter } from '@/lib/fuzzy';
 import { usePaletteData } from './use-palette-data';
 import type { PageItem, MemberItem, CommandItem } from './types';
+import { useTranslation } from '@/hooks/useTranslation';
 
 /**
  * Native command palette — bottom sheet variant with the same item set as the
@@ -29,6 +33,7 @@ export function CommandPalette() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
 
   const [query, setQuery] = React.useState('');
 
@@ -36,43 +41,19 @@ export function CommandPalette() {
     if (!open) setQuery('');
   }, [open]);
 
-  const { recents, pages, members, commands } = usePaletteData({ query });
-
-  const filteredPages = React.useMemo(
-    () =>
-      fuzzyFilter<PageItem>(pages, query, [(p) => p.title, (p) => p.breadcrumb ?? null]).slice(
-        0,
-        30,
-      ),
-    [pages, query],
-  );
-  const filteredMembers = React.useMemo(
-    () =>
-      fuzzyFilter<MemberItem>(members, query, [
-        (m) => m.title,
-        (m) => m.email ?? null,
-        (m) => m.username ?? null,
-      ]).slice(0, 15),
-    [members, query],
-  );
-  const filteredCommands = React.useMemo(
-    () => fuzzyFilter<CommandItem>(commands, query, [(c) => c.title, (c) => c.searchValue]),
-    [commands, query],
-  );
+  const { recents, pages, members, commands, searchLoading, searchError, retrySearch } =
+    usePaletteData({ query, enabled: open });
 
   const openPage = React.useCallback(
-    (pageId: string) => {
+    (item: PageItem) => {
       setOpen(false);
-      router.push(`/p/${pageId}`);
+      router.push(searchPageHref(item));
     },
     [router, setOpen],
   );
 
   const hasResults =
-    recents.length > 0 ||
-    filteredPages.length > 0 ||
-    filteredMembers.length > 0 ||
-    filteredCommands.length > 0;
+    recents.length > 0 || pages.length > 0 || members.length > 0 || commands.length > 0;
 
   return (
     <Modal
@@ -101,17 +82,19 @@ export function CommandPalette() {
             <View className="flex-row items-center gap-2 px-4 pb-3 pt-1">
               <Search size={16} color={colors.mutedForeground} />
               <TextInput
+                accessibilityLabel={t('commandPalette.placeholder')}
                 autoFocus
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search pages, people and commands…"
+                placeholder={t('commandPalette.placeholder')}
                 placeholderTextColor={colors.mutedForeground}
                 className="flex-1 text-base text-foreground"
                 returnKeyType="search"
               />
               <Pressable
                 onPress={() => setOpen(false)}
-                accessibilityLabel="Close search"
+                accessibilityRole="button"
+                accessibilityLabel={t('commandPalette.close')}
                 className="h-8 w-8 items-center justify-center rounded-full"
               >
                 <X size={16} color={colors.mutedForeground} />
@@ -125,14 +108,16 @@ export function CommandPalette() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-              {!hasResults ? (
+              {!hasResults && !query.trim() ? (
                 <View className="px-4 py-10">
-                  <Text className="text-center text-sm text-muted-foreground">No results.</Text>
+                  <Text className="text-center text-sm text-muted-foreground">
+                    {t('commandPalette.noResults')}
+                  </Text>
                 </View>
               ) : null}
 
               {recents.length > 0 ? (
-                <Group title="Recent">
+                <Group title={t('commandPalette.groups.recent')}>
                   {recents.map((item) => (
                     <PageRow
                       key={item.id}
@@ -144,25 +129,33 @@ export function CommandPalette() {
                 </Group>
               ) : null}
 
-              {filteredPages.length > 0 ? (
-                <Group title="Pages">
-                  {filteredPages.map(({ item }) => (
+              {pages.length > 0 || query.trim() ? (
+                <Group title={t('commandPalette.groups.pages')}>
+                  {query.trim() ? (
+                    <SearchStatus
+                      loading={searchLoading}
+                      error={searchError}
+                      empty={pages.length === 0}
+                      retry={retrySearch}
+                    />
+                  ) : null}
+                  {pages.map((item) => (
                     <PageRow key={item.id} item={item} onPress={openPage} />
                   ))}
                 </Group>
               ) : null}
 
-              {filteredMembers.length > 0 ? (
-                <Group title="People">
-                  {filteredMembers.map(({ item }) => (
+              {members.length > 0 ? (
+                <Group title={t('commandPalette.groups.people')}>
+                  {members.map((item) => (
                     <MemberRow key={item.id} item={item} />
                   ))}
                 </Group>
               ) : null}
 
-              {filteredCommands.length > 0 ? (
-                <Group title="Commands">
-                  {filteredCommands.map(({ item }) => (
+              {commands.length > 0 ? (
+                <Group title={t('commandPalette.groups.commands')}>
+                  {commands.map((item) => (
                     <CommandRow key={item.id} item={item} />
                   ))}
                 </Group>
@@ -192,7 +185,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 
 interface PageRowProps {
   item: PageItem;
-  onPress: (id: string) => void;
+  onPress: (item: PageItem) => void;
   leadingIcon?: React.ReactNode;
 }
 
@@ -200,13 +193,14 @@ function PageRow({ item, onPress, leadingIcon }: PageRowProps) {
   const { colors } = useColorScheme();
   return (
     <Pressable
-      onPress={() => onPress(item.pageId)}
+      onPress={() => onPress(item)}
       accessibilityRole="button"
+      accessibilityLabel={item.title}
       className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-muted"
     >
       <View className="h-6 w-6 items-center justify-center">
         {item.icon ? (
-          <Text className="text-base">{item.icon}</Text>
+          <IconDisplay value={item.icon} size={16} />
         ) : (
           (leadingIcon ?? <FileText size={14} color={colors.mutedForeground} />)
         )}
@@ -220,6 +214,7 @@ function PageRow({ item, onPress, leadingIcon }: PageRowProps) {
             {item.subtitle}
           </Text>
         ) : null}
+        <SearchSnippet parts={item.snippet} />
       </View>
     </Pressable>
   );
@@ -230,6 +225,7 @@ function MemberRow({ item }: { item: MemberItem }) {
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={item.title}
       className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-muted"
     >
       <View className="h-6 w-6 items-center justify-center rounded-full bg-muted">
@@ -256,6 +252,7 @@ function CommandRow({ item }: { item: CommandItem }) {
     <Pressable
       onPress={() => item.onSelect()}
       accessibilityRole="button"
+      accessibilityLabel={item.title}
       className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-muted"
     >
       <View className="h-6 w-6 items-center justify-center">

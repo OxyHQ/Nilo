@@ -33,7 +33,7 @@ import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import express from 'express';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { uuidv7 } from '@oxy.so/db';
 import {
   closeTestDb,
@@ -44,7 +44,7 @@ import {
 } from '../../db/__tests__/testDatabase.js';
 import { blocks, pages } from '../../db/schema/pages.js';
 import { databases } from '../../db/schema/databases.js';
-import { workspaces } from '../../db/schema/workspaces.js';
+import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
 import { closeDb } from '../../db/client.js';
 // Type-only, and from the PostgreSQL schema that owns the role declaration used
 // by the `Express.Request` augmentation in `middleware/auth.ts`. `vi.mock`
@@ -69,7 +69,7 @@ vi.mock('../../middleware/auth.js', () => ({
 
 vi.mock('../../middleware/workspace.js', () => ({
   // Mirrors the real resolver's precedence — route param, then query, then
-  // header — because `checkWorkspaceMembership` in both routes works by
+  // header — because `checkWorkspaceAccess` in both routes works by
   // SETTING the header and re-running this middleware, and a mock that ignored
   // the header would make every `:id` route look unauthorised.
   requireWorkspaceMember: (
@@ -144,15 +144,62 @@ async function createPage(input: Record<string, unknown> = {}): Promise<Record<s
   return res.json.page as Record<string, unknown>;
 }
 
+/**
+ * One block through the transactions endpoint (the only way blocks are
+ * written), last among its siblings unless `afterId` says otherwise.
+ */
 async function createBlock(
   pageId: string,
-  input: Record<string, unknown>,
+  input: {
+    type: string;
+    content?: Record<string, unknown>;
+    parentBlockId?: unknown;
+    afterId?: unknown;
+  },
 ): Promise<Record<string, unknown>> {
-  const res = await api('POST', `/pages/${pageId}/blocks`, input, {
-    'x-workspace-id': workspaceId,
-  });
-  expect(res.status).toBe(201);
-  return res.json.block as Record<string, unknown>;
+  const ws = { 'x-workspace-id': workspaceId };
+  const listed = await api('GET', `/pages/${pageId}/blocks`, undefined, ws);
+  const siblings = (listed.json.blocks as { id: string; parentBlockId: string | null }[]).filter(
+    (b) => b.parentBlockId === (input.parentBlockId ?? null),
+  );
+  const id = uuidv7();
+  const res = await api(
+    'POST',
+    `/pages/${pageId}/blocks/transactions`,
+    {
+      ops: [
+        {
+          kind: 'insert',
+          id,
+          parentBlockId: input.parentBlockId ?? null,
+          afterId: input.afterId === undefined ? (siblings.at(-1)?.id ?? null) : input.afterId,
+          type: input.type,
+          content: input.content ?? {},
+        },
+      ],
+    },
+    ws,
+  );
+  expect(res.status).toBe(200);
+  const after = await api('GET', `/pages/${pageId}/blocks`, undefined, ws);
+  return (after.json.blocks as Record<string, unknown>[]).find((b) => b.id === id) as Record<
+    string,
+    unknown
+  >;
+}
+
+/**
+ * The caller's role in this file's workspace: both the membership the mocked
+ * middleware reports and the row page access reads.
+ */
+async function setRole(role: WorkspaceRole): Promise<void> {
+  ctx.role = role;
+  await db
+    .update(workspaceMembers)
+    .set({ role })
+    .where(
+      and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, ctx.userId)),
+    );
 }
 
 beforeAll(async () => {
@@ -177,6 +224,7 @@ beforeAll(async () => {
     .values({ name: scope, ownerId: `owner-${scope}` })
     .returning({ id: workspaces.id });
   workspaceId = ws.id;
+  await db.insert(workspaceMembers).values({ workspaceId, userId: ctx.userId, role: 'owner' });
   const [other] = await db
     .insert(workspaces)
     .values({ name: `${scope}-other`, ownerId: `owner-${scope}` })
@@ -259,6 +307,9 @@ describe('GET /pages — the three-valued archived filter', () => {
       .values({ name: scope, ownerId: `owner-${scope}` })
       .returning({ id: workspaces.id });
     listWorkspace = ws.id;
+    await db
+      .insert(workspaceMembers)
+      .values({ workspaceId: listWorkspace, userId: ctx.userId, role: 'owner' });
 
     const mk = async (input: Record<string, unknown>) => {
       const res = await api('POST', '/pages', { workspaceId: listWorkspace, ...input });
@@ -370,6 +421,55 @@ describe('PATCH /pages/:id', () => {
     // `undefined` means "leave alone" and `null` means "write NULL".
     expect(updated.cover).toBe('blue');
     expect(updated.title).toBe('keep');
+  });
+
+  it("keeps a page's layout: full width, small text and font", async () => {
+    const page = await createPage();
+    const res = await api('PATCH', `/pages/${page.id}`, {
+      fullWidth: true,
+      smallText: true,
+      font: 'serif',
+    });
+    expect(res.status).toBe(200);
+    expect(res.json.page).toMatchObject({ fullWidth: true, smallText: true, font: 'serif' });
+    expect((await api('PATCH', `/pages/${page.id}`, { font: 'comic' })).status).toBe(400);
+  });
+
+  it('keeps a locked page as it is until it is unlocked', async () => {
+    const page = await createPage({ title: 'Policy' });
+    const write = () =>
+      api(
+        'POST',
+        `/pages/${page.id}/blocks/transactions`,
+        {
+          ops: [
+            {
+              kind: 'insert',
+              id: uuidv7(),
+              parentBlockId: null,
+              afterId: null,
+              type: 'paragraph',
+              content: {},
+            },
+          ],
+        },
+        { 'x-workspace-id': workspaceId },
+      );
+    expect((await write()).status).toBe(200);
+    expect((await api('PATCH', `/pages/${page.id}`, { locked: true })).json.page).toMatchObject({
+      locked: true,
+    });
+    const refused = await write();
+    expect(refused.status).toBe(423);
+    expect(refused.json.code).toBe('PAGE_LOCKED');
+    expect((await api('PATCH', `/pages/${page.id}`, { title: 'Changed' })).status).toBe(423);
+    // Layout and favourites are not content.
+    expect((await api('PATCH', `/pages/${page.id}`, { favorited: true })).status).toBe(200);
+    // Unlocking and editing in one go.
+    const unlocked = await api('PATCH', `/pages/${page.id}`, { locked: false, title: 'Changed' });
+    expect(unlocked.status).toBe(200);
+    expect(unlocked.json.page).toMatchObject({ locked: false, title: 'Changed' });
+    expect((await write()).status).toBe(200);
   });
 
   it('refuses to make a page its own parent', async () => {
@@ -510,9 +610,9 @@ describe('DELETE /pages/:id', () => {
 
   it('403s a hard delete for a non-owner', async () => {
     const page = await createPage();
-    ctx.role = 'editor';
+    await setRole('editor');
     const res = await api('DELETE', `/pages/${page.id}?hard=true`);
-    ctx.role = 'owner';
+    await setRole('owner');
     expect(res.status).toBe(403);
     const [row] = await db
       .select()
@@ -550,6 +650,74 @@ describe('POST /pages/:id/duplicate', () => {
     expect(copiedIds.has(nested.parentBlockId)).toBe(true);
     expect(nested.parentBlockId).not.toBe(parentBlock.id);
   });
+
+  it('copies the subpages too, with their blocks, under the copy', async () => {
+    const source = await createPage({ title: 'tree' });
+    const child = await createPage({ title: 'child', parentId: source.id });
+    await createBlock(child.id as string, { type: 'paragraph', content: { text: 'deep' } });
+    await createPage({ title: 'gone', parentId: source.id });
+    const goneId = (await api('GET', `/pages?workspaceId=${workspaceId}&parentId=${source.id}`))
+      .json.pages as {
+      id: string;
+      title: string;
+    }[];
+    await api('DELETE', `/pages/${goneId.find((p) => p.title === 'gone')?.id}`);
+
+    const res = await api('POST', `/pages/${source.id}/duplicate`);
+    const copyId = (res.json.page as { id: string }).id;
+    const children = (await api('GET', `/pages?workspaceId=${workspaceId}&parentId=${copyId}`)).json
+      .pages as {
+      id: string;
+      title: string;
+    }[];
+    // The archived subpage is not copied.
+    expect(children.map((p) => p.title)).toEqual(['child']);
+    const deep = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.pageId, children[0]?.id as string));
+    expect(deep.map((b) => b.content.text)).toEqual(['deep']);
+  });
+});
+
+describe('templates', () => {
+  it('stay out of the page tree, and copying one makes an ordinary page with its title', async () => {
+    const template = await createPage({ title: 'Weekly review' });
+    await createPage({ title: 'Wins', parentId: template.id });
+    expect((await api('PATCH', `/pages/${template.id}`, { template: true })).status).toBe(200);
+
+    const tree = (await api('GET', `/pages?workspaceId=${workspaceId}`)).json.pages as {
+      id: string;
+    }[];
+    expect(tree.map((p) => p.id)).not.toContain(template.id);
+    const listed = (await api('GET', `/pages?workspaceId=${workspaceId}&templates=only`)).json
+      .pages as {
+      id: string;
+    }[];
+    expect(listed.map((p) => p.id)).toEqual([template.id]);
+
+    const used = await api('POST', `/pages/${template.id}/duplicate`, { fromTemplate: true });
+    expect(used.status).toBe(201);
+    const page = used.json.page as {
+      id: string;
+      title: string;
+      template: boolean;
+      parentId: string | null;
+    };
+    expect(page).toMatchObject({ title: 'Weekly review', template: false, parentId: null });
+    const sub = (await api('GET', `/pages?workspaceId=${workspaceId}&parentId=${page.id}`)).json
+      .pages as {
+      title: string;
+    }[];
+    expect(sub.map((p) => p.title)).toEqual(['Wins']);
+  });
+
+  it('refuses to use a page that is not a template', async () => {
+    const plain = await createPage();
+    expect((await api('POST', `/pages/${plain.id}/duplicate`, { fromTemplate: true })).status).toBe(
+      400,
+    );
+  });
 });
 
 describe('GET /pages/:id/breadcrumb', () => {
@@ -574,18 +742,15 @@ describe('GET /pages/:id/export', () => {
     const heading = await createBlock(page.id as string, {
       type: 'heading_1',
       content: { text: 'Heading' },
-      order: 0,
     });
     await createBlock(page.id as string, {
       type: 'bulleted_list_item',
       content: { text: 'nested' },
       parentBlockId: heading.id,
-      order: 1,
     });
     await createBlock(page.id as string, {
       type: 'todo',
       content: { text: 'done', checked: true },
-      order: 2,
     });
 
     const res = await api('GET', `/pages/${page.id}/export?format=md`);
@@ -598,23 +763,23 @@ describe('GET /pages/:id/export', () => {
 });
 
 describe('blocks', () => {
+  const tx = (pageId: unknown, ops: unknown[]) =>
+    api('POST', `/pages/${pageId}/blocks/transactions`, { ops }, { 'x-workspace-id': workspaceId });
+
   it('lists top-level blocks before nested ones', async () => {
     const page = await createPage();
     const parent = await createBlock(page.id as string, {
       type: 'toggle',
       content: { text: 'parent' },
-      order: 0,
     });
     await createBlock(page.id as string, {
       type: 'paragraph',
       content: { text: 'nested' },
       parentBlockId: parent.id,
-      order: 0,
     });
     const sibling = await createBlock(page.id as string, {
       type: 'paragraph',
       content: { text: 'sibling' },
-      order: 1,
     });
 
     const res = await api('GET', `/pages/${page.id}/blocks`, undefined, {
@@ -627,83 +792,54 @@ describe('blocks', () => {
     expect(listed.map((b) => b.id).slice(0, 2)).toEqual([parent.id, sibling.id]);
   });
 
-  it('defaults order to max+1 within its own parent', async () => {
-    const page = await createPage();
-    const a = await createBlock(page.id as string, { type: 'paragraph', content: {} });
-    const b = await createBlock(page.id as string, { type: 'paragraph', content: {} });
-    const nested = await createBlock(page.id as string, {
-      type: 'paragraph',
-      content: {},
-      parentBlockId: a.id,
-    });
-    expect(a.order).toBe(0);
-    expect(b.order).toBe(1);
-    // Scoped to `(pageId, parentBlockId)`, so a first child restarts at 0.
-    expect(nested.order).toBe(0);
-  });
-
-  it('400s a parent block on another page', async () => {
-    const page = await createPage();
-    const other = await createPage();
-    const foreign = await createBlock(other.id as string, {
-      type: 'paragraph',
-      content: {},
-    });
-    const res = await api(
-      'POST',
-      `/pages/${page.id}/blocks`,
-      { type: 'paragraph', content: {}, parentBlockId: foreign.id },
-      { 'x-workspace-id': workspaceId },
-    );
-    expect(res.status).toBe(400);
-  });
-
   it('re-normalizes content against the new type when only the type changes', async () => {
     const page = await createPage();
     const block = await createBlock(page.id as string, {
       type: 'paragraph',
       content: { text: 'carry me' },
     });
-    const res = await api('PATCH', `/blocks/${block.id}`, { type: 'todo' });
+    const res = await tx(page.id, [{ kind: 'update', id: block.id, type: 'todo' }]);
     expect(res.status).toBe(200);
-    const updated = res.json.block as { type: string; content: Record<string, unknown> };
-    expect(updated.type).toBe('todo');
-    expect(updated.content.text).toBe('carry me');
+    const [row] = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.id, block.id as string));
+    expect(row?.type).toBe('todo');
+    expect(row?.content.text).toBe('carry me');
     // `todo`'s own default, filled in because the type changed under it.
-    expect(updated.content.checked).toBe(false);
+    expect(row?.content.checked).toBe(false);
   });
 
-  it('un-nests a block on an explicit null parent', async () => {
+  it('un-nests a block moved to the top level', async () => {
     const page = await createPage();
-    const parent = await createBlock(page.id as string, { type: 'toggle', content: {} });
+    const parent = await createBlock(page.id as string, { type: 'toggle' });
     const child = await createBlock(page.id as string, {
       type: 'paragraph',
-      content: {},
       parentBlockId: parent.id,
     });
-    const res = await api('PATCH', `/blocks/${child.id}`, { parentBlockId: null });
-    expect((res.json.block as { parentBlockId: string | null }).parentBlockId).toBeNull();
+    const res = await tx(page.id, [
+      { kind: 'move', id: child.id, parentBlockId: null, afterId: parent.id },
+    ]);
+    expect(res.status).toBe(200);
+    const [row] = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.id, child.id as string));
+    expect(row?.parentBlockId).toBeNull();
   });
 
-  it('deletes a block subtree and counts it', async () => {
+  it('removes a block with its subtree and nothing else', async () => {
     const page = await createPage();
-    const root = await createBlock(page.id as string, { type: 'toggle', content: {} });
+    const root = await createBlock(page.id as string, { type: 'toggle' });
     const child = await createBlock(page.id as string, {
       type: 'paragraph',
-      content: {},
       parentBlockId: root.id,
     });
-    await createBlock(page.id as string, {
-      type: 'paragraph',
-      content: {},
-      parentBlockId: child.id,
-    });
-    const keep = await createBlock(page.id as string, { type: 'paragraph', content: {} });
+    await createBlock(page.id as string, { type: 'paragraph', parentBlockId: child.id });
+    const keep = await createBlock(page.id as string, { type: 'paragraph' });
 
-    const res = await api('DELETE', `/blocks/${root.id}`);
+    const res = await tx(page.id, [{ kind: 'remove', id: root.id }]);
     expect(res.status).toBe(200);
-    expect(res.json.deleted).toBe(3);
-
     const left = await db
       .select()
       .from(blocks)
@@ -711,72 +847,411 @@ describe('blocks', () => {
     expect(left.map((b) => b.id)).toEqual([keep.id]);
   });
 
-  describe('reorder', () => {
-    it('assigns each block its index, and counts only what moved', async () => {
-      const page = await createPage();
-      const a = await createBlock(page.id as string, { type: 'paragraph', content: {}, order: 0 });
-      const b = await createBlock(page.id as string, { type: 'paragraph', content: {}, order: 1 });
-      const c = await createBlock(page.id as string, { type: 'paragraph', content: {}, order: 2 });
+  it('rejects nesting a block under its own descendant', async () => {
+    const page = await createPage();
+    const parent = await createBlock(page.id as string, { type: 'toggle' });
+    const child = await createBlock(page.id as string, {
+      type: 'paragraph',
+      parentBlockId: parent.id,
+    });
+    const res = await tx(page.id, [
+      { kind: 'move', id: parent.id, parentBlockId: child.id, afterId: null },
+    ]);
+    expect(res.status).toBe(400);
+  });
 
-      const res = await api(
-        'POST',
-        `/pages/${page.id}/blocks/reorder`,
-        { blockIds: [c.id, b.id, a.id] },
-        { 'x-workspace-id': workspaceId },
-      );
+  it('has no other way to write blocks', async () => {
+    const page = await createPage();
+    const block = await createBlock(page.id as string, { type: 'paragraph' });
+    const ws = { 'x-workspace-id': workspaceId };
+    const legacy = await Promise.all([
+      api('POST', `/pages/${page.id}/blocks`, { type: 'paragraph', content: {} }, ws),
+      api('PATCH', `/blocks/${block.id}`, { content: { text: 'changed' } }, ws),
+      api('DELETE', `/blocks/${block.id}`, undefined, ws),
+      api('POST', `/pages/${page.id}/blocks/reorder`, { blockIds: [block.id] }, ws),
+    ]);
+    for (const res of legacy) expect(res.status).toBe(404);
+  });
+});
+
+describe('role enforcement', () => {
+  it('lets a viewer read a page and its blocks but write nothing', async () => {
+    const page = await createPage({ title: 'read only' });
+    const block = await createBlock(page.id as string, {
+      type: 'paragraph',
+      content: { text: 'kept' },
+    });
+    const ws = { 'x-workspace-id': workspaceId };
+
+    await setRole('viewer');
+    try {
+      expect((await api('GET', `/pages/${page.id}`)).status).toBe(200);
+      expect((await api('GET', `/pages/${page.id}/blocks`, undefined, ws)).status).toBe(200);
+
+      const writes = await Promise.all([
+        api('POST', '/pages', { workspaceId }),
+        api('PATCH', `/pages/${page.id}`, { title: 'changed' }),
+        api('DELETE', `/pages/${page.id}`),
+        api('POST', `/pages/${page.id}/duplicate`),
+        api(
+          'POST',
+          `/pages/${page.id}/blocks/transactions`,
+          { ops: [{ kind: 'update', id: block.id, content: { text: 'changed' } }] },
+          ws,
+        ),
+      ]);
+      for (const res of writes) {
+        expect(res.status).toBe(403);
+        expect(res.json.code).toBe('INSUFFICIENT_ROLE');
+      }
+    } finally {
+      await setRole('owner');
+    }
+
+    const [row] = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.id, page.id as string));
+    expect(row?.title).toBe('read only');
+    expect(row?.archived).toBe(false);
+    const [kept] = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.id, block.id as string));
+    expect(kept?.content).toMatchObject({ text: 'kept' });
+  });
+
+  it('lets an editor write', async () => {
+    const page = await createPage();
+    await setRole('editor');
+    try {
+      const res = await api('PATCH', `/pages/${page.id}`, { title: 'edited' });
       expect(res.status).toBe(200);
-      expect(res.json.matched).toBe(3);
-      // `b` is already at index 1 and does not move, so it is matched but not
-      // modified.
-      expect(res.json.modified).toBe(2);
+    } finally {
+      await setRole('owner');
+    }
+  });
+});
 
-      const after = await db
-        .select()
-        .from(blocks)
-        .where(eq(blocks.pageId, page.id as string));
-      const orderById = new Map(after.map((r) => [r.id, r.order]));
-      expect(orderById.get(c.id as string)).toBe(0);
-      expect(orderById.get(b.id as string)).toBe(1);
-      expect(orderById.get(a.id as string)).toBe(2);
-    });
+describe('POST /pages/:pageId/blocks/transactions', () => {
+  const ws = () => ({ 'x-workspace-id': workspaceId });
+  const tx = (pageId: unknown, ops: unknown[]) =>
+    api('POST', `/pages/${pageId}/blocks/transactions`, { ops }, ws());
+  const rowsOf = async (pageId: string) =>
+    db.select().from(blocks).where(eq(blocks.pageId, pageId));
 
-    it('400s duplicate ids rather than resolving them arbitrarily', async () => {
-      const page = await createPage();
-      const a = await createBlock(page.id as string, { type: 'paragraph', content: {} });
-      const res = await api(
+  it('inserts client-named blocks, nesting under one created earlier in the batch', async () => {
+    const page = await createPage();
+    const parent = uuidv7();
+    const child = uuidv7();
+    const res = await tx(page.id, [
+      {
+        kind: 'insert',
+        id: parent,
+        parentBlockId: null,
+        type: 'toggle',
+        content: { text: 'T' },
+        afterId: null,
+      },
+      {
+        kind: 'insert',
+        id: child,
+        parentBlockId: parent,
+        type: 'paragraph',
+        content: { segments: [{ text: 'hi', bold: true }] },
+        afterId: null,
+      },
+    ]);
+    expect(res.status).toBe(200);
+    const rows = await rowsOf(page.id as string);
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    expect(byId.get(child)?.parentBlockId).toBe(parent);
+    expect(byId.get(child)?.content).toMatchObject({ text: 'hi' });
+  });
+
+  it('updates, moves and removes a subtree', async () => {
+    const page = await createPage();
+    const [a, b, c] = [uuidv7(), uuidv7(), uuidv7()];
+    await tx(page.id, [
+      { kind: 'insert', id: a, parentBlockId: null, type: 'paragraph', afterId: null, content: {} },
+      { kind: 'insert', id: b, parentBlockId: null, type: 'paragraph', afterId: a, content: {} },
+      { kind: 'insert', id: c, parentBlockId: b, type: 'paragraph', afterId: null, content: {} },
+    ]);
+    const res = await tx(page.id, [
+      { kind: 'update', id: a, type: 'heading_1', content: { text: 'Title' } },
+      { kind: 'move', id: a, parentBlockId: null, afterId: b },
+      { kind: 'remove', id: b },
+    ]);
+    expect(res.status).toBe(200);
+    const rows = await rowsOf(page.id as string);
+    expect(rows.map((r) => r.id)).toEqual([a]);
+    expect(rows[0]).toMatchObject({ type: 'heading_1', order: 3 });
+  });
+
+  it('turns anchors into orders, renumbering when there is no room', async () => {
+    const page = await createPage();
+    const [a, b, c, d, gone] = [uuidv7(), uuidv7(), uuidv7(), uuidv7(), uuidv7()];
+    const first = await tx(page.id, [
+      { kind: 'insert', id: a, parentBlockId: null, afterId: null, type: 'paragraph', content: {} },
+      { kind: 'insert', id: b, parentBlockId: null, afterId: a, type: 'paragraph', content: {} },
+      // Before `a`: first.
+      { kind: 'insert', id: c, parentBlockId: null, afterId: null, type: 'paragraph', content: {} },
+      // An anchor that is not there puts the block last.
+      { kind: 'insert', id: d, parentBlockId: null, afterId: gone, type: 'paragraph', content: {} },
+    ]);
+    expect(first.status).toBe(200);
+    // The sender is told every order the server chose.
+    expect(first.json.ops).toEqual([
+      expect.objectContaining({ kind: 'insert', id: a, order: 1 }),
+      expect.objectContaining({ kind: 'insert', id: b, order: 2 }),
+      expect.objectContaining({ kind: 'insert', id: c, order: 0 }),
+      expect.objectContaining({ kind: 'insert', id: d, order: 3 }),
+    ]);
+    const sorted = async () =>
+      (await rowsOf(page.id as string))
+        .sort((x, y) => x.order - y.order || (x.id < y.id ? -1 : 1))
+        .map((r) => r.id);
+    expect(await sorted()).toEqual([c, a, b, d]);
+
+    // Squeeze `a` and `b` together until there is no room between them.
+    await db
+      .update(blocks)
+      .set({ order: 1 + 1e-12 })
+      .where(eq(blocks.id, b));
+    const e = uuidv7();
+    const squeezed = await tx(page.id, [
+      { kind: 'insert', id: e, parentBlockId: null, afterId: a, type: 'paragraph', content: {} },
+    ]);
+    expect(squeezed.json.ops).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'reorder', id: b, parentBlockId: null }),
+      ]),
+    );
+    expect(await sorted()).toEqual([c, a, e, b, d]);
+  });
+
+  it('answers a retry from the record instead of applying it again', async () => {
+    const page = await createPage();
+    const id = uuidv7();
+    const insert = {
+      kind: 'insert',
+      id,
+      parentBlockId: null,
+      afterId: null,
+      type: 'paragraph',
+      content: {},
+    };
+    const send = (key: string) =>
+      api(
         'POST',
-        `/pages/${page.id}/blocks/reorder`,
-        { blockIds: [a.id, a.id] },
+        `/pages/${page.id}/blocks/transactions`,
+        { ops: [insert], key },
         { 'x-workspace-id': workspaceId },
       );
-      expect(res.status).toBe(400);
-    });
+    const first = await send('k-1');
+    expect(first.status).toBe(200);
+    // The response was lost; the editor sends the same transaction again.
+    const retry = await send('k-1');
+    expect(retry.status).toBe(200);
+    expect(retry.json).toEqual(first.json);
+    expect(await rowsOf(page.id as string)).toHaveLength(1);
+    const [row] = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.id, page.id as string));
+    expect(row?.blocksVersion).toBe(first.json.version);
+    // A different transaction that repeats the insert is still refused.
+    expect((await send('k-2')).status).toBe(409);
+  });
 
-    it('404s an id that names no block', async () => {
-      const page = await createPage();
-      const res = await api(
-        'POST',
-        `/pages/${page.id}/blocks/reorder`,
-        { blockIds: [uuidv7()] },
-        { 'x-workspace-id': workspaceId },
-      );
-      expect(res.status).toBe(404);
-    });
+  it('refuses an update made on content someone has written since, as stale', async () => {
+    const page = await createPage();
+    const id = uuidv7();
+    const made = await tx(page.id, [
+      {
+        kind: 'insert',
+        id,
+        parentBlockId: null,
+        afterId: null,
+        type: 'paragraph',
+        content: { text: 'a' },
+      },
+    ]);
+    const v1 = made.json.version as number;
+    const first = await tx(page.id, [
+      { kind: 'update', id, content: { text: 'a b' }, baseVersion: v1 },
+    ]);
+    expect(first.status).toBe(200);
+    // Made on v1 too, but the content moved on at the first update.
+    const stale = await tx(page.id, [
+      { kind: 'update', id, content: { text: 'a c' }, baseVersion: v1 },
+    ]);
+    expect(stale.status).toBe(409);
+    expect(stale.json.code).toBe('STALE_BLOCK');
+    expect((await rowsOf(page.id as string))[0]?.content.text).toBe('a b');
+    // On the newer version it goes through; without one, as before.
+    expect(
+      (
+        await tx(page.id, [
+          { kind: 'update', id, content: { text: 'a b c' }, baseVersion: first.json.version },
+        ])
+      ).status,
+    ).toBe(200);
+    expect((await tx(page.id, [{ kind: 'update', id, content: { text: 'x' } }])).status).toBe(200);
+  });
 
-    it('400s a block that belongs to another page', async () => {
-      const page = await createPage();
-      const other = await createPage();
-      const foreign = await createBlock(other.id as string, {
+  it('tells a resuming editor which of its keys the blocks already include', async () => {
+    const page = await createPage();
+    const id = uuidv7();
+    await api(
+      'POST',
+      `/pages/${page.id}/blocks/transactions`,
+      {
+        ops: [
+          {
+            kind: 'insert',
+            id,
+            parentBlockId: null,
+            afterId: null,
+            type: 'paragraph',
+            content: {},
+          },
+        ],
+        key: 'applied-1',
+      },
+      { 'x-workspace-id': workspaceId },
+    );
+    const res = await api(
+      'POST',
+      `/pages/${page.id}/blocks/resume`,
+      { keys: ['applied-1', 'never-sent'] },
+      { 'x-workspace-id': workspaceId },
+    );
+    expect(res.status).toBe(200);
+    expect(res.json.applied).toEqual(['applied-1']);
+    expect((res.json.blocks as { id: string }[]).map((b) => b.id)).toEqual([id]);
+    expect(res.json.version).toBeGreaterThan(0);
+  });
+
+  it('rolls the whole batch back when one operation is invalid', async () => {
+    const page = await createPage();
+    const [a, b] = [uuidv7(), uuidv7()];
+    await tx(page.id, [
+      { kind: 'insert', id: a, parentBlockId: null, type: 'paragraph', afterId: null, content: {} },
+    ]);
+    const res = await tx(page.id, [
+      { kind: 'insert', id: b, parentBlockId: a, type: 'paragraph', afterId: null, content: {} },
+      // `a` into its own child: a cycle.
+      { kind: 'move', id: a, parentBlockId: b, afterId: null },
+    ]);
+    expect(res.status).toBe(400);
+    expect((await rowsOf(page.id as string)).map((r) => r.id)).toEqual([a]);
+  });
+
+  it('rejects an id that already exists, a parent from another page, and a javascript: link', async () => {
+    const page = await createPage();
+    const other = await createPage();
+    const foreign = uuidv7();
+    await tx(other.id, [
+      {
+        kind: 'insert',
+        id: foreign,
+        parentBlockId: null,
         type: 'paragraph',
         content: {},
-      });
-      const res = await api(
-        'POST',
-        `/pages/${page.id}/blocks/reorder`,
-        { blockIds: [foreign.id] },
-        { 'x-workspace-id': workspaceId },
-      );
-      expect(res.status).toBe(400);
-    });
+        afterId: null,
+      },
+    ]);
+
+    expect(
+      (
+        await tx(page.id, [
+          { kind: 'insert', id: foreign, parentBlockId: null, type: 'paragraph', afterId: null },
+        ])
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await tx(page.id, [
+          {
+            kind: 'insert',
+            id: uuidv7(),
+            parentBlockId: foreign,
+            type: 'paragraph',
+            afterId: null,
+          },
+        ])
+      ).status,
+    ).toBe(400);
+    const unsafe = await tx(page.id, [
+      {
+        kind: 'insert',
+        id: uuidv7(),
+        parentBlockId: null,
+        type: 'paragraph',
+        content: { segments: [{ text: 'x', link: 'javascript:alert(1)' }] },
+        afterId: null,
+      },
+    ]);
+    expect(unsafe.status).toBe(400);
+    expect(await rowsOf(page.id as string)).toHaveLength(0);
+  });
+
+  it('refuses a viewer', async () => {
+    const page = await createPage();
+    await setRole('viewer');
+    try {
+      const res = await tx(page.id, [
+        { kind: 'insert', id: uuidv7(), parentBlockId: null, type: 'paragraph', afterId: null },
+      ]);
+      expect(res.status).toBe(403);
+    } finally {
+      await setRole('owner');
+    }
+  });
+});
+
+describe('blocks version', () => {
+  it('advances once per transaction and is returned with the blocks', async () => {
+    const page = await createPage();
+    const ws = { 'x-workspace-id': workspaceId };
+    const first = await api('GET', `/pages/${page.id}/blocks`, undefined, ws);
+    expect(first.json.version).toBe(0);
+    const a = await api(
+      'POST',
+      `/pages/${page.id}/blocks/transactions`,
+      {
+        ops: [
+          { kind: 'insert', id: uuidv7(), parentBlockId: null, afterId: null, type: 'paragraph' },
+        ],
+      },
+      ws,
+    );
+    expect(a.json).toMatchObject({ ok: true, version: 1 });
+    const b = await api(
+      'POST',
+      `/pages/${page.id}/blocks/transactions`,
+      {
+        ops: [
+          { kind: 'insert', id: uuidv7(), parentBlockId: null, afterId: null, type: 'paragraph' },
+        ],
+      },
+      ws,
+    );
+    expect(b.json.version).toBe(2);
+    expect((await api('GET', `/pages/${page.id}/blocks`, undefined, ws)).json.version).toBe(2);
+  });
+
+  it('does not advance when the transaction is rejected', async () => {
+    const page = await createPage();
+    const ws = { 'x-workspace-id': workspaceId };
+    const bad = await api(
+      'POST',
+      `/pages/${page.id}/blocks/transactions`,
+      { ops: [{ kind: 'remove', id: uuidv7() }] },
+      ws,
+    );
+    expect(bad.status).toBe(404);
+    expect((await api('GET', `/pages/${page.id}/blocks`, undefined, ws)).json.version).toBe(0);
   });
 });

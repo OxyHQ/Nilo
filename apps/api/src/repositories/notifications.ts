@@ -312,3 +312,27 @@ export const NOTIFICATION_EXPIRY_TARGET: ExpirySweepTarget = {
     'A notification the user dismissed 90 days ago; ' +
     'no read path filters on dismissed notifications, so nothing depends on the row either way.',
 };
+
+/**
+ * Which of `userIds` have an unread `type` notification about `pageId` made
+ * within `within` (a Postgres interval, e.g. `1 hour`): those already told.
+ */
+export async function recentlyNotified(
+  db: NiloDatabase,
+  query: { type: NotificationType; pageId: string; userIds: readonly string[]; within: string },
+): Promise<string[]> {
+  if (query.userIds.length === 0) return [];
+  const rows = await db
+    .select({ userId: notifications.oxyUserId })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.type, query.type),
+        inArray(notifications.oxyUserId, [...query.userIds]),
+        inArray(notifications.status, [...NOTIFICATION_UNREAD_STATUSES]),
+        sql`${notifications.data} ->> 'pageId' = ${query.pageId}`,
+        sql`${notifications.createdAt} > now() - ${query.within}::interval`,
+      ),
+    );
+  return rows.map((r) => r.userId);
+}

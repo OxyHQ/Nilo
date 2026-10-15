@@ -1,8 +1,11 @@
+import { nestSubItems, subItemProperties, useExpandedRows } from '@/lib/sub-items';
+import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type {
   Database,
@@ -20,6 +23,7 @@ interface ViewTableProps {
   view: DatabaseView;
   rows: DatabaseRow[];
   isLoading: boolean;
+  readOnly?: boolean;
 }
 
 const DEFAULT_COL_WIDTH = 200;
@@ -30,10 +34,21 @@ const TITLE_COL_WIDTH = 280;
  * first column, then one column per visible property. Each cell uses the
  * shared `PropertyCell` so editing is consistent across views.
  */
-export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
+export function ViewTable({ database, view, rows, isLoading, readOnly = false }: ViewTableProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const createRow = useCreateRow();
+  const subItems = subItemProperties(database);
+  const { expanded, toggleExpanded } = useExpandedRows(database.id);
+  const nestedRows = nestSubItems(rows, subItems?.parent.id, expanded);
+  const newSubItem = (parentId: string) => {
+    if (!subItems || readOnly) return;
+    createRow.mutate({
+      databaseId: database.id,
+      properties: { [subItems.parent.id]: { pageIds: [parentId] } },
+    });
+  };
   const updateRow = useUpdateRow();
 
   const visibleProperties = React.useMemo(() => {
@@ -43,29 +58,32 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
   }, [database.schema.properties, view.hiddenProperties]);
 
   const handleNewRow = React.useCallback(async () => {
+    if (readOnly) return;
     await createRow.mutateAsync({ databaseId: database.id });
-  }, [createRow, database.id]);
+  }, [createRow, database.id, readOnly]);
 
   const handleCellChange = React.useCallback(
     (rowId: string, propertyId: string, value: PropertyValue) => {
+      if (readOnly) return;
       updateRow.mutate({
         databaseId: database.id,
         rowId,
         properties: { [propertyId]: value },
       });
     },
-    [database.id, updateRow],
+    [database.id, updateRow, readOnly],
   );
 
   const handleTitleChange = React.useCallback(
     (rowId: string, title: string) => {
+      if (readOnly) return;
       updateRow.mutate({
         databaseId: database.id,
         rowId,
         title,
       });
     },
-    [database.id, updateRow],
+    [database.id, updateRow, readOnly],
   );
 
   if (isLoading) {
@@ -86,11 +104,17 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
         >
           <View className="px-3 py-2 border-r border-border" style={{ width: TITLE_COL_WIDTH }}>
             <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Name
+              {t('common.name')}
             </Text>
           </View>
           {visibleProperties.map((property) => (
-            <ColumnHeader key={property.id} database={database} view={view} property={property} />
+            <ColumnHeader
+              readOnly={readOnly}
+              key={property.id}
+              database={database}
+              view={view}
+              property={property}
+            />
           ))}
           <View className="px-3 py-2 items-center justify-center" style={{ width: 60 }} />
         </View>
@@ -98,50 +122,83 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
         {/* rows */}
         {rows.length === 0 ? (
           <View className="py-10 items-center w-full">
-            <Text className="text-sm text-muted-foreground">No rows yet</Text>
+            <Text className="text-sm text-muted-foreground">{t('databases.table.empty')}</Text>
           </View>
         ) : (
-          rows.map((row) => (
-            <View key={row.id} className="flex-row border-b border-border/60">
-              <Pressable
-                className="px-3 py-2 border-r border-border/60 flex-row items-center"
-                style={{ width: TITLE_COL_WIDTH }}
-                onPress={() => router.push(`/p/${row.id}`)}
-              >
-                <TitleCell
-                  initial={row.title}
-                  onChange={(next) => handleTitleChange(row.id, next)}
+          nestedRows.map((entry) => {
+            if (entry.kind === 'new')
+              return !readOnly ? (
+                <NewSubItem
+                  key={`new-${entry.parentId}`}
+                  depth={entry.depth}
+                  disabled={createRow.isPending}
+                  onPress={() => newSubItem(entry.parentId)}
                 />
-              </Pressable>
-              {visibleProperties.map((property) => (
-                <View
-                  key={property.id}
-                  className="px-3 py-2 border-r border-border/60 justify-center"
-                  style={{ width: DEFAULT_COL_WIDTH }}
+              ) : null;
+            const { row, depth } = entry;
+            return (
+              <View key={row.id} className="flex-row border-b border-border/60">
+                <Pressable
+                  className="px-3 py-2 border-r border-border/60 flex-row items-center"
+                  style={{ width: TITLE_COL_WIDTH, paddingLeft: 12 + depth * 24 }}
+                  accessibilityRole="link"
+                  accessibilityLabel={row.title || t('databases.untitled')}
+                  onPress={() => router.push(`/p/${row.id}`)}
                 >
-                  <PropertyCell
-                    property={property}
-                    value={row.properties[property.id] ?? null}
-                    variant="table"
-                    onChange={(value) => handleCellChange(row.id, property.id, value)}
+                  {subItems ? (
+                    <SubItemToggle
+                      expanded={expanded.has(row.id)}
+                      title={row.title}
+                      onPress={() => toggleExpanded(row.id)}
+                    />
+                  ) : null}
+                  <TitleCell
+                    readOnly={readOnly}
+                    initial={row.title}
+                    onChange={(next) => handleTitleChange(row.id, next)}
                   />
-                </View>
-              ))}
-              <View style={{ width: 60 }} />
-            </View>
-          ))
+                </Pressable>
+                {visibleProperties.map((property) => (
+                  <View
+                    key={property.id}
+                    className="px-3 py-2 border-r border-border/60 justify-center"
+                    style={{ width: DEFAULT_COL_WIDTH }}
+                  >
+                    <PropertyCell
+                      readOnly={readOnly}
+                      property={property}
+                      value={row.properties[property.id] ?? null}
+                      variant="table"
+                      onChange={(value) => handleCellChange(row.id, property.id, value)}
+                    />
+                  </View>
+                ))}
+                <View style={{ width: 60 }} />
+              </View>
+            );
+          })
         )}
 
         {/* new row */}
-        <Pressable
-          onPress={handleNewRow}
-          className="flex-row items-center gap-2 px-3 py-2 border-b border-border/60 hover:bg-muted/40"
-        >
-          <Plus size={14} color={colors.mutedForeground} />
-          <Text className="text-sm text-muted-foreground">
-            {createRow.isPending ? 'Adding…' : 'New'}
+        {createRow.isError ? (
+          <Text accessibilityRole="alert" className="text-sm text-destructive">
+            {t('databases.subItems.failed')}
           </Text>
-        </Pressable>
+        ) : null}
+        {!readOnly ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('databases.actions.new')}
+            disabled={createRow.isPending}
+            onPress={handleNewRow}
+            className="flex-row items-center gap-2 px-3 py-2 border-b border-border/60 hover:bg-muted/40"
+          >
+            <Plus size={14} color={colors.mutedForeground} />
+            <Text className="text-sm text-muted-foreground">
+              {createRow.isPending ? t('databases.actions.adding') : t('databases.actions.new')}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -151,38 +208,49 @@ interface ColumnHeaderProps {
   database: Database;
   view: DatabaseView;
   property: DatabaseProperty;
+  readOnly: boolean;
 }
 
-function ColumnHeader({ database, view, property }: ColumnHeaderProps) {
+function ColumnHeader({ database, view, property, readOnly }: ColumnHeaderProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   return (
     <View
       className="px-3 py-2 border-r border-border flex-row items-center justify-between"
       style={{ width: DEFAULT_COL_WIDTH }}
     >
-      <Pressable onPress={() => setMenuOpen(true)} className="flex-1">
+      <Pressable
+        disabled={readOnly}
+        accessibilityRole="button"
+        accessibilityLabel={property.name}
+        onPress={() => setMenuOpen(true)}
+        className="flex-1"
+      >
         <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {property.name}
         </Text>
       </Pressable>
-      <PropertyHeaderMenu
-        open={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        database={database}
-        view={view}
-        property={property}
-      />
+      {!readOnly ? (
+        <PropertyHeaderMenu
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          database={database}
+          view={view}
+          property={property}
+        />
+      ) : null}
     </View>
   );
 }
 
 interface TitleCellProps {
   initial: string;
+  readOnly: boolean;
   onChange: (next: string) => void;
 }
 
-function TitleCell({ initial, onChange }: TitleCellProps) {
+function TitleCell({ initial, onChange, readOnly }: TitleCellProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [draft, setDraft] = React.useState(initial);
   React.useEffect(() => {
     setDraft(initial);
@@ -192,9 +260,10 @@ function TitleCell({ initial, onChange }: TitleCellProps) {
     if (draft !== initial) onChange(draft);
   };
 
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' && !readOnly) {
     return (
       <input
+        aria-label={t('common.name')}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -205,7 +274,7 @@ function TitleCell({ initial, onChange }: TitleCellProps) {
             (e.target as HTMLInputElement).blur();
           }
         }}
-        placeholder="Untitled"
+        placeholder={t('databases.untitled')}
         style={{
           background: 'transparent',
           border: 'none',
@@ -220,7 +289,7 @@ function TitleCell({ initial, onChange }: TitleCellProps) {
   // Native: simple read-only label that opens the row on tap.
   return (
     <Text className="text-sm text-foreground" numberOfLines={1}>
-      {draft || 'Untitled'}
+      {draft || t('databases.untitled')}
     </Text>
   );
 }

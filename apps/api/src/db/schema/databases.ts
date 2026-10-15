@@ -8,9 +8,13 @@ import {
   jsonb,
   pgTable,
   text,
+  type AnyPgColumn,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
+import { blocks, pages } from './pages.js';
 import { workspaces } from './workspaces.js';
+import { teamspaces } from './teamspaces.js';
 
 /**
  * The Notion-style typed database feature: a `databases` row owns a schema of
@@ -61,6 +65,8 @@ export const DATABASE_PROPERTY_TYPES = [
   'created_by',
   'last_edited_by',
   'formula',
+  // A number every row gets in turn when it is created (with an optional prefix: TASK-12).
+  'unique_id',
 ] as const;
 export type DatabasePropertyType = (typeof DATABASE_PROPERTY_TYPES)[number];
 
@@ -102,13 +108,18 @@ export interface PropertyConfig {
   includeTime?: boolean;
   // relation
   targetDatabaseId?: string;
+  /** Two-way: the other side is a relation property of the target database. */
   twoWay?: boolean;
+  /** For a two-way relation: that property's id (`lib/databases/relations.ts`). */
+  syncedPropertyId?: string;
   // rollup
   relationPropertyId?: string;
   targetPropertyId?: string;
   function?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'earliest' | 'latest';
   // formula
   expression?: string;
+  // unique_id
+  prefix?: string;
 }
 
 export interface DatabaseProperty {
@@ -139,6 +150,8 @@ export const DATABASE_VIEW_TYPES = [
   'list',
   'calendar',
   'timeline',
+  // A form: each response becomes a row (`database_forms` holds its link).
+  'form',
 ] as const;
 export type DatabaseViewType = (typeof DATABASE_VIEW_TYPES)[number];
 
@@ -264,16 +277,19 @@ export const databases = pgTable(
     cover: text(),
     /** Oxy user id — text, not a foreign key. See `workspaces.ownerId`. */
     ownerId: text().notNull(),
+    /**
+     * Where a database that sits in no page lives (`docs/access.md`): its
+     * teamspace, or null — private to `ownerId`. An inline database lives
+     * where its page does; this is read only when `parentPageId` is null.
+     */
+    teamspaceId: text().references(() => teamspaces.id, { onDelete: 'set null' }),
     propertiesSchema: jsonb().$type<DatabaseSchema>().notNull().default({ properties: [] }),
     isInline: boolean().notNull().default(false),
     /**
      * The page an inline database is rendered inside.
      *
-     * DELIBERATELY carries no `.references(() => pages.id)` yet: the `pages`
-     * table is ported in a sibling change and does not exist in this schema
-     * folder at the time of writing, so declaring the reference here would not
-     * compile. The foreign key belongs in the integration commit that first
-     * has both tables. Two things that commit must get right:
+     * A foreign key to `pages.id`, paired with `pages.databaseId`. Two things
+     * that pair had to get right:
      *
      * ## It must be SET NULL, and that is a choice about the PAIR
      *
@@ -315,7 +331,12 @@ export const databases = pgTable(
      * BOTH columns must also stay NULLABLE: if either became `notNull` the
      * pair is uninsertable without `DEFERRABLE INITIALLY DEFERRED`.
      */
-    parentPageId: text(),
+    parentPageId: text().references((): AnyPgColumn => pages.id, { onDelete: 'set null' }),
+    /**
+     * The number the next row's `unique_id` properties get: taken and
+     * advanced in one statement, so rows created at once never share one.
+     */
+    nextRowNumber: integer().notNull().default(1),
     /**
      * Soft delete — a boolean.
      *
@@ -334,6 +355,7 @@ export const databases = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
+    index('databases_teamspace_idx').on(t.teamspaceId),
     /**
      * `GET /databases?workspaceId=` filters on workspace + not-archived and
      * sorts `updatedAt` DESC, so all three columns are in the index.
@@ -404,6 +426,12 @@ export const databaseViews = pgTable(
     databaseId: text()
       .notNull()
       .references(() => databases.id, { onDelete: 'cascade' }),
+    /**
+     * A linked view's block (an `inline_database` block showing this database
+     * in another page): null for the database's own views. A linked block's
+     * views are its own, edited by those who may edit its page, and go with it.
+     */
+    blockId: text().references(() => blocks.id, { onDelete: 'cascade' }),
     name: text().notNull().default(''),
     type: text().$type<DatabaseViewType>().notNull().default('table'),
     isDefault: boolean().notNull().default(false),
@@ -428,6 +456,7 @@ export const databaseViews = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
+    index('database_views_block_idx').on(t.blockId),
     /**
      * Every view listing is `where database_id = ? order by "order", created_at`
      * (`routes/databases.ts:607-609, 695-697, 1110-1112, 1276-1277`), and
@@ -464,5 +493,37 @@ export const databaseViews = pgTable(
           `'$[*].direction ? (!(${jsonPathAnyOf(SORT_DIRECTIONS)}))'`,
         )})`,
     ),
+  ],
+);
+
+/**
+ * The link of a form view: anyone with it (or, with `requireSignIn`, anyone
+ * signed in) can submit a response, which becomes a row. Deleted with its
+ * view. The token is the only lookup key of the public endpoints, stored
+ * verbatim like a share link's.
+ */
+export const databaseForms = pgTable(
+  'database_forms',
+  {
+    id: generatedId(),
+    viewId: text()
+      .notNull()
+      .references(() => databaseViews.id, { onDelete: 'cascade' }),
+    databaseId: text()
+      .notNull()
+      .references(() => databases.id, { onDelete: 'cascade' }),
+    token: text().notNull(),
+    /** Accepting responses. */
+    open: boolean().notNull().default(true),
+    requireSignIn: boolean().notNull().default(false),
+    /** Oxy user id of whoever created the link. */
+    createdBy: text().notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('database_forms_view_key').on(t.viewId),
+    uniqueIndex('database_forms_token_key').on(t.token),
+    index('database_forms_database_idx').on(t.databaseId),
   ],
 );

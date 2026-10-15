@@ -18,11 +18,12 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandPri
 
 interface CommandDialogProps {
   open?: boolean;
+  shouldFilter?: boolean;
   onOpenChange?: (open: boolean) => void;
   children: React.ReactNode;
 }
 
-function CommandDialog({ open, onOpenChange, children }: CommandDialogProps) {
+function CommandDialog({ open, onOpenChange, children, shouldFilter }: CommandDialogProps) {
   const [mounted, setMounted] = React.useState(false);
   const [visible, setVisible] = React.useState(false);
 
@@ -73,7 +74,7 @@ function CommandDialog({ open, onOpenChange, children }: CommandDialogProps) {
           visible ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2',
         )}
       >
-        <Command>{children}</Command>
+        <Command shouldFilter={shouldFilter}>{children}</Command>
       </div>
     </div>,
     document.body,

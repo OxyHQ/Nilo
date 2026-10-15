@@ -12,8 +12,8 @@ export function useAuthQuery<T>(
   const { isAuthenticated } = useOxy();
   return useQuery<T>({
     queryKey,
-    queryFn: async () => {
-      const res = await apiClient.get(url, params ? { params } : undefined);
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get(url, { params, signal });
       return res.data;
     },
     staleTime: 1000 * 60 * 5,
