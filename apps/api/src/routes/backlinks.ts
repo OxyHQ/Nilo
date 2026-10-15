@@ -42,7 +42,7 @@ router.get('/pages/:id/backlinks', authenticateToken, async (req: Request, res: 
         and not p.archived
         and (
           (b.type = 'link_to_page' and b.content ->> 'pageId' = ${id})
-          or coalesce(b.content -> 'segments', '[]'::jsonb) @> ${mention}::jsonb
+          or b.content -> 'segments' @> ${mention}::jsonb
           or exists (
             select 1 from jsonb_array_elements(
               case when jsonb_typeof(b.content -> 'segments') = 'array' then b.content -> 'segments' else '[]'::jsonb end

@@ -295,6 +295,18 @@ export const blocks = pgTable(
      * recursion column of `deleteBlockTree`.
      */
     index('blocks_parent_block_idx').on(t.parentBlockId),
+    /**
+     * Backlinks (`GET /pages/:id/backlinks`): page mentions are found by
+     * containment in the segments, link-to-page blocks by their target. The
+     * expressions must stay exactly as `routes/backlinks.ts` writes them.
+     */
+    index('blocks_segments_path_idx').using(
+      'gin',
+      sql`(${t.content} -> 'segments') jsonb_path_ops`,
+    ),
+    index('blocks_link_to_page_idx')
+      .on(sql`(${t.content} ->> 'pageId')`)
+      .where(sql`${t.type} = 'link_to_page'`),
     /** Full-text search over block text; see `pages_title_search_idx`. */
     index('blocks_text_search_idx').using(
       'gin',

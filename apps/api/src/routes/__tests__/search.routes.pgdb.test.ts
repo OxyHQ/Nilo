@@ -188,6 +188,16 @@ describe('GET /search', () => {
           sql`select id from pages where to_tsvector('simple', title) @@ to_tsquery('simple', 'plan:*')`,
         ),
       ).toContain('pages_title_search_idx');
+      expect(
+        await plan(
+          sql`select id from blocks b where b.content -> 'segments' @> '[{"mention":{"attributes":{"kind":"page","id":"x"}}}]'::jsonb`,
+        ),
+      ).toContain('blocks_segments_path_idx');
+      expect(
+        await plan(
+          sql`select id from blocks b where b.type = 'link_to_page' and b.content ->> 'pageId' = 'x'`,
+        ),
+      ).toContain('blocks_link_to_page_idx');
     } finally {
       await db.execute(sql`set enable_seqscan = on`);
     }
