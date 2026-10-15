@@ -237,5 +237,9 @@
     "loadFailed": "Could not load this database.",
     "retry": "Try again",
     "openFullPage": "Open as full page"
+  },
+  "mentions": {
+    "people": "People",
+    "pages": "Pages"
   }
 }

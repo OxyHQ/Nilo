@@ -127,7 +127,7 @@ export const BLOCK_COLORS: readonly BlockColor[] = [
  */
 export interface Segment {
   text: string;
-  mention?: { indicator: '@'; attributes: { kind: 'page'; id: string } };
+  mention?: { indicator: '@'; attributes: { kind: 'page' | 'user'; id: string } };
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;

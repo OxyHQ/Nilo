@@ -78,7 +78,7 @@ export default function PublicSitePage() {
             <Text accessibilityRole="header" className="text-3xl font-bold">
               {title}
             </Text>
-            <SharedBlockTree blocks={data.blocks} />
+            <SharedBlockTree blocks={data.blocks} publicSlug={slug} />
             {data.children.length ? (
               <View className="border-t border-border pt-4 gap-3">
                 <Text accessibilityRole="header" className="font-semibold">

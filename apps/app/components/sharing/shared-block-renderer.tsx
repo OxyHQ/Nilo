@@ -1,3 +1,4 @@
+import { BlockText, blockTextSegments, PublicMentionContext } from './block-text';
 import { View } from 'react-native';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
 import { Text } from '@/components/ui/text';
@@ -14,8 +15,9 @@ interface SharedBlockRendererProps {
 }
 
 function getText(content: Record<string, unknown>): string {
-  const value = content.text;
-  return typeof value === 'string' ? value : '';
+  return blockTextSegments(content)
+    .map((segment) => segment.text)
+    .join('');
 }
 
 function getChecked(content: Record<string, unknown>): boolean {
@@ -31,7 +33,9 @@ function ParagraphBlock({ content }: { content: Record<string, unknown> }) {
   const text = getText(content);
   return (
     <Text className="text-base leading-7 text-foreground">
-      {text || (
+      {text ? (
+        <BlockText content={content} />
+      ) : (
         <Text className="text-muted-foreground italic">{t('sharing.blocks.emptyParagraph')}</Text>
       )}
     </Text>
@@ -40,7 +44,7 @@ function ParagraphBlock({ content }: { content: Record<string, unknown> }) {
 
 function HeadingBlock({ content, level }: { content: Record<string, unknown>; level: 1 | 2 | 3 }) {
   const { t } = useTranslation();
-  const text = getText(content) || t('sharing.blocks.untitledHeading');
+  const text = <BlockText content={content} fallback={t('sharing.blocks.untitledHeading')} />;
   const className =
     level === 1
       ? 'text-3xl font-bold text-foreground mt-4'
@@ -54,7 +58,9 @@ function BulletedListBlock({ content }: { content: Record<string, unknown> }) {
   return (
     <View className="flex-row gap-2">
       <Text className="text-base leading-7 text-foreground">{'•'}</Text>
-      <Text className="text-base leading-7 text-foreground flex-1">{getText(content)}</Text>
+      <Text className="text-base leading-7 text-foreground flex-1">
+        <BlockText content={content} />
+      </Text>
     </View>
   );
 }
@@ -69,7 +75,9 @@ function NumberedListBlock({
   return (
     <View className="flex-row gap-2">
       <Text className="text-base leading-7 text-foreground">{`${index}.`}</Text>
-      <Text className="text-base leading-7 text-foreground flex-1">{getText(content)}</Text>
+      <Text className="text-base leading-7 text-foreground flex-1">
+        <BlockText content={content} />
+      </Text>
     </View>
   );
 }
@@ -92,7 +100,7 @@ function TodoBlock({ content }: { content: Record<string, unknown> }) {
           checked ? 'text-muted-foreground line-through' : 'text-foreground'
         }`}
       >
-        {getText(content)}
+        <BlockText content={content} />
       </Text>
     </View>
   );
@@ -101,7 +109,9 @@ function TodoBlock({ content }: { content: Record<string, unknown> }) {
 function QuoteBlock({ content }: { content: Record<string, unknown> }) {
   return (
     <View className="border-l-2 border-border pl-4 py-1">
-      <Text className="text-base leading-7 text-muted-foreground italic">{getText(content)}</Text>
+      <Text className="text-base leading-7 text-muted-foreground italic">
+        <BlockText content={content} />
+      </Text>
     </View>
   );
 }
@@ -136,7 +146,9 @@ function CalloutBlock({ content }: { content: Record<string, unknown> }) {
   return (
     <View className="flex-row gap-3 rounded-xl bg-muted/40 px-4 py-3">
       <CalloutIcon value={content.icon} size={22} />
-      <Text className="text-base leading-7 text-foreground flex-1">{getText(content)}</Text>
+      <Text className="text-base leading-7 text-foreground flex-1">
+        <BlockText content={content} />
+      </Text>
     </View>
   );
 }
@@ -183,12 +195,22 @@ export function SharedBlockRenderer({ block, listIndex = 1 }: SharedBlockRendere
 }
 
 /** Shared nesting and sibling ordering for published pages and version previews. */
-export function SharedBlockTree({ blocks }: { blocks: readonly ReadOnlyBlock[] }) {
+export function SharedBlockTree({
+  blocks,
+  publicSlug,
+}: {
+  blocks: readonly ReadOnlyBlock[];
+  publicSlug?: string;
+}) {
   const { t } = useTranslation();
   const tree = useMemo(() => buildBlockTree(blocks), [blocks]);
   if (!tree.length)
     return <Text className="text-sm text-muted-foreground">{t('pages.share.empty')}</Text>;
-  return <BlockBranch nodes={tree} />;
+  return (
+    <PublicMentionContext.Provider value={publicSlug}>
+      <BlockBranch nodes={tree} />
+    </PublicMentionContext.Provider>
+  );
 }
 function BlockBranch({ nodes }: { nodes: BlockTreeNode[] }) {
   let listIndex = 0;

@@ -4,114 +4,24 @@ import { usePage } from '@/lib/hooks/use-pages';
 import { useSearchBlock } from '@/lib/hooks/use-search-block';
 import {
   BlockEditor,
-  blockColors,
   type BlockSnapshot,
   composeCommands,
-  type EditorLabels,
   type EditorStore,
-  type EditorTheme,
   getBlock,
   insertSnapshot,
   removeBlocks,
   type SlashItem,
 } from '@oxy.so/bloom-editor';
-import { resolveAccentColors, useTheme } from '@oxy.so/bloom/theme';
 import { toast } from '@oxy.so/bloom/toast';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { useTranslation } from '@/hooks/useTranslation';
-import { usePageEditor } from '@/lib/editor/use-page-editor';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { MONO_FONT_FAMILY } from '@/lib/fonts';
+import { usePageEditorContext } from './page-editor-context';
+import { useEditorMentions } from './use-editor-mentions';
+import { useOpenEditorMention, openEditorLink } from './open-target';
 import { createMarkers, createRenderers } from './renderers';
-
-/** The editor's look, from the active Bloom theme. */
-function useEditorTheme(): EditorTheme {
-  const theme = useTheme();
-  const { colors, isDarkColorScheme } = useColorScheme();
-  return useMemo(
-    () => ({
-      text: colors.foreground,
-      textMuted: colors.mutedForeground,
-      background: colors.background,
-      border: colors.border,
-      accent: colors.primary,
-      accentText: colors.primaryForeground,
-      selection: resolveAccentColors(theme.colors, 'primary', 'subtle').background,
-      codeBackground: colors.muted,
-      colors: blockColors(isDarkColorScheme ? 'dark' : 'light'),
-      monoFontFamily: MONO_FONT_FAMILY,
-    }),
-    [colors, isDarkColorScheme, theme.colors],
-  );
-}
-
-function useEditorLabels(): EditorLabels {
-  const { t, locale } = useTranslation();
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `locale` re-reads the catalogs.
-  return useMemo(
-    () => ({
-      placeholder: t('editor.ui.placeholder'),
-      emptyHeading: t('editor.ui.emptyHeading'),
-      emptyListItem: t('editor.ui.emptyListItem'),
-      emptyToggle: t('editor.ui.emptyToggle'),
-      slashNoResults: t('editor.ui.slashNoResults'),
-      mentionNoResults: t('editor.ui.mentionNoResults'),
-      mentionSearching: t('editor.ui.mentionSearching'),
-      slashGroups: {
-        basic: t('editor.slashGroups.basic'),
-        media: t('editor.slashGroups.media'),
-        advanced: t('editor.slashGroups.advanced'),
-        embeds: t('editor.slashGroups.embeds'),
-        database: t('editor.slashGroups.database'),
-      },
-      turnInto: t('editor.ui.turnInto'),
-      duplicate: t('editor.ui.duplicate'),
-      delete: t('editor.ui.delete'),
-      moveUp: t('editor.ui.moveUp'),
-      moveDown: t('editor.ui.moveDown'),
-      indent: t('editor.ui.indent'),
-      outdent: t('editor.ui.outdent'),
-      color: t('editor.ui.color'),
-      background: t('editor.ui.background'),
-      colorNames: {
-        default: t('editor.colors.default'),
-        gray: t('editor.colors.gray'),
-        brown: t('editor.colors.brown'),
-        orange: t('editor.colors.orange'),
-        yellow: t('editor.colors.yellow'),
-        green: t('editor.colors.green'),
-        blue: t('editor.colors.blue'),
-        purple: t('editor.colors.purple'),
-        pink: t('editor.colors.pink'),
-        red: t('editor.colors.red'),
-      },
-      bold: t('editor.ui.bold'),
-      italic: t('editor.ui.italic'),
-      underline: t('editor.ui.underline'),
-      strike: t('editor.ui.strike'),
-      code: t('editor.ui.code'),
-      link: t('editor.ui.link'),
-      linkPlaceholder: t('editor.ui.linkPlaceholder'),
-      removeLink: t('editor.ui.removeLink'),
-      apply: t('editor.ui.apply'),
-      cancel: t('editor.ui.cancel'),
-      open: t('editor.ui.open'),
-      mention: t('editor.ui.mention'),
-      undo: t('editor.ui.undo'),
-      redo: t('editor.ui.redo'),
-      formatting: t('editor.ui.formatting'),
-      blockMenu: t('editor.ui.blockMenu'),
-      dragHandle: t('editor.ui.dragHandle'),
-      addBelow: t('editor.ui.addBelow'),
-      toggleOpen: t('editor.ui.toggleOpen'),
-      toggleClosed: t('editor.ui.toggleClosed'),
-      checkbox: t('editor.ui.checkbox'),
-    }),
-    [t, locale],
-  );
-}
 
 /** Keywords for search: the catalog's comma-separated list. */
 const words = (list: string) =>
@@ -429,17 +339,21 @@ export function PageEditor({
   onOpenBlockComments?: (blockId: string) => void;
 }) {
   const { t } = useTranslation();
+  const { store, status, rejected, collaborators, error, controller, decorations, theme, labels } =
+    usePageEditorContext();
   const { colors } = useColorScheme();
-  const { store, status, rejected, collaborators, error } = usePageEditor(pageId, readOnly);
-  useSearchBlock(focusedBlockId, Boolean(store));
+  useSearchBlock(focusedBlockId, true);
   const page = usePage(pageId);
   const createDatabase = useCreateDatabase();
   const creatingDatabase = useRef(false);
-  const currentEditor = useRef({ store, readOnly });
+  const currentEditor = useRef<{ store: EditorStore | null; readOnly: boolean }>({
+    store,
+    readOnly,
+  });
   const workspaceId = useRef<string | undefined>(undefined);
   workspaceId.current = page.data?.page.workspaceId;
-  const theme = useEditorTheme();
-  const labels = useEditorLabels();
+  const mentions = useEditorMentions(pageId, page.data?.page.workspaceId);
+  const onOpenMention = useOpenEditorMention();
   const slashItems = useSlashItems();
   const renderers = useMemo(() => (store ? createRenderers(pageId, store) : {}), [pageId, store]);
   const markers = useMemo(() => createMarkers(), []);
@@ -511,10 +425,13 @@ export function PageEditor({
   if (error) {
     return <Text className="px-1 py-6 text-sm text-destructive">{error.message}</Text>;
   }
-  if (!store) {
+  if (!store || !controller) {
     return (
       <View className="px-1 py-6">
-        <ActivityIndicator color={colors.mutedForeground} />
+        <ActivityIndicator
+          color={colors.mutedForeground}
+          accessibilityLabel={t('common.loading')}
+        />
       </View>
     );
   }
@@ -547,6 +464,11 @@ export function PageEditor({
       ) : null}
       <BlockEditor
         store={store}
+        controller={controller}
+        decorations={decorations}
+        mentions={mentions}
+        onOpenMention={onOpenMention}
+        onOpenLink={openEditorLink}
         slashItems={slashItems}
         onSlashAction={onSlashAction}
         renderers={renderers}

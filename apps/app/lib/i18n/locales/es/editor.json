@@ -237,5 +237,9 @@
     "loadFailed": "No se pudo cargar esta base de datos.",
     "retry": "Reintentar",
     "openFullPage": "Abrir como página completa"
+  },
+  "mentions": {
+    "people": "Personas",
+    "pages": "Páginas"
   }
 }

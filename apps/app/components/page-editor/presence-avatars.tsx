@@ -1,3 +1,5 @@
+import { useEditorTheme } from './editor-presentation';
+import { collaboratorColor } from './presence';
 import { View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
 import { Avatar } from '@oxy.so/bloom/avatar';
@@ -7,6 +9,7 @@ import { profileName, useMemberProfiles } from '@/lib/hooks/use-member-profiles'
 import type { Collaborator } from '@/lib/editor/use-page-editor';
 
 export function PresenceAvatars({ collaborators }: { collaborators: Collaborator[] }) {
+  const theme = useEditorTheme();
   const { user } = useOxy();
   const { t } = useTranslation();
   const ids = [...new Set(collaborators.map((person) => person.userId))]
@@ -22,8 +25,8 @@ export function PresenceAvatars({ collaborators }: { collaborators: Collaborator
         return (
           <View
             key={id}
-            style={{ marginLeft: index ? -6 : 0 }}
-            className="rounded-full border-2 border-background"
+            style={{ marginLeft: index ? -6 : 0, borderColor: collaboratorColor(id, theme.colors) }}
+            className="rounded-full border-2"
           >
             <Avatar
               size="sm"

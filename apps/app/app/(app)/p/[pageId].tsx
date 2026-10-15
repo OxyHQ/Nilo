@@ -1,9 +1,15 @@
 import * as React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 import { Lock, MessageCircle } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import {
+  PageEditorProvider,
+  PageEditorToolbar,
+  usePageEditorContext,
+} from '@/components/page-editor/page-editor-context';
 import { PageEditor } from '@/components/page-editor/page-editor';
 import { ShareButton } from '@/components/sharing';
 import { CommentPanel } from '@/components/comments/comment-panel';
@@ -152,35 +158,61 @@ function PageDetail({
   );
 
   return (
-    <PageChrome page={page} readOnly={!canEdit} rightHeader={rightHeader}>
-      <View className="flex-1 flex-row">
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="pb-12"
-          keyboardShouldPersistTaps="handled"
-        >
-          <PageHeader page={page} readOnly={!canEdit} />
-          <View className="px-6 md:px-10 max-w-3xl w-full mx-auto pt-4">
-            <DatabaseRowProperties page={page} readOnly={!canEdit} />
-            <PageEditor
-              pageId={page.id}
-              focusedBlockId={blockId}
-              readOnly={!canEdit}
-              onOpenBlockComments={(blockId) => handleOpenPanel(blockId)}
-            />
-          </View>
-        </ScrollView>
+    <PageEditorProvider pageId={pageId} readOnly={!canEdit}>
+      <PageChrome page={page} readOnly={!canEdit} rightHeader={rightHeader}>
+        <View className="flex-1 flex-row">
+          <EditorScrollView>
+            <PageHeader page={page} readOnly={!canEdit} />
+            <View className="px-6 md:px-10 max-w-3xl w-full mx-auto pt-4">
+              <DatabaseRowProperties page={page} readOnly={!canEdit} />
+              <PageEditor
+                pageId={page.id}
+                focusedBlockId={blockId}
+                readOnly={!canEdit}
+                onOpenBlockComments={(blockId) => handleOpenPanel(blockId)}
+              />
+            </View>
+          </EditorScrollView>
 
-        <CommentPanel
-          canComment={hasRole(role, 'commenter')}
-          pageId={page.id}
-          workspaceId={page.workspaceId}
-          open={commentPanel.open}
-          focusedBlockId={commentPanel.focusedBlockId}
-          onClose={() => setCommentPanel({ open: false, focusedBlockId: null })}
-        />
-      </View>
-    </PageChrome>
+          <CommentPanel
+            canComment={hasRole(role, 'commenter')}
+            pageId={page.id}
+            workspaceId={page.workspaceId}
+            open={commentPanel.open}
+            focusedBlockId={commentPanel.focusedBlockId}
+            onClose={() => setCommentPanel({ open: false, focusedBlockId: null })}
+          />
+        </View>
+        <PageEditorToolbar readOnly={!canEdit} />
+      </PageChrome>
+    </PageEditorProvider>
+  );
+}
+
+/** The inset follows the toolbar's measured height, including its link form. */
+function EditorScrollView({ children }: { children: React.ReactNode }) {
+  const { toolbarHeight } = usePageEditorContext();
+  if (Platform.OS === 'web') {
+    return (
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="pb-12"
+        keyboardShouldPersistTaps="handled"
+      >
+        {children}
+      </ScrollView>
+    );
+  }
+  return (
+    <KeyboardAwareScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ paddingBottom: 48 + toolbarHeight }}
+      bottomOffset={toolbarHeight}
+      extraKeyboardSpace={toolbarHeight}
+      keyboardShouldPersistTaps="handled"
+    >
+      {children}
+    </KeyboardAwareScrollView>
   );
 }
 
