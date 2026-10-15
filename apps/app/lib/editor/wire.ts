@@ -44,7 +44,14 @@ export type WireOperation =
       type: string;
       content: BlockContent;
     }
-  | { kind: 'update'; id: string; type?: string; content?: BlockContent }
+  | {
+      kind: 'update';
+      id: string;
+      type?: string;
+      content?: BlockContent;
+      /** The page version of the content this was made on; see `OrderBook.contentVersion`. */
+      baseVersion?: number;
+    }
   | { kind: 'move'; id: string; parentBlockId: string | null; afterId: string | null }
   | { kind: 'remove'; id: string };
 
@@ -72,9 +79,23 @@ export type AppliedOperation =
  * Acknowledgements and broadcasts can arrive out of version order; an older
  * version never overwrites a newer one, so the book always ends up holding
  * exactly the server's orders.
+ *
+ * It also knows, per block, the version of the content this client has: an
+ * update says it (`baseVersion`), and the server refuses it as stale when
+ * someone wrote the block since — the session then merges and sends again.
  */
 export class OrderBook {
   private readonly entries = new Map<BlockId, { order: number; version: number }>();
+  private readonly contents = new Map<BlockId, number>();
+
+  /** The version of the block's content this client has seen. */
+  contentVersion(id: BlockId): number | undefined {
+    return this.contents.get(id);
+  }
+
+  recordContent(id: BlockId, version: number): void {
+    if ((this.contents.get(id) ?? -1) < version) this.contents.set(id, version);
+  }
 
   get(id: BlockId): number | undefined {
     return this.entries.get(id)?.order;
@@ -89,22 +110,30 @@ export class OrderBook {
     if (!current || current.version <= version) this.entries.set(id, { order, version });
   }
 
-  /** Every order with its version, to persist (`OrderBook.from` reads it back). */
-  toJSON(): [BlockId, number, number][] {
-    return [...this.entries].map(([id, e]) => [id, e.order, e.version]);
+  /** Every order with its version and content version, to persist (`OrderBook.from` reads it back). */
+  toJSON(): [BlockId, number, number, number?][] {
+    return [...this.entries].map(([id, e]) => {
+      const content = this.contents.get(id);
+      return content === undefined ? [id, e.order, e.version] : [id, e.order, e.version, content];
+    });
   }
 
-  static from(saved: readonly (readonly [BlockId, number, number])[]): OrderBook {
+  static from(saved: readonly (readonly [BlockId, number, number, number?])[]): OrderBook {
     const book = new OrderBook();
-    for (const [id, order, version] of saved) book.record(id, order, version);
+    for (const [id, order, version, content] of saved) {
+      book.record(id, order, version);
+      if (content !== undefined) book.recordContent(id, content);
+    }
     return book;
   }
 
-  /** Record the orders in operations the server applied at `version`. */
+  /** Record the orders and contents in operations the server applied at `version`. */
   recordApplied(ops: readonly AppliedOperation[], version: number): void {
     for (const op of ops) {
       if (op.kind === 'insert' || op.kind === 'move' || op.kind === 'reorder')
         this.record(op.id, op.order, version);
+      if (op.kind === 'insert' || (op.kind === 'update' && op.content !== undefined))
+        this.recordContent(op.id, version);
     }
   }
 }
@@ -146,6 +175,8 @@ export function blocksToDocument(
   const known = new Set(blocks.map((b) => b.id));
   for (const block of blocks) {
     orders.record(block.id, block.order, version);
+    // Read at `version`: whatever wrote it, this content is that version's.
+    orders.recordContent(block.id, version);
     // A block whose parent is gone sits at the root rather than vanishing.
     const parent =
       block.parentBlockId && known.has(block.parentBlockId) ? block.parentBlockId : null;
@@ -187,7 +218,12 @@ function previousSibling(doc: EditorDocument, id: BlockId): BlockId | null {
  * `before` (the document it applies to): each position is the block's anchor
  * where the editor put it, which the server turns into an order.
  */
-export function transactionToWire(tx: Transaction, before: EditorDocument): WireOperation[] {
+export function transactionToWire(
+  tx: Transaction,
+  before: EditorDocument,
+  /** When given, updates carry the content version they were made on. */
+  orders?: OrderBook,
+): WireOperation[] {
   const out: WireOperation[] = [];
   let doc = before;
   for (const op of tx.ops) {
@@ -217,11 +253,13 @@ export function transactionToWire(tx: Transaction, before: EditorDocument): Wire
       });
     } else {
       // The API replaces content whole: send the block's full content as it is now.
+      const baseVersion = orders?.contentVersion(op.id);
       out.push({
         kind: 'update',
         id: op.id,
         ...('type' in op.after && op.after.type !== undefined && { type: op.after.type }),
         content: contentOf(getBlock(doc, op.id)),
+        ...(baseVersion !== undefined && { baseVersion }),
       });
     }
   }
@@ -270,6 +308,7 @@ export function wireToOperations(
   for (const op of applied) {
     if (op.kind === 'insert') {
       orders.record(op.id, op.order, version);
+      orders.recordContent(op.id, version);
       if (current.blocks[op.id] || !has(op.parentBlockId)) continue;
       const { text, props } = fieldsFromContent(op.type, op.content ?? {});
       track({
@@ -287,6 +326,7 @@ export function wireToOperations(
         ],
       });
     } else if (op.kind === 'update') {
+      if (op.content !== undefined) orders.recordContent(op.id, version);
       const block = current.blocks[op.id];
       if (!block) continue;
       const type = op.type ?? block.type;

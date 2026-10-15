@@ -85,6 +85,8 @@ export interface CreateBlockInput {
   type: BlockType;
   content: BlockContent;
   order: number;
+  /** The page version that wrote this content (`blocks.contentVersion`). */
+  contentVersion?: number;
 }
 
 /** `POST /api/pages/:pageId/blocks` — `routes/blocks.ts:485`. */
@@ -98,6 +100,7 @@ export async function createBlock(db: PgHandle, input: CreateBlockInput): Promis
       type: input.type,
       content: input.content,
       order: input.order,
+      ...(input.contentVersion !== undefined && { contentVersion: input.contentVersion }),
     })
     .returning();
   if (!row) throw new Error('createBlock inserted no row');
@@ -109,6 +112,8 @@ export interface UpdateBlockInput {
   type?: BlockType;
   /** Always a full replacement — the route re-normalises the whole payload. */
   content?: BlockContent;
+  /** The page version writing `content`. */
+  contentVersion?: number;
   order?: number;
 }
 
@@ -134,6 +139,7 @@ export async function updateBlock(
   if (patch.parentBlockId !== undefined) values.parentBlockId = patch.parentBlockId;
   if (patch.type !== undefined) values.type = patch.type;
   if (patch.content !== undefined) values.content = patch.content;
+  if (patch.contentVersion !== undefined) values.contentVersion = patch.contentVersion;
   if (patch.order !== undefined) values.order = patch.order;
 
   if (Object.keys(values).length === 0) {

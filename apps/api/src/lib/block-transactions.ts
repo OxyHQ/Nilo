@@ -78,6 +78,12 @@ export const blockOperationSchema = z.discriminatedUnion('kind', [
     id: entityIdSchema,
     type: blockTypeSchema.optional(),
     content: z.unknown().optional(),
+    /**
+     * The page version of the content this change was made on. When the
+     * block's content was written later (someone else's edit the editor has
+     * not received), the transaction is refused as `STALE_BLOCK`.
+     */
+    baseVersion: z.number().int().min(0).optional(),
   }),
   z.object({
     kind: z.literal('move'),
@@ -104,6 +110,8 @@ export class TransactionRejected extends Error {
   constructor(
     readonly status: number,
     message: string,
+    /** For the client to act on: `STALE_BLOCK` — rebase and send again. */
+    readonly code?: string,
   ) {
     super(message);
   }
@@ -186,6 +194,7 @@ export async function applyBlockTransaction(
     const contents = new Map<string, BlockContent>(rows.map((b) => [b.id, b.content]));
     const parentOf = new Map<string, string | null>(rows.map((b) => [b.id, b.parentBlockId]));
     const orderOf = new Map<string, number>(rows.map((b) => [b.id, b.order]));
+    const contentVersionOf = new Map<string, number>(rows.map((b) => [b.id, b.contentVersion]));
 
     /** The order for a block going after `afterId` under `parent`; renumbers when there is no room. */
     const orderAfter = async (
@@ -236,7 +245,9 @@ export async function applyBlockTransaction(
             type: op.type,
             content,
             order,
+            contentVersion: version,
           });
+          contentVersionOf.set(op.id, version);
           types.set(op.id, op.type);
           contents.set(op.id, content);
           parentOf.set(op.id, op.parentBlockId);
@@ -254,9 +265,17 @@ export async function applyBlockTransaction(
         case 'update': {
           requireBlock(op.id);
           if (op.type === undefined && op.content === undefined) break;
+          if (op.baseVersion !== undefined && (contentVersionOf.get(op.id) ?? 0) > op.baseVersion) {
+            throw new TransactionRejected(
+              409,
+              `Block ${op.id} changed since version ${op.baseVersion}`,
+              'STALE_BLOCK',
+            );
+          }
           const type = op.type ?? (types.get(op.id) as BlockType);
           const content = normalizeContent(type, op.content ?? contents.get(op.id));
-          await updateBlock(tx, op.id, { type: op.type, content });
+          await updateBlock(tx, op.id, { type: op.type, content, contentVersion: version });
+          contentVersionOf.set(op.id, version);
           types.set(op.id, type);
           contents.set(op.id, content);
           applied.push({ kind: 'update', id: op.id, type, content });

@@ -204,7 +204,9 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
     void notifyMentioned(result.mentioned, { id: page.id, title: page.title }, req.user?.id ?? '');
   } catch (error: unknown) {
     if (error instanceof TransactionRejected) {
-      res.status(error.status).json({ error: error.message });
+      res
+        .status(error.status)
+        .json({ error: error.message, ...(error.code && { code: error.code }) });
       return;
     }
     if (handleZodError(error, res)) return;

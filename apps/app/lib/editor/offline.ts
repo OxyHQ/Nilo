@@ -13,7 +13,7 @@ export interface SavedPage {
   version: number;
   base: EditorDocument;
   pending: PendingTransaction[];
-  orders: [BlockId, number, number][];
+  orders: [BlockId, number, number, number?][];
   /** When the oldest of `pending` was made (ms since the epoch). */
   oldestAt: number;
 }

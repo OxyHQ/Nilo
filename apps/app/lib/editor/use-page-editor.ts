@@ -123,7 +123,7 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
           nextStore,
           {
             send: async (tx, before, key): Promise<SendResult> => {
-              const ops = transactionToWire(tx, before);
+              const ops = transactionToWire(tx, before, orders);
               try {
                 const result = await apiClient.post<{ version: number; ops: AppliedOperation[] }>(
                   API_ROUTES.blocks.transactions(pageId),
@@ -134,7 +134,13 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
                 orders.recordApplied(result.data.ops, result.data.version);
                 return { ok: true, version: result.data.version };
               } catch (err: unknown) {
-                const code = isAxiosError(err) ? err.response?.status : undefined;
+                const response = isAxiosError(err) ? err.response : undefined;
+                // Someone wrote a block this changes since: merged and sent
+                // again once their change arrives.
+                if (response?.status === 409 && response.data?.code === 'STALE_BLOCK') {
+                  return { ok: false, stale: true };
+                }
+                const code = response?.status;
                 // No answer, a server fault or rate limiting: try again.
                 return { ok: false, retry: code === undefined || code >= 500 || code === 429 };
               }

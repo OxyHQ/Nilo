@@ -1016,6 +1016,42 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
     expect((await send('k-2')).status).toBe(409);
   });
 
+  it('refuses an update made on content someone has written since, as stale', async () => {
+    const page = await createPage();
+    const id = uuidv7();
+    const made = await tx(page.id, [
+      {
+        kind: 'insert',
+        id,
+        parentBlockId: null,
+        afterId: null,
+        type: 'paragraph',
+        content: { text: 'a' },
+      },
+    ]);
+    const v1 = made.json.version as number;
+    const first = await tx(page.id, [
+      { kind: 'update', id, content: { text: 'a b' }, baseVersion: v1 },
+    ]);
+    expect(first.status).toBe(200);
+    // Made on v1 too, but the content moved on at the first update.
+    const stale = await tx(page.id, [
+      { kind: 'update', id, content: { text: 'a c' }, baseVersion: v1 },
+    ]);
+    expect(stale.status).toBe(409);
+    expect(stale.json.code).toBe('STALE_BLOCK');
+    expect((await rowsOf(page.id as string))[0]?.content.text).toBe('a b');
+    // On the newer version it goes through; without one, as before.
+    expect(
+      (
+        await tx(page.id, [
+          { kind: 'update', id, content: { text: 'a b c' }, baseVersion: first.json.version },
+        ])
+      ).status,
+    ).toBe(200);
+    expect((await tx(page.id, [{ kind: 'update', id, content: { text: 'x' } }])).status).toBe(200);
+  });
+
   it('tells a resuming editor which of its keys the blocks already include', async () => {
     const page = await createPage();
     const id = uuidv7();

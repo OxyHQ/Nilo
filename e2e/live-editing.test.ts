@@ -168,7 +168,7 @@ async function openEditor(
     store,
     {
       send: async (tx: Transaction, before, key) => {
-        const ops = transactionToWire(tx, before);
+        const ops = transactionToWire(tx, before, orders);
         if (offline()) return { ok: false, retry: true };
         log.push({ ev: 'send', local: tx.ops, ops });
         const res = await fetch(`${base}/pages/${pageId}/blocks/transactions`, {
@@ -193,7 +193,9 @@ async function openEditor(
           log.push({ ev: 'ack', version, applied });
           return { ok: true, version };
         }
-        log.push({ ev: 'refused', status: res.status, body: await res.text() });
+        const body = await res.text();
+        log.push({ ev: 'refused', status: res.status, body });
+        if (res.status === 409 && body.includes('"STALE_BLOCK"')) return { ok: false, stale: true };
         return { ok: false, retry: res.status >= 500 };
       },
     },
@@ -357,6 +359,30 @@ describe('live editing through the API', () => {
     ana.store.run((c) => insertBlockAfter(c, null, 'quote', { text: [{ text: 'end' }] }));
     const stored = await expectConverged(pageId, [ana, ben]);
     expect(stored.root.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("keeps both people's words when they type in one block at once", async () => {
+    const pageId = await createPage();
+    const ana = await openEditor(pageId, 'ana');
+    ana.store.run((c) => insertBlockAfter(c, null, 'paragraph', { text: [{ text: 'the plan' }] }));
+    await settle([ana]);
+    const ben = await openEditor(pageId, 'ben');
+    const id = ana.store.doc.root[0] as string;
+    const type = (editor: Editor, text: string) => {
+      const block = getBlock(editor.store.doc, id);
+      editor.store.dispatch({
+        ops: [{ kind: 'update', id, before: { text: block.text }, after: { text: [{ text }] } }],
+      });
+    };
+    // Neither has seen the other's change.
+    type(ana, 'the new plan');
+    type(ben, 'the plan for May');
+    const stored = await expectConverged(pageId, [ana, ben]);
+    expect(
+      getBlock(stored, id)
+        .text?.map((s) => s.text)
+        .join(''),
+    ).toBe('the new plan for May');
   });
 
   it('resumes unconfirmed work without applying it twice or calling it refused', async () => {

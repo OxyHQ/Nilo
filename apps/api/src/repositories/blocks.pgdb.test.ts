@@ -51,15 +51,22 @@ describe('blocks repository (real database)', () => {
 
   describe('schema', () => {
     /**
-     * Writers of `blocks`, from a repo-wide census: `routes/blocks.ts:485`
-     * (create), `routes/blocks.ts:526-563` (patch), `routes/blocks.ts:654-661`
-     * (reorder, `order` only) and `routes/pages.ts:572-580` (duplicate).
+     * What writes `blocks`: block transactions (`lib/block-transactions.ts`,
+     * every field, `contentVersion` with the content) and copying a page's
+     * blocks (duplicate, templates).
      */
-    const WRITER_FIELDS = ['pageId', 'parentBlockId', 'type', 'content', 'order'] as const;
+    const WRITER_FIELDS = [
+      'pageId',
+      'parentBlockId',
+      'type',
+      'content',
+      'contentVersion',
+      'order',
+    ] as const;
 
     it('declares a column for every field a route writes, and no column without one', () => {
       const declared = getTableConfig(blocks).columns.map((column) => column.name);
-      expect(WRITER_FIELDS.length).toBe(5);
+      expect(WRITER_FIELDS.length).toBe(6);
       for (const field of WRITER_FIELDS) expect(declared).toContain(field);
       expect(new Set(declared)).toEqual(
         new Set([...WRITER_FIELDS, 'id', 'createdAt', 'updatedAt']),
@@ -73,7 +80,7 @@ describe('blocks repository (real database)', () => {
       `);
       const live = new Set(rows.map((row) => row.column_name));
       const config = getTableConfig(blocks);
-      expect(config.columns.length).toBe(8);
+      expect(config.columns.length).toBe(9);
       for (const column of config.columns) expect(live).toContain(sqlColumnName(column));
       expect(live.size).toBe(config.columns.length);
     });

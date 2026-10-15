@@ -41,6 +41,24 @@ committed. The page's `blocksVersion` goes up by one per transaction; the
 page room broadcasts `{ version, ops }` to everyone but the sender
 (`socketId`).
 
+## Two people in one block
+
+A text change replaces a block's content whole, so on its own the last one
+saved would win. Two things keep both people's words:
+
+- The client merges. Rebasing a pending change over a remote one, resuming
+  saved work, undo and redo all apply a text change to the block's text as
+  it is now, three-way (`mergeText` in `@oxy.so/bloom-text`): only that
+  person's own change goes in or comes out.
+- The server refuses what it would overwrite. Each block keeps the version
+  that last wrote its content (`blocks.content_version`); an update carries
+  the version it was made on (`baseVersion`, from the `OrderBook`). Made on
+  an older one, it is refused with 409 `STALE_BLOCK`; the session sends it
+  again as soon as the newer version arrives, merged into it.
+
+`e2e/live-editing.test.ts` types in one block from two editors at once
+against PostgreSQL and checks both texts are kept.
+
 ## Idempotent retries
 
 The editor sends a `key` per transaction, the same on every retry. The

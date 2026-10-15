@@ -141,6 +141,13 @@
       "when": 1792050926322,
       "tag": "0019_drop_old_search_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792051518850,
+      "tag": "0020_block_content_version",
+      "breakpoints": true
     }
   ]
 }

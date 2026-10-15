@@ -281,6 +281,14 @@ export const blocks = pgTable(
      */
     type: text().$type<BlockType>().notNull(),
     content: jsonb().$type<BlockContent>().notNull().default({}),
+    /**
+     * The page's `blocksVersion` that last wrote `content` (0: before this
+     * was kept). An editor's update says which version of the content it was
+     * made on (`baseVersion`); one made on an older version is refused as
+     * stale rather than written over someone else's newer text — the editor
+     * merges it into that text and sends it again.
+     */
+    contentVersion: integer().notNull().default(0),
     /** Sibling ordering within `(pageId, parentBlockId)`. See `pages.order`. */
     order: doublePrecision().notNull().default(0),
     createdAt: createdAt(),
