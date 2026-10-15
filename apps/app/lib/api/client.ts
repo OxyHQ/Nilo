@@ -17,6 +17,11 @@ export function setTokenGetter(getter: () => string | null) {
   getAccessToken = getter;
 }
 
+/** The signed-in session's bearer token, or null (for the realtime socket). */
+export function currentAccessToken(): string | null {
+  return getAccessToken?.() ?? null;
+}
+
 // Request interceptor to add Bearer JWT token
 apiClient.interceptors.request.use(
   (config) => {

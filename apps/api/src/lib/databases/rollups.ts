@@ -1,89 +1,63 @@
 import type { PgHandle } from '../../db/client.js';
-import type { DatabaseProperty } from '../../db/schema/databases.js';
+import type { DatabaseProperty, DatabaseSchema } from '../../db/schema/databases.js';
 import type { PageProperties } from '../../db/schema/pages.js';
 import { findDatabaseById } from '../../repositories/databases.js';
 import { findPagesByIds } from '../../repositories/pages.js';
 
 /**
- * Resolve a rollup property's value against a single source row.
+ * Rollup values for rows of one database.
  *
- * MVP behaviour:
+ * Behaviour:
  *   - one-way relations only (we do not propagate two-way back-refs yet)
  *   - functions: count | sum | avg | min | max | earliest | latest
  *   - target property must be a number (for sum/avg/min/max) or a date
- *     (for earliest/latest); other shapes return `null`.
+ *     (for earliest/latest); other shapes give `null`.
  *
- * Returns `null` if the rollup can't be resolved (missing config, missing
- * target db, etc.) so the UI can render an em-dash placeholder.
+ * `null` when a rollup cannot be resolved (missing config, missing target
+ * database…) so the UI can render an em-dash placeholder.
  *
- * This module is NOT one of the pure `lib/databases/*` evaluators: it reads
- * the related rows and their database, so it takes a handle like any
- * repository caller.
+ * Batched: per rollup property, the related rows of every row are read in one
+ * query and the target database once — a view of a thousand rows used to read
+ * them row by row. This module is NOT one of the pure `lib/databases/*`
+ * evaluators: it reads, so it takes a handle like any repository caller.
  */
-export async function resolveRollup(
-  handle: PgHandle,
-  rollupProperty: DatabaseProperty,
-  row: { properties: PageProperties },
-): Promise<number | string | null> {
-  const config = rollupProperty.config;
-  if (!config?.relationPropertyId || !config.function || !config.targetPropertyId) {
-    return null;
-  }
+export type RollupValue = number | string | null;
 
-  const relationValue = row.properties[config.relationPropertyId] ?? null;
-  if (!relationValue || typeof relationValue !== 'object') return null;
-  const pageIds = (relationValue as { pageIds?: unknown }).pageIds;
-  if (!Array.isArray(pageIds) || pageIds.length === 0) {
-    return config.function === 'count' ? 0 : null;
-  }
+type RowLike = { id: string; properties: PageProperties };
 
-  if (config.function === 'count') return pageIds.length;
-
+/** The page ids a row's relation value points at. */
+function relatedIds(row: RowLike, relationPropertyId: string): string[] | null {
+  const value = row.properties[relationPropertyId] ?? null;
+  if (!value || typeof value !== 'object') return null;
+  const pageIds = (value as { pageIds?: unknown }).pageIds;
+  if (!Array.isArray(pageIds)) return null;
   /**
-   * The 24-hex filter this used to apply is GONE, and its removal is the
-   * point rather than tidying.
-   *
-   * It existed to keep a malformed string out of `new ObjectId(...)`, which
-   * throws. There is no cast here — the ids are `text` — and a uuid v7 does
-   * not match `/^[0-9a-fA-F]{24}$/`, so keeping the filter would have emptied
-   * this list for every row created after the cutover and returned `null` for
-   * every numeric rollup. Silently, and looking exactly like a rollup whose
-   * targets happen to hold no numbers.
-   *
-   * An id that names nothing now costs one row fewer in the result instead of
-   * an exception, which is the answer the query gives for free.
+   * No 24-hex filter: it kept a malformed string out of `new ObjectId(...)`,
+   * and a uuid v7 does not match it — it would empty this list for every row
+   * created since the port. An id that names nothing simply finds no row.
    */
-  const ids = pageIds.filter((id): id is string => typeof id === 'string');
-  if (ids.length === 0) return null;
+  return pageIds.filter((id): id is string => typeof id === 'string');
+}
 
-  const relatedRows = await findPagesByIds(handle, ids, { archived: false });
-  if (relatedRows.length === 0) return null;
-
-  const targetDbId = relatedRows[0]?.databaseId;
-  if (!targetDbId) return null;
-  const targetDb = await findDatabaseById(handle, targetDbId);
-  if (!targetDb) return null;
-  const targetProp = targetDb.propertiesSchema.properties.find(
-    (p) => p.id === config.targetPropertyId,
-  );
-  if (!targetProp) return null;
-
+function computeRollup(
+  fn: string,
+  target: DatabaseProperty,
+  related: readonly { properties: PageProperties }[],
+): RollupValue {
+  if (related.length === 0) return null;
   const numbers: number[] = [];
   const dates: number[] = [];
-  for (const r of relatedRows) {
-    const value = r.properties[targetProp.id] ?? null;
+  for (const r of related) {
+    const value = r.properties[target.id] ?? null;
     if (!value || typeof value !== 'object') continue;
     const obj = value as Record<string, unknown>;
-    if (typeof obj.number === 'number' && Number.isFinite(obj.number)) {
-      numbers.push(obj.number);
-    }
+    if (typeof obj.number === 'number' && Number.isFinite(obj.number)) numbers.push(obj.number);
     if (typeof obj.start === 'string') {
       const t = Date.parse(obj.start);
       if (Number.isFinite(t)) dates.push(t);
     }
   }
-
-  switch (config.function) {
+  switch (fn) {
     case 'sum':
       return numbers.reduce((acc, n) => acc + n, 0);
     case 'avg':
@@ -99,4 +73,51 @@ export async function resolveRollup(
     default:
       return null;
   }
+}
+
+/** Every rollup of `schema` for every row: row id → property id → value. */
+export async function resolveRollups(
+  handle: PgHandle,
+  schema: DatabaseSchema,
+  rows: readonly RowLike[],
+): Promise<Map<string, Map<string, RollupValue>>> {
+  const out = new Map<string, Map<string, RollupValue>>(rows.map((r) => [r.id, new Map()]));
+  for (const property of schema.properties) {
+    if (property.type !== 'rollup') continue;
+    const config = property.config;
+    const set = (rowId: string, value: RollupValue) => out.get(rowId)?.set(property.id, value);
+    if (!config?.relationPropertyId || !config.function || !config.targetPropertyId) {
+      for (const row of rows) set(row.id, null);
+      continue;
+    }
+    const idsByRow = new Map(
+      rows.map((r) => [r.id, relatedIds(r, config.relationPropertyId as string)]),
+    );
+    if (config.function === 'count') {
+      for (const row of rows) {
+        const ids = idsByRow.get(row.id);
+        set(row.id, ids === null || ids === undefined ? null : ids.length);
+      }
+      continue;
+    }
+    const wanted = [...new Set([...idsByRow.values()].flatMap((ids) => ids ?? []))];
+    const related =
+      wanted.length > 0 ? await findPagesByIds(handle, wanted, { archived: false }) : [];
+    const byId = new Map(related.map((r) => [r.id, r]));
+    // The related rows' database (one relation points into one database).
+    const targetDbId = related[0]?.databaseId;
+    const targetDb = targetDbId ? await findDatabaseById(handle, targetDbId) : null;
+    const target = targetDb?.propertiesSchema.properties.find(
+      (p) => p.id === config.targetPropertyId,
+    );
+    for (const row of rows) {
+      const ids = idsByRow.get(row.id) ?? [];
+      const rowRelated = ids.flatMap((id) => {
+        const found = byId.get(id);
+        return found && found.databaseId === targetDbId ? [found] : [];
+      });
+      set(row.id, target ? computeRollup(config.function, target, rowRelated) : null);
+    }
+  }
+  return out;
 }

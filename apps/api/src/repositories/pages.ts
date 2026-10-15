@@ -10,10 +10,11 @@
  * referential action above all) live in `../db/schema/pages.ts`.
  */
 
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { TRANSACTION_KEY_RETENTION_MS } from '@nilo/contracts';
 import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
-import { pages, type PageProperties } from '../db/schema/pages.js';
+import { type PageFont, pages, type PageProperties, pageTransactions } from '../db/schema/pages.js';
 
 export type PageRow = typeof pages.$inferSelect;
 
@@ -47,6 +48,8 @@ export interface ListPagesFilter {
    * which matches nothing and returns an empty list with no error.
    */
   parentId?: string | null;
+  /** `true` — templates only; `false` — no templates; absent — both. */
+  template?: boolean;
   /**
    * `undefined` — archived and active together (`?includeArchived=true`).
    * `true` — the trash view (`?archivedOnly=true`).
@@ -75,6 +78,7 @@ export async function listPages(db: PgHandle, filter: ListPagesFilter): Promise<
   }
   if (filter.archived !== undefined) predicates.push(eq(pages.archived, filter.archived));
   if (filter.favoritedOnly) predicates.push(eq(pages.favorited, true));
+  if (filter.template !== undefined) predicates.push(eq(pages.template, filter.template));
 
   return db
     .select()
@@ -181,6 +185,10 @@ export interface CreatePageInput {
   databaseId?: string | null;
   /** Set only by `routes/databases.ts:1057`. Every other creator takes the `{}` default. */
   properties?: PageProperties;
+  /** A database row created as a template (`POST /databases/:id/rows { template }`). */
+  template?: boolean;
+  /** Where a top-level page lives: its teamspace, or null — private to its owner. */
+  teamspaceId?: string | null;
 }
 
 /**
@@ -207,6 +215,9 @@ export async function createPage(db: PgHandle, input: CreatePageInput): Promise<
       order: input.order,
       databaseId: input.databaseId ?? null,
       properties: input.properties ?? {},
+      template: input.template ?? false,
+      // Read only at the top of a tree: a subpage lives where its tree starts.
+      teamspaceId: input.parentId ? null : (input.teamspaceId ?? null),
     })
     .returning();
   if (!row) throw new Error('createPage inserted no row');
@@ -222,6 +233,18 @@ export interface UpdatePageInput {
   order?: number;
   archived?: boolean;
   favorited?: boolean;
+  restricted?: boolean;
+  template?: boolean;
+  fullWidth?: boolean;
+  smallText?: boolean;
+  font?: PageFont;
+  locked?: boolean;
+  /** Where a top-level page lives (null: private to its owner). */
+  teamspaceId?: string | null;
+  publishedAt?: Date | null;
+  publishSlug?: string;
+  publishIndexing?: boolean;
+  lastEditedBy?: string;
   /**
    * Shallow top-level MERGE into the stored object, never a replacement.
    *
@@ -269,6 +292,17 @@ export async function updatePage(
   if (patch.order !== undefined) values.order = patch.order;
   if (patch.archived !== undefined) values.archived = patch.archived;
   if (patch.favorited !== undefined) values.favorited = patch.favorited;
+  if (patch.restricted !== undefined) values.restricted = patch.restricted;
+  if (patch.template !== undefined) values.template = patch.template;
+  if (patch.fullWidth !== undefined) values.fullWidth = patch.fullWidth;
+  if (patch.smallText !== undefined) values.smallText = patch.smallText;
+  if (patch.font !== undefined) values.font = patch.font;
+  if (patch.locked !== undefined) values.locked = patch.locked;
+  if (patch.teamspaceId !== undefined) values.teamspaceId = patch.teamspaceId;
+  if (patch.publishedAt !== undefined) values.publishedAt = patch.publishedAt;
+  if (patch.publishSlug !== undefined) values.publishSlug = patch.publishSlug;
+  if (patch.publishIndexing !== undefined) values.publishIndexing = patch.publishIndexing;
+  if (patch.lastEditedBy !== undefined) values.lastEditedBy = patch.lastEditedBy;
   if (patch.mergeProperties !== undefined) {
     values.properties = sql`${pages.properties} || ${JSON.stringify(patch.mergeProperties)}::jsonb`;
   }
@@ -305,6 +339,8 @@ export async function removePropertyFromDatabaseRows(
 export interface ListDatabaseRowsFilter {
   /** `routes/databases.ts:955` reads live rows only; the hard delete at :765 reads all. */
   archived?: boolean;
+  /** `true` — the database's row templates only; `false` — rows proper; absent — both. */
+  template?: boolean;
 }
 
 /** `GET /api/databases/:id/rows` — `routes/databases.ts:955`. */
@@ -315,6 +351,7 @@ export async function listDatabaseRows(
 ): Promise<PageRow[]> {
   const predicates = [eq(pages.databaseId, databaseId)];
   if (filter.archived !== undefined) predicates.push(eq(pages.archived, filter.archived));
+  if (filter.template !== undefined) predicates.push(eq(pages.template, filter.template));
   return db
     .select()
     .from(pages)
@@ -444,4 +481,99 @@ export async function findPageAncestry(db: PgHandle, id: string): Promise<PageCr
     title: typeof row.title === 'string' ? row.title : '',
     icon: typeof row.icon === 'string' ? row.icon : null,
   }));
+}
+
+/**
+ * Advance a page's blocks version by one and return the new value. Called
+ * inside the transaction that applies a block transaction, so the version
+ * and the change commit together.
+ */
+export async function bumpBlocksVersion(
+  db: PgHandle,
+  pageId: string,
+  editorId?: string,
+): Promise<number> {
+  const [row] = await db
+    .update(pages)
+    .set({
+      blocksVersion: sql`${pages.blocksVersion} + 1`,
+      ...(editorId && { lastEditedBy: editorId }),
+    })
+    .where(eq(pages.id, pageId))
+    .returning({ version: pages.blocksVersion });
+  if (!row) throw new Error(`bumpBlocksVersion found no page ${pageId}`);
+  return row.version;
+}
+
+/**
+ * Lock a page's row until the end of the transaction `db` is in: block
+ * transactions on one page take it first, so they run one after another.
+ * Answers whether the page is locked against edits (`pages.locked`), read
+ * under that same row lock.
+ */
+export async function lockPage(db: PgHandle, pageId: string): Promise<{ locked: boolean } | null> {
+  const [row] = await db
+    .select({ locked: pages.locked })
+    .from(pages)
+    .where(eq(pages.id, pageId))
+    .for('update');
+  return row ?? null;
+}
+
+/** Which of `keys` name block transactions this page has applied (and still remembers). */
+export async function findAppliedTransactionKeys(
+  db: PgHandle,
+  pageId: string,
+  keys: readonly string[],
+): Promise<string[]> {
+  if (keys.length === 0) return [];
+  const rows = await db
+    .select({ key: pageTransactions.key })
+    .from(pageTransactions)
+    .where(and(eq(pageTransactions.pageId, pageId), inArray(pageTransactions.key, [...keys])));
+  return rows.map((row) => row.key);
+}
+
+/** The record of a block transaction already applied under `key`, if any. */
+export async function findPageTransaction(
+  db: PgHandle,
+  pageId: string,
+  key: string,
+): Promise<{ version: number; ops: unknown[] } | undefined> {
+  const [row] = await db
+    .select({ version: pageTransactions.version, ops: pageTransactions.ops })
+    .from(pageTransactions)
+    .where(and(eq(pageTransactions.pageId, pageId), eq(pageTransactions.key, key)));
+  return row;
+}
+
+/**
+ * Record an applied block transaction under its key, and drop the page's
+ * records old enough that no client is still retrying them.
+ */
+export async function recordPageTransaction(
+  db: PgHandle,
+  record: { pageId: string; key: string; version: number; ops: unknown[] },
+): Promise<void> {
+  await db
+    .delete(pageTransactions)
+    .where(
+      and(
+        eq(pageTransactions.pageId, record.pageId),
+        lt(
+          pageTransactions.createdAt,
+          sql`now() - make_interval(secs => ${TRANSACTION_KEY_RETENTION_MS / 1000})`,
+        ),
+      ),
+    );
+  await db.insert(pageTransactions).values(record);
+}
+
+/** The page published (or once published) at `slug`. */
+export async function findPageByPublishSlug(
+  db: PgHandle,
+  slug: string,
+): Promise<PageRow | undefined> {
+  const [row] = await db.select().from(pages).where(eq(pages.publishSlug, slug));
+  return row;
 }

@@ -1,0 +1,27 @@
+{
+  "title": "Papelera",
+  "subtitle": "Las páginas archivadas se guardan aquí 30 días y después se eliminan para siempre.",
+  "selectWorkspace": "Selecciona un espacio de trabajo para ver la papelera.",
+  "empty": "La papelera está vacía.",
+  "emptyTrash": "Vaciar papelera",
+  "archivedAt": "Archivada el %{date}",
+  "restore": "Restaurar",
+  "restorePage": "Restaurar página",
+  "deletePagePermanently": "Eliminar página definitivamente",
+  "emptyFailed": "No se pudo vaciar la papelera",
+  "removed": {
+    "one": "Se eliminó %{count} página",
+    "other": "Se eliminaron %{count} páginas"
+  },
+  "emptyDialog": {
+    "title": "¿Vaciar la papelera?",
+    "description": {
+      "one": "Se eliminará definitivamente %{count} página y todos sus bloques.",
+      "other": "Se eliminarán definitivamente %{count} páginas y todos sus bloques."
+    }
+  },
+  "deleteDialog": {
+    "title": "¿Eliminar definitivamente?",
+    "description": "«%{title}» se eliminará para siempre."
+  }
+}

@@ -1,9 +1,8 @@
+import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
 import { Platform } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
-import { useCreatePage } from '@/lib/hooks/use-pages';
 
 /**
  * Returns true when the active element is an editable text surface (input,
@@ -41,29 +40,26 @@ function getShortcutContext(e: KeyboardEvent): ShortcutContext {
  *   - Cmd/Ctrl+/  → toggle shortcuts dialog (only when not focused inside editor)
  */
 export function useKeyboardShortcuts() {
-  const router = useRouter();
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const toggleSidebarCollapsed = useUIStore((s) => s.toggleSidebarCollapsed);
   const toggleShortcutsDialog = useUIStore((s) => s.toggleShortcutsDialog);
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-  const createPage = useCreatePage();
+  const openNewPage = useNewPageStore((s) => s.open);
 
   // Stash mutable handlers in a ref so the global listener doesn't churn.
   const handlersRef = React.useRef({
-    router,
     setCommandPaletteOpen,
     toggleSidebarCollapsed,
     toggleShortcutsDialog,
     currentWorkspaceId,
-    createPage,
+    openNewPage,
   });
   handlersRef.current = {
-    router,
     setCommandPaletteOpen,
     toggleSidebarCollapsed,
     toggleShortcutsDialog,
     currentWorkspaceId,
-    createPage,
+    openNewPage,
   };
 
   React.useEffect(() => {
@@ -88,19 +84,9 @@ export function useKeyboardShortcuts() {
       // Cmd+N → new page
       if (key === 'n') {
         e.preventDefault();
-        const { currentWorkspaceId: wsId, createPage: cp, router: r } = handlersRef.current;
+        const { currentWorkspaceId: wsId, openNewPage: open } = handlersRef.current;
         if (!wsId) return;
-        cp.mutateAsync({
-          workspaceId: wsId,
-          parentId: null,
-          title: '',
-        })
-          .then((page) => {
-            r.push(`/p/${page._id}`);
-          })
-          .catch(() => {
-            /* mutation surfaces errors via state */
-          });
+        open({ workspaceId: wsId, parentId: null });
         return;
       }
 

@@ -1,27 +1,35 @@
 import * as React from 'react';
-import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
+import { Text as RNText, type TextProps as RNTextProps, type TextStyle } from 'react-native';
 import { cn } from '@/lib/utils';
 
 const TextClassContext = React.createContext<string | undefined>(undefined);
 
+const TextStyleContext = React.createContext<TextStyle | undefined>(undefined);
+
 export type TextProps = RNTextProps & {
   className?: string;
+  /** Inline runs inherit typography and color from their surrounding Text. */
+  inherit?: boolean;
 };
 
-const Text = React.forwardRef<RNText, TextProps>(({ className, ...props }, ref) => {
-  const textClass = React.useContext(TextClassContext);
-  return (
-    <RNText
-      className={cn(
-        'text-base leading-7 text-foreground web:select-text font-sans',
-        textClass,
-        className,
-      )}
-      ref={ref}
-      {...props}
-    />
-  );
-});
+const Text = React.forwardRef<RNText, TextProps>(
+  ({ className, inherit = false, style, ...props }, ref) => {
+    const textStyle = React.useContext(TextStyleContext);
+    const textClass = React.useContext(TextClassContext);
+    return (
+      <RNText
+        className={cn(
+          !inherit && 'text-base leading-7 text-foreground web:select-text font-sans',
+          !inherit && textClass,
+          className,
+        )}
+        style={[!inherit && textStyle, style]}
+        ref={ref}
+        {...props}
+      />
+    );
+  },
+);
 Text.displayName = 'Text';
 
-export { Text, TextClassContext };
+export { Text, TextClassContext, TextStyleContext };

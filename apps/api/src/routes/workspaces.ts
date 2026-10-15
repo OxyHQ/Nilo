@@ -22,6 +22,7 @@ import {
   updateWorkspace,
 } from '../repositories/workspaces.js';
 import { log } from '../lib/logger.js';
+import { findUserByEmail, loadMemberProfiles } from '../lib/member-profiles.js';
 
 const router = Router();
 
@@ -280,21 +281,7 @@ router.patch(
         return;
       }
 
-      res.json({
-        workspace: serializeWorkspace(
-          {
-            id: ws.id,
-            name: ws.name,
-            icon: ws.icon,
-            ownerId: ws.ownerId,
-            isPersonal: ws.isPersonal,
-            archivedAt: ws.archivedAt,
-            createdAt: ws.createdAt,
-            updatedAt: ws.updatedAt,
-          },
-          req.member.role,
-        ),
-      });
+      res.json({ workspace: serializeWorkspace(updated, req.member.role) });
     } catch (error: unknown) {
       log.general.error({ err: error }, 'Failed to update workspace');
       res.status(500).json({ error: 'Failed to update workspace' });
@@ -364,6 +351,7 @@ router.get(
       }
 
       const members = await listMembers(getDb(), req.workspaceDoc.id);
+      const profiles = await loadMemberProfiles(members.map((m) => m.userId));
 
       res.json({
         members: members.map((m) => ({
@@ -371,6 +359,7 @@ router.get(
           role: m.role,
           invitedBy: m.invitedBy,
           joinedAt: m.joinedAt,
+          user: profiles.get(m.userId) ?? null,
         })),
       });
     } catch (error: unknown) {
@@ -379,25 +368,6 @@ router.get(
     }
   },
 );
-
-/**
- * Find an Oxy user by email via the SDK's `users.search` method. Returns
- * the matching user or null. Email match is case-insensitive and exact.
- */
-async function findUserByEmail(email: string): Promise<{ id: string; email?: string } | null> {
-  try {
-    const response = await oxyClient.users.search(email, { limit: 5 });
-    const target = email.toLowerCase();
-    const hit = response.data.find(
-      (u) => typeof u.email === 'string' && u.email.toLowerCase() === target,
-    );
-    if (!hit) return null;
-    return { id: hit.id, email: hit.email };
-  } catch (err: unknown) {
-    log.general.warn({ err, email }, 'users.search failed during workspace invite');
-    return null;
-  }
-}
 
 /**
  * POST /api/workspaces/:workspaceId/members

@@ -9,6 +9,8 @@
  *                        but kept distinct so the picker tab can preselect.
  */
 
+import i18n from '@/lib/i18n';
+
 export type CoverValue =
   | { kind: 'gradient'; index: number }
   | { kind: 'color'; hex: string }
@@ -67,34 +69,91 @@ export function encodeUnsplash(url: string): string {
  * indices.
  */
 export const COVER_GRADIENTS: ReadonlyArray<{
+  /** Stable identifier (React key); not shown to users. */
   name: string;
+  /** Translated display name, resolved at render time. */
+  label: () => string;
   from: string;
   to: string;
 }> = [
-  { name: 'Sunset', from: '#ff7e5f', to: '#feb47b' },
-  { name: 'Aurora', from: '#a8edea', to: '#fed6e3' },
-  { name: 'Tropics', from: '#43cea2', to: '#185a9d' },
-  { name: 'Lavender', from: '#c471f5', to: '#fa71cd' },
-  { name: 'Mint', from: '#76b852', to: '#8dc26f' },
-  { name: 'Ocean', from: '#2193b0', to: '#6dd5ed' },
-  { name: 'Sherbet', from: '#f7971e', to: '#ffd200' },
-  { name: 'Plum', from: '#5614b0', to: '#dbd65c' },
-  { name: 'Crimson', from: '#ed213a', to: '#93291e' },
-  { name: 'Slate', from: '#232526', to: '#414345' },
+  {
+    name: 'Sunset',
+    label: () => i18n.t('pages.coverPicker.gradients.sunset'),
+    from: '#ff7e5f',
+    to: '#feb47b',
+  },
+  {
+    name: 'Aurora',
+    label: () => i18n.t('pages.coverPicker.gradients.aurora'),
+    from: '#a8edea',
+    to: '#fed6e3',
+  },
+  {
+    name: 'Tropics',
+    label: () => i18n.t('pages.coverPicker.gradients.tropics'),
+    from: '#43cea2',
+    to: '#185a9d',
+  },
+  {
+    name: 'Lavender',
+    label: () => i18n.t('pages.coverPicker.gradients.lavender'),
+    from: '#c471f5',
+    to: '#fa71cd',
+  },
+  {
+    name: 'Mint',
+    label: () => i18n.t('pages.coverPicker.gradients.mint'),
+    from: '#76b852',
+    to: '#8dc26f',
+  },
+  {
+    name: 'Ocean',
+    label: () => i18n.t('pages.coverPicker.gradients.ocean'),
+    from: '#2193b0',
+    to: '#6dd5ed',
+  },
+  {
+    name: 'Sherbet',
+    label: () => i18n.t('pages.coverPicker.gradients.sherbet'),
+    from: '#f7971e',
+    to: '#ffd200',
+  },
+  {
+    name: 'Plum',
+    label: () => i18n.t('pages.coverPicker.gradients.plum'),
+    from: '#5614b0',
+    to: '#dbd65c',
+  },
+  {
+    name: 'Crimson',
+    label: () => i18n.t('pages.coverPicker.gradients.crimson'),
+    from: '#ed213a',
+    to: '#93291e',
+  },
+  {
+    name: 'Slate',
+    label: () => i18n.t('pages.coverPicker.gradients.slate'),
+    from: '#232526',
+    to: '#414345',
+  },
 ];
 
 /**
  * Preset solid colors. Picked to read well as a 200px cover behind dark text.
  */
-export const COVER_COLORS: ReadonlyArray<{ name: string; hex: string }> = [
-  { name: 'Slate', hex: '#1f2937' },
-  { name: 'Stone', hex: '#57534e' },
-  { name: 'Brick', hex: '#9a3412' },
-  { name: 'Marigold', hex: '#a16207' },
-  { name: 'Moss', hex: '#15803d' },
-  { name: 'Sea', hex: '#0e7490' },
-  { name: 'Sky', hex: '#1d4ed8' },
-  { name: 'Violet', hex: '#6d28d9' },
-  { name: 'Rose', hex: '#be185d' },
-  { name: 'Charcoal', hex: '#27272a' },
+export const COVER_COLORS: ReadonlyArray<{
+  name: string;
+  label: () => string;
+  hex: string;
+}> = [
+  { name: 'Slate', label: () => i18n.t('pages.coverPicker.colors.slate'), hex: '#1f2937' },
+  { name: 'Stone', label: () => i18n.t('pages.coverPicker.colors.stone'), hex: '#57534e' },
+  { name: 'Brick', label: () => i18n.t('pages.coverPicker.colors.brick'), hex: '#9a3412' },
+  { name: 'Marigold', label: () => i18n.t('pages.coverPicker.colors.marigold'), hex: '#a16207' },
+  { name: 'Moss', label: () => i18n.t('pages.coverPicker.colors.moss'), hex: '#15803d' },
+  { name: 'Sea', label: () => i18n.t('pages.coverPicker.colors.sea'), hex: '#0e7490' },
+  { name: 'Sky', label: () => i18n.t('pages.coverPicker.colors.sky'), hex: '#1d4ed8' },
+  { name: 'Violet', label: () => i18n.t('pages.coverPicker.colors.violet'), hex: '#6d28d9' },
+  { name: 'Rose', label: () => i18n.t('pages.coverPicker.colors.rose'), hex: '#be185d' },
+  { name: 'Charcoal', label: () => i18n.t('pages.coverPicker.colors.charcoal'), hex: '#27272a' },
 ];

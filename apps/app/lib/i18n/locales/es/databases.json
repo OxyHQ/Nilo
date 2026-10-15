@@ -1,0 +1,349 @@
+{
+  "untitled": "Sin título",
+  "untitledDatabase": "Base de datos sin título",
+  "actions": {
+    "new": "Nueva",
+    "adding": "Añadiendo…",
+    "add": "Añadir",
+    "apply": "Aplicar",
+    "clear": "Borrar",
+    "clearAll": "Borrar todo"
+  },
+  "toolbar": {
+    "filter": "Filtro",
+    "filterCount": "Filtro (%{count})",
+    "sort": "Orden",
+    "sortCount": "Orden (%{count})"
+  },
+  "views": {
+    "table": "Tabla",
+    "board": "Tablero",
+    "gallery": "Galería",
+    "list": "Lista",
+    "calendar": "Calendario",
+    "timeline": "Cronograma",
+    "new": "Nueva vista",
+    "rename": "Cambiar nombre de la vista",
+    "delete": "Eliminar vista",
+    "namePlaceholder": "Nombre de la vista",
+    "form": "Formulario",
+    "createFailed": "No se pudo crear la vista. Inténtalo de nuevo.",
+    "settings": "Ajustes de %{name}",
+    "updateFailed": "No se pudo actualizar la vista.",
+    "deleteFailed": "No se pudo eliminar la vista."
+  },
+  "propertyTypes": {
+    "text": "Texto",
+    "number": "Número",
+    "select": "Selección",
+    "multiSelect": "Selección múltiple",
+    "status": "Estado",
+    "date": "Fecha",
+    "person": "Persona",
+    "files": "Archivos",
+    "checkbox": "Casilla de verificación",
+    "url": "URL",
+    "email": "Correo electrónico",
+    "phone": "Teléfono",
+    "relation": "Relación",
+    "rollup": "Resumen (rollup)",
+    "createdTime": "Fecha de creación",
+    "lastEditedTime": "Última edición",
+    "createdBy": "Creado por",
+    "lastEditedBy": "Editado por última vez por",
+    "formula": "Fórmula",
+    "uniqueId": "ID"
+  },
+  "properties": {
+    "property": "Propiedad",
+    "add": "Añadir propiedad",
+    "rename": "Cambiar nombre",
+    "editOptions": "Editar opciones",
+    "sortAscending": "Orden ascendente",
+    "sortDescending": "Orden descendente",
+    "hideInView": "Ocultar en la vista",
+    "delete": "Eliminar propiedad",
+    "name": "Nombre de la propiedad",
+    "options": "Opciones",
+    "newOption": "Nueva opción",
+    "searchOptions": "Buscar opciones",
+    "noOptions": "No hay opciones",
+    "pageCount": {
+      "one": "%{count} página",
+      "other": "%{count} páginas"
+    }
+  },
+  "filters": {
+    "title": "Filtros",
+    "empty": "Aún no hay filtros. Añade uno abajo.",
+    "add": "Añadir filtro",
+    "value": "Valor",
+    "checked": "Marcada",
+    "unchecked": "Sin marcar",
+    "and": "y",
+    "or": "o",
+    "operators": {
+      "contains": "contiene",
+      "doesNotContain": "no contiene",
+      "equals": "es igual a",
+      "startsWith": "empieza por",
+      "endsWith": "termina en",
+      "isEmpty": "está vacío",
+      "isNotEmpty": "no está vacío",
+      "is": "es",
+      "isNot": "no es",
+      "before": "antes de",
+      "after": "después de",
+      "onOrBefore": "en o antes de",
+      "onOrAfter": "en o después de"
+    }
+  },
+  "sorts": {
+    "title": "Orden",
+    "empty": "Aún no hay órdenes. Añade una propiedad abajo.",
+    "add": "Añadir orden",
+    "allAdded": "Ya se añadieron todas las propiedades"
+  },
+  "table": {
+    "empty": "Aún no hay filas"
+  },
+  "board": {
+    "needsGroupProperty": "Añade una propiedad de estado o de selección para usar la vista de tablero.",
+    "noStatus": "Sin estado"
+  },
+  "gallery": {
+    "newCard": "Nueva tarjeta"
+  },
+  "calendar": {
+    "needsDateProperty": "Añade una propiedad de fecha para activar la vista de calendario.",
+    "webOnly": "La vista de calendario solo está disponible en la web en la fase 4. Abre la vista de tabla en el móvil para editar las filas.",
+    "today": "Hoy"
+  },
+  "timeline": {
+    "needsDateProperty": "Añade una propiedad de fecha para activar la vista de cronograma.",
+    "webOnly": "La vista de cronograma solo está disponible en la web en la fase 4. Abre la vista de tabla en el móvil para ver tus filas.",
+    "row": "Fila"
+  },
+  "form": {
+    "builder": "Editor de formulario",
+    "title": "Título del formulario",
+    "description": "Descripción",
+    "fields": "Campos",
+    "requiredLabel": "%{name} (obligatorio)",
+    "showField": "Mostrar %{name}",
+    "preview": "Vista previa",
+    "previewHint": "Solo vista previa. Las respuestas introducidas aquí no se envían.",
+    "saved": "Formulario guardado",
+    "saveFailed": "No se pudo guardar el formulario. Comprueba tus permisos e inténtalo de nuevo.",
+    "editorsOnly": "Solo los editores de la base de datos pueden gestionar este formulario.",
+    "link": "Enlace del formulario",
+    "createLink": "Crear enlace",
+    "copyLink": "Copiar enlace",
+    "copyFailed": "No se pudo copiar el enlace.",
+    "deleteLink": "Eliminar enlace",
+    "deleteHint": "Este enlace dejará de funcionar. Al crear otro enlace se generará una dirección nueva.",
+    "open": "Aceptar respuestas",
+    "requireSignIn": "Exigir inicio de sesión",
+    "loadFailed": "No se pudo cargar o enviar el formulario. Inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "required": "Introduce un valor para %{name}.",
+    "invalid": "Introduce un valor válido para %{name}.",
+    "timeFor": "Hora de %{name} (opcional)",
+    "optionalTime": "Hora (HH:MM, opcional)",
+    "submit": "Enviar",
+    "submitting": "Enviando…",
+    "thanks": "¡Gracias por tu respuesta!",
+    "another": "Enviar otra respuesta",
+    "unavailable": "Este formulario no está disponible o ya no acepta respuestas.",
+    "signInRequired": "Inicia sesión para responder a este formulario.",
+    "rateLimited": "Demasiadas solicitudes. Inténtalo de nuevo en %{seconds} segundos.",
+    "invalidResponse": "Algunas respuestas no son válidas. Revisa los campos obligatorios y tus respuestas e inténtalo de nuevo."
+  },
+  "csv": {
+    "import": "Importar CSV",
+    "export": "Exportar CSV",
+    "menu": "Acciones de la base de datos"
+  },
+  "templates": {
+    "menu": "Plantillas de filas",
+    "new": "Nueva plantilla",
+    "use": "Crear desde plantilla",
+    "edit": "Editar plantilla",
+    "done": "Terminar de editar la plantilla",
+    "makeTemplate": "Convertir esta fila en plantilla",
+    "createFailed": "No se pudo crear la plantilla de fila. Inténtalo de nuevo.",
+    "retry": "No se pudieron cargar las plantillas. Reintentar"
+  },
+  "uniqueId": {
+    "prefix": "Prefijo (hasta 12 letras y números)",
+    "invalid": "Usa solo letras y números.",
+    "configure": "Configurar ID"
+  },
+  "formula": {
+    "edit": "Editar fórmula",
+    "expression": "Expresión de fórmula",
+    "properties": "Insertar propiedad",
+    "functions": "Funciones",
+    "preview": "Resultado de la primera fila",
+    "empty": "No hay filas en esta vista para mostrar una vista previa.",
+    "saveFailed": "No se pudo guardar la propiedad. Inténtalo de nuevo.",
+    "refreshFailed": "Guardado, pero no se pudo cargar la vista previa. Guarda de nuevo para reintentar.",
+    "saved": "Resultado de la fórmula guardada",
+    "error": "Error de fórmula: %{message}",
+    "insert": "Insertar %{name}",
+    "operators": "Operadores: + - * / % ^ == != > >= < <= and or not",
+    "help": {
+      "if": {
+        "description": "Elige un valor según una condición.",
+        "example": "if(true, 1, 0)"
+      },
+      "ifs": {
+        "description": "Devuelve el valor de la primera condición verdadera.",
+        "example": "ifs(false, 1, true, 2, 0)"
+      },
+      "empty": {
+        "description": "Comprueba si un valor está vacío.",
+        "example": "empty(\"\")"
+      },
+      "length": {
+        "description": "Cuenta caracteres o elementos.",
+        "example": "length(\"abc\")"
+      },
+      "concat": {
+        "description": "Combina textos.",
+        "example": "concat(\"a\", \"b\")"
+      },
+      "join": {
+        "description": "Une elementos con un separador.",
+        "example": "join(prop(\"Tags\"), \", \")"
+      },
+      "contains": {
+        "description": "Busca texto o un elemento.",
+        "example": "contains(\"hello\", \"ell\")"
+      },
+      "replace": {
+        "description": "Reemplaza la primera coincidencia.",
+        "example": "replace(\"hello\", \"l\", \"r\")"
+      },
+      "replaceAll": {
+        "description": "Reemplaza todas las coincidencias.",
+        "example": "replaceAll(\"hello\", \"l\", \"r\")"
+      },
+      "slice": {
+        "description": "Extrae parte de un texto o lista.",
+        "example": "slice(\"hello\", 1, 3)"
+      },
+      "lower": {
+        "description": "Convierte el texto a minúsculas.",
+        "example": "lower(\"ABC\")"
+      },
+      "upper": {
+        "description": "Convierte el texto a mayúsculas.",
+        "example": "upper(\"abc\")"
+      },
+      "format": {
+        "description": "Convierte un valor a texto.",
+        "example": "format(12)"
+      },
+      "toNumber": {
+        "description": "Convierte texto a un número.",
+        "example": "toNumber(\"12\")"
+      },
+      "round": {
+        "description": "Redondea un número a la precisión indicada.",
+        "example": "round(1.234, 2)"
+      },
+      "floor": {
+        "description": "Redondea hacia abajo a un entero.",
+        "example": "floor(1.9)"
+      },
+      "ceil": {
+        "description": "Redondea hacia arriba a un entero.",
+        "example": "ceil(1.1)"
+      },
+      "abs": {
+        "description": "Devuelve el valor absoluto.",
+        "example": "abs(-3)"
+      },
+      "sqrt": {
+        "description": "Devuelve la raíz cuadrada.",
+        "example": "sqrt(9)"
+      },
+      "pow": {
+        "description": "Eleva un número a una potencia.",
+        "example": "pow(2, 3)"
+      },
+      "min": {
+        "description": "Devuelve el número menor.",
+        "example": "min(1, 2, 3)"
+      },
+      "max": {
+        "description": "Devuelve el número mayor.",
+        "example": "max(1, 2, 3)"
+      },
+      "sum": {
+        "description": "Suma los números.",
+        "example": "sum(1, 2, 3)"
+      },
+      "now": {
+        "description": "Devuelve la fecha y hora actuales.",
+        "example": "now()"
+      },
+      "today": {
+        "description": "Devuelve la fecha actual.",
+        "example": "today()"
+      },
+      "dateAdd": {
+        "description": "Añade tiempo a una fecha.",
+        "example": "dateAdd(today(), 1, \"days\")"
+      },
+      "dateSubtract": {
+        "description": "Resta tiempo a una fecha.",
+        "example": "dateSubtract(today(), 1, \"days\")"
+      },
+      "dateBetween": {
+        "description": "Calcula la diferencia entre dos fechas.",
+        "example": "dateBetween(now(), today(), \"hours\")"
+      },
+      "formatDate": {
+        "description": "Da formato de texto a una fecha.",
+        "example": "formatDate(today(), \"YYYY-MM-DD\")"
+      },
+      "year": {
+        "description": "Devuelve el año de una fecha.",
+        "example": "year(today())"
+      },
+      "month": {
+        "description": "Devuelve el mes de una fecha.",
+        "example": "month(today())"
+      },
+      "day": {
+        "description": "Devuelve el día del mes.",
+        "example": "day(today())"
+      }
+    },
+    "retry": "No se pudieron cargar los resultados. Reintentar"
+  },
+  "relations": {
+    "target": "Base de datos relacionada",
+    "showOn": "Mostrar en %{database}",
+    "explanation": "Crea una relación correspondiente en la otra base de datos y mantiene ambos lados sincronizados.",
+    "removeTitle": "¿Eliminar el otro lado?",
+    "removeDescription": "Se eliminarán la propiedad correspondiente y sus enlaces de la otra base de datos.",
+    "configure": "Editar relación",
+    "failed": "No se pudo guardar la relación. Inténtalo de nuevo.",
+    "unavailable": "Página no disponible"
+  },
+  "subItems": {
+    "name": "Subelementos",
+    "disable": "Desactivar subelementos",
+    "new": "+ Nuevo subelemento",
+    "expand": "Expandir subelementos de %{title}",
+    "collapse": "Contraer subelementos de %{title}",
+    "removeDescription": "¿Eliminar las propiedades de subelementos y elementos superiores y sus enlaces? Se conservarán las páginas.",
+    "failed": "No se pudo crear la fila. Inténtalo de nuevo."
+  },
+  "rows": {
+    "total": "%{count} filas"
+  }
+}

@@ -1,32 +1,28 @@
-import { View, Platform } from 'react-native';
-import { Text } from '@/components/ui/text';
-import { Check } from 'lucide-react-native';
+import { BlockText, blockTextSegments, PublicMentionContext } from './block-text';
+import { Pressable, View } from 'react-native';
+import { CalloutIcon } from '@/components/page-chrome/callout-icon';
+import { Text, TextStyleContext } from '@/components/ui/text';
+import type { PageFont } from '@/lib/types/pages';
+import { MONO_FONT_FAMILY, PAGE_FONT_FAMILIES } from '@/lib/fonts';
+import { Check, ChevronRight, ChevronDown } from 'lucide-react-native';
 import { useColorScheme } from '@/lib/useColorScheme';
-import type { SharedBlock } from '@/lib/hooks/use-share-links';
-
-/**
- * SharedBlockRenderer — read-only block renderer for the public
- * `/share/[token]` page. Mirrors Phase 1's block type enum but never
- * renders editable inputs. When Phase 1 frontend ships a shared
- * `BlockRenderer` with a `readOnly` prop, this file should be replaced
- * by that import to keep one source of truth for block layouts.
- */
+import { buildBlockTree, type ReadOnlyBlock, type BlockTreeNode } from '@/lib/block-tree';
+import { useMemo, useState } from 'react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SharedBlockRendererProps {
-  block: SharedBlock;
+  block: ReadOnlyBlock;
+  listIndex?: number;
 }
 
 function getText(content: Record<string, unknown>): string {
-  const value = content.text;
-  return typeof value === 'string' ? value : '';
+  return blockTextSegments(content)
+    .map((segment) => segment.text)
+    .join('');
 }
 
 function getChecked(content: Record<string, unknown>): boolean {
   return content.checked === true;
-}
-
-function getIcon(content: Record<string, unknown>): string {
-  return typeof content.icon === 'string' ? content.icon : '💡';
 }
 
 function getLanguage(content: Record<string, unknown>): string {
@@ -34,30 +30,42 @@ function getLanguage(content: Record<string, unknown>): string {
 }
 
 function ParagraphBlock({ content }: { content: Record<string, unknown> }) {
+  const { t } = useTranslation();
   const text = getText(content);
   return (
     <Text className="text-base leading-7 text-foreground">
-      {text || <Text className="text-muted-foreground italic">Empty paragraph</Text>}
+      {text ? (
+        <BlockText content={content} />
+      ) : (
+        <Text className="text-muted-foreground italic">{t('sharing.blocks.emptyParagraph')}</Text>
+      )}
     </Text>
   );
 }
 
 function HeadingBlock({ content, level }: { content: Record<string, unknown>; level: 1 | 2 | 3 }) {
-  const text = getText(content) || 'Untitled heading';
+  const { t } = useTranslation();
+  const text = <BlockText content={content} fallback={t('sharing.blocks.untitledHeading')} />;
   const className =
     level === 1
       ? 'text-3xl font-bold text-foreground mt-4'
       : level === 2
         ? 'text-2xl font-bold text-foreground mt-3'
         : 'text-xl font-semibold text-foreground mt-2';
-  return <Text className={className}>{text}</Text>;
+  return (
+    <Text accessibilityRole="header" className={className}>
+      {text}
+    </Text>
+  );
 }
 
 function BulletedListBlock({ content }: { content: Record<string, unknown> }) {
   return (
     <View className="flex-row gap-2">
       <Text className="text-base leading-7 text-foreground">{'•'}</Text>
-      <Text className="text-base leading-7 text-foreground flex-1">{getText(content)}</Text>
+      <Text className="text-base leading-7 text-foreground flex-1">
+        <BlockText content={content} />
+      </Text>
     </View>
   );
 }
@@ -72,7 +80,9 @@ function NumberedListBlock({
   return (
     <View className="flex-row gap-2">
       <Text className="text-base leading-7 text-foreground">{`${index}.`}</Text>
-      <Text className="text-base leading-7 text-foreground flex-1">{getText(content)}</Text>
+      <Text className="text-base leading-7 text-foreground flex-1">
+        <BlockText content={content} />
+      </Text>
     </View>
   );
 }
@@ -95,7 +105,7 @@ function TodoBlock({ content }: { content: Record<string, unknown> }) {
           checked ? 'text-muted-foreground line-through' : 'text-foreground'
         }`}
       >
-        {getText(content)}
+        <BlockText content={content} />
       </Text>
     </View>
   );
@@ -104,7 +114,9 @@ function TodoBlock({ content }: { content: Record<string, unknown> }) {
 function QuoteBlock({ content }: { content: Record<string, unknown> }) {
   return (
     <View className="border-l-2 border-border pl-4 py-1">
-      <Text className="text-base leading-7 text-muted-foreground italic">{getText(content)}</Text>
+      <Text className="text-base leading-7 text-muted-foreground italic">
+        <BlockText content={content} />
+      </Text>
     </View>
   );
 }
@@ -125,10 +137,7 @@ function CodeBlock({ content }: { content: Record<string, unknown> }) {
         <Text
           className="text-sm text-foreground"
           style={{
-            fontFamily: Platform.select({
-              web: 'SpaceMono, monospace',
-              default: 'SpaceMono',
-            }),
+            fontFamily: MONO_FONT_FAMILY,
           }}
         >
           {text}
@@ -141,16 +150,19 @@ function CodeBlock({ content }: { content: Record<string, unknown> }) {
 function CalloutBlock({ content }: { content: Record<string, unknown> }) {
   return (
     <View className="flex-row gap-3 rounded-xl bg-muted/40 px-4 py-3">
-      <Text className="text-2xl" style={{ lineHeight: 28 }}>
-        {getIcon(content)}
+      <CalloutIcon value={content.icon} size={22} />
+      <Text className="text-base leading-7 text-foreground flex-1">
+        <BlockText content={content} />
       </Text>
-      <Text className="text-base leading-7 text-foreground flex-1">{getText(content)}</Text>
     </View>
   );
 }
 
-export function SharedBlockRenderer({ block }: SharedBlockRendererProps) {
+export function SharedBlockRenderer({ block, listIndex = 1 }: SharedBlockRendererProps) {
+  const { t } = useTranslation();
   switch (block.type) {
+    case 'toggle':
+    case 'table_cell':
     case 'paragraph':
       return <ParagraphBlock content={block.content} />;
     case 'heading_1':
@@ -162,11 +174,16 @@ export function SharedBlockRenderer({ block }: SharedBlockRendererProps) {
     case 'bulleted_list_item':
       return <BulletedListBlock content={block.content} />;
     case 'numbered_list_item':
-      return <NumberedListBlock content={block.content} index={block.order + 1} />;
+      return <NumberedListBlock content={block.content} index={listIndex} />;
     case 'todo':
       return <TodoBlock content={block.content} />;
     case 'quote':
       return <QuoteBlock content={block.content} />;
+    case 'columns':
+    case 'column':
+    case 'table':
+    case 'table_row':
+      return null;
     case 'divider':
       return <DividerBlock />;
     case 'code':
@@ -176,8 +193,90 @@ export function SharedBlockRenderer({ block }: SharedBlockRendererProps) {
     default:
       return (
         <Text className="text-sm text-muted-foreground italic">
-          Unsupported block type: {block.type}
+          {t('sharing.blocks.unsupported', { type: block.type })}
         </Text>
       );
   }
+}
+
+/** Shared nesting and sibling ordering for published pages and version previews. */
+export function SharedBlockTree({
+  blocks,
+  publicSlug,
+  font = 'default',
+}: {
+  blocks: readonly ReadOnlyBlock[];
+  publicSlug?: string;
+  font?: PageFont;
+}) {
+  const { t } = useTranslation();
+  const textStyle = useMemo(() => ({ fontFamily: PAGE_FONT_FAMILIES[font] }), [font]);
+  const tree = useMemo(() => buildBlockTree(blocks), [blocks]);
+  if (!tree.length)
+    return <Text className="text-sm text-muted-foreground">{t('pages.share.empty')}</Text>;
+  return (
+    <PublicMentionContext.Provider value={publicSlug}>
+      <TextStyleContext.Provider value={textStyle}>
+        <BlockBranch nodes={tree} />
+      </TextStyleContext.Provider>
+    </PublicMentionContext.Provider>
+  );
+}
+function BlockBranch({ nodes }: { nodes: BlockTreeNode[] }) {
+  let listIndex = 0;
+  return (
+    <View className="gap-1.5">
+      {nodes.map(({ block, children }) => {
+        listIndex = block.type === 'numbered_list_item' ? listIndex + 1 : 0;
+        return (
+          <BlockNode key={block.id} block={block} listIndex={listIndex} childrenNodes={children} />
+        );
+      })}
+    </View>
+  );
+}
+
+function BlockNode({
+  block,
+  listIndex,
+  childrenNodes,
+}: {
+  block: ReadOnlyBlock;
+  listIndex: number;
+  childrenNodes: BlockTreeNode[];
+}) {
+  const { t } = useTranslation();
+  const { colors } = useColorScheme();
+  const [expanded, setExpanded] = useState(block.content.expanded !== false);
+  const toggle =
+    block.type === 'toggle' ||
+    (/^heading_[123]$/.test(block.type) && block.content.toggleable === true);
+  const Chevron = expanded ? ChevronDown : ChevronRight;
+  return (
+    <View className="gap-1.5">
+      <View className="flex-row items-center gap-1">
+        {toggle ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+            accessibilityLabel={t(expanded ? 'sharing.blocks.collapse' : 'sharing.blocks.expand', {
+              title: getText(block.content) || t('sharing.blocks.untitledHeading'),
+            })}
+            onPress={() => setExpanded((value) => !value)}
+            className="p-1"
+          >
+            <Chevron size={18} color={colors.mutedForeground} />
+          </Pressable>
+        ) : null}
+        <View className="flex-1">
+          <SharedBlockRenderer block={block} listIndex={listIndex} />
+        </View>
+      </View>
+      {childrenNodes.length && (!toggle || expanded) ? (
+        <View className="pl-4 border-l border-border">
+          <BlockBranch nodes={childrenNodes} />
+        </View>
+      ) : null}
+    </View>
+  );
 }

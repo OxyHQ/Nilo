@@ -20,3 +20,11 @@ function resolveWebOrigin(): string {
 export function buildShareUrl(token: string): string {
   return `${resolveWebOrigin()}/share/${token}`;
 }
+
+export function buildPublishUrl(slug: string): string {
+  return `${resolveWebOrigin()}/pub/${encodeURIComponent(slug)}`;
+}
+
+export function buildFormUrl(token: string): string {
+  return `${resolveWebOrigin()}/form/${encodeURIComponent(token)}`;
+}

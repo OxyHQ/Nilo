@@ -1,5 +1,32 @@
 export const queryKeys = {
+  forms: {
+    all: ['forms'] as const,
+    link: (id: string, viewId: string) => ['form-link', id, viewId] as const,
+    public: (token: string, userId?: string) => ['forms', token, userId] as const,
+  },
+  publicPages: {
+    all: ['public-pages'] as const,
+    detail: (slug: string, pageId?: string) => ['public-pages', slug, pageId] as const,
+  },
+  versions: {
+    list: (id: string) => ['versions', id] as const,
+    detail: (id: string, versionId: string) => ['version', id, versionId] as const,
+  },
+  reminders: {
+    all: ['reminders'] as const,
+    list: (userId?: string, pageId?: string) => ['reminders', userId, pageId] as const,
+  },
+  search: {
+    all: ['search'] as const,
+    workspace: (workspaceId: string | null) => ['search', workspaceId] as const,
+    results: (workspaceId: string | null, query: string) => ['search', workspaceId, query] as const,
+  },
   pages: {
+    follow: (id: string) => ['page', id, 'follow'] as const,
+    backlinks: (id: string) => ['page', id, 'backlinks'] as const,
+    templates: (workspaceId: string | null) => ['pages', workspaceId, 'templates'] as const,
+    shared: ['shared-pages'] as const,
+    permissions: (id: string) => ['page-permissions', id] as const,
     list: (workspaceId: string | null) => ['pages', workspaceId] as const,
     detail: (id: string) => ['page', id] as const,
     breadcrumb: (id: string) => ['page', id, 'breadcrumb'] as const,
@@ -14,9 +41,13 @@ export const queryKeys = {
     block: (blockId: string) => ['comments', 'block', blockId] as const,
   },
   databases: {
+    templates: (id: string) => ['database', id, 'templates'] as const,
     list: (workspaceId: string | null) => ['databases', workspaceId] as const,
     detail: (id: string) => ['database', id] as const,
     views: (id: string) => ['database', id, 'views'] as const,
+    blockViews: (id: string, blockId: string) => ['database', id, 'views', blockId] as const,
     rows: (id: string, viewId: string | null) => ['database', id, 'rows', viewId] as const,
+    /** One row with its computed values (`rows` holds lists only). */
+    row: (id: string, rowId: string) => ['database', id, 'row', rowId] as const,
   },
 } as const;

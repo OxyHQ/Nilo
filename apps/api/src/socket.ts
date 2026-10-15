@@ -1,3 +1,4 @@
+import { allowedOrigins } from './lib/allowed-origins.js';
 import { observeEcosystemSocket } from './ecosystemActivity';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
@@ -5,8 +6,10 @@ import type http from 'node:http';
 import { getRedisClient, getRedisSubClient } from './lib/redis.js';
 import { log } from './lib/logger.js';
 import { oxyClient } from './middleware/auth.js';
+import { registerLiveRooms } from './collab/live-rooms.js';
+import { registerPageRooms } from './collab/page-rooms.js';
 
-const ALLOWED_ORIGINS = [process.env.WEB_URL || 'http://localhost:3000', 'https://nilo.so'];
+const ALLOWED_ORIGINS = allowedOrigins();
 
 let io: Server | null = null;
 
@@ -40,6 +43,10 @@ export function initSocket(server: http.Server): Server {
     const userId: unknown = socket.data.userId;
     if (typeof userId === 'string') {
       socket.join(`user:${userId}`);
+    }
+    if (io) {
+      registerPageRooms(io, socket);
+      registerLiveRooms(io, socket);
     }
   });
 

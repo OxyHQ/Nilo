@@ -4,8 +4,8 @@ import { Wand2 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
-import apiClient from '@/lib/api/client';
-import { API_ROUTES } from '@/lib/api/routes';
+import { useCreatePage, useDuplicatePage } from '@/lib/hooks/use-pages';
+import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import type { ButtonAction } from '@/lib/types/pages';
 import type { BlockComponentProps } from './types';
 
@@ -13,8 +13,8 @@ import type { BlockComponentProps } from './types';
  * Configurable button block. Renders a styled button + a small inline form
  * to set the label and action. Clicking the button fires the action:
  *   - navigate:           opens `content.url` (web new tab, native browser)
- *   - new-page:           POSTs /pages with a stub then routes to it
- *   - duplicate-template: clones the page id in `templateId` (no-op if blank)
+ *   - new-page:           creates a page in the current workspace and opens it
+ *   - duplicate-template: duplicates the page in `templateId` and opens the copy
  *   - webhook:            POSTs an empty body to `content.webhookUrl`
  *
  * All four actions are best-effort and never throw — UI surfaces feedback
@@ -30,6 +30,9 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
   const [editing, setEditing] = React.useState(false);
   const [status, setStatus] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const createPage = useCreatePage();
+  const duplicatePage = useDuplicatePage();
 
   const click = async () => {
     setStatus(null);
@@ -43,23 +46,17 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
           await mod.openBrowserAsync(targetUrl);
         }
       } else if (action === 'new-page') {
-        const res = await apiClient.post<{ page: { _id: string } }>(API_ROUTES.pages.create, {
-          title: 'Untitled',
-        });
-        router.push(`/p/${res.data.page._id}`);
+        if (!workspaceId) return;
+        const page = await createPage.mutateAsync({ workspaceId, title: '' });
+        router.push(`/p/${page.id}`);
       } else if (action === 'duplicate-template') {
         const templateId =
           typeof block.content.templateId === 'string' ? block.content.templateId : '';
-        if (!templateId) {
+        if (!templateId || !workspaceId) {
           setStatus('Set a template page first.');
         } else {
-          // Backend currently doesn't expose /pages/:id/duplicate — use create
-          // as a fallback so the action still produces a new page.
-          const res = await apiClient.post<{ page: { _id: string } }>(API_ROUTES.pages.create, {
-            title: 'Copy',
-            parentId: templateId,
-          });
-          router.push(`/p/${res.data.page._id}`);
+          const copy = await duplicatePage.mutateAsync({ id: templateId, workspaceId });
+          router.push(`/p/${copy.id}`);
         }
       } else if (action === 'webhook') {
         if (!webhookUrl) {

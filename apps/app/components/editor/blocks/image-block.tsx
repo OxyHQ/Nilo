@@ -24,9 +24,9 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   // Reset the input when the block changes identity (e.g. fresh remount).
-  const lastBlockId = React.useRef(block._id);
-  if (lastBlockId.current !== block._id) {
-    lastBlockId.current = block._id;
+  const lastBlockId = React.useRef(block.id);
+  if (lastBlockId.current !== block.id) {
+    lastBlockId.current = block.id;
     setUrlDraft(url);
   }
 

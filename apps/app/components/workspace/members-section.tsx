@@ -11,24 +11,22 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { useWorkspaces } from '@/lib/hooks/use-workspaces';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import {
+  memberProfileName,
   useWorkspaceMembers,
   useRemoveMember,
   useUpdateMemberRole,
   type WorkspaceMember,
 } from '@/lib/hooks/use-workspace-members';
 import type { WorkspaceRole } from '@/lib/hooks/use-workspaces';
-import { ROLE_LABELS, WORKSPACE_ROLES, hasRole } from '@/lib/hooks/workspace-roles';
+import { WORKSPACE_ROLES, hasRole } from '@/lib/hooks/workspace-roles';
 import { InviteMemberModal } from './invite-member-modal';
+import { roleLabel } from './role-labels';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const ASSIGNABLE_ROLES: WorkspaceRole[] = ['viewer', 'commenter', 'editor', 'admin'];
 
 function memberDisplayName(member: WorkspaceMember): string {
-  const profile = member.user;
-  if (!profile) return member.userId;
-  if (profile.name?.first) {
-    return profile.name.last ? `${profile.name.first} ${profile.name.last}` : profile.name.first;
-  }
-  return profile.username ?? profile.email ?? member.userId;
+  return memberProfileName(member) ?? member.userId;
 }
 
 function memberInitial(member: WorkspaceMember): string {
@@ -73,6 +71,7 @@ interface MemberRowProps {
 
 function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const { mutate: updateRole, isPending: isUpdating } = useUpdateMemberRole(workspaceId);
   const { mutate: removeMember, isPending: isRemoving } = useRemoveMember(workspaceId);
 
@@ -85,34 +84,43 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
     (role: WorkspaceRole) => {
       if (role === member.role) return;
       updateRole(
-        { memberId: member._id, role },
+        { userId: member.userId, role },
         {
           onSuccess: () => {
-            toast.success(`Role updated to ${ROLE_LABELS[role]} for ${memberDisplayName(member)}`);
+            toast.success(
+              t('workspace.members.roleUpdated', {
+                role: roleLabel(role),
+                name: memberDisplayName(member),
+              }),
+            );
           },
           onError: (error) => {
             const message =
-              error instanceof Error && error.message ? error.message : 'Failed to update role';
+              error instanceof Error && error.message
+                ? error.message
+                : t('workspace.members.roleUpdateFailed');
             toast.error(message);
           },
         },
       );
     },
-    [updateRole, member],
+    [updateRole, member, t],
   );
 
   const handleRemove = React.useCallback(() => {
-    removeMember(member._id, {
+    removeMember(member.userId, {
       onSuccess: () => {
-        toast.success(`Removed ${memberDisplayName(member)}`);
+        toast.success(t('workspace.members.removed', { name: memberDisplayName(member) }));
       },
       onError: (error) => {
         const message =
-          error instanceof Error && error.message ? error.message : 'Failed to remove member';
+          error instanceof Error && error.message
+            ? error.message
+            : t('workspace.members.removeFailed');
         toast.error(message);
       },
     });
-  }, [removeMember, member]);
+  }, [removeMember, member, t]);
 
   return (
     <View className="flex-row items-center gap-3 py-3 px-2 rounded-lg">
@@ -120,7 +128,9 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
       <View className="flex-1 min-w-0">
         <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
           {memberDisplayName(member)}
-          {isSelf ? <Text className="text-xs text-muted-foreground"> (you)</Text> : null}
+          {isSelf ? (
+            <Text className="text-xs text-muted-foreground"> {t('workspace.members.you')}</Text>
+          ) : null}
         </Text>
         {member.user?.email ? (
           <Text className="text-xs text-muted-foreground" numberOfLines={1} ellipsizeMode="tail">
@@ -136,18 +146,20 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
               <Pressable
                 className="h-8 px-2 flex-row items-center gap-1 rounded-lg border border-border hover:bg-muted"
                 accessibilityRole="button"
-                accessibilityLabel={`Change role for ${memberDisplayName(member)}`}
+                accessibilityLabel={t('workspace.members.changeRole', {
+                  name: memberDisplayName(member),
+                })}
                 disabled={isUpdating || isRemoving}
               >
                 <Text className="text-xs font-medium text-foreground">
-                  {ROLE_LABELS[member.role]}
+                  {roleLabel(member.role)}
                 </Text>
               </Pressable>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content>
               {ASSIGNABLE_ROLES.map((role) => (
                 <DropdownMenu.Item key={role} onSelect={() => handleChangeRole(role)}>
-                  <DropdownMenu.ItemTitle>{ROLE_LABELS[role]}</DropdownMenu.ItemTitle>
+                  <DropdownMenu.ItemTitle>{roleLabel(role)}</DropdownMenu.ItemTitle>
                 </DropdownMenu.Item>
               ))}
             </DropdownMenu.Content>
@@ -158,7 +170,9 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
               <Pressable
                 className="h-8 w-8 items-center justify-center rounded-lg hover:bg-muted"
                 accessibilityRole="button"
-                accessibilityLabel={`More actions for ${memberDisplayName(member)}`}
+                accessibilityLabel={t('workspace.members.moreActions', {
+                  name: memberDisplayName(member),
+                })}
                 disabled={isUpdating || isRemoving}
               >
                 <MoreHorizontal size={16} color={colors.mutedForeground} />
@@ -167,7 +181,7 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
             <DropdownMenu.Content>
               <DropdownMenu.Item key="remove" destructive onSelect={handleRemove}>
                 <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
-                <DropdownMenu.ItemTitle>Remove from workspace</DropdownMenu.ItemTitle>
+                <DropdownMenu.ItemTitle>{t('workspace.members.remove')}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
@@ -175,7 +189,7 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
       ) : (
         <View className="h-8 px-2 items-center justify-center shrink-0">
           <Text className="text-xs font-medium text-muted-foreground">
-            {ROLE_LABELS[member.role]}
+            {roleLabel(member.role)}
           </Text>
         </View>
       )}
@@ -185,12 +199,13 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
 
 export function MembersSection() {
   const { user } = useOxy();
+  const { t } = useTranslation();
   const [inviteOpen, setInviteOpen] = React.useState(false);
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
 
   const { data: workspaces } = useWorkspaces();
   const currentWorkspace = React.useMemo(
-    () => workspaces?.find((w) => w._id === currentWorkspaceId) ?? null,
+    () => workspaces?.find((w) => w.id === currentWorkspaceId) ?? null,
     [workspaces, currentWorkspaceId],
   );
 
@@ -214,18 +229,19 @@ export function MembersSection() {
       <View className="flex-row items-center justify-between">
         <View className="flex-1 min-w-0">
           <Text className="text-sm font-medium text-foreground">
-            {currentWorkspace?.name ?? 'Workspace'}
+            {currentWorkspace?.name ?? t('workspace.fallbackName')}
           </Text>
           <Text className="text-xs text-muted-foreground">
-            {members?.length ?? 0} member
-            {(members?.length ?? 0) === 1 ? '' : 's'}
+            {t('workspace.members.count', { count: members?.length ?? 0 })}
           </Text>
         </View>
         {canInvite && currentWorkspaceId ? (
           <Button onPress={() => setInviteOpen(true)} size="sm">
             <View className="flex-row items-center gap-1.5">
               <UserPlus size={14} className="text-primary-foreground" />
-              <Text className="text-xs font-semibold text-primary-foreground">Invite member</Text>
+              <Text className="text-xs font-semibold text-primary-foreground">
+                {t('workspace.members.invite')}
+              </Text>
             </View>
           </Button>
         ) : null}
@@ -239,17 +255,19 @@ export function MembersSection() {
         ) : isError ? (
           <View className="py-6 px-4">
             <Text className="text-sm text-destructive">
-              {error instanceof Error ? error.message : 'Failed to load members'}
+              {error instanceof Error ? error.message : t('workspace.members.loadFailed')}
             </Text>
           </View>
         ) : sortedMembers.length === 0 ? (
           <View className="py-10 items-center justify-center px-4">
-            <Text className="text-sm text-muted-foreground text-center">No members yet.</Text>
+            <Text className="text-sm text-muted-foreground text-center">
+              {t('workspace.members.empty')}
+            </Text>
           </View>
         ) : (
           <View className="px-1 py-1">
             {sortedMembers.map((member, idx) => (
-              <View key={member._id}>
+              <View key={member.userId}>
                 {idx > 0 ? <View className="h-px bg-border/50 mx-2" /> : null}
                 <MemberRow
                   member={member}
@@ -279,9 +297,7 @@ export function MembersSection() {
               : 'rounded-lg bg-muted px-3 py-2'
           }
         >
-          <Text className="text-xs text-muted-foreground">
-            Only admins and owners can invite members or change roles.
-          </Text>
+          <Text className="text-xs text-muted-foreground">{t('workspace.members.adminOnly')}</Text>
         </View>
       ) : null}
     </View>

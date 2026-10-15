@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useBreadcrumb } from '@/lib/hooks/use-pages';
 import { useWorkspace } from '@/lib/hooks/use-workspaces';
 import { IconDisplay } from './icon-display';
@@ -24,6 +25,7 @@ interface BreadcrumbProps {
 export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const { data: crumb } = useBreadcrumb(pageId);
   const { data: workspace } = useWorkspace(workspaceId);
 
@@ -44,10 +46,12 @@ export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProp
     >
       <Pressable
         onPress={() => router.push('/(app)')}
-        accessibilityLabel="Workspace home"
+        accessibilityLabel={t('pages.breadcrumb.workspaceHome')}
         className="rounded-md px-1.5 py-1 hover:bg-muted"
       >
-        <Text className="text-xs text-muted-foreground">{workspace?.name ?? 'Workspace'}</Text>
+        <Text className="text-xs text-muted-foreground">
+          {workspace?.name ?? t('pages.breadcrumb.workspace')}
+        </Text>
       </Pressable>
 
       {condensed.map((entry) => (
@@ -57,7 +61,7 @@ export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProp
             <Pressable
               onPress={() => router.push(`/p/${entry.page.id}`)}
               className="flex-row items-center rounded-md px-1.5 py-1 hover:bg-muted"
-              accessibilityLabel={entry.page.title || 'Untitled'}
+              accessibilityLabel={entry.page.title || t('pages.untitled')}
             >
               {entry.page.icon ? (
                 <View className="mr-1">
@@ -65,7 +69,7 @@ export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProp
                 </View>
               ) : null}
               <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-                {entry.page.title.trim() || 'Untitled'}
+                {entry.page.title.trim() || t('pages.untitled')}
               </Text>
             </Pressable>
           ) : (
@@ -86,7 +90,7 @@ export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProp
               </View>
             ) : null}
             <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
-              {current.title.trim() || 'Untitled'}
+              {current.title.trim() || t('pages.untitled')}
             </Text>
           </View>
         </React.Fragment>

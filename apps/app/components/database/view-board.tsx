@@ -3,6 +3,7 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-
 import { useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type {
   Database,
@@ -20,6 +21,7 @@ interface ViewBoardProps {
   view: DatabaseView;
   rows: DatabaseRow[];
   isLoading: boolean;
+  readOnly?: boolean;
 }
 
 const COLUMN_WIDTH = 280;
@@ -33,9 +35,10 @@ const COLUMN_WIDTH = 280;
  * tap-to-move fallback (a "Move to…" affordance) — full DnD on native
  * is out of scope for Phase 4 (see spec).
  */
-export function ViewBoard({ database, view, rows, isLoading }: ViewBoardProps) {
+export function ViewBoard({ database, view, rows, isLoading, readOnly = false }: ViewBoardProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const createRow = useCreateRow();
   const updateRow = useUpdateRow();
 
@@ -87,14 +90,14 @@ export function ViewBoard({ database, view, rows, isLoading }: ViewBoardProps) {
 
   const moveRow = React.useCallback(
     (rowId: string, optionId: string | null) => {
-      if (!groupByProperty) return;
+      if (readOnly || !groupByProperty) return;
       updateRow.mutate({
         databaseId: database.id,
         rowId,
         properties: { [groupByProperty.id]: { optionId } },
       });
     },
-    [database.id, groupByProperty, updateRow],
+    [database.id, groupByProperty, updateRow, readOnly],
   );
 
   if (isLoading) {
@@ -109,7 +112,7 @@ export function ViewBoard({ database, view, rows, isLoading }: ViewBoardProps) {
     return (
       <View className="px-6 py-10">
         <Text className="text-sm text-muted-foreground">
-          Add a status or select property to use the board view.
+          {t('databases.board.needsGroupProperty')}
         </Text>
       </View>
     );
@@ -120,6 +123,7 @@ export function ViewBoard({ database, view, rows, isLoading }: ViewBoardProps) {
       <View className="flex-row gap-3 px-3 py-3">
         {columns.options.map((opt) => (
           <BoardColumn
+            readOnly={readOnly}
             key={opt.id}
             option={opt}
             rows={columns.byOption.get(opt.id) ?? []}
@@ -133,14 +137,21 @@ export function ViewBoard({ database, view, rows, isLoading }: ViewBoardProps) {
             }}
             onMoveTo={(rowId) => moveRow(rowId, opt.id)}
             renderCard={(row) => (
-              <BoardCard row={row} database={database} onOpen={() => router.push(`/p/${row.id}`)} />
+              <BoardCard
+                key={row.id}
+                readOnly={readOnly}
+                row={row}
+                database={database}
+                onOpen={() => router.push(`/p/${row.id}`)}
+              />
             )}
           />
         ))}
         <BoardColumn
+          readOnly={readOnly}
           option={{
             id: '__unassigned__',
-            name: 'No status',
+            name: t('databases.board.noStatus'),
             color: 'default',
           }}
           rows={columns.unassigned}
@@ -149,7 +160,13 @@ export function ViewBoard({ database, view, rows, isLoading }: ViewBoardProps) {
           }}
           onMoveTo={(rowId) => moveRow(rowId, null)}
           renderCard={(row) => (
-            <BoardCard row={row} database={database} onOpen={() => router.push(`/p/${row.id}`)} />
+            <BoardCard
+              key={row.id}
+              readOnly={readOnly}
+              row={row}
+              database={database}
+              onOpen={() => router.push(`/p/${row.id}`)}
+            />
           )}
         />
       </View>
@@ -158,6 +175,7 @@ export function ViewBoard({ database, view, rows, isLoading }: ViewBoardProps) {
 }
 
 interface BoardColumnProps {
+  readOnly: boolean;
   option: SelectOption;
   rows: DatabaseRow[];
   onAddRow: () => void;
@@ -165,13 +183,14 @@ interface BoardColumnProps {
   renderCard: (row: DatabaseRow) => React.ReactNode;
 }
 
-function BoardColumn({ option, rows, onAddRow, onMoveTo, renderCard }: BoardColumnProps) {
+function BoardColumn({ option, rows, onAddRow, onMoveTo, renderCard, readOnly }: BoardColumnProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const palette = SELECT_COLOR_CLASSES[option.color] ?? SELECT_COLOR_CLASSES.default;
 
   // Web-only drag target — accept a row id payload from the dragged card.
   const dropHandlers =
-    Platform.OS === 'web'
+    Platform.OS === 'web' && !readOnly
       ? {
           onDragOver: (e: { preventDefault: () => void }) => e.preventDefault(),
           onDrop: (e: { preventDefault: () => void; dataTransfer: DataTransfer }) => {
@@ -195,9 +214,16 @@ function BoardColumn({ option, rows, onAddRow, onMoveTo, renderCard }: BoardColu
           </View>
           <Text className="text-xs text-muted-foreground">{rows.length}</Text>
         </View>
-        <Pressable onPress={onAddRow} className="p-1 rounded hover:bg-muted">
-          <Plus size={14} color={colors.mutedForeground} />
-        </Pressable>
+        {!readOnly ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('databases.actions.new')}
+            onPress={onAddRow}
+            className="p-1 rounded hover:bg-muted"
+          >
+            <Plus size={14} color={colors.mutedForeground} />
+          </Pressable>
+        ) : null}
       </View>
       <ScrollView style={{ maxHeight: 600 }}>
         <View className="gap-2">{rows.map((r) => renderCard(r))}</View>
@@ -207,18 +233,18 @@ function BoardColumn({ option, rows, onAddRow, onMoveTo, renderCard }: BoardColu
 }
 
 interface BoardCardProps {
+  readOnly: boolean;
   row: DatabaseRow;
   database: Database;
   onOpen: () => void;
 }
 
-function BoardCard({ row, database, onOpen }: BoardCardProps) {
-  const visible = database.schema.properties.filter(
-    (p) => p.id !== 'name' && p.type !== 'rollup' && p.type !== 'formula',
-  );
+function BoardCard({ row, database, onOpen, readOnly }: BoardCardProps) {
+  const { t } = useTranslation();
+  const visible = database.schema.properties.filter((p) => p.id !== 'name' && p.type !== 'rollup');
 
   const dragHandlers =
-    Platform.OS === 'web'
+    Platform.OS === 'web' && !readOnly
       ? {
           draggable: true,
           onDragStart: (e: { dataTransfer: DataTransfer }) => {
@@ -230,17 +256,20 @@ function BoardCard({ row, database, onOpen }: BoardCardProps) {
 
   return (
     <Pressable
+      accessibilityRole="link"
+      accessibilityLabel={row.title || t('databases.untitled')}
       onPress={onOpen}
       className="bg-card border border-border rounded-md px-3 py-2 shadow-sm"
       {...(dragHandlers as Record<string, unknown>)}
     >
       <Text className="text-sm font-medium text-foreground mb-1" numberOfLines={2}>
-        {row.title || 'Untitled'}
+        {row.title || t('databases.untitled')}
       </Text>
       <View className="gap-1">
         {visible.slice(0, 3).map((property) => (
           <View key={property.id} className="flex-row items-center gap-1">
             <PropertyCell
+              readOnly={readOnly}
               property={property}
               value={row.properties[property.id] ?? null}
               variant="card"

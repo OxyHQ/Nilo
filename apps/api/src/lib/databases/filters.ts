@@ -22,6 +22,7 @@ export const OPERATORS_BY_TYPE: Record<DatabasePropertyType, readonly string[]> 
     'is_not_empty',
   ],
   number: ['=', '!=', '>', '<', '>=', '<=', 'is_empty', 'is_not_empty'],
+  unique_id: ['=', '!=', '>', '<', '>=', '<='],
   select: ['is', 'is_not', 'is_empty', 'is_not_empty'],
   multi_select: ['contains', 'does_not_contain', 'is_empty', 'is_not_empty'],
   status: ['is', 'is_not', 'is_empty', 'is_not_empty'],
@@ -175,6 +176,7 @@ export function readPropertyValue(
     properties: Map<string, unknown> | Record<string, unknown> | undefined;
     title?: string;
     ownerId?: string;
+    lastEditedBy?: string | null;
     createdAt?: Date | string;
     updatedAt?: Date | string;
   },
@@ -192,9 +194,10 @@ export function readPropertyValue(
       return { start: page.updatedAt ? new Date(page.updatedAt).toISOString() : null };
     case 'created_by':
       return { userIds: page.ownerId ? [page.ownerId] : [] };
-    case 'last_edited_by':
-      // We don't track last editor distinctly from ownerId yet.
-      return { userIds: page.ownerId ? [page.ownerId] : [] };
+    case 'last_edited_by': {
+      const editor = page.lastEditedBy ?? page.ownerId;
+      return { userIds: editor ? [editor] : [] };
+    }
     default:
       break;
   }
@@ -229,7 +232,38 @@ export function evaluateFilter(
   const prop = propertyById.get(filter.propertyId);
   if (!prop) return true; // Unknown property — don't filter out the row.
   const value = readPropertyValue(row, prop);
-  return evaluateCondition(filter.operator, value, filter.value, prop.type);
+  return evaluateCondition(filter.operator, value, filter.value, valueType(prop, value));
+}
+
+/**
+ * The type a value is compared as. A formula or rollup holds a number, a
+ * checkbox, a date or text depending on its result; everything else is its
+ * property's type.
+ */
+export function valueType(property: DatabaseProperty, value: unknown): DatabasePropertyType {
+  if (property.type === 'unique_id') return 'number';
+  if (property.type !== 'formula' && property.type !== 'rollup') return property.type;
+  const v = (value ?? {}) as Record<string, unknown>;
+  if (typeof v.number === 'number') return 'number';
+  if (typeof v.checked === 'boolean') return 'checkbox';
+  if (typeof v.start === 'string') return 'date';
+  return 'text';
+}
+
+/** Whether a filter tree or sort list reads a computed property (formula, rollup). */
+export function readsComputed(
+  propertyIds: readonly string[],
+  propertyById: Map<string, DatabaseProperty>,
+): boolean {
+  return propertyIds.some((id) => {
+    const type = propertyById.get(id)?.type;
+    return type === 'formula' || type === 'rollup';
+  });
+}
+
+/** Every property a filter tree refers to. */
+export function filterPropertyIds(filter: Filter): string[] {
+  return filter.kind === 'group' ? filter.filters.flatMap(filterPropertyIds) : [filter.propertyId];
 }
 
 function isEmpty(value: unknown, type: DatabasePropertyType): boolean {

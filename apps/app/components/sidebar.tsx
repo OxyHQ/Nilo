@@ -1,3 +1,6 @@
+import { PlacementSections } from './sidebar-sections/placement-sections';
+import { useNewPageStore } from '@/lib/stores/new-page-store';
+import { SharedWithMeSection } from './sidebar-sections/shared-with-me-section';
 import React from 'react';
 import { View, Pressable, Platform, Linking, ScrollView, useWindowDimensions } from 'react-native';
 import { Text } from '@/components/ui/text';
@@ -15,7 +18,6 @@ import { WorkspaceSwitcher } from '@/components/workspace/workspace-switcher';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
-import { useCreatePage } from '@/lib/hooks/use-pages';
 import { useUnreadCount } from '@/lib/hooks/use-notifications';
 import {
   SidebarAskAliaButton,
@@ -25,10 +27,7 @@ import {
   SidebarTrashButton,
   RecentsSection,
   FavoritesSection,
-  PrivateSection,
-  SharedSection,
   TemplatesSection,
-  DatabaseSection,
 } from '@/components/sidebar-sections';
 
 /* ================================================================
@@ -57,7 +56,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleSidebarCollapsed = useUIStore((s) => s.toggleSidebarCollapsed);
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-  const createPage = useCreatePage();
+  const openNewPage = useNewPageStore((s) => s.open);
 
   const { user, isAuthenticated, logout, showBottomSheet } = useOxy();
   // Surface the Comments agent's unread count on the Inbox row.
@@ -82,19 +81,10 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
     () => router.push('/(app)/notifications'),
     [router],
   );
-  const handleCreatePage = React.useCallback(async () => {
+  const handleCreatePage = React.useCallback(() => {
     if (!currentWorkspaceId) return;
-    try {
-      const page = await createPage.mutateAsync({
-        workspaceId: currentWorkspaceId,
-        parentId: null,
-        title: '',
-      });
-      router.push(`/p/${page._id}`);
-    } catch {
-      /* mutation surfaces errors via state */
-    }
-  }, [createPage, currentWorkspaceId, router]);
+    openNewPage({ workspaceId: currentWorkspaceId, parentId: null });
+  }, [openNewPage, currentWorkspaceId]);
 
   const displayName = React.useMemo(() => {
     if (!user) return t('common.user');
@@ -124,7 +114,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
             <Pressable
               onPress={handleHome}
               className="h-14 items-center justify-center"
-              accessibilityLabel="Home"
+              accessibilityLabel={t('sidebar.home')}
             >
               <NiloWordmark width={20} color={colors.foreground} />
             </Pressable>
@@ -138,7 +128,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
         <View className="flex flex-col items-center gap-2 p-2 pt-1 shrink-0">
           <Pressable
             onPress={toggleSidebarCollapsed}
-            accessibilityLabel="Expand sidebar"
+            accessibilityLabel={t('sidebar.expandSidebar')}
             className="h-10 w-10 rounded-xl items-center justify-center hover:bg-muted"
           >
             <ChevronsRight size={18} color={colors.mutedForeground} />
@@ -146,7 +136,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           {isAuthenticated ? (
             <Pressable
               onPress={handleAccount}
-              accessibilityLabel="Account"
+              accessibilityLabel={t('sidebar.account')}
               className="rounded-full h-10 w-10 flex p-1 items-center justify-center overflow-visible"
             >
               <UserAvatar size={32} />
@@ -154,7 +144,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           ) : (
             <Pressable
               onPress={handleLogin}
-              accessibilityLabel="Sign in"
+              accessibilityLabel={t('login.signInButton')}
               className="rounded-full h-10 w-10 flex items-center justify-center bg-primary/10"
             >
               <Text className="text-sm font-bold text-primary">
@@ -183,7 +173,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           <Pressable
             onPress={handleHome}
             className="p-1 mx-0.5 shrink-0 rounded-xl hover:bg-muted"
-            accessibilityLabel="Home"
+            accessibilityLabel={t('sidebar.home')}
           >
             <NiloWordmark height={24} width={62} color={colors.foreground} />
           </Pressable>
@@ -192,7 +182,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           <View className="shrink-0">
             <Pressable
               onPress={toggleSidebarCollapsed}
-              accessibilityLabel="Collapse sidebar"
+              accessibilityLabel={t('sidebar.collapseSidebar')}
               className="h-10 w-10 rounded-xl items-center justify-center hover:bg-muted"
             >
               <ChevronsLeft size={18} color={colors.mutedForeground} />
@@ -214,13 +204,13 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           ) : null}
         </View>
 
+        {isAuthenticated ? <SharedWithMeSection /> : null}
+
         {isAuthenticated && currentWorkspaceId ? (
           <View className="mt-2">
             <RecentsSection />
             <FavoritesSection />
-            <PrivateSection />
-            <SharedSection />
-            <DatabaseSection />
+            <PlacementSections />
             <TemplatesSection />
           </View>
         ) : null}
@@ -237,13 +227,12 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
         <View className="px-2 pt-1">
           <Pressable
             onPress={handleCreatePage}
-            accessibilityLabel="New page"
+            accessibilityLabel={t('sidebar.newPage')}
             accessibilityRole="button"
-            disabled={createPage.isPending}
             className="flex-row items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60 active:bg-muted/60"
           >
             <Plus size={14} color={colors.mutedForeground} />
-            <Text className="text-sm text-muted-foreground">New page</Text>
+            <Text className="text-sm text-muted-foreground">{t('sidebar.newPage')}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -257,7 +246,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
               <Pressable
-                accessibilityLabel="Account menu"
+                accessibilityLabel={t('sidebar.accountMenu')}
                 accessibilityRole="button"
                 className="flex-row items-center gap-2 rounded-md px-1 py-1 hover:bg-muted/60"
               >

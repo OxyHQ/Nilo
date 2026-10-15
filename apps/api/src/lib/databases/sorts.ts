@@ -3,7 +3,7 @@ import type {
   DatabasePropertyType,
   ViewSort,
 } from '../../db/schema/databases.js';
-import { readPropertyValue } from './filters.js';
+import { readPropertyValue, valueType } from './filters.js';
 
 /**
  * Returns a stable comparator that orders rows according to `sorts`.
@@ -24,7 +24,7 @@ export function compareBySorts(
       if (!prop) continue;
       const av = readPropertyValue(a, prop);
       const bv = readPropertyValue(b, prop);
-      const cmp = compareScalar(av, bv, prop.type);
+      const cmp = compareScalar(av, bv, valueType(prop, av ?? bv), prop);
       if (cmp !== 0) {
         return sort.direction === 'asc' ? cmp : -cmp;
       }
@@ -33,9 +33,14 @@ export function compareBySorts(
   };
 }
 
-function compareScalar(a: unknown, b: unknown, type: DatabasePropertyType): number {
-  const av = scalarFor(a, type);
-  const bv = scalarFor(b, type);
+function compareScalar(
+  a: unknown,
+  b: unknown,
+  type: DatabasePropertyType,
+  prop: DatabaseProperty,
+): number {
+  const av = scalarFor(a, type, prop);
+  const bv = scalarFor(b, type, prop);
   if (av === null && bv === null) return 0;
   if (av === null) return 1; // nulls sort last on asc
   if (bv === null) return -1;
@@ -48,7 +53,11 @@ function compareScalar(a: unknown, b: unknown, type: DatabasePropertyType): numb
   return as.localeCompare(bs);
 }
 
-function scalarFor(value: unknown, type: DatabasePropertyType): string | number | null {
+function scalarFor(
+  value: unknown,
+  type: DatabasePropertyType,
+  prop: DatabaseProperty,
+): string | number | null {
   if (value === null || value === undefined) return null;
   if (typeof value !== 'object') return null;
   const v = value as Record<string, unknown>;
@@ -61,8 +70,11 @@ function scalarFor(value: unknown, type: DatabasePropertyType): string | number 
     case 'number':
       return typeof v.number === 'number' ? v.number : null;
     case 'select':
-    case 'status':
-      return typeof v.optionId === 'string' ? v.optionId : null;
+    case 'status': {
+      // In the order the options are listed, as Notion sorts them.
+      const index = prop.config?.options?.findIndex((o) => o.id === v.optionId) ?? -1;
+      return index >= 0 ? index : null;
+    }
     case 'multi_select': {
       const arr = v.optionIds as string[] | undefined;
       return arr && arr.length > 0 ? arr.join(',') : null;

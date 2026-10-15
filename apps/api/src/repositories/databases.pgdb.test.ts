@@ -7,6 +7,7 @@ import {
   type TestDatabase,
 } from '../db/__tests__/testDatabase.js';
 import { databaseViews, databases, type DatabaseSchema } from '../db/schema/databases.js';
+import { pages } from '../db/schema/pages.js';
 import {
   countViews,
   deleteDatabase,
@@ -66,6 +67,7 @@ function databaseInput(overrides: Partial<InsertDatabaseInput> = {}): InsertData
     propertiesSchema: SCHEMA,
     isInline: false,
     parentPageId: null,
+    teamspaceId: null,
     archived: false,
     ...overrides,
   };
@@ -104,6 +106,11 @@ afterAll(async () => {
 
 describe('insertDatabase', () => {
   it('round-trips every field the route writes', async () => {
+    // `parentPageId` is a foreign key to the host page.
+    const [host] = await db
+      .insert(pages)
+      .values({ workspaceId, ownerId: 'user-1', title: 'host' })
+      .returning({ id: pages.id });
     const record = await insertDatabase(
       db,
       databaseInput({
@@ -111,7 +118,7 @@ describe('insertDatabase', () => {
         icon: '📋',
         cover: 'https://example.test/c.png',
         isInline: true,
-        parentPageId: 'page-abc',
+        parentPageId: host?.id,
       }),
     );
 
@@ -121,7 +128,7 @@ describe('insertDatabase', () => {
     expect(record.cover).toBe('https://example.test/c.png');
     expect(record.ownerId).toBe('user-1');
     expect(record.isInline).toBe(true);
-    expect(record.parentPageId).toBe('page-abc');
+    expect(record.parentPageId).toBe(host?.id);
     expect(record.archived).toBe(false);
     // Deep equality on the jsonb, including the nested option list — a
     // shallow check would pass on a config that was silently dropped.
@@ -198,11 +205,14 @@ describe('findDatabaseById / findDatabaseWorkspaceId', () => {
     expect(await findDatabaseWorkspaceId(db, 'no-such-database')).toBeNull();
   });
 
-  it('returns just the id and workspace id for the membership check', async () => {
+  it('returns what the access check needs: the workspace and the host page', async () => {
     const record = await insertDatabase(db, databaseInput());
     expect(await findDatabaseWorkspaceId(db, record.id)).toEqual({
       id: record.id,
       workspaceId,
+      parentPageId: null,
+      teamspaceId: null,
+      ownerId: 'user-1',
     });
   });
 });
@@ -624,5 +634,40 @@ describe('transaction handles', () => {
     });
 
     expect(await findDatabaseById(db, record.id)).toBeNull();
+  });
+});
+
+describe('the pages <-> databases foreign keys', () => {
+  it('take the rows with a deleted database, and only unhook an inline database from a deleted host', async () => {
+    const [host] = await db
+      .insert(pages)
+      .values({ workspaceId, ownerId: 'user-1', title: 'host' })
+      .returning({ id: pages.id });
+    const inline = await insertDatabase(
+      db,
+      databaseInput({ name: 'Inline', isInline: true, parentPageId: host?.id }),
+    );
+    const [row] = await db
+      .insert(pages)
+      .values({ workspaceId, ownerId: 'user-1', title: 'row', databaseId: inline.id })
+      .returning({ id: pages.id });
+
+    await db.delete(pages).where(eq(pages.id, host?.id as string));
+    const [unhooked] = await db.select().from(databases).where(eq(databases.id, inline.id));
+    expect(unhooked?.parentPageId).toBeNull();
+    expect(
+      await db
+        .select()
+        .from(pages)
+        .where(eq(pages.id, row?.id as string)),
+    ).toHaveLength(1);
+
+    await db.delete(databases).where(eq(databases.id, inline.id));
+    expect(
+      await db
+        .select()
+        .from(pages)
+        .where(eq(pages.id, row?.id as string)),
+    ).toHaveLength(0);
   });
 });

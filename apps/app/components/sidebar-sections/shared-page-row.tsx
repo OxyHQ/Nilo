@@ -1,16 +1,16 @@
+import { MoveToDialog } from '@/components/page-chrome/move-to-dialog';
+import { apiErrorMessage } from '@/lib/api/error-message';
+import { toast } from '@oxy.so/bloom/toast';
+import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
-import { View, Pressable, ActivityIndicator } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronDown, ChevronRight, FileText, MoreHorizontal, Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import * as DropdownMenu from '@/components/ui/dropdown-menu';
-import {
-  useCreatePage,
-  useDeletePage,
-  useDuplicatePage,
-  useUpdatePage,
-} from '@/lib/hooks/use-pages';
+import { useDeletePage, useDuplicatePage, useUpdatePage } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import type { DropPosition } from './drag-context';
 
@@ -27,6 +27,7 @@ export interface PageRowSharedProps {
   workspaceId: string;
   /** Native sidebar passes false to disable drag affordance on small screens. */
   enableDrag?: boolean;
+  readOnly?: boolean;
   /** Notifies parent of a drop. */
   onDrop?: (sourceId: string, position: DropPosition) => void;
 }
@@ -63,53 +64,47 @@ export function SharedPageRow({
   isActive,
   workspaceId,
   platformDrag,
+  readOnly = false,
 }: SharedRowProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
-  const createPage = useCreatePage();
+  const { t } = useTranslation();
+  const openNewPage = useNewPageStore((s) => s.open);
   const deletePage = useDeletePage();
   const duplicatePage = useDuplicatePage();
   const updatePage = useUpdatePage();
+  const [moveOpen, setMoveOpen] = React.useState(false);
 
-  const title = page.title.trim() ? page.title : 'Untitled';
+  const title = page.title.trim() ? page.title : t('pages.untitled');
   const indent = depth * INDENT_PX;
   const isFavorite = Boolean(page.favorited);
 
   const handleOpen = React.useCallback(() => {
-    router.push(`/p/${page._id}`);
-  }, [router, page._id]);
+    router.push(`/p/${page.id}`);
+  }, [router, page.id]);
 
-  const handleAddChild = React.useCallback(async () => {
-    try {
-      const child = await createPage.mutateAsync({
-        workspaceId,
-        parentId: page._id,
-        title: '',
-      });
-      router.push(`/p/${child._id}`);
-    } catch {
-      /* mutation surfaces errors via state */
-    }
-  }, [createPage, page._id, router, workspaceId]);
+  const handleAddChild = React.useCallback(() => {
+    openNewPage({ workspaceId, parentId: page.id });
+  }, [openNewPage, page.id, workspaceId]);
 
   const handleDelete = React.useCallback(() => {
-    deletePage.mutate({ id: page._id, workspaceId });
-  }, [deletePage, page._id, workspaceId]);
+    deletePage.mutate({ id: page.id, workspaceId });
+  }, [deletePage, page.id, workspaceId]);
 
   const handleDuplicate = React.useCallback(() => {
-    duplicatePage.mutate({ id: page._id, workspaceId });
-  }, [duplicatePage, page._id, workspaceId]);
+    duplicatePage.mutate(
+      { id: page.id, workspaceId },
+      {
+        onError: (error) => toast.error(apiErrorMessage(error, t('pages.toasts.duplicateFailed'))),
+      },
+    );
+  }, [duplicatePage, page.id, workspaceId, t]);
 
   const handleToggleFavorite = React.useCallback(() => {
     // Optimistic toggle. The Page chrome agent owns the canonical UI in the
     // page header; we keep this entrypoint for parity with Notion behavior.
-    updatePage.mutate({ id: page._id, favorited: !isFavorite });
-  }, [updatePage, page._id, isFavorite]);
-
-  const handleMoveToRoot = React.useCallback(() => {
-    if (!page.parentId) return;
-    updatePage.mutate({ id: page._id, parentId: null });
-  }, [updatePage, page._id, page.parentId]);
+    updatePage.mutate({ id: page.id, favorited: !isFavorite });
+  }, [updatePage, page.id, isFavorite]);
 
   const containerClass = isActive
     ? 'flex-row items-center bg-muted'
@@ -117,11 +112,13 @@ export function SharedPageRow({
 
   return (
     <View>
+      <MoveToDialog open={moveOpen} onOpenChange={setMoveOpen} page={page} />
       {platformDrag?.dropIndicator === 'before' ? <DropLine /> : null}
       <Pressable
         id={platformDrag?.domId}
+        accessibilityRole="link"
         onPress={handleOpen}
-        accessibilityLabel={`Open ${title}`}
+        accessibilityLabel={t('pages.openPage', { title })}
         className={`group/row ${containerClass} ${platformDrag?.isDragging ? 'opacity-40' : ''}`}
         style={{
           paddingLeft: 8 + indent,
@@ -134,7 +131,9 @@ export function SharedPageRow({
             e.stopPropagation();
             if (hasChildren) onToggle();
           }}
-          accessibilityLabel={isOpen ? 'Collapse' : 'Expand'}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: isOpen }}
+          accessibilityLabel={isOpen ? t('pages.collapse') : t('pages.expand')}
           className="h-5 w-5 items-center justify-center rounded"
           disabled={!hasChildren}
         >
@@ -165,57 +164,55 @@ export function SharedPageRow({
         </Text>
 
         {/* Hover actions: three-dot menu + add child */}
-        <View className="flex-row items-center opacity-0 group-hover/row:opacity-100">
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <Pressable
-                onPress={(e) => e.stopPropagation()}
-                accessibilityLabel={`Actions for ${title}`}
-                className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
-              >
-                <MoreHorizontal size={14} color={colors.mutedForeground} />
-              </Pressable>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content>
-              <DropdownMenu.Item key="favorite" onSelect={handleToggleFavorite}>
-                <DropdownMenu.ItemIcon ios={{ name: isFavorite ? 'star.slash' : 'star' }} />
-                <DropdownMenu.ItemTitle>
-                  {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item key="duplicate" onSelect={handleDuplicate}>
-                <DropdownMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
-                <DropdownMenu.ItemTitle>Duplicate</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              {page.parentId ? (
-                <DropdownMenu.Item key="move-root" onSelect={handleMoveToRoot}>
-                  <DropdownMenu.ItemIcon ios={{ name: 'arrow.up.left' }} />
-                  <DropdownMenu.ItemTitle>Move to top</DropdownMenu.ItemTitle>
+        {!readOnly ? (
+          <View className="flex-row items-center">
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
+                <Pressable
+                  onPress={(e) => e.stopPropagation()}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('pages.actions.actionsFor', { title })}
+                  className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
+                >
+                  <MoreHorizontal size={14} color={colors.mutedForeground} />
+                </Pressable>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content>
+                <DropdownMenu.Item key="favorite" onSelect={handleToggleFavorite}>
+                  <DropdownMenu.ItemIcon ios={{ name: isFavorite ? 'star.slash' : 'star' }} />
+                  <DropdownMenu.ItemTitle>
+                    {isFavorite
+                      ? t('pages.actions.removeFromFavorites')
+                      : t('pages.actions.addToFavorites')}
+                  </DropdownMenu.ItemTitle>
                 </DropdownMenu.Item>
-              ) : null}
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item key="delete" destructive onSelect={handleDelete}>
-                <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
-                <DropdownMenu.ItemTitle>Move to trash</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              handleAddChild();
-            }}
-            accessibilityLabel={`Add sub-page to ${title}`}
-            disabled={createPage.isPending}
-            className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
-          >
-            {createPage.isPending ? (
-              <ActivityIndicator size="small" color={colors.mutedForeground} />
-            ) : (
+                <DropdownMenu.Item key="duplicate" onSelect={handleDuplicate}>
+                  <DropdownMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
+                  <DropdownMenu.ItemTitle>{t('pages.actions.duplicate')}</DropdownMenu.ItemTitle>
+                </DropdownMenu.Item>
+                <DropdownMenu.Item key="move" onSelect={() => setMoveOpen(true)}>
+                  <DropdownMenu.ItemTitle>{t('pages.actions.moveTo')}</DropdownMenu.ItemTitle>
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item key="delete" destructive onSelect={handleDelete}>
+                  <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
+                  <DropdownMenu.ItemTitle>{t('pages.actions.moveToTrash')}</DropdownMenu.ItemTitle>
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                handleAddChild();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t('pages.actions.addSubPageTo', { title })}
+              className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
+            >
               <Plus size={14} color={colors.mutedForeground} />
-            )}
-          </Pressable>
-        </View>
+            </Pressable>
+          </View>
+        ) : null}
       </Pressable>
       {platformDrag?.dropIndicator === 'inside' ? <DropInside /> : null}
       {platformDrag?.dropIndicator === 'after' ? <DropLine /> : null}

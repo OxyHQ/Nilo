@@ -3,6 +3,7 @@ import { Image, View } from 'react-native';
 import { FileText } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { getLucideIcon } from './lucide-icons';
 import { parseIcon, type IconValue } from './icon-value';
 
@@ -23,6 +24,7 @@ interface IconDisplayProps {
 export function IconDisplay({ value, size = 16, showPlaceholder = false }: IconDisplayProps) {
   const parsed = React.useMemo<IconValue>(() => parseIcon(value), [value]);
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
 
   if (parsed.kind === 'none') {
     if (!showPlaceholder) return null;
@@ -36,7 +38,10 @@ export function IconDisplay({ value, size = 16, showPlaceholder = false }: IconD
   if (parsed.kind === 'emoji') {
     // Emoji rendering: lineHeight = size so the glyph sits in a clean square.
     return (
-      <Text style={{ fontSize: size, lineHeight: size * 1.1 }} accessibilityLabel="Page icon">
+      <Text
+        style={{ fontSize: size, lineHeight: size * 1.1 }}
+        accessibilityLabel={t('pages.header.pageIcon')}
+      >
         {parsed.emoji}
       </Text>
     );
@@ -59,7 +64,7 @@ export function IconDisplay({ value, size = 16, showPlaceholder = false }: IconD
     <Image
       source={{ uri: parsed.url }}
       style={{ width: size, height: size, borderRadius: size * 0.15 }}
-      accessibilityLabel="Page icon"
+      accessibilityLabel={t('pages.header.pageIcon')}
     />
   );
 }

@@ -16,11 +16,19 @@ vi.mock('../../repositories/comments.js', () => ({
   setCommentResolvedAt: vi.fn(),
   deleteComment: vi.fn(),
   deleteCommentThread: vi.fn(),
+  listReactions: vi.fn(async () => new Map()),
+  addReaction: vi.fn(),
+  removeReaction: vi.fn(),
 }));
 
 vi.mock('../../repositories/pages.js', () => ({
   findPageById: vi.fn(),
   findPagesByIds: vi.fn(),
+}));
+
+vi.mock('../../repositories/pageFollows.js', () => ({
+  follow: vi.fn(),
+  listFollowers: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('../../repositories/blocks.js', () => ({
@@ -37,7 +45,37 @@ vi.mock('../../middleware/auth.js', () => ({
 }));
 
 vi.mock('../../middleware/workspace.js', () => ({
-  requireWorkspaceMember: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
+  // Mirrors the real middleware: the member's role lands on `req.workspace`.
+  requireWorkspaceMember: vi.fn((req: any, _res: any, next: any) => {
+    req.workspace = { id: req.headers['x-workspace-id'], role: req.member?.role };
+    next();
+  }),
+}));
+
+// Page access is the member's role here (the rule has its own tests); the
+// shape mirrors `checkPageAccess`.
+vi.mock('../../lib/page-access.js', () => ({
+  // Everyone mentioned can open the page, except the one named as a stranger.
+  resolvePageAccess: vi.fn(async (_db: unknown, userId: string) =>
+    userId.includes('not-in-workspace')
+      ? null
+      : { role: 'viewer', memberRole: null, chain: [], grants: [] },
+  ),
+  checkPageAccess: vi.fn(
+    async (req: any, res: any, _db: unknown, _pageId: string, minRole: string) => {
+      const ranks = ['viewer', 'commenter', 'editor', 'admin', 'owner'];
+      const role = req.member?.role;
+      if (role && ranks.indexOf(role) >= ranks.indexOf(minRole)) {
+        return { role, memberRole: role, chain: [], grants: [] };
+      }
+      res.status(403).json({
+        code: role ? 'INSUFFICIENT_ROLE' : 'NO_PAGE_ACCESS',
+        required: minRole,
+        actual: role ?? null,
+      });
+      return null;
+    },
+  ),
 }));
 
 vi.mock('../../lib/notification-service.js', () => ({
@@ -53,13 +91,11 @@ vi.mock('../../lib/logger.js', () => ({
 import * as commentsRepo from '../../repositories/comments.js';
 import * as pagesRepo from '../../repositories/pages.js';
 import * as blocksRepo from '../../repositories/blocks.js';
-import * as workspacesRepo from '../../repositories/workspaces.js';
 import commentsRouter from '../comments.js';
 
 const mockComment = commentsRepo as unknown as Record<string, ReturnType<typeof vi.fn>>;
 const mockBlock = blocksRepo as unknown as Record<string, ReturnType<typeof vi.fn>>;
 const mockPage = pagesRepo as unknown as Record<string, ReturnType<typeof vi.fn>>;
-const mockMember = workspacesRepo as unknown as Record<string, ReturnType<typeof vi.fn>>;
 
 interface RouteLayer {
   route?: {
@@ -174,6 +210,23 @@ describe('comments route', () => {
       expect(calledWith.content.plainText).toBe('Hello');
     });
 
+    it('refuses a viewer, who may read but not comment', async () => {
+      const handler = findHandler('post', '/pages/:pageId/comments');
+      const req = makeReq({
+        params: { pageId: PAGE_ID },
+        member: { role: 'viewer' },
+        body: { content: { segments: [{ type: 'text', text: 'Hello' }] } },
+      });
+      const res = makeRes();
+      await handler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 'INSUFFICIENT_ROLE', required: 'commenter' }),
+      );
+      expect(mockComment.createComment).not.toHaveBeenCalled();
+    });
+
     it('rejects empty content (Zod)', async () => {
       const handler = findHandler('post', '/pages/:pageId/comments');
       const req = makeReq({
@@ -185,8 +238,7 @@ describe('comments route', () => {
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
-    it('validates a user mention belongs to the workspace', async () => {
-      mockMember.listMembershipsForUsers.mockResolvedValue([]);
+    it('refuses to mention someone who cannot open the page', async () => {
       const handler = findHandler('post', '/pages/:pageId/comments');
       const req = makeReq({
         params: { pageId: PAGE_ID },

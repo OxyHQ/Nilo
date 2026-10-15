@@ -1,0 +1,47 @@
+{
+  "placeholder": "Busca páginas, personas y comandos…",
+  "close": "Cerrar búsqueda",
+  "noResults": "Sin resultados.",
+  "untitled": "Sin título",
+  "memberFallback": "Miembro",
+  "groups": {
+    "recent": "Recientes",
+    "pages": "Páginas",
+    "people": "Personas",
+    "commands": "Comandos"
+  },
+  "commands": {
+    "newPage": {
+      "title": "Nueva página",
+      "subtitle": "Crea una página en el espacio de trabajo actual",
+      "keywords": "nueva página crear"
+    },
+    "settings": {
+      "title": "Abrir ajustes",
+      "keywords": "ajustes configuración preferencias"
+    },
+    "trash": {
+      "title": "Abrir papelera",
+      "keywords": "papelera eliminado archivado"
+    },
+    "theme": {
+      "toLight": "Cambiar a modo claro",
+      "toDark": "Cambiar a modo oscuro",
+      "keywords": "tema oscuro claro modo cambiar"
+    },
+    "shortcuts": {
+      "title": "Atajos de teclado",
+      "keywords": "ayuda teclado atajos"
+    },
+    "docs": {
+      "title": "Abrir la documentación de Oxy",
+      "keywords": "documentación ayuda docs"
+    }
+  },
+  "search": {
+    "loading": "Buscando páginas…",
+    "error": "No se pudieron buscar páginas.",
+    "empty": "No hay páginas coincidentes.",
+    "retry": "Reintentar"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "title": "Inicia sesión o regístrate",
+  "subtitle": "para continuar a Nilo",
+  "continueWithGoogle": "Continuar con Google",
+  "continueWithMicrosoft": "Continuar con Microsoft",
+  "continueWithApple": "Continuar con Apple",
+  "continueWithTelegram": "Continuar con Telegram",
+  "emailPlaceholder": "Email",
+  "passwordPlaceholder": "Contraseña",
+  "forgotPassword": "¿Olvidaste tu contraseña?",
+  "signInButton": "Iniciar sesión",
+  "signingIn": "Iniciando sesión...",
+  "footerText": "¿No tienes cuenta?",
+  "footerLink": "Crear cuenta",
+  "termsPrefix": "Al continuar aceptas los ",
+  "termsOfService": "Términos del servicio",
+  "termsAnd": " y la ",
+  "privacyPolicy": "Política de privacidad"
+}

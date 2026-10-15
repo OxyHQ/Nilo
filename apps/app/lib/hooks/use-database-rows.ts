@@ -1,9 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  type InfiniteData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import axios from 'axios';
 import { useOxy } from '@oxy.so/services';
 import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
 import { queryKeys } from './query-keys';
 import type {
+  DatabaseViewType,
   DatabaseRow,
   DatabaseRowResponse,
   DatabaseRowsResponse,
@@ -20,8 +28,7 @@ import type { Page, PageResponse } from '../types/pages';
  */
 function pageToDatabaseRow(page: Page): DatabaseRow {
   return {
-    id: page._id,
-    _id: page._id,
+    id: page.id,
     workspaceId: page.workspaceId,
     parentId: page.parentId,
     databaseId: page.databaseId ?? null,
@@ -30,7 +37,7 @@ function pageToDatabaseRow(page: Page): DatabaseRow {
     cover: page.cover ?? null,
     ownerId: page.ownerId,
     archived: page.archived,
-    order: 0,
+    order: page.order,
     properties: (page.properties ?? {}) as Record<string, PropertyValue>,
     createdAt: page.createdAt,
     updatedAt: page.updatedAt,
@@ -38,6 +45,7 @@ function pageToDatabaseRow(page: Page): DatabaseRow {
 }
 
 interface CreateRowInput {
+  templateId?: string;
   databaseId: string;
   title?: string;
   properties?: Record<string, PropertyValue | unknown>;
@@ -58,28 +66,83 @@ interface DeleteRowInput {
   rowId: string;
 }
 
-/**
- * List rows for the given database. When `viewId` is passed, the server
- * applies that view's filters / sorts / page size before returning.
- *
- * The query is keyed on (databaseId, viewId) so switching views fetches
- * fresh rows. We mirror the view's full payload in the response so
- * downstream UI can render badges (active sort, active filter count)
- * without a second roundtrip.
- */
-export function useDatabaseRows(databaseId: string | undefined, viewId: string | null) {
+/** Infinite queries refetch only the pages already loaded on live invalidation. */
+export function useDatabaseRows(
+  databaseId: string | undefined,
+  viewId: string | null,
+  type: DatabaseViewType = 'table',
+) {
   const { isAuthenticated } = useOxy();
-  return useQuery<DatabaseRowsResponse>({
-    queryKey: databaseId
-      ? queryKeys.databases.rows(databaseId, viewId)
-      : ['database', 'none', 'rows'],
+  const incremental = ['table', 'list', 'gallery'].includes(type);
+  const query = useInfiniteQuery({
+    queryKey: [
+      ...queryKeys.databases.rows(databaseId ?? 'none', viewId),
+      incremental ? 'paged' : 'all',
+    ],
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam, signal }): Promise<DatabaseRowsResponse> => {
+      if (!databaseId) throw new Error('Database id required');
+      let cursor = pageParam;
+      let result: DatabaseRowsResponse | undefined;
+      do {
+        const { data }: { data: DatabaseRowsResponse } = await apiClient.get<DatabaseRowsResponse>(
+          API_ROUTES.databases.listRows(databaseId),
+          {
+            signal,
+            params: { ...(viewId && { viewId }), pageSize: '100', ...(cursor && { cursor }) },
+          },
+        );
+        result = result ? { ...data, rows: [...result.rows, ...data.rows] } : data;
+        cursor = data.cursor;
+      } while (!incremental && cursor);
+      return result;
+    },
+    getNextPageParam: (last) => last.cursor ?? undefined,
+    retry: (count, error) => {
+      if (axios.isAxiosError(error) && [403, 404].includes(error.response?.status ?? 0))
+        return false;
+      return count < 2;
+    },
+    enabled: isAuthenticated && Boolean(databaseId),
+  });
+  const first = query.data?.pages[0];
+  return {
+    ...query,
+    data: first ? { ...first, rows: uniqueRows(query.data?.pages ?? []) } : undefined,
+  };
+}
+
+/**
+ * The loaded pages' rows, each once. The cursor is an offset, so a row
+ * inserted between two page requests moves another across the boundary and
+ * both pages can carry it.
+ */
+function uniqueRows(pages: readonly DatabaseRowsResponse[]): DatabaseRow[] {
+  const seen = new Set<string>();
+  const rows: DatabaseRow[] = [];
+  for (const page of pages) {
+    for (const row of page.rows) {
+      if (seen.has(row.id)) continue;
+      seen.add(row.id);
+      rows.push(row);
+    }
+  }
+  return rows;
+}
+
+type RowsCache = InfiniteData<DatabaseRowsResponse>;
+
+/** One row with its computed values (formulas, rollups), whatever view it falls in. */
+export function useDatabaseRow(databaseId: string | undefined, rowId: string) {
+  const { isAuthenticated } = useOxy();
+  return useQuery<DatabaseRow>({
+    queryKey: databaseId ? queryKeys.databases.row(databaseId, rowId) : ['database', 'none', 'row'],
     queryFn: async () => {
       if (!databaseId) throw new Error('Database id required');
-      const res = await apiClient.get<DatabaseRowsResponse>(
-        API_ROUTES.databases.listRows(databaseId),
-        { params: viewId ? { viewId } : undefined },
+      const res = await apiClient.get<DatabaseRowResponse>(
+        API_ROUTES.databases.getRow(databaseId, rowId),
       );
-      return res.data;
+      return res.data.row;
     },
     enabled: isAuthenticated && Boolean(databaseId),
   });
@@ -96,6 +159,7 @@ export function useCreateRow() {
       return res.data.row;
     },
     onSettled: (_data, _err, { databaseId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.databases.templates(databaseId) });
       queryClient.invalidateQueries({
         queryKey: ['database', databaseId, 'rows'],
       });
@@ -116,30 +180,34 @@ export function useUpdateRow() {
       return pageToDatabaseRow(res.data.page);
     },
     onMutate: async ({ databaseId, rowId, ...patch }) => {
-      const queries = queryClient.getQueriesData<DatabaseRowsResponse>({
+      await queryClient.cancelQueries({ queryKey: ['database', databaseId, 'rows'] });
+      const queries = queryClient.getQueriesData<RowsCache>({
         queryKey: ['database', databaseId, 'rows'],
       });
       const previous: Array<{
         key: unknown[];
-        data: DatabaseRowsResponse | undefined;
+        data: RowsCache | undefined;
       }> = [];
       for (const [key, data] of queries) {
         previous.push({ key: key as unknown[], data });
         if (!data) continue;
-        queryClient.setQueryData<DatabaseRowsResponse>(key as unknown[], {
+        queryClient.setQueryData<RowsCache>(key as unknown[], {
           ...data,
-          rows: data.rows.map((r) =>
-            r.id === rowId
-              ? {
-                  ...r,
-                  ...patch,
-                  properties: {
-                    ...r.properties,
-                    ...((patch.properties ?? {}) as Record<string, PropertyValue>),
-                  },
-                }
-              : r,
-          ),
+          pages: data.pages.map((page) => ({
+            ...page,
+            rows: page.rows.map((r) =>
+              r.id === rowId
+                ? {
+                    ...r,
+                    ...patch,
+                    properties: {
+                      ...r.properties,
+                      ...((patch.properties ?? {}) as Record<string, PropertyValue>),
+                    },
+                  }
+                : r,
+            ),
+          })),
         });
       }
       return { previous };
@@ -149,7 +217,7 @@ export function useUpdateRow() {
         | {
             previous?: Array<{
               key: unknown[];
-              data: DatabaseRowsResponse | undefined;
+              data: RowsCache | undefined;
             }>;
           }
         | undefined;
@@ -160,12 +228,11 @@ export function useUpdateRow() {
       }
     },
     onSettled: (_data, _err, { databaseId, rowId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.databases.templates(databaseId) });
       queryClient.invalidateQueries({
         queryKey: ['database', databaseId, 'rows'],
       });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.pages.detail(rowId),
-      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.databases.row(databaseId, rowId) });
     },
   });
 }
@@ -179,6 +246,7 @@ export function useDeleteRow() {
       await apiClient.delete(API_ROUTES.pages.delete(rowId));
     },
     onSettled: (_data, _err, { databaseId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.databases.templates(databaseId) });
       queryClient.invalidateQueries({
         queryKey: ['database', databaseId, 'rows'],
       });

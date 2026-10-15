@@ -5,6 +5,7 @@ import { usePages } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { SidebarSection } from './sidebar-section';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SidebarPageTree } from './sidebar-page-tree';
 
 /**
@@ -15,6 +16,7 @@ import { SidebarPageTree } from './sidebar-page-tree';
 export function FavoritesSection() {
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const { user } = useOxy();
+  const { t } = useTranslation();
   const { data } = usePages(currentWorkspaceId);
 
   const favorites = React.useMemo<Page[]>(() => {
@@ -26,7 +28,7 @@ export function FavoritesSection() {
   if (!currentWorkspaceId || !user) return null;
 
   return (
-    <SidebarSection sectionKey="favorites" title="Favorites">
+    <SidebarSection sectionKey="favorites" title={t('sidebar.sections.favorites')}>
       <View className="px-1">
         <SidebarPageTree pages={favorites} workspaceId={currentWorkspaceId} enableDrag={false} />
       </View>

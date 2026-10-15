@@ -6,7 +6,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * Sidebar section keys — persisted collapsed state. New sections added here
  * default to expanded.
  */
-export type SidebarSectionKey = 'favorites' | 'private' | 'shared' | 'databases' | 'templates';
+export type SidebarSectionKey =
+  | 'favorites'
+  | 'private'
+  | 'shared'
+  | 'databases'
+  | 'templates'
+  | `teamspace:${string}`;
 
 const MAX_RECENT_PAGES = 20;
 

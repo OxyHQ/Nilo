@@ -1,14 +1,27 @@
+import { PageEditedNotification } from '@/components/sharing/page-edited-notification';
+import { ReminderList } from '@/components/reminders/reminder-list';
+import { PageSharedNotification } from '@/components/sharing/page-shared-notification';
 import { View, ScrollView, Pressable, Platform } from 'react-native';
 import { Switch } from '@/components/ui/switch';
 import { Text } from '@/components/ui/text';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Bell, BellOff, CheckCheck, MessageSquare, X } from 'lucide-react-native';
+import {
+  Pencil,
+  ArrowLeft,
+  Bell,
+  BellOff,
+  CheckCheck,
+  MessageSquare,
+  UserPlus,
+  X,
+} from 'lucide-react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@oxy.so/services';
 import * as ExpoNotifications from 'expo-notifications';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { useTranslation } from '@/hooks/useTranslation';
+import i18n from '@/lib/i18n';
 import {
   useNotifications,
   useMarkAsRead,
@@ -18,8 +31,12 @@ import {
 } from '@/lib/hooks/use-notifications';
 
 const TYPE_ICONS: Record<Notification['type'], typeof MessageSquare> = {
+  page_edited: Pencil,
+  page_shared: UserPlus,
+  reminder: Bell,
   mention: MessageSquare,
   comment_reply: MessageSquare,
+  page_comment: MessageSquare,
 };
 
 const PRIORITY_COLORS: Record<Notification['priority'], string> = {
@@ -32,12 +49,12 @@ const PRIORITY_COLORS: Record<Notification['priority'], string> = {
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return i18n.t('notifications.time.justNow');
+  if (minutes < 60) return i18n.t('notifications.time.minutesAgo', { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return i18n.t('notifications.time.hoursAgo', { count: hours });
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return i18n.t('notifications.time.daysAgo', { count: days });
 }
 
 export default function NotificationsScreen() {
@@ -96,11 +113,24 @@ export default function NotificationsScreen() {
 
   const handleNotificationPress = useCallback(
     (notification: Notification) => {
+      const pageId = notification.data?.pageId;
+      const blockId = notification.data?.blockId;
+      if (typeof pageId === 'string')
+        router.push({
+          pathname: '/p/[pageId]',
+          params: {
+            pageId,
+            ...(typeof blockId === 'string' ? { blockId } : {}),
+            ...(['page_comment', 'comment_reply'].includes(notification.type)
+              ? { comments: 'open' }
+              : {}),
+          },
+        });
       if (notification.status !== 'read') {
         markAsRead.mutate(notification.id);
       }
     },
-    [markAsRead],
+    [markAsRead, router],
   );
 
   const notifications = data?.notifications || [];
@@ -127,7 +157,9 @@ export default function NotificationsScreen() {
               {t('notifications.title')}
             </Text>
             {unreadCount > 0 && (
-              <Text className="text-sm text-muted-foreground mt-1">{unreadCount} unread</Text>
+              <Text className="text-sm text-muted-foreground mt-1">
+                {t('notifications.unread', { count: unreadCount })}
+              </Text>
             )}
           </View>
           {unreadCount > 0 && (
@@ -136,7 +168,9 @@ export default function NotificationsScreen() {
               className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted active:bg-muted/80"
             >
               <CheckCheck size={14} className="text-muted-foreground" />
-              <Text className="text-xs text-muted-foreground">Mark all read</Text>
+              <Text className="text-xs text-muted-foreground">
+                {t('notifications.markAllRead')}
+              </Text>
             </Pressable>
           )}
         </View>
@@ -171,17 +205,23 @@ export default function NotificationsScreen() {
         </Animated.View>
       )}
 
+      <View className="p-6 border-b border-border">
+        <ReminderList />
+      </View>
+
       {/* Notification Feed */}
       {isLoading ? (
         <View className="items-center justify-center py-12">
-          <Text className="text-sm text-muted-foreground">Loading...</Text>
+          <Text className="text-sm text-muted-foreground">{t('common.loading')}</Text>
         </View>
       ) : notifications.length === 0 ? (
         <View className="items-center justify-center py-16 px-6">
           <Bell size={32} className="text-muted-foreground mb-3" />
-          <Text className="text-base font-medium text-foreground mb-1">No notifications yet</Text>
+          <Text className="text-base font-medium text-foreground mb-1">
+            {t('notifications.emptyTitle')}
+          </Text>
           <Text className="text-sm text-muted-foreground text-center">
-            Mentions and replies from your workspace will appear here.
+            {t('notifications.emptyBody')}
           </Text>
         </View>
       ) : (
@@ -193,6 +233,8 @@ export default function NotificationsScreen() {
 
             return (
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('notifications.open')}
                 key={notification.id}
                 onPress={() => handleNotificationPress(notification)}
                 className={`px-6 py-4 border-b border-border border-l-2 ${priorityBorder} ${isUnread ? 'bg-muted/20' : ''} active:bg-muted/40`}
@@ -203,12 +245,20 @@ export default function NotificationsScreen() {
                   </View>
                   <View className="flex-1">
                     <View className="flex-row items-center justify-between mb-1">
-                      <Text
-                        className={`text-sm ${isUnread ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'}`}
-                        numberOfLines={1}
-                      >
-                        {notification.title}
-                      </Text>
+                      {notification.type === 'page_edited' ? (
+                        <PageEditedNotification notification={notification} />
+                      ) : notification.type === 'page_shared' ? (
+                        <PageSharedNotification notification={notification} />
+                      ) : (
+                        <Text
+                          className={`text-sm ${isUnread ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'}`}
+                          numberOfLines={1}
+                        >
+                          {notification.type === 'reminder'
+                            ? t('notifications.reminder')
+                            : notification.title}
+                        </Text>
+                      )}
                       <View className="flex-row items-center gap-2">
                         <Text className="text-xs text-muted-foreground">
                           {timeAgo(notification.createdAt)}
@@ -219,6 +269,8 @@ export default function NotificationsScreen() {
                             dismiss.mutate(notification.id);
                           }}
                           className="p-1"
+                          accessibilityRole="button"
+                          accessibilityLabel={t('notifications.dismiss')}
                           hitSlop={8}
                         >
                           <X size={12} className="text-muted-foreground" />

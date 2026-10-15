@@ -16,9 +16,15 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const data = event.notification.data;
+  const payload = event.notification.data;
+  const data = payload?.data ?? payload;
+  const params = new URLSearchParams();
+  if (typeof data?.blockId === 'string') params.set('blockId', data.blockId);
+  if (typeof data?.commentId === 'string') params.set('comments', 'open');
   const url =
-    typeof data?.pageId === 'string' ? `/p/${encodeURIComponent(data.pageId)}` : '/notifications';
+    typeof data?.pageId === 'string'
+      ? `/p/${encodeURIComponent(data.pageId)}${params.size ? `?${params}` : ''}`
+      : '/notifications';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
       // Prefer a focused/visible tab, then any matching tab

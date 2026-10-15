@@ -1,0 +1,126 @@
+import React from 'react';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RelationSettings } from '../relation-settings';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { useDeleteProperty } from '@/lib/hooks/use-database-properties';
+import apiClient from '@/lib/api/client';
+import type { Database, DatabaseProperty } from '@/lib/types/databases';
+
+jest.mock('@/lib/hooks/use-databases', () => ({
+  useDatabases: () => ({ data: { databases: [{ id: 'target', name: 'Projects' }] } }),
+}));
+jest.mock('@/lib/api/client', () => ({
+  __esModule: true,
+  default: { post: jest.fn(), patch: jest.fn(), delete: jest.fn() },
+}));
+jest.mock('@/hooks/useTranslation', () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
+jest.mock('@/components/ui/confirmation-dialog', () => ({ ConfirmationDialog: () => null }));
+const property: DatabaseProperty = {
+  id: 'rel',
+  name: 'Projects',
+  type: 'relation',
+  config: { targetDatabaseId: 'target', twoWay: true, syncedPropertyId: 'server-owned' },
+};
+const database = {
+  id: 'db',
+  workspaceId: 'w',
+  name: 'Tasks',
+  schema: { properties: [property] },
+} as Database;
+let client: QueryClient;
+let renderer: ReactTestRenderer;
+let remove: ReturnType<typeof useDeleteProperty>;
+function DeleteHook() {
+  remove = useDeleteProperty();
+  return null;
+}
+const onDone = jest.fn();
+beforeEach(() => {
+  jest.clearAllMocks();
+  client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity },
+      mutations: { retry: false, gcTime: Infinity },
+    },
+  });
+  client.setQueryData(['database', 'db'], { database });
+  jest.mocked(apiClient.patch).mockResolvedValue({ data: { database } });
+  jest.mocked(apiClient.post).mockResolvedValue({ data: { database } });
+  jest.mocked(apiClient.delete).mockResolvedValue({ data: { database } });
+});
+afterEach(() => {
+  act(() => renderer.unmount());
+  client.clear();
+});
+async function mount(existing?: DatabaseProperty) {
+  await act(async () => {
+    renderer = create(
+      <QueryClientProvider client={client}>
+        <DeleteHook />
+        <RelationSettings database={database} property={existing} onDone={onDone} />
+      </QueryClientProvider>,
+    );
+  });
+}
+it('confirms before disabling two-way, strips server-owned fields, and refreshes both databases', async () => {
+  await mount(property);
+  const invalidate = jest.spyOn(client, 'invalidateQueries');
+  act(() => renderer.root.findByType(Switch).props.onValueChange(false));
+  expect(renderer.root.findByType(ConfirmationDialog).props.open).toBe(true);
+  expect(renderer.root.findByType(Switch).props.value).toBe(true);
+  expect(apiClient.patch).not.toHaveBeenCalled();
+  await act(async () => renderer.root.findByType(ConfirmationDialog).props.onConfirm());
+  await act(async () => {
+    renderer.root.findByType(Button).props.onPress();
+  });
+  expect(apiClient.patch).toHaveBeenCalledWith('/databases/db/properties/rel', {
+    config: { targetDatabaseId: 'target', twoWay: false },
+  });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['database', 'db'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['database', 'target'] });
+  expect(onDone).toHaveBeenCalled();
+});
+it('creates a relation with an explicit target and twoWay flag', async () => {
+  await mount();
+  act(() =>
+    renderer.root
+      .find((node) => node.props.accessibilityLabel === 'Projects' && node.props.onPress)
+      .props.onPress(),
+  );
+  act(() => renderer.root.findByType(Switch).props.onValueChange(true));
+  await act(async () => renderer.root.findByType(Button).props.onPress());
+  expect(apiClient.post).toHaveBeenCalledWith('/databases/db/properties', {
+    name: 'databases.propertyTypes.relation',
+    type: 'relation',
+    config: { targetDatabaseId: 'target', twoWay: true },
+  });
+});
+it('invalidates the removed reciprocal database even when it is absent from the response', async () => {
+  await mount(property);
+  const invalidate = jest.spyOn(client, 'invalidateQueries');
+  await act(async () => {
+    await remove.mutateAsync({ databaseId: 'db', propertyId: 'rel' });
+  });
+  expect(apiClient.delete).toHaveBeenCalledWith('/databases/db/properties/rel');
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['database', 'target'] });
+});
+
+it('asks before retargeting an existing reciprocal, then saves the new target', async () => {
+  await mount(property);
+  act(() =>
+    renderer.root
+      .find((node) => node.props.accessibilityLabel === 'Tasks' && node.props.onPress)
+      .props.onPress(),
+  );
+  act(() => renderer.root.findByType(Button).props.onPress());
+  expect(apiClient.patch).not.toHaveBeenCalled();
+  await act(async () => renderer.root.findByType(ConfirmationDialog).props.onConfirm());
+  expect(apiClient.patch).toHaveBeenCalledWith('/databases/db/properties/rel', {
+    config: { targetDatabaseId: 'db', twoWay: true },
+  });
+});

@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, Pressable, ScrollView, Platform } from 'react-native';
+import { View, Pressable, ScrollView } from 'react-native';
 import { Text } from '@/components/ui/text';
+import { MONO_FONT_FAMILY } from '@/lib/fonts';
+import i18n from '@/lib/i18n';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -118,7 +120,7 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
             marginBottom: 8,
           }}
         >
-          Something went wrong
+          {i18n.t('errors.boundary.title')}
         </Text>
 
         {/* Description */}
@@ -131,8 +133,7 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
             marginBottom: 24,
           }}
         >
-          An unexpected error occurred. You can try again, and if the problem persists, our team has
-          been notified.
+          {i18n.t('errors.boundary.description')}
         </Text>
 
         {/* Error details (collapsible in dev) */}
@@ -151,7 +152,7 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
               style={{
                 fontSize: 12,
                 color: '#64748b',
-                fontFamily: Platform.OS === 'web' ? 'monospace' : 'SpaceMono',
+                fontFamily: MONO_FONT_FAMILY,
               }}
               selectable
             >
@@ -172,7 +173,7 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
             alignItems: 'center',
           })}
           accessibilityRole="button"
-          accessibilityLabel="Try again"
+          accessibilityLabel={i18n.t('common.tryAgain')}
         >
           <Text
             style={{
@@ -181,7 +182,7 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
               color: '#ffffff',
             }}
           >
-            Try Again
+            {i18n.t('common.tryAgain')}
           </Text>
         </Pressable>
       </View>

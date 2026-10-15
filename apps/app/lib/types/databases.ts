@@ -1,3 +1,4 @@
+import type { WorkspaceRole } from '../hooks/use-workspaces';
 /**
  * Shared types for Databases (Phase 4).
  *
@@ -30,7 +31,8 @@ export type DatabasePropertyType =
   | 'last_edited_time'
   | 'created_by'
   | 'last_edited_by'
-  | 'formula';
+  | 'formula'
+  | 'unique_id';
 
 export type SelectColor =
   | 'default'
@@ -78,10 +80,13 @@ export interface PropertyConfig {
   includeTime?: boolean;
   targetDatabaseId?: string;
   twoWay?: boolean;
+  /** Server-owned reciprocal property ID. Never included in writes. */
+  syncedPropertyId?: string;
   relationPropertyId?: string;
   targetPropertyId?: string;
   function?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'earliest' | 'latest';
   expression?: string;
+  prefix?: string;
 }
 
 export interface DatabaseProperty {
@@ -98,6 +103,7 @@ export interface DatabaseSchema {
 export interface Database {
   id: string;
   workspaceId: string;
+  teamspaceId: string | null;
   name: string;
   icon: string | null;
   cover: string | null;
@@ -110,7 +116,14 @@ export interface Database {
   updatedAt: string;
 }
 
-export type DatabaseViewType = 'table' | 'board' | 'gallery' | 'list' | 'calendar' | 'timeline';
+export type DatabaseViewType =
+  | 'table'
+  | 'board'
+  | 'gallery'
+  | 'list'
+  | 'calendar'
+  | 'timeline'
+  | 'form';
 
 export type SortDirection = 'asc' | 'desc';
 
@@ -135,6 +148,7 @@ export interface FilterGroup {
 export type Filter = FilterCondition | FilterGroup;
 
 export interface ViewConfig {
+  description?: string;
   datePropertyId?: string;
   startPropertyId?: string;
   endPropertyId?: string;
@@ -144,6 +158,7 @@ export interface ViewConfig {
 }
 
 export interface DatabaseView {
+  blockId?: string | null;
   id: string;
   databaseId: string;
   name: string;
@@ -167,6 +182,7 @@ export interface DatabaseView {
  */
 export interface TextValue {
   text: string;
+  error?: string;
 }
 export interface NumberValue {
   number: number | null;
@@ -213,7 +229,6 @@ export type PropertyValue =
 
 export interface DatabaseRow {
   id: string;
-  _id: string;
   workspaceId: string;
   parentId: string | null;
   databaseId: string | null;
@@ -235,6 +250,13 @@ export interface DatabasesListResponse {
 export interface DatabaseResponse {
   database: Database;
   views?: DatabaseView[];
+}
+
+/** `GET /databases/:id`: the database, its own views and the caller's role on it. */
+export interface DatabaseDetail {
+  database: Database;
+  views: DatabaseView[];
+  role: WorkspaceRole;
 }
 
 export interface DatabaseRowsResponse {

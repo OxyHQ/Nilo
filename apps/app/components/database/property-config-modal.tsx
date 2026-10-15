@@ -1,3 +1,9 @@
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { toast } from '@oxy.so/bloom/toast';
+import { RelationSettings } from './relation-settings';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { FormulaEditor } from './formula-editor';
+import { UniqueIdEditor } from './unique-id-editor';
 import * as React from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import {
@@ -21,6 +27,8 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from '@/hooks/useTranslation';
+import i18n from '@/lib/i18n';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type {
   Database,
@@ -48,32 +56,57 @@ interface PropertyHeaderMenuProps {
   property: DatabaseProperty;
 }
 
-const PROPERTY_TYPE_LABELS: Record<DatabasePropertyType, string> = {
-  text: 'Text',
-  number: 'Number',
-  select: 'Select',
-  multi_select: 'Multi-select',
-  status: 'Status',
-  date: 'Date',
-  person: 'Person',
-  files: 'Files',
-  checkbox: 'Checkbox',
-  url: 'URL',
-  email: 'Email',
-  phone: 'Phone',
-  relation: 'Relation',
-  rollup: 'Rollup',
-  created_time: 'Created time',
-  last_edited_time: 'Last edited time',
-  created_by: 'Created by',
-  last_edited_by: 'Last edited by',
-  formula: 'Formula',
-};
+/** Translated at call time: the locale can change while the app runs. */
+function propertyTypeLabel(type: DatabasePropertyType): string {
+  switch (type) {
+    case 'unique_id':
+      return i18n.t('databases.propertyTypes.uniqueId');
+    case 'text':
+      return i18n.t('databases.propertyTypes.text');
+    case 'number':
+      return i18n.t('databases.propertyTypes.number');
+    case 'select':
+      return i18n.t('databases.propertyTypes.select');
+    case 'multi_select':
+      return i18n.t('databases.propertyTypes.multiSelect');
+    case 'status':
+      return i18n.t('databases.propertyTypes.status');
+    case 'date':
+      return i18n.t('databases.propertyTypes.date');
+    case 'person':
+      return i18n.t('databases.propertyTypes.person');
+    case 'files':
+      return i18n.t('databases.propertyTypes.files');
+    case 'checkbox':
+      return i18n.t('databases.propertyTypes.checkbox');
+    case 'url':
+      return i18n.t('databases.propertyTypes.url');
+    case 'email':
+      return i18n.t('databases.propertyTypes.email');
+    case 'phone':
+      return i18n.t('databases.propertyTypes.phone');
+    case 'relation':
+      return i18n.t('databases.propertyTypes.relation');
+    case 'rollup':
+      return i18n.t('databases.propertyTypes.rollup');
+    case 'created_time':
+      return i18n.t('databases.propertyTypes.createdTime');
+    case 'last_edited_time':
+      return i18n.t('databases.propertyTypes.lastEditedTime');
+    case 'created_by':
+      return i18n.t('databases.propertyTypes.createdBy');
+    case 'last_edited_by':
+      return i18n.t('databases.propertyTypes.lastEditedBy');
+    case 'formula':
+      return i18n.t('databases.propertyTypes.formula');
+  }
+}
 
 const PROPERTY_TYPE_ICONS: Record<
   DatabasePropertyType,
   React.ComponentType<{ size?: number; color?: string }>
 > = {
+  unique_id: Hash,
   text: TypeIcon,
   number: Hash,
   select: ListTodo,
@@ -108,7 +141,9 @@ export function PropertyHeaderMenu({
   property,
 }: PropertyHeaderMenuProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [mode, setMode] = React.useState<'menu' | 'rename' | 'config'>('menu');
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
   const updateView = useUpdateView();
@@ -157,84 +192,140 @@ export function PropertyHeaderMenu({
   };
 
   const remove = async () => {
-    await deleteProperty.mutateAsync({
-      databaseId: database.id,
-      propertyId: property.id,
-    });
-    close();
+    try {
+      await deleteProperty.mutateAsync({ databaseId: database.id, propertyId: property.id });
+      close();
+    } catch {
+      toast.error(t('databases.relations.failed'));
+    }
   };
 
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={close}>
-      <Pressable style={StyleSheet.absoluteFill} className="bg-black/40" onPress={close} />
-      <View
-        className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2"
-        style={centeredModalStyle(320, 360)}
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) close();
+      }}
+    >
+      <DialogContent
+        className={mode === 'config' && property.type === 'formula' ? 'max-w-lg' : 'max-w-sm'}
       >
-        <View className="bg-popover border border-border rounded-2xl shadow-xl p-3 m-3 web:m-0">
-          {mode === 'menu' ? (
-            <>
-              <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-sm font-semibold text-foreground">{property.name}</Text>
-                <Text className="text-xs text-muted-foreground">
-                  {PROPERTY_TYPE_LABELS[property.type]}
-                </Text>
-              </View>
-              <MenuItem icon={Pencil} label="Rename" onPress={() => setMode('rename')} />
-              {property.type === 'select' ||
-              property.type === 'multi_select' ||
-              property.type === 'status' ? (
-                <MenuItem icon={ListTodo} label="Edit options" onPress={() => setMode('config')} />
-              ) : null}
-              <MenuItem icon={ArrowUpAZ} label="Sort ascending" onPress={() => applySort('asc')} />
-              <MenuItem
-                icon={ArrowDownAZ}
-                label="Sort descending"
-                onPress={() => applySort('desc')}
-              />
-              <MenuItem icon={EyeOff} label="Hide in view" onPress={hide} />
-              {property.id !== 'name' ? (
-                <MenuItem icon={Trash2} label="Delete property" destructive onPress={remove} />
-              ) : null}
-            </>
-          ) : null}
-
-          {mode === 'rename' ? (
-            <View className="gap-2">
-              <Text className="text-xs uppercase tracking-wider text-muted-foreground">
-                Property name
+        {mode === 'menu' ? (
+          <>
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-sm font-semibold text-foreground">{property.name}</Text>
+              <Text className="text-xs text-muted-foreground">
+                {propertyTypeLabel(property.type)}
               </Text>
-              <TextInput
-                value={nameDraft}
-                onChangeText={setNameDraft}
-                placeholder="Untitled"
-                placeholderTextColor={colors.mutedForeground}
-                className="text-sm text-foreground border border-border rounded-md px-2 py-1"
-                style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
-                underlineColorAndroid="transparent"
-                autoFocus
-                onSubmitEditing={commitName}
-              />
-              <View className="flex-row justify-end gap-2 mt-1">
-                <Pressable
-                  onPress={() => setMode('menu')}
-                  className="px-3 py-1 rounded-md bg-muted"
-                >
-                  <Text className="text-sm text-foreground">Cancel</Text>
-                </Pressable>
-                <Pressable onPress={commitName} className="px-3 py-1 rounded-md bg-primary">
-                  <Text className="text-sm text-primary-foreground">Save</Text>
-                </Pressable>
-              </View>
             </View>
-          ) : null}
+            <MenuItem
+              icon={Pencil}
+              label={t('databases.properties.rename')}
+              onPress={() => setMode('rename')}
+            />
+            {property.type === 'select' ||
+            property.type === 'multi_select' ||
+            property.type === 'status' ? (
+              <MenuItem
+                icon={ListTodo}
+                label={t('databases.properties.editOptions')}
+                onPress={() => setMode('config')}
+              />
+            ) : null}
+            {property.type === 'relation' ? (
+              <MenuItem
+                icon={LinkIcon}
+                label={t('databases.relations.configure')}
+                onPress={() => setMode('config')}
+              />
+            ) : null}
+            {property.type === 'formula' || property.type === 'unique_id' ? (
+              <MenuItem
+                icon={property.type === 'formula' ? Sigma : Hash}
+                label={t(
+                  property.type === 'formula'
+                    ? 'databases.formula.edit'
+                    : 'databases.uniqueId.configure',
+                )}
+                onPress={() => setMode('config')}
+              />
+            ) : null}
+            <MenuItem
+              icon={ArrowUpAZ}
+              label={t('databases.properties.sortAscending')}
+              onPress={() => applySort('asc')}
+            />
+            <MenuItem
+              icon={ArrowDownAZ}
+              label={t('databases.properties.sortDescending')}
+              onPress={() => applySort('desc')}
+            />
+            <MenuItem icon={EyeOff} label={t('databases.properties.hideInView')} onPress={hide} />
+            {property.id !== 'name' ? (
+              <MenuItem
+                icon={Trash2}
+                label={t('databases.properties.delete')}
+                destructive
+                onPress={() => (property.config?.twoWay ? setConfirmDelete(true) : void remove())}
+              />
+            ) : null}
+          </>
+        ) : null}
 
-          {mode === 'config' ? (
+        {mode === 'rename' ? (
+          <View className="gap-2">
+            <Text className="text-xs uppercase tracking-wider text-muted-foreground">
+              {t('databases.properties.name')}
+            </Text>
+            <TextInput
+              value={nameDraft}
+              onChangeText={setNameDraft}
+              placeholder={t('databases.untitled')}
+              placeholderTextColor={colors.mutedForeground}
+              className="text-sm text-foreground border border-border rounded-md px-2 py-1"
+              style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
+              underlineColorAndroid="transparent"
+              autoFocus
+              onSubmitEditing={commitName}
+            />
+            <View className="flex-row justify-end gap-2 mt-1">
+              <Pressable onPress={() => setMode('menu')} className="px-3 py-1 rounded-md bg-muted">
+                <Text className="text-sm text-foreground">{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable onPress={commitName} className="px-3 py-1 rounded-md bg-primary">
+                <Text className="text-sm text-primary-foreground">{t('common.save')}</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {mode === 'config' ? (
+          property.type === 'relation' ? (
+            <RelationSettings database={database} property={property} onDone={close} />
+          ) : property.type === 'formula' ? (
+            <FormulaEditor
+              property={property}
+              database={database}
+              viewId={view.id}
+              onDone={close}
+            />
+          ) : property.type === 'unique_id' ? (
+            <UniqueIdEditor databaseId={database.id} property={property} onDone={close} />
+          ) : (
             <SelectOptionsEditor property={property} database={database} onDone={close} />
-          ) : null}
-        </View>
-      </View>
-    </Modal>
+          )
+        ) : null}
+        <ConfirmationDialog
+          open={confirmDelete}
+          onOpenChange={setConfirmDelete}
+          title={t('databases.relations.removeTitle')}
+          description={t('databases.relations.removeDescription')}
+          confirmVariant="destructive"
+          loading={deleteProperty.isPending}
+          onConfirm={remove}
+        />
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -249,6 +340,8 @@ function MenuItem({ icon: Icon, label, onPress, destructive }: MenuItemProps) {
   const { colors } = useColorScheme();
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
       onPress={onPress}
       className="flex-row items-center gap-2 px-2 py-1.5 rounded hover:bg-muted"
     >
@@ -271,6 +364,7 @@ interface SelectOptionsEditorProps {
  */
 function SelectOptionsEditor({ property, database, onDone }: SelectOptionsEditorProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const updateProperty = useUpdateProperty();
   const [options, setOptions] = React.useState<SelectOption[]>(property.config?.options ?? []);
   const [draftName, setDraftName] = React.useState('');
@@ -305,7 +399,9 @@ function SelectOptionsEditor({ property, database, onDone }: SelectOptionsEditor
 
   return (
     <View className="gap-2">
-      <Text className="text-xs uppercase tracking-wider text-muted-foreground">Options</Text>
+      <Text className="text-xs uppercase tracking-wider text-muted-foreground">
+        {t('databases.properties.options')}
+      </Text>
       <ScrollView style={{ maxHeight: 240 }}>
         {options.map((o) => (
           <OptionRow
@@ -320,7 +416,7 @@ function SelectOptionsEditor({ property, database, onDone }: SelectOptionsEditor
         <TextInput
           value={draftName}
           onChangeText={setDraftName}
-          placeholder="New option"
+          placeholder={t('databases.properties.newOption')}
           placeholderTextColor={colors.mutedForeground}
           className="text-sm text-foreground border border-border rounded-md px-2 py-1 flex-1"
           onSubmitEditing={addOption}
@@ -332,12 +428,12 @@ function SelectOptionsEditor({ property, database, onDone }: SelectOptionsEditor
           className="px-2 py-1 rounded-md bg-primary flex-row items-center gap-1"
         >
           <Plus size={12} color="#ffffff" />
-          <Text className="text-xs text-primary-foreground">Add</Text>
+          <Text className="text-xs text-primary-foreground">{t('databases.actions.add')}</Text>
         </Pressable>
       </View>
       <View className="flex-row justify-end gap-2 mt-2">
         <Pressable onPress={onDone} className="px-3 py-1 rounded-md bg-muted">
-          <Text className="text-sm text-foreground">Done</Text>
+          <Text className="text-sm text-foreground">{t('common.done')}</Text>
         </Pressable>
       </View>
     </View>
@@ -418,7 +514,9 @@ export interface AddPropertyButtonProps {
 
 export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
+  const [relationOpen, setRelationOpen] = React.useState(false);
   const { mutate: addProperty, isPending } = useAddPropertyOptimistic(database, () => {
     setOpen(false);
     onAdded?.();
@@ -432,7 +530,7 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
       >
         <Plus size={14} color={colors.mutedForeground} />
         <Text className="text-xs text-muted-foreground">
-          {isPending ? 'Adding…' : 'Add property'}
+          {isPending ? t('databases.actions.adding') : t('databases.properties.add')}
         </Text>
       </Pressable>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -447,7 +545,7 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
         >
           <View className="bg-popover border border-border rounded-2xl shadow-xl p-3 m-3 web:m-0">
             <Text className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-              Add property
+              {t('databases.properties.add')}
             </Text>
             <ScrollView style={{ maxHeight: 360 }}>
               {(
@@ -467,27 +565,35 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
                   'relation',
                   'rollup',
                   'formula',
+                  'unique_id',
                   'created_time',
                   'last_edited_time',
                   'created_by',
                   'last_edited_by',
                 ] as DatabasePropertyType[]
-              ).map((t) => {
-                const Icon = PROPERTY_TYPE_ICONS[t];
+              ).map((type) => {
+                const Icon = PROPERTY_TYPE_ICONS[type];
                 return (
                   <Pressable
-                    key={t}
-                    onPress={() =>
+                    key={type}
+                    accessibilityRole="button"
+                    accessibilityLabel={propertyTypeLabel(type)}
+                    onPress={() => {
+                      if (type === 'relation') {
+                        setOpen(false);
+                        setRelationOpen(true);
+                        return;
+                      }
                       addProperty({
                         databaseId: database.id,
-                        name: PROPERTY_TYPE_LABELS[t],
-                        type: t,
-                      })
-                    }
+                        name: propertyTypeLabel(type),
+                        type,
+                      });
+                    }}
                     className="flex-row items-center gap-2 px-2 py-1.5 rounded hover:bg-muted"
                   >
                     <Icon size={14} color={colors.foreground} />
-                    <Text className="text-sm text-foreground">{PROPERTY_TYPE_LABELS[t]}</Text>
+                    <Text className="text-sm text-foreground">{propertyTypeLabel(type)}</Text>
                   </Pressable>
                 );
               })}
@@ -495,6 +601,19 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
           </View>
         </View>
       </Modal>
+      <Dialog open={relationOpen} onOpenChange={setRelationOpen}>
+        <DialogContent className="max-w-sm">
+          {relationOpen ? (
+            <RelationSettings
+              database={database}
+              onDone={() => {
+                setRelationOpen(false);
+                onAdded?.();
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

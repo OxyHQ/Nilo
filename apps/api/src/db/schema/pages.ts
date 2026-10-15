@@ -4,13 +4,26 @@ import {
   check,
   doublePrecision,
   index,
+  integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
+  uniqueIndex,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
-import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
+import { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
+import { createdAt, generatedId, inList, timestamptz, updatedAt } from '@oxy.so/db';
+import { databases } from './databases.js';
+import { teamspaces } from './teamspaces.js';
 import { workspaces } from './workspaces.js';
+
+/** A page's typeface (`pages.font`). */
+export const PAGE_FONTS = ['default', 'serif', 'mono'] as const;
+export type PageFont = (typeof PAGE_FONTS)[number];
+
+/** Every block type the editor persists, and each one's content: the contract shared with the app. */
+export { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
 
 /**
  * Pages and blocks — the document primitive and its content units.
@@ -68,6 +81,13 @@ export const pages = pgTable(
      * `pages.pgdb.test.ts`).
      */
     parentId: text().references((): AnyPgColumn => pages.id, { onDelete: 'set null' }),
+    /**
+     * Where a top-level page lives (`docs/access.md`): its teamspace, or null
+     * — private to `ownerId`. Read only at the top of a tree; subpages live
+     * where their tree starts. A deleted teamspace leaves its pages private
+     * to their owners, never more open.
+     */
+    teamspaceId: text().references(() => teamspaces.id, { onDelete: 'set null' }),
     title: text().notNull().default(''),
     icon: text(),
     cover: text(),
@@ -80,6 +100,49 @@ export const pages = pgTable(
     /** Starred in the sidebar Favorites section. */
     favorited: boolean().notNull().default(false),
     /**
+     * Open only to the people granted access to it or to a page above it
+     * (`page_permissions`), and to the workspace's owners and admins, instead
+     * of to every member. Inherited: a restricted page restricts its subtree.
+     * See `lib/page-access.ts`.
+     */
+    restricted: boolean().notNull().default(false),
+    /**
+     * A template: kept out of the page tree and offered when creating a page,
+     * which copies it with its subpages (`POST /pages/:id/duplicate` with
+     * `fromTemplate`).
+     */
+    template: boolean().notNull().default(false),
+    /** Layout, as in Notion's page menu: the page's content spans the window. */
+    fullWidth: boolean().notNull().default(false),
+    /** Layout: text one size down (the editor's `textScale`). */
+    smallText: boolean().notNull().default(false),
+    /** The page's typeface: `default`, `serif` or `mono`. */
+    font: text().$type<PageFont>().notNull().default('default'),
+    /**
+     * Locked against edits — a guard, not a permission: nobody changes its
+     * blocks, title, icon, cover or properties until an editor unlocks it.
+     * Comments still work. Enforced in `applyBlockTransaction` and the page
+     * route.
+     */
+    locked: boolean().notNull().default(false),
+    /**
+     * Published to the web: readable by anyone at `/public/pages/<publishSlug>`,
+     * with its subpages (restricted ones excepted). Null when not published.
+     */
+    publishedAt: timestamptz(),
+    /**
+     * The page's public address. Kept when the page is unpublished, so
+     * publishing it again restores the same link.
+     */
+    publishSlug: text(),
+    /** Whether search engines may index the published page. */
+    publishIndexing: boolean().notNull().default(false),
+    /**
+     * Oxy user id of whoever last changed the page (its blocks or its fields);
+     * null until someone does. `updatedAt` is when.
+     */
+    lastEditedBy: text(),
+    /**
      * Sibling ordering. `double precision`, not an integer: `PATCH
      * /api/pages/:id` accepts `z.number().finite()`, so a client may write a
      * fractional order to insert between two neighbours without renumbering.
@@ -90,16 +153,19 @@ export const pages = pgTable(
      */
     order: doublePrecision().notNull().default(0),
     /**
-     * Non-null when this page is a row of a database (Phase 4).
-     *
-     * Deliberately NOT a foreign key yet: the `databases` domain is a separate
-     * port and its table does not exist in this schema. The reference belongs
-     * in the change that lands `databases`, together with its own delete
-     * semantics — `routes/databases.ts:765-771` hard-deletes a database's rows
-     * explicitly today, so the natural action there is CASCADE, but that is
-     * that port's call to make and to test.
+     * Incremented by every applied block transaction. Collaborators compare it
+     * with the version they hold to know whether they missed a change, and
+     * the transactions endpoint returns the version it produced.
      */
-    databaseId: text(),
+    blocksVersion: integer().notNull().default(0),
+    /**
+     * Non-null when this page is a row of a database.
+     *
+     * CASCADE: a database's rows go with it. This is one half of a pair with
+     * `databases.parentPageId` (SET NULL); why only that pair is safe is on
+     * that column.
+     */
+    databaseId: text().references((): AnyPgColumn => databases.id, { onDelete: 'cascade' }),
     /**
      * Typed property values for a database row, keyed by propertyId.
      *
@@ -136,6 +202,8 @@ export const pages = pgTable(
      * SET NULL action, and each level of a recursive CTE another one.
      */
     index('pages_parent_idx').on(t.parentId),
+    // The public address resolves to exactly one page.
+    uniqueIndex('pages_publish_slug_key').on(t.publishSlug),
     /**
      * Ported from `PageSchema` field `favorited: { index: true }`, deliberately
      * reshaped. A standalone btree on a boolean is not a usable access path,
@@ -153,62 +221,30 @@ export const pages = pgTable(
      * ahead of its reader.
      */
     index('pages_properties_gin_idx').using('gin', t.properties),
+    index('pages_teamspace_idx').on(t.teamspaceId),
+    /**
+     * Full-text search over titles (`GET /search`). `nilo_search` is `simple`
+     * (no stemming or stop words, so it behaves the same for every language a
+     * workspace writes in) with accents removed (`unaccent`): "cancion" finds
+     * "canción". The query side matches word prefixes. The expression must be
+     * written exactly as `repositories/search.ts` queries it, or the planner
+     * cannot use the index.
+     */
+    index('pages_title_fts_idx').using(
+      'gin',
+      sql`to_tsvector('nilo_search'::regconfig, ${t.title})`,
+    ),
     /**
      * `coverPosition` is bounded to 0..100 as a live constraint. `between`
      * also rejects `'NaN'::double precision`.
      */
+    check('pages_font', sql`${t.font} in ('default', 'serif', 'mono')`),
     check(
       'pages_cover_position_range',
       sql`${t.coverPosition} between ${sql.raw(String(COVER_POSITION_MIN))} and ${sql.raw(String(COVER_POSITION_MAX))}`,
     ),
   ],
 );
-
-/**
- * Every block type the editor persists.
- */
-export const BLOCK_TYPES = [
-  'paragraph',
-  'heading_1',
-  'heading_2',
-  'heading_3',
-  'bulleted_list_item',
-  'numbered_list_item',
-  'todo',
-  'quote',
-  'divider',
-  'code',
-  'callout',
-  'toggle',
-  'image',
-  'video',
-  'audio',
-  'file',
-  'pdf',
-  'bookmark',
-  'embed',
-  'columns',
-  'column',
-  'table',
-  'table_row',
-  'table_cell',
-  'button',
-  'link_to_page',
-  'sync_block',
-  'breadcrumb',
-  'table_of_contents',
-  'equation',
-  'mermaid',
-  'inline_database',
-] as const;
-export type BlockType = (typeof BLOCK_TYPES)[number];
-
-/**
- * Block payload. Per-type shape lives in `routes/blocks.ts`, which normalises
- * every write through Zod — the storage layer holds the object and validates
- * nothing about it.
- */
-export type BlockContent = Record<string, unknown>;
 
 export const blocks = pgTable(
   'blocks',
@@ -256,6 +292,14 @@ export const blocks = pgTable(
      */
     type: text().$type<BlockType>().notNull(),
     content: jsonb().$type<BlockContent>().notNull().default({}),
+    /**
+     * The page's `blocksVersion` that last wrote `content` (0: before this
+     * was kept). An editor's update says which version of the content it was
+     * made on (`baseVersion`); one made on an older version is refused as
+     * stale rather than written over someone else's newer text — the editor
+     * merges it into that text and sends it again.
+     */
+    contentVersion: integer().notNull().default(0),
     /** Sibling ordering within `(pageId, parentBlockId)`. See `pages.order`. */
     order: doublePrecision().notNull().default(0),
     createdAt: createdAt(),
@@ -273,9 +317,85 @@ export const blocks = pgTable(
      */
     index('blocks_parent_block_idx').on(t.parentBlockId),
     /**
-     * Every block's `type` is one of `BLOCK_TYPES`. The reorder write
-     * (`routes/blocks.ts`) sets only `order` and never touches it.
+     * Backlinks (`GET /pages/:id/backlinks`): page mentions are found by
+     * containment in the segments, link-to-page blocks by their target. The
+     * expressions must stay exactly as `routes/backlinks.ts` writes them.
+     */
+    index('blocks_segments_path_idx').using(
+      'gin',
+      sql`(${t.content} -> 'segments') jsonb_path_ops`,
+    ),
+    index('blocks_link_to_page_idx')
+      .on(sql`(${t.content} ->> 'pageId')`)
+      .where(sql`${t.type} = 'link_to_page'`),
+    /** Full-text search over block text; see `pages_title_fts_idx`. */
+    index('blocks_text_fts_idx').using(
+      'gin',
+      sql`to_tsvector('nilo_search'::regconfig, coalesce(${t.content} ->> 'text', ''))`,
+    ),
+    /**
+     * Every block's `type` is one of `BLOCK_TYPES`; the transactions that
+     * write blocks validate it first, and this holds the storage to it.
      */
     check('blocks_type', sql`${t.type} in (${sql.raw(inList(BLOCK_TYPES))})`),
   ],
+);
+
+/**
+ * Block transactions already applied, by the key the editor gave them, so a
+ * retry of one whose response was lost gets the original answer instead of
+ * being applied twice or refused (a re-sent insert would collide with the
+ * block it already created, and the editor would undo a change the page
+ * has). Rows only need to outlive a client's retries; the endpoint prunes
+ * rows older than a day for the page it writes.
+ */
+export const pageTransactions = pgTable(
+  'page_transactions',
+  {
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    /** The editor's key for the transaction, stable across its retries. */
+    key: text().notNull(),
+    /** The page's blocks version the transaction produced. */
+    version: integer().notNull(),
+    /** The operations as applied, returned again to a retry. */
+    ops: jsonb().$type<unknown[]>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pageId, t.key] }),
+    index('page_transactions_page_created_idx').on(t.pageId, t.createdAt),
+  ],
+);
+
+/** A block as a version keeps it. */
+export interface VersionBlock {
+  id: string;
+  parentBlockId: string | null;
+  type: BlockType;
+  content: BlockContent;
+  order: number;
+}
+
+/**
+ * Page history: the page's blocks as they were, kept before the first change
+ * after a quiet spell and before every restore, so any of them can be looked
+ * at and restored. Pruned to the newest `PAGE_VERSIONS_KEPT` per page.
+ */
+export const pageVersions = pgTable(
+  'page_versions',
+  {
+    id: generatedId(),
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    /** The page's blocks version the snapshot shows. */
+    blocksVersion: integer().notNull(),
+    blocks: jsonb().$type<VersionBlock[]>().notNull(),
+    /** Who made the change that followed, i.e. whose edit this version precedes. */
+    createdBy: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('page_versions_page_created_idx').on(t.pageId, t.createdAt)],
 );

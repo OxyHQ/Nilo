@@ -5,6 +5,7 @@ import { FileText, Clock } from 'lucide-react-native';
 import { Pressable } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { usePages } from '@/lib/hooks/use-pages';
@@ -23,6 +24,7 @@ export function RecentsSection() {
   const router = useRouter();
   const pathname = usePathname();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const recentPageIds = useUIStore((s) => s.recentPageIds);
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const { data } = usePages(currentWorkspaceId);
@@ -30,7 +32,7 @@ export function RecentsSection() {
   const pages = React.useMemo<Page[]>(() => {
     if (!data?.pages) return [];
     const byId = new Map<string, Page>();
-    for (const p of data.pages) byId.set(p._id, p);
+    for (const p of data.pages) byId.set(p.id, p);
     const out: Page[] = [];
     for (const id of recentPageIds) {
       const p = byId.get(id);
@@ -47,18 +49,18 @@ export function RecentsSection() {
       <View className="flex-row items-center gap-1 px-3 pb-1">
         <Clock size={10} color={colors.mutedForeground} />
         <Text className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Recent
+          {t('sidebar.recent')}
         </Text>
       </View>
       <View>
         {pages.map((p) => {
-          const isActive = pathname === `/p/${p._id}`;
-          const title = p.title.trim() || 'Untitled';
+          const isActive = pathname === `/p/${p.id}`;
+          const title = p.title.trim() || t('pages.untitled');
           return (
             <Pressable
-              key={p._id}
-              onPress={() => router.push(`/p/${p._id}`)}
-              accessibilityLabel={`Open ${title}`}
+              key={p.id}
+              onPress={() => router.push(`/p/${p.id}`)}
+              accessibilityLabel={t('pages.openPage', { title })}
               className={
                 isActive
                   ? 'flex-row items-center bg-muted px-3 py-1 rounded-md'

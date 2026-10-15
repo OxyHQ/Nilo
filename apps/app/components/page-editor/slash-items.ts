@@ -1,0 +1,282 @@
+import { useMemo } from 'react';
+import type { SlashItem } from '@oxy.so/bloom-editor';
+import { useTranslation } from '@/hooks/useTranslation';
+
+/** Keywords for search: the catalog's comma-separated list. */
+const words = (list: string) =>
+  list
+    .split(',')
+    .map((w) => w.trim())
+    .filter(Boolean);
+
+export function useSlashItems(): SlashItem[] {
+  const { t } = useTranslation();
+  // `t` changes with the language, so the items are re-read with it.
+  return useMemo(() => {
+    const item = (
+      id: string,
+      label: string,
+      description: string,
+      keywords: string,
+      group: string,
+      action: SlashItem['action'],
+    ): SlashItem => ({ id, label, description, keywords: words(keywords), group, action });
+    const block = (type: string, props?: Record<string, unknown>) => ({
+      kind: 'block' as const,
+      type,
+      props,
+    });
+    return [
+      item(
+        'paragraph',
+        t('editor.slashMenu.paragraph.label'),
+        t('editor.slashMenu.paragraph.description'),
+        t('editor.slashMenu.paragraph.keywords'),
+        'basic',
+        block('paragraph'),
+      ),
+      item(
+        'heading1',
+        t('editor.slashMenu.heading1.label'),
+        t('editor.slashMenu.heading1.description'),
+        t('editor.slashMenu.heading1.keywords'),
+        'basic',
+        block('heading_1'),
+      ),
+      item(
+        'heading2',
+        t('editor.slashMenu.heading2.label'),
+        t('editor.slashMenu.heading2.description'),
+        t('editor.slashMenu.heading2.keywords'),
+        'basic',
+        block('heading_2'),
+      ),
+      item(
+        'heading3',
+        t('editor.slashMenu.heading3.label'),
+        t('editor.slashMenu.heading3.description'),
+        t('editor.slashMenu.heading3.keywords'),
+        'basic',
+        block('heading_3'),
+      ),
+      ...[1, 2, 3].map((level) =>
+        item(
+          `toggleHeading${level}`,
+          t(`editor.slashMenu.toggleHeading${level}.label`),
+          t(`editor.slashMenu.toggleHeading${level}.description`),
+          t(`editor.slashMenu.toggleHeading${level}.keywords`),
+          'basic',
+          block(`heading_${level}`, { toggleable: true, expanded: true }),
+        ),
+      ),
+      item(
+        'bulletedList',
+        t('editor.slashMenu.bulletedList.label'),
+        t('editor.slashMenu.bulletedList.description'),
+        t('editor.slashMenu.bulletedList.keywords'),
+        'basic',
+        block('bulleted_list_item'),
+      ),
+      item(
+        'numberedList',
+        t('editor.slashMenu.numberedList.label'),
+        t('editor.slashMenu.numberedList.description'),
+        t('editor.slashMenu.numberedList.keywords'),
+        'basic',
+        block('numbered_list_item'),
+      ),
+      item(
+        'todo',
+        t('editor.slashMenu.todo.label'),
+        t('editor.slashMenu.todo.description'),
+        t('editor.slashMenu.todo.keywords'),
+        'basic',
+        block('todo'),
+      ),
+      item(
+        'toggle',
+        t('editor.slashMenu.toggle.label'),
+        t('editor.slashMenu.toggle.description'),
+        t('editor.slashMenu.toggle.keywords'),
+        'basic',
+        block('toggle'),
+      ),
+      item(
+        'quote',
+        t('editor.slashMenu.quote.label'),
+        t('editor.slashMenu.quote.description'),
+        t('editor.slashMenu.quote.keywords'),
+        'basic',
+        block('quote'),
+      ),
+      item(
+        'callout',
+        t('editor.slashMenu.callout.label'),
+        t('editor.slashMenu.callout.description'),
+        t('editor.slashMenu.callout.keywords'),
+        'basic',
+        block('callout'),
+      ),
+      item(
+        'divider',
+        t('editor.slashMenu.divider.label'),
+        t('editor.slashMenu.divider.description'),
+        t('editor.slashMenu.divider.keywords'),
+        'basic',
+        block('divider'),
+      ),
+      item(
+        'image',
+        t('editor.slashMenu.image.label'),
+        t('editor.slashMenu.image.description'),
+        t('editor.slashMenu.image.keywords'),
+        'media',
+        block('image'),
+      ),
+      item(
+        'video',
+        t('editor.slashMenu.video.label'),
+        t('editor.slashMenu.video.description'),
+        t('editor.slashMenu.video.keywords'),
+        'media',
+        block('video'),
+      ),
+      item(
+        'audio',
+        t('editor.slashMenu.audio.label'),
+        t('editor.slashMenu.audio.description'),
+        t('editor.slashMenu.audio.keywords'),
+        'media',
+        block('audio'),
+      ),
+      item(
+        'file',
+        t('editor.slashMenu.file.label'),
+        t('editor.slashMenu.file.description'),
+        t('editor.slashMenu.file.keywords'),
+        'media',
+        block('file'),
+      ),
+      item(
+        'pdf',
+        t('editor.slashMenu.pdf.label'),
+        t('editor.slashMenu.pdf.description'),
+        t('editor.slashMenu.pdf.keywords'),
+        'media',
+        block('pdf'),
+      ),
+      item(
+        'bookmark',
+        t('editor.slashMenu.bookmark.label'),
+        t('editor.slashMenu.bookmark.description'),
+        t('editor.slashMenu.bookmark.keywords'),
+        'media',
+        block('bookmark'),
+      ),
+      item(
+        'code',
+        t('editor.slashMenu.code.label'),
+        t('editor.slashMenu.code.description'),
+        t('editor.slashMenu.code.keywords'),
+        'advanced',
+        block('code'),
+      ),
+      item(
+        'columns',
+        t('editor.slashMenu.columns.label'),
+        t('editor.slashMenu.columns.description'),
+        t('editor.slashMenu.columns.keywords'),
+        'advanced',
+        { kind: 'custom', id: 'columns' },
+      ),
+      item(
+        'table',
+        t('editor.slashMenu.table.label'),
+        t('editor.slashMenu.table.description'),
+        t('editor.slashMenu.table.keywords'),
+        'advanced',
+        { kind: 'custom', id: 'table' },
+      ),
+      item(
+        'button',
+        t('editor.slashMenu.button.label'),
+        t('editor.slashMenu.button.description'),
+        t('editor.slashMenu.button.keywords'),
+        'advanced',
+        block('button'),
+      ),
+      item(
+        'linkToPage',
+        t('editor.slashMenu.linkToPage.label'),
+        t('editor.slashMenu.linkToPage.description'),
+        t('editor.slashMenu.linkToPage.keywords'),
+        'advanced',
+        block('link_to_page'),
+      ),
+      item(
+        'equation',
+        t('editor.slashMenu.equation.label'),
+        t('editor.slashMenu.equation.description'),
+        t('editor.slashMenu.equation.keywords'),
+        'advanced',
+        block('equation'),
+      ),
+      item(
+        'mermaid',
+        t('editor.slashMenu.mermaid.label'),
+        t('editor.slashMenu.mermaid.description'),
+        t('editor.slashMenu.mermaid.keywords'),
+        'advanced',
+        block('mermaid'),
+      ),
+      item(
+        'tableOfContents',
+        t('editor.slashMenu.tableOfContents.label'),
+        t('editor.slashMenu.tableOfContents.description'),
+        t('editor.slashMenu.tableOfContents.keywords'),
+        'advanced',
+        block('table_of_contents'),
+      ),
+      item(
+        'breadcrumb',
+        t('editor.slashMenu.breadcrumb.label'),
+        t('editor.slashMenu.breadcrumb.description'),
+        t('editor.slashMenu.breadcrumb.keywords'),
+        'advanced',
+        block('breadcrumb'),
+      ),
+      item(
+        'embed',
+        t('editor.slashMenu.embed.label'),
+        t('editor.slashMenu.embed.description'),
+        t('editor.slashMenu.embed.keywords'),
+        'embeds',
+        block('embed'),
+      ),
+      item(
+        'youtube',
+        t('editor.slashMenu.youtube.label'),
+        t('editor.slashMenu.youtube.description'),
+        t('editor.slashMenu.youtube.keywords'),
+        'embeds',
+        block('video', { source: 'youtube' }),
+      ),
+      item(
+        'inlineDatabase',
+        t('editor.slashMenu.inlineDatabase.label'),
+        t('editor.slashMenu.inlineDatabase.description'),
+        t('editor.slashMenu.inlineDatabase.keywords'),
+        'database',
+        { kind: 'custom', id: 'inlineDatabase' },
+      ),
+      item(
+        'linkedDatabase',
+        t('editor.slashMenu.linkedDatabase.label'),
+        t('editor.slashMenu.linkedDatabase.description'),
+        t('editor.slashMenu.linkedDatabase.keywords'),
+        'database',
+        { kind: 'custom', id: 'linkedDatabase' },
+      ),
+    ];
+  }, [t]);
+}

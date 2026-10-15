@@ -8,8 +8,9 @@
  *    than the interactive `:watch` and the `:coverage` variant) is not invoked
  *    by `.github/workflows/ci.yml` — `bun run <name>` at the root,
  *    `bun run --filter <package> <name>` in a workspace;
- *  - a tracked `*.test.*` file outside `apps/api/src` (which the API's vitest
- *    configs own) is not named by any root script, so no runner reaches it;
+ *  - a tracked `*.test.*` file outside the trees a runner owns (below) is not
+ *    named by any root script, so no runner reaches it;
+ *  - the command that runs an owned tree's runner is not invoked by CI;
  *  - it found fewer scripts or test files than exist today, i.e. it is
  *    looking at the wrong files.
  *
@@ -23,7 +24,17 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const WORKFLOW = '.github/workflows/ci.yml';
-const API_VITEST_ROOT = 'apps/api/src/';
+/**
+ * Trees whose every `*.test.*` file a runner finds by itself, and the CI
+ * command that runs that runner. The API's vitest configs own `apps/api/src`
+ * (unit and pgdb), the app's jest (jest-expo's default match) owns `apps/app`,
+ * and the end-to-end config (`e2e/vitest.config.ts`) owns `e2e`.
+ */
+const OWNED_TREES = [
+  { root: 'apps/api/src/', command: 'bun run --filter @nilo/api test' },
+  { root: 'apps/app/', command: 'bun run --filter @nilo/app test' },
+  { root: 'e2e/', command: 'bun run test:e2e' },
+] as const;
 const GATED_SCRIPT = /^(test|check)(:.+)?$/u;
 const EXEMPT_SCRIPT = /:(watch|coverage)$/u;
 const TEST_FILE = /\.test\.(ts|tsx|js|jsx|mjs|cjs)$/u;
@@ -72,7 +83,14 @@ export function checkCiWiring(root: string): { errors: string[]; summary: string
   const testFiles = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
     .split('\n')
     .filter((path) => TEST_FILE.test(path));
-  const outside = testFiles.filter((path) => !path.startsWith(API_VITEST_ROOT));
+  for (const tree of OWNED_TREES) {
+    if (!invoked(tree.command)) {
+      errors.push(`${WORKFLOW} never runs \`${tree.command}\`, the runner of ${tree.root}.`);
+    }
+  }
+  const outside = testFiles.filter(
+    (path) => !OWNED_TREES.some((tree) => path.startsWith(tree.root)),
+  );
   for (const path of outside) {
     if (!rootCommands.includes(path)) {
       errors.push(`${path} is a test file no root package.json script names, so CI never runs it.`);
@@ -88,7 +106,8 @@ export function checkCiWiring(root: string): { errors: string[]; summary: string
     errors,
     summary:
       `${scriptCount} test/check scripts are all run by ${WORKFLOW}, and ` +
-      `${outside.length} test file(s) outside ${API_VITEST_ROOT} are all named by a root script.`,
+      `${outside.length} test file(s) outside ${OWNED_TREES.map((tree) => tree.root).join(', ')} ` +
+      'are all named by a root script.',
   };
 }
 

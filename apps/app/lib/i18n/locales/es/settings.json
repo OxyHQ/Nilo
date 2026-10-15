@@ -1,0 +1,49 @@
+{
+  "title": "Ajustes",
+  "subtitle": "Gestiona tu espacio de trabajo y tu cuenta",
+  "quickAccess": "ACCESO RÁPIDO",
+  "preferences": "PREFERENCIAS",
+  "account": {
+    "title": "Ajustes de la cuenta",
+    "description": "Gestiona tu cuenta"
+  },
+  "appLanguage": {
+    "title": "Idioma de la app",
+    "description": "Cambia el idioma de la interfaz"
+  },
+  "appearance": {
+    "title": "Apariencia",
+    "description": "Elige tu esquema de color preferido",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "saveButton": "Guardar preferencias",
+  "saving": "Guardando...",
+  "saveSuccess": "Preferencias guardadas",
+  "saveFailed": "No se pudieron guardar las preferencias",
+  "sections": {
+    "account": "Cuenta",
+    "members": "Miembros",
+    "general": "General",
+    "feedback": "Comentarios"
+  },
+  "accentColor": {
+    "title": "Color de la app",
+    "teal": "Verde azulado",
+    "blue": "Azul",
+    "green": "Verde",
+    "yellow": "Amarillo",
+    "amber": "Ámbar",
+    "red": "Rojo",
+    "purple": "Morado",
+    "pink": "Rosa",
+    "sky": "Cielo",
+    "orange": "Naranja",
+    "mint": "Menta"
+  },
+  "members": {
+    "title": "Miembros del espacio de trabajo",
+    "description": "Invita a personas a tu espacio de trabajo y gestiona sus roles. Solo los administradores y propietarios del espacio de trabajo pueden cambiar roles o quitar miembros."
+  }
+}

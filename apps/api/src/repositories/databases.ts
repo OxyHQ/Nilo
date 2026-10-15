@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ne } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNull, ne } from 'drizzle-orm';
 import type { PgUpdateSetSource } from 'drizzle-orm/pg-core';
 import type { NiloDatabase } from '../db/client.js';
 import {
@@ -66,6 +66,8 @@ export interface DatabaseRecord {
   propertiesSchema: DatabaseSchema;
   isInline: boolean;
   parentPageId: string | null;
+  /** Where it lives when it sits in no page (`docs/access.md`). */
+  teamspaceId: string | null;
   archived: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -74,6 +76,8 @@ export interface DatabaseRecord {
 export interface DatabaseViewRecord {
   id: string;
   databaseId: string;
+  /** A linked view's block; null for the database's own views. */
+  blockId: string | null;
   name: string;
   type: DatabaseViewType;
   isDefault: boolean;
@@ -103,6 +107,7 @@ function toDatabaseRecord(row: DatabaseRow): DatabaseRecord {
     propertiesSchema: row.propertiesSchema,
     isInline: row.isInline,
     parentPageId: row.parentPageId,
+    teamspaceId: row.teamspaceId,
     archived: row.archived,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -113,6 +118,7 @@ function toViewRecord(row: DatabaseViewRow): DatabaseViewRecord {
   return {
     id: row.id,
     databaseId: row.databaseId,
+    blockId: row.blockId,
     name: row.name,
     type: row.type,
     isDefault: row.isDefault,
@@ -168,16 +174,27 @@ export async function findDatabaseById(
 }
 
 /**
- * `Database.findById(id).select('workspaceId')` — `routes/databases.ts:1102,
- * 1126, 1186, 1252`. The four view routes need nothing but the workspace id to
- * run the membership check.
+ * What the view routes need to check access: the workspace, and the page an
+ * inline database sits in (whose access it shares).
  */
 export async function findDatabaseWorkspaceId(
   handle: NiloHandle,
   id: string,
-): Promise<{ id: string; workspaceId: string } | null> {
+): Promise<{
+  id: string;
+  workspaceId: string;
+  parentPageId: string | null;
+  teamspaceId: string | null;
+  ownerId: string;
+} | null> {
   const [row] = await handle
-    .select({ id: databases.id, workspaceId: databases.workspaceId })
+    .select({
+      id: databases.id,
+      workspaceId: databases.workspaceId,
+      parentPageId: databases.parentPageId,
+      teamspaceId: databases.teamspaceId,
+      ownerId: databases.ownerId,
+    })
     .from(databases)
     .where(eq(databases.id, id))
     .limit(1);
@@ -193,6 +210,8 @@ export interface InsertDatabaseInput {
   propertiesSchema: DatabaseSchema;
   isInline: boolean;
   parentPageId: string | null;
+  /** For a database in no page: its teamspace, or null — private to its owner. */
+  teamspaceId: string | null;
   archived: boolean;
 }
 
@@ -212,6 +231,7 @@ export async function insertDatabase(
       propertiesSchema: input.propertiesSchema,
       isInline: input.isInline,
       parentPageId: input.parentPageId,
+      teamspaceId: input.parentPageId ? null : input.teamspaceId,
       archived: input.archived,
     })
     .returning();
@@ -310,15 +330,25 @@ export async function deleteDatabase(handle: NiloHandle, id: string): Promise<bo
  */
 const VIEW_ORDER = [asc(databaseViews.order), asc(databaseViews.createdAt), asc(databaseViews.id)];
 
+/** The views of one scope: the database's own (`blockId` null) or a linked block's. */
+function viewScope(databaseId: string, blockId: string | null) {
+  return and(
+    eq(databaseViews.databaseId, databaseId),
+    blockId === null ? isNull(databaseViews.blockId) : eq(databaseViews.blockId, blockId),
+  );
+}
+
 /** `DatabaseView.find({ databaseId }).sort({ order: 1, createdAt: 1 })`. */
 export async function listViewsByDatabase(
   handle: NiloHandle,
   databaseId: string,
+  /** A linked block's views; the database's own (null) by default. */
+  blockId: string | null = null,
 ): Promise<DatabaseViewRecord[]> {
   const rows = await handle
     .select()
     .from(databaseViews)
-    .where(eq(databaseViews.databaseId, databaseId))
+    .where(viewScope(databaseId, blockId))
     .orderBy(...VIEW_ORDER);
   return rows.map(toViewRecord);
 }
@@ -361,7 +391,13 @@ export async function findDefaultView(
   const [row] = await handle
     .select()
     .from(databaseViews)
-    .where(and(eq(databaseViews.databaseId, databaseId), eq(databaseViews.isDefault, true)))
+    .where(
+      and(
+        eq(databaseViews.databaseId, databaseId),
+        eq(databaseViews.isDefault, true),
+        isNull(databaseViews.blockId),
+      ),
+    )
     .orderBy(...VIEW_ORDER)
     .limit(1);
   return row ? toViewRecord(row) : null;
@@ -375,11 +411,12 @@ export async function findDefaultView(
 export async function findFirstViewByOrder(
   handle: NiloHandle,
   databaseId: string,
+  blockId: string | null = null,
 ): Promise<DatabaseViewRecord | null> {
   const [row] = await handle
     .select()
     .from(databaseViews)
-    .where(eq(databaseViews.databaseId, databaseId))
+    .where(viewScope(databaseId, blockId))
     .orderBy(...VIEW_ORDER)
     .limit(1);
   return row ? toViewRecord(row) : null;
@@ -393,11 +430,15 @@ export async function findFirstViewByOrder(
  * `bigint`/`int8` as a STRING while drizzle types it `number`, so on an `int8`
  * column `last.order + 1` would be string concatenation.
  */
-export async function nextViewOrder(handle: NiloHandle, databaseId: string): Promise<number> {
+export async function nextViewOrder(
+  handle: NiloHandle,
+  databaseId: string,
+  blockId: string | null = null,
+): Promise<number> {
   const [row] = await handle
     .select({ order: databaseViews.order })
     .from(databaseViews)
-    .where(eq(databaseViews.databaseId, databaseId))
+    .where(viewScope(databaseId, blockId))
     .orderBy(desc(databaseViews.order))
     .limit(1);
   return row ? row.order + 1 : 0;
@@ -405,6 +446,8 @@ export async function nextViewOrder(handle: NiloHandle, databaseId: string): Pro
 
 export interface InsertDatabaseViewInput {
   databaseId: string;
+  /** A linked view's block; absent for the database's own views. */
+  blockId?: string | null;
   name: string;
   type: DatabaseViewType;
   isDefault: boolean;
@@ -498,13 +541,14 @@ export async function demoteOtherDefaultViews(
   handle: NiloHandle,
   databaseId: string,
   keepViewId: string,
+  blockId: string | null = null,
 ): Promise<number> {
   const demoted = await handle
     .update(databaseViews)
     .set({ isDefault: false })
     .where(
       and(
-        eq(databaseViews.databaseId, databaseId),
+        viewScope(databaseId, blockId),
         ne(databaseViews.id, keepViewId),
         eq(databaseViews.isDefault, true),
       ),
@@ -521,11 +565,15 @@ export async function demoteOtherDefaultViews(
  * latter comes back from postgres.js as a STRING, because `count(*)` is
  * `bigint`, while the column would still be typed `number`.
  */
-export async function countViews(handle: NiloHandle, databaseId: string): Promise<number> {
+export async function countViews(
+  handle: NiloHandle,
+  databaseId: string,
+  blockId: string | null = null,
+): Promise<number> {
   const [row] = await handle
     .select({ total: count() })
     .from(databaseViews)
-    .where(eq(databaseViews.databaseId, databaseId));
+    .where(viewScope(databaseId, blockId));
   return row.total;
 }
 

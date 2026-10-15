@@ -9,32 +9,49 @@ import {
 } from '@/components/ui/dialog';
 import { Text } from '@/components/ui/text';
 import { useUIStore } from '@/lib/stores/ui-store';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface Shortcut {
+  /** Stable identifier (React key). */
+  id: string;
   label: string;
   keys: string[];
 }
 
-const SHORTCUTS: Array<{ section: string; items: Shortcut[] }> = [
-  {
-    section: 'Navigation',
-    items: [
-      { label: 'Open search & command palette', keys: ['Mod', 'K'] },
-      { label: 'Create new page', keys: ['Mod', 'N'] },
-      { label: 'Toggle sidebar', keys: ['Mod', '\\'] },
-      { label: 'Show keyboard shortcuts', keys: ['Mod', '/'] },
-    ],
-  },
-  {
-    section: 'In the palette',
-    items: [
-      { label: 'Move selection up / down', keys: ['↑', '↓'] },
-      { label: 'Open selected result', keys: ['Enter'] },
-      { label: 'Open in new tab', keys: ['Mod', 'Enter'] },
-      { label: 'Close', keys: ['Esc'] },
-    ],
-  },
-];
+interface ShortcutGroup {
+  id: string;
+  section: string;
+  items: Shortcut[];
+}
+
+/**
+ * Built at render time so the labels follow the current locale. Key names
+ * (`Enter`, `Esc`, arrows) are the physical key legends and stay as-is.
+ */
+function buildShortcuts(t: (key: string) => string): ShortcutGroup[] {
+  return [
+    {
+      id: 'navigation',
+      section: t('keyboardShortcuts.navigation'),
+      items: [
+        { id: 'palette', label: t('keyboardShortcuts.openPalette'), keys: ['Mod', 'K'] },
+        { id: 'new-page', label: t('keyboardShortcuts.createPage'), keys: ['Mod', 'N'] },
+        { id: 'sidebar', label: t('keyboardShortcuts.toggleSidebar'), keys: ['Mod', '\\'] },
+        { id: 'shortcuts', label: t('keyboardShortcuts.showShortcuts'), keys: ['Mod', '/'] },
+      ],
+    },
+    {
+      id: 'palette',
+      section: t('keyboardShortcuts.inPalette'),
+      items: [
+        { id: 'move', label: t('keyboardShortcuts.moveSelection'), keys: ['↑', '↓'] },
+        { id: 'open', label: t('keyboardShortcuts.openResult'), keys: ['Enter'] },
+        { id: 'new-tab', label: t('keyboardShortcuts.openInNewTab'), keys: ['Mod', 'Enter'] },
+        { id: 'close', label: t('keyboardShortcuts.close'), keys: ['Esc'] },
+      ],
+    },
+  ];
+}
 
 /**
  * Cross-platform shortcuts dialog. `Mod` renders as `⌘` on macOS and `Ctrl`
@@ -44,27 +61,29 @@ export function ShortcutsDialog() {
   const open = useUIStore((s) => s.shortcutsDialogOpen);
   const setOpen = useUIStore((s) => s.setShortcutsDialogOpen);
   const modLabel = useModifierLabel();
+  const { t } = useTranslation();
+  const shortcuts = buildShortcuts(t);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Keyboard shortcuts</DialogTitle>
-          <DialogDescription>Move faster in Nilo with these shortcuts.</DialogDescription>
+          <DialogTitle>{t('keyboardShortcuts.shortcuts')}</DialogTitle>
+          <DialogDescription>{t('keyboardShortcuts.description')}</DialogDescription>
         </DialogHeader>
         <View className="gap-5">
-          {SHORTCUTS.map((group) => (
-            <View key={group.section} className="gap-2">
+          {shortcuts.map((group) => (
+            <View key={group.id} className="gap-2">
               <Text className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {group.section}
               </Text>
               <View className="gap-1">
                 {group.items.map((sc) => (
-                  <View key={sc.label} className="flex-row items-center justify-between gap-3">
+                  <View key={sc.id} className="flex-row items-center justify-between gap-3">
                     <Text className="flex-1 text-sm text-foreground">{sc.label}</Text>
                     <View className="flex-row items-center gap-1">
                       {sc.keys.map((k) => (
-                        <KeyCap key={`${sc.label}-${k}`}>{k === 'Mod' ? modLabel : k}</KeyCap>
+                        <KeyCap key={`${sc.id}-${k}`}>{k === 'Mod' ? modLabel : k}</KeyCap>
                       ))}
                     </View>
                   </View>

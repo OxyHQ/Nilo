@@ -112,9 +112,9 @@ export function EmbedBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
   const url = typeof block.content.url === 'string' ? block.content.url : '';
   const [urlDraft, setUrlDraft] = React.useState(url);
-  const lastBlockId = React.useRef(block._id);
-  if (lastBlockId.current !== block._id) {
-    lastBlockId.current = block._id;
+  const lastBlockId = React.useRef(block.id);
+  if (lastBlockId.current !== block.id) {
+    lastBlockId.current = block.id;
     setUrlDraft(url);
   }
 

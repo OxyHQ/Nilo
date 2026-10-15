@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { authenticateToken } from '../middleware/auth.js';
 import { getDb } from '../db/client.js';
 import { hasRole } from '../db/schema/workspaces.js';
-import { SHARE_LINK_SCOPES, type ShareLinkScope } from '../db/schema/collab.js';
+import { type PageGrantRole, SHARE_LINK_SCOPES, type ShareLinkScope } from '../db/schema/collab.js';
 import { listBlocksForPageByOrder } from '../repositories/blocks.js';
 import { findPageById, type PageRow } from '../repositories/pages.js';
 import {
@@ -14,8 +14,14 @@ import {
   listActiveShareLinksByPage,
   revokeShareLink,
 } from '../repositories/shareLinks.js';
-import { findMembership } from '../repositories/workspaces.js';
+import { checkPageAccess, resolvePageAccess } from '../lib/page-access.js';
+import {
+  deleteGrantsFromShareLink,
+  findGrant,
+  upsertGrant,
+} from '../repositories/pagePermissions.js';
 import { log } from '../lib/logger.js';
+import { rateLimit } from '../lib/rate-limit.js';
 
 const router = Router();
 
@@ -93,17 +99,8 @@ async function authorizePageForShareManagement(
     return null;
   }
 
-  const member = await findMembership(db, page.workspaceId, req.user.id);
-
-  if (!member) {
-    res.status(403).json({ error: 'Forbidden: not a workspace member' });
-    return null;
-  }
-
-  if (!hasRole(member.role, 'editor')) {
-    res.status(403).json({ error: 'Forbidden: editor role required to manage share links' });
-    return null;
-  }
+  // Edit access to the page manages its links, guests included.
+  if (!(await checkPageAccess(req, res, db, page.id, 'editor'))) return null;
 
   return { page };
 }
@@ -247,7 +244,7 @@ router.delete('/share-links/:id', authenticateToken, async (req: Request, res: R
     }
 
     const isCreator = link.createdBy === req.user.id;
-    let isWorkspaceAdmin = false;
+    let hasFullAccess = false;
     if (!isCreator) {
       const page = await findPageById(db, link.pageId);
       if (!page) {
@@ -255,19 +252,24 @@ router.delete('/share-links/:id', authenticateToken, async (req: Request, res: R
         res.status(404).json({ error: 'Linked page not found' });
         return;
       }
-      const member = await findMembership(db, page.workspaceId, req.user.id);
-      isWorkspaceAdmin = !!member && hasRole(member.role, 'admin');
+      const access = await resolvePageAccess(db, req.user.id, page.id);
+      hasFullAccess = !!access && hasRole(access.role, 'admin');
     }
 
-    if (!isCreator && !isWorkspaceAdmin) {
+    if (!isCreator && !hasFullAccess) {
       res.status(403).json({ error: 'Forbidden' });
       return;
     }
 
     // `revokeShareLink` only stamps a link that is not already revoked, so a
     // null here means someone revoked it between the read above and now. That
-    // is the same answer the early return gives, not an error.
-    const revoked = await revokeShareLink(db, link.id, new Date());
+    // is the same answer the early return gives, not an error. The access the
+    // link handed out goes with it.
+    const revoked = await db.transaction(async (tx) => {
+      const stamped = await revokeShareLink(tx, link.id, new Date());
+      await deleteGrantsFromShareLink(tx, link.id);
+      return stamped;
+    });
     res.json({
       success: true,
       revokedAt: revoked?.revokedAt ?? link.revokedAt,
@@ -285,66 +287,142 @@ router.delete('/share-links/:id', authenticateToken, async (req: Request, res: R
  * Public, unauthenticated read of a shared page. Returns the page metadata
  * and its non-archived blocks. 404 on revoked, expired, or missing tokens.
  */
-router.get('/share/:token', async (req: Request, res: Response) => {
-  try {
-    const token = paramString(req.params.token);
-    if (!token || token.length < 8 || token.length > 128) {
-      res.status(404).json({ error: 'Share link not found' });
-      return;
-    }
+router.get(
+  '/share/:token',
+  rateLimit({ name: 'share-read', limit: 240, windowMs: 60_000 }),
+  async (req: Request, res: Response) => {
+    try {
+      const token = paramString(req.params.token);
+      if (!token || token.length < 8 || token.length > 128) {
+        res.status(404).json({ error: 'Share link not found' });
+        return;
+      }
 
-    const db = getDb();
-    const link = await findShareLinkByToken(db, token);
-    if (!link) {
-      res.status(404).json({ error: 'Share link not found' });
-      return;
-    }
-    if (link.revokedAt) {
-      res.status(404).json({ error: 'Share link has been revoked' });
-      return;
-    }
-    if (link.expiresAt && link.expiresAt.getTime() <= Date.now()) {
-      res.status(404).json({ error: 'Share link has expired' });
-      return;
-    }
+      const db = getDb();
+      const link = await findShareLinkByToken(db, token);
+      if (!link) {
+        res.status(404).json({ error: 'Share link not found' });
+        return;
+      }
+      // 410 rather than 404: the link existed and is gone, which the reader is
+      // told so they ask for a new one instead of doubting the URL.
+      if (link.revokedAt) {
+        res.status(410).json({ error: 'Share link has been revoked' });
+        return;
+      }
+      if (link.expiresAt && link.expiresAt.getTime() <= Date.now()) {
+        res.status(410).json({ error: 'Share link has expired' });
+        return;
+      }
 
-    const page = await findPageById(db, link.pageId);
-    if (!page || page.archived) {
-      res.status(404).json({ error: 'Shared page is no longer available' });
-      return;
+      const page = await findPageById(db, link.pageId);
+      if (!page || page.archived) {
+        res.status(404).json({ error: 'Shared page is no longer available' });
+        return;
+      }
+
+      // Ordering lives in the repository (`...ByOrder`) rather than in a chained
+      // `.sort()` here, so every reader of a page's blocks gets the same order.
+      const blocks = await listBlocksForPageByOrder(db, page.id);
+
+      res.json({
+        page: {
+          id: page.id,
+          title: page.title,
+          icon: page.icon,
+          cover: page.cover,
+          parentId: page.parentId,
+          createdAt: page.createdAt,
+          updatedAt: page.updatedAt,
+        },
+        blocks: blocks.map((b) => ({
+          id: b.id,
+          pageId: String(b.pageId),
+          parentBlockId: b.parentBlockId ? String(b.parentBlockId) : null,
+          type: b.type,
+          content: b.content,
+          order: b.order,
+        })),
+        share: {
+          scope: link.scope,
+          expiresAt: link.expiresAt,
+        },
+      });
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to resolve share link');
+      res.status(500).json({ error: 'Failed to load shared page' });
     }
+  },
+);
 
-    // Ordering lives in the repository (`...ByOrder`) rather than in a chained
-    // `.sort()` here, so every reader of a page's blocks gets the same order.
-    const blocks = await listBlocksForPageByOrder(db, page.id);
+/** The role opening a link of each scope gives a signed-in person. */
+const ROLE_FOR_SCOPE: Record<ShareLinkScope, PageGrantRole> = {
+  read: 'viewer',
+  comment: 'commenter',
+  edit: 'editor',
+};
 
-    res.json({
-      page: {
-        id: page.id,
-        title: page.title,
-        icon: page.icon,
-        cover: page.cover,
-        parentId: page.parentId,
-        createdAt: page.createdAt,
-        updatedAt: page.updatedAt,
-      },
-      blocks: blocks.map((b) => ({
-        id: b.id,
-        pageId: String(b.pageId),
-        parentBlockId: b.parentBlockId ? String(b.parentBlockId) : null,
-        type: b.type,
-        content: b.content,
-        order: b.order,
-      })),
-      share: {
-        scope: link.scope,
-        expiresAt: link.expiresAt,
-      },
-    });
-  } catch (error: unknown) {
-    log.general.error({ err: error }, 'Failed to resolve share link');
-    res.status(500).json({ error: 'Failed to load shared page' });
-  }
-});
+/**
+ * POST /api/share/:token/join
+ *
+ * A signed-in person opening a link: they get the link's scope on the page
+ * (read → viewer, comment → commenter, edit → editor) as a grant tied to the
+ * link, which revoking the link takes away. Someone who already has as much
+ * access is left as they are. Answers with the page and the caller's role.
+ */
+router.post(
+  '/share/:token/join',
+  rateLimit({ name: 'share-join', limit: 30, windowMs: 60_000 }),
+  authenticateToken,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+      const token = paramString(req.params.token);
+      const db = getDb();
+      const link = token ? await findShareLinkByToken(db, token) : undefined;
+      if (!link) {
+        res.status(404).json({ error: 'Share link not found' });
+        return;
+      }
+      if (link.revokedAt) {
+        res.status(410).json({ error: 'Share link has been revoked' });
+        return;
+      }
+      if (link.expiresAt && link.expiresAt.getTime() <= Date.now()) {
+        res.status(410).json({ error: 'Share link has expired' });
+        return;
+      }
+      const page = await findPageById(db, link.pageId);
+      if (!page || page.archived) {
+        res.status(404).json({ error: 'Shared page is no longer available' });
+        return;
+      }
+
+      const role = ROLE_FOR_SCOPE[link.scope];
+      const access = await resolvePageAccess(db, userId, page.id);
+      if (!access || !hasRole(access.role, role)) {
+        const existing = await findGrant(db, page.id, userId);
+        // A grant made by hand stays one (a weaker one is raised); otherwise the
+        // grant belongs to the link.
+        await upsertGrant(db, {
+          pageId: page.id,
+          userId,
+          role,
+          grantedBy: link.createdBy,
+          shareLinkId: existing && existing.shareLinkId === null ? null : link.id,
+        });
+      }
+      const after = await resolvePageAccess(db, userId, page.id);
+      res.json({ pageId: page.id, workspaceId: page.workspaceId, role: after?.role ?? role });
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to join through share link');
+      res.status(500).json({ error: 'Failed to open shared page' });
+    }
+  },
+);
 
 export default router;

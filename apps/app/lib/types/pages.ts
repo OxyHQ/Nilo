@@ -1,3 +1,5 @@
+import type { WorkspaceRole } from '../hooks/use-workspaces';
+
 /**
  * Shared types for Pages and Blocks.
  *
@@ -7,40 +9,44 @@
  *   - inline rich-text `Segment[]` alongside plain `text`
  *   - block-level `color` / `backgroundColor` (Notion named colors)
  *
- * Frontend uses `"to_do"` as the BlockType name because that's what the
- * existing UI already shipped; backend stores `"todo"`. The route serializer
- * normalizes — see `mapBlockType` in `use-blocks.ts` if a future cleanup
- * unifies them. Today the type string is identical on both sides for every
- * type except todo, and `to_do` is the frontend canonical name.
+ * Block type names are the API's (`apps/api/src/db/schema/pages.ts`
+ * `BLOCK_TYPES`), one spelling on both sides.
  */
 
+export type PageFont = 'default' | 'serif' | 'mono';
+
 export interface Page {
-  _id: string;
+  fullWidth: boolean;
+  smallText: boolean;
+  font: PageFont;
+  locked: boolean;
+  id: string;
   workspaceId: string;
+  teamspaceId: string | null;
+  /** In workspace page lists: reached only because it was shared with the caller. */
+  sharedWithMe?: boolean;
   parentId: string | null;
   ownerId: string;
   title: string;
-  icon?: string | null;
-  cover?: string | null;
+  icon: string | null;
+  cover: string | null;
   /** 0–100, vertical focal point used when cropping the cover image. */
-  coverPosition?: number;
+  coverPosition: number;
+  publishedAt: string | null;
+  publishSlug: string | null;
+  publishIndexing: boolean;
+  restricted: boolean;
+  template: boolean;
   archived: boolean;
-  /**
-   * Owned by Page-chrome agent (#14). Sidebar reads this to populate the
-   * Favorites section; safe to be undefined until the backend ships the field.
-   */
-  favorited?: boolean;
-  /** Sibling order within the same parent. Used by drag-to-reorder. */
-  order?: number;
+  favorited: boolean;
+  /** Sibling order within the same parent. */
+  order: number;
   createdAt: string;
   updatedAt: string;
-  /**
-   * Phase 4 — Databases. When `databaseId` is non-null this Page is a
-   * row in that database. `properties` carries typed property values
-   * keyed by propertyId. Regular doc pages omit both fields.
-   */
-  databaseId?: string | null;
-  properties?: Record<string, unknown>;
+  lastEditedBy?: string | null;
+  /** Set when this page is a row of that database; `properties` holds its values. */
+  databaseId: string | null;
+  properties: Record<string, unknown>;
 }
 
 /** Slim ancestor record returned by GET /pages/:id/breadcrumb. */
@@ -65,7 +71,7 @@ export type BlockType =
   | 'heading_3'
   | 'bulleted_list_item'
   | 'numbered_list_item'
-  | 'to_do'
+  | 'todo'
   | 'quote'
   | 'divider'
   | 'code'
@@ -130,6 +136,10 @@ export const BLOCK_COLORS: readonly BlockColor[] = [
  */
 export interface Segment {
   text: string;
+  mention?: {
+    indicator: '@';
+    attributes: { kind: 'page' | 'user'; id: string } | { kind: 'date'; date: string };
+  };
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
@@ -152,6 +162,8 @@ export type ButtonAction = 'duplicate-template' | 'new-page' | 'navigate' | 'web
  * shape per type.
  */
 export interface BlockContent {
+  /** Headings can own collapsible children, as in the shared API contract. */
+  toggleable?: boolean;
   text?: string;
   segments?: Segment[];
   checked?: boolean;
@@ -197,7 +209,7 @@ export interface BlockContent {
 }
 
 export interface Block {
-  _id: string;
+  id: string;
   pageId: string;
   parentBlockId: string | null;
   type: BlockType;
@@ -213,6 +225,7 @@ export interface PagesListResponse {
 
 export interface PageResponse {
   page: Page;
+  role: WorkspaceRole;
 }
 
 export interface BlocksListResponse {

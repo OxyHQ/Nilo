@@ -19,6 +19,7 @@ import {
   testScope,
   type TestDatabase,
 } from '../db/__tests__/testDatabase.js';
+import { databases } from '../db/schema/databases.js';
 import { blocks, pages } from '../db/schema/pages.js';
 import { workspaces } from '../db/schema/workspaces.js';
 import {
@@ -52,6 +53,15 @@ describe('pages repository (real database)', () => {
   });
 
   /** A page with only the fields a caller must supply. */
+  /** A database for rows to belong to: `pages.databaseId` is a foreign key. */
+  async function seedDatabase(): Promise<string> {
+    const [row] = await db
+      .insert(databases)
+      .values({ workspaceId, name: 'rows', ownerId: 'user-owner' })
+      .returning({ id: databases.id });
+    return row?.id as string;
+  }
+
   async function seedPage(overrides: Partial<Parameters<typeof createPage>[1]> = {}) {
     return createPage(db, {
       workspaceId,
@@ -85,7 +95,26 @@ describe('pages repository (real database)', () => {
       'ownerId',
       'archived',
       'favorited',
+      // Written by `PATCH /pages/:id` (restricting a page) and its duplicate.
+      'restricted',
+      // Written by `PATCH /pages/:id` and by copying a template.
+      'template',
+      // Where a top-level page lives: creating and moving pages.
+      'teamspaceId',
+      // Layout and the lock, written by `PATCH /pages/:id`.
+      'fullWidth',
+      'smallText',
+      'font',
+      'locked',
+      // Written by `POST/DELETE /pages/:id/publish`.
+      'publishedAt',
+      'publishSlug',
+      'publishIndexing',
+      // Written by every block transaction and page edit.
+      'lastEditedBy',
       'order',
+      // Written by `bumpBlocksVersion`, inside every block transaction.
+      'blocksVersion',
       'databaseId',
       'properties',
     ] as const;
@@ -95,7 +124,7 @@ describe('pages repository (real database)', () => {
       // spells. `sqlColumnName` is used below where the SQL identifier is what
       // matters — reading one for the other is the 42703 trap.
       const declared = getTableConfig(pages).columns.map((column) => column.name);
-      expect(WRITER_FIELDS.length).toBe(12);
+      expect(WRITER_FIELDS.length).toBe(24);
       for (const field of WRITER_FIELDS) expect(declared).toContain(field);
       expect(new Set(declared)).toEqual(
         new Set([...WRITER_FIELDS, 'id', 'createdAt', 'updatedAt']),
@@ -109,7 +138,7 @@ describe('pages repository (real database)', () => {
       `);
       const live = new Set(rows.map((row) => row.column_name));
       const config = getTableConfig(pages);
-      expect(config.columns.length).toBe(15);
+      expect(config.columns.length).toBe(27);
       for (const column of config.columns) expect(live).toContain(sqlColumnName(column));
       expect(live.size).toBe(config.columns.length);
     });
@@ -133,6 +162,12 @@ describe('pages repository (real database)', () => {
           'pages_parent_idx',
           'pages_workspace_favorited_idx',
           'pages_properties_gin_idx',
+          // Top-level pages per teamspace (the sidebar).
+          'pages_teamspace_idx',
+          // Full-text search (`GET /search`).
+          'pages_title_fts_idx',
+          // The public address of a published page.
+          'pages_publish_slug_key',
         ]),
       );
     });
@@ -191,7 +226,7 @@ describe('pages repository (real database)', () => {
     });
 
     it('round-trips a database row with typed properties', async () => {
-      const databaseId = uuidv7();
+      const databaseId = await seedDatabase();
       const properties = {
         name: { text: 'Row one' },
         num: { number: 3.5 },
@@ -506,8 +541,8 @@ describe('pages repository (real database)', () => {
 
   describe('database rows', () => {
     it('lists, orders, unsets a property and deletes, scoped to one database', async () => {
-      const databaseId = uuidv7();
-      const otherDatabaseId = uuidv7();
+      const databaseId = await seedDatabase();
+      const otherDatabaseId = await seedDatabase();
       const first = await seedPage({
         databaseId,
         order: 0,

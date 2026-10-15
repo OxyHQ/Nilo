@@ -6,6 +6,7 @@ import {
   index,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
@@ -205,9 +206,61 @@ export const shareLinks = pgTable(
   ],
 );
 
+/* ─────────────────────── page permissions ─────────────────────── */
+
+/**
+ * The roles a page grant can carry: the workspace roles below `owner`, where
+ * `admin` is "full access" (may also share the page).
+ */
+export const PAGE_GRANT_ROLES = ['viewer', 'commenter', 'editor', 'admin'] as const;
+export type PageGrantRole = (typeof PAGE_GRANT_ROLES)[number];
+
+/**
+ * Access to one page and everything under it, for one person: a workspace
+ * member on a restricted page, or a guest who is not a member at all.
+ * The effective role on a page is the strongest of the grants on it and its
+ * ancestors and, unless one of those is restricted, the member's workspace
+ * role. See `lib/page-access.ts`.
+ */
+export const pagePermissions = pgTable(
+  'page_permissions',
+  {
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    /** Oxy user id. */
+    userId: text().notNull(),
+    role: text().$type<PageGrantRole>().notNull(),
+    /** Oxy user id of whoever granted it. */
+    grantedBy: text().notNull(),
+    /**
+     * Set when the grant came from opening a share link: revoking or deleting
+     * the link takes it away again.
+     */
+    shareLinkId: text().references(() => shareLinks.id, { onDelete: 'cascade' }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pageId, t.userId] }),
+    // "Pages shared with me".
+    index('page_permissions_user_idx').on(t.userId),
+    index('page_permissions_share_link_idx').on(t.shareLinkId),
+    check('page_permissions_role', sql`${t.role} in (${sql.raw(inList(PAGE_GRANT_ROLES))})`),
+  ],
+);
+
 /* ──────────────────────── notifications ──────────────────────── */
 
-export const NOTIFICATION_TYPES = ['mention', 'comment_reply'] as const;
+export const NOTIFICATION_TYPES = [
+  'mention',
+  'comment_reply',
+  'page_shared',
+  'reminder',
+  'page_comment',
+  /** Someone edited a page the user follows (at most one unread an hour, per page). */
+  'page_edited',
+] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export const NOTIFICATION_CHANNELS = ['push', 'in_app'] as const;
@@ -396,5 +449,87 @@ export const webPushSubscriptions = pgTable(
      * The standalone `{ oxyUserId: 1 }` from `index: true` is NOT ported — a
      * strict prefix of the unique above.
      */
+  ],
+);
+
+/* ────────────────────────── reminders ────────────────────────── */
+
+/**
+ * A person's reminder about a page (or one block of it) at a time. The API's
+ * reminder sweep (`lib/reminders.ts`) notifies them when it is due and stamps
+ * `sentAt`; a reminder is personal, and is skipped if its owner can no
+ * longer open the page.
+ */
+export const reminders = pgTable(
+  'reminders',
+  {
+    id: generatedId(),
+    /** Oxy user id of the person reminded. */
+    userId: text().notNull(),
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    /** SET NULL: the reminder outlives the block, pointing at the page. */
+    blockId: text().references(() => blocks.id, { onDelete: 'set null' }),
+    remindAt: timestamptz().notNull(),
+    note: text(),
+    /** When the sweep notified them; null while pending. */
+    sentAt: timestamptz(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    // The sweep: pending reminders by due time.
+    index('reminders_pending_idx').on(t.remindAt).where(sql`${t.sentAt} is null`),
+    // "My reminders".
+    index('reminders_user_remind_idx').on(t.userId, t.remindAt),
+    index('reminders_page_idx').on(t.pageId),
+    index('reminders_block_idx').on(t.blockId),
+  ],
+);
+
+/* ────────────────────────── page follows ────────────────────────── */
+
+/**
+ * People following a page, told about its new comments. Whoever creates,
+ * edits or comments on a page follows it; anyone can stop (or start)
+ * following one they can open.
+ */
+export const pageFollows = pgTable(
+  'page_follows',
+  {
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    /** Oxy user id. */
+    userId: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pageId, t.userId] }),
+    index('page_follows_user_idx').on(t.userId),
+  ],
+);
+
+/** The longest reaction: an emoji with its modifiers (flags, skin tones, ZWJ sequences). */
+export const REACTION_MAX = 32;
+
+/** Emoji reactions to a comment, one row per person and emoji. */
+export const commentReactions = pgTable(
+  'comment_reactions',
+  {
+    commentId: text()
+      .notNull()
+      .references(() => comments.id, { onDelete: 'cascade' }),
+    /** Oxy user id. */
+    userId: text().notNull(),
+    emoji: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.commentId, t.userId, t.emoji] }),
+    check(
+      'comment_reactions_emoji_length',
+      sql`char_length(${t.emoji}) between 1 and ${sql.raw(String(REACTION_MAX))}`,
+    ),
   ],
 );

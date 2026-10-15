@@ -32,6 +32,7 @@ WORKDIR /build
 # Copy root workspace files
 COPY package.json bun.lock ./
 COPY apps/api/package.json ./apps/api/
+COPY packages/contracts/package.json ./packages/contracts/
 
 # Install all dependencies (including devDependencies for build). Lifecycle
 # scripts are skipped here too: the only ones are the optional WebSocket
@@ -39,7 +40,8 @@ COPY apps/api/package.json ./apps/api/
 # JavaScript fallbacks, need a toolchain, and fail when node-gyp@latest does.
 RUN bun install --frozen-lockfile --ignore-scripts
 
-# Copy API source
+# Copy API source and the shared contract it bundles
+COPY packages/contracts/ ./packages/contracts/
 COPY apps/api/ ./apps/api/
 
 # Build the API
@@ -50,9 +52,11 @@ FROM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbb
 
 WORKDIR /app
 
-# Copy root workspace files
+# Copy root workspace files. The API bundles @nilo/contracts; its manifest is
+# here only so the workspace dependency resolves.
 COPY package.json bun.lock ./
 COPY apps/api/package.json ./apps/api/
+COPY packages/contracts/package.json ./packages/contracts/
 
 # Only the API workspace's production closure, without peers. The root
 # manifest's `dependencies` (@oxy.so/bloom, @oxy.so/services) are the app's,

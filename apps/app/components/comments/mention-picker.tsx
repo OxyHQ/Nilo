@@ -3,9 +3,10 @@ import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Calendar, FileText, User } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
+import { memberProfileName, useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
 import { usePages } from '@/lib/hooks/use-pages';
 import type { MentionKind, MentionSegment } from '@/lib/types/comments';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface MentionPickerProps {
   open: boolean;
@@ -56,6 +57,7 @@ function formatDisplayDate(d: Date): string {
  */
 export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: MentionPickerProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const { data: members } = useWorkspaceMembers(workspaceId);
   const { data: pagesData } = usePages(workspaceId);
 
@@ -63,10 +65,7 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
     const q = query.trim().toLowerCase();
 
     const people: PickerItem[] = (members ?? []).map((m) => {
-      const name = m.user?.name
-        ? [m.user.name.first, m.user.name.last].filter(Boolean).join(' ')
-        : null;
-      const label = name || m.user?.username || m.userId;
+      const label = memberProfileName(m) ?? m.userId;
       const detail = m.user?.email ?? m.user?.username ?? undefined;
       return {
         key: `user:${m.userId}`,
@@ -77,7 +76,7 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
           type: 'mention',
           kind: 'user',
           id: m.userId,
-          originalText: `@${name || m.user?.username || m.userId}`,
+          originalText: `@${label}`,
         }),
       };
     });
@@ -85,16 +84,18 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
     const pages: PickerItem[] = (pagesData?.pages ?? [])
       .filter((p) => !p.archived)
       .map((p) => {
-        const title = p.title?.trim() || 'Untitled';
+        const title = p.title?.trim() || t('comments.mentions.untitled');
         return {
-          key: `page:${p._id}`,
+          key: `page:${p.id}`,
           kind: 'page',
           label: title,
-          detail: p.icon ? `${p.icon} page` : 'page',
+          detail: p.icon
+            ? t('comments.mentions.pageWithIcon', { icon: p.icon })
+            : t('comments.mentions.page'),
           build: (): MentionSegment => ({
             type: 'mention',
             kind: 'page',
-            id: p._id,
+            id: p.id,
             originalText: `@${title}`,
           }),
         };
@@ -107,11 +108,11 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
     nextWeek.setDate(today.getDate() + 7);
 
     const dates: PickerItem[] = [
-      { label: 'Today', d: today },
-      { label: 'Tomorrow', d: tomorrow },
-      { label: 'Next week', d: nextWeek },
-    ].map(({ label, d }) => ({
-      key: `date:${label}`,
+      { id: 'today', label: t('comments.mentions.today'), d: today },
+      { id: 'tomorrow', label: t('comments.mentions.tomorrow'), d: tomorrow },
+      { id: 'nextWeek', label: t('comments.mentions.nextWeek'), d: nextWeek },
+    ].map(({ id, label, d }) => ({
+      key: `date:${id}`,
       kind: 'date',
       label,
       detail: formatDisplayDate(d),
@@ -130,7 +131,7 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
         return item.label.toLowerCase().includes(q) || item.detail?.toLowerCase().includes(q);
       })
       .slice(0, 12);
-  }, [members, pagesData?.pages, query]);
+  }, [members, pagesData?.pages, query, t]);
 
   if (!open) return null;
 
@@ -144,14 +145,14 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
     <View className="w-72 rounded-2xl border border-border bg-popover py-1 shadow-lg">
       <View className="px-3 pt-2 pb-1">
         <Text className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Mention
+          {t('comments.mentions.header')}
         </Text>
       </View>
       <View className="max-h-72">
         {items.length === 0 ? (
           <View className="px-3 py-3">
             <Text className="text-sm text-muted-foreground">
-              No matches for &quot;{query}&quot;
+              {t('comments.mentions.noMatches', { query })}
             </Text>
           </View>
         ) : (

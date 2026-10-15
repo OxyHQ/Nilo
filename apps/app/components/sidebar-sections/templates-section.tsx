@@ -1,19 +1,35 @@
-import { View } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { apiErrorMessage } from '@/lib/api/error-message';
+import { useRouter } from 'expo-router';
+import { toast } from '@oxy.so/bloom/toast';
+import { TemplateList } from '@/components/templates/template-list';
+import { useDuplicatePage } from '@/lib/hooks/use-pages';
+import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { SidebarSection } from './sidebar-section';
+import { useTranslation } from '@/hooks/useTranslation';
 
-/**
- * Templates — placeholder until Phase 5 ships the template gallery. Section
- * defaults to collapsed so it doesn't take up space in normal use.
- */
 export function TemplatesSection() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const duplicate = useDuplicatePage();
+  if (!workspaceId) return null;
   return (
-    <SidebarSection sectionKey="templates" title="Templates">
-      <View className="px-4 py-1.5">
-        <Text className="text-xs text-muted-foreground">
-          Save a page as a template to reuse it later.
-        </Text>
-      </View>
+    <SidebarSection sectionKey="templates" title={t('sidebar.sections.templates')}>
+      <TemplateList
+        workspaceId={workspaceId}
+        pending={duplicate.isPending}
+        onOpen={(page) => router.push(`/p/${page.id}`)}
+        onUse={(page) =>
+          duplicate.mutate(
+            { id: page.id, workspaceId, fromTemplate: true, parentId: null },
+            {
+              onSuccess: (created) => router.push(`/p/${created.id}`),
+              onError: (error) =>
+                toast.error(apiErrorMessage(error, t('pages.templates.createFailed'))),
+            },
+          )
+        }
+      />
     </SidebarSection>
   );
 }

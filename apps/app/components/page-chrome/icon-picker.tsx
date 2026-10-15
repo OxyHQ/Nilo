@@ -4,6 +4,7 @@ import { Dice5, Trash2, X } from 'lucide-react-native';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { EMOJI_CATEGORIES, SKIN_TONES, applySkinTone, type EmojiEntry } from './emoji-data';
 import { LUCIDE_ICONS } from './lucide-icons';
 import { encodeEmoji, encodeIcon, encodeImage } from './icon-value';
@@ -33,6 +34,7 @@ export function IconPicker({ open, onOpenChange, onSelect, onUploadImage }: Icon
   const [tab, setTab] = React.useState<Tab>('emoji');
   const [query, setQuery] = React.useState('');
   const [skinTone, setSkinTone] = React.useState<string>('');
+  const { t } = useTranslation();
 
   const handleSelect = React.useCallback(
     (next: string | null) => {
@@ -46,11 +48,11 @@ export function IconPicker({ open, onOpenChange, onSelect, onUploadImage }: Icon
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl gap-3 p-4" showCloseButton={false}>
         <View className="flex-row items-center justify-between">
-          <DialogTitle>Choose an icon</DialogTitle>
+          <DialogTitle>{t('pages.iconPicker.title')}</DialogTitle>
           <Pressable
             onPress={() => onOpenChange(false)}
             className="h-8 w-8 items-center justify-center rounded-md hover:bg-muted"
-            accessibilityLabel="Close"
+            accessibilityLabel={t('common.close')}
           >
             <X size={16} className="text-muted-foreground" />
           </Pressable>
@@ -58,10 +60,18 @@ export function IconPicker({ open, onOpenChange, onSelect, onUploadImage }: Icon
 
         {/* Tab bar + action buttons */}
         <View className="flex-row items-center gap-2">
-          <PickerTabButton label="Emoji" active={tab === 'emoji'} onPress={() => setTab('emoji')} />
-          <PickerTabButton label="Icon" active={tab === 'icon'} onPress={() => setTab('icon')} />
           <PickerTabButton
-            label="Upload"
+            label={t('pages.iconPicker.tabs.emoji')}
+            active={tab === 'emoji'}
+            onPress={() => setTab('emoji')}
+          />
+          <PickerTabButton
+            label={t('pages.iconPicker.tabs.icon')}
+            active={tab === 'icon'}
+            onPress={() => setTab('icon')}
+          />
+          <PickerTabButton
+            label={t('pages.iconPicker.tabs.upload')}
             active={tab === 'upload'}
             onPress={() => setTab('upload')}
           />
@@ -76,7 +86,11 @@ export function IconPicker({ open, onOpenChange, onSelect, onUploadImage }: Icon
             <TextInput
               value={query}
               onChangeText={setQuery}
-              placeholder={tab === 'emoji' ? 'Search emojis…' : 'Search icons…'}
+              placeholder={
+                tab === 'emoji'
+                  ? t('pages.iconPicker.searchEmojis')
+                  : t('pages.iconPicker.searchIcons')
+              }
               className="flex-1 text-sm text-foreground"
               style={
                 Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined
@@ -138,27 +152,29 @@ function PickerTabButton({ label, active, onPress }: PickerTabButtonProps) {
 
 function RandomButton({ onPress }: { onPress: () => void }) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   return (
     <Pressable
       onPress={onPress}
-      accessibilityLabel="Random emoji"
+      accessibilityLabel={t('pages.iconPicker.randomEmoji')}
       className="h-8 flex-row items-center gap-1 rounded-md border border-border px-2 hover:bg-muted"
     >
       <Dice5 size={14} color={colors.foreground} />
-      <Text className="text-xs font-medium text-foreground">Random</Text>
+      <Text className="text-xs font-medium text-foreground">{t('pages.iconPicker.random')}</Text>
     </Pressable>
   );
 }
 function RemoveButton({ onPress }: { onPress: () => void }) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   return (
     <Pressable
       onPress={onPress}
-      accessibilityLabel="Remove icon"
+      accessibilityLabel={t('pages.iconPicker.removeIcon')}
       className="h-8 flex-row items-center gap-1 rounded-md border border-border px-2 hover:bg-destructive/10"
     >
       <Trash2 size={14} color={colors.foreground} />
-      <Text className="text-xs font-medium text-foreground">Remove</Text>
+      <Text className="text-xs font-medium text-foreground">{t('pages.iconPicker.remove')}</Text>
     </Pressable>
   );
 }
@@ -174,6 +190,7 @@ interface EmojiTabProps {
   onPickEmoji: (value: string) => void;
 }
 function EmojiTab({ query, skinTone, onChangeSkinTone, onPickEmoji }: EmojiTabProps) {
+  const { t } = useTranslation();
   const normalized = query.trim().toLowerCase();
   const modifier = SKIN_TONES.find((tone) => tone.id === skinTone)?.modifier ?? '';
 
@@ -189,14 +206,14 @@ function EmojiTab({ query, skinTone, onChangeSkinTone, onPickEmoji }: EmojiTabPr
     <View className="gap-2">
       {/* Skin tone row */}
       <View className="flex-row items-center gap-1">
-        <Text className="text-xs text-muted-foreground">Skin tone:</Text>
+        <Text className="text-xs text-muted-foreground">{t('pages.iconPicker.skinTone')}</Text>
         {SKIN_TONES.map((tone) => {
           const active = tone.id === skinTone || (!skinTone && tone.id === 'default');
           return (
             <Pressable
               key={tone.id}
               onPress={() => onChangeSkinTone(tone.id)}
-              accessibilityLabel={tone.label}
+              accessibilityLabel={tone.label()}
               className={
                 active
                   ? 'h-6 w-6 items-center justify-center rounded-full border-2 border-primary'
@@ -216,13 +233,13 @@ function EmojiTab({ query, skinTone, onChangeSkinTone, onPickEmoji }: EmojiTabPr
       >
         {filtered.length === 0 ? (
           <Text className="px-2 py-6 text-center text-sm text-muted-foreground">
-            No emojis match “{query}”.
+            {t('pages.iconPicker.noEmojis', { query })}
           </Text>
         ) : (
           filtered.map((cat) => (
             <View key={cat.id} className="pb-2">
               <Text className="px-1 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {cat.name}
+                {cat.label()}
               </Text>
               <View className="flex-row flex-wrap">
                 {cat.emojis.map((entry) => (
@@ -270,6 +287,7 @@ interface IconTabProps {
 }
 function IconTab({ query, onPickIcon }: IconTabProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const normalized = query.trim().toLowerCase();
   const filtered = React.useMemo(() => {
     if (!normalized) return LUCIDE_ICONS;
@@ -286,7 +304,7 @@ function IconTab({ query, onPickIcon }: IconTabProps) {
     >
       {filtered.length === 0 ? (
         <Text className="px-2 py-6 text-center text-sm text-muted-foreground">
-          No icons match “{query}”.
+          {t('pages.iconPicker.noIcons', { query })}
         </Text>
       ) : (
         <View className="flex-row flex-wrap pb-2">
@@ -318,14 +336,13 @@ interface UploadTabProps {
 }
 function UploadTab({ onPickImage }: UploadTabProps) {
   const [url, setUrl] = React.useState('');
+  const { t } = useTranslation();
   // Upload-to-S3 lives behind the More Block Types agent's infra work. Until
   // that ships, accept a direct URL on web and show a friendly message on
   // native so users at least have a path.
   return (
     <View className="gap-3 px-1 py-4">
-      <Text className="text-sm text-foreground">
-        Paste an image URL to use as your icon. Direct upload is rolling out soon.
-      </Text>
+      <Text className="text-sm text-foreground">{t('pages.iconPicker.uploadHint')}</Text>
       <View className="flex-row items-center gap-2 rounded-lg border border-border px-3 py-1.5">
         <TextInput
           value={url}
@@ -346,9 +363,11 @@ function UploadTab({ onPickImage }: UploadTabProps) {
           onPickImage(trimmed);
         }}
         className="self-start rounded-md bg-primary px-4 py-2"
-        accessibilityLabel="Use image"
+        accessibilityLabel={t('pages.iconPicker.useImage')}
       >
-        <Text className="text-sm font-medium text-primary-foreground">Use image</Text>
+        <Text className="text-sm font-medium text-primary-foreground">
+          {t('pages.iconPicker.useImage')}
+        </Text>
       </Pressable>
     </View>
   );

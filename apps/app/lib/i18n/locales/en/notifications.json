@@ -1,0 +1,23 @@
+{
+  "title": "Notifications",
+  "subtitle": "Manage your notification preferences",
+  "pushNotifications": "Push Notifications",
+  "pushDescription": "Receive alerts about workspace activity and updates",
+  "permissionDenied": "Notifications are blocked. Please enable them in your device settings to receive push notifications.",
+  "unread": "%{count} unread",
+  "markAllRead": "Mark all read",
+  "emptyTitle": "No notifications yet",
+  "emptyBody": "Mentions and replies from your workspace will appear here.",
+  "time": {
+    "justNow": "just now",
+    "minutesAgo": "%{count}m ago",
+    "hoursAgo": "%{count}h ago",
+    "daysAgo": "%{count}d ago"
+  },
+  "someone": "Someone",
+  "pageShared": "%{name} shared %{page} with you",
+  "open": "Open notification",
+  "dismiss": "Dismiss notification",
+  "reminder": "Reminder",
+  "pageEdited": "%{page} was edited"
+}

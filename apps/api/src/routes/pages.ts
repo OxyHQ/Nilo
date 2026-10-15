@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
@@ -9,17 +9,41 @@ import {
   deletePageTree,
   findPageAncestry,
   findPageById,
+  findPagesByIds,
   listPages,
   nextSiblingOrder,
   updatePage,
 } from '../repositories/pages.js';
-import { duplicateBlocksToPage, listBlocksForPageByOrder } from '../repositories/blocks.js';
+import { listBlocksForPage } from '../repositories/blocks.js';
+import { blocksToHtml, blocksToMarkdown, blocksToTree } from '@nilo/contracts';
+import { copyPageTree } from '../repositories/pageCopies.js';
+import { follow } from '../repositories/pageFollows.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
+import { placeOrRefuse } from '../lib/placement.js';
+import { syncRelations } from '../lib/databases/relations.js';
+import type { DatabaseRecord } from '../repositories/databases.js';
+import {
+  accessibleAncestry,
+  checkPageAccess,
+  databaseHomes,
+  loadViewer,
+  rolesForPages,
+} from '../lib/page-access.js';
+import { PAGE_FONTS } from '../db/schema/pages.js';
+import { hasRole } from '../db/schema/workspaces.js';
+import {
+  listGrantsOfUser,
+  listGrantsOfUserInWorkspace,
+  listGrantsOnPages,
+  upsertGrant,
+} from '../repositories/pagePermissions.js';
+import { findLiveWorkspaceById, listMembershipsForUser } from '../repositories/workspaces.js';
 import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
 import { NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
+import { announceChange } from '../collab/live-rooms.js';
 
 const router = Router();
 
@@ -58,6 +82,8 @@ const listQuerySchema = z.object({
     .union([z.literal('true'), z.literal('false')])
     .optional()
     .transform((v) => v === 'true'),
+  /** Templates are not part of the page tree: listed only on request. */
+  templates: z.enum(['exclude', 'only', 'include']).default('exclude'),
 });
 
 const createPageSchema = z.object({
@@ -66,6 +92,11 @@ const createPageSchema = z.object({
   title: z.string().max(2000).optional(),
   icon: z.string().max(200).nullable().optional(),
   cover: z.string().max(2000).nullable().optional(),
+  /**
+   * For a top-level page: its teamspace, null for private (to its creator);
+   * absent, the workspace's default teamspace.
+   */
+  teamspaceId: entityIdSchema.nullable().optional(),
 });
 
 const updatePageSchema = z
@@ -78,9 +109,23 @@ const updatePageSchema = z
     order: z.number().finite().optional(),
     archived: z.boolean().optional(),
     favorited: z.boolean().optional(),
+    /** Open only to the people it is shared with (see `lib/page-access.ts`). */
+    restricted: z.boolean().optional(),
+    /** Make it a template, or an ordinary page again. */
+    template: z.boolean().optional(),
+    fullWidth: z.boolean().optional(),
+    smallText: z.boolean().optional(),
+    font: z.enum(PAGE_FONTS).optional(),
+    /** Lock against edits, or unlock (see `pages.locked`). */
+    locked: z.boolean().optional(),
     // Database row property writes. Keys are propertyIds; shapes are
     // validated per-property type by `parsePropertyValue`.
     properties: z.record(z.unknown()).optional(),
+    /**
+     * Where the page lives when it is (or becomes) a top-level page: a
+     * teamspace, or null for private to its owner.
+     */
+    teamspaceId: entityIdSchema.nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field is required',
@@ -101,38 +146,6 @@ function assertWorkspace(req: Request, res: Response): string | null {
     return null;
   }
   return workspaceId;
-}
-
-/**
- * Sets the X-Workspace-Id header from the given page's workspaceId, then
- * runs `requireWorkspaceMember` inline. Returns true if the caller is a
- * member; false (with a response already sent) otherwise.
- *
- * Used by `:id`-style routes where the workspace is not in the URL/query
- * but is derived from the loaded resource.
- */
-async function checkWorkspaceMembership(
-  req: Request,
-  res: Response,
-  workspaceId: string,
-): Promise<boolean> {
-  req.headers['x-workspace-id'] = workspaceId;
-  const passed = await new Promise<boolean>((resolve) => {
-    const next: NextFunction = (err?: unknown) => {
-      if (err) {
-        log.general.error({ err }, 'Workspace membership middleware errored');
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Workspace membership check failed' });
-        }
-        resolve(false);
-        return;
-      }
-      resolve(true);
-    };
-    requireWorkspaceMember(req, res, next);
-  });
-  if (!passed) return false;
-  return !res.headersSent;
 }
 
 /**
@@ -158,6 +171,17 @@ function serializePage(page: PageRow) {
     ownerId: page.ownerId,
     archived: page.archived,
     favorited: page.favorited,
+    restricted: page.restricted,
+    template: page.template,
+    teamspaceId: page.teamspaceId,
+    fullWidth: page.fullWidth,
+    smallText: page.smallText,
+    font: page.font,
+    locked: page.locked,
+    publishedAt: page.publishedAt,
+    publishSlug: page.publishSlug,
+    publishIndexing: page.publishIndexing,
+    lastEditedBy: page.lastEditedBy,
     order: page.order,
     databaseId: page.databaseId,
     properties: page.properties,
@@ -199,7 +223,8 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
       archived = false;
     }
 
-    const pages = await listPages(getDb(), {
+    const db = getDb();
+    const pages = await listPages(db, {
       workspaceId,
       parentId:
         query.parentId === undefined
@@ -209,13 +234,82 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
             : query.parentId,
       archived,
       favoritedOnly: query.favoritedOnly,
+      template: query.templates === 'include' ? undefined : query.templates === 'only',
     });
 
-    res.json({ pages: pages.map((p) => serializePage(p)) });
+    // Only the pages the caller can open: the rule needs each page's
+    // ancestry and where its tree lives, so it runs over the whole workspace
+    // (owners and admins too: others' private pages are not theirs to see).
+    const userId = req.user?.id ?? '';
+    const [all, viewer, grants, homes] = await Promise.all([
+      listPages(db, { workspaceId }),
+      loadViewer(db, workspaceId, userId),
+      listGrantsOfUserInWorkspace(db, userId, workspaceId),
+      databaseHomes(db, workspaceId),
+    ]);
+    const sharedOnly = new Set<string>();
+    const roles = rolesForPages(all, viewer, grants, homes, sharedOnly);
+    const visible = pages.filter((p) => roles.has(p.id));
+
+    // `sharedWithMe`: reached only because it was shared with the caller —
+    // the sidebar's "Shared", as opposed to their teamspaces and private pages.
+    res.json({
+      pages: visible.map((p) => ({ ...serializePage(p), sharedWithMe: sharedOnly.has(p.id) })),
+    });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list pages');
     res.status(500).json({ error: 'Failed to list pages' });
+  }
+});
+
+/**
+ * GET /api/pages/shared
+ *
+ * The pages shared with the caller in workspaces they are not a member of
+ * (they are a guest there), with their role on each: every page their
+ * grants reach, flat, per workspace. Members find restricted pages shared
+ * with them in the workspace's own list.
+ */
+router.get('/shared', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const db = getDb();
+    const [grants, memberships] = await Promise.all([
+      listGrantsOfUser(db, userId),
+      listMembershipsForUser(db, userId),
+    ]);
+    const memberOf = new Set(memberships.map((m) => m.workspaceId));
+    const grantedPages = await findPagesByIds(
+      db,
+      grants.map((g) => g.pageId),
+    );
+    const workspaceIds = [...new Set(grantedPages.map((p) => p.workspaceId))].filter(
+      (id) => !memberOf.has(id),
+    );
+
+    const out = [];
+    for (const workspaceId of workspaceIds) {
+      const workspace = await findLiveWorkspaceById(db, workspaceId);
+      if (!workspace) continue;
+      const all = await listPages(db, { workspaceId, archived: false });
+      const guest = { userId, memberRole: null, teamspaces: new Map() };
+      const roles = rolesForPages(all, guest, grants, await databaseHomes(db, workspaceId));
+      out.push({
+        workspace: { id: workspace.id, name: workspace.name, icon: workspace.icon ?? null },
+        pages: all
+          .filter((p) => roles.has(p.id))
+          .map((p) => ({ ...serializePage(p), role: roles.get(p.id) })),
+      });
+    }
+    res.json({ shared: out });
+  } catch (error: unknown) {
+    log.general.error({ err: error }, 'Failed to list shared pages');
+    res.status(500).json({ error: 'Failed to list shared pages' });
   }
 });
 
@@ -226,16 +320,18 @@ router.get('/:id', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
 
-    const page = await findPageById(getDb(), params.id);
+    const db = getDb();
+    const page = await findPageById(db, params.id);
     if (!page) {
       res.status(404).json({ error: 'Page not found' });
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
-    if (!ok) return;
+    const access = await checkPageAccess(req, res, db, page.id, 'viewer');
+    if (!access) return;
 
-    res.json({ page: serializePage(page) });
+    // The caller's role on this page decides what the app lets them do.
+    res.json({ page: serializePage(page), role: access.role });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to fetch page');
@@ -246,77 +342,72 @@ router.get('/:id', async (req: Request, res: Response) => {
 /**
  * POST /api/pages
  */
-router.post(
-  '/',
-  (req, _res, next) => {
-    const wsFromBody = typeof req.body?.workspaceId === 'string' ? req.body.workspaceId : undefined;
-    if (wsFromBody && !req.headers['x-workspace-id']) {
-      req.headers['x-workspace-id'] = wsFromBody;
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const body = createPageSchema.parse(req.body);
+    const workspaceId = body.workspaceId;
+
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
     }
-    next();
-  },
-  requireWorkspaceMember,
-  async (req: Request, res: Response) => {
-    try {
-      const body = createPageSchema.parse(req.body);
-      const workspaceId = assertWorkspace(req, res);
-      if (!workspaceId) return;
-      if (body.workspaceId !== workspaceId) {
-        res.status(403).json({ error: 'Workspace mismatch' });
+
+    const db = getDb();
+
+    // A subpage needs edit access to its parent, which a guest can have; a
+    // top-level page, a place it may go (`lib/placement.ts`).
+    if (body.parentId) {
+      const parent = await findPageById(db, body.parentId);
+      if (!parent) {
+        res.status(404).json({ error: 'Parent page not found' });
         return;
       }
-
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ error: 'Unauthorized' });
+      if (parent.workspaceId !== workspaceId) {
+        res.status(400).json({ error: 'Parent page is in a different workspace' });
         return;
       }
-
-      const db = getDb();
-
-      // If parentId provided, ensure the parent belongs to the same workspace.
-      if (body.parentId) {
-        const parent = await findPageById(db, body.parentId);
-        if (!parent) {
-          res.status(404).json({ error: 'Parent page not found' });
-          return;
-        }
-        if (parent.workspaceId !== workspaceId) {
-          res.status(400).json({ error: 'Parent page is in a different workspace' });
-          return;
-        }
-      }
-
-      // `max(order) + 1` among siblings, then insert. Read and write are
-      // deliberately NOT wrapped in a transaction: under READ COMMITTED one
-      // would take no lock and two concurrent creates would still read the same
-      // maximum, so it would buy nothing while implying the race was closed.
-      // The race is accepted: `order` is a client-writable `double precision`
-      // that `PATCH /api/pages/:id` renumbers anyway.
-      const order = await nextSiblingOrder(db, {
-        workspaceId,
-        parentId: body.parentId ?? null,
-      });
-
-      const page = await createPage(db, {
-        workspaceId,
-        parentId: body.parentId ?? null,
-        title: body.title ?? '',
-        icon: body.icon ?? null,
-        cover: body.cover ?? null,
-        ownerId: userId,
-        archived: false,
-        order,
-      });
-
-      res.status(201).json({ page: serializePage(page) });
-    } catch (error: unknown) {
-      if (handleZodError(error, res)) return;
-      log.general.error({ err: error }, 'Failed to create page');
-      res.status(500).json({ error: 'Failed to create page' });
+      if (!(await checkPageAccess(req, res, db, parent.id, 'editor'))) return;
     }
-  },
-);
+    // A top-level page lives in a teamspace or privately with its creator.
+    const place = body.parentId
+      ? { teamspaceId: null }
+      : await placeOrRefuse(res, db, workspaceId, userId, body.teamspaceId);
+    if (!place) return;
+
+    // `max(order) + 1` among siblings, then insert. Read and write are
+    // deliberately NOT wrapped in a transaction: under READ COMMITTED one
+    // would take no lock and two concurrent creates would still read the same
+    // maximum, so it would buy nothing while implying the race was closed.
+    // The race is accepted: `order` is a client-writable `double precision`
+    // that `PATCH /api/pages/:id` renumbers anyway.
+    const order = await nextSiblingOrder(db, {
+      workspaceId,
+      parentId: body.parentId ?? null,
+    });
+
+    const page = await createPage(db, {
+      workspaceId,
+      parentId: body.parentId ?? null,
+      title: body.title ?? '',
+      icon: body.icon ?? null,
+      cover: body.cover ?? null,
+      ownerId: userId,
+      archived: false,
+      order,
+      teamspaceId: place.teamspaceId,
+    });
+    // Whoever creates a page follows it.
+    await follow(db, page.id, userId);
+
+    announceChange({ workspaceId });
+    res.status(201).json({ page: serializePage(page) });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to create page');
+    res.status(500).json({ error: 'Failed to create page' });
+  }
+});
 
 /**
  * PATCH /api/pages/:id
@@ -333,8 +424,9 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
-    if (!ok) return;
+    const access = await checkPageAccess(req, res, db, page.id, 'editor');
+    if (!access) return;
+    const userId = req.user?.id as string;
 
     if (body.parentId !== undefined && body.parentId !== null) {
       if (body.parentId === page.id) {
@@ -350,7 +442,58 @@ router.patch('/:id', async (req: Request, res: Response) => {
         res.status(400).json({ error: 'Parent page is in a different workspace' });
         return;
       }
+      // Moving a page under another needs edit access there too.
+      if (!(await checkPageAccess(req, res, db, parent.id, 'editor'))) return;
     }
+
+    // Where it lives at the top level: a page moved there, or a top-level
+    // page given another place. Moved there without one, it stays where its
+    // tree lived — a private page's subpage never becomes the workspace's.
+    const staysAtTop = body.parentId === undefined && page.parentId === null;
+    const movesToTop = body.parentId === null && page.parentId !== null;
+    const replaced = (staysAtTop || body.parentId === null) && body.teamspaceId !== undefined;
+    let teamspaceId: string | null | undefined;
+    if (movesToTop || replaced) {
+      const requested = body.teamspaceId !== undefined ? body.teamspaceId : access.home.teamspaceId;
+      const place = await placeOrRefuse(res, db, page.workspaceId, userId, requested);
+      if (!place) return;
+      teamspaceId = place.teamspaceId;
+    } else if (body.parentId) {
+      // Below another page it lives where that tree does.
+      teamspaceId = null;
+    }
+
+    // Restricting a page shuts other members out: full access, or the page's
+    // creator. Whoever restricts it keeps access through a grant.
+    if (body.restricted !== undefined && body.restricted !== page.restricted) {
+      if (!hasRole(access.role, 'admin') && page.ownerId !== userId) {
+        res.status(403).json({
+          error: 'Changing who can open a page needs full access to it',
+          code: 'INSUFFICIENT_ROLE',
+          required: 'admin',
+          actual: access.role,
+        });
+        return;
+      }
+      if (body.restricted && !(access.memberRole && hasRole(access.memberRole, 'admin'))) {
+        await upsertGrant(db, { pageId: page.id, userId, role: 'admin', grantedBy: userId });
+      }
+    }
+
+    // A locked page keeps its title, icon, cover and properties until it is
+    // unlocked (in this request or an earlier one).
+    const editsContent =
+      body.title !== undefined ||
+      body.icon !== undefined ||
+      body.cover !== undefined ||
+      body.coverPosition !== undefined ||
+      body.properties !== undefined;
+    if (page.locked && body.locked !== false && editsContent) {
+      res.status(423).json({ error: 'The page is locked', code: 'PAGE_LOCKED' });
+      return;
+    }
+
+    let rowDatabase: DatabaseRecord | null = null;
 
     // Built by assignment rather than by spreading `body`, because `title` is
     // written twice below and the second write has to win.
@@ -363,6 +506,14 @@ router.patch('/:id', async (req: Request, res: Response) => {
       order: body.order,
       archived: body.archived,
       favorited: body.favorited,
+      restricted: body.restricted,
+      template: body.template,
+      fullWidth: body.fullWidth,
+      smallText: body.smallText,
+      font: body.font,
+      locked: body.locked,
+      teamspaceId,
+      lastEditedBy: userId,
       mergeProperties: undefined as Record<string, unknown> | undefined,
     };
 
@@ -378,6 +529,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
         res.status(404).json({ error: 'Database not found for row' });
         return;
       }
+      rowDatabase = database;
       const schemaById = new Map(database.propertiesSchema.properties.map((p) => [p.id, p]));
       // Only the keys that survive validation are sent. `mergeProperties` is a
       // shallow top-level merge into the stored object, so the keys the request
@@ -411,12 +563,20 @@ router.patch('/:id', async (req: Request, res: Response) => {
       };
     }
 
-    const updated = await updatePage(db, page.id, patch);
+    // A row's two-way relations change their other side in the same write.
+    const updated = await db.transaction(async (tx) => {
+      const written = await updatePage(tx, page.id, patch);
+      if (written && rowDatabase && patch.mergeProperties && !written.template) {
+        await syncRelations(tx, rowDatabase, page.id, page.properties, written.properties);
+      }
+      return written;
+    });
     if (!updated) {
       res.status(404).json({ error: 'Page not found' });
       return;
     }
 
+    announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
     res.json({ page: serializePage(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -442,12 +602,12 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
-    if (!ok) return;
+    const access = await checkPageAccess(req, res, db, page.id, 'editor');
+    if (!access) return;
 
     if (hard) {
       // Hard-delete requires workspace ownership.
-      if (req.workspace?.role !== 'owner') {
+      if (access.memberRole !== 'owner') {
         res.status(403).json({ error: 'Hard delete requires workspace owner role' });
         return;
       }
@@ -462,6 +622,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       // `blocks.pageId` is CASCADE.
       const deleted = await deletePageTree(db, page.id);
 
+      announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
       res.json({ success: true, deleted });
       return;
     }
@@ -472,6 +633,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return;
     }
 
+    announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
     res.json({ page: serializePage(archivedPage) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -480,14 +642,33 @@ router.delete('/:id', async (req: Request, res: Response) => {
   }
 });
 
+const duplicateSchema = z
+  .object({
+    /** Where the copy goes; beside the source when absent. */
+    parentId: entityIdSchema.nullable().optional(),
+    /** Use a template: the copy keeps its title and is an ordinary page. */
+    fromTemplate: z.boolean().optional(),
+    /**
+     * A copy at the top level: its teamspace, null for private. Absent: where
+     * the source lives (a duplicate) or the default teamspace (a template).
+     */
+    teamspaceId: entityIdSchema.nullable().optional(),
+  })
+  .default({});
+
 /**
- * POST /api/pages/:id/duplicate
- * Duplicates the page and all its blocks. Children pages are NOT duplicated
- * in Phase 1 (matches Notion's "Duplicate" default of single-page copy).
+ * POST /api/pages/:id/duplicate [{ parentId?, fromTemplate? }]
+ *
+ * Copies the page with its subpages, their blocks and who may open them, as
+ * Notion's Duplicate does. By default the copy lands beside the source, is
+ * titled "… (copy)" and needs edit access to the source. `fromTemplate` uses
+ * a template instead: viewing it is enough, the copy keeps its title, is not
+ * a template, and goes to `parentId` (the top level when absent).
  */
 router.post('/:id/duplicate', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
+    const body = duplicateSchema.parse(req.body ?? {});
 
     const db = getDb();
     const source = await findPageById(db, params.id);
@@ -495,44 +676,76 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Page not found' });
       return;
     }
-
-    const ok = await checkWorkspaceMembership(req, res, source.workspaceId);
-    if (!ok) return;
-
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+    if (body.fromTemplate && !source.template) {
+      res.status(400).json({ error: 'That page is not a template' });
       return;
     }
 
-    // The new page and its copied blocks are ONE logical write, so they commit
-    // together, so a failure cannot leave a page with no blocks behind a 500.
-    //
-    // The transaction does NOT close the sibling-order race — `nextSiblingOrder`
-    // takes no lock under READ COMMITTED — it is here for the page/blocks pair.
+    const access = await checkPageAccess(
+      req,
+      res,
+      db,
+      source.id,
+      body.fromTemplate ? 'viewer' : 'editor',
+    );
+    if (!access) return;
+    const userId = req.user?.id as string;
+
+    // The destination: a page needs edit access there, the top level a
+    // workspace editor.
+    const parentId =
+      body.parentId !== undefined ? body.parentId : body.fromTemplate ? null : source.parentId;
+    if (parentId) {
+      const parent = await findPageById(db, parentId);
+      if (!parent || parent.workspaceId !== source.workspaceId) {
+        res.status(400).json({ error: 'The destination is not a page of this workspace' });
+        return;
+      }
+      if (!(await checkPageAccess(req, res, db, parent.id, 'editor'))) return;
+    }
+    // At the top level it lives where the caller places it; a duplicate of
+    // someone's private page is private to the caller.
+    const sourceHome =
+      access.home.teamspaceId === null && access.home.ownerId !== userId
+        ? null
+        : access.home.teamspaceId;
+    const place = parentId
+      ? { teamspaceId: null }
+      : await placeOrRefuse(
+          res,
+          db,
+          source.workspaceId,
+          userId,
+          body.teamspaceId !== undefined
+            ? body.teamspaceId
+            : body.fromTemplate
+              ? undefined
+              : sourceHome,
+        );
+    if (!place) return;
+
+    // One logical write: the pages, their blocks and their grants commit
+    // together. The transaction does not close the sibling-order race —
+    // `nextSiblingOrder` takes no lock under READ COMMITTED.
     const duplicate = await db.transaction(async (tx) => {
-      const order = await nextSiblingOrder(tx, {
-        workspaceId: source.workspaceId,
-        parentId: source.parentId,
-      });
-
-      const created = await createPage(tx, {
-        workspaceId: source.workspaceId,
-        parentId: source.parentId,
-        title: source.title ? `${source.title} (copy)` : '(copy)',
-        icon: source.icon,
-        cover: source.cover,
-        ownerId: userId,
-        archived: false,
+      const order = await nextSiblingOrder(tx, { workspaceId: source.workspaceId, parentId });
+      return copyPageTree(tx, {
+        sourceId: source.id,
+        parentId,
         order,
+        title: body.fromTemplate
+          ? source.title
+          : source.title
+            ? `${source.title} (copy)`
+            : '(copy)',
+        template: !body.fromTemplate && source.template,
+        userId,
+        teamspaceId: place.teamspaceId,
+        keepAccess: true,
       });
-
-      // Children pages are NOT duplicated (see the route comment above), so the
-      // copy takes the source's blocks and nothing else.
-      await duplicateBlocksToPage(tx, source.id, created.id);
-      return created;
     });
 
+    announceChange({ workspaceId: source.workspaceId });
     res.status(201).json({ page: serializePage(duplicate) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -558,13 +771,15 @@ router.get('/:id/breadcrumb', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, head.workspaceId);
-    if (!ok) return;
+    const access = await checkPageAccess(req, res, db, head.id, 'viewer');
+    if (!access) return;
 
     // One recursive walk instead of one query per level. The depth bound and
     // the cycle handling that the `seen` set provided are both inside
     // `findPageAncestry`, which returns root-first exactly as the `unshift` did.
-    const breadcrumb = await findPageAncestry(db, head.id);
+    // Only the ancestors the caller can open are named.
+    const open = new Set(accessibleAncestry(access).map((link) => link.id));
+    const breadcrumb = (await findPageAncestry(db, head.id)).filter((crumb) => open.has(crumb.id));
 
     res.json({ breadcrumb });
   } catch (error: unknown) {
@@ -574,96 +789,21 @@ router.get('/:id/breadcrumb', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * Render a block tree to markdown text. Used by /pages/:id/export?format=md.
- *
- * The renderer keeps things conservative: unknown block types degrade to
- * a paragraph (just `text`). Lists/todos honour the parentBlockId hierarchy.
- */
-interface RenderableBlock {
-  id: string;
-  parentBlockId: string | null;
-  type: string;
-  content: Record<string, unknown>;
-  order: number;
-}
-
-function textOf(content: Record<string, unknown>): string {
-  const text = content.text;
-  return typeof text === 'string' ? text : '';
-}
-
-function renderBlockMarkdown(
-  block: RenderableBlock,
-  childrenByParent: Map<string, RenderableBlock[]>,
-  depth: number,
-): string {
-  const indent = '  '.repeat(depth);
-  const text = textOf(block.content);
-  const children = childrenByParent.get(block.id) ?? [];
-  const childMd = children
-    .map((c) => renderBlockMarkdown(c, childrenByParent, depth + 1))
-    .join('\n');
-
-  let line = '';
-  switch (block.type) {
-    case 'heading_1':
-      line = `# ${text}`;
-      break;
-    case 'heading_2':
-      line = `## ${text}`;
-      break;
-    case 'heading_3':
-      line = `### ${text}`;
-      break;
-    case 'bulleted_list_item':
-      line = `${indent}- ${text}`;
-      break;
-    case 'numbered_list_item':
-      line = `${indent}1. ${text}`;
-      break;
-    case 'todo': {
-      const checked = block.content.checked === true ? 'x' : ' ';
-      line = `${indent}- [${checked}] ${text}`;
-      break;
-    }
-    case 'quote':
-      line = `> ${text}`;
-      break;
-    case 'divider':
-      line = '---';
-      break;
-    case 'code': {
-      const lang = typeof block.content.language === 'string' ? block.content.language : '';
-      line = `\`\`\`${lang}\n${text}\n\`\`\``;
-      break;
-    }
-    case 'callout': {
-      const icon = typeof block.content.icon === 'string' ? block.content.icon : '';
-      line = `> ${icon ? `${icon} ` : ''}${text}`;
-      break;
-    }
-    default:
-      line = text;
-      break;
-  }
-
-  return childMd ? `${line}\n${childMd}` : line;
-}
-
 const exportQuerySchema = z.object({
-  format: z.enum(['md', 'markdown']).default('md'),
+  format: z.enum(['md', 'markdown', 'html']).default('md'),
 });
 
 /**
- * GET /api/pages/:id/export?format=md
- * Streams markdown for the page (title + blocks). HTML/PDF live in the
- * client (or a future worker) — this endpoint stays MD-only on purpose.
+ * GET /api/pages/:id/export?format=md|html
+ *
+ * The page as a Markdown or a standalone HTML document: title, blocks with
+ * their formatting and nesting (`@nilo/contracts` markdown/HTML), every piece
+ * of text escaped in HTML.
  */
 router.get('/:id/export', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
-    exportQuerySchema.parse(req.query);
+    const { format } = exportQuerySchema.parse(req.query);
 
     const db = getDb();
     const page = await findPageById(db, params.id);
@@ -671,42 +811,27 @@ router.get('/:id/export', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Page not found' });
       return;
     }
+    if (!(await checkPageAccess(req, res, db, page.id, 'viewer'))) return;
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
-    if (!ok) return;
-
-    const blocks = await listBlocksForPageByOrder(db, page.id);
-
-    const childrenByParent = new Map<string, RenderableBlock[]>();
-    const roots: RenderableBlock[] = [];
-    for (const b of blocks) {
-      const renderable: RenderableBlock = {
-        id: b.id,
-        parentBlockId: b.parentBlockId,
-        type: b.type,
-        content: b.content,
-        order: b.order,
-      };
-      if (renderable.parentBlockId) {
-        const key = renderable.parentBlockId;
-        const list = childrenByParent.get(key) ?? [];
-        list.push(renderable);
-        childrenByParent.set(key, list);
-      } else {
-        roots.push(renderable);
-      }
-    }
-
+    const tree = blocksToTree(await listBlocksForPage(db, page.id));
     const title = page.title?.trim() ? page.title : 'Untitled';
-    const body = roots.map((b) => renderBlockMarkdown(b, childrenByParent, 0)).join('\n\n');
-
-    const markdown = `# ${title}\n\n${body}\n`;
-    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    // A filename every OS accepts, plus the exact name for clients that read RFC 5987.
+    const ascii =
+      title
+        .normalize('NFKD')
+        .replace(/[^a-zA-Z0-9-_]+/gu, '-')
+        .replace(/^-+|-+$/g, '') || 'page';
+    const html = format === 'html';
+    const extension = html ? 'html' : 'md';
+    res.setHeader(
+      'Content-Type',
+      html ? 'text/html; charset=utf-8' : 'text/markdown; charset=utf-8',
+    );
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${title.replace(/[^a-zA-Z0-9-_]+/gu, '-')}.md"`,
+      `attachment; filename="${ascii}.${extension}"; filename*=UTF-8''${encodeURIComponent(`${title}.${extension}`)}`,
     );
-    res.send(markdown);
+    res.send(html ? blocksToHtml(tree, title) : blocksToMarkdown(tree, title));
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to export page');

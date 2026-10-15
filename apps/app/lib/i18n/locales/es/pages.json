@@ -1,0 +1,329 @@
+{
+  "untitled": "Sin título",
+  "openPage": "Abrir %{title}",
+  "noneSelected": "No hay ninguna página seleccionada.",
+  "loadFailed": "No pudimos cargar esta página.",
+  "backToWorkspace": "Volver al espacio de trabajo",
+  "collapse": "Contraer",
+  "expand": "Expandir",
+  "comments": {
+    "open": "Abrir comentarios",
+    "label": "Comentarios"
+  },
+  "database": {
+    "noneSelected": "No hay ninguna base de datos seleccionada.",
+    "loadFailed": "No pudimos cargar esta base de datos.",
+    "noViews": "Todavía no hay vistas configuradas."
+  },
+  "actions": {
+    "menu": "Acciones de la página",
+    "actionsFor": "Acciones de %{title}",
+    "duplicate": "Duplicar",
+    "addToFavorites": "Añadir a favoritos",
+    "removeFromFavorites": "Quitar de favoritos",
+    "moveTo": "Mover a…",
+    "moveToTop": "Mover al nivel superior",
+    "copyLink": "Copiar enlace",
+    "exportMarkdown": "Exportar como Markdown",
+    "moveToTrash": "Mover a la papelera",
+    "restoreFromTrash": "Restaurar de la papelera",
+    "deletePermanently": "Eliminar definitivamente",
+    "addSubPage": "Añadir subpágina",
+    "addSubPageTo": "Añadir subpágina a %{title}",
+    "openAndRename": "Abrir y renombrar"
+  },
+  "toasts": {
+    "duplicated": "Página duplicada",
+    "duplicateFailed": "No se pudo duplicar la página",
+    "linkCopied": "Enlace copiado",
+    "markdownDownloaded": "Markdown descargado",
+    "markdownCopied": "Markdown copiado al portapapeles",
+    "exportFailed": "No se pudo exportar",
+    "movedToTrash": "Movida a la papelera",
+    "moveToTrashFailed": "No se pudo mover a la papelera",
+    "restored": "Página restaurada",
+    "restoreFailed": "No se pudo restaurar",
+    "deletedPermanently": "Página eliminada definitivamente",
+    "deleteFailed": "No se pudo eliminar la página"
+  },
+  "deleteDialog": {
+    "title": "¿Eliminar definitivamente?",
+    "description": "«%{title}» y todos sus bloques se eliminarán para siempre. Esta acción no se puede deshacer."
+  },
+  "favorite": {
+    "add": "Añadir a favoritos",
+    "remove": "Quitar de favoritos"
+  },
+  "breadcrumb": {
+    "workspaceHome": "Inicio del espacio de trabajo",
+    "workspace": "Espacio de trabajo"
+  },
+  "header": {
+    "cover": "Portada",
+    "pageCover": "Portada de la página",
+    "pageIcon": "Icono de la página",
+    "reposition": "Reposicionar",
+    "repositionCover": "Reposicionar portada",
+    "savePosition": "Guardar posición",
+    "changeCover": "Cambiar portada",
+    "changeIcon": "Cambiar icono",
+    "addIcon": "Añadir icono",
+    "addCover": "Añadir portada"
+  },
+  "moveDialog": {
+    "title": "Mover página",
+    "searchPlaceholder": "Buscar páginas…",
+    "moveToRoot": "Mover a la raíz",
+    "noMatches": "Ninguna página coincide con «%{query}».",
+    "moveUnder": "Mover dentro de %{title}"
+  },
+  "iconPicker": {
+    "title": "Elige un icono",
+    "tabs": {
+      "emoji": "Emoji",
+      "icon": "Icono",
+      "upload": "Subir"
+    },
+    "random": "Aleatorio",
+    "randomEmoji": "Emoji aleatorio",
+    "remove": "Quitar",
+    "removeIcon": "Quitar icono",
+    "searchEmojis": "Buscar emojis…",
+    "searchIcons": "Buscar iconos…",
+    "skinTone": "Tono de piel:",
+    "skinTones": {
+      "default": "Predeterminado",
+      "light": "Claro",
+      "mediumLight": "Medio claro",
+      "medium": "Medio",
+      "mediumDark": "Medio oscuro",
+      "dark": "Oscuro"
+    },
+    "categories": {
+      "smileys": "Caras y personas",
+      "animals": "Animales y naturaleza",
+      "food": "Comida y bebida",
+      "activities": "Actividades",
+      "travel": "Viajes y lugares",
+      "objects": "Objetos",
+      "symbols": "Símbolos",
+      "flags": "Banderas"
+    },
+    "noEmojis": "Ningún emoji coincide con «%{query}».",
+    "noIcons": "Ningún icono coincide con «%{query}».",
+    "uploadHint": "Pega la URL de una imagen para usarla como icono. La subida directa llegará pronto.",
+    "useImage": "Usar imagen"
+  },
+  "coverPicker": {
+    "title": "Elige una portada",
+    "tabs": {
+      "gallery": "Galería",
+      "colors": "Colores",
+      "link": "Enlace",
+      "upload": "Subir"
+    },
+    "remove": "Quitar",
+    "removeCover": "Quitar portada",
+    "gradientLabel": "Degradado %{name}",
+    "colorLabel": "Color %{name}",
+    "unsplashNotConfigured": "La clave de Unsplash no está configurada.",
+    "searchFailed": "No se pudo buscar",
+    "searchUnsplash": "Buscar en Unsplash",
+    "search": "Buscar",
+    "photoBy": "Foto de %{author}",
+    "linkHint": "Pega la URL de una imagen para usarla como portada.",
+    "useImage": "Usar imagen",
+    "useImageLink": "Usar enlace de imagen",
+    "uploadSoon": "La subida directa llegará pronto.",
+    "uploadUseLink": "Mientras tanto, usa la pestaña Enlace para pegar la URL de una imagen.",
+    "acknowledgeUpload": "Entendido: la subida aún no está disponible",
+    "gradients": {
+      "sunset": "Atardecer",
+      "aurora": "Aurora",
+      "tropics": "Trópico",
+      "lavender": "Lavanda",
+      "mint": "Menta",
+      "ocean": "Océano",
+      "sherbet": "Sorbete",
+      "plum": "Ciruela",
+      "crimson": "Carmesí",
+      "slate": "Pizarra"
+    },
+    "colors": {
+      "slate": "Pizarra",
+      "stone": "Piedra",
+      "brick": "Ladrillo",
+      "marigold": "Caléndula",
+      "moss": "Musgo",
+      "sea": "Mar",
+      "sky": "Cielo",
+      "violet": "Violeta",
+      "rose": "Rosa",
+      "charcoal": "Carbón"
+    }
+  },
+  "tree": {
+    "selectWorkspace": "Selecciona un espacio de trabajo para ver las páginas.",
+    "heading": "Páginas",
+    "addPage": "Añadir página",
+    "loading": "Cargando páginas…",
+    "loadFailed": "No se pudieron cargar las páginas. Inténtalo de nuevo en breve.",
+    "empty": "Todavía no hay páginas. Pulsa + para crear una."
+  },
+  "share": {
+    "invalidTitle": "Enlace para compartir no válido",
+    "invalidBody": "A esta URL le falta el token para compartir. Revisa el enlace que abriste.",
+    "unavailableTitle": "Enlace no disponible",
+    "unavailableBody": "No pudimos cargar esta página compartida.",
+    "notFoundTitle": "Enlace no encontrado",
+    "notFoundBody": "Este enlace se revocó o nunca existió. Pide un enlace nuevo a quien creó la página.",
+    "expiredTitle": "Enlace caducado",
+    "expiredBody": "Este enlace ha caducado. Pide un enlace nuevo a quien creó la página.",
+    "empty": "Esta página está vacía.",
+    "madeWith": "Hecho con",
+    "madeWithNilo": "Hecho con Nilo"
+  },
+  "noAccess": "No tienes acceso a esta página",
+  "restricted": "Página restringida",
+  "templates": {
+    "badge": "Plantilla",
+    "makeTemplate": "Convertir en plantilla",
+    "makeRegular": "Convertir en una página normal",
+    "updateFailed": "No se pudo cambiar el estado de plantilla. Inténtalo de nuevo.",
+    "loadFailed": "No se pudieron cargar las plantillas.",
+    "retry": "Reintentar",
+    "empty": "Aún no hay plantillas. Convierte una página en plantilla desde su menú de opciones.",
+    "open": "Abrir plantilla %{title}",
+    "useNamed": "Usar plantilla %{title}",
+    "use": "Usar",
+    "choose": "Elegir una plantilla",
+    "newPage": "Nueva página",
+    "blank": "Página en blanco",
+    "fromTemplate": "Desde una plantilla…",
+    "creating": "Creando página…",
+    "createFailed": "No se pudo crear la página. Comprueba tu acceso al destino e inténtalo de nuevo."
+  },
+  "publish": {
+    "title": "Publicar",
+    "enabled": "Publicar en la web",
+    "description": "Cualquier persona con el enlace público puede leer esta página y sus subpáginas sin restricciones.",
+    "noPermission": "Solo quien creó la página o los miembros con acceso completo pueden publicarla.",
+    "failed": "No se pudo actualizar la publicación. Comprueba tu acceso e inténtalo de nuevo.",
+    "copy": "Copiar enlace público",
+    "copyFailed": "No se pudo copiar el enlace.",
+    "indexing": "Permitir motores de búsqueda",
+    "published": "Publicada en la web",
+    "notFound": "Página no encontrada",
+    "notFoundBody": "Esta página no está publicada o ya no está disponible públicamente.",
+    "loadFailed": "No se pudo cargar esta página",
+    "tryAgain": "Comprueba tu conexión e inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "breadcrumb": "Ruta de la página",
+    "subpages": "Subpáginas"
+  },
+  "history": {
+    "title": "Historial de la página",
+    "description": "Las versiones anteriores se guardan automáticamente tras periodos de inactividad y antes de restaurar.",
+    "empty": "Todavía no hay versiones anteriores.",
+    "loadFailed": "No se pudo cargar el historial de la página.",
+    "entry": "%{time} · %{name} · %{count} bloques",
+    "preview": "Vista previa de la versión",
+    "restore": "Restaurar esta versión",
+    "noPermission": "Se necesita acceso de edición para restaurar una versión.",
+    "confirmTitle": "¿Restaurar esta versión?",
+    "confirmBody": "Se reemplazarán los bloques actuales. El estado actual se guardará como otra versión.",
+    "restored": "Versión restaurada",
+    "restoreFailed": "No se pudo restaurar esta versión. Comprueba tu acceso e inténtalo de nuevo."
+  },
+  "reminders": {
+    "title": "Recordarme…",
+    "description": "Crea un recordatorio personal para esta página.",
+    "upcoming": "Recordatorios",
+    "empty": "Todavía no hay recordatorios.",
+    "loadFailed": "No se pudieron cargar los recordatorios.",
+    "date": "Fecha (AAAA-MM-DD)",
+    "dateFormat": "AAAA-MM-DD",
+    "time": "Hora (24 horas HH:MM)",
+    "timeFormat": "HH:MM",
+    "localTime": "Las fechas y horas usan la zona horaria local de tu dispositivo.",
+    "invalid": "Introduce una fecha y hora futuras válidas dentro de los próximos cinco años.",
+    "note": "Nota (opcional)",
+    "save": "Crear recordatorio",
+    "created": "Recordatorio creado",
+    "createFailed": "No se pudo crear el recordatorio.",
+    "delete": "Eliminar recordatorio",
+    "deleteFailed": "No se pudo eliminar el recordatorio.",
+    "sent": "Entregado",
+    "choices": {
+      "hour": "Dentro de 1 hora",
+      "tomorrow": "Mañana a las 9:00",
+      "week": "La próxima semana"
+    }
+  },
+  "export": {
+    "title": "Exportar",
+    "markdown": "Markdown",
+    "html": "HTML",
+    "webOnly": "Por ahora, la exportación solo está disponible en la web. Abre esta página en tu navegador para descargarla.",
+    "downloaded": "Exportación descargada"
+  },
+  "import": {
+    "title": "Importar",
+    "intoPage": "Importar en esta página",
+    "description": "Elige archivos Markdown (.md), un CSV o un ZIP de Markdown exportado de Notion (hasta 20 MB).",
+    "chooseFiles": "Elegir archivos",
+    "reading": "Eligiendo y leyendo archivos…",
+    "uploading": "Subiendo… %{percent}%",
+    "processing": "Creando páginas…",
+    "openFirst": "Abrir la primera página",
+    "tooLarge": "Esta importación supera el límite de 20 MB. Elige archivos o un ZIP más pequeños.",
+    "noAccess": "No tienes permiso para importar en este destino.",
+    "noMarkdown": "No se encontró Markdown que se pueda importar. Elige archivos .md o una exportación ZIP de Markdown.",
+    "invalidFiles": "Elige archivos .md, un .csv o un .zip. No mezcles formatos.",
+    "failed": "No se pudo importar. Inténtalo de nuevo.",
+    "result": {
+      "one": "%{count} página creada",
+      "other": "%{count} páginas creadas"
+    },
+    "skipped": {
+      "one": "%{count} archivo omitido",
+      "other": "%{count} archivos omitidos"
+    },
+    "csvHint": "Un CSV crea una base de datos de página completa. Los CSV dentro de un ZIP se omiten; impórtalos por separado.",
+    "invalidContent": "No se pudo importar el archivo. Revisa su formato y contenido."
+  },
+  "info": {
+    "editedBy": "Editado %{time} por %{name}",
+    "edited": "Editado %{time}",
+    "unknownMember": "Miembro desconocido"
+  },
+  "backlinks": {
+    "count": {
+      "one": "%{count} enlace entrante",
+      "other": "%{count} enlaces entrantes"
+    },
+    "retry": "No se pudieron cargar los enlaces entrantes. Reintentar"
+  },
+  "follow": {
+    "follow": "Seguir",
+    "following": "Siguiendo",
+    "failed": "No se pudo cambiar el seguimiento. Inténtalo de nuevo.",
+    "retry": "No se pudo cargar el seguimiento. Reintentar"
+  },
+  "style": {
+    "title": "Estilo",
+    "default": "Predeterminada",
+    "serif": "Serif",
+    "mono": "Mono",
+    "sample": "Ag",
+    "smallText": "Texto pequeño",
+    "fullWidth": "Ancho completo",
+    "locked": "Bloquear página",
+    "updateFailed": "No se pudo actualizar la configuración de la página."
+  },
+  "lock": {
+    "banner": "Esta página está bloqueada.",
+    "unlock": "Desbloquear"
+  },
+  "title": "Título de la página"
+}

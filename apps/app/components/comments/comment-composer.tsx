@@ -13,6 +13,7 @@ import { Send } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { MentionPicker } from './mention-picker';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { CommentSegment, MentionSegment } from '@/lib/types/comments';
 
 interface CommentComposerProps {
@@ -140,7 +141,7 @@ interface DraftMentionState {
  */
 export function CommentComposer({
   workspaceId,
-  placeholder = 'Add a comment…',
+  placeholder,
   submitting,
   autoFocus,
   onSubmit,
@@ -148,6 +149,7 @@ export function CommentComposer({
   initialSegments,
 }: CommentComposerProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const inputRef = React.useRef<TextInput>(null);
   const initial = React.useMemo(
     () => (initialSegments ? segmentsToText(initialSegments) : { text: '', anchored: [] }),
@@ -305,7 +307,7 @@ export function CommentComposer({
           onChangeText={handleChangeText}
           onKeyPress={handleKeyPress}
           onSelectionChange={handleSelectionChange}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t('comments.composer.placeholder')}
           placeholderTextColor={colors.mutedForeground}
           multiline
           autoFocus={autoFocus}
@@ -330,7 +332,7 @@ export function CommentComposer({
       </View>
       <View className="flex-row items-center justify-between">
         <Text className="text-[10px] text-muted-foreground">
-          {Platform.OS === 'web' ? '@ to mention · Cmd/Ctrl+Enter to send' : '@ to mention'}
+          {Platform.OS === 'web' ? t('comments.composer.hintWeb') : t('comments.composer.hint')}
         </Text>
         <View className="flex-row items-center gap-2">
           {onCancel ? (
@@ -338,9 +340,9 @@ export function CommentComposer({
               onPress={onCancel}
               className="rounded-md px-3 py-1.5 hover:bg-muted"
               disabled={submitting}
-              accessibilityLabel="Cancel"
+              accessibilityLabel={t('common.cancel')}
             >
-              <Text className="text-xs text-muted-foreground">Cancel</Text>
+              <Text className="text-xs text-muted-foreground">{t('common.cancel')}</Text>
             </Pressable>
           ) : null}
           <Pressable
@@ -351,7 +353,7 @@ export function CommentComposer({
                 ? 'flex-row items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 opacity-60'
                 : 'flex-row items-center gap-1.5 rounded-md bg-primary px-3 py-1.5'
             }
-            accessibilityLabel="Send comment"
+            accessibilityLabel={t('comments.composer.send')}
           >
             {submitting ? (
               <ActivityIndicator size="small" color={colors.primaryForeground} />
@@ -365,7 +367,7 @@ export function CommentComposer({
                   : 'text-xs font-medium text-primary-foreground'
               }
             >
-              {submitting ? 'Posting…' : 'Comment'}
+              {submitting ? t('comments.composer.posting') : t('comments.composer.submit')}
             </Text>
           </Pressable>
         </View>

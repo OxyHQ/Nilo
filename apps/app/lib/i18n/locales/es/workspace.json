@@ -1,0 +1,118 @@
+{
+  "fallbackName": "Espacio de trabajo",
+  "roles": {
+    "owner": {
+      "label": "Propietario",
+      "description": "Acceso total. Puede eliminar el espacio de trabajo y transferir la propiedad."
+    },
+    "admin": {
+      "label": "Administrador",
+      "description": "Acceso total. Puede invitar y gestionar miembros."
+    },
+    "editor": {
+      "label": "Editor",
+      "description": "Puede crear y editar páginas."
+    },
+    "commenter": {
+      "label": "Comentador",
+      "description": "Puede comentar, pero no editar."
+    },
+    "viewer": {
+      "label": "Lector",
+      "description": "Acceso de solo lectura."
+    }
+  },
+  "create": {
+    "title": "Nuevo espacio de trabajo",
+    "description": "Los espacios de trabajo agrupan páginas, bases de datos y miembros del equipo.",
+    "namePlaceholder": "p. ej., Acme S.A.",
+    "icon": "Icono",
+    "useIcon": "Usar %{emoji} como icono",
+    "submit": "Crear espacio de trabajo",
+    "created": "Espacio de trabajo \"%{name}\" creado",
+    "failed": "No se pudo crear el espacio de trabajo"
+  },
+  "invite": {
+    "title": "Invitar a un miembro",
+    "description": "Invita a un usuario de Oxy a este espacio de trabajo. Debe tener ya una cuenta en oxy.so.",
+    "email": "Correo electrónico",
+    "emailPlaceholder": "companero@ejemplo.com",
+    "invalidEmail": "Introduce un correo electrónico válido.",
+    "role": "Rol",
+    "selectedRole": "Rol seleccionado: %{role}",
+    "submit": "Enviar invitación",
+    "invited": "Has invitado a %{email} como %{role}",
+    "failed": "No se pudo invitar al miembro",
+    "userNotFound": "Usuario no encontrado. Pídele que se registre primero en oxy.so.",
+    "alreadyMember": "Ese usuario ya es miembro de este espacio de trabajo."
+  },
+  "members": {
+    "count": {
+      "one": "%{count} miembro",
+      "other": "%{count} miembros"
+    },
+    "invite": "Invitar a un miembro",
+    "you": "(tú)",
+    "changeRole": "Cambiar el rol de %{name}",
+    "moreActions": "Más acciones para %{name}",
+    "remove": "Quitar del espacio de trabajo",
+    "roleUpdated": "Rol de %{name} cambiado a %{role}",
+    "roleUpdateFailed": "No se pudo cambiar el rol",
+    "removed": "Has quitado a %{name}",
+    "removeFailed": "No se pudo quitar al miembro",
+    "loadFailed": "No se pudieron cargar los miembros",
+    "empty": "Todavía no hay miembros.",
+    "adminOnly": "Solo los administradores y propietarios pueden invitar a miembros o cambiar roles."
+  },
+  "switcher": {
+    "createFirst": "Crea tu primer espacio de trabajo",
+    "switchLabel": "Cambiar de espacio de trabajo, actual: %{name}",
+    "yourWorkspaces": "Tus espacios de trabajo"
+  },
+  "teamspaces": {
+    "title": "Espacios de equipo",
+    "browse": "Explorar espacios de equipo",
+    "create": "Crear espacio de equipo",
+    "settings": "Ajustes del espacio de equipo",
+    "settingsFor": "Ajustes de %{name}",
+    "name": "Nombre",
+    "icon": "Icono (emoji)",
+    "description": "Descripción",
+    "privacyLabel": "Privacidad",
+    "privacy": {
+      "open": "Abierto",
+      "closed": "Cerrado",
+      "private": "Privado"
+    },
+    "explanation": {
+      "open": "Todos los miembros del espacio de trabajo pueden abrir las páginas y unirse.",
+      "closed": "Todos pueden encontrar este espacio de equipo. Solo sus miembros pueden abrir sus páginas.",
+      "private": "Solo los miembros pueden encontrar este espacio y abrir sus páginas. Los propietarios y administradores del espacio de trabajo también tienen acceso."
+    },
+    "defaultInfo": "Todos pertenecen al espacio de equipo predeterminado. Siempre está abierto y no se puede archivar.",
+    "join": "Unirse",
+    "joinName": "Unirse a %{name}",
+    "joined": "Ya eres miembro",
+    "members": "Miembros (%{count})",
+    "roles": {
+      "owner": "Propietario",
+      "member": "Miembro"
+    },
+    "changeRoleFor": "Cambiar el rol de %{name}",
+    "makeMember": "Hacer miembro",
+    "makeOwner": "Hacer propietario",
+    "remove": "Eliminar",
+    "removeName": "Eliminar a %{name}",
+    "addMember": "Añadir miembro del espacio de trabajo",
+    "findMember": "Buscar un miembro",
+    "addName": "Añadir a %{name}",
+    "lastOwner": "Añade otro propietario antes de salir o eliminar al último propietario.",
+    "leave": "Salir del espacio de equipo",
+    "archive": "Archivar espacio de equipo",
+    "confirmArchive": "Confirmar archivo",
+    "archiveInfo": "Este espacio de equipo dejará de aparecer en Espacios de equipo.",
+    "failed": "No se pudo completar la acción. Inténtalo de nuevo.",
+    "newDatabase": "Nueva base de datos",
+    "search": "Buscar un espacio de equipo"
+  }
+}

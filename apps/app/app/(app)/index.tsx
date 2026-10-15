@@ -1,12 +1,14 @@
+import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Plus } from 'lucide-react-native';
-import { Redirect, useRouter } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useOxy } from '@oxy.so/services';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
-import { useCreatePage, usePages } from '@/lib/hooks/use-pages';
+import { usePages } from '@/lib/hooks/use-pages';
 
 /**
  * Landing screen — if the user has pages in the active workspace, redirect
@@ -14,11 +16,11 @@ import { useCreatePage, usePages } from '@/lib/hooks/use-pages';
  */
 export default function HomePage() {
   const { colors } = useColorScheme();
-  const router = useRouter();
+  const { t } = useTranslation();
   const { isAuthenticated } = useOxy();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const { data, isLoading } = usePages(currentWorkspaceId);
-  const createPage = useCreatePage();
+  const openNewPage = useNewPageStore((s) => s.open);
 
   const mostRecent = React.useMemo(() => {
     if (!data?.pages || data.pages.length === 0) return null;
@@ -29,21 +31,12 @@ export default function HomePage() {
   }, [data?.pages]);
 
   if (mostRecent) {
-    return <Redirect href={`/p/${mostRecent._id}`} />;
+    return <Redirect href={`/p/${mostRecent.id}`} />;
   }
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!currentWorkspaceId) return;
-    try {
-      const page = await createPage.mutateAsync({
-        workspaceId: currentWorkspaceId,
-        parentId: null,
-        title: '',
-      });
-      router.push(`/p/${page._id}`);
-    } catch {
-      // mutation surfaces via state.
-    }
+    openNewPage({ workspaceId: currentWorkspaceId, parentId: null });
   };
 
   return (
@@ -53,27 +46,26 @@ export default function HomePage() {
 
         {!isAuthenticated ? (
           <Text className="text-base text-muted-foreground text-center">
-            Sign in to start building your workspace.
+            {t('home.signInPrompt')}
           </Text>
         ) : !currentWorkspaceId ? (
           <Text className="text-base text-muted-foreground text-center">
-            Select a workspace from the sidebar to get started.
+            {t('home.selectWorkspace')}
           </Text>
         ) : isLoading ? (
           <ActivityIndicator color={colors.mutedForeground} />
         ) : (
           <>
-            <Text className="text-base text-muted-foreground text-center">
-              Your workspace is empty. Create your first page to begin.
-            </Text>
+            <Text className="text-base text-muted-foreground text-center">{t('home.empty')}</Text>
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('home.createFirstPage')}
               onPress={handleCreate}
-              disabled={createPage.isPending}
               className="flex-row items-center gap-2 rounded-xl bg-primary px-4 py-3"
             >
               <Plus size={16} color={colors.primaryForeground} />
               <Text className="text-sm font-semibold text-primary-foreground">
-                {createPage.isPending ? 'Creating…' : 'Create your first page'}
+                {t('home.createFirstPage')}
               </Text>
             </Pressable>
           </>

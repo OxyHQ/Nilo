@@ -1,0 +1,19 @@
+{
+  "title": "Atajos de teclado",
+  "navigation": "Navegación",
+  "general": "General",
+  "commandPalette": "Paleta de comandos / Búsqueda",
+  "settings": "Ajustes",
+  "shortcuts": "Atajos de teclado",
+  "closeDialog": "Cerrar diálogo",
+  "description": "Muévete más rápido en Nilo con estos atajos.",
+  "inPalette": "En la paleta",
+  "openPalette": "Abrir la búsqueda y la paleta de comandos",
+  "createPage": "Crear página nueva",
+  "toggleSidebar": "Mostrar u ocultar la barra lateral",
+  "showShortcuts": "Mostrar atajos de teclado",
+  "moveSelection": "Mover la selección arriba / abajo",
+  "openResult": "Abrir el resultado seleccionado",
+  "openInNewTab": "Abrir en una pestaña nueva",
+  "close": "Cerrar"
+}

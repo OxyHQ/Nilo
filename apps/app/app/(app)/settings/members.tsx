@@ -3,12 +3,14 @@ import { View, ScrollView } from 'react-native';
 import { useOxy } from '@oxy.so/services';
 import { useRouter } from 'expo-router';
 import { Text } from '@/components/ui/text';
+import { useTranslation } from '@/hooks/useTranslation';
 import { SettingsHeader } from '@/components/settings/settings-header';
 import { MembersSection } from '@/components/workspace/members-section';
 
 export default function SettingsMembersScreen() {
   const router = useRouter();
   const { isAuthenticated } = useOxy();
+  const { t } = useTranslation();
 
   React.useEffect(() => {
     if (!isAuthenticated) {
@@ -20,14 +22,13 @@ export default function SettingsMembersScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      <SettingsHeader title="Members" />
+      <SettingsHeader title={t('settings.sections.members')} />
       <ScrollView className="flex-1" contentContainerClassName="p-5 max-w-3xl gap-6">
         <View className="gap-1">
-          <Text className="text-base font-semibold text-foreground">Workspace members</Text>
-          <Text className="text-sm text-muted-foreground">
-            Invite people to your workspace and manage their roles. Only workspace admins and owners
-            can change roles or remove members.
+          <Text className="text-base font-semibold text-foreground">
+            {t('settings.members.title')}
           </Text>
+          <Text className="text-sm text-muted-foreground">{t('settings.members.description')}</Text>
         </View>
         <MembersSection />
       </ScrollView>

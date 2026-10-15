@@ -24,6 +24,8 @@ await esbuild.build({
         // Externalize all other bare imports (node_modules)
         build.onResolve({ filter: /^[^./]/ }, (args) => {
           if (args.path.startsWith('@oxy.so/')) return undefined;
+          // Workspace packages ship TypeScript source: bundle them.
+          if (args.path.startsWith('@nilo/')) return undefined;
           return { path: args.path, external: true };
         });
       },

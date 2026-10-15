@@ -13,6 +13,11 @@ import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { isUniqueViolation } from '@oxy.so/db';
 import { workspaceMembers, workspaces, type WorkspaceRole } from '../db/schema/workspaces.js';
 import type { PgHandle } from '../db/client.js';
+import {
+  addTeamspaceMember,
+  ensureDefaultTeamspace,
+  removeFromWorkspaceTeamspaces,
+} from './teamspaces.js';
 
 export type WorkspaceRow = typeof workspaces.$inferSelect;
 export type WorkspaceMemberRow = typeof workspaceMembers.$inferSelect;
@@ -129,6 +134,7 @@ export async function createWorkspace(
   values: { name: string; icon?: string | null; ownerId: string; isPersonal?: boolean },
 ): Promise<WorkspaceRow> {
   const [row] = await db.insert(workspaces).values(values).returning();
+  await ensureDefaultTeamspace(db, row.id, row.ownerId);
   return row;
 }
 
@@ -163,7 +169,25 @@ export async function createPersonalWorkspaceIfAbsent(
       where: eq(workspaces.isPersonal, true),
     })
     .returning();
+  if (row) await ensureDefaultTeamspace(db, row.id, row.ownerId);
   return row ?? null;
+}
+
+/** Every member of a workspace belongs to its default teamspace. */
+async function joinDefaultTeamspace(db: PgHandle, member: WorkspaceMemberRow): Promise<void> {
+  const workspace = await db
+    .select({ ownerId: workspaces.ownerId })
+    .from(workspaces)
+    .where(eq(workspaces.id, member.workspaceId))
+    .limit(1);
+  const ownerId = workspace[0]?.ownerId ?? member.userId;
+  const teamspace = await ensureDefaultTeamspace(db, member.workspaceId, ownerId);
+  await addTeamspaceMember(
+    db,
+    teamspace.id,
+    member.userId,
+    member.role === 'owner' ? 'owner' : 'member',
+  );
 }
 
 /**
@@ -188,6 +212,7 @@ export async function addMemberIfAbsent(
       target: [workspaceMembers.workspaceId, workspaceMembers.userId],
     })
     .returning();
+  if (row) await joinDefaultTeamspace(db, row);
   return row ?? null;
 }
 
@@ -210,6 +235,7 @@ export async function addMember(
 ): Promise<{ member: WorkspaceMemberRow } | { duplicate: true }> {
   try {
     const [row] = await db.insert(workspaceMembers).values(values).returning();
+    await joinDefaultTeamspace(db, row);
     return { member: row };
   } catch (error) {
     if (isUniqueViolation(error, 'workspace_members_workspace_user_key')) {
@@ -282,5 +308,6 @@ export async function removeMember(
     .delete(workspaceMembers)
     .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, userId)))
     .returning({ id: workspaceMembers.id });
+  if (rows.length > 0) await removeFromWorkspaceTeamspaces(db, workspaceId, userId);
   return rows.length > 0;
 }

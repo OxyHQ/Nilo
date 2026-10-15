@@ -1,0 +1,102 @@
+{
+  "button": {
+    "label": "Compartir página",
+    "share": "Compartir"
+  },
+  "scopes": {
+    "read": {
+      "label": "Puede ver",
+      "description": "Ver el contenido de la página."
+    },
+    "comment": {
+      "label": "Puede comentar",
+      "description": "Ver y añadir comentarios."
+    },
+    "edit": {
+      "label": "Puede editar",
+      "description": "Ver, comentar y editar."
+    }
+  },
+  "expiry": {
+    "never": "No caduca",
+    "expires": "Caduca el %{date}",
+    "hasExpiry": "Tiene caducidad",
+    "expired": "caducado"
+  },
+  "links": {
+    "copy": "Copiar enlace para compartir",
+    "revoke": "Revocar enlace para compartir"
+  },
+  "toasts": {
+    "copied": "Enlace copiado",
+    "revoked": "Enlace revocado",
+    "revokeFailed": "No se pudo revocar el enlace",
+    "created": "Enlace público creado y copiado al portapapeles",
+    "createFailed": "No se pudo crear el enlace para compartir",
+    "useRevoke": "Usa el botón de revocar junto a un enlace para desactivarlo."
+  },
+  "modal": {
+    "title": "Compartir esta página",
+    "description": "Invita a personas y gestiona el acceso a esta página y sus subpáginas.",
+    "anyoneWithLink": "Cualquier persona con el enlace",
+    "publicActive": "Enlace activo: %{scope}",
+    "publicInactive": "No hay ningún enlace público activo",
+    "access": "Acceso:",
+    "selectedScope": "Permiso seleccionado: %{scope}",
+    "copy": "Copiar",
+    "existingLinks": "Enlaces existentes",
+    "loadFailed": "No se pudieron cargar los enlaces para compartir",
+    "empty": "Todavía no hay enlaces para compartir.",
+    "guestExplanation": "Los enlaces para comentar y editar requieren iniciar sesión. Al abrir en Nilo, la persona se añade como invitada si no es miembro del espacio de trabajo."
+  },
+  "blocks": {
+    "emptyParagraph": "Párrafo vacío",
+    "untitledHeading": "Encabezado sin título",
+    "unsupported": "Tipo de bloque no compatible: %{type}",
+    "expand": "Expandir %{title}",
+    "collapse": "Contraer %{title}"
+  },
+  "roles": {
+    "viewer": "Puede ver",
+    "commenter": "Puede comentar",
+    "editor": "Puede editar",
+    "admin": "Acceso completo",
+    "owner": "Acceso completo"
+  },
+  "people": {
+    "title": "Personas con acceso",
+    "email": "Dirección de correo",
+    "inviteRole": "Acceso de la persona invitada",
+    "invite": "Invitar",
+    "userNotFound": "No hay ninguna cuenta de Oxy con ese correo. Pídele que cree una cuenta primero.",
+    "inviteFailed": "No se pudo compartir esta página. Revisa tu acceso e inténtalo de nuevo.",
+    "invited": "Página compartida.",
+    "you": "(tú)",
+    "changeRole": "Cambiar el acceso de %{name}",
+    "removePerson": "Quitar el acceso de %{name}",
+    "remove": "Quitar",
+    "leave": "Abandonar página",
+    "inherited": "De %{title}",
+    "viaLink": "Mediante enlace compartido",
+    "updateFailed": "No se pudo actualizar el acceso. Tus permisos pueden haber cambiado.",
+    "empty": "No hay invitaciones individuales.",
+    "workspaceAccess": "Los miembros también tienen acceso mediante su rol en el espacio de trabajo.",
+    "loadFailed": "No se pudo cargar el acceso a la página.",
+    "retry": "Reintentar"
+  },
+  "general": {
+    "title": "Acceso general",
+    "everyone": "Todos en %{workspace}",
+    "invitedOnly": "Solo personas invitadas",
+    "restrict": "Restringir esta página",
+    "inherited": "La página superior restringe esta página. Gestiona el acceso general allí.",
+    "adminOnly": "Solo las personas con acceso completo o quien creó la página pueden cambiar el acceso general.",
+    "subtree": "Se aplica a esta página y sus subpáginas. Los propietarios y administradores conservan el acceso.",
+    "failed": "No se pudo cambiar el acceso general."
+  },
+  "openInNilo": "Abrir en Nilo",
+  "joinExplanation": "Inicia sesión y abre en Nilo para comentar o editar. Al abrir, se te añade como invitado si no eres miembro del espacio de trabajo.",
+  "joinFailed": "No se pudo abrir esta página. Inténtalo de nuevo.",
+  "checked": "Marcado",
+  "unchecked": "Sin marcar"
+}

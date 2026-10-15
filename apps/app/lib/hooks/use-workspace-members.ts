@@ -11,25 +11,36 @@ export interface WorkspaceMemberUser {
   name: {
     first?: string;
     last?: string;
+    full?: string;
   } | null;
   avatar: string | null;
 }
 
+/** A workspace member. A member is identified by its Oxy `userId`. */
 export interface WorkspaceMember {
-  _id: string;
-  workspaceId: string;
   userId: string;
   role: WorkspaceRole;
   invitedBy: string | null;
   joinedAt: string;
-  createdAt: string;
-  updatedAt: string;
   /**
-   * Hydrated user profile attached by the backend list endpoint via a
-   * batch lookup against the Oxy auth service. Optional because the
-   * profile fetch can fail; the row should still render with a fallback.
+   * The Oxy profile the list endpoint hydrates in one batch lookup. Null when
+   * that lookup failed; absent on invite/role-change responses.
    */
-  user?: WorkspaceMemberUser;
+  user?: WorkspaceMemberUser | null;
+}
+
+/**
+ * The name to show for a member: the profile's full name, else first/last,
+ * else username, else email; `null` when Oxy returned no profile.
+ */
+export function memberProfileName(member: Pick<WorkspaceMember, 'user'>): string | null {
+  const profile = member.user;
+  if (!profile) return null;
+  const full = profile.name?.full?.trim();
+  if (full) return full;
+  const parts = [profile.name?.first?.trim(), profile.name?.last?.trim()].filter(Boolean);
+  if (parts.length > 0) return parts.join(' ');
+  return profile.username ?? profile.email ?? null;
 }
 
 export interface InviteMemberInput {
@@ -38,7 +49,7 @@ export interface InviteMemberInput {
 }
 
 export interface UpdateMemberRoleInput {
-  memberId: string;
+  userId: string;
   role: WorkspaceRole;
 }
 
@@ -90,9 +101,9 @@ export function useUpdateMemberRole(workspaceId: string) {
   const queryClient = useQueryClient();
 
   return useMutation<WorkspaceMember, Error, UpdateMemberRoleInput>({
-    mutationFn: async ({ memberId, role }) => {
+    mutationFn: async ({ userId, role }) => {
       const res = await apiClient.patch<{ member: WorkspaceMember }>(
-        `${membersBase(workspaceId)}/${memberId}`,
+        `${membersBase(workspaceId)}/${userId}`,
         { role },
       );
       return res.data.member;
@@ -109,8 +120,8 @@ export function useRemoveMember(workspaceId: string) {
   const queryClient = useQueryClient();
 
   return useMutation<void, Error, string>({
-    mutationFn: async (memberId) => {
-      await apiClient.delete(`${membersBase(workspaceId)}/${memberId}`);
+    mutationFn: async (userId) => {
+      await apiClient.delete(`${membersBase(workspaceId)}/${userId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
