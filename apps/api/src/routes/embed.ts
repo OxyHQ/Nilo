@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { authenticateToken } from '../middleware/auth.js';
 import { getRedisClient } from '../lib/redis.js';
 import { log } from '../lib/logger.js';
+import { safeFetch } from '../lib/safe-fetch.js';
 
 const router = Router();
 
@@ -62,45 +63,26 @@ function detectSource(url: string): string | undefined {
   }
 }
 
+/**
+ * The page at `url`, through `safeFetch`: public addresses only, redirects
+ * checked hop by hop, HTML only, bounded in time and size.
+ */
 async function fetchWithTimeout(url: string): Promise<{ body: string; finalUrl: string } | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
-      redirect: 'follow',
-      signal: controller.signal,
+    const res = await safeFetch(url, {
+      timeoutMs: FETCH_TIMEOUT_MS,
+      maxBytes: MAX_HTML_BYTES,
       headers: {
         'user-agent': 'Mozilla/5.0 (compatible; NiloBot/1.0; +https://nilo.so/bot)',
         accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
+      accept: (type) => type.toLowerCase().includes('text/html'),
     });
-    if (!res.ok) return null;
-    const contentType = res.headers.get('content-type') || '';
-    if (!contentType.toLowerCase().includes('text/html')) return null;
-    const reader = res.body?.getReader();
-    if (!reader) return null;
-    let received = 0;
-    const decoder = new TextDecoder();
-    let body = '';
-    while (received < MAX_HTML_BYTES) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      received += value.byteLength;
-      body += decoder.decode(value, { stream: true });
-      if (received >= MAX_HTML_BYTES) break;
-    }
-    body += decoder.decode();
-    try {
-      await reader.cancel();
-    } catch {
-      // ignored — best effort
-    }
-    return { body, finalUrl: res.url || url };
+    if (res.status < 200 || res.status >= 300 || !res.body) return null;
+    return { body: res.body, finalUrl: res.finalUrl };
   } catch (error: unknown) {
     log.general.warn({ err: error, url }, 'embed preview fetch failed');
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 

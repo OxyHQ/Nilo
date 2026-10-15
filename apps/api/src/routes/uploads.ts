@@ -20,10 +20,30 @@ const authedRouter = Router();
 authedRouter.use(authenticateToken);
 
 /**
- * Maximum upload size (in bytes). Spaces / S3 hard limits are much larger,
- * but we cap here to avoid runaway uploads. Tweak via env if needed.
+ * Maximum upload size (in bytes): 25 MB unless `UPLOAD_MAX_BYTES` says
+ * otherwise, the figure `.env.example` documents. Spaces / S3 allow far more;
+ * this caps runaway uploads.
  */
-const MAX_UPLOAD_BYTES = parseInt(process.env.UPLOAD_MAX_BYTES || `${100 * 1024 * 1024}`, 10);
+const MAX_UPLOAD_BYTES = parseInt(process.env.UPLOAD_MAX_BYTES || `${25 * 1024 * 1024}`, 10);
+
+/**
+ * Uploads are public objects on the storage domain, so what a browser does
+ * with them matters: a file served as `text/html` or `image/svg+xml` runs its
+ * scripts there. Only these types keep their own; everything else is stored
+ * as `application/octet-stream`. Media and PDFs display inline; any other
+ * file downloads (`Content-Disposition: attachment`).
+ */
+const INLINE_TYPES =
+  /^(image\/(png|jpeg|gif|webp|avif|heic|heif|bmp)|video\/(mp4|webm|quicktime|ogg)|audio\/(mpeg|mp4|ogg|wav|webm|aac|flac|x-m4a)|application\/pdf)$/;
+const DOWNLOAD_TYPES =
+  /^(text\/(plain|csv|markdown)|application\/(zip|json|msword|vnd\.openxmlformats-officedocument\.[\w.-]+|vnd\.ms-excel|vnd\.ms-powerpoint|vnd\.oasis\.opendocument\.[\w.-]+|octet-stream))$/;
+
+export function storedType(mimeType: string): { contentType: string; inline: boolean } {
+  const type = mimeType.trim().toLowerCase().split(';')[0] ?? '';
+  if (INLINE_TYPES.test(type)) return { contentType: type, inline: true };
+  if (DOWNLOAD_TYPES.test(type)) return { contentType: type, inline: false };
+  return { contentType: 'application/octet-stream', inline: false };
+}
 
 /**
  * Single source of truth for Spaces / S3 configuration. Accepts both the
@@ -159,13 +179,19 @@ authedRouter.post('/presign', async (req: Request, res: Response) => {
     const body = presignSchema.parse(req.body);
     const config = getSpacesConfig();
     const key = buildObjectKey(body.filename);
+    const stored = storedType(body.mimeType);
+    const disposition = stored.inline
+      ? undefined
+      : `attachment; filename="${sanitizeFilename(body.filename)}"`;
 
     if (config) {
       const client = getSpacesClient(config);
+      // The type and disposition are signed: the upload cannot change them.
       const command = new PutObjectCommand({
         Bucket: config.bucket,
         Key: key,
-        ContentType: body.mimeType,
+        ContentType: stored.contentType,
+        ...(disposition && { ContentDisposition: disposition }),
         ContentLength: body.size,
         ACL: 'public-read',
       });
@@ -175,7 +201,8 @@ authedRouter.post('/presign', async (req: Request, res: Response) => {
         uploadUrl,
         fileUrl: `${config.publicBaseUrl}/${key}`,
         headers: {
-          'Content-Type': body.mimeType,
+          'Content-Type': stored.contentType,
+          ...(disposition && { 'Content-Disposition': disposition }),
           'x-amz-acl': 'public-read',
         },
       });
@@ -187,7 +214,7 @@ authedRouter.post('/presign', async (req: Request, res: Response) => {
     const token = crypto.randomBytes(24).toString('hex');
     localTokens.set(token, {
       key,
-      mimeType: body.mimeType,
+      mimeType: stored.contentType,
       size: body.size,
       expiresAt: Date.now() + LOCAL_TOKEN_TTL_MS,
     });
@@ -196,7 +223,7 @@ authedRouter.post('/presign', async (req: Request, res: Response) => {
       mode: 'local',
       uploadUrl: `${base}/uploads/local/${token}`,
       fileUrl: `${base}/uploads/${key}`,
-      headers: { 'Content-Type': body.mimeType },
+      headers: { 'Content-Type': stored.contentType },
     });
   } catch (error: unknown) {
     if (error instanceof z.ZodError) {

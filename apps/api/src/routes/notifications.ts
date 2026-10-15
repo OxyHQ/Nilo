@@ -26,6 +26,7 @@ import {
 } from '../lib/notification-service.js';
 import { VAPID_PUBLIC_KEY } from '../lib/web-push.js';
 import { log } from '../lib/logger.js';
+import { assertPublicHttpsUrl } from '../lib/safe-fetch.js';
 import type { Request, Response } from 'express';
 
 const router = Router();
@@ -230,6 +231,13 @@ router.post('/web-push-subscription', async (req: Request, res: Response) => {
     }
     if (!keys?.p256dh || !keys?.auth) {
       return res.status(400).json({ error: 'Subscription keys (p256dh, auth) are required' });
+    }
+    // The server will POST to this URL: it must be a public push service,
+    // never an address inside the server's network.
+    try {
+      await assertPublicHttpsUrl(endpoint);
+    } catch {
+      return res.status(400).json({ error: 'Subscription endpoint must be a public https URL' });
     }
 
     const subscription = await upsertWebPushSubscription(getDb(), {

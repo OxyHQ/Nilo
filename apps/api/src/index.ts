@@ -162,7 +162,26 @@ app.use('/databases', databasesRouter);
 app.use('/uploads', uploadsRouter);
 app.use('/embed', embedRouter);
 // Serve local-disk uploads (only used when Spaces creds are not configured)
-app.use('/uploads', express.static(LOCAL_UPLOAD_ROOT, { fallthrough: true }));
+// Local uploads (no object storage configured) come from this origin: they
+// must never run as pages here. Nothing is sniffed, nothing scripts, and only
+// media and PDFs display inline.
+app.use(
+  '/uploads',
+  express.static(LOCAL_UPLOAD_ROOT, {
+    fallthrough: true,
+    setHeaders: (res, filePath) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+      if (
+        !/\.(png|jpe?g|gif|webp|avif|heic|heif|bmp|mp4|webm|mov|ogg|mp3|m4a|wav|aac|flac|pdf)$/i.test(
+          filePath,
+        )
+      ) {
+        res.setHeader('Content-Disposition', 'attachment');
+      }
+    },
+  }),
+);
 
 // Root route
 app.get('/', (_req, res) => {
