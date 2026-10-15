@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import { useOxy } from '@oxy.so/services';
 import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
@@ -69,6 +70,11 @@ export function useDatabase(id: string | undefined) {
         views: res.data.views ?? [],
       };
     },
+    retry: (count, error) => {
+      if (axios.isAxiosError(error) && [403, 404].includes(error.response?.status ?? 0))
+        return false;
+      return count < 2;
+    },
     enabled: isAuthenticated && Boolean(id),
   });
 }
@@ -86,7 +92,8 @@ export function useCreateDatabase() {
         views: res.data.views ?? [],
       };
     },
-    onSuccess: ({ database }) => {
+    onSuccess: ({ database, views }) => {
+      queryClient.setQueryData(queryKeys.databases.detail(database.id), { database, views });
       queryClient.invalidateQueries({
         queryKey: queryKeys.databases.list(database.workspaceId),
       });

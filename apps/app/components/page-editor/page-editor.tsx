@@ -1,3 +1,5 @@
+import { useCreateDatabase } from '@/lib/hooks/use-databases';
+import { usePage } from '@/lib/hooks/use-pages';
 import { useSearchBlock } from '@/lib/hooks/use-search-block';
 import {
   BlockEditor,
@@ -14,7 +16,7 @@ import {
 } from '@oxy.so/bloom-editor';
 import { resolveAccentColors, useTheme } from '@oxy.so/bloom/theme';
 import { toast } from '@oxy.so/bloom/toast';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -351,6 +353,14 @@ function useSlashItems(): SlashItem[] {
         'embeds',
         block('video', { source: 'youtube' }),
       ),
+      item(
+        'inlineDatabase',
+        t('editor.slashMenu.inlineDatabase.label'),
+        t('editor.slashMenu.inlineDatabase.description'),
+        t('editor.slashMenu.inlineDatabase.keywords'),
+        'database',
+        { kind: 'custom', id: 'inlineDatabase' },
+      ),
     ];
   }, [t, locale]);
 }
@@ -381,6 +391,11 @@ const CONTAINERS: Record<string, BlockSnapshot> = {
 function insertContainer(store: EditorStore, id: string, blockId: string): void {
   const snapshot = CONTAINERS[id];
   if (!snapshot) return;
+  insertBlockSnapshot(store, snapshot, blockId);
+}
+
+function insertBlockSnapshot(store: EditorStore, snapshot: BlockSnapshot, blockId: string): void {
+  if (!store.doc.blocks[blockId]) return;
   const block = getBlock(store.doc, blockId);
   const empty = (block.text ?? []).every((segment) => !segment.text) && block.children.length === 0;
   store.sealHistory();
@@ -408,6 +423,12 @@ export function PageEditor({
   const { colors } = useColorScheme();
   const { store, status, rejected, collaborators, error } = usePageEditor(pageId, readOnly);
   useSearchBlock(focusedBlockId, Boolean(store));
+  const page = usePage(pageId);
+  const createDatabase = useCreateDatabase();
+  const creatingDatabase = useRef(false);
+  const currentEditor = useRef({ store, readOnly });
+  const workspaceId = useRef<string | undefined>(undefined);
+  workspaceId.current = page.data?.page.workspaceId;
   const theme = useEditorTheme();
   const labels = useEditorLabels();
   const slashItems = useSlashItems();
@@ -430,6 +451,48 @@ export function PageEditor({
           ]
         : [],
     [canComment, t],
+  );
+
+  useEffect(() => {
+    currentEditor.current = { store, readOnly };
+    return () => {
+      currentEditor.current = { store: null, readOnly: true };
+    };
+  }, [store, readOnly]);
+
+  // Stable across renders: the editor's context (and so every block) depends on it.
+  const createDatabaseAsync = createDatabase.mutateAsync;
+  const onSlashAction = useCallback(
+    async (id: string, blockId: string) => {
+      if (!store || readOnly) return;
+      if (id !== 'inlineDatabase') {
+        insertContainer(store, id, blockId);
+        return;
+      }
+      const workspace = workspaceId.current;
+      if (!workspace || creatingDatabase.current) return;
+      creatingDatabase.current = true;
+      try {
+        const { database } = await createDatabaseAsync({
+          workspaceId: workspace,
+          parentPageId: pageId,
+          isInline: true,
+          name: t('editor.inlineDatabase.defaultName'),
+        });
+        if (currentEditor.current.store === store && !currentEditor.current.readOnly) {
+          insertBlockSnapshot(
+            store,
+            { type: 'inline_database', props: { databaseId: database.id } },
+            blockId,
+          );
+        }
+      } catch {
+        toast.error(t('editor.inlineDatabase.createFailed'));
+      } finally {
+        creatingDatabase.current = false;
+      }
+    },
+    [store, readOnly, pageId, t, createDatabaseAsync],
   );
 
   useEffect(() => {
@@ -472,10 +535,15 @@ export function PageEditor({
           </Text>
         </View>
       ) : null}
+      {createDatabase.isPending ? (
+        <Text accessibilityLiveRegion="polite" className="text-sm text-muted-foreground">
+          {t('editor.inlineDatabase.creating')}
+        </Text>
+      ) : null}
       <BlockEditor
         store={store}
         slashItems={slashItems}
-        onSlashAction={(id, blockId) => insertContainer(store, id, blockId)}
+        onSlashAction={onSlashAction}
         renderers={renderers}
         markers={markers}
         blockActions={blockActions}

@@ -14,6 +14,7 @@ interface ViewGalleryProps {
   view: DatabaseView;
   rows: DatabaseRow[];
   isLoading: boolean;
+  readOnly?: boolean;
 }
 
 const CARD_WIDTH = 240;
@@ -22,7 +23,13 @@ const CARD_WIDTH = 240;
  * Gallery view — grid of cards. Each card shows the row's cover (or a
  * configured file property), title, and a few preview properties.
  */
-export function ViewGallery({ database, view, rows, isLoading }: ViewGalleryProps) {
+export function ViewGallery({
+  database,
+  view,
+  rows,
+  isLoading,
+  readOnly = false,
+}: ViewGalleryProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -50,6 +57,8 @@ export function ViewGallery({ database, view, rows, isLoading }: ViewGalleryProp
           return (
             <Pressable
               key={row.id}
+              accessibilityRole="link"
+              accessibilityLabel={row.title || t('databases.untitled')}
               onPress={() => router.push(`/p/${row.id}`)}
               className="bg-card border border-border rounded-xl overflow-hidden"
               style={{ width: CARD_WIDTH }}
@@ -84,6 +93,7 @@ export function ViewGallery({ database, view, rows, isLoading }: ViewGalleryProp
                   {visibleProperties.slice(0, 3).map((property) => (
                     <View key={property.id} className="flex-row items-center gap-2">
                       <PropertyCell
+                        readOnly={readOnly}
                         property={property}
                         value={row.properties[property.id] ?? null}
                         variant="card"
@@ -97,16 +107,21 @@ export function ViewGallery({ database, view, rows, isLoading }: ViewGalleryProp
           );
         })}
 
-        <Pressable
-          onPress={() => createRow.mutate({ databaseId: database.id })}
-          className="border border-dashed border-border rounded-xl items-center justify-center"
-          style={{ width: CARD_WIDTH, height: 200 }}
-        >
-          <Plus size={20} color={colors.mutedForeground} />
-          <Text className="text-sm text-muted-foreground mt-1">
-            {createRow.isPending ? t('databases.actions.adding') : t('databases.gallery.newCard')}
-          </Text>
-        </Pressable>
+        {!readOnly ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('databases.actions.new')}
+            disabled={createRow.isPending}
+            onPress={() => createRow.mutate({ databaseId: database.id })}
+            className="border border-dashed border-border rounded-xl items-center justify-center"
+            style={{ width: CARD_WIDTH, height: 200 }}
+          >
+            <Plus size={20} color={colors.mutedForeground} />
+            <Text className="text-sm text-muted-foreground mt-1">
+              {createRow.isPending ? t('databases.actions.adding') : t('databases.gallery.newCard')}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </ScrollView>
   );

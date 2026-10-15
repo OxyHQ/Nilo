@@ -21,6 +21,7 @@ interface ViewTableProps {
   view: DatabaseView;
   rows: DatabaseRow[];
   isLoading: boolean;
+  readOnly?: boolean;
 }
 
 const DEFAULT_COL_WIDTH = 200;
@@ -31,7 +32,7 @@ const TITLE_COL_WIDTH = 280;
  * first column, then one column per visible property. Each cell uses the
  * shared `PropertyCell` so editing is consistent across views.
  */
-export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
+export function ViewTable({ database, view, rows, isLoading, readOnly = false }: ViewTableProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -45,29 +46,32 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
   }, [database.schema.properties, view.hiddenProperties]);
 
   const handleNewRow = React.useCallback(async () => {
+    if (readOnly) return;
     await createRow.mutateAsync({ databaseId: database.id });
-  }, [createRow, database.id]);
+  }, [createRow, database.id, readOnly]);
 
   const handleCellChange = React.useCallback(
     (rowId: string, propertyId: string, value: PropertyValue) => {
+      if (readOnly) return;
       updateRow.mutate({
         databaseId: database.id,
         rowId,
         properties: { [propertyId]: value },
       });
     },
-    [database.id, updateRow],
+    [database.id, updateRow, readOnly],
   );
 
   const handleTitleChange = React.useCallback(
     (rowId: string, title: string) => {
+      if (readOnly) return;
       updateRow.mutate({
         databaseId: database.id,
         rowId,
         title,
       });
     },
-    [database.id, updateRow],
+    [database.id, updateRow, readOnly],
   );
 
   if (isLoading) {
@@ -92,7 +96,13 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
             </Text>
           </View>
           {visibleProperties.map((property) => (
-            <ColumnHeader key={property.id} database={database} view={view} property={property} />
+            <ColumnHeader
+              readOnly={readOnly}
+              key={property.id}
+              database={database}
+              view={view}
+              property={property}
+            />
           ))}
           <View className="px-3 py-2 items-center justify-center" style={{ width: 60 }} />
         </View>
@@ -108,9 +118,12 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
               <Pressable
                 className="px-3 py-2 border-r border-border/60 flex-row items-center"
                 style={{ width: TITLE_COL_WIDTH }}
+                accessibilityRole="link"
+                accessibilityLabel={row.title || t('databases.untitled')}
                 onPress={() => router.push(`/p/${row.id}`)}
               >
                 <TitleCell
+                  readOnly={readOnly}
                   initial={row.title}
                   onChange={(next) => handleTitleChange(row.id, next)}
                 />
@@ -122,6 +135,7 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
                   style={{ width: DEFAULT_COL_WIDTH }}
                 >
                   <PropertyCell
+                    readOnly={readOnly}
                     property={property}
                     value={row.properties[property.id] ?? null}
                     variant="table"
@@ -135,15 +149,20 @@ export function ViewTable({ database, view, rows, isLoading }: ViewTableProps) {
         )}
 
         {/* new row */}
-        <Pressable
-          onPress={handleNewRow}
-          className="flex-row items-center gap-2 px-3 py-2 border-b border-border/60 hover:bg-muted/40"
-        >
-          <Plus size={14} color={colors.mutedForeground} />
-          <Text className="text-sm text-muted-foreground">
-            {createRow.isPending ? t('databases.actions.adding') : t('databases.actions.new')}
-          </Text>
-        </Pressable>
+        {!readOnly ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('databases.actions.new')}
+            disabled={createRow.isPending}
+            onPress={handleNewRow}
+            className="flex-row items-center gap-2 px-3 py-2 border-b border-border/60 hover:bg-muted/40"
+          >
+            <Plus size={14} color={colors.mutedForeground} />
+            <Text className="text-sm text-muted-foreground">
+              {createRow.isPending ? t('databases.actions.adding') : t('databases.actions.new')}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -153,37 +172,47 @@ interface ColumnHeaderProps {
   database: Database;
   view: DatabaseView;
   property: DatabaseProperty;
+  readOnly: boolean;
 }
 
-function ColumnHeader({ database, view, property }: ColumnHeaderProps) {
+function ColumnHeader({ database, view, property, readOnly }: ColumnHeaderProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   return (
     <View
       className="px-3 py-2 border-r border-border flex-row items-center justify-between"
       style={{ width: DEFAULT_COL_WIDTH }}
     >
-      <Pressable onPress={() => setMenuOpen(true)} className="flex-1">
+      <Pressable
+        disabled={readOnly}
+        accessibilityRole="button"
+        accessibilityLabel={property.name}
+        onPress={() => setMenuOpen(true)}
+        className="flex-1"
+      >
         <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {property.name}
         </Text>
       </Pressable>
-      <PropertyHeaderMenu
-        open={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        database={database}
-        view={view}
-        property={property}
-      />
+      {!readOnly ? (
+        <PropertyHeaderMenu
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          database={database}
+          view={view}
+          property={property}
+        />
+      ) : null}
     </View>
   );
 }
 
 interface TitleCellProps {
   initial: string;
+  readOnly: boolean;
   onChange: (next: string) => void;
 }
 
-function TitleCell({ initial, onChange }: TitleCellProps) {
+function TitleCell({ initial, onChange, readOnly }: TitleCellProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const [draft, setDraft] = React.useState(initial);
@@ -195,9 +224,10 @@ function TitleCell({ initial, onChange }: TitleCellProps) {
     if (draft !== initial) onChange(draft);
   };
 
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' && !readOnly) {
     return (
       <input
+        aria-label={t('common.name')}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}

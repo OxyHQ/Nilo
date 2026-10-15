@@ -12,8 +12,8 @@ import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useDeletePage, useDuplicatePage, useUpdatePage } from '@/lib/hooks/use-pages';
-import apiClient from '@/lib/api/client';
-import { API_ROUTES } from '@/lib/api/routes';
+import { useExportPage } from '@/lib/hooks/use-page-transfer';
+import { ImportPagesDialog } from './import-pages-dialog';
 import type { Page } from '@/lib/types/pages';
 import { MoveToDialog } from './move-to-dialog';
 
@@ -35,6 +35,8 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
   const duplicatePage = useDuplicatePage();
   const updatePage = useUpdatePage();
   const deletePage = useDeletePage();
+  const exportPage = useExportPage();
+  const [importOpen, setImportOpen] = React.useState(false);
 
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [remindersOpen, setRemindersOpen] = React.useState(false);
@@ -72,36 +74,34 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
     toast.success(t('pages.toasts.linkCopied'));
   }, [page.id, t]);
 
-  const handleExportMarkdown = React.useCallback(async () => {
+  const handleExport = async (format: 'md' | 'html') => {
+    if (Platform.OS !== 'web') {
+      toast.info(t('pages.export.webOnly'));
+      return;
+    }
     try {
-      const res = await apiClient.get<string>(API_ROUTES.pages.export(page.id), {
-        params: { format: 'md' },
-        responseType: 'text',
-        transformResponse: [(d: string) => d],
+      const { blob, filename } = await exportPage.mutateAsync({
+        id: page.id,
+        format,
+        fallback: t('pages.untitled'),
       });
-      const markdown = typeof res.data === 'string' ? res.data : '';
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        const blob = new Blob([markdown], {
-          type: 'text/markdown;charset=utf-8',
-        });
-        const href = URL.createObjectURL(blob);
-        const link = document.createElement('a');
+      const href = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      try {
         link.href = href;
-        link.download = `${(page.title || 'untitled').replace(/[^a-zA-Z0-9-_]+/gu, '-')}.md`;
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(href);
-        toast.success(t('pages.toasts.markdownDownloaded'));
-      } else {
-        await Clipboard.setStringAsync(markdown);
-        toast.success(t('pages.toasts.markdownCopied'));
+      } finally {
+        link.remove();
+        // Give the browser time to start reading the download before releasing it.
+        setTimeout(() => URL.revokeObjectURL(href), 60_000);
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('pages.toasts.exportFailed');
-      toast.error(msg);
+      toast.success(t('pages.export.downloaded'));
+    } catch {
+      toast.error(t('pages.toasts.exportFailed'));
     }
-  }, [page.id, page.title, t]);
+  };
 
   const handleMoveToTrash = React.useCallback(() => {
     deletePage.mutate(
@@ -163,6 +163,36 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
           <DropdownMenu.Item key="reminders" onSelect={() => setRemindersOpen(true)}>
             <DropdownMenu.ItemTitle>{t('pages.reminders.title')}</DropdownMenu.ItemTitle>
           </DropdownMenu.Item>
+          <DropdownMenu.Sub>
+            <DropdownMenu.SubTrigger key="export" disabled={exportPage.isPending}>
+              <DropdownMenu.ItemTitle>{t('pages.export.title')}</DropdownMenu.ItemTitle>
+            </DropdownMenu.SubTrigger>
+            <DropdownMenu.SubContent>
+              <DropdownMenu.Item
+                key="export-md"
+                disabled={exportPage.isPending}
+                onSelect={() => {
+                  void handleExport('md');
+                }}
+              >
+                <DropdownMenu.ItemTitle>{t('pages.export.markdown')}</DropdownMenu.ItemTitle>
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                key="export-html"
+                disabled={exportPage.isPending}
+                onSelect={() => {
+                  void handleExport('html');
+                }}
+              >
+                <DropdownMenu.ItemTitle>{t('pages.export.html')}</DropdownMenu.ItemTitle>
+              </DropdownMenu.Item>
+            </DropdownMenu.SubContent>
+          </DropdownMenu.Sub>
+          {!readOnly && !page.archived ? (
+            <DropdownMenu.Item key="import" onSelect={() => setImportOpen(true)}>
+              <DropdownMenu.ItemTitle>{t('pages.import.intoPage')}</DropdownMenu.ItemTitle>
+            </DropdownMenu.Item>
+          ) : null}
           {!readOnly && <DropdownMenu.Separator />}
           {readOnly ? null : !page.archived ? (
             <>
@@ -203,11 +233,6 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
                 <DropdownMenu.ItemTitle>{t('pages.actions.copyLink')}</DropdownMenu.ItemTitle>
               </DropdownMenu.Item>
               <DropdownMenu.Separator />
-              <DropdownMenu.Item key="export-md" onSelect={handleExportMarkdown}>
-                <DropdownMenu.ItemIcon ios={{ name: 'arrow.down.doc' }} />
-                <DropdownMenu.ItemTitle>{t('pages.actions.exportMarkdown')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Separator />
               <DropdownMenu.Item key="trash" destructive onSelect={handleMoveToTrash}>
                 <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
                 <DropdownMenu.ItemTitle>{t('pages.actions.moveToTrash')}</DropdownMenu.ItemTitle>
@@ -241,6 +266,13 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
         </DropdownMenu.Content>
       </DropdownMenu.Root>
 
+      {importOpen ? (
+        <ImportPagesDialog
+          workspaceId={page.workspaceId}
+          parentId={page.id}
+          onClose={() => setImportOpen(false)}
+        />
+      ) : null}
       {historyOpen ? <PageHistoryDialog page={page} onClose={() => setHistoryOpen(false)} /> : null}
       {remindersOpen ? (
         <ReminderDialog pageId={page.id} onClose={() => setRemindersOpen(false)} />

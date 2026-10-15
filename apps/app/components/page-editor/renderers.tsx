@@ -11,6 +11,7 @@ import { ColumnsBlock } from '@/components/editor/blocks/columns-block';
 import { EmbedBlock } from '@/components/editor/blocks/embed-block';
 import { EquationBlock } from '@/components/editor/blocks/equation-block';
 import { FileBlock } from '@/components/editor/blocks/file-block';
+import { InlineDatabaseBlock } from '@/components/editor/blocks/inline-database-block';
 import { ImageBlock } from '@/components/editor/blocks/image-block';
 import { LinkToPageBlock } from '@/components/editor/blocks/link-to-page-block';
 import { MermaidBlock } from '@/components/editor/blocks/mermaid-block';
@@ -117,6 +118,7 @@ function TableOfContents({ store }: { store: EditorStore }) {
 /** Every block type Nilo draws itself, keyed by type. */
 export function createRenderers(pageId: string, store: EditorStore): Record<string, BlockRenderer> {
   return {
+    inline_database: adapt(InlineDatabaseBlock, pageId),
     image: adapt(ImageBlock, pageId),
     video: adapt(VideoBlock, pageId),
     audio: adapt(AudioBlock, pageId),

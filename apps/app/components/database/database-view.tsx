@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { ArrowUpDown, Filter as FilterIcon, Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -21,6 +21,7 @@ interface DatabaseViewContainerProps {
   view: DatabaseView;
   rows: DatabaseRow[];
   isLoading: boolean;
+  readOnly?: boolean;
 }
 
 /**
@@ -32,6 +33,7 @@ export function DatabaseViewContainer({
   view,
   rows,
   isLoading,
+  readOnly = false,
 }: DatabaseViewContainerProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -44,76 +46,115 @@ export function DatabaseViewContainer({
 
   return (
     <View className="flex-1">
-      <View className="flex-row items-center justify-between px-6 py-2 border-b border-border/30">
-        <View className="flex-row items-center gap-1">
-          <ToolButton
-            onPress={() => setFilterOpen(true)}
-            active={filterCount > 0}
-            icon={FilterIcon}
-            label={
-              filterCount > 0
-                ? t('databases.toolbar.filterCount', { count: filterCount })
-                : t('databases.toolbar.filter')
-            }
-          />
-          <ToolButton
-            onPress={() => setSortOpen(true)}
-            active={sortCount > 0}
-            icon={ArrowUpDown}
-            label={
-              sortCount > 0
-                ? t('databases.toolbar.sortCount', { count: sortCount })
-                : t('databases.toolbar.sort')
-            }
-          />
-          <AddPropertyButton database={database} />
+      {!readOnly ? (
+        <View className="flex-row items-center justify-between px-6 py-2 border-b border-border">
+          <View className="flex-row items-center gap-1">
+            <ToolButton
+              onPress={() => setFilterOpen(true)}
+              active={filterCount > 0}
+              icon={FilterIcon}
+              label={
+                filterCount > 0
+                  ? t('databases.toolbar.filterCount', { count: filterCount })
+                  : t('databases.toolbar.filter')
+              }
+            />
+            <ToolButton
+              onPress={() => setSortOpen(true)}
+              active={sortCount > 0}
+              icon={ArrowUpDown}
+              label={
+                sortCount > 0
+                  ? t('databases.toolbar.sortCount', { count: sortCount })
+                  : t('databases.toolbar.sort')
+              }
+            />
+            <AddPropertyButton database={database} />
+          </View>
+          <View className="flex-row items-center gap-1">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('databases.actions.new')}
+              disabled={createRow.isPending}
+              onPress={() => createRow.mutate({ databaseId: database.id })}
+              className="flex-row items-center gap-1 px-2 py-1 rounded bg-primary"
+            >
+              <Plus size={12} color={colors.primaryForeground} />
+              <Text className="text-xs text-primary-foreground">
+                {createRow.isPending ? t('databases.actions.adding') : t('databases.actions.new')}
+              </Text>
+            </Pressable>
+          </View>
         </View>
-        <View className="flex-row items-center gap-1">
-          <Pressable
-            onPress={() => createRow.mutate({ databaseId: database.id })}
-            className="flex-row items-center gap-1 px-2 py-1 rounded bg-primary"
-          >
-            <Plus size={12} color="#ffffff" />
-            <Text className="text-xs text-primary-foreground">
-              {createRow.isPending ? t('databases.actions.adding') : t('databases.actions.new')}
-            </Text>
-          </Pressable>
-        </View>
-      </View>
+      ) : null}
 
       <View className="flex-1">
         {view.type === 'table' ? (
-          <ViewTable database={database} view={view} rows={rows} isLoading={isLoading} />
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+            <ViewTable
+              readOnly={readOnly}
+              database={database}
+              view={view}
+              rows={rows}
+              isLoading={isLoading}
+            />
+          </ScrollView>
         ) : null}
         {view.type === 'board' ? (
-          <ViewBoard database={database} view={view} rows={rows} isLoading={isLoading} />
+          <ViewBoard
+            readOnly={readOnly}
+            database={database}
+            view={view}
+            rows={rows}
+            isLoading={isLoading}
+          />
         ) : null}
         {view.type === 'gallery' ? (
-          <ViewGallery database={database} view={view} rows={rows} isLoading={isLoading} />
+          <ViewGallery
+            readOnly={readOnly}
+            database={database}
+            view={view}
+            rows={rows}
+            isLoading={isLoading}
+          />
         ) : null}
         {view.type === 'list' ? (
-          <ViewList database={database} view={view} rows={rows} isLoading={isLoading} />
+          <ViewList
+            readOnly={readOnly}
+            database={database}
+            view={view}
+            rows={rows}
+            isLoading={isLoading}
+          />
         ) : null}
         {view.type === 'calendar' ? (
-          <ViewCalendar database={database} view={view} rows={rows} isLoading={isLoading} />
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+            <ViewCalendar database={database} view={view} rows={rows} isLoading={isLoading} />
+          </ScrollView>
         ) : null}
         {view.type === 'timeline' ? (
-          <ViewTimeline database={database} view={view} rows={rows} isLoading={isLoading} />
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+            <ViewTimeline database={database} view={view} rows={rows} isLoading={isLoading} />
+          </ScrollView>
         ) : null}
       </View>
 
-      <FilterBuilder
-        open={filterOpen}
-        onClose={() => setFilterOpen(false)}
-        database={database}
-        view={view}
-      />
-      <SortBuilder
-        open={sortOpen}
-        onClose={() => setSortOpen(false)}
-        database={database}
-        view={view}
-      />
+      {!readOnly ? (
+        <>
+          <FilterBuilder
+            open={filterOpen}
+            onClose={() => setFilterOpen(false)}
+            database={database}
+            view={view}
+          />
+          <SortBuilder
+            open={sortOpen}
+            onClose={() => setSortOpen(false)}
+            database={database}
+            view={view}
+          />
+        </>
+      ) : null}
     </View>
   );
 }
@@ -129,9 +170,11 @@ function ToolButton({ onPress, active, icon: Icon, label }: ToolButtonProps) {
   const { colors } = useColorScheme();
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
       onPress={onPress}
       className={`flex-row items-center gap-1 px-2 py-1 rounded ${
-        active ? 'bg-primary/15' : 'hover:bg-muted'
+        active ? 'bg-muted' : 'hover:bg-muted'
       }`}
     >
       <Icon size={12} color={active ? colors.primary : colors.mutedForeground} />

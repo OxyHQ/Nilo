@@ -259,5 +259,36 @@
       "tomorrow": "Mañana a las 9:00",
       "week": "La próxima semana"
     }
+  },
+  "export": {
+    "title": "Exportar",
+    "markdown": "Markdown",
+    "html": "HTML",
+    "webOnly": "Por ahora, la exportación solo está disponible en la web. Abre esta página en tu navegador para descargarla.",
+    "downloaded": "Exportación descargada"
+  },
+  "import": {
+    "title": "Importar",
+    "intoPage": "Importar en esta página",
+    "description": "Elige archivos Markdown (.md) o un ZIP de una exportación de Notion en formato «Markdown y CSV» (hasta 20 MB). Los archivos Markdown se convierten en páginas; las carpetas correspondientes del ZIP, en subpáginas.",
+    "databasesUnsupported": "Las bases de datos aún no se importan. Los archivos CSV y otros formatos no compatibles se omiten y se muestran en los resultados.",
+    "chooseFiles": "Elegir archivos",
+    "reading": "Eligiendo y leyendo archivos…",
+    "uploading": "Subiendo… %{percent}%",
+    "processing": "Creando páginas…",
+    "openFirst": "Abrir la primera página",
+    "tooLarge": "Esta importación supera el límite de 20 MB. Elige archivos o un ZIP más pequeños.",
+    "noAccess": "No tienes permiso para importar en este destino.",
+    "noMarkdown": "No se encontró Markdown que se pueda importar. Elige archivos .md o una exportación ZIP de Markdown.",
+    "invalidFiles": "Elige uno o varios archivos .md, o un solo archivo .zip. No los mezcles.",
+    "failed": "No se pudo importar. Inténtalo de nuevo.",
+    "result": {
+      "one": "%{count} página creada",
+      "other": "%{count} páginas creadas"
+    },
+    "skipped": {
+      "one": "%{count} archivo omitido",
+      "other": "%{count} archivos omitidos"
+    }
   }
 }

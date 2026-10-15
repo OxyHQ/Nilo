@@ -259,5 +259,36 @@
       "tomorrow": "Tomorrow 9:00",
       "week": "Next week"
     }
+  },
+  "export": {
+    "title": "Export",
+    "markdown": "Markdown",
+    "html": "HTML",
+    "webOnly": "Export is available on the web for now. Open this page in your browser to download it.",
+    "downloaded": "Export downloaded"
+  },
+  "import": {
+    "title": "Import",
+    "intoPage": "Import into this page",
+    "description": "Choose Markdown (.md) files or one ZIP from a Notion “Markdown & CSV” export (up to 20 MB). Markdown files become pages; matching folders in a ZIP become subpages.",
+    "databasesUnsupported": "Databases are not imported yet. CSV and other unsupported files are skipped and listed in the results.",
+    "chooseFiles": "Choose files",
+    "reading": "Choosing and reading files…",
+    "uploading": "Uploading… %{percent}%",
+    "processing": "Creating pages…",
+    "openFirst": "Open first page",
+    "tooLarge": "This import exceeds the 20 MB limit. Choose smaller files or a smaller ZIP.",
+    "noAccess": "You do not have permission to import into this destination.",
+    "noMarkdown": "No importable Markdown was found. Choose .md files or a Markdown ZIP export.",
+    "invalidFiles": "Choose one or more .md files, or exactly one .zip file. Do not mix them.",
+    "failed": "Import failed. Please try again.",
+    "result": {
+      "one": "%{count} page created",
+      "other": "%{count} pages created"
+    },
+    "skipped": {
+      "one": "%{count} skipped file",
+      "other": "%{count} skipped files"
+    }
   }
 }

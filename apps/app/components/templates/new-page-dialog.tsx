@@ -7,6 +7,7 @@ import { Text } from '@/components/ui/text';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useCreatePage, useDuplicatePage } from '@/lib/hooks/use-pages';
 import { useNewPageStore, type NewPageDestination } from '@/lib/stores/new-page-store';
+import { ImportPagesDialog } from '@/components/page-chrome/import-pages-dialog';
 import { TemplateList } from './template-list';
 
 export function NewPageDialog() {
@@ -26,12 +27,14 @@ function PageChoices({ destination }: { destination: NewPageDestination }) {
   const close = useNewPageStore((s) => s.close);
   const create = useCreatePage();
   const duplicate = useDuplicatePage();
+  const [importOpen, setImportOpen] = useState(false);
   const [templates, setTemplates] = useState(false);
   const pending = create.isPending || duplicate.isPending;
   const created = (page: { id: string }) => {
     close();
     router.push(`/p/${page.id}`);
   };
+  if (importOpen) return <ImportPagesDialog {...destination} onClose={close} />;
   return (
     <Dialog
       open
@@ -74,6 +77,14 @@ function PageChoices({ destination }: { destination: NewPageDestination }) {
           </ScrollView>
         ) : (
           <View className="gap-2">
+            <Button
+              variant="outline"
+              accessibilityLabel={t('pages.import.title')}
+              disabled={pending}
+              onPress={() => setImportOpen(true)}
+            >
+              <Text>{t('pages.import.title')}</Text>
+            </Button>
             <Button
               accessibilityLabel={t('pages.templates.blank')}
               disabled={pending}

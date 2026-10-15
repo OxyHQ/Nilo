@@ -5,6 +5,8 @@ export const API_ROUTES = {
     `/public/pages/${encodeURIComponent(slug)}${pageId ? `/${encodeURIComponent(pageId)}` : ''}`,
   reminders: { list: '/reminders', delete: (id: string) => `/reminders/${id}` },
   pages: {
+    import: '/pages/import',
+    importZip: '/pages/import/zip',
     list: '/pages',
     publish: (id: string) => `/pages/${id}/publish`,
     versions: (id: string) => `/pages/${id}/versions`,

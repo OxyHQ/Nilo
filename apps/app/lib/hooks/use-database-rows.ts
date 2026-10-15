@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import axios from 'axios';
 import { useOxy } from '@oxy.so/services';
 import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
@@ -98,6 +99,11 @@ export function useDatabaseRows(databaseId: string | undefined, viewId: string |
         cursor = res.data.cursor;
       } while (cursor);
       return { ...first, rows, cursor: null };
+    },
+    retry: (count, error) => {
+      if (axios.isAxiosError(error) && [403, 404].includes(error.response?.status ?? 0))
+        return false;
+      return count < 2;
     },
     enabled: isAuthenticated && Boolean(databaseId),
   });

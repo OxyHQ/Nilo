@@ -144,6 +144,11 @@
       "label": "Bloque sincronizado",
       "description": "Hace referencia a otro bloque (marcador de posición de la fase 3).",
       "keywords": "sincronizado, espejo, referencia"
+    },
+    "inlineDatabase": {
+      "label": "Base de datos — Integrada",
+      "description": "Crea una base de datos dentro de esta página.",
+      "keywords": "base de datos,integrada,tabla,tablero,lista"
     }
   },
   "ui": {
@@ -210,5 +215,17 @@
   },
   "tableOfContents": {
     "empty": "Añade encabezados para completar el índice."
+  },
+  "inlineDatabase": {
+    "defaultName": "Base de datos sin título",
+    "setup": "Esta base de datos integrada necesita configurarse.",
+    "create": "Crear base de datos",
+    "creating": "Creando base de datos…",
+    "createFailed": "No se pudo crear la base de datos. Inténtalo de nuevo.",
+    "noAccess": "No tienes acceso a esta base de datos.",
+    "loading": "Cargando base de datos",
+    "loadFailed": "No se pudo cargar esta base de datos.",
+    "retry": "Reintentar",
+    "openFullPage": "Abrir como página completa"
   }
 }
