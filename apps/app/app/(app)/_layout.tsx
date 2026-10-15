@@ -12,6 +12,7 @@ import { useNotificationSetup } from '@/lib/hooks/use-notification-setup';
 import { useKeyboardShortcuts } from '@/lib/hooks/use-keyboard-shortcuts';
 import { CommandPalette } from '@/components/command-palette';
 import { ShortcutsDialog } from '@/components/shortcuts-dialog';
+import { AskAliaProvider } from '@/components/ask-alia';
 
 // Routes that handle their own top safe area insets
 const SELF_INSET_ROUTES = new Set(['index', 'settings']);
@@ -71,26 +72,28 @@ export default function AppLayout() {
   return (
     <AppErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        {/* root: isolate flex h-screen */}
-        <View className="isolate flex h-screen flex-row">
-          {/* main: isolate flex h-auto max-h-screen min-w-0 grow flex-col */}
-          <View className="isolate flex h-auto max-h-screen min-w-0 grow flex-col">
-            {/* content-area: relative isolate min-h-0 flex-1 overflow-hidden bg-background */}
-            <View className="relative isolate min-h-0 flex-1 overflow-hidden bg-background">
-              <Drawer drawerContent={renderDrawerContent} screenOptions={screenOptions}>
-                <Drawer.Screen
-                  name="settings/index"
-                  options={{
-                    drawerLabel: i18n.t('nav.settings'),
-                    title: i18n.t('nav.settings'),
-                  }}
-                />
-              </Drawer>
+        <AskAliaProvider>
+          {/* root: isolate flex h-screen */}
+          <View className="isolate flex h-screen flex-row">
+            {/* main: isolate flex h-auto max-h-screen min-w-0 grow flex-col */}
+            <View className="isolate flex h-auto max-h-screen min-w-0 grow flex-col">
+              {/* content-area: relative isolate min-h-0 flex-1 overflow-hidden bg-background */}
+              <View className="relative isolate min-h-0 flex-1 overflow-hidden bg-background">
+                <Drawer drawerContent={renderDrawerContent} screenOptions={screenOptions}>
+                  <Drawer.Screen
+                    name="settings/index"
+                    options={{
+                      drawerLabel: i18n.t('nav.settings'),
+                      title: i18n.t('nav.settings'),
+                    }}
+                  />
+                </Drawer>
+              </View>
             </View>
           </View>
-        </View>
-        <CommandPalette />
-        <ShortcutsDialog />
+          <CommandPalette />
+          <ShortcutsDialog />
+        </AskAliaProvider>
       </GestureHandlerRootView>
     </AppErrorBoundary>
   );
