@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
@@ -54,6 +54,7 @@ import {
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
+import { checkWorkspaceAccess, ensureRole } from '../lib/workspace-access.js';
 import {
   buildDefaultSchema,
   NAME_PROPERTY_ID,
@@ -291,30 +292,6 @@ function assertWorkspace(req: Request, res: Response): string | null {
     return null;
   }
   return workspaceId;
-}
-
-async function checkWorkspaceMembership(
-  req: Request,
-  res: Response,
-  workspaceId: string,
-): Promise<boolean> {
-  req.headers['x-workspace-id'] = workspaceId;
-  const passed = await new Promise<boolean>((resolve) => {
-    const next: NextFunction = (err?: unknown) => {
-      if (err) {
-        log.general.error({ err }, 'Workspace membership middleware errored');
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Workspace membership check failed' });
-        }
-        resolve(false);
-        return;
-      }
-      resolve(true);
-    };
-    requireWorkspaceMember(req, res, next);
-  });
-  if (!passed) return false;
-  return !res.headersSent;
 }
 
 /**
@@ -576,7 +553,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'viewer');
     if (!ok) return;
 
     const views = await listViewsByDatabase(handle, db.id);
@@ -611,6 +588,7 @@ router.post(
       const body = createDatabaseSchema.parse(req.body);
       const workspaceId = assertWorkspace(req, res);
       if (!workspaceId) return;
+      if (!ensureRole(req, res, 'editor')) return;
       if (body.workspaceId !== workspaceId) {
         res.status(403).json({ error: 'Workspace mismatch' });
         return;
@@ -692,7 +670,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
     if (!ok) return;
 
     // `undefined` and `null` are different instructions here: `icon` and
@@ -732,7 +710,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
     if (!ok) return;
 
     if (hard) {
@@ -782,7 +760,7 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
     if (!ok) return;
 
     const property: DatabaseProperty = {
@@ -831,7 +809,7 @@ router.patch(
         res.status(404).json({ error: 'Database not found' });
         return;
       }
-      const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+      const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
       if (!ok) return;
 
       const idx = db.propertiesSchema.properties.findIndex(
@@ -885,7 +863,7 @@ router.delete(
         res.status(404).json({ error: 'Database not found' });
         return;
       }
-      const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+      const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
       if (!ok) return;
 
       if (params.propertyId === NAME_PROPERTY_ID) {
@@ -937,7 +915,7 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'viewer');
     if (!ok) return;
 
     // Find the view (or fall back to default if none given).
@@ -1025,7 +1003,7 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
     if (!ok) return;
     const userId = req.user?.id;
     if (!userId) {
@@ -1089,7 +1067,7 @@ router.get('/:id/views', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'viewer');
     if (!ok) return;
 
     const views = await listViewsByDatabase(handle, db.id);
@@ -1112,7 +1090,7 @@ router.post('/:id/views', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
     if (!ok) return;
 
     // `??`, not `||`: `order: 0` is a legitimate explicit order.
@@ -1164,7 +1142,7 @@ router.patch(
         res.status(404).json({ error: 'Database not found' });
         return;
       }
-      const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+      const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
       if (!ok) return;
 
       const view = await findViewById(handle, params.viewId, db.id);
@@ -1227,7 +1205,7 @@ router.delete(
         res.status(404).json({ error: 'Database not found' });
         return;
       }
-      const ok = await checkWorkspaceMembership(req, res, db.workspaceId);
+      const ok = await checkWorkspaceAccess(req, res, db.workspaceId, 'editor');
       if (!ok) return;
 
       const view = await findViewById(handle, params.viewId, db.id);

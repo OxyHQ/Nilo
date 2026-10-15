@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
@@ -21,8 +21,8 @@ import {
 } from '../repositories/blocks.js';
 import { findPageById } from '../repositories/pages.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
+import { checkWorkspaceAccess } from '../lib/workspace-access.js';
 
 const router = Router();
 
@@ -438,35 +438,6 @@ function serializeBlock(block: BlockRow) {
 }
 
 /**
- * Sets the X-Workspace-Id header from the loaded resource's workspaceId
- * and runs `requireWorkspaceMember` inline. Returns true if the caller is
- * a member; false (with a response already sent) otherwise.
- */
-async function checkWorkspaceMembership(
-  req: Request,
-  res: Response,
-  workspaceId: string,
-): Promise<boolean> {
-  req.headers['x-workspace-id'] = workspaceId;
-  const passed = await new Promise<boolean>((resolve) => {
-    const next: NextFunction = (err?: unknown) => {
-      if (err) {
-        log.general.error({ err }, 'Workspace membership middleware errored');
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Workspace membership check failed' });
-        }
-        resolve(false);
-        return;
-      }
-      resolve(true);
-    };
-    requireWorkspaceMember(req, res, next);
-  });
-  if (!passed) return false;
-  return !res.headersSent;
-}
-
-/**
  * GET /api/pages/:pageId/blocks
  * Returns a flat list of blocks for the page. Frontend nests by parentBlockId.
  */
@@ -481,7 +452,7 @@ router.get('/pages/:pageId/blocks', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'viewer');
     if (!ok) return;
 
     const blocks = await listBlocksForPage(db, page.id);
@@ -509,7 +480,7 @@ router.post('/pages/:pageId/blocks', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'editor');
     if (!ok) return;
 
     if (body.parentBlockId) {
@@ -573,7 +544,7 @@ router.patch('/blocks/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'editor');
     if (!ok) return;
 
     if (body.parentBlockId !== undefined && body.parentBlockId !== null) {
@@ -643,7 +614,7 @@ router.delete('/blocks/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'editor');
     if (!ok) return;
 
     // One recursive statement in place of the BFS. The descendants are named
@@ -684,7 +655,7 @@ router.post('/pages/:pageId/blocks/reorder', async (req: Request, res: Response)
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'editor');
     if (!ok) return;
 
     const existing = await findBlocksByIds(db, body.blockIds);

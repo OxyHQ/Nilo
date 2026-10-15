@@ -37,7 +37,11 @@ vi.mock('../../middleware/auth.js', () => ({
 }));
 
 vi.mock('../../middleware/workspace.js', () => ({
-  requireWorkspaceMember: vi.fn((_req: any, _res: any, next: any) => next()),
+  // Mirrors the real middleware: the member's role lands on `req.workspace`.
+  requireWorkspaceMember: vi.fn((req: any, _res: any, next: any) => {
+    req.workspace = { id: req.headers['x-workspace-id'], role: req.member?.role };
+    next();
+  }),
 }));
 
 vi.mock('../../lib/notification-service.js', () => ({
@@ -168,6 +172,23 @@ describe('comments route', () => {
         content: { plainText: string };
       };
       expect(calledWith.content.plainText).toBe('Hello');
+    });
+
+    it('refuses a viewer, who may read but not comment', async () => {
+      const handler = findHandler('post', '/pages/:pageId/comments');
+      const req = makeReq({
+        params: { pageId: PAGE_ID },
+        member: { role: 'viewer' },
+        body: { content: { segments: [{ type: 'text', text: 'Hello' }] } },
+      });
+      const res = makeRes();
+      await handler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 'INSUFFICIENT_ROLE', required: 'commenter' }),
+      );
+      expect(mockComment.createComment).not.toHaveBeenCalled();
     });
 
     it('rejects empty content (Zod)', async () => {

@@ -69,7 +69,7 @@ vi.mock('../../middleware/auth.js', () => ({
 
 vi.mock('../../middleware/workspace.js', () => ({
   // Mirrors the real resolver's precedence — route param, then query, then
-  // header — because `checkWorkspaceMembership` in both routes works by
+  // header — because `checkWorkspaceAccess` in both routes works by
   // SETTING the header and re-running this middleware, and a mock that ignored
   // the header would make every `:id` route look unauthorised.
   requireWorkspaceMember: (
@@ -791,5 +791,55 @@ describe('blocks', () => {
       );
       expect(res.status).toBe(400);
     });
+  });
+});
+
+describe('role enforcement', () => {
+  it('lets a viewer read a page and its blocks but write nothing', async () => {
+    const page = await createPage({ title: 'read only' });
+    const block = await createBlock(page.id as string, {
+      type: 'paragraph',
+      content: { text: 'kept' },
+    });
+    const ws = { 'x-workspace-id': workspaceId };
+
+    ctx.role = 'viewer';
+    try {
+      expect((await api('GET', `/pages/${page.id}`)).status).toBe(200);
+      expect((await api('GET', `/pages/${page.id}/blocks`, undefined, ws)).status).toBe(200);
+
+      const writes = await Promise.all([
+        api('POST', '/pages', { workspaceId }),
+        api('PATCH', `/pages/${page.id}`, { title: 'changed' }),
+        api('DELETE', `/pages/${page.id}`),
+        api('POST', `/pages/${page.id}/duplicate`),
+        api('POST', `/pages/${page.id}/blocks`, { type: 'paragraph', content: {} }, ws),
+        api('PATCH', `/blocks/${block.id}`, { content: { text: 'changed' } }, ws),
+        api('DELETE', `/blocks/${block.id}`, undefined, ws),
+      ]);
+      for (const res of writes) {
+        expect(res.status).toBe(403);
+        expect(res.json.code).toBe('INSUFFICIENT_ROLE');
+      }
+    } finally {
+      ctx.role = 'owner';
+    }
+
+    const [row] = await db.select().from(pages).where(eq(pages.id, page.id as string));
+    expect(row?.title).toBe('read only');
+    expect(row?.archived).toBe(false);
+    const [kept] = await db.select().from(blocks).where(eq(blocks.id, block.id as string));
+    expect(kept?.content).toEqual({ text: 'kept' });
+  });
+
+  it('lets an editor write', async () => {
+    const page = await createPage();
+    ctx.role = 'editor';
+    try {
+      const res = await api('PATCH', `/pages/${page.id}`, { title: 'edited' });
+      expect(res.status).toBe(200);
+    } finally {
+      ctx.role = 'owner';
+    }
   });
 });
