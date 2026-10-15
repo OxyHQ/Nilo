@@ -1,3 +1,4 @@
+import { allowedOrigins } from './lib/allowed-origins.js';
 import { observeEcosystemSocket } from './ecosystemActivity';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
@@ -7,7 +8,7 @@ import { log } from './lib/logger.js';
 import { oxyClient } from './middleware/auth.js';
 import { registerPageRooms } from './collab/page-rooms.js';
 
-const ALLOWED_ORIGINS = [process.env.WEB_URL || 'http://localhost:3000', 'https://nilo.so'];
+const ALLOWED_ORIGINS = allowedOrigins();
 
 let io: Server | null = null;
 

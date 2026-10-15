@@ -6,6 +6,7 @@ import {
 import express from 'express';
 import http from 'node:http';
 import cors from 'cors';
+import { allowedOrigins } from './lib/allowed-origins.js';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -78,21 +79,7 @@ startEcosystemActivity(() => server.listening);
 initSocket(server);
 
 // Internal routes - restricted to known origins
-const PRODUCTION_ORIGINS = ['https://nilo.so'];
-
-const DEV_ORIGINS = [
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'http://localhost:8081',
-  'exp://localhost:8081',
-  'http://10.0.2.2:8081',
-];
-
-const allowedOrigins = [
-  ...(process.env.WEB_URL ? [process.env.WEB_URL] : []),
-  ...PRODUCTION_ORIGINS,
-  ...DEV_ORIGINS,
-];
+const corsOrigins = allowedOrigins();
 
 app.use((req, res, next) => {
   cors({
@@ -100,7 +87,7 @@ app.use((req, res, next) => {
       // Allow requests with no origin (like mobile apps or curl)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
+      if (corsOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
