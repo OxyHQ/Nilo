@@ -4,10 +4,12 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { OxyProvider, useOxy } from '@oxy.so/services';
-import { BloomThemeProvider } from '@oxy.so/bloom/theme';
+import { OverlayInertBoundary, PortalOutlet, PortalProvider } from '@oxy.so/bloom/portal';
+import { BloomProvider } from '@oxy.so/bloom/provider';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppErrorBoundary } from '@/components/error-boundary';
 import { KeyboardProvider } from '@/lib/keyboard';
@@ -92,30 +94,37 @@ function RootLayout() {
 
   return (
     <AppErrorBoundary>
-      <BloomThemeProvider
-        defaultMode="system"
-        defaultColorPreset="yellow"
-        persistKey={BLOOM_THEME_PERSIST_KEY}
-        storage={BLOOM_THEME_STORAGE}
-        fonts={false}
-      >
-        <QueryClientProvider client={queryClient}>
-          <OxyProvider
-            baseURL={OXY_API_URL}
-            clientId={process.env.EXPO_PUBLIC_OXY_CLIENT_ID}
-            authRedirectUri={Platform.OS !== 'web' ? AUTH_REDIRECT_URI : undefined}
-            language={{
-              supportedLocales: SUPPORTED_LOCALES,
-              fallbackLocale: DEFAULT_LOCALE,
-              onChange: (locale) => useI18nStore.getState().setLocale(locale),
-              onError: (error, locale) =>
-                console.error('Failed to follow the Oxy-resolved language', error, locale),
-            }}
-          >
-            <AppContent />
-          </OxyProvider>
-        </QueryClientProvider>
-      </BloomThemeProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <BloomProvider
+          defaultMode="system"
+          defaultColorPreset="yellow"
+          persistKey={BLOOM_THEME_PERSIST_KEY}
+          storage={BLOOM_THEME_STORAGE}
+          fonts={false}
+        >
+          <QueryClientProvider client={queryClient}>
+            <OxyProvider
+              baseURL={OXY_API_URL}
+              clientId={process.env.EXPO_PUBLIC_OXY_CLIENT_ID}
+              authRedirectUri={Platform.OS !== 'web' ? AUTH_REDIRECT_URI : undefined}
+              language={{
+                supportedLocales: SUPPORTED_LOCALES,
+                fallbackLocale: DEFAULT_LOCALE,
+                onChange: (locale) => useI18nStore.getState().setLocale(locale),
+                onError: (error, locale) =>
+                  console.error('Failed to follow the Oxy-resolved language', error, locale),
+              }}
+            >
+              <PortalProvider>
+                <OverlayInertBoundary>
+                  <AppContent />
+                </OverlayInertBoundary>
+                <PortalOutlet />
+              </PortalProvider>
+            </OxyProvider>
+          </QueryClientProvider>
+        </BloomProvider>
+      </GestureHandlerRootView>
     </AppErrorBoundary>
   );
 }

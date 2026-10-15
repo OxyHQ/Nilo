@@ -1,7 +1,6 @@
 import { Drawer } from 'expo-router/drawer';
 import { Sidebar } from '@/components/sidebar';
 import { AppErrorBoundary } from '@/components/error-boundary';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { View, Platform, useWindowDimensions } from 'react-native';
 import { useCallback } from 'react';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -71,30 +70,28 @@ export default function AppLayout() {
 
   return (
     <AppErrorBoundary>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <AskAliaProvider>
-          {/* root: isolate flex h-screen */}
-          <View className="isolate flex h-screen flex-row">
-            {/* main: isolate flex h-auto max-h-screen min-w-0 grow flex-col */}
-            <View className="isolate flex h-auto max-h-screen min-w-0 grow flex-col">
-              {/* content-area: relative isolate min-h-0 flex-1 overflow-hidden bg-background */}
-              <View className="relative isolate min-h-0 flex-1 overflow-hidden bg-background">
-                <Drawer drawerContent={renderDrawerContent} screenOptions={screenOptions}>
-                  <Drawer.Screen
-                    name="settings/index"
-                    options={{
-                      drawerLabel: i18n.t('nav.settings'),
-                      title: i18n.t('nav.settings'),
-                    }}
-                  />
-                </Drawer>
-              </View>
+      <AskAliaProvider>
+        {/* root: isolate flex h-screen */}
+        <View className="isolate flex h-screen flex-row">
+          {/* main: isolate flex h-auto max-h-screen min-w-0 grow flex-col */}
+          <View className="isolate flex h-auto max-h-screen min-w-0 grow flex-col">
+            {/* content-area: relative isolate min-h-0 flex-1 overflow-hidden bg-background */}
+            <View className="relative isolate min-h-0 flex-1 overflow-hidden bg-background">
+              <Drawer drawerContent={renderDrawerContent} screenOptions={screenOptions}>
+                <Drawer.Screen
+                  name="settings/index"
+                  options={{
+                    drawerLabel: i18n.t('nav.settings'),
+                    title: i18n.t('nav.settings'),
+                  }}
+                />
+              </Drawer>
             </View>
           </View>
-          <CommandPalette />
-          <ShortcutsDialog />
-        </AskAliaProvider>
-      </GestureHandlerRootView>
+        </View>
+        <CommandPalette />
+        <ShortcutsDialog />
+      </AskAliaProvider>
     </AppErrorBoundary>
   );
 }
