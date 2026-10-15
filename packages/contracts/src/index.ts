@@ -12,6 +12,7 @@ export {
   segmentSchema,
 } from './blocks';
 export { isEntityId } from './ids';
+export { TRANSACTION_KEY_RETENTION_MS } from './transactions';
 export { compareOrder, MIN_ORDER_GAP, placeAfter, type Sibling } from './order';
 export {
   type BlockNode,

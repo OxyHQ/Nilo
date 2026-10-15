@@ -88,13 +88,11 @@ vi.mock('../../lib/logger.js', () => ({
 import * as commentsRepo from '../../repositories/comments.js';
 import * as pagesRepo from '../../repositories/pages.js';
 import * as blocksRepo from '../../repositories/blocks.js';
-import * as workspacesRepo from '../../repositories/workspaces.js';
 import commentsRouter from '../comments.js';
 
 const mockComment = commentsRepo as unknown as Record<string, ReturnType<typeof vi.fn>>;
 const mockBlock = blocksRepo as unknown as Record<string, ReturnType<typeof vi.fn>>;
 const mockPage = pagesRepo as unknown as Record<string, ReturnType<typeof vi.fn>>;
-const mockMember = workspacesRepo as unknown as Record<string, ReturnType<typeof vi.fn>>;
 
 interface RouteLayer {
   route?: {

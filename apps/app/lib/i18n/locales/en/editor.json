@@ -181,7 +181,9 @@
     "toggleOpen": "Collapse",
     "toggleClosed": "Expand",
     "checkbox": "Done",
-    "comment": "Comment"
+    "comment": "Comment",
+    "mentionNoResults": "No results",
+    "mentionSearching": "Searching…"
   },
   "slashGroups": {
     "basic": "Basic blocks",

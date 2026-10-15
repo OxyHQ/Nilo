@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { getDb } from '../db/client.js';
 import type { BlockRow } from '../repositories/blocks.js';
 import { listBlocksForPage } from '../repositories/blocks.js';
-import { findPageById } from '../repositories/pages.js';
+import { findAppliedTransactionKeys, findPageById } from '../repositories/pages.js';
 import { snapshotPage } from '../repositories/pageVersions.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { log } from '../lib/logger.js';
@@ -59,6 +59,26 @@ function serializeBlock(block: BlockRow) {
 }
 
 /**
+ * A page's blocks and the version they are at, read in one snapshot: a
+ * transaction committing between two separate reads would hand out blocks one
+ * version ahead of the version they are labelled with. With `keys`, also which
+ * of those transaction keys the blocks already include.
+ */
+async function readBlocks(pageId: string, keys: readonly string[] = []) {
+  return getDb().transaction(
+    async (tx) => {
+      const current = await findPageById(tx, pageId);
+      return {
+        blocks: (await listBlocksForPage(tx, pageId)).map((b) => serializeBlock(b)),
+        version: current?.blocksVersion ?? 0,
+        applied: await findAppliedTransactionKeys(tx, pageId, keys),
+      };
+    },
+    { isolationLevel: 'repeatable read' },
+  );
+}
+
+/**
  * GET /api/pages/:pageId/blocks
  * Returns a flat list of blocks for the page. Frontend nests by parentBlockId.
  */
@@ -76,25 +96,43 @@ router.get('/pages/:pageId/blocks', async (req: Request, res: Response) => {
     const ok = await checkPageAccess(req, res, db, page.id, 'viewer');
     if (!ok) return;
 
-    // The blocks and the version they are at, read in one snapshot: a
-    // transaction committing between two separate reads would hand out
-    // blocks one version ahead of the version they are labelled with.
-    const { blocks, version } = await db.transaction(
-      async (tx) => {
-        const current = await findPageById(tx, page.id);
-        return {
-          blocks: await listBlocksForPage(tx, page.id),
-          version: current?.blocksVersion ?? 0,
-        };
-      },
-      { isolationLevel: 'repeatable read' },
-    );
-
-    res.json({ blocks: blocks.map((b) => serializeBlock(b)), version });
+    const { blocks, version } = await readBlocks(page.id);
+    res.json({ blocks, version });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list blocks');
     res.status(500).json({ error: 'Failed to list blocks' });
+  }
+});
+
+/**
+ * POST /api/pages/:pageId/blocks/resume { keys }
+ *
+ * Opening a page with changes that were never confirmed (a reload, or work
+ * kept offline): the blocks, their version and which of the changes' keys the
+ * blocks already include — applied by the server though the answer was lost —
+ * so the editor drops those instead of applying them a second time. One
+ * snapshot, so "applied" means exactly "in these blocks".
+ */
+router.post('/pages/:pageId/blocks/resume', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ pageId: entityIdSchema }).parse(req.params);
+    const body = z.object({ keys: z.array(z.string().min(1).max(64)).max(2000) }).parse(req.body);
+
+    const db = getDb();
+    const page = await findPageById(db, params.pageId);
+    if (!page) {
+      res.status(404).json({ error: 'Page not found' });
+      return;
+    }
+    const ok = await checkPageAccess(req, res, db, page.id, 'editor');
+    if (!ok) return;
+
+    res.json(await readBlocks(page.id, body.keys));
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to resume blocks');
+    res.status(500).json({ error: 'Failed to resume blocks' });
   }
 });
 

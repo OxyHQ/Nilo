@@ -22,6 +22,7 @@ export const API_ROUTES = {
     update: (id: string) => `/pages/${id}`,
     delete: (id: string) => `/pages/${id}`,
     blocks: (id: string) => `/pages/${id}/blocks`,
+    resumeBlocks: (id: string) => `/pages/${id}/blocks/resume`,
     duplicate: (id: string) => `/pages/${id}/duplicate`,
     breadcrumb: (id: string) => `/pages/${id}/breadcrumb`,
     export: (id: string) => `/pages/${id}/export`,

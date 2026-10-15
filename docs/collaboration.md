@@ -55,8 +55,30 @@ undoes a saved change.
 them, rebases them over remote ones by anchors, folds confirmations and
 remote versions in version order (holding early arrivals), retries with
 backoff and undoes what the server refuses. `snapshot()` / `resume` hand the
-unconfirmed work to a new session — after a reload, or (persisted) to work
-offline — resent under the same keys.
+unconfirmed work to a new session, resent under the same keys.
+
+## Reloads and offline work
+
+`usePageEditor` reloads the page when the session cannot reconcile (a
+skipped version, a change that no longer applies) or when a reconnect finds
+the page ahead. A reload hands over everything not yet confirmed: the old
+session's pending changes and anything typed while the page loads. Remote
+changes that arrive during the load wait and are applied on top of what was
+loaded (those newer than its version), so none is missed.
+
+With pending changes the page loads through
+`POST /pages/:pageId/blocks/resume { keys }`, which answers the blocks, their
+version and which of those keys the blocks already include (applied, the
+answer lost) in one snapshot. Those are dropped, not applied twice; without
+this, re-applying an insert the blocks already have reads as a refused change.
+
+While changes are pending, the session's snapshot is kept on the device
+(`lib/editor/offline.ts`, AsyncStorage) and removed once they are saved.
+Opening the page without a connection uses it; with a connection, its changes
+are resumed as above. Saved work is used only while the server still
+remembers the keys of what it applied (`TRANSACTION_KEY_RETENTION_MS` in
+`@nilo/contracts`, one day, less an hour), dated by its oldest change: past
+that, resending could apply a change twice over later edits.
 
 ## Page history
 

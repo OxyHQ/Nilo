@@ -57,6 +57,8 @@ function useEditorLabels(): EditorLabels {
       emptyListItem: t('editor.ui.emptyListItem'),
       emptyToggle: t('editor.ui.emptyToggle'),
       slashNoResults: t('editor.ui.slashNoResults'),
+      mentionNoResults: t('editor.ui.mentionNoResults'),
+      mentionSearching: t('editor.ui.mentionSearching'),
       slashGroups: {
         basic: t('editor.slashGroups.basic'),
         media: t('editor.slashGroups.media'),

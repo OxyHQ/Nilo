@@ -89,6 +89,17 @@ export class OrderBook {
     if (!current || current.version <= version) this.entries.set(id, { order, version });
   }
 
+  /** Every order with its version, to persist (`OrderBook.from` reads it back). */
+  toJSON(): [BlockId, number, number][] {
+    return [...this.entries].map(([id, e]) => [id, e.order, e.version]);
+  }
+
+  static from(saved: readonly (readonly [BlockId, number, number])[]): OrderBook {
+    const book = new OrderBook();
+    for (const [id, order, version] of saved) book.record(id, order, version);
+    return book;
+  }
+
   /** Record the orders in operations the server applied at `version`. */
   recordApplied(ops: readonly AppliedOperation[], version: number): void {
     for (const op of ops) {

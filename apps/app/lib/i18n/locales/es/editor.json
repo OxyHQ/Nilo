@@ -181,7 +181,9 @@
     "toggleOpen": "Contraer",
     "toggleClosed": "Expandir",
     "checkbox": "Hecho",
-    "comment": "Comentar"
+    "comment": "Comentar",
+    "mentionNoResults": "Sin resultados",
+    "mentionSearching": "Buscando…"
   },
   "slashGroups": {
     "basic": "Bloques básicos",

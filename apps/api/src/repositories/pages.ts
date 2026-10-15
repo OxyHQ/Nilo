@@ -11,6 +11,7 @@
  */
 
 import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { TRANSACTION_KEY_RETENTION_MS } from '@nilo/contracts';
 import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
 import { pages, type PageProperties, pageTransactions } from '../db/schema/pages.js';
@@ -496,6 +497,20 @@ export async function lockPage(db: PgHandle, pageId: string): Promise<void> {
   await db.select({ id: pages.id }).from(pages).where(eq(pages.id, pageId)).for('update');
 }
 
+/** Which of `keys` name block transactions this page has applied (and still remembers). */
+export async function findAppliedTransactionKeys(
+  db: PgHandle,
+  pageId: string,
+  keys: readonly string[],
+): Promise<string[]> {
+  if (keys.length === 0) return [];
+  const rows = await db
+    .select({ key: pageTransactions.key })
+    .from(pageTransactions)
+    .where(and(eq(pageTransactions.pageId, pageId), inArray(pageTransactions.key, [...keys])));
+  return rows.map((row) => row.key);
+}
+
 /** The record of a block transaction already applied under `key`, if any. */
 export async function findPageTransaction(
   db: PgHandle,
@@ -508,9 +523,6 @@ export async function findPageTransaction(
     .where(and(eq(pageTransactions.pageId, pageId), eq(pageTransactions.key, key)));
   return row;
 }
-
-/** How long an applied transaction's record answers retries. */
-const PAGE_TRANSACTION_RETENTION = '1 day';
 
 /**
  * Record an applied block transaction under its key, and drop the page's
@@ -525,7 +537,10 @@ export async function recordPageTransaction(
     .where(
       and(
         eq(pageTransactions.pageId, record.pageId),
-        lt(pageTransactions.createdAt, sql`now() - ${PAGE_TRANSACTION_RETENTION}::interval`),
+        lt(
+          pageTransactions.createdAt,
+          sql`now() - make_interval(secs => ${TRANSACTION_KEY_RETENTION_MS / 1000})`,
+        ),
       ),
     );
   await db.insert(pageTransactions).values(record);

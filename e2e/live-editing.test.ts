@@ -18,6 +18,7 @@ import {
   insertBlockAfter,
   moveBlocks,
   outdent,
+  type PendingTransaction,
   removeBlocks,
   splitBlock,
   SyncSession,
@@ -118,10 +119,38 @@ async function loadBlocks(pageId: string) {
 async function openEditor(
   pageId: string,
   userId: string,
-  /** Whether to lose the response to a transaction the server applied (a dropped connection). */
-  loseResponse: () => boolean = () => false,
+  options: {
+    /** Whether to lose the response to a transaction the server applied (a dropped connection). */
+    loseResponse?: () => boolean;
+    /** Whether there is no connection: nothing reaches the server. */
+    offline?: () => boolean;
+    /** Unconfirmed work from an earlier session, loaded through `resume` as the app does. */
+    resume?: readonly PendingTransaction[];
+  } = {},
 ): Promise<Editor> {
-  const loaded = await loadBlocks(pageId);
+  const { loseResponse = () => false, offline = () => false } = options;
+  let loaded: {
+    blocks: Parameters<typeof blocksToDocument>[0];
+    version: number;
+    applied?: string[];
+  };
+  let resume = options.resume ?? [];
+  if (resume.length > 0) {
+    const res = await fetch(`${base}/pages/${pageId}/blocks/resume`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-test-user': userId,
+        'X-Workspace-Id': workspaceId,
+      },
+      body: JSON.stringify({ keys: resume.map((p) => p.key) }),
+    });
+    loaded = (await res.json()) as typeof loaded;
+    const applied = new Set(loaded.applied);
+    resume = resume.filter((p) => !applied.has(p.key));
+  } else {
+    loaded = await loadBlocks(pageId);
+  }
   const { doc, orders } = blocksToDocument(loaded.blocks, loaded.version);
   const store = new EditorStore({ document: doc, schema: NILO_SCHEMA, newId: uuidv7 });
   const socket = connect(base, {
@@ -139,6 +168,7 @@ async function openEditor(
     {
       send: async (tx: Transaction, before, key) => {
         const ops = transactionToWire(tx, before);
+        if (offline()) return { ok: false, retry: true };
         log.push({ ev: 'send', local: tx.ops, ops });
         const res = await fetch(`${base}/pages/${pageId}/blocks/transactions`, {
           method: 'POST',
@@ -172,6 +202,7 @@ async function openEditor(
       reconcile: (d) => reconcileOrder(d, orders),
       onDesync: (reason) => desyncs.push(reason),
       onRejected: (tx) => log.push({ ev: 'rejected', ops: tx.ops }),
+      resume,
     },
   );
   socket.on(
@@ -297,6 +328,40 @@ describe('live editing through the API', () => {
     expect(stored.root.length).toBeGreaterThanOrEqual(4);
   });
 
+  it('resumes unconfirmed work without applying it twice or calling it refused', async () => {
+    const pageId = await createPage();
+    // The first change reaches the server but its answer is lost; then the
+    // connection is gone, and the second change is never sent.
+    let connected = true;
+    const first = await openEditor(pageId, 'ana', {
+      loseResponse: () => {
+        connected = false;
+        return true;
+      },
+      offline: () => !connected,
+    });
+    first.store.run((c) => insertBlockAfter(c, null, 'paragraph', { text: [{ text: 'applied' }] }));
+    await vi.waitFor(() => expect(first.log).toContainEqual({ ev: 'lost' }));
+    const appliedId = first.store.doc.root[0] as string;
+    first.store.run((c) =>
+      insertBlockAfter(c, appliedId, 'paragraph', { text: [{ text: 'never sent' }] }),
+    );
+    const handover = first.session.snapshot();
+    first.session.dispose();
+    expect(handover?.pending).toHaveLength(2);
+
+    // A new session (a reload, or the app reopened) picks the work up.
+    const next = await openEditor(pageId, 'ana', { resume: handover?.pending });
+    const stored = await expectConverged(pageId, [next]);
+    const texts = stored.root.map((id) =>
+      getBlock(stored, id)
+        .text?.map((s) => s.text)
+        .join(''),
+    );
+    expect(texts).toEqual(['applied', 'never sent']);
+    expect(next.log.filter((e) => (e as { ev: string }).ev === 'rejected')).toEqual([]);
+  });
+
   // `LIVE_SEEDS=1,2,3` and `LIVE_STEPS=200` run a longer soak locally.
   const seeds = process.env.LIVE_SEEDS?.split(',').map(Number) ?? [5, 17, 29, 41];
   const steps = Number(process.env.LIVE_STEPS ?? 80);
@@ -310,8 +375,8 @@ describe('live editing through the API', () => {
         return seed / 2 ** 31;
       };
       // One response in ten is lost after the server applied the transaction.
-      const ana = await openEditor(pageId, 'ana', () => random() < 0.1);
-      const ben = await openEditor(pageId, 'ben', () => random() < 0.1);
+      const ana = await openEditor(pageId, 'ana', { loseResponse: () => random() < 0.1 });
+      const ben = await openEditor(pageId, 'ben', { loseResponse: () => random() < 0.1 });
       const pick = <T>(items: readonly T[]): T => items[Math.floor(random() * items.length)] as T;
       for (let step = 0; step < steps; step += 1) {
         const editor = pick([ana, ben]);

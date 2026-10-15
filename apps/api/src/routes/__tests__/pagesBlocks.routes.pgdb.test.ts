@@ -1016,6 +1016,39 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
     expect((await send('k-2')).status).toBe(409);
   });
 
+  it('tells a resuming editor which of its keys the blocks already include', async () => {
+    const page = await createPage();
+    const id = uuidv7();
+    await api(
+      'POST',
+      `/pages/${page.id}/blocks/transactions`,
+      {
+        ops: [
+          {
+            kind: 'insert',
+            id,
+            parentBlockId: null,
+            afterId: null,
+            type: 'paragraph',
+            content: {},
+          },
+        ],
+        key: 'applied-1',
+      },
+      { 'x-workspace-id': workspaceId },
+    );
+    const res = await api(
+      'POST',
+      `/pages/${page.id}/blocks/resume`,
+      { keys: ['applied-1', 'never-sent'] },
+      { 'x-workspace-id': workspaceId },
+    );
+    expect(res.status).toBe(200);
+    expect(res.json.applied).toEqual(['applied-1']);
+    expect((res.json.blocks as { id: string }[]).map((b) => b.id)).toEqual([id]);
+    expect(res.json.version).toBeGreaterThan(0);
+  });
+
   it('rolls the whole batch back when one operation is invalid', async () => {
     const page = await createPage();
     const [a, b] = [uuidv7(), uuidv7()];
