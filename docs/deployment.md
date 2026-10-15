@@ -35,6 +35,11 @@ Last verified: 2026-09-13.
   `NILO_API_URL` repository variable and fails before export when it is
   missing or is not a valid HTTPS origin; it never falls back to an invented
   production host.
+- The web Worker reads the same origin as `API_URL` (passed by the deploy):
+  for `/pub/...` it asks the API for the published page and fills in its
+  title, summary, link-preview tags and text for readers without script,
+  `noindex` unless its owner allowed search engines. Without it, or when the
+  API does not answer within 3 s, it serves the app's page unchanged.
 - Nilo deployment configuration contains no provider credentials, provider
   runtime, or inference route.
 - The API image runs on Bun: `apps/api/Dockerfile`'s runtime stage is
