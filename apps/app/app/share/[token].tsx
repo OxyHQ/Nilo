@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, ScrollView, Pressable, Platform, Linking, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useOxy } from '@oxy.so/services';
+import { Button } from '@/components/ui/button';
+import { useJoinShareLink } from '@/lib/hooks/use-page-permissions';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 import { Text } from '@/components/ui/text';
 import { NiloWordmark } from '@/components/ui/nilo-wordmark';
@@ -56,6 +59,9 @@ export default function PublicSharePage() {
   const insets = useSafeAreaInsets();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
+  const { isAuthenticated } = useOxy();
+  const router = useRouter();
+  const join = useJoinShareLink();
   const params = useLocalSearchParams<{ token: string }>();
   const token = typeof params.token === 'string' ? params.token : null;
 
@@ -84,8 +90,9 @@ export default function PublicSharePage() {
     );
   }
 
-  if (isError || !data) {
-    const status = axios.isAxiosError(error) ? error.response?.status : null;
+  const joinStatus = axios.isAxiosError(join.error) ? join.error.response?.status : null;
+  if (isError || !data || joinStatus === 404 || joinStatus === 410) {
+    const status = joinStatus ?? (axios.isAxiosError(error) ? error.response?.status : null);
     let title = t('pages.share.unavailableTitle');
     let body = t('pages.share.unavailableBody');
     if (status === 404) {
@@ -118,6 +125,28 @@ export default function PublicSharePage() {
         contentContainerClassName="px-5 py-8 sm:px-8 sm:py-12 md:px-12"
       >
         <View className="w-full max-w-3xl mx-auto gap-4">
+          {data.share.scope !== 'read' ? (
+            <Text className="text-sm text-muted-foreground">{t('sharing.joinExplanation')}</Text>
+          ) : null}
+          {isAuthenticated ? (
+            <View className="gap-2 items-start">
+              <Button
+                accessibilityLabel={t('sharing.openInNilo')}
+                disabled={join.isPending}
+                isLoading={join.isPending}
+                onPress={() =>
+                  join.mutate(token, { onSuccess: ({ pageId }) => router.push(`/p/${pageId}`) })
+                }
+              >
+                <Text>{t('sharing.openInNilo')}</Text>
+              </Button>
+              {join.isError ? (
+                <Text accessibilityRole="alert" className="text-sm text-destructive">
+                  {t('sharing.joinFailed')}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
           <SharedPageHeader page={data.page} />
           <View className="gap-1.5">
             {data.blocks.length === 0 ? (

@@ -3,6 +3,7 @@ import { useOxy } from '@oxy.so/services';
 import axios from 'axios';
 import apiClient from '../api/client';
 import config from '../config';
+import { invalidatePageAccess } from './use-page-permissions';
 import { shareLinkKeys } from './workspace-keys';
 
 export type ShareLinkScope = 'read' | 'comment' | 'edit';
@@ -100,6 +101,7 @@ export function useRevokeShareLink(pageId: string) {
       queryClient.invalidateQueries({
         queryKey: shareLinkKeys.list(pageId),
       });
+      void invalidatePageAccess(queryClient);
     },
   });
 }

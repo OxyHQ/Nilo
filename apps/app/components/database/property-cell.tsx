@@ -9,6 +9,7 @@ import { SELECT_COLOR_CLASSES } from './select-color';
 import { centeredModalStyle } from './centered-modal-style';
 
 export interface PropertyCellProps {
+  readOnly?: boolean;
   property: DatabaseProperty;
   value: PropertyValue;
   /** Renders compact for table rows; expanded for the row detail panel. */
@@ -36,7 +37,9 @@ export function PropertyCell({
   variant = 'table',
   onChange,
   autoFocus,
+  readOnly = false,
 }: PropertyCellProps) {
+  if (readOnly) return <PropertyValueText property={property} value={value} />;
   switch (property.type) {
     case 'text':
       return (
@@ -130,6 +133,55 @@ export function PropertyCell({
     case 'last_edited_by':
       return <PersonCell value={readUserIds(value)} variant={variant} />;
   }
+}
+
+/** Static rendering keeps read-only values out of the keyboard edit path. */
+function PropertyValueText({ property, value }: Pick<PropertyCellProps, 'property' | 'value'>) {
+  const { t } = useTranslation();
+  let display: string;
+  switch (property.type) {
+    case 'text':
+      display = readText(value);
+      break;
+    case 'number':
+      display = formatNumber(readNumber(value), property);
+      break;
+    case 'url':
+    case 'email':
+    case 'phone':
+      display = readScalarString(value);
+      break;
+    case 'checkbox':
+      display = t(readChecked(value) ? 'sharing.checked' : 'sharing.unchecked');
+      break;
+    case 'select':
+    case 'status':
+      display =
+        property.config?.options?.find((option) => option.id === readOptionId(value))?.name ?? '';
+      break;
+    case 'multi_select':
+      display = (property.config?.options ?? [])
+        .filter((option) => readOptionIds(value).includes(option.id))
+        .map((option) => option.name)
+        .join(', ');
+      break;
+    case 'date': {
+      const start = readDateStart(value);
+      display = start ? new Date(start).toLocaleDateString() : '';
+      break;
+    }
+    case 'person':
+    case 'created_by':
+    case 'last_edited_by':
+      return <PersonCell value={readUserIds(value)} variant="card" />;
+    case 'files':
+      return <FilesCell value={readFiles(value)} variant="card" />;
+    case 'relation':
+      return <RelationCell value={readPageIds(value)} variant="card" />;
+    default:
+      return <DerivedCell value={value} variant="card" />;
+  }
+  return <Text className="text-sm text-foreground py-1">{display || '—'}</Text>;
 }
 
 // --- typed readers ---------------------------------------------------------

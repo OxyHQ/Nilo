@@ -13,5 +13,9 @@
     "minutesAgo": "hace %{count} min",
     "hoursAgo": "hace %{count} h",
     "daysAgo": "hace %{count} d"
-  }
+  },
+  "someone": "Alguien",
+  "pageShared": "%{name} ha compartido %{page} contigo",
+  "open": "Abrir notificación",
+  "dismiss": "Descartar notificación"
 }

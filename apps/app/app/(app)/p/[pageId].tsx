@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { MessageCircle } from 'lucide-react-native';
+import axios from 'axios';
+import { Lock, MessageCircle } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { PageEditor } from '@/components/page-editor/page-editor';
 import { ShareButton } from '@/components/sharing';
@@ -14,7 +15,6 @@ import { usePage } from '@/lib/hooks/use-pages';
 import { usePageComments } from '@/lib/hooks/use-comments';
 import { useDatabase } from '@/lib/hooks/use-databases';
 import { useTrackRecentPage } from '@/lib/hooks/use-track-recent-page';
-import { useWorkspaceRole } from '@/lib/hooks/use-workspaces';
 import { hasRole } from '@/lib/hooks/workspace-roles';
 import type { DatabaseRow, PropertyValue } from '@/lib/types/databases';
 import type { Page } from '@/lib/types/pages';
@@ -53,7 +53,7 @@ function PageDetail({ pageId }: { pageId: string }) {
   const { t } = useTranslation();
   const { data, isLoading, isError, error } = usePage(pageId);
   const { data: commentsData } = usePageComments(pageId, false);
-  const role = useWorkspaceRole(data?.page?.workspaceId);
+  const role = data?.role;
   useTrackRecentPage(pageId);
 
   const [commentPanel, setCommentPanel] = React.useState<{
@@ -79,12 +79,18 @@ function PageDetail({ pageId }: { pageId: string }) {
   }
 
   if (isError || !data?.page) {
-    const message = error instanceof Error ? error.message : t('pages.loadFailed');
+    const noAccess =
+      axios.isAxiosError(error) &&
+      error.response?.status === 403 &&
+      error.response.data?.code === 'NO_PAGE_ACCESS';
+    const message = t(noAccess ? 'pages.noAccess' : 'pages.loadFailed');
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <View className="max-w-md items-center gap-3">
           <Text className="text-base text-foreground">{message}</Text>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('pages.backToWorkspace')}
             onPress={() => router.replace('/(app)')}
             className="rounded-md bg-primary px-4 py-2"
           >
@@ -102,7 +108,13 @@ function PageDetail({ pageId }: { pageId: string }) {
 
   const rightHeader = (
     <View className="flex-row items-center gap-2">
+      {page.restricted ? (
+        <View accessible accessibilityLabel={t('pages.restricted')}>
+          <Lock size={14} color={colors.mutedForeground} />
+        </View>
+      ) : null}
       <Pressable
+        accessibilityRole="button"
         onPress={() => handleOpenPanel(null)}
         accessibilityLabel={t('pages.comments.open')}
         className="flex-row items-center gap-1.5 rounded-md px-2 py-1 hover:bg-muted"
@@ -117,16 +129,16 @@ function PageDetail({ pageId }: { pageId: string }) {
   );
 
   return (
-    <PageChrome page={page} rightHeader={rightHeader}>
+    <PageChrome page={page} readOnly={!canEdit} rightHeader={rightHeader}>
       <View className="flex-1 flex-row">
         <ScrollView
           className="flex-1"
           contentContainerClassName="pb-12"
           keyboardShouldPersistTaps="handled"
         >
-          <PageHeader page={page} />
+          <PageHeader page={page} readOnly={!canEdit} />
           <View className="px-6 md:px-10 max-w-3xl w-full mx-auto pt-4">
-            <DatabaseRowProperties page={page} />
+            <DatabaseRowProperties page={page} readOnly={!canEdit} />
             <PageEditor
               pageId={page.id}
               readOnly={!canEdit}
@@ -136,6 +148,7 @@ function PageDetail({ pageId }: { pageId: string }) {
         </ScrollView>
 
         <CommentPanel
+          canComment={hasRole(role, 'commenter')}
           pageId={page.id}
           workspaceId={page.workspaceId}
           open={commentPanel.open}
@@ -155,7 +168,7 @@ function PageDetail({ pageId }: { pageId: string }) {
  * Returns `null` if this page is a regular doc — leaves the existing
  * editor layout untouched.
  */
-function DatabaseRowProperties({ page }: { page: Page }) {
+function DatabaseRowProperties({ page, readOnly }: { page: Page; readOnly: boolean }) {
   const databaseId = typeof page.databaseId === 'string' ? page.databaseId : null;
   const { data } = useDatabase(databaseId ?? undefined);
   if (!databaseId || !data?.database) return null;
@@ -176,7 +189,7 @@ function DatabaseRowProperties({ page }: { page: Page }) {
   };
   return (
     <View className="pb-6 border-b border-border/30 mb-4">
-      <RowPropertiesPanel database={data.database} row={row} />
+      <RowPropertiesPanel database={data.database} row={row} readOnly={readOnly} />
     </View>
   );
 }

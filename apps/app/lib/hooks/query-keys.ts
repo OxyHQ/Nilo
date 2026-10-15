@@ -1,5 +1,7 @@
 export const queryKeys = {
   pages: {
+    shared: ['shared-pages'] as const,
+    permissions: (id: string) => ['page-permissions', id] as const,
     list: (workspaceId: string | null) => ['pages', workspaceId] as const,
     detail: (id: string) => ['page', id] as const,
     breadcrumb: (id: string) => ['page', id, 'breadcrumb'] as const,

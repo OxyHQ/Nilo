@@ -1,3 +1,5 @@
+import type { WorkspaceRole } from '../hooks/use-workspaces';
+
 /**
  * Shared types for Pages and Blocks.
  *
@@ -21,6 +23,7 @@ export interface Page {
   cover: string | null;
   /** 0–100, vertical focal point used when cropping the cover image. */
   coverPosition: number;
+  restricted: boolean;
   archived: boolean;
   favorited: boolean;
   /** Sibling order within the same parent. */
@@ -202,6 +205,7 @@ export interface PagesListResponse {
 
 export interface PageResponse {
   page: Page;
+  role: WorkspaceRole;
 }
 
 export interface BlocksListResponse {

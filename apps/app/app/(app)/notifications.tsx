@@ -1,8 +1,17 @@
+import { PageSharedNotification } from '@/components/sharing/page-shared-notification';
 import { View, ScrollView, Pressable, Platform } from 'react-native';
 import { Switch } from '@/components/ui/switch';
 import { Text } from '@/components/ui/text';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Bell, BellOff, CheckCheck, MessageSquare, X } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  Bell,
+  BellOff,
+  CheckCheck,
+  MessageSquare,
+  UserPlus,
+  X,
+} from 'lucide-react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@oxy.so/services';
 import * as ExpoNotifications from 'expo-notifications';
@@ -19,6 +28,7 @@ import {
 } from '@/lib/hooks/use-notifications';
 
 const TYPE_ICONS: Record<Notification['type'], typeof MessageSquare> = {
+  page_shared: UserPlus,
   mention: MessageSquare,
   comment_reply: MessageSquare,
 };
@@ -96,11 +106,13 @@ export default function NotificationsScreen() {
 
   const handleNotificationPress = useCallback(
     (notification: Notification) => {
+      const pageId = notification.data?.pageId;
+      if (typeof pageId === 'string') router.push(`/p/${pageId}`);
       if (notification.status !== 'read') {
         markAsRead.mutate(notification.id);
       }
     },
-    [markAsRead],
+    [markAsRead, router],
   );
 
   const notifications = data?.notifications || [];
@@ -199,6 +211,8 @@ export default function NotificationsScreen() {
 
             return (
               <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('notifications.open')}
                 key={notification.id}
                 onPress={() => handleNotificationPress(notification)}
                 className={`px-6 py-4 border-b border-border border-l-2 ${priorityBorder} ${isUnread ? 'bg-muted/20' : ''} active:bg-muted/40`}
@@ -209,12 +223,16 @@ export default function NotificationsScreen() {
                   </View>
                   <View className="flex-1">
                     <View className="flex-row items-center justify-between mb-1">
-                      <Text
-                        className={`text-sm ${isUnread ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'}`}
-                        numberOfLines={1}
-                      >
-                        {notification.title}
-                      </Text>
+                      {notification.type === 'page_shared' ? (
+                        <PageSharedNotification notification={notification} />
+                      ) : (
+                        <Text
+                          className={`text-sm ${isUnread ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'}`}
+                          numberOfLines={1}
+                        >
+                          {notification.title}
+                        </Text>
+                      )}
                       <View className="flex-row items-center gap-2">
                         <Text className="text-xs text-muted-foreground">
                           {timeAgo(notification.createdAt)}
@@ -225,6 +243,8 @@ export default function NotificationsScreen() {
                             dismiss.mutate(notification.id);
                           }}
                           className="p-1"
+                          accessibilityRole="button"
+                          accessibilityLabel={t('notifications.dismiss')}
                           hitSlop={8}
                         >
                           <X size={12} className="text-muted-foreground" />

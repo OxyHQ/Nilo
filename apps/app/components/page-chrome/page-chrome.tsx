@@ -16,6 +16,7 @@ import { PageActionsMenu } from './page-actions-menu';
 
 interface PageChromeProps {
   page: Page;
+  readOnly?: boolean;
   /** Editor (or any body content) rendered below the page header. */
   children?: React.ReactNode;
   /** Right-side header content (ShareButton lives here in the page route). */
@@ -42,7 +43,7 @@ const StateContext = React.createContext<PageChromeState | null>(null);
  * The icon and cover pickers are mounted here as portals — the children
  * can open them via `usePageChrome()`.
  */
-export function PageChrome({ page, children, rightHeader }: PageChromeProps) {
+export function PageChrome({ page, children, rightHeader, readOnly = false }: PageChromeProps) {
   const updatePage = useUpdatePage();
   const [iconOpen, setIconOpen] = React.useState(false);
   const [coverOpen, setCoverOpen] = React.useState(false);
@@ -75,9 +76,11 @@ export function PageChrome({ page, children, rightHeader }: PageChromeProps) {
             <Breadcrumb pageId={page.id} workspaceId={page.workspaceId} />
           </View>
           <View className="flex-row items-center gap-1">
-            <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
+            {!readOnly ? (
+              <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
+            ) : null}
             {rightHeader}
-            <PageActionsMenu page={page} />
+            {!readOnly ? <PageActionsMenu page={page} /> : null}
           </View>
         </View>
 
@@ -85,8 +88,16 @@ export function PageChrome({ page, children, rightHeader }: PageChromeProps) {
           {children}
         </RepositioningContext.Provider>
 
-        <IconPicker open={iconOpen} onOpenChange={setIconOpen} onSelect={handleIconSelect} />
-        <CoverPicker open={coverOpen} onOpenChange={setCoverOpen} onSelect={handleCoverSelect} />
+        {!readOnly ? (
+          <>
+            <IconPicker open={iconOpen} onOpenChange={setIconOpen} onSelect={handleIconSelect} />
+            <CoverPicker
+              open={coverOpen}
+              onOpenChange={setCoverOpen}
+              onSelect={handleCoverSelect}
+            />
+          </>
+        ) : null}
       </View>
     </StateContext.Provider>
   );
@@ -99,7 +110,8 @@ const RepositioningContext = React.createContext<boolean>(false);
  * ScrollView so it scrolls with the page content. Reads picker state from
  * the surrounding `<PageChrome>` via context.
  */
-export function PageHeader({ page }: { page: Page }) {
+export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: boolean }) {
+  const { t } = useTranslation();
   const state = React.useContext(StateContext);
   const repositioning = React.useContext(RepositioningContext);
   const updatePage = useUpdatePage();
@@ -128,26 +140,46 @@ export function PageHeader({ page }: { page: Page }) {
 
   return (
     <View>
-      <CoverArea
-        cover={page.cover ?? null}
-        position={page.coverPosition ?? 50}
-        onOpenPicker={() => state?.setCoverOpen(true)}
-        repositioning={repositioning}
-        onToggleReposition={() => state?.setRepositioning((v) => !v)}
-        onCommitPosition={handleCommitReposition}
-      />
+      {readOnly ? (
+        page.cover ? (
+          <CoverDisplay value={page.cover} position={page.coverPosition ?? 50} height={192} />
+        ) : null
+      ) : (
+        <CoverArea
+          cover={page.cover ?? null}
+          position={page.coverPosition ?? 50}
+          onOpenPicker={() => state?.setCoverOpen(true)}
+          repositioning={repositioning}
+          onToggleReposition={() => state?.setRepositioning((v) => !v)}
+          onCommitPosition={handleCommitReposition}
+        />
+      )}
       <View
         className="px-6 md:px-10 max-w-3xl w-full mx-auto"
         style={{ marginTop: page.cover ? -32 : 24 }}
       >
-        <IconArea icon={page.icon ?? null} onOpenPicker={() => state?.setIconOpen(true)} />
-        <AddChromeRow
-          hasIcon={Boolean(page.icon)}
-          hasCover={Boolean(page.cover)}
-          onAddIcon={() => state?.setIconOpen(true)}
-          onAddCover={() => state?.setCoverOpen(true)}
-        />
-        <TitleInput value={title} onChangeText={setTitleDraft} onBlur={handleTitleBlur} />
+        {readOnly ? (
+          page.icon ? (
+            <IconDisplay value={page.icon} size={64} />
+          ) : null
+        ) : (
+          <IconArea icon={page.icon ?? null} onOpenPicker={() => state?.setIconOpen(true)} />
+        )}
+        {!readOnly ? (
+          <AddChromeRow
+            hasIcon={Boolean(page.icon)}
+            hasCover={Boolean(page.cover)}
+            onAddIcon={() => state?.setIconOpen(true)}
+            onAddCover={() => state?.setCoverOpen(true)}
+          />
+        ) : null}
+        {readOnly ? (
+          <Text accessibilityRole="header" className="text-4xl font-bold text-foreground">
+            {page.title || t('pages.untitled')}
+          </Text>
+        ) : (
+          <TitleInput value={title} onChangeText={setTitleDraft} onBlur={handleTitleBlur} />
+        )}
       </View>
     </View>
   );

@@ -21,7 +21,8 @@
     "private": "Privado",
     "shared": "Compartido",
     "databases": "Bases de datos",
-    "templates": "Plantillas"
+    "templates": "Plantillas",
+    "sharedWithMe": "Compartido conmigo"
   },
   "collapseSection": "Contraer %{title}",
   "expandSection": "Expandir %{title}",

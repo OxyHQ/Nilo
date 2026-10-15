@@ -21,7 +21,8 @@
     "private": "Private",
     "shared": "Shared",
     "databases": "Databases",
-    "templates": "Templates"
+    "templates": "Templates",
+    "sharedWithMe": "Shared with me"
   },
   "collapseSection": "Collapse %{title}",
   "expandSection": "Expand %{title}",

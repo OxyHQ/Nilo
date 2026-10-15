@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Pressable, Platform, ActivityIndicator } from 'react-native';
+import { View, Pressable, Platform, ActivityIndicator, ScrollView } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Copy, Link2, Trash2, ChevronDown } from 'lucide-react-native';
 import {
@@ -26,6 +26,10 @@ import {
 import { buildShareUrl } from './build-share-url';
 import { useTranslation } from '@/hooks/useTranslation';
 import i18n from '@/lib/i18n';
+import { usePagePermissions } from '@/lib/hooks/use-page-permissions';
+import { hasRole } from '@/lib/hooks/workspace-roles';
+import { PeopleSection } from './people-section';
+import { GeneralAccess } from './general-access';
 
 /** Resolved at call time so the label follows the active locale. */
 function scopeLabel(scope: ShareLinkScope): string {
@@ -143,13 +147,15 @@ interface ShareModalProps {
 export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
+  const permissions = usePagePermissions(pageId);
+  const canManage = !permissions.isError && hasRole(permissions.data?.role, 'editor');
   const [scope, setScope] = React.useState<ShareLinkScope>('read');
   const {
     data: links,
     isLoading: isListLoading,
     isError,
     error,
-  } = useShareLinks(pageId, { enabled: open && Boolean(pageId) });
+  } = useShareLinks(pageId, { enabled: open && Boolean(pageId) && canManage });
   const { mutate: createLink, isPending: isCreating } = useCreateShareLink(pageId);
 
   // The API lists active links only.
@@ -203,112 +209,161 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
           <DialogDescription>{t('sharing.modal.description')}</DialogDescription>
         </DialogHeader>
 
-        <View className="gap-3">
-          <View className="rounded-xl border border-border p-3 gap-2">
-            <View className="flex-row items-center justify-between gap-3">
-              <View className="flex-1 min-w-0">
-                <Text className="text-sm font-semibold text-foreground">
-                  {t('sharing.modal.anyoneWithLink')}
-                </Text>
-                <Text className="text-xs text-muted-foreground">
-                  {isPublic
-                    ? t('sharing.modal.publicActive', { scope: scopeLabel(scope) })
-                    : t('sharing.modal.publicInactive')}
-                </Text>
-              </View>
-              <Switch value={isPublic} onValueChange={handleTogglePublic} disabled={isCreating} />
+        <ScrollView
+          style={{ maxHeight: 560 }}
+          keyboardShouldPersistTaps="handled"
+          contentContainerClassName="gap-3"
+        >
+          {permissions.isLoading ? (
+            <ActivityIndicator />
+          ) : permissions.isError ? (
+            <View className="gap-2">
+              <Text accessibilityRole="alert" className="text-sm text-destructive">
+                {t('sharing.people.loadFailed')}
+              </Text>
+              <Button
+                variant="outline"
+                onPress={() => permissions.refetch()}
+                accessibilityLabel={t('sharing.people.retry')}
+              >
+                <Text>{t('sharing.people.retry')}</Text>
+              </Button>
             </View>
-
-            <View className="flex-row items-center gap-2">
-              <Text className="text-xs text-muted-foreground">{t('sharing.modal.access')}</Text>
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger>
-                  <Pressable
-                    className="h-8 px-2 flex-row items-center gap-1 rounded-lg border border-border hover:bg-muted"
-                    accessibilityRole="button"
-                    accessibilityLabel={t('sharing.modal.selectedScope', {
-                      scope: scopeLabel(scope),
-                    })}
-                  >
-                    <Text className="text-xs font-medium text-foreground">{scopeLabel(scope)}</Text>
-                    <ChevronDown size={12} color={colors.mutedForeground} />
-                  </Pressable>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Content>
-                  {SHARE_LINK_SCOPES.map((option) => (
-                    <DropdownMenu.Item key={option} onSelect={() => setScope(option)}>
-                      {Platform.OS === 'web' ? (
-                        <View className="gap-0.5">
-                          <Text className="text-sm font-medium text-foreground">
-                            {scopeLabel(option)}
-                          </Text>
-                          <Text className="text-xs text-muted-foreground">
-                            {scopeDescription(option)}
-                          </Text>
-                        </View>
-                      ) : (
-                        <>
-                          <DropdownMenu.ItemTitle>{scopeLabel(option)}</DropdownMenu.ItemTitle>
-                          <DropdownMenu.ItemSubtitle>
-                            {scopeDescription(option)}
-                          </DropdownMenu.ItemSubtitle>
-                        </>
-                      )}
-                    </DropdownMenu.Item>
-                  ))}
-                </DropdownMenu.Content>
-              </DropdownMenu.Root>
-            </View>
-
-            {isPublic && matchingLink ? (
-              <View className="flex-row items-center gap-2 mt-1">
-                <View className="flex-1 min-w-0 rounded-lg border border-border bg-muted/30 px-2 py-1.5">
-                  <Text
-                    className="text-xs font-mono text-foreground"
-                    numberOfLines={1}
-                    ellipsizeMode="middle"
-                  >
-                    {buildShareUrl(matchingLink.token)}
-                  </Text>
-                </View>
-                <Button size="sm" onPress={handleCopyActive}>
-                  <View className="flex-row items-center gap-1">
-                    <Copy size={12} className="text-primary-foreground" />
-                    <Text className="text-xs font-semibold text-primary-foreground">
-                      {t('sharing.modal.copy')}
+          ) : permissions.data ? (
+            <>
+              <PeopleSection
+                permissions={permissions.data}
+                onNavigate={() => onOpenChange(false)}
+              />
+              <GeneralAccess
+                permissions={permissions.data}
+                onNavigate={() => onOpenChange(false)}
+              />
+            </>
+          ) : null}
+          {canManage ? (
+            <>
+              <View className="rounded-xl border border-border p-3 gap-2">
+                <View className="flex-row items-center justify-between gap-3">
+                  <View className="flex-1 min-w-0">
+                    <Text className="text-sm font-semibold text-foreground">
+                      {t('sharing.modal.anyoneWithLink')}
+                    </Text>
+                    <Text className="text-xs text-muted-foreground">
+                      {isPublic
+                        ? t('sharing.modal.publicActive', { scope: scopeLabel(scope) })
+                        : t('sharing.modal.publicInactive')}
                     </Text>
                   </View>
-                </Button>
-              </View>
-            ) : null}
-          </View>
+                  <Switch
+                    value={isPublic}
+                    onValueChange={handleTogglePublic}
+                    disabled={isCreating}
+                    accessibilityLabel={t('sharing.modal.anyoneWithLink')}
+                  />
+                </View>
 
-          <View className="gap-1">
-            <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {t('sharing.modal.existingLinks')}
-            </Text>
-            {isListLoading ? (
-              <View className="py-4 items-center">
-                <ActivityIndicator />
-              </View>
-            ) : isError ? (
-              <Text className="text-sm text-destructive">
-                {error instanceof Error ? error.message : t('sharing.modal.loadFailed')}
-              </Text>
-            ) : activeLinks.length === 0 ? (
-              <Text className="text-xs text-muted-foreground">{t('sharing.modal.empty')}</Text>
-            ) : (
-              <View className="rounded-lg border border-border bg-card overflow-hidden">
-                {activeLinks.map((link, idx) => (
-                  <View key={link.id}>
-                    {idx > 0 ? <View className="h-px bg-border/50 mx-2" /> : null}
-                    <ExistingLinkRow link={link} pageId={pageId} />
+                <Text className="text-xs text-muted-foreground">
+                  {t('sharing.modal.guestExplanation')}
+                </Text>
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-xs text-muted-foreground">{t('sharing.modal.access')}</Text>
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      <Pressable
+                        className="h-8 px-2 flex-row items-center gap-1 rounded-lg border border-border hover:bg-muted"
+                        accessibilityRole="button"
+                        accessibilityLabel={t('sharing.modal.selectedScope', {
+                          scope: scopeLabel(scope),
+                        })}
+                      >
+                        <Text className="text-xs font-medium text-foreground">
+                          {scopeLabel(scope)}
+                        </Text>
+                        <ChevronDown size={12} color={colors.mutedForeground} />
+                      </Pressable>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content>
+                      {SHARE_LINK_SCOPES.map((option) => (
+                        <DropdownMenu.Item key={option} onSelect={() => setScope(option)}>
+                          {Platform.OS === 'web' ? (
+                            <View className="gap-0.5">
+                              <Text className="text-sm font-medium text-foreground">
+                                {scopeLabel(option)}
+                              </Text>
+                              <Text className="text-xs text-muted-foreground">
+                                {scopeDescription(option)}
+                              </Text>
+                            </View>
+                          ) : (
+                            <>
+                              <DropdownMenu.ItemTitle>{scopeLabel(option)}</DropdownMenu.ItemTitle>
+                              <DropdownMenu.ItemSubtitle>
+                                {scopeDescription(option)}
+                              </DropdownMenu.ItemSubtitle>
+                            </>
+                          )}
+                        </DropdownMenu.Item>
+                      ))}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
+                </View>
+
+                {isPublic && matchingLink ? (
+                  <View className="flex-row items-center gap-2 mt-1">
+                    <View className="flex-1 min-w-0 rounded-lg border border-border bg-muted/30 px-2 py-1.5">
+                      <Text
+                        className="text-xs font-mono text-foreground"
+                        numberOfLines={1}
+                        ellipsizeMode="middle"
+                      >
+                        {buildShareUrl(matchingLink.token)}
+                      </Text>
+                    </View>
+                    <Button
+                      size="sm"
+                      onPress={handleCopyActive}
+                      accessibilityLabel={t('sharing.modal.copy')}
+                    >
+                      <View className="flex-row items-center gap-1">
+                        <Copy size={12} className="text-primary-foreground" />
+                        <Text className="text-xs font-semibold text-primary-foreground">
+                          {t('sharing.modal.copy')}
+                        </Text>
+                      </View>
+                    </Button>
                   </View>
-                ))}
+                ) : null}
               </View>
-            )}
-          </View>
-        </View>
+
+              <View className="gap-1">
+                <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {t('sharing.modal.existingLinks')}
+                </Text>
+                {isListLoading ? (
+                  <View className="py-4 items-center">
+                    <ActivityIndicator />
+                  </View>
+                ) : isError ? (
+                  <Text className="text-sm text-destructive">
+                    {error instanceof Error ? error.message : t('sharing.modal.loadFailed')}
+                  </Text>
+                ) : activeLinks.length === 0 ? (
+                  <Text className="text-xs text-muted-foreground">{t('sharing.modal.empty')}</Text>
+                ) : (
+                  <View className="rounded-lg border border-border bg-card overflow-hidden">
+                    {activeLinks.map((link, idx) => (
+                      <View key={link.id}>
+                        {idx > 0 ? <View className="h-px bg-border/50 mx-2" /> : null}
+                        <ExistingLinkRow link={link} pageId={pageId} />
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </>
+          ) : null}
+        </ScrollView>
       </DialogContent>
     </Dialog>
   );

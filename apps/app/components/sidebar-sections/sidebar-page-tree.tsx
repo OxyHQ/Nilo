@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { View } from 'react-native';
 import { usePathname } from 'expo-router';
+import { buildPageTree, type TreeNode } from '@/lib/page-tree';
 import { Text } from '@/components/ui/text';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
@@ -10,41 +11,13 @@ import { PageDragProvider, type DragMutation } from './drag-context';
 interface SidebarPageTreeProps {
   /** Flat list of pages to organize into a tree. */
   pages: Page[];
+  readOnly?: boolean;
   /** Workspace context (used for invalidation by mutations). */
   workspaceId: string;
   /** Empty-state copy when no pages match. */
   emptyText?: string;
   /** Whether drag-to-reorder is enabled for this tree. */
   enableDrag?: boolean;
-}
-
-interface TreeNode {
-  page: Page;
-  children: TreeNode[];
-}
-
-function buildLocalTree(pages: Page[]): TreeNode[] {
-  const lookup = new Map<string, TreeNode>();
-  for (const p of pages) lookup.set(p.id, { page: p, children: [] });
-  const roots: TreeNode[] = [];
-  for (const p of pages) {
-    const node = lookup.get(p.id);
-    if (!node) continue;
-    if (p.parentId && lookup.has(p.parentId)) {
-      lookup.get(p.parentId)?.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  }
-  const orderCompare = (a: TreeNode, b: TreeNode) => {
-    const ao = a.page.order ?? 0;
-    const bo = b.page.order ?? 0;
-    if (ao !== bo) return ao - bo;
-    return new Date(b.page.updatedAt).getTime() - new Date(a.page.updatedAt).getTime();
-  };
-  roots.sort(orderCompare);
-  for (const n of lookup.values()) n.children.sort(orderCompare);
-  return roots;
 }
 
 /**
@@ -57,12 +30,13 @@ export function SidebarPageTree({
   workspaceId,
   emptyText,
   enableDrag = true,
+  readOnly = false,
 }: SidebarPageTreeProps) {
   const pathname = usePathname();
   const updatePage = useUpdatePage();
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
 
-  const roots = React.useMemo(() => buildLocalTree(pages), [pages]);
+  const roots = React.useMemo(() => buildPageTree(pages), [pages]);
   const pagesById = React.useMemo(() => {
     const m = new Map<string, Page>();
     for (const p of pages) m.set(p.id, p);
@@ -129,7 +103,8 @@ export function SidebarPageTree({
             workspaceId={workspaceId}
             expanded={expanded}
             setExpanded={setExpanded}
-            enableDrag={enableDrag}
+            readOnly={readOnly}
+            enableDrag={enableDrag && !readOnly}
             onCommit={handleCommit}
           />
         ))}
@@ -146,6 +121,7 @@ interface TreeNodeRowProps {
   expanded: Record<string, boolean>;
   setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   enableDrag: boolean;
+  readOnly: boolean;
   onCommit: (mutation: DragMutation) => void;
 }
 
@@ -157,6 +133,7 @@ function TreeNodeRow({
   expanded,
   setExpanded,
   enableDrag,
+  readOnly,
   onCommit,
 }: TreeNodeRowProps) {
   const isOpen = Boolean(expanded[node.page.id]);
@@ -185,6 +162,7 @@ function TreeNodeRow({
         }
         isActive={isActive}
         workspaceId={workspaceId}
+        readOnly={readOnly}
         enableDrag={enableDrag}
         onDrop={handleDrop}
       />
@@ -198,7 +176,8 @@ function TreeNodeRow({
               workspaceId={workspaceId}
               expanded={expanded}
               setExpanded={setExpanded}
-              enableDrag={enableDrag}
+              readOnly={readOnly}
+              enableDrag={enableDrag && !readOnly}
               onCommit={onCommit}
             />
           ))

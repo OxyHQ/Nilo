@@ -28,6 +28,7 @@ export interface PageRowSharedProps {
   workspaceId: string;
   /** Native sidebar passes false to disable drag affordance on small screens. */
   enableDrag?: boolean;
+  readOnly?: boolean;
   /** Notifies parent of a drop. */
   onDrop?: (sourceId: string, position: DropPosition) => void;
 }
@@ -64,6 +65,7 @@ export function SharedPageRow({
   isActive,
   workspaceId,
   platformDrag,
+  readOnly = false,
 }: SharedRowProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
@@ -122,6 +124,7 @@ export function SharedPageRow({
       {platformDrag?.dropIndicator === 'before' ? <DropLine /> : null}
       <Pressable
         id={platformDrag?.domId}
+        accessibilityRole="link"
         onPress={handleOpen}
         accessibilityLabel={t('pages.openPage', { title })}
         className={`group/row ${containerClass} ${platformDrag?.isDragging ? 'opacity-40' : ''}`}
@@ -136,6 +139,8 @@ export function SharedPageRow({
             e.stopPropagation();
             if (hasChildren) onToggle();
           }}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: isOpen }}
           accessibilityLabel={isOpen ? t('pages.collapse') : t('pages.expand')}
           className="h-5 w-5 items-center justify-center rounded"
           disabled={!hasChildren}
@@ -167,59 +172,61 @@ export function SharedPageRow({
         </Text>
 
         {/* Hover actions: three-dot menu + add child */}
-        <View className="flex-row items-center opacity-0 group-hover/row:opacity-100">
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <Pressable
-                onPress={(e) => e.stopPropagation()}
-                accessibilityLabel={t('pages.actions.actionsFor', { title })}
-                className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
-              >
-                <MoreHorizontal size={14} color={colors.mutedForeground} />
-              </Pressable>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content>
-              <DropdownMenu.Item key="favorite" onSelect={handleToggleFavorite}>
-                <DropdownMenu.ItemIcon ios={{ name: isFavorite ? 'star.slash' : 'star' }} />
-                <DropdownMenu.ItemTitle>
-                  {isFavorite
-                    ? t('pages.actions.removeFromFavorites')
-                    : t('pages.actions.addToFavorites')}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item key="duplicate" onSelect={handleDuplicate}>
-                <DropdownMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
-                <DropdownMenu.ItemTitle>{t('pages.actions.duplicate')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              {page.parentId ? (
-                <DropdownMenu.Item key="move-root" onSelect={handleMoveToRoot}>
-                  <DropdownMenu.ItemIcon ios={{ name: 'arrow.up.left' }} />
-                  <DropdownMenu.ItemTitle>{t('pages.actions.moveToTop')}</DropdownMenu.ItemTitle>
+        {!readOnly ? (
+          <View className="flex-row items-center opacity-0 group-hover/row:opacity-100">
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
+                <Pressable
+                  onPress={(e) => e.stopPropagation()}
+                  accessibilityLabel={t('pages.actions.actionsFor', { title })}
+                  className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
+                >
+                  <MoreHorizontal size={14} color={colors.mutedForeground} />
+                </Pressable>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content>
+                <DropdownMenu.Item key="favorite" onSelect={handleToggleFavorite}>
+                  <DropdownMenu.ItemIcon ios={{ name: isFavorite ? 'star.slash' : 'star' }} />
+                  <DropdownMenu.ItemTitle>
+                    {isFavorite
+                      ? t('pages.actions.removeFromFavorites')
+                      : t('pages.actions.addToFavorites')}
+                  </DropdownMenu.ItemTitle>
                 </DropdownMenu.Item>
-              ) : null}
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item key="delete" destructive onSelect={handleDelete}>
-                <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
-                <DropdownMenu.ItemTitle>{t('pages.actions.moveToTrash')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              handleAddChild();
-            }}
-            accessibilityLabel={t('pages.actions.addSubPageTo', { title })}
-            disabled={createPage.isPending}
-            className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
-          >
-            {createPage.isPending ? (
-              <ActivityIndicator size="small" color={colors.mutedForeground} />
-            ) : (
-              <Plus size={14} color={colors.mutedForeground} />
-            )}
-          </Pressable>
-        </View>
+                <DropdownMenu.Item key="duplicate" onSelect={handleDuplicate}>
+                  <DropdownMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
+                  <DropdownMenu.ItemTitle>{t('pages.actions.duplicate')}</DropdownMenu.ItemTitle>
+                </DropdownMenu.Item>
+                {page.parentId ? (
+                  <DropdownMenu.Item key="move-root" onSelect={handleMoveToRoot}>
+                    <DropdownMenu.ItemIcon ios={{ name: 'arrow.up.left' }} />
+                    <DropdownMenu.ItemTitle>{t('pages.actions.moveToTop')}</DropdownMenu.ItemTitle>
+                  </DropdownMenu.Item>
+                ) : null}
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item key="delete" destructive onSelect={handleDelete}>
+                  <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
+                  <DropdownMenu.ItemTitle>{t('pages.actions.moveToTrash')}</DropdownMenu.ItemTitle>
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                handleAddChild();
+              }}
+              accessibilityLabel={t('pages.actions.addSubPageTo', { title })}
+              disabled={createPage.isPending}
+              className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
+            >
+              {createPage.isPending ? (
+                <ActivityIndicator size="small" color={colors.mutedForeground} />
+              ) : (
+                <Plus size={14} color={colors.mutedForeground} />
+              )}
+            </Pressable>
+          </View>
+        ) : null}
       </Pressable>
       {platformDrag?.dropIndicator === 'inside' ? <DropInside /> : null}
       {platformDrag?.dropIndicator === 'after' ? <DropLine /> : null}

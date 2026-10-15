@@ -13,5 +13,9 @@
     "minutesAgo": "%{count}m ago",
     "hoursAgo": "%{count}h ago",
     "daysAgo": "%{count}d ago"
-  }
+  },
+  "someone": "Someone",
+  "pageShared": "%{name} shared %{page} with you",
+  "open": "Open notification",
+  "dismiss": "Dismiss notification"
 }

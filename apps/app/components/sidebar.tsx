@@ -1,3 +1,4 @@
+import { SharedWithMeSection } from './sidebar-sections/shared-with-me-section';
 import React from 'react';
 import { View, Pressable, Platform, Linking, ScrollView, useWindowDimensions } from 'react-native';
 import { Text } from '@/components/ui/text';
@@ -209,6 +210,8 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
             <SidebarSettingsButton />
           </View>
         ) : null}
+
+        {isAuthenticated ? <SharedWithMeSection /> : null}
 
         {isAuthenticated && currentWorkspaceId ? (
           <View className="mt-2">

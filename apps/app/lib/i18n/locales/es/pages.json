@@ -182,5 +182,7 @@
     "empty": "Esta página está vacía.",
     "madeWith": "Hecho con",
     "madeWithNilo": "Hecho con Nilo"
-  }
+  },
+  "noAccess": "No tienes acceso a esta página",
+  "restricted": "Página restringida"
 }

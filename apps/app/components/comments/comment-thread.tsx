@@ -24,6 +24,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import i18n from '@/lib/i18n';
 
 interface CommentThreadProps {
+  canComment?: boolean;
   thread: CommentThreadType;
   workspaceId: string;
   pageId: string;
@@ -49,7 +50,12 @@ function relativeTime(iso: string): string {
  * Renders a single comment thread (top-level root + replies). Owns the
  * reply composer state and the per-comment action menu.
  */
-export function CommentThread({ thread, workspaceId, pageId }: CommentThreadProps) {
+export function CommentThread({
+  thread,
+  workspaceId,
+  pageId,
+  canComment = true,
+}: CommentThreadProps) {
   const { user } = useOxy();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -83,7 +89,7 @@ export function CommentThread({ thread, workspaceId, pageId }: CommentThreadProp
     <View className="rounded-xl border border-border bg-card px-3 py-3 gap-2">
       <CommentRow
         comment={thread.root}
-        currentUserId={user?.id ?? null}
+        currentUserId={canComment ? (user?.id ?? null) : null}
         pageId={pageId}
         blockId={thread.root.blockId}
         onDelete={() =>
@@ -94,23 +100,25 @@ export function CommentThread({ thread, workspaceId, pageId }: CommentThreadProp
           })
         }
         rightSlot={
-          <Pressable
-            onPress={handleToggleResolve}
-            disabled={resolveMutation.isPending || unresolveMutation.isPending}
-            className="flex-row items-center gap-1 rounded-md px-2 py-1 hover:bg-muted"
-            accessibilityLabel={
-              isResolved ? t('comments.thread.reopenThread') : t('comments.thread.resolveThread')
-            }
-          >
-            {isResolved ? (
-              <Undo2 size={12} color={colors.mutedForeground} />
-            ) : (
-              <Check size={12} color={colors.mutedForeground} />
-            )}
-            <Text className="text-[10px] font-medium text-muted-foreground">
-              {isResolved ? t('comments.thread.reopen') : t('comments.thread.resolve')}
-            </Text>
-          </Pressable>
+          canComment ? (
+            <Pressable
+              onPress={handleToggleResolve}
+              disabled={resolveMutation.isPending || unresolveMutation.isPending}
+              className="flex-row items-center gap-1 rounded-md px-2 py-1 hover:bg-muted"
+              accessibilityLabel={
+                isResolved ? t('comments.thread.reopenThread') : t('comments.thread.resolveThread')
+              }
+            >
+              {isResolved ? (
+                <Undo2 size={12} color={colors.mutedForeground} />
+              ) : (
+                <Check size={12} color={colors.mutedForeground} />
+              )}
+              <Text className="text-[10px] font-medium text-muted-foreground">
+                {isResolved ? t('comments.thread.reopen') : t('comments.thread.resolve')}
+              </Text>
+            </Pressable>
+          ) : null
         }
       />
 
@@ -120,7 +128,7 @@ export function CommentThread({ thread, workspaceId, pageId }: CommentThreadProp
             <CommentRow
               key={reply.id}
               comment={reply}
-              currentUserId={user?.id ?? null}
+              currentUserId={canComment ? (user?.id ?? null) : null}
               pageId={pageId}
               blockId={reply.blockId}
               compact
@@ -136,7 +144,7 @@ export function CommentThread({ thread, workspaceId, pageId }: CommentThreadProp
         </View>
       ) : null}
 
-      {!isResolved ? (
+      {canComment && !isResolved ? (
         replyOpen ? (
           <View className="pl-4">
             <CommentComposer

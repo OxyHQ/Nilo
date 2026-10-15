@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOxy } from '@oxy.so/services';
+import axios from 'axios';
 import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
 import { queryKeys } from './query-keys';
@@ -55,6 +56,11 @@ export function usePage(id: string | undefined) {
       const res = await apiClient.get(API_ROUTES.pages.get(id));
       return res.data;
     },
+    retry: (count, error) => {
+      if (axios.isAxiosError(error) && [403, 404].includes(error.response?.status ?? 0))
+        return false;
+      return count < 2;
+    },
     enabled: isAuthenticated && Boolean(id),
   });
 }
@@ -88,6 +94,7 @@ export function useUpdatePage() {
       const previous = queryClient.getQueryData<PageResponse>(queryKeys.pages.detail(id));
       if (previous) {
         queryClient.setQueryData<PageResponse>(queryKeys.pages.detail(id), {
+          ...previous,
           page: { ...previous.page, ...patch } as Page,
         });
       }

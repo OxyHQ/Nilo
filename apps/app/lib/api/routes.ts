@@ -2,6 +2,10 @@
 export const API_ROUTES = {
   pages: {
     list: '/pages',
+    shared: '/pages/shared',
+    permissions: (id: string) => `/pages/${id}/permissions`,
+    permission: (id: string, userId: string) =>
+      `/pages/${id}/permissions/${encodeURIComponent(userId)}`,
     create: '/pages',
     get: (id: string) => `/pages/${id}`,
     update: (id: string) => `/pages/${id}`,
@@ -11,6 +15,7 @@ export const API_ROUTES = {
     breadcrumb: (id: string) => `/pages/${id}/breadcrumb`,
     export: (id: string) => `/pages/${id}/export`,
   },
+  share: { join: (token: string) => `/share/${encodeURIComponent(token)}/join` },
   workspaces: {
     emptyTrash: (id: string) => `/workspaces/${id}/trash/empty`,
   },

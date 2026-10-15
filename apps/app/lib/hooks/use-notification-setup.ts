@@ -14,6 +14,7 @@ import { useOxy } from '@oxy.so/services';
 import { acquireSocket, releaseSocket } from '@/lib/realtime/socket';
 import { useRouter } from 'expo-router';
 import apiClient from '@/lib/api/client';
+import { invalidatePageAccess } from './use-page-permissions';
 
 // ── Constants ──────────────────────────────────────────────────────
 const PROJECT_ID = Constants.expoConfig?.extra?.eas?.projectId;
@@ -165,6 +166,7 @@ export function useNotificationSetup() {
     const onNotification = () => {
       // Invalidate React Query caches so notification list + unread count refresh
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      void invalidatePageAccess(queryClient);
     };
     socket.on('notification', onNotification);
 

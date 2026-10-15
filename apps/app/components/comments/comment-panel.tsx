@@ -20,6 +20,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 type FilterMode = 'all' | 'open' | 'resolved';
 
 interface CommentPanelProps {
+  canComment?: boolean;
   pageId: string;
   workspaceId: string;
   open: boolean;
@@ -43,6 +44,7 @@ export function CommentPanel({
   open,
   onClose,
   focusedBlockId,
+  canComment = true,
 }: CommentPanelProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -150,6 +152,7 @@ export function CommentPanel({
             <CommentThread
               key={thread.root.id}
               thread={thread}
+              canComment={canComment}
               workspaceId={workspaceId}
               pageId={pageId}
             />
@@ -157,18 +160,20 @@ export function CommentPanel({
         )}
       </ScrollView>
 
-      <View className="border-t border-border p-3">
-        <CommentComposer
-          workspaceId={workspaceId}
-          placeholder={
-            focusedBlockId
-              ? t('comments.panel.blockPlaceholder')
-              : t('comments.panel.pagePlaceholder')
-          }
-          onSubmit={handleSubmit}
-          submitting={createMutation.isPending}
-        />
-      </View>
+      {canComment ? (
+        <View className="border-t border-border p-3">
+          <CommentComposer
+            workspaceId={workspaceId}
+            placeholder={
+              focusedBlockId
+                ? t('comments.panel.blockPlaceholder')
+                : t('comments.panel.pagePlaceholder')
+            }
+            onSubmit={handleSubmit}
+            submitting={createMutation.isPending}
+          />
+        </View>
+      ) : null}
     </View>
   );
 

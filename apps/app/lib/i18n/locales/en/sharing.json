@@ -37,20 +37,64 @@
   },
   "modal": {
     "title": "Share this page",
-    "description": "Create a public link to share this page with anyone — even people without an Oxy account.",
+    "description": "Invite people and manage access to this page and its subpages.",
     "anyoneWithLink": "Anyone with the link",
-    "publicActive": "%{scope} — no sign-in required",
+    "publicActive": "%{scope} link active",
     "publicInactive": "No public link is active",
     "access": "Access:",
     "selectedScope": "Selected scope %{scope}",
     "copy": "Copy",
     "existingLinks": "Existing links",
     "loadFailed": "Failed to load share links",
-    "empty": "No share links yet."
+    "empty": "No share links yet.",
+    "guestExplanation": "Comment and edit links require signing in. Opening in Nilo adds the person as a guest if they are not a workspace member."
   },
   "blocks": {
     "emptyParagraph": "Empty paragraph",
     "untitledHeading": "Untitled heading",
     "unsupported": "Unsupported block type: %{type}"
-  }
+  },
+  "roles": {
+    "viewer": "Can view",
+    "commenter": "Can comment",
+    "editor": "Can edit",
+    "admin": "Full access",
+    "owner": "Full access"
+  },
+  "people": {
+    "title": "People with access",
+    "email": "Email address",
+    "inviteRole": "Access for invited person",
+    "invite": "Invite",
+    "userNotFound": "No Oxy account uses that email address. Ask them to create an account first.",
+    "inviteFailed": "Could not share this page. Check your access and try again.",
+    "invited": "Page shared.",
+    "you": "(you)",
+    "changeRole": "Change access for %{name}",
+    "removePerson": "Remove access for %{name}",
+    "remove": "Remove",
+    "leave": "Leave page",
+    "inherited": "From %{title}",
+    "viaLink": "Via share link",
+    "updateFailed": "Could not update access. Your permissions may have changed.",
+    "empty": "No individual invitations.",
+    "workspaceAccess": "Workspace members also have access through their workspace role.",
+    "loadFailed": "Could not load page access.",
+    "retry": "Try again"
+  },
+  "general": {
+    "title": "General access",
+    "everyone": "Everyone in %{workspace}",
+    "invitedOnly": "Only people invited",
+    "restrict": "Restrict this page",
+    "inherited": "This page is restricted by its parent. Manage general access there.",
+    "adminOnly": "Only people with full access or the page creator can change general access.",
+    "subtree": "Applies to this page and its subpages. Workspace owners and admins retain access.",
+    "failed": "Could not change general access."
+  },
+  "openInNilo": "Open in Nilo",
+  "joinExplanation": "Sign in and open in Nilo to comment or edit. Opening adds you as a guest if you are not a workspace member.",
+  "joinFailed": "Could not open this page. Try again.",
+  "checked": "Checked",
+  "unchecked": "Unchecked"
 }

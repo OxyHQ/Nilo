@@ -8,6 +8,7 @@ import { PropertyCell } from './property-cell';
 interface RowPropertiesPanelProps {
   database: Database;
   row: DatabaseRow;
+  readOnly?: boolean;
 }
 
 /**
@@ -15,7 +16,7 @@ interface RowPropertiesPanelProps {
  * Mirrors Notion's "row open in side peek" UX — every property is
  * editable inline.
  */
-export function RowPropertiesPanel({ database, row }: RowPropertiesPanelProps) {
+export function RowPropertiesPanel({ database, row, readOnly = false }: RowPropertiesPanelProps) {
   const updateRow = useUpdateRow();
 
   const onChange = React.useCallback(
@@ -45,6 +46,7 @@ export function RowPropertiesPanel({ database, row }: RowPropertiesPanelProps) {
               property={property}
               value={row.properties[property.id] ?? null}
               variant="panel"
+              readOnly={readOnly}
               onChange={(value) => onChange(property.id, value)}
             />
           </View>
