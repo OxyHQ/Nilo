@@ -48,6 +48,75 @@ export type ImageLoader = (url: string) => Promise<Buffer | null>;
 
 const stringOf = (value: unknown) => (typeof value === 'string' ? value : '');
 
+/**
+ * What one export may take in images: how many, how much at once, how many
+ * bytes in all, and how large each may be decoded. pdfkit decodes a PNG with
+ * transparency into memory, so a small file declaring a huge canvas is refused
+ * from its header, before pdfkit sees it.
+ */
+export const IMAGE_LIMITS = {
+  count: 30,
+  concurrency: 4,
+  totalBytes: 40 * 1024 * 1024,
+  pixels: 25_000_000,
+  side: 10_000,
+} as const;
+
+/** An image's size from its PNG or JPEG header; null when the header says nothing usable. */
+export function imageSize(bytes: Buffer): { width: number; height: number } | null {
+  if (bytes.length >= 24 && bytes.readUInt32BE(12) === 0x49484452) {
+    return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+  }
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  let at = 2;
+  while (at + 9 < bytes.length) {
+    if (bytes[at] !== 0xff) return null;
+    const marker = bytes[at + 1] as number;
+    const length = bytes.readUInt16BE(at + 2);
+    // Start of frame (baseline, progressive…), not DHT, JPG or DAC.
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return { height: bytes.readUInt16BE(at + 5), width: bytes.readUInt16BE(at + 7) };
+    }
+    at += 2 + length;
+  }
+  return null;
+}
+
+function withinPixelBudget(bytes: Buffer): boolean {
+  const size = imageSize(bytes);
+  if (!size || size.width === 0 || size.height === 0) return false;
+  return (
+    size.width <= IMAGE_LIMITS.side &&
+    size.height <= IMAGE_LIMITS.side &&
+    size.width * size.height <= IMAGE_LIMITS.pixels
+  );
+}
+
+/**
+ * The page's images, within `IMAGE_LIMITS`: the first ones in reading order,
+ * a few at a time, until the byte budget is spent. The rest become links.
+ */
+async function loadImages(
+  urls: readonly string[],
+  loadImage: ImageLoader,
+): Promise<Map<string, Buffer>> {
+  const images = new Map<string, Buffer>();
+  const queue = urls.slice(0, IMAGE_LIMITS.count);
+  let spent = 0;
+  const worker = async () => {
+    for (let url = queue.shift(); url !== undefined; url = queue.shift()) {
+      if (spent >= IMAGE_LIMITS.totalBytes) return;
+      const bytes = await loadImage(url).catch(() => null);
+      if (!bytes || !isEmbeddable(bytes) || !withinPixelBudget(bytes)) continue;
+      if (spent + bytes.length > IMAGE_LIMITS.totalBytes) continue;
+      spent += bytes.length;
+      images.set(url, bytes);
+    }
+  };
+  await Promise.all(Array.from({ length: IMAGE_LIMITS.concurrency }, worker));
+  return images;
+}
+
 /** PNG or JPEG, the two formats a PDF embeds without converting. */
 function isEmbeddable(bytes: Buffer): boolean {
   const png = bytes
@@ -357,13 +426,7 @@ export async function blocksToPdf(
   title: string,
   loadImage: ImageLoader = async () => null,
 ): Promise<Buffer> {
-  const images = new Map<string, Buffer>();
-  await Promise.all(
-    imageUrls(blocks).map(async (url) => {
-      const bytes = await loadImage(url).catch(() => null);
-      if (bytes && isEmbeddable(bytes)) images.set(url, bytes);
-    }),
-  );
+  const images = await loadImages(imageUrls(blocks), loadImage);
 
   const name = title.trim() || 'Untitled';
   const doc = new PDFDocument({

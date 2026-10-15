@@ -4,18 +4,20 @@
  * same `@nilo/contracts` reader the API imports with. Each edit is one
  * transaction, so one undo step.
  */
-import { type BlockNode, markdownToBlocks } from '@nilo/contracts';
+import { type BlockNode, markdownToBlocks, renderInline } from '@nilo/contracts';
 import {
   type BlockId,
   type BlockSnapshot,
   type CommandContext,
   composeCommands,
   type EditorDocument,
+  editText,
   exportSnapshot,
   insertSnapshot,
   moveBlocks,
-  removeBlocks,
+  type Schema,
   snapshotToMarkdown,
+  specOf,
   type Transaction,
 } from '@oxy.so/bloom-editor/model';
 import { fieldsFromContent } from './wire';
@@ -68,15 +70,46 @@ export function insertMarkdownAtTop(ctx: CommandContext, markdown: string): Tran
   ]);
 }
 
-/** A block replaced by the blocks a run of Markdown becomes. Null for empty Markdown. */
-export function replaceWithMarkdown(
+/** The marks Markdown carries both ways; anything else (underline, colours, mentions) it would lose. */
+const MARKDOWN_MARKS = new Set(['text', 'bold', 'italic', 'strike', 'code', 'link']);
+
+/** A block's own text (not what it holds) as inline Markdown. */
+export function blockTextMarkdown(doc: EditorDocument, id: BlockId): string {
+  const block = doc.blocks[id];
+  return block ? renderInline(block.text ?? []) : '';
+}
+
+/**
+ * Whether a block's text can be replaced from Markdown without losing
+ * anything: a text block with nothing inside it, whose marks Markdown carries.
+ */
+export function canReplaceText(doc: EditorDocument, schema: Schema, id: BlockId): boolean {
+  const block = doc.blocks[id];
+  if (!block || !specOf(schema, block.type).hasText || block.children.length > 0) return false;
+  return (block.text ?? []).every((segment) =>
+    Object.keys(segment).every((key) => MARKDOWN_MARKS.has(key)),
+  );
+}
+
+/**
+ * A block's text replaced in place by the Markdown's first block — the same
+ * block, its id, type and props kept — and the Markdown's other blocks after
+ * it. Null for empty Markdown.
+ */
+export function replaceBlockText(
   ctx: CommandContext,
-  blockId: BlockId,
+  id: BlockId,
   markdown: string,
 ): Transaction | null {
-  if (markdownToSnapshot(markdown).length === 0) return null;
+  const [first, ...rest] = markdownToSnapshot(markdown);
+  if (!first || !ctx.doc.blocks[id]) return null;
   return composeCommands(ctx, [
-    (c) => insertMarkdownAfter(c, blockId, markdown),
-    (c) => removeBlocks(c, [blockId]),
+    (c) => editText(c, id, [...(first.text ?? [])]),
+    (c) => (rest.length > 0 ? insertSnapshot(c.doc, rest, id, c.newId, c.schema) : null),
   ]);
+}
+
+/** Whether a block still says what was sent about it (it exists, and its text is unchanged). */
+export function isSameText(doc: EditorDocument, id: BlockId, sent: string): boolean {
+  return Boolean(doc.blocks[id]) && blockTextMarkdown(doc, id) === sent;
 }

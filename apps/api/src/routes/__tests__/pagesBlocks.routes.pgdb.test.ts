@@ -506,6 +506,8 @@ describe('PATCH /pages/:id', () => {
     expect(refused.status).toBe(423);
     expect(refused.json.code).toBe('PAGE_LOCKED');
     expect((await api('PATCH', `/pages/${page.id}`, { title: 'Changed' })).status).toBe(423);
+    // Turning it into a canvas rearranges its content.
+    expect((await api('PATCH', `/pages/${page.id}`, { mode: 'canvas' })).status).toBe(423);
     // Layout and favourites are not content.
     expect((await api('PATCH', `/pages/${page.id}`, { favorited: true })).status).toBe(200);
     // Unlocking and editing in one go.

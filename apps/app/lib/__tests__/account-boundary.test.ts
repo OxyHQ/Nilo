@@ -1,9 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { QueryClient } from '@tanstack/react-query';
-import { enterAccount, forgetDeviceData } from '../account-boundary';
+import { enterAccount, sessionEnded, signOutOfDevice } from '../account-boundary';
 import { clearAllSavedPages } from '../editor/offline';
 import { offlinePages } from '../editor/offline-pages';
-import { shellPersister } from '../offline-cache';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
@@ -11,9 +10,6 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 jest.mock('../editor/offline', () => ({ clearAllSavedPages: jest.fn(async () => undefined) }));
 jest.mock('../editor/offline-pages', () => ({
   offlinePages: { clear: jest.fn(async () => undefined) },
-}));
-jest.mock('../offline-cache', () => ({
-  shellPersister: { removeClient: jest.fn(async () => undefined) },
 }));
 
 let client: QueryClient;
@@ -24,39 +20,62 @@ beforeEach(async () => {
   client.setQueryData(['pages', 'w'], { pages: ['secret'] });
 });
 
-const forgotten = () => {
+const cleared = () => {
   expect(client.getQueryData(['pages', 'w'])).toBeUndefined();
-  expect(shellPersister.removeClient).toHaveBeenCalled();
   expect(offlinePages.clear).toHaveBeenCalled();
   expect(clearAllSavedPages).toHaveBeenCalled();
+};
+const kept = () => {
+  expect(offlinePages.clear).not.toHaveBeenCalled();
+  expect(clearAllSavedPages).not.toHaveBeenCalled();
 };
 
 it('takes the device for the first account without removing anything', async () => {
   await enterAccount(client, 'ana');
   expect(await AsyncStorage.getItem('nilo:account')).toBe('ana');
-  expect(client.getQueryData(['pages', 'w'])).toEqual({ pages: ['secret'] });
-  expect(offlinePages.clear).not.toHaveBeenCalled();
+  kept();
 });
 
 it('keeps everything for the same account', async () => {
   await enterAccount(client, 'ana');
   await enterAccount(client, 'ana');
-  expect(offlinePages.clear).not.toHaveBeenCalled();
+  kept();
 });
 
-it('removes everything the device kept when another account signs in', async () => {
+it('removes what the device kept when another account signs in', async () => {
   await enterAccount(client, 'ana');
   await enterAccount(client, 'bo');
-  forgotten();
+  cleared();
   expect(await AsyncStorage.getItem('nilo:account')).toBe('bo');
 });
 
-it('removes everything on signing out, and the next account starts afresh', async () => {
+it('after signing out of Nilo, clears what was written since, whoever signs in next', async () => {
   await enterAccount(client, 'ana');
-  await forgetDeviceData(client);
-  forgotten();
-  expect(await AsyncStorage.getItem('nilo:account')).toBeNull();
+  await signOutOfDevice(client);
+  cleared();
+  // The editor saving as it unmounts, after the sign-out cleared the device.
   jest.clearAllMocks();
   await enterAccount(client, 'bo');
-  expect(offlinePages.clear).not.toHaveBeenCalled();
+  cleared();
+  jest.clearAllMocks();
+  await signOutOfDevice(client);
+  jest.clearAllMocks();
+  await enterAccount(client, 'bo');
+  cleared();
+});
+
+it('when the session ended elsewhere, keeps the pages for the same account only', async () => {
+  await enterAccount(client, 'ana');
+  await sessionEnded('ana');
+  await enterAccount(client, 'ana');
+  kept();
+  await sessionEnded('ana');
+  await enterAccount(client, 'bo');
+  cleared();
+});
+
+it('ignores a session ending for an account that does not own the device', async () => {
+  await enterAccount(client, 'ana');
+  await sessionEnded('someone-else');
+  expect(await AsyncStorage.getItem('nilo:account')).toBe('ana');
 });

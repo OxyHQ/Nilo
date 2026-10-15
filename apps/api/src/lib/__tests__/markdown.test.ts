@@ -5,6 +5,7 @@ import {
   blocksToMarkdown,
   blocksToText,
   blocksToTree,
+  inReadingOrder,
   markdownTitle,
   markdownToBlocks,
   mergeSegments,
@@ -268,5 +269,32 @@ describe('canvas notes in exports', () => {
     expect(blocksToHtmlBody(tree)).toBe(
       '<section class="note"><p>Inside</p>\n<ul><li>Item</li></ul></section>',
     );
+  });
+});
+
+describe('a canvas read as a page', () => {
+  const node = (type: string, content: Record<string, unknown>) =>
+    ({ type, content, children: [] }) as unknown as BlockNode;
+
+  it('reads notes top to bottom, then left to right, after anything outside a note', () => {
+    const tree = [
+      node('canvas_note', { x: 500, y: 0 }),
+      node('paragraph', { text: 'loose' }),
+      node('canvas_note', { x: 0, y: 400 }),
+      node('canvas_note', { x: 0, y: 0 }),
+    ];
+    expect(
+      inReadingOrder(tree).map((n) => [n.type, n.content.x ?? null, n.content.y ?? null]),
+    ).toEqual([
+      ['paragraph', null, null],
+      ['canvas_note', 0, 0],
+      ['canvas_note', 500, 0],
+      ['canvas_note', 0, 400],
+    ]);
+  });
+
+  it('keeps a document in its order', () => {
+    const tree = [node('paragraph', { text: 'b' }), node('heading_1', { text: 'a' })];
+    expect(inReadingOrder(tree)).toEqual(tree);
   });
 });

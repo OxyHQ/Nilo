@@ -278,6 +278,12 @@
     "moveNote": "Move note",
     "resizeNote": "Resize note",
     "deleteNote": "Delete note",
-    "writeInNote": "Write in this note"
+    "writeInNote": "Write in this note",
+    "loose": "Not in a note",
+    "putInNote": "Put in a note",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
+    "moveUp": "Move up",
+    "moveDown": "Move down"
   }
 }

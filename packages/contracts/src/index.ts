@@ -22,6 +22,7 @@ export {
   blocksToText,
   blocksToTree,
   escapeHtml,
+  inReadingOrder,
   type FlatBlock,
   markdownTitle,
   markdownToBlocks,

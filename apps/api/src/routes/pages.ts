@@ -15,7 +15,7 @@ import {
   updatePage,
 } from '../repositories/pages.js';
 import { listBlocksForPage } from '../repositories/blocks.js';
-import { blocksToHtml, blocksToMarkdown, blocksToTree } from '@nilo/contracts';
+import { blocksToHtml, blocksToMarkdown, blocksToTree, inReadingOrder } from '@nilo/contracts';
 import { copyPageTree } from '../repositories/pageCopies.js';
 import { follow } from '../repositories/pageFollows.js';
 import { findDatabaseById } from '../repositories/databases.js';
@@ -24,6 +24,7 @@ import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { blocksToPdf } from '../lib/pdf-export.js';
 import { safeFetch } from '../lib/safe-fetch.js';
 import { log } from '../lib/logger.js';
+import { rateLimit } from '../lib/rate-limit.js';
 import { placeOrRefuse } from '../lib/placement.js';
 import { syncRelations } from '../lib/databases/relations.js';
 import type { DatabaseRecord } from '../repositories/databases.js';
@@ -486,12 +487,15 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
     // A locked page keeps its title, icon, cover and properties until it is
     // unlocked (in this request or an earlier one).
+    // A canvas and a document lay the same blocks out differently: switching
+    // rearranges them, so it is a content edit too.
     const editsContent =
       body.title !== undefined ||
       body.icon !== undefined ||
       body.cover !== undefined ||
       body.coverPosition !== undefined ||
-      body.properties !== undefined;
+      body.properties !== undefined ||
+      body.mode !== undefined;
     if (page.locked && body.locked !== false && editsContent) {
       res.status(423).json({ error: 'The page is locked', code: 'PAGE_LOCKED' });
       return;
@@ -814,50 +818,62 @@ async function loadExportImage(url: string): Promise<Buffer | null> {
  * with their formatting and nesting (`@nilo/contracts` markdown/HTML,
  * `lib/pdf-export.ts`), every piece of text escaped in HTML.
  */
-router.get('/:id/export', async (req: Request, res: Response) => {
-  try {
-    const params = z.object({ id: entityIdSchema }).parse(req.params);
-    const { format } = exportQuerySchema.parse(req.query);
-
-    const db = getDb();
-    const page = await findPageById(db, params.id);
-    if (!page) {
-      res.status(404).json({ error: 'Page not found' });
-      return;
-    }
-    if (!(await checkPageAccess(req, res, db, page.id, 'viewer'))) return;
-
-    const tree = blocksToTree(await listBlocksForPage(db, page.id));
-    const title = page.title?.trim() ? page.title : 'Untitled';
-    // A filename every OS accepts, plus the exact name for clients that read RFC 5987.
-    const ascii =
-      title
-        .normalize('NFKD')
-        .replace(/[^a-zA-Z0-9-_]+/gu, '-')
-        .replace(/^-+|-+$/g, '') || 'page';
-    const kind =
-      format === 'pdf'
-        ? { extension: 'pdf', type: 'application/pdf' }
-        : format === 'html'
-          ? { extension: 'html', type: 'text/html; charset=utf-8' }
-          : { extension: 'md', type: 'text/markdown; charset=utf-8' };
-    const body =
-      format === 'pdf'
-        ? await blocksToPdf(tree, title, loadExportImage)
-        : format === 'html'
-          ? blocksToHtml(tree, title)
-          : blocksToMarkdown(tree, title);
-    res.setHeader('Content-Type', kind.type);
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${ascii}.${kind.extension}"; filename*=UTF-8''${encodeURIComponent(`${title}.${kind.extension}`)}`,
-    );
-    res.send(body);
-  } catch (error: unknown) {
-    if (handleZodError(error, res)) return;
-    log.general.error({ err: error }, 'Failed to export page');
-    res.status(500).json({ error: 'Failed to export page' });
-  }
+/** A PDF is drawn on the server: a member gets a few a minute. */
+const pdfExports = rateLimit({
+  name: 'page-export-pdf',
+  limit: 10,
+  windowMs: 60_000,
+  scope: (req) => req.user?.id ?? '',
 });
+
+router.get(
+  '/:id/export',
+  (req, res, next) => (req.query.format === 'pdf' ? pdfExports(req, res, next) : next()),
+  async (req: Request, res: Response) => {
+    try {
+      const params = z.object({ id: entityIdSchema }).parse(req.params);
+      const { format } = exportQuerySchema.parse(req.query);
+
+      const db = getDb();
+      const page = await findPageById(db, params.id);
+      if (!page) {
+        res.status(404).json({ error: 'Page not found' });
+        return;
+      }
+      if (!(await checkPageAccess(req, res, db, page.id, 'viewer'))) return;
+
+      const tree = inReadingOrder(blocksToTree(await listBlocksForPage(db, page.id)));
+      const title = page.title?.trim() ? page.title : 'Untitled';
+      // A filename every OS accepts, plus the exact name for clients that read RFC 5987.
+      const ascii =
+        title
+          .normalize('NFKD')
+          .replace(/[^a-zA-Z0-9-_]+/gu, '-')
+          .replace(/^-+|-+$/g, '') || 'page';
+      const kind =
+        format === 'pdf'
+          ? { extension: 'pdf', type: 'application/pdf' }
+          : format === 'html'
+            ? { extension: 'html', type: 'text/html; charset=utf-8' }
+            : { extension: 'md', type: 'text/markdown; charset=utf-8' };
+      const body =
+        format === 'pdf'
+          ? await blocksToPdf(tree, title, loadExportImage)
+          : format === 'html'
+            ? blocksToHtml(tree, title)
+            : blocksToMarkdown(tree, title);
+      res.setHeader('Content-Type', kind.type);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${ascii}.${kind.extension}"; filename*=UTF-8''${encodeURIComponent(`${title}.${kind.extension}`)}`,
+      );
+      res.send(body);
+    } catch (error: unknown) {
+      if (handleZodError(error, res)) return;
+      log.general.error({ err: error }, 'Failed to export page');
+      res.status(500).json({ error: 'Failed to export page' });
+    }
+  },
+);
 
 export default router;

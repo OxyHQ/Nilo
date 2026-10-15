@@ -17,6 +17,7 @@ import {
   setProps,
   type Transaction,
 } from '@oxy.so/bloom-editor/model';
+import { markdownToSnapshot } from './markdown-blocks';
 
 export const NOTE = 'canvas_note';
 export const NOTE_WIDTH = 360;
@@ -149,4 +150,31 @@ export function toDocument(ctx: CommandContext): Transaction | null {
     }),
     (c) => removeBlocks(c, notes),
   ]);
+}
+
+/**
+ * Markdown as a new note above the others (a summary of the page), so a
+ * canvas shows it. Null for empty Markdown.
+ */
+export function insertMarkdownAsNote(ctx: CommandContext, markdown: string): Transaction | null {
+  const children = markdownToSnapshot(markdown);
+  if (children.length === 0) return null;
+  const notes = ctx.doc.root.filter((id) => isNote(ctx.doc, id)).map((id) => frameOf(ctx.doc, id));
+  const at = notes.length
+    ? { x: Math.min(...notes.map((f) => f.x)), y: Math.min(...notes.map((f) => f.y)) - 280 }
+    : { x: 0, y: 0 };
+  const last = ctx.doc.root[ctx.doc.root.length - 1] ?? null;
+  return insertSnapshot(
+    ctx.doc,
+    [
+      {
+        type: NOTE,
+        props: { x: Math.round(at.x), y: Math.round(at.y), width: NOTE_WIDTH },
+        children,
+      },
+    ],
+    last,
+    ctx.newId,
+    ctx.schema,
+  );
 }
