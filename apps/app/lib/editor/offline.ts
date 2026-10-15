@@ -57,6 +57,14 @@ export async function clearSavedPage(pageId: string): Promise<void> {
   } catch {}
 }
 
+/** Forget the unsent work of every page: the device is changing hands (`lib/account-boundary.ts`). */
+export async function clearAllSavedPages(): Promise<void> {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    await AsyncStorage.multiRemove(keys.filter((k) => k.startsWith('nilo:editor:')));
+  } catch {}
+}
+
 /** When each pending change was first seen, to know how old saved work is. */
 export class PendingClock {
   private readonly seen = new Map<string, number>();

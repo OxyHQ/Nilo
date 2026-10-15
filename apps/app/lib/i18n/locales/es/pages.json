@@ -265,7 +265,8 @@
     "markdown": "Markdown",
     "html": "HTML",
     "webOnly": "Por ahora, la exportación solo está disponible en la web. Abre esta página en tu navegador para descargarla.",
-    "downloaded": "Exportación descargada"
+    "downloaded": "Exportación descargada",
+    "pdf": "PDF"
   },
   "import": {
     "title": "Importar",
@@ -325,5 +326,9 @@
     "banner": "Esta página está bloqueada.",
     "unlock": "Desbloquear"
   },
-  "title": "Título de la página"
+  "title": "Título de la página",
+  "offline": {
+    "available": "Disponible sin conexión",
+    "hint": "Guarda esta página en este dispositivo para leerla y editarla sin conexión."
+  }
 }

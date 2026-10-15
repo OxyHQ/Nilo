@@ -265,7 +265,8 @@
     "markdown": "Markdown",
     "html": "HTML",
     "webOnly": "Export is available on the web for now. Open this page in your browser to download it.",
-    "downloaded": "Export downloaded"
+    "downloaded": "Export downloaded",
+    "pdf": "PDF"
   },
   "import": {
     "title": "Import",
@@ -325,5 +326,9 @@
     "banner": "This page is locked.",
     "unlock": "Unlock"
   },
-  "title": "Page title"
+  "title": "Page title",
+  "offline": {
+    "available": "Available offline",
+    "hint": "Keep this page on this device to read and edit it without a connection."
+  }
 }

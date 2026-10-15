@@ -14,12 +14,14 @@ import { Popover, PopoverTrigger, PopoverContent, PopoverSeparator } from '@oxy.
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Switch } from '@/components/ui/switch';
+import { OfflineSwitch } from './offline-switch';
 import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
 import { cn } from '@/lib/utils';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useDeletePage, useDuplicatePage, useUpdatePage } from '@/lib/hooks/use-pages';
+import { EXPORT_FORMATS, type ExportFormat } from '@/lib/export-formats';
 import { useExportPage } from '@/lib/hooks/use-page-transfer';
 import { ImportPagesDialog } from './import-pages-dialog';
 import type { Page } from '@/lib/types/pages';
@@ -35,6 +37,12 @@ interface PageActionsMenuProps {
  * and dialogs that the actions list expects (duplicate, move, favorite,
  * trash). Renders different items when the page is already archived.
  */
+const EXPORT_LABELS: Record<ExportFormat, string> = {
+  md: 'pages.export.markdown',
+  html: 'pages.export.html',
+  pdf: 'pages.export.pdf',
+};
+
 export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps) {
   const router = useRouter();
   const follow = usePageFollow(page.id);
@@ -85,7 +93,7 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
     toast.success(t('pages.toasts.linkCopied'));
   }, [page.id, t]);
 
-  const handleExport = async (format: 'md' | 'html') => {
+  const handleExport = async (format: ExportFormat) => {
     try {
       const { blob, filename } = await exportPage.mutateAsync({
         id: page.id,
@@ -218,6 +226,7 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
                 <PopoverSeparator />
               </View>
             ) : null}
+            <OfflineSwitch page={page} />
             <Action
               label={t(
                 follow.isError
@@ -254,10 +263,10 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
             <Text className="px-3 pt-2 text-xs text-muted-foreground">
               {t('pages.export.title')}
             </Text>
-            {(['md', 'html'] as const).map((format) => (
+            {EXPORT_FORMATS.map((format) => (
               <Action
                 key={format}
-                label={t(format === 'md' ? 'pages.export.markdown' : 'pages.export.html')}
+                label={t(EXPORT_LABELS[format])}
                 disabled={exportPage.isPending}
                 onPress={() => {
                   void handleExport(format);

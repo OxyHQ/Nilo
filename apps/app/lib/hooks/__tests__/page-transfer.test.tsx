@@ -110,7 +110,7 @@ it('rejects mixed selections before reading or posting files', async () => {
   expect(apiClient.post).not.toHaveBeenCalled();
 });
 
-it.each(['md', 'html'] as const)(
+it.each(['md', 'html', 'pdf'] as const)(
   'exports %s as a blob using the server filename',
   async (format) => {
     const blob = new Blob(['document']);

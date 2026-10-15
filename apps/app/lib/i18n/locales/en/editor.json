@@ -233,7 +233,8 @@
   "status": {
     "saving": "Saving…",
     "saved": "Saved",
-    "offline": "Offline — changes will sync when you reconnect",
+    "offline": "Offline — the copy on this device; changes sync when you reconnect",
+    "offlineCopy": "Offline — the copy on this device",
     "error": "A change could not be saved",
     "rejected": "Someone else changed this block; your edit was undone.",
     "collaborators": {

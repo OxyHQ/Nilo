@@ -1,3 +1,4 @@
+import type { ExportFormat } from '../export-formats';
 import type { Database } from '../types/databases';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { DocumentPickerAsset } from 'expo-document-picker';
@@ -94,7 +95,7 @@ export function useExportPage() {
       fallback,
     }: {
       id: string;
-      format: 'md' | 'html';
+      format: ExportFormat;
       fallback: string;
     }) => {
       const response = await apiClient.get<Blob>(API_ROUTES.pages.export(id), {

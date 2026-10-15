@@ -219,6 +219,9 @@ it('shows the lock banner to viewers without settings or unlock controls', async
   await mount({ ...initial, locked: true }, true);
   expect(JSON.stringify(renderer.toJSON())).toContain('pages.lock.banner');
   expect(button('pages.lock.unlock')).toBeUndefined();
-  expect(renderer.root.findAllByType(Switch)).toHaveLength(0);
+  // No page settings; keeping the page offline is a viewer's to choose too.
+  expect(renderer.root.findAllByType(Switch).map((s) => s.props.accessibilityLabel)).toEqual([
+    'pages.offline.available',
+  ]);
   expect(renderer.root.findByType(PageActionsMenu).props.readOnly).toBe(true);
 });
