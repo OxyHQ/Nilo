@@ -1,0 +1,152 @@
+import { documentFromSnapshot, EditorStore, getBlock } from '@oxy.so/bloom-editor/model';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { NILO_SCHEMA } from '@/lib/editor/schema';
+import { AiDialog, type AiTarget } from '../ai-dialog';
+
+type Run = {
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  data?: string;
+  error?: unknown;
+  mutate: jest.Mock;
+  reset: jest.Mock;
+};
+let mockRun: Run;
+jest.mock('@/lib/ai/use-ai', () => ({
+  ...jest.requireActual('@/lib/ai/use-ai'),
+  useAiAction: () => mockRun,
+}));
+jest.mock('@oxy.so/services', () => ({
+  useOxy: () => ({ isAuthenticated: true, oxyServices: {} }),
+}));
+jest.mock('@/components/ui/dialog', () => {
+  const { View } = require('react-native');
+  return { Dialog: View, DialogContent: View, DialogTitle: View };
+});
+jest.mock('@/hooks/useTranslation', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: { id?: string }) => (params?.id ? `${key}:${params.id}` : key),
+  }),
+}));
+jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
+
+let n = 0;
+const newId = () => `b${++n}`;
+let store: EditorStore;
+let renderer: ReactTestRenderer;
+const onClose = jest.fn();
+const idle = (): Run => ({
+  isPending: false,
+  isSuccess: false,
+  isError: false,
+  mutate: jest.fn(),
+  reset: jest.fn(),
+});
+const mount = (target: AiTarget) =>
+  act(() => {
+    renderer = create(<AiDialog store={store} target={target} onClose={onClose} />);
+  });
+const rerender = (target: AiTarget) =>
+  act(() => renderer.update(<AiDialog store={store} target={target} onClose={onClose} />));
+const text = () => JSON.stringify(renderer.toJSON());
+const press = (label: string) => {
+  const button = renderer.root.findAll(
+    (node) =>
+      typeof node.props.onPress === 'function' &&
+      node.findAll((child) => child.props.children === label).length > 0,
+    { deep: true },
+  )[0];
+  if (!button) throw new Error(`no ${label}`);
+  act(() => button.props.onPress());
+};
+const outline = () =>
+  store.doc.root.map((id) => {
+    const b = getBlock(store.doc, id);
+    return `${b.type}:${(b.text ?? []).map((s) => s.text).join('')}`;
+  });
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockRun = idle();
+  store = new EditorStore({
+    newId,
+    schema: NILO_SCHEMA,
+    document: documentFromSnapshot(
+      [
+        { type: 'paragraph', text: [{ text: 'teh first' }] },
+        { type: 'paragraph', text: [{ text: 'second' }] },
+      ],
+      newId,
+      NILO_SCHEMA,
+    ),
+  });
+});
+afterEach(() => act(() => renderer.unmount()));
+
+it('runs the chosen action on the block, then replaces it with the result in one step', () => {
+  const block = { kind: 'block' as const, blockId: store.doc.root[0] as string };
+  mount(block);
+  press('ai.actions.fixSpelling');
+  expect(mockRun.mutate).toHaveBeenCalledWith(
+    expect.objectContaining({ action: 'fixSpelling', text: expect.stringContaining('teh first') }),
+  );
+  mockRun = { ...idle(), isSuccess: true, data: 'The **first**' };
+  rerender(block);
+  expect(text()).toContain('The **first**');
+  press('ai.replace');
+  expect(outline()).toEqual(['paragraph:The first', 'paragraph:second']);
+  expect(onClose).toHaveBeenCalled();
+  store.undo();
+  expect(outline()).toEqual(['paragraph:teh first', 'paragraph:second']);
+});
+
+it('inserts below instead, keeping the block', () => {
+  const block = { kind: 'block' as const, blockId: store.doc.root[0] as string };
+  mockRun = { ...idle(), isSuccess: true, data: 'Extra' };
+  mount(block);
+  press('ai.insertBelow');
+  expect(outline()).toEqual(['paragraph:teh first', 'paragraph:Extra', 'paragraph:second']);
+});
+
+it('summarizes the whole page, and puts the summary at the top', () => {
+  mount({ kind: 'page' });
+  expect(text()).not.toContain('ai.actions.improve');
+  press('ai.actions.summarize');
+  const sent = mockRun.mutate.mock.calls[0]?.[0];
+  expect(sent.text).toContain('teh first');
+  expect(sent.text).toContain('second');
+  mockRun = { ...idle(), isSuccess: true, data: '- gist' };
+  rerender({ kind: 'page' });
+  press('ai.insertTop');
+  expect(outline()[0]).toBe('bulleted_list_item:gist');
+});
+
+it('asks which language to translate into', () => {
+  mount({ kind: 'block', blockId: store.doc.root[1] as string });
+  press('ai.actions.translate');
+  expect(mockRun.mutate).not.toHaveBeenCalled();
+  press('ai.languages.fr');
+  expect(mockRun.mutate).toHaveBeenCalledWith(
+    expect.objectContaining({ action: 'translate', language: 'fr' }),
+  );
+});
+
+it('says what went wrong, with the request to report, and lets the member try again', () => {
+  const { OxyInferenceError } = jest.requireActual('@oxy.so/core/inference');
+  mockRun = {
+    ...idle(),
+    isError: true,
+    error: new OxyInferenceError({
+      code: 'provider_overloaded',
+      message: 'busy',
+      retryable: true,
+      requestId: 'req-9',
+      status: 503,
+    }),
+  };
+  mount({ kind: 'block', blockId: store.doc.root[0] as string });
+  expect(text()).toContain('ai.failure.tryLater');
+  expect(text()).toContain('ai.requestId:req-9');
+  expect(text()).toContain('ai.actions.improve');
+});

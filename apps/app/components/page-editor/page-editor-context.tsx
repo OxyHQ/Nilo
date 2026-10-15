@@ -23,6 +23,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { usePageEditor, type PageEditorState } from '@/lib/editor/use-page-editor';
 import { profileName, useMemberProfiles } from '@/lib/hooks/use-member-profiles';
 import { useEditorTheme, useEditorLabels } from './editor-presentation';
+import type { AiTarget } from './ai-dialog';
 import { collaboratorDecorations } from './presence';
 
 type EditorContextValue = PageEditorState & {
@@ -33,6 +34,9 @@ type EditorContextValue = PageEditorState & {
   labels: EditorLabels;
   toolbarHeight: number;
   setToolbarHeight: (height: number) => void;
+  /** What the AI dialog works on, when it is open (`ai-dialog.tsx`). */
+  aiTarget: AiTarget | null;
+  setAiTarget: (target: AiTarget | null) => void;
 };
 const PageEditorContext = createContext<EditorContextValue | null>(null);
 
@@ -68,6 +72,7 @@ export function PageEditorProvider({
   const theme = useEditorTheme(page.data?.page.font, page.data?.page.smallText);
   const labels = useEditorLabels();
   const [toolbarHeight, setToolbarHeight] = useState(0);
+  const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
   useEffect(() => {
     const next = collaboratorDecorations(
       state.collaborators,
@@ -90,8 +95,10 @@ export function PageEditorProvider({
       labels,
       toolbarHeight,
       setToolbarHeight,
+      aiTarget,
+      setAiTarget,
     }),
-    [state, controller, decorations, theme, labels, toolbarHeight],
+    [state, controller, decorations, theme, labels, toolbarHeight, aiTarget],
   );
   return <PageEditorContext.Provider value={value}>{children}</PageEditorContext.Provider>;
 }

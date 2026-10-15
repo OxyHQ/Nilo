@@ -1,0 +1,42 @@
+{
+  "ask": "Ask AI",
+  "summarizePage": "Summarize with AI",
+  "titleBlock": "AI on this block",
+  "titlePage": "AI on this page",
+  "working": "Writing…",
+  "result": "Result",
+  "check": "AI can make mistakes. Read it before you use it.",
+  "discard": "Discard",
+  "again": "Try again",
+  "replace": "Replace",
+  "insertBelow": "Insert below",
+  "insertTop": "Insert at the top",
+  "chooseLanguage": "Translate into",
+  "requestId": "Request %{id}",
+  "actions": {
+    "improve": "Improve writing",
+    "fixSpelling": "Fix spelling and grammar",
+    "shorter": "Make shorter",
+    "longer": "Make longer",
+    "simplify": "Simplify language",
+    "summarize": "Summarize",
+    "translate": "Translate…"
+  },
+  "languages": {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "pt": "Portuguese",
+    "it": "Italian",
+    "ja": "Japanese",
+    "zh": "Chinese (Simplified)"
+  },
+  "failure": {
+    "empty": "There is no text here to work on.",
+    "tooLong": "This is too long for AI to work on at once. Try a shorter part.",
+    "tryLater": "AI is busy right now. Try again in a moment.",
+    "account": "Your account has no AI usage left. Check your plan or spending limits in Oxy.",
+    "unavailable": "AI could not do this. If it keeps happening, report the request below."
+  }
+}

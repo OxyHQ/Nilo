@@ -14,6 +14,7 @@ import { Popover, PopoverTrigger, PopoverContent, PopoverSeparator } from '@oxy.
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Switch } from '@/components/ui/switch';
+import { AiPageAction } from './ai-page-action';
 import { CanvasSwitch } from './canvas-switch';
 import { OfflineSwitch } from './offline-switch';
 import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
@@ -262,6 +263,9 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
                 setRemindersOpen(true);
               }}
             />
+            {!readOnly && !page.archived && !page.locked ? (
+              <AiPageAction onOpen={() => setMenuOpen(false)} />
+            ) : null}
             <Text className="px-3 pt-2 text-xs text-muted-foreground">
               {t('pages.export.title')}
             </Text>

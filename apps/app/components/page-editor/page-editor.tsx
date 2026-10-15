@@ -24,6 +24,8 @@ import { useEditorMentions } from './use-editor-mentions';
 import { useOpenEditorMention, openEditorLink } from './open-target';
 import { createMarkers, createRenderers } from './renderers';
 import { PageCanvas } from './page-canvas';
+import { AiDialog } from './ai-dialog';
+import { useAiAvailable } from '@/lib/ai/use-ai';
 
 const paragraph = (): BlockSnapshot => ({ type: 'paragraph', text: [] });
 
@@ -83,8 +85,20 @@ export function PageEditor({
   onOpenBlockComments?: (blockId: string) => void;
 }) {
   const { t } = useTranslation();
-  const { store, status, rejected, collaborators, error, controller, decorations, theme, labels } =
-    usePageEditorContext();
+  const {
+    store,
+    status,
+    rejected,
+    collaborators,
+    error,
+    controller,
+    decorations,
+    theme,
+    labels,
+    aiTarget,
+    setAiTarget,
+  } = usePageEditorContext();
+  const aiAvailable = useAiAvailable() && !readOnly;
   const { colors } = useColorScheme();
   useSearchBlock(focusedBlockId, true);
   const page = usePage(pageId);
@@ -110,8 +124,17 @@ export function PageEditor({
   openComments.current = onOpenBlockComments;
   const canComment = onOpenBlockComments !== undefined;
   const blockActions = useMemo(
-    () =>
-      canComment
+    () => [
+      ...(aiAvailable
+        ? [
+            {
+              id: 'ai',
+              label: t('ai.ask'),
+              onPress: (id: string) => setAiTarget({ kind: 'block', blockId: id }),
+            },
+          ]
+        : []),
+      ...(canComment
         ? [
             {
               id: 'comment',
@@ -119,8 +142,9 @@ export function PageEditor({
               onPress: (id: string) => openComments.current?.(id),
             },
           ]
-        : [],
-    [canComment, t],
+        : []),
+    ],
+    [aiAvailable, canComment, setAiTarget, t],
   );
 
   useEffect(() => {
@@ -254,6 +278,9 @@ export function PageEditor({
             setLinkTarget(null);
           }}
         />
+      ) : null}
+      {aiTarget && aiAvailable ? (
+        <AiDialog store={store} target={aiTarget} onClose={() => setAiTarget(null)} />
       ) : null}
       {layout === 'canvas' ? <PageCanvas {...editorProps} /> : <BlockEditor {...editorProps} />}
     </View>
