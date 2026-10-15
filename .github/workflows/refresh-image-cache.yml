@@ -1,6 +1,6 @@
 # Weekly from-scratch rebuild of the production API image's layer cache.
 #
-# The deploy builds with `cache-from: type=gha`, so a step such as an OS
+# CI (on push to main) and the deploy build with `cache-from: type=gha`, so a step such as an OS
 # package install is reused from the cache for as long as its inputs do not
 # change -- and stops picking up upstream security patches. This rebuilds the
 # SAME reviewed recipe for the same platform with no cache at all, and writes
@@ -17,8 +17,10 @@
 name: Refresh image build cache
 
 on:
+  # Sunday, not Monday: ten repositories ran this at 04:17 every Monday,
+  # against an org-wide limit of 20 concurrent jobs.
   schedule:
-    - cron: '17 4 * * 1'
+    - cron: '17 4 * * 0'
   workflow_dispatch:
 
 permissions:
