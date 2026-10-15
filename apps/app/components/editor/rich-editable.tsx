@@ -11,7 +11,12 @@ import {
 import { cn } from "@/lib/utils";
 import { useColorScheme } from "@/lib/useColorScheme";
 import type { BlockColor, Segment } from "@/lib/types/pages";
-import { coalesceSegments, segmentsToPlainText } from "./segments";
+import {
+  applyPlainTextChange,
+  coalesceSegments,
+  ensureSegments,
+  segmentsToPlainText,
+} from "./segments";
 
 /**
  * Selection in caret-offset coordinates over the flattened plain text.
@@ -567,9 +572,9 @@ function PlaceholderText({ children }: { children: string }) {
 }
 
 /**
- * Native fallback — plain TextInput (no inline rich text). Phase 2 keeps the
- * contract identical to web but only emits a single plain segment so the
- * parent's update path is uniform.
+ * Native: a plain TextInput, so marks are not shown while editing. Each change
+ * is applied to the block's existing segments as a single text edit, so the
+ * formatting of text outside the edit survives a mobile edit.
  */
 function RichEditableNative(props: RichEditableProps, ref: React.Ref<unknown>) {
   const {
@@ -587,11 +592,18 @@ function RichEditableNative(props: RichEditableProps, ref: React.Ref<unknown>) {
     handleRef,
   } = props;
   const { colors } = useColorScheme();
-  const text = React.useMemo(() => {
-    const fromSegs = segmentsToPlainText(segments);
-    if (fromSegs.length > 0) return fromSegs;
-    return fallbackText ?? "";
-  }, [segments, fallbackText]);
+  const current = React.useMemo(
+    () => ensureSegments(segments, fallbackText ?? ""),
+    [segments, fallbackText],
+  );
+  const text = React.useMemo(() => segmentsToPlainText(current), [current]);
+  // The segments the next keystroke edits. Two change events can land before
+  // the parent re-renders with new props, so the latest emission is tracked
+  // here; new props replace it as soon as they commit.
+  const latestRef = React.useRef(current);
+  React.useLayoutEffect(() => {
+    latestRef.current = current;
+  }, [current]);
 
   const localRef = React.useRef<TextInput | null>(null);
   const selectionRef = React.useRef<CaretRange>({ start: 0, end: 0 });
@@ -630,8 +642,9 @@ function RichEditableNative(props: RichEditableProps, ref: React.Ref<unknown>) {
   };
 
   const handleChange = (next: string) => {
-    const seg: Segment = { text: next };
-    onChange({ segments: next.length > 0 ? [seg] : [], text: next });
+    const nextSegments = applyPlainTextChange(latestRef.current, next);
+    latestRef.current = nextSegments;
+    onChange({ segments: nextSegments, text: next });
   };
 
   const handleKey = (

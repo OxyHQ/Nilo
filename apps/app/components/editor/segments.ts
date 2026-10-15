@@ -194,6 +194,80 @@ export function insertText(
   return coalesceSegments([...left, inherited, ...right]);
 }
 
+/**
+ * One contiguous edit between two strings: replace `deleteCount` code units at
+ * `index` with `insert`. Offsets are UTF-16 code units, like `splitSegmentsAt`.
+ */
+export interface TextEdit {
+  index: number;
+  deleteCount: number;
+  insert: string;
+}
+
+function isHighSurrogate(code: number): boolean {
+  return code >= 0xd800 && code <= 0xdbff;
+}
+
+function isLowSurrogate(code: number): boolean {
+  return code >= 0xdc00 && code <= 0xdfff;
+}
+
+/**
+ * Recover the edit that turns `prev` into `next` as the single span between
+ * their longest common prefix and suffix. A text input changes one contiguous
+ * range per event (typing, deleting, pasting over a selection, autocorrect),
+ * so this is exact for input events. The span never splits a surrogate pair.
+ * Returns null when the strings are equal.
+ */
+export function diffText(prev: string, next: string): TextEdit | null {
+  if (prev === next) return null;
+  const max = Math.min(prev.length, next.length);
+  let prefix = 0;
+  while (prefix < max && prev.charCodeAt(prefix) === next.charCodeAt(prefix)) {
+    prefix += 1;
+  }
+  if (prefix > 0 && isHighSurrogate(prev.charCodeAt(prefix - 1))) prefix -= 1;
+
+  let suffix = 0;
+  while (
+    suffix < max - prefix &&
+    prev.charCodeAt(prev.length - 1 - suffix) === next.charCodeAt(next.length - 1 - suffix)
+  ) {
+    suffix += 1;
+  }
+  if (suffix > 0 && isLowSurrogate(prev.charCodeAt(prev.length - suffix))) suffix -= 1;
+
+  return {
+    index: prefix,
+    deleteCount: prev.length - prefix - suffix,
+    insert: next.slice(prefix, next.length - suffix),
+  };
+}
+
+/**
+ * Apply a `TextEdit` to formatted segments, keeping every mark outside it.
+ * Text typed over a selection keeps the marks of the text it replaces; a plain
+ * insertion takes its left neighbor's, falling back to the right one.
+ */
+export function applyTextEdit(segments: Segment[], edit: TextEdit): Segment[] {
+  const [left, rest] = splitSegmentsAt(segments, edit.index);
+  const [removed, right] = splitSegmentsAt(rest, edit.deleteCount);
+  if (edit.insert.length === 0) return coalesceSegments([...left, ...right]);
+  const source = removed[0] ?? left[left.length - 1] ?? right[0];
+  const inserted: Segment = source ? { ...source, text: edit.insert } : { text: edit.insert };
+  return coalesceSegments([...left, inserted, ...right]);
+}
+
+/**
+ * Reconcile a whole-string change, as a native `TextInput` reports it, against
+ * formatted segments. Only the edited span changes; inserted text inherits the
+ * marks of its left neighbor, as typing does on web.
+ */
+export function applyPlainTextChange(segments: Segment[], nextText: string): Segment[] {
+  const edit = diffText(segmentsToPlainText(segments), nextText);
+  return edit ? applyTextEdit(segments, edit) : segments;
+}
+
 /** Delete the [start, end) range. */
 export function deleteRange(
   segments: Segment[],
