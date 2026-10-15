@@ -1,30 +1,205 @@
 name: Deploy Nilo API to AWS
 
 on:
-  push:
+  # After CI passes on a push to main, never beside it. Until 2026-10 this ran
+  # on every push with no filter, in parallel with CI, so a commit whose CI went
+  # red still reached production, and every merge (app-only ones included) held
+  # a second arm64 runner building the image CI's `Build Production Image` was
+  # building at the same moment. `gate` below owns the guards and the path
+  # scope that `workflow_run` cannot take.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
+  # Releases main's head on demand, and still only once CI succeeded on push
+  # for it (checked once in `gate`, refused otherwise).
   workflow_dispatch:
 
-permissions:
-  id-token: write
-  contents: read
-
-concurrency:
-  group: deploy-nilo-api
-  cancel-in-progress: false
+permissions: {}
 
 env:
   AWS_REGION: us-west-2
   ECR_REGISTRY: 237343248947.dkr.ecr.us-west-2.amazonaws.com
   APP: nilo
   CLUSTER: oxy-cluster
+  # The commit under release: the head CI tested on `workflow_run`, main's head
+  # on a dispatch. Never `github.sha` alone, which on `workflow_run` is whatever
+  # main points at when the event is created.
+  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
-  deploy:
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 45
+  # Decides, OUTSIDE the release concurrency group, whether this run releases
+  # anything, so a run that releases nothing never takes an arm64 runner. It
+  # must sit outside: GitHub cancels a PENDING run when another queues behind
+  # it in the same group, so a run for an older commit (its CI finished late)
+  # queued there could displace a pending release of a newer one.
+  gate:
+    name: Release gate
+    # `workflow_run` fires for every completed CI run on a branch named main,
+    # red ones and a fork's `main` included, so each guard is load-bearing.
+    # A dispatch releases main only.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      # The scope step reads which commit ECS runs (describe-* calls only).
+      id-token: write
+    outputs:
+      release: ${{ steps.newer.outputs.release == 'true' && steps.scope.outputs.deploy == 'true' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          # The scope step diffs from the commit that is live, which can be any
+          # number of commits back, and the hold step walks main past it.
+          fetch-depth: 0
+          persist-credentials: false
+
+      # One-shot, not a poll: a dispatch is a manual redeploy of a commit CI
+      # has already judged. `workflow_run` needs no such check; the guards
+      # above already read CI's conclusion for this exact SHA.
+      - name: Require a successful CI run on push for this commit (dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          passed=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$DEPLOY_SHA&event=push&branch=main&status=success&per_page=1" --jq '.total_count')
+          if [ "$passed" -lt 1 ]; then
+            echo "::error::CI has not succeeded on push to main for $DEPLOY_SHA; refusing to deploy it"
+            exit 1
+          fi
+          echo "CI succeeded on push for $DEPLOY_SHA"
+
+      # An older commit is held ONLY when a newer commit on main has a CI run of
+      # its own (queued, in progress or succeeded): that commit's release will
+      # carry this one. A newer commit with NO CI run (pushed with GITHUB_TOKEN,
+      # as a bot merge is, which starts no workflow) or whose CI failed holds
+      # nothing, so the newest CI-tested commit is never stranded behind it.
+      - name: Hold only for a newer main commit that CI is testing or passed
+        id: newer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release() { echo "release=$1" >>"$GITHUB_OUTPUT"; echo "$2"; exit 0; }
+          main=$(git rev-parse origin/main)
+          if [ "$main" = "$DEPLOY_SHA" ]; then
+            release true "$DEPLOY_SHA is main's head"
+          fi
+          if ! git merge-base --is-ancestor "$DEPLOY_SHA" "$main"; then
+            release false "::notice::$DEPLOY_SHA is no longer on main ($main); not releasing it"
+          fi
+          # Newest first. A run counts unless it finished without succeeding.
+          for sha in $(git rev-list --first-parent "$DEPLOY_SHA..$main"); do
+            live=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$sha&event=push&per_page=20" \
+              --jq '[.workflow_runs[] | select(.status != "completed" or .conclusion == "success")] | length')
+            if [ "$live" -gt 0 ]; then
+              release false "::notice::newer main commit $sha has its own CI run; its release carries $DEPLOY_SHA"
+            fi
+            echo "newer main commit $sha has no live or successful CI run; it does not hold $DEPLOY_SHA"
+          done
+          release true "no newer main commit is being released; releasing $DEPLOY_SHA"
+
+      - name: Configure AWS credentials
+        if: steps.newer.outputs.release == 'true' && github.event_name == 'workflow_run'
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: arn:aws:iam::237343248947:role/oxy-github-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      # The path scope `workflow_run` cannot take, measured from what production
+      # RUNS rather than from one push: a push's own diff would miss commits
+      # whose release was skipped or failed. The live image's 40-hex ECR tags
+      # name the commit(s) it was built from (the deploy tags every image with
+      # its SHA). The paths are what goes into the API image or decides how it
+      # is built and rolled out: the API, the contracts package it bundles, the
+      # root manifests and lockfile, the Dockerfile and both ignore files, the
+      # reviewed-image pin and guard, the ECS script and this workflow.
+      #
+      #   * live already contains this commit (a re-run, or CI finishing out of
+      #     order): skip, never roll production back to an older tree;
+      #   * nothing in those paths changed since the live commit: skip;
+      #   * anything else, or anything this cannot establish (no live service,
+      #     no SHA tag, a live commit that is not an ancestor, an API error):
+      #     deploy. When unsure, deploy.
+      #
+      # A dispatch always deploys: it is the manual redeploy.
+      - name: Decide whether this commit changes what production runs
+        id: scope
+        if: steps.newer.outputs.release == 'true'
+        run: |
+          set -uo pipefail
+          decide() { echo "deploy=$1" >>"$GITHUB_OUTPUT"; echo "$2"; exit 0; }
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            decide true "manual dispatch: deploying $DEPLOY_SHA"
+          fi
+
+          td=$(aws ecs describe-services --cluster "$CLUSTER" --services "$APP" \
+            --query 'services[0].taskDefinition' --output text 2>/dev/null) || td=
+          case "$td" in arn:aws:ecs:*) ;; *) decide true "no live task definition found; deploying" ;; esac
+          image=$(aws ecs describe-task-definition --task-definition "$td" \
+            --query "taskDefinition.containerDefinitions[?name=='$APP'].image | [0]" --output text 2>/dev/null) || image=
+          digest=${image#*@}
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || decide true "live image '$image' is not digest-pinned; deploying"
+          live_shas=$(aws ecr describe-images --repository-name "oxy/$APP" --image-ids "imageDigest=$digest" \
+            --query 'imageDetails[0].imageTags' --output json 2>/dev/null | jq -r '.[]? | select(test("^[0-9a-f]{40}$"))') || live_shas=
+          [ -n "$live_shas" ] || decide true "live image $digest carries no commit tag; deploying"
+
+          bases=()
+          for live in $live_shas; do
+            if ! git cat-file -e "$live^{commit}" 2>/dev/null; then
+              continue
+            fi
+            if git merge-base --is-ancestor "$DEPLOY_SHA" "$live"; then
+              decide false "live image (commit $live) already contains $DEPLOY_SHA; nothing to release"
+            fi
+            if git merge-base --is-ancestor "$live" "$DEPLOY_SHA"; then
+              bases+=("$live")
+            fi
+          done
+          [ "${#bases[@]}" -gt 0 ] || decide true "no live commit is an ancestor of $DEPLOY_SHA; deploying"
+
+          # Several tags on one digest (an identical rebuild): the union of the
+          # diffs, i.e. the widest one. A failed diff counts as relevant.
+          changed=$(for base in "${bases[@]}"; do git diff --name-only "$base" "$DEPLOY_SHA" || echo '<diff failed>'; done | sort -u)
+          relevant=$(grep -E '^(apps/api/|packages/contracts/|<diff failed>$|package\.json$|bun\.lock$|bunfig\.toml$|\.dockerignore$|\.github/workflows/deploy-aws\.yml$|\.github/scripts/(deploy-ecs\.sh|reviewed-image\.py|reviewed-images\.json)$)' <<<"$changed" || true)
+          if [ -z "$relevant" ]; then
+            decide false "nothing the API image or its rollout uses changed since live ${bases[*]}; not deploying"
+          fi
+          echo "changed since live ${bases[*]}:"
+          sed 's/^/  /' <<<"$relevant" | head -50
+          decide true "deploying $DEPLOY_SHA"
+
+  deploy:
+    needs: gate
+    if: needs.gate.outputs.release == 'true'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    permissions:
+      id-token: write
+      contents: read
+    # Deploys run one at a time and are never cancelled: a rollout interrupted
+    # half-way is worse than a late one. A newer pending run may replace an
+    # older pending one, which is safe because the newer commit contains it.
+    # On the JOB, not the workflow, so only a run `gate` judged releasable ever
+    # enters the group.
+    concurrency:
+      group: deploy-nilo-api
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          persist-credentials: false
 
       # New Oxy repositories use GitHub's ID-qualified subject. Printing only
       # that claim gives infra the exact trust-policy value without exposing
@@ -51,11 +226,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
-      # `--cache-from/--cache-to type=gha` below need the Actions runtime token
-      # and cache URL, which GitHub gives to JavaScript actions and NOT to `run:`
-      # steps; without them buildx skips the cache silently. Only a push to main
-      # or a dispatch runs this workflow, so pull-request code never writes this
-      # cache scope.
+      # `--cache-from type=gha` below needs the Actions runtime token and cache
+      # URL, which GitHub gives to JavaScript actions and NOT to `run:` steps;
+      # without them buildx skips the cache silently.
       - name: Expose the Actions cache to buildx
         uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
 
@@ -72,6 +245,12 @@ jobs:
         id: reviewed
         run: python3 -B .github/scripts/reviewed-image.py guard --recipe nilo
 
+      # Reads the layers CI's `Build Production Image` wrote for this same
+      # commit on its push to main (ci.yml writes scope `nilo-api` only on a
+      # push to main; refresh-image-cache.yml rewrites it weekly from scratch),
+      # so this is normally all cache hits and no second build. It writes
+      # nothing: CI already did, for the same recipe and platform.
+      #
       # --provenance=false keeps the pushed artefact a single-platform image
       # manifest rather than an index with an attestation.
       - name: Build and push immutable ARM64 image
@@ -87,19 +266,18 @@ jobs:
           docker buildx build \
             --platform linux/arm64 \
             --cache-from type=gha,scope=$APP-api \
-            --cache-to type=gha,scope=$APP-api,mode=max \
             --provenance=false \
             -f "$DOCKERFILE" \
-            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.revision=$DEPLOY_SHA" \
             --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
             --label "io.oxy.source.tree=$SOURCE_TREE" \
             --label "io.oxy.build-inputs.sha256=$BUILD_INPUTS_SHA256" \
-            -t "$IMAGE:${{ github.sha }}" \
+            -t "$IMAGE:$DEPLOY_SHA" \
             -t "$IMAGE:latest" \
             --push \
             "$CONTEXT"
           digest=$(aws ecr describe-images --repository-name "oxy/$APP" \
-            --image-ids imageTag="${{ github.sha }}" --query 'imageDetails[0].imageDigest' --output text)
+            --image-ids imageTag="$DEPLOY_SHA" --query 'imageDetails[0].imageDigest' --output text)
           echo "uri=$IMAGE@$digest" >> "$GITHUB_OUTPUT"
 
       - name: Migrate and deploy to ECS

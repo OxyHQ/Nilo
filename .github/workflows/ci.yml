@@ -20,6 +20,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('{0}-{1}', github.ref, github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+permissions:
+  contents: read
+
 jobs:
   # Which app a pull request touches, so an app-only change does not pay for
   # the API build and the arm64 image, and an API-only change does not pay for
@@ -217,8 +220,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
-      # Reads the deploy's cache scope and never writes it (no cache-to), so
-      # pull-request code cannot plant layers a production build would reuse.
+      # Reads the deploy's cache scope on every run. Only a push to main writes
+      # it (mode=max, every stage): deploy-aws.yml runs after this CI succeeds
+      # on main and builds the same recipe from this cache, so the release is
+      # cache hits rather than a second arm64 build. A pull request or a
+      # dispatched run (the base-digest bump branch) never writes, so no
+      # unmerged code can plant layers a production build would reuse.
       # Loaded into the runner's Docker, never pushed.
       - name: Build ARM64 API image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -231,6 +238,7 @@ jobs:
           provenance: false
           tags: nilo-api:ci
           cache-from: type=gha,scope=nilo-api
+          cache-to: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && 'type=gha,scope=nilo-api,mode=max' || '' }}
 
       # The image's own CMD, unmodified, with no DATABASE_URL: boot must fail
       # and the container must exit non-zero. The log line proves it got as far
