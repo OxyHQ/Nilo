@@ -1,3 +1,4 @@
+import { useSearchBlock } from '@/lib/hooks/use-search-block';
 import {
   BlockEditor,
   blockColors,
@@ -395,8 +396,10 @@ export function PageEditor({
   pageId,
   readOnly = false,
   onOpenBlockComments,
+  focusedBlockId,
 }: {
   pageId: string;
+  focusedBlockId?: string;
   readOnly?: boolean;
   /** Open the comment panel on one block. */
   onOpenBlockComments?: (blockId: string) => void;
@@ -404,6 +407,7 @@ export function PageEditor({
   const { t } = useTranslation();
   const { colors } = useColorScheme();
   const { store, status, rejected, collaborators, error } = usePageEditor(pageId, readOnly);
+  useSearchBlock(focusedBlockId, Boolean(store));
   const theme = useEditorTheme();
   const labels = useEditorLabels();
   const slashItems = useSlashItems();

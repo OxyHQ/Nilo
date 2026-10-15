@@ -173,6 +173,11 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
             onAddCover={() => state?.setCoverOpen(true)}
           />
         ) : null}
+        {page.template ? (
+          <Text className="mb-2 self-start rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+            {t('pages.templates.badge')}
+          </Text>
+        ) : null}
         {readOnly ? (
           <Text accessibilityRole="header" className="text-4xl font-bold text-foreground">
             {page.title || t('pages.untitled')}

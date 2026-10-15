@@ -3,6 +3,7 @@ import { useOxy } from '@oxy.so/services';
 import axios from 'axios';
 import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
+import { useAuthQuery } from './create-query';
 import { queryKeys } from './query-keys';
 import type { BreadcrumbResponse, Page, PageResponse, PagesListResponse } from '../types/pages';
 
@@ -21,6 +22,7 @@ interface UpdatePageInput {
   coverPosition?: number;
   parentId?: string | null;
   archived?: boolean;
+  template?: boolean;
   /**
    * Owned by the Page chrome agent (#14). Forwarded as-is to the API; if the
    * backend hasn't shipped the column yet, the update is a safe no-op.
@@ -44,6 +46,17 @@ export function usePages(workspaceId: string | null) {
     staleTime: 1000 * 30,
     enabled: isAuthenticated && Boolean(workspaceId),
   });
+}
+
+/** Templates use a separate cache below the workspace page-list key. */
+export function useTemplates(workspaceId: string | null) {
+  const { isAuthenticated } = useOxy();
+  return useAuthQuery<PagesListResponse>(
+    queryKeys.pages.templates(workspaceId),
+    API_ROUTES.pages.list,
+    { workspaceId, templates: 'only' },
+    { enabled: isAuthenticated && Boolean(workspaceId), staleTime: 30_000 },
+  );
 }
 
 export function usePage(id: string | undefined) {
@@ -74,6 +87,7 @@ export function useCreatePage() {
       return res.data.page;
     },
     onSuccess: (page) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.search.workspace(page.workspaceId) });
       queryClient.invalidateQueries({
         queryKey: queryKeys.pages.list(page.workspaceId),
       });
@@ -108,6 +122,8 @@ export function useUpdatePage() {
     },
     onSettled: (page) => {
       if (!page) return;
+      queryClient.invalidateQueries({ queryKey: queryKeys.search.workspace(page.workspaceId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pages.shared });
       queryClient.invalidateQueries({
         queryKey: queryKeys.pages.list(page.workspaceId),
       });
@@ -135,6 +151,7 @@ export function useDeletePage() {
       });
     },
     onSuccess: (_data, { workspaceId, id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.search.workspace(workspaceId) });
       queryClient.invalidateQueries({
         queryKey: queryKeys.pages.list(workspaceId),
       });
@@ -148,17 +165,25 @@ export function useDeletePage() {
 
 /**
  * Server-side duplicate (POST /pages/:id/duplicate). The backend copies the
- * page and its blocks and returns the new page.
+ * page, its blocks and its subpages and returns the new page.
  */
 export function useDuplicatePage() {
   const queryClient = useQueryClient();
 
-  return useMutation<Page, Error, { id: string; workspaceId: string }>({
-    mutationFn: async ({ id }) => {
-      const res = await apiClient.post<PageResponse>(API_ROUTES.pages.duplicate(id));
+  return useMutation<
+    Page,
+    Error,
+    { id: string; workspaceId: string; fromTemplate?: true; parentId?: string | null }
+  >({
+    mutationFn: async ({ id, fromTemplate, parentId }) => {
+      const res = await apiClient.post<PageResponse>(
+        API_ROUTES.pages.duplicate(id),
+        fromTemplate ? { fromTemplate, parentId: parentId ?? null } : undefined,
+      );
       return res.data.page;
     },
     onSuccess: (_page, { workspaceId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.search.workspace(workspaceId) });
       queryClient.invalidateQueries({
         queryKey: queryKeys.pages.list(workspaceId),
       });
@@ -196,7 +221,7 @@ export function useArchivedPages(workspaceId: string | null) {
     queryFn: async () => {
       const res = await apiClient.get(API_ROUTES.pages.list, {
         params: workspaceId
-          ? { workspaceId, archivedOnly: 'true', includeArchived: 'true' }
+          ? { workspaceId, archivedOnly: 'true', includeArchived: 'true', templates: 'include' }
           : undefined,
       });
       return res.data;
@@ -238,10 +263,12 @@ export function useEmptyTrash() {
 export function buildPageTree(pages: Page[]) {
   const byId = new Map<string, { page: Page; children: Page[] }>();
   for (const page of pages) {
+    if (page.template) continue;
     byId.set(page.id, { page, children: [] });
   }
   const roots: Page[] = [];
   for (const page of pages) {
+    if (page.template) continue;
     if (page.parentId && byId.has(page.parentId)) {
       byId.get(page.parentId)?.children.push(page);
     } else {

@@ -1,10 +1,10 @@
+import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useOxy } from '@oxy.so/services';
 import { Text } from '@/components/ui/text';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
-import { useCreatePage, usePages } from '@/lib/hooks/use-pages';
+import { usePages } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import { SidebarSection } from './sidebar-section';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -16,41 +16,26 @@ import { SidebarPageTree } from './sidebar-page-tree';
  * invited to (but didn't create) show up in `<SharedSection />` instead.
  */
 export function PrivateSection() {
-  const router = useRouter();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const { user } = useOxy();
   const { t } = useTranslation();
   const { data, isLoading, isError } = usePages(currentWorkspaceId);
-  const createPage = useCreatePage();
+  const openNewPage = useNewPageStore((s) => s.open);
 
   const myPages = React.useMemo<Page[]>(() => {
     if (!data?.pages || !user) return [];
     return data.pages.filter((p) => p.ownerId === user.id && !p.archived);
   }, [data?.pages, user]);
 
-  const handleCreate = React.useCallback(async () => {
+  const handleCreate = React.useCallback(() => {
     if (!currentWorkspaceId) return;
-    try {
-      const page = await createPage.mutateAsync({
-        workspaceId: currentWorkspaceId,
-        parentId: null,
-        title: '',
-      });
-      router.push(`/p/${page.id}`);
-    } catch {
-      /* mutation surfaces errors via state */
-    }
-  }, [createPage, currentWorkspaceId, router]);
+    openNewPage({ workspaceId: currentWorkspaceId, parentId: null });
+  }, [openNewPage, currentWorkspaceId]);
 
   if (!currentWorkspaceId) return null;
 
   return (
-    <SidebarSection
-      sectionKey="private"
-      title={t('sidebar.sections.private')}
-      onAdd={handleCreate}
-      adding={createPage.isPending}
-    >
+    <SidebarSection sectionKey="private" title={t('sidebar.sections.private')} onAdd={handleCreate}>
       <View className="px-1">
         {isLoading ? (
           <View className="px-3 py-2 flex-row items-center gap-2">

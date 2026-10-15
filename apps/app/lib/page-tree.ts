@@ -7,7 +7,9 @@ export interface TreeNode {
 
 export function buildPageTree(pages: Page[]): TreeNode[] {
   const lookup = new Map<string, TreeNode>();
-  for (const p of pages) lookup.set(p.id, { page: p, children: [] });
+  for (const p of pages) {
+    if (!p.template) lookup.set(p.id, { page: p, children: [] });
+  }
   const roots: TreeNode[] = [];
   for (const p of pages) {
     const node = lookup.get(p.id);

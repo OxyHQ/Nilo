@@ -1,3 +1,4 @@
+import { NewPageDialog } from '@/components/templates/new-page-dialog';
 import { Drawer } from 'expo-router/drawer';
 import { Sidebar } from '@/components/sidebar';
 import { AppErrorBoundary } from '@/components/error-boundary';
@@ -90,6 +91,7 @@ export default function AppLayout() {
           </View>
         </View>
         <CommandPalette />
+        <NewPageDialog />
         <ShortcutsDialog />
       </GestureHandlerRootView>
     </AppErrorBoundary>

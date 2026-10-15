@@ -1,12 +1,13 @@
+import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
-import { View, Pressable, ActivityIndicator } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { ChevronRight, ChevronDown, Plus, FileText } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
-import { buildPageTree, useCreatePage, useDeletePage, usePages } from '@/lib/hooks/use-pages';
+import { buildPageTree, useDeletePage, usePages } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import * as DropdownMenu from '@/components/ui/dropdown-menu';
 
@@ -20,14 +21,13 @@ const ROW_HEIGHT = 28;
  * Drag-reorder is intentionally skipped in Phase 1 (see roadmap).
  */
 export function PageTree() {
-  const router = useRouter();
   const pathname = usePathname();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
 
   const { data, isLoading, isError } = usePages(currentWorkspaceId);
-  const createPage = useCreatePage();
+  const openNewPage = useNewPageStore((s) => s.open);
 
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
 
@@ -37,19 +37,10 @@ export function PageTree() {
     return buildPageTree(visible);
   }, [data?.pages]);
 
-  const handleCreateRoot = React.useCallback(async () => {
+  const handleCreateRoot = React.useCallback(() => {
     if (!currentWorkspaceId) return;
-    try {
-      const page = await createPage.mutateAsync({
-        workspaceId: currentWorkspaceId,
-        parentId: null,
-        title: '',
-      });
-      router.push(`/p/${page.id}`);
-    } catch {
-      // Mutation errors surface via TanStack Query state; no silent catch needed beyond no-op.
-    }
-  }, [createPage, currentWorkspaceId, router]);
+    openNewPage({ workspaceId: currentWorkspaceId, parentId: null });
+  }, [openNewPage, currentWorkspaceId]);
 
   // No workspace selected — render a slim hint so Phase 2 frontend's
   // switcher can drop in above without layout jumps.
@@ -72,13 +63,8 @@ export function PageTree() {
           onPress={handleCreateRoot}
           accessibilityLabel={t('pages.tree.addPage')}
           className="h-6 w-6 items-center justify-center rounded-md hover:bg-muted active:bg-muted"
-          disabled={createPage.isPending}
         >
-          {createPage.isPending ? (
-            <ActivityIndicator size="small" color={colors.mutedForeground} />
-          ) : (
-            <Plus size={14} color={colors.mutedForeground} />
-          )}
+          <Plus size={14} color={colors.mutedForeground} />
         </Pressable>
       </View>
 
@@ -187,7 +173,7 @@ const PageRow = React.memo(function PageRow({
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const createPage = useCreatePage();
+  const openNewPage = useNewPageStore((s) => s.open);
   const deletePage = useDeletePage();
 
   const isActive = activePath === `/p/${page.id}`;
@@ -196,18 +182,9 @@ const PageRow = React.memo(function PageRow({
     router.push(`/p/${page.id}`);
   }, [router, page.id]);
 
-  const handleAddChild = React.useCallback(async () => {
-    try {
-      const child = await createPage.mutateAsync({
-        workspaceId,
-        parentId: page.id,
-        title: '',
-      });
-      router.push(`/p/${child.id}`);
-    } catch {
-      // Mutation surfaces error via state; nothing else to do.
-    }
-  }, [createPage, page.id, router, workspaceId]);
+  const handleAddChild = React.useCallback(() => {
+    openNewPage({ workspaceId, parentId: page.id });
+  }, [openNewPage, page.id, workspaceId]);
 
   const handleDelete = React.useCallback(() => {
     deletePage.mutate({ id: page.id, workspaceId });

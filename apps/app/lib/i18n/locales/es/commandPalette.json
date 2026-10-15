@@ -37,5 +37,11 @@
       "title": "Abrir la documentación de Oxy",
       "keywords": "documentación ayuda docs"
     }
+  },
+  "search": {
+    "loading": "Buscando páginas…",
+    "error": "No se pudieron buscar páginas.",
+    "empty": "No hay páginas coincidentes.",
+    "retry": "Reintentar"
   }
 }

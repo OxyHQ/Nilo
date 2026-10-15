@@ -1,3 +1,4 @@
+import { useNewPageStore } from '@/lib/stores/new-page-store';
 import { SharedWithMeSection } from './sidebar-sections/shared-with-me-section';
 import React from 'react';
 import { View, Pressable, Platform, Linking, ScrollView, useWindowDimensions } from 'react-native';
@@ -16,7 +17,6 @@ import { WorkspaceSwitcher } from '@/components/workspace/workspace-switcher';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
-import { useCreatePage } from '@/lib/hooks/use-pages';
 import { useUnreadCount } from '@/lib/hooks/use-notifications';
 import {
   SidebarSearchButton,
@@ -57,7 +57,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleSidebarCollapsed = useUIStore((s) => s.toggleSidebarCollapsed);
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-  const createPage = useCreatePage();
+  const openNewPage = useNewPageStore((s) => s.open);
 
   const { user, isAuthenticated, logout, showBottomSheet } = useOxy();
   // Surface the Comments agent's unread count on the Inbox row.
@@ -82,19 +82,10 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
     () => router.push('/(app)/notifications'),
     [router],
   );
-  const handleCreatePage = React.useCallback(async () => {
+  const handleCreatePage = React.useCallback(() => {
     if (!currentWorkspaceId) return;
-    try {
-      const page = await createPage.mutateAsync({
-        workspaceId: currentWorkspaceId,
-        parentId: null,
-        title: '',
-      });
-      router.push(`/p/${page.id}`);
-    } catch {
-      /* mutation surfaces errors via state */
-    }
-  }, [createPage, currentWorkspaceId, router]);
+    openNewPage({ workspaceId: currentWorkspaceId, parentId: null });
+  }, [openNewPage, currentWorkspaceId]);
 
   const displayName = React.useMemo(() => {
     if (!user) return t('common.user');
@@ -238,7 +229,6 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
             onPress={handleCreatePage}
             accessibilityLabel={t('sidebar.newPage')}
             accessibilityRole="button"
-            disabled={createPage.isPending}
             className="flex-row items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60 active:bg-muted/60"
           >
             <Plus size={14} color={colors.mutedForeground} />

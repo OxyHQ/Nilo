@@ -154,6 +154,22 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
         <DropdownMenu.Content>
           {!page.archived ? (
             <>
+              <DropdownMenu.Item
+                key="template"
+                disabled={updatePage.isPending}
+                onSelect={() =>
+                  updatePage.mutate(
+                    { id: page.id, template: !page.template },
+                    { onError: () => toast.error(t('pages.templates.updateFailed')) },
+                  )
+                }
+              >
+                <DropdownMenu.ItemTitle>
+                  {t(
+                    page.template ? 'pages.templates.makeRegular' : 'pages.templates.makeTemplate',
+                  )}
+                </DropdownMenu.ItemTitle>
+              </DropdownMenu.Item>
               <DropdownMenu.Item key="duplicate" onSelect={handleDuplicate}>
                 <DropdownMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
                 <DropdownMenu.ItemTitle>{t('pages.actions.duplicate')}</DropdownMenu.ItemTitle>

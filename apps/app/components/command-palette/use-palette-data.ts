@@ -1,3 +1,7 @@
+import { useNewPageStore } from '@/lib/stores/new-page-store';
+import { fuzzyFilter } from '@/lib/fuzzy';
+import { useSearch } from '@/lib/hooks/use-search';
+import { mapSearchResults } from './search-results';
 import * as React from 'react';
 import { Linking, Platform } from 'react-native';
 import {
@@ -12,7 +16,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
-import { usePages, useCreatePage } from '@/lib/hooks/use-pages';
+import { usePages } from '@/lib/hooks/use-pages';
 import {
   memberProfileName,
   useWorkspaceMembers,
@@ -39,6 +43,7 @@ function keywords(english: string, localized: string): string {
 interface UsePaletteDataParams {
   /** Current query text. Used to limit result sizing. */
   query: string;
+  enabled: boolean;
 }
 
 interface PaletteData {
@@ -46,22 +51,26 @@ interface PaletteData {
   pages: PageItem[];
   members: MemberItem[];
   commands: CommandItem[];
+  searchLoading: boolean;
+  searchError: boolean;
+  retrySearch: () => void;
 }
 
 /**
  * Builds the result groups for the command palette. Memoizes on the inputs
  * so the modal re-renders are cheap.
  */
-export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
+export function usePaletteData({ query, enabled }: UsePaletteDataParams): PaletteData {
   const router = useRouter();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const recentPageIds = useUIStore((s) => s.recentPageIds);
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const setShortcutsDialogOpen = useUIStore((s) => s.setShortcutsDialogOpen);
   const { setColorScheme, colorScheme } = useColorScheme();
-  const createPage = useCreatePage();
+  const openNewPage = useNewPageStore((s) => s.open);
   const { t, locale } = useTranslation();
 
+  const search = useSearch(currentWorkspaceId, query, enabled);
   const { data: pageData } = usePages(currentWorkspaceId);
   const { data: members } = useWorkspaceMembers(currentWorkspaceId);
 
@@ -157,18 +166,7 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
         onSelect: () => {
           close();
           if (!currentWorkspaceId) return;
-          createPage
-            .mutateAsync({
-              workspaceId: currentWorkspaceId,
-              parentId: null,
-              title: '',
-            })
-            .then((page) => {
-              router.push(`/p/${page.id}`);
-            })
-            .catch(() => {
-              /* mutation surfaces errors via state */
-            });
+          openNewPage({ workspaceId: currentWorkspaceId, parentId: null });
         },
       },
       {
@@ -254,7 +252,7 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
     return list;
   }, [
     colorScheme,
-    createPage,
+    openNewPage,
     currentWorkspaceId,
     locale,
     router,
@@ -263,5 +261,19 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
     setShortcutsDialogOpen,
   ]);
 
-  return { recents, pages, members: memberItems, commands };
+  return {
+    recents,
+    pages: query.trim()
+      ? mapSearchResults(search.data?.results ?? [], t('commandPalette.untitled'))
+      : pages,
+    members: fuzzyFilter(memberItems, query, [(m) => m.searchValue]).map(({ item }) => item),
+    commands: fuzzyFilter(commands, query, [(c) => c.title, (c) => c.searchValue]).map(
+      ({ item }) => item,
+    ),
+    searchLoading: search.isSearching,
+    searchError: search.isError,
+    retrySearch: () => {
+      void search.refetch();
+    },
+  };
 }

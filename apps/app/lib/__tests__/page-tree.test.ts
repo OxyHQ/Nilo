@@ -14,6 +14,7 @@ const page = (id: string, parentId: string | null, order = 0): Page => ({
   archived: false,
   favorited: false,
   restricted: false,
+  template: false,
   databaseId: null,
   properties: {},
   createdAt: '2026-10-15T00:00:00Z',
@@ -21,6 +22,12 @@ const page = (id: string, parentId: string | null, order = 0): Page => ({
 });
 
 describe('shared page tree', () => {
+  it('excludes templates even when a shared-page response includes them', () => {
+    const template = { ...page('template', null), template: true };
+    const tree = buildPageTree([template, page('regular', null)]);
+    expect(tree.map((node) => node.page.id)).toEqual(['regular']);
+  });
+
   it('promotes pages with inaccessible parents and nests only accessible descendants', () => {
     const pages = [
       page('grandchild', 'child'),

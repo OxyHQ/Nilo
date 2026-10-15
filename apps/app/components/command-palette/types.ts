@@ -1,3 +1,4 @@
+import type { SearchSnippetPart } from '@/lib/types/search';
 import type { ComponentType } from 'react';
 
 export type CommandPaletteItemKind = 'page' | 'member' | 'command';
@@ -16,6 +17,8 @@ interface BaseItem {
 export interface PageItem extends BaseItem {
   kind: 'page';
   pageId: string;
+  blockId?: string | null;
+  snippet?: SearchSnippetPart[];
   icon?: string | null;
   breadcrumb?: string;
 }

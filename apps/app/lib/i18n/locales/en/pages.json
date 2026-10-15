@@ -184,5 +184,23 @@
     "madeWithNilo": "Made with Nilo"
   },
   "noAccess": "You don't have access to this page",
-  "restricted": "Restricted page"
+  "restricted": "Restricted page",
+  "templates": {
+    "badge": "Template",
+    "makeTemplate": "Make template",
+    "makeRegular": "Turn into a regular page",
+    "updateFailed": "Could not update the template status. Please try again.",
+    "loadFailed": "Could not load templates.",
+    "retry": "Try again",
+    "empty": "No templates yet. Make a page a template from its options menu.",
+    "open": "Open template %{title}",
+    "useNamed": "Use template %{title}",
+    "use": "Use",
+    "choose": "Choose a template",
+    "newPage": "New page",
+    "blank": "Blank page",
+    "fromTemplate": "From template…",
+    "creating": "Creating page…",
+    "createFailed": "Could not create the page. Check your access to the destination and try again."
+  }
 }

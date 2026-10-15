@@ -30,7 +30,10 @@ import type { Page } from '@/lib/types/pages';
  * top bar.
  */
 export default function PageDetailRoute() {
-  const params = useLocalSearchParams<{ pageId?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    pageId?: string | string[];
+    blockId?: string | string[];
+  }>();
   const pageId = Array.isArray(params.pageId) ? params.pageId[0] : params.pageId;
   const { t } = useTranslation();
 
@@ -44,10 +47,16 @@ export default function PageDetailRoute() {
 
   // Key by pageId so all child state (title draft, editor refs) resets when
   // the route param changes — no useEffect-based prop sync needed.
-  return <PageDetail pageId={pageId} key={pageId} />;
+  return (
+    <PageDetail
+      pageId={pageId}
+      key={pageId}
+      blockId={Array.isArray(params.blockId) ? params.blockId[0] : params.blockId}
+    />
+  );
 }
 
-function PageDetail({ pageId }: { pageId: string }) {
+function PageDetail({ pageId, blockId }: { pageId: string; blockId?: string }) {
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -141,6 +150,7 @@ function PageDetail({ pageId }: { pageId: string }) {
             <DatabaseRowProperties page={page} readOnly={!canEdit} />
             <PageEditor
               pageId={page.id}
+              focusedBlockId={blockId}
               readOnly={!canEdit}
               onOpenBlockComments={(blockId) => handleOpenPanel(blockId)}
             />

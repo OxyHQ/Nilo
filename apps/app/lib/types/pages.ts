@@ -24,6 +24,7 @@ export interface Page {
   /** 0–100, vertical focal point used when cropping the cover image. */
   coverPosition: number;
   restricted: boolean;
+  template: boolean;
   archived: boolean;
   favorited: boolean;
   /** Sibling order within the same parent. */

@@ -37,5 +37,11 @@
       "title": "Open Oxy docs",
       "keywords": "docs help documentation"
     }
+  },
+  "search": {
+    "loading": "Searching pages…",
+    "error": "Could not search pages.",
+    "empty": "No matching pages.",
+    "retry": "Try again"
   }
 }

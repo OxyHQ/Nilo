@@ -1,5 +1,6 @@
 /** Routes consumed by the Nilo workspace client. */
 export const API_ROUTES = {
+  search: '/search',
   pages: {
     list: '/pages',
     shared: '/pages/shared',

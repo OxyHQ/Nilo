@@ -1,5 +1,11 @@
 export const queryKeys = {
+  search: {
+    all: ['search'] as const,
+    workspace: (workspaceId: string | null) => ['search', workspaceId] as const,
+    results: (workspaceId: string | null, query: string) => ['search', workspaceId, query] as const,
+  },
   pages: {
+    templates: (workspaceId: string | null) => ['pages', workspaceId, 'templates'] as const,
     shared: ['shared-pages'] as const,
     permissions: (id: string) => ['page-permissions', id] as const,
     list: (workspaceId: string | null) => ['pages', workspaceId] as const,

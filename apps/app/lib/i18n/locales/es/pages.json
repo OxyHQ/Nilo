@@ -184,5 +184,23 @@
     "madeWithNilo": "Hecho con Nilo"
   },
   "noAccess": "No tienes acceso a esta página",
-  "restricted": "Página restringida"
+  "restricted": "Página restringida",
+  "templates": {
+    "badge": "Plantilla",
+    "makeTemplate": "Convertir en plantilla",
+    "makeRegular": "Convertir en una página normal",
+    "updateFailed": "No se pudo cambiar el estado de plantilla. Inténtalo de nuevo.",
+    "loadFailed": "No se pudieron cargar las plantillas.",
+    "retry": "Reintentar",
+    "empty": "Aún no hay plantillas. Convierte una página en plantilla desde su menú de opciones.",
+    "open": "Abrir plantilla %{title}",
+    "useNamed": "Usar plantilla %{title}",
+    "use": "Usar",
+    "choose": "Elegir una plantilla",
+    "newPage": "Nueva página",
+    "blank": "Página en blanco",
+    "fromTemplate": "Desde una plantilla…",
+    "creating": "Creando página…",
+    "createFailed": "No se pudo crear la página. Comprueba tu acceso al destino e inténtalo de nuevo."
+  }
 }

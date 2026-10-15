@@ -1,17 +1,13 @@
+import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
-import { View, Pressable, ActivityIndicator } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronDown, ChevronRight, FileText, MoreHorizontal, Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import * as DropdownMenu from '@/components/ui/dropdown-menu';
-import {
-  useCreatePage,
-  useDeletePage,
-  useDuplicatePage,
-  useUpdatePage,
-} from '@/lib/hooks/use-pages';
+import { useDeletePage, useDuplicatePage, useUpdatePage } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import type { DropPosition } from './drag-context';
 
@@ -70,7 +66,7 @@ export function SharedPageRow({
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const createPage = useCreatePage();
+  const openNewPage = useNewPageStore((s) => s.open);
   const deletePage = useDeletePage();
   const duplicatePage = useDuplicatePage();
   const updatePage = useUpdatePage();
@@ -83,18 +79,9 @@ export function SharedPageRow({
     router.push(`/p/${page.id}`);
   }, [router, page.id]);
 
-  const handleAddChild = React.useCallback(async () => {
-    try {
-      const child = await createPage.mutateAsync({
-        workspaceId,
-        parentId: page.id,
-        title: '',
-      });
-      router.push(`/p/${child.id}`);
-    } catch {
-      /* mutation surfaces errors via state */
-    }
-  }, [createPage, page.id, router, workspaceId]);
+  const handleAddChild = React.useCallback(() => {
+    openNewPage({ workspaceId, parentId: page.id });
+  }, [openNewPage, page.id, workspaceId]);
 
   const handleDelete = React.useCallback(() => {
     deletePage.mutate({ id: page.id, workspaceId });
@@ -173,11 +160,12 @@ export function SharedPageRow({
 
         {/* Hover actions: three-dot menu + add child */}
         {!readOnly ? (
-          <View className="flex-row items-center opacity-0 group-hover/row:opacity-100">
+          <View className="flex-row items-center">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
                 <Pressable
                   onPress={(e) => e.stopPropagation()}
+                  accessibilityRole="button"
                   accessibilityLabel={t('pages.actions.actionsFor', { title })}
                   className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
                 >
@@ -215,15 +203,11 @@ export function SharedPageRow({
                 e.stopPropagation();
                 handleAddChild();
               }}
+              accessibilityRole="button"
               accessibilityLabel={t('pages.actions.addSubPageTo', { title })}
-              disabled={createPage.isPending}
               className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
             >
-              {createPage.isPending ? (
-                <ActivityIndicator size="small" color={colors.mutedForeground} />
-              ) : (
-                <Plus size={14} color={colors.mutedForeground} />
-              )}
+              <Plus size={14} color={colors.mutedForeground} />
             </Pressable>
           </View>
         ) : null}
