@@ -1,3 +1,6 @@
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { toast } from '@oxy.so/bloom/toast';
+import { RelationSettings } from './relation-settings';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { FormulaEditor } from './formula-editor';
 import { UniqueIdEditor } from './unique-id-editor';
@@ -140,6 +143,7 @@ export function PropertyHeaderMenu({
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const [mode, setMode] = React.useState<'menu' | 'rename' | 'config'>('menu');
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
   const updateView = useUpdateView();
@@ -188,11 +192,12 @@ export function PropertyHeaderMenu({
   };
 
   const remove = async () => {
-    await deleteProperty.mutateAsync({
-      databaseId: database.id,
-      propertyId: property.id,
-    });
-    close();
+    try {
+      await deleteProperty.mutateAsync({ databaseId: database.id, propertyId: property.id });
+      close();
+    } catch {
+      toast.error(t('databases.relations.failed'));
+    }
   };
 
   return (
@@ -227,6 +232,13 @@ export function PropertyHeaderMenu({
                 onPress={() => setMode('config')}
               />
             ) : null}
+            {property.type === 'relation' ? (
+              <MenuItem
+                icon={LinkIcon}
+                label={t('databases.relations.configure')}
+                onPress={() => setMode('config')}
+              />
+            ) : null}
             {property.type === 'formula' || property.type === 'unique_id' ? (
               <MenuItem
                 icon={property.type === 'formula' ? Sigma : Hash}
@@ -254,7 +266,7 @@ export function PropertyHeaderMenu({
                 icon={Trash2}
                 label={t('databases.properties.delete')}
                 destructive
-                onPress={remove}
+                onPress={() => (property.config?.twoWay ? setConfirmDelete(true) : void remove())}
               />
             ) : null}
           </>
@@ -288,7 +300,9 @@ export function PropertyHeaderMenu({
         ) : null}
 
         {mode === 'config' ? (
-          property.type === 'formula' ? (
+          property.type === 'relation' ? (
+            <RelationSettings database={database} property={property} onDone={close} />
+          ) : property.type === 'formula' ? (
             <FormulaEditor
               property={property}
               database={database}
@@ -301,6 +315,15 @@ export function PropertyHeaderMenu({
             <SelectOptionsEditor property={property} database={database} onDone={close} />
           )
         ) : null}
+        <ConfirmationDialog
+          open={confirmDelete}
+          onOpenChange={setConfirmDelete}
+          title={t('databases.relations.removeTitle')}
+          description={t('databases.relations.removeDescription')}
+          confirmVariant="destructive"
+          loading={deleteProperty.isPending}
+          onConfirm={remove}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -493,6 +516,7 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const [open, setOpen] = React.useState(false);
+  const [relationOpen, setRelationOpen] = React.useState(false);
   const { mutate: addProperty, isPending } = useAddPropertyOptimistic(database, () => {
     setOpen(false);
     onAdded?.();
@@ -552,13 +576,20 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
                 return (
                   <Pressable
                     key={type}
-                    onPress={() =>
+                    accessibilityRole="button"
+                    accessibilityLabel={propertyTypeLabel(type)}
+                    onPress={() => {
+                      if (type === 'relation') {
+                        setOpen(false);
+                        setRelationOpen(true);
+                        return;
+                      }
                       addProperty({
                         databaseId: database.id,
                         name: propertyTypeLabel(type),
                         type,
-                      })
-                    }
+                      });
+                    }}
                     className="flex-row items-center gap-2 px-2 py-1.5 rounded hover:bg-muted"
                   >
                     <Icon size={14} color={colors.foreground} />
@@ -570,6 +601,19 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
           </View>
         </View>
       </Modal>
+      <Dialog open={relationOpen} onOpenChange={setRelationOpen}>
+        <DialogContent className="max-w-sm">
+          {relationOpen ? (
+            <RelationSettings
+              database={database}
+              onDone={() => {
+                setRelationOpen(false);
+                onAdded?.();
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

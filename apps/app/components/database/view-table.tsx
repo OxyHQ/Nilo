@@ -1,3 +1,5 @@
+import { nestSubItems, subItemProperties } from '@/lib/sub-items';
+import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -37,6 +39,24 @@ export function ViewTable({ database, view, rows, isLoading, readOnly = false }:
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const createRow = useCreateRow();
+  const subItems = subItemProperties(database);
+  const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  React.useEffect(() => setExpanded(new Set()), [database.id]);
+  const nestedRows = nestSubItems(rows, subItems?.parent.id, expanded);
+  const toggleExpanded = (id: string) =>
+    setExpanded((old) => {
+      const next = new Set(old);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const newSubItem = (parentId: string) => {
+    if (!subItems || readOnly) return;
+    createRow.mutate({
+      databaseId: database.id,
+      properties: { [subItems.parent.id]: { pageIds: [parentId] } },
+    });
+  };
   const updateRow = useUpdateRow();
 
   const visibleProperties = React.useMemo(() => {
@@ -113,42 +133,66 @@ export function ViewTable({ database, view, rows, isLoading, readOnly = false }:
             <Text className="text-sm text-muted-foreground">{t('databases.table.empty')}</Text>
           </View>
         ) : (
-          rows.map((row) => (
-            <View key={row.id} className="flex-row border-b border-border/60">
-              <Pressable
-                className="px-3 py-2 border-r border-border/60 flex-row items-center"
-                style={{ width: TITLE_COL_WIDTH }}
-                accessibilityRole="link"
-                accessibilityLabel={row.title || t('databases.untitled')}
-                onPress={() => router.push(`/p/${row.id}`)}
-              >
-                <TitleCell
-                  readOnly={readOnly}
-                  initial={row.title}
-                  onChange={(next) => handleTitleChange(row.id, next)}
+          nestedRows.map((entry) => {
+            if (entry.kind === 'new')
+              return !readOnly ? (
+                <NewSubItem
+                  key={`new-${entry.parentId}`}
+                  depth={entry.depth}
+                  disabled={createRow.isPending}
+                  onPress={() => newSubItem(entry.parentId)}
                 />
-              </Pressable>
-              {visibleProperties.map((property) => (
-                <View
-                  key={property.id}
-                  className="px-3 py-2 border-r border-border/60 justify-center"
-                  style={{ width: DEFAULT_COL_WIDTH }}
+              ) : null;
+            const { row, depth } = entry;
+            return (
+              <View key={row.id} className="flex-row border-b border-border/60">
+                <Pressable
+                  className="px-3 py-2 border-r border-border/60 flex-row items-center"
+                  style={{ width: TITLE_COL_WIDTH, paddingLeft: 12 + depth * 24 }}
+                  accessibilityRole="link"
+                  accessibilityLabel={row.title || t('databases.untitled')}
+                  onPress={() => router.push(`/p/${row.id}`)}
                 >
-                  <PropertyCell
+                  {subItems ? (
+                    <SubItemToggle
+                      expanded={expanded.has(row.id)}
+                      title={row.title}
+                      onPress={() => toggleExpanded(row.id)}
+                    />
+                  ) : null}
+                  <TitleCell
                     readOnly={readOnly}
-                    property={property}
-                    value={row.properties[property.id] ?? null}
-                    variant="table"
-                    onChange={(value) => handleCellChange(row.id, property.id, value)}
+                    initial={row.title}
+                    onChange={(next) => handleTitleChange(row.id, next)}
                   />
-                </View>
-              ))}
-              <View style={{ width: 60 }} />
-            </View>
-          ))
+                </Pressable>
+                {visibleProperties.map((property) => (
+                  <View
+                    key={property.id}
+                    className="px-3 py-2 border-r border-border/60 justify-center"
+                    style={{ width: DEFAULT_COL_WIDTH }}
+                  >
+                    <PropertyCell
+                      readOnly={readOnly}
+                      property={property}
+                      value={row.properties[property.id] ?? null}
+                      variant="table"
+                      onChange={(value) => handleCellChange(row.id, property.id, value)}
+                    />
+                  </View>
+                ))}
+                <View style={{ width: 60 }} />
+              </View>
+            );
+          })
         )}
 
         {/* new row */}
+        {createRow.isError ? (
+          <Text accessibilityRole="alert" className="text-sm text-destructive">
+            {t('databases.subItems.failed')}
+          </Text>
+        ) : null}
         {!readOnly ? (
           <Pressable
             accessibilityRole="button"

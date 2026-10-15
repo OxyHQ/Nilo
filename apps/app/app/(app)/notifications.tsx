@@ -1,3 +1,4 @@
+import { PageEditedNotification } from '@/components/sharing/page-edited-notification';
 import { ReminderList } from '@/components/reminders/reminder-list';
 import { PageSharedNotification } from '@/components/sharing/page-shared-notification';
 import { View, ScrollView, Pressable, Platform } from 'react-native';
@@ -5,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Text } from '@/components/ui/text';
 import { useRouter } from 'expo-router';
 import {
+  Pencil,
   ArrowLeft,
   Bell,
   BellOff,
@@ -29,6 +31,7 @@ import {
 } from '@/lib/hooks/use-notifications';
 
 const TYPE_ICONS: Record<Notification['type'], typeof MessageSquare> = {
+  page_edited: Pencil,
   page_shared: UserPlus,
   reminder: Bell,
   mention: MessageSquare,
@@ -241,7 +244,9 @@ export default function NotificationsScreen() {
                   </View>
                   <View className="flex-1">
                     <View className="flex-row items-center justify-between mb-1">
-                      {notification.type === 'page_shared' ? (
+                      {notification.type === 'page_edited' ? (
+                        <PageEditedNotification notification={notification} />
+                      ) : notification.type === 'page_shared' ? (
                         <PageSharedNotification notification={notification} />
                       ) : (
                         <Text

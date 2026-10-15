@@ -59,5 +59,13 @@
     "today": "Today",
     "tomorrow": "Tomorrow",
     "nextWeek": "Next week"
+  },
+  "reactions": {
+    "add": "Add reaction",
+    "choose": "React with %{emoji}",
+    "toggle": "%{emoji}, %{count} reactions",
+    "someone": "Someone",
+    "closePeople": "Dismiss reaction details",
+    "failed": "Could not update the reaction. Try again."
   }
 }

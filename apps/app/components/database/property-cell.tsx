@@ -1,3 +1,4 @@
+import { RelationCell } from './relation-cell';
 import { ComputedCell } from './computed-cell';
 import * as React from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
@@ -125,7 +126,12 @@ export function PropertyCell({
     case 'files':
       return <FilesCell value={readFiles(value)} variant={variant} />;
     case 'relation':
-      return <RelationCell value={readPageIds(value)} variant={variant} />;
+      return (
+        <RelationCell
+          value={readPageIds(value)}
+          targetDatabaseId={property.config?.targetDatabaseId}
+        />
+      );
     case 'rollup':
       return <DerivedCell value={value} variant={variant} />;
     case 'created_time':
@@ -179,7 +185,12 @@ function PropertyValueText({ property, value }: Pick<PropertyCellProps, 'propert
     case 'files':
       return <FilesCell value={readFiles(value)} variant="card" />;
     case 'relation':
-      return <RelationCell value={readPageIds(value)} variant="card" />;
+      return (
+        <RelationCell
+          value={readPageIds(value)}
+          targetDatabaseId={property.config?.targetDatabaseId}
+        />
+      );
     default:
       return <DerivedCell value={value} variant="card" />;
   }
@@ -738,20 +749,6 @@ function FilesCell({ value }: FilesCellProps) {
       {value.length > 3 ? (
         <Text className="text-xs text-muted-foreground">+{value.length - 3}</Text>
       ) : null}
-    </View>
-  );
-}
-
-function RelationCell({ value }: ReadOnlyArrayCellProps) {
-  const { t } = useTranslation();
-  if (value.length === 0) {
-    return <Text className="text-sm text-muted-foreground">—</Text>;
-  }
-  return (
-    <View className="flex-row items-center gap-1">
-      <Text className="text-sm text-foreground">
-        {t('databases.properties.pageCount', { count: value.length })}
-      </Text>
     </View>
   );
 }

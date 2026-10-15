@@ -21,8 +21,7 @@ interface RowPropertiesPanelProps {
 export function RowPropertiesPanel({ database, row, readOnly = false }: RowPropertiesPanelProps) {
   const updateRow = useUpdateRow();
   const { t } = useTranslation();
-  const hasFormula = database.schema.properties.some((property) => property.type === 'formula');
-  const computed = useDatabaseRow(hasFormula ? database.id : undefined, row.id);
+  const computed = useDatabaseRow(database.id, row.id);
   const computedRow = computed.data;
 
   const onChange = React.useCallback(
@@ -64,11 +63,7 @@ export function RowPropertiesPanel({ database, row, readOnly = false }: RowPrope
             ) : (
               <PropertyCell
                 property={property}
-                value={
-                  (property.type === 'formula'
-                    ? computedRow?.properties[property.id]
-                    : row.properties[property.id]) ?? null
-                }
+                value={(computedRow ?? row).properties[property.id] ?? null}
                 variant="panel"
                 readOnly={readOnly}
                 onChange={(value) => onChange(property.id, value)}

@@ -1,3 +1,4 @@
+import { CommentReactions } from './comment-reactions';
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import {
@@ -239,6 +240,7 @@ function CommentRow({ comment, currentUserId, compact, onDelete, rightSlot }: Co
       </View>
       <View className="pl-7">
         <CommentContentView content={comment.content} />
+        <CommentReactions comment={comment} canComment={currentUserId !== null} />
       </View>
     </View>
   );

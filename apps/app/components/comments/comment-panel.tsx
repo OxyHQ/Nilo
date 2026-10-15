@@ -1,3 +1,4 @@
+import { useCommentsLive } from '@/lib/realtime/use-live-updates';
 import * as React from 'react';
 import {
   ActivityIndicator,
@@ -46,11 +47,12 @@ export function CommentPanel({
   focusedBlockId,
   canComment = true,
 }: CommentPanelProps) {
+  useCommentsLive(open ? pageId : undefined);
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const [filter, setFilter] = React.useState<FilterMode>('open');
   const includeResolved = filter !== 'open';
-  const { data, isLoading } = usePageComments(pageId, includeResolved);
+  const { data, isLoading } = usePageComments(open ? pageId : undefined, includeResolved);
   const createMutation = useCreateComment();
 
   const threads = React.useMemo(() => {

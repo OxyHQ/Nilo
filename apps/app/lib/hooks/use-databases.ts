@@ -1,3 +1,4 @@
+import { useWorkspaceLive, useDatabaseLive } from '../realtime/use-live-updates';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { useOxy } from '@oxy.so/services';
@@ -38,6 +39,7 @@ interface UpdateDatabaseInput {
  *  - the inline-database block picker.
  */
 export function useDatabases(workspaceId: string | null) {
+  useWorkspaceLive(workspaceId);
   const { isAuthenticated } = useOxy();
   return useQuery<DatabasesListResponse>({
     queryKey: queryKeys.databases.list(workspaceId),
@@ -57,6 +59,7 @@ export function useDatabases(workspaceId: string | null) {
  * so we co-locate them in one query and one cache key.
  */
 export function useDatabase(id: string | undefined) {
+  useDatabaseLive(id);
   const { isAuthenticated } = useOxy();
   return useQuery<{ database: Database; views: DatabaseView[] }>({
     queryKey: id ? queryKeys.databases.detail(id) : ['database', 'none'],

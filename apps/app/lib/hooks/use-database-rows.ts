@@ -206,9 +206,6 @@ export function useUpdateRow() {
       queryClient.invalidateQueries({
         queryKey: ['database', databaseId, 'rows'],
       });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.pages.detail(rowId),
-      });
       queryClient.invalidateQueries({ queryKey: queryKeys.databases.row(databaseId, rowId) });
     },
   });

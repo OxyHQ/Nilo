@@ -1,3 +1,7 @@
+jest.mock('@/lib/realtime/use-live-updates', () => ({
+  useWorkspaceLive: jest.fn(),
+  useDatabaseLive: jest.fn(),
+}));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { TextInput } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

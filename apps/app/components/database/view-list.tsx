@@ -1,3 +1,5 @@
+import { nestSubItems, subItemProperties } from '@/lib/sub-items';
+import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -26,6 +28,24 @@ export function ViewList({ database, view, rows, isLoading, readOnly = false }: 
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const createRow = useCreateRow();
+  const subItems = subItemProperties(database);
+  const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  React.useEffect(() => setExpanded(new Set()), [database.id]);
+  const nestedRows = nestSubItems(rows, subItems?.parent.id, expanded);
+  const toggleExpanded = (id: string) =>
+    setExpanded((old) => {
+      const next = new Set(old);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const newSubItem = (parentId: string) => {
+    if (!subItems || readOnly) return;
+    createRow.mutate({
+      databaseId: database.id,
+      properties: { [subItems.parent.id]: { pageIds: [parentId] } },
+    });
+  };
 
   const visibleProperties = React.useMemo(() => {
     return database.schema.properties.filter(
@@ -43,35 +63,60 @@ export function ViewList({ database, view, rows, isLoading, readOnly = false }: 
 
   return (
     <ScrollView>
-      {rows.map((row) => (
-        <Pressable
-          key={row.id}
-          accessibilityRole="link"
-          accessibilityLabel={row.title || t('databases.untitled')}
-          onPress={() => router.push(`/p/${row.id}`)}
-          className="flex-row items-center gap-3 px-4 py-2 border-b border-border/40 hover:bg-muted/40"
-        >
-          <View className="flex-1">
-            <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
-              {row.title || t('databases.untitled')}
-            </Text>
-          </View>
-          <View className="flex-row items-center gap-3">
-            {visibleProperties.slice(0, 3).map((property) => (
-              <View key={property.id}>
-                <PropertyCell
-                  readOnly={readOnly}
-                  property={property}
-                  value={row.properties[property.id] ?? null}
-                  variant="card"
-                  onChange={() => router.push(`/p/${row.id}`)}
-                />
-              </View>
-            ))}
-          </View>
-          <ChevronRight size={14} color={colors.mutedForeground} />
-        </Pressable>
-      ))}
+      {nestedRows.map((entry) => {
+        if (entry.kind === 'new')
+          return !readOnly ? (
+            <NewSubItem
+              key={`new-${entry.parentId}`}
+              depth={entry.depth}
+              disabled={createRow.isPending}
+              onPress={() => newSubItem(entry.parentId)}
+            />
+          ) : null;
+        const { row, depth } = entry;
+        return (
+          <Pressable
+            key={row.id}
+            style={{ paddingLeft: 16 + depth * 24 }}
+            accessibilityRole="link"
+            accessibilityLabel={row.title || t('databases.untitled')}
+            onPress={() => router.push(`/p/${row.id}`)}
+            className="flex-row items-center gap-3 px-4 py-2 border-b border-border/40 hover:bg-muted/40"
+          >
+            {subItems ? (
+              <SubItemToggle
+                expanded={expanded.has(row.id)}
+                title={row.title}
+                onPress={() => toggleExpanded(row.id)}
+              />
+            ) : null}
+            <View className="flex-1">
+              <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
+                {row.title || t('databases.untitled')}
+              </Text>
+            </View>
+            <View className="flex-row items-center gap-3">
+              {visibleProperties.slice(0, 3).map((property) => (
+                <View key={property.id}>
+                  <PropertyCell
+                    readOnly={readOnly}
+                    property={property}
+                    value={row.properties[property.id] ?? null}
+                    variant="card"
+                    onChange={() => router.push(`/p/${row.id}`)}
+                  />
+                </View>
+              ))}
+            </View>
+            <ChevronRight size={14} color={colors.mutedForeground} />
+          </Pressable>
+        );
+      })}
+      {createRow.isError ? (
+        <Text accessibilityRole="alert" className="text-sm text-destructive">
+          {t('databases.subItems.failed')}
+        </Text>
+      ) : null}
       {!readOnly ? (
         <Pressable
           accessibilityRole="button"

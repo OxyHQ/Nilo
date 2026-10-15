@@ -320,5 +320,24 @@
       }
     },
     "retry": "Could not load formula results. Retry"
+  },
+  "relations": {
+    "target": "Related database",
+    "showOn": "Show on %{database}",
+    "explanation": "Create a matching relation in the other database and keep both sides in sync.",
+    "removeTitle": "Remove the other side?",
+    "removeDescription": "The matching property and its links will be removed from the other database.",
+    "configure": "Edit relation",
+    "failed": "Could not save the relation. Try again.",
+    "unavailable": "Unavailable page"
+  },
+  "subItems": {
+    "name": "Sub-items",
+    "disable": "Turn off sub-items",
+    "new": "+ New sub-item",
+    "expand": "Expand sub-items of %{title}",
+    "collapse": "Collapse sub-items of %{title}",
+    "removeDescription": "Remove the sub-item and parent properties and their links? Pages will be kept.",
+    "failed": "Could not create the row. Try again."
   }
 }

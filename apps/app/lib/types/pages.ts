@@ -159,6 +159,8 @@ export type ButtonAction = 'duplicate-template' | 'new-page' | 'navigate' | 'web
  * shape per type.
  */
 export interface BlockContent {
+  /** Headings can own collapsible children, as in the shared API contract. */
+  toggleable?: boolean;
   text?: string;
   segments?: Segment[];
   checked?: boolean;

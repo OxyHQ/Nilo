@@ -1,3 +1,4 @@
+jest.mock('../relation-cell', () => ({ RelationCell: () => null }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { PropertyCell } from '../property-cell';

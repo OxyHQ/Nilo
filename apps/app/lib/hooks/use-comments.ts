@@ -5,6 +5,7 @@ import { API_ROUTES } from '../api/routes';
 import { queryKeys } from './query-keys';
 import type {
   Comment,
+  CommentReaction,
   CommentContent,
   CommentResponse,
   CommentsListResponse,
@@ -210,4 +211,84 @@ export function groupIntoThreads(comments: Comment[]): CommentThread[] {
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     ),
   }));
+}
+
+interface ReactionInput {
+  comment: Comment;
+  emoji: string;
+  remove: boolean;
+}
+
+export function useCommentReaction() {
+  const client = useQueryClient();
+  const { user } = useOxy();
+  return useMutation({
+    mutationKey: ['comment-reaction'],
+    mutationFn: async ({ comment, emoji, remove }: ReactionInput) => {
+      const url = `/comments/${comment.id}/reactions/${encodeURIComponent(emoji)}`;
+      const response = remove
+        ? await apiClient.delete<{ reactions: CommentReaction[] }>(url)
+        : await apiClient.put<{ reactions: CommentReaction[] }>(url);
+      return response.data.reactions;
+    },
+    onMutate: async ({ comment, emoji, remove }) => {
+      const keys: (readonly unknown[])[] = [['comments', 'page', comment.pageId]];
+      if (comment.blockId) keys.push(queryKeys.comments.block(comment.blockId));
+      await Promise.all(keys.map((queryKey) => client.cancelQueries({ queryKey })));
+      const previous = keys.flatMap((queryKey) =>
+        client.getQueriesData<CommentsListResponse>({ queryKey }),
+      );
+      for (const [key, data] of previous) {
+        if (!data || !user?.id) continue;
+        client.setQueryData<CommentsListResponse>(key, {
+          ...data,
+          comments: data.comments.map((c) => {
+            if (c.id !== comment.id) return c;
+            const reactions = c.reactions.map((r) => ({ ...r, userIds: [...r.userIds] }));
+            const reaction = reactions.find((r) => r.emoji === emoji);
+            if (remove && reaction)
+              reaction.userIds = reaction.userIds.filter((id) => id !== user.id);
+            else if (!remove && reaction && !reaction.userIds.includes(user.id))
+              reaction.userIds.push(user.id);
+            else if (!remove && !reaction) reactions.push({ emoji, userIds: [user.id] });
+            return { ...c, reactions: reactions.filter((r) => r.userIds.length) };
+          }),
+        });
+      }
+      return { previous };
+    },
+    onError: (_error, { comment }, context) => {
+      // Restore only this comment's reactions, preserving concurrent writes to other comments.
+      for (const [key, data] of context?.previous ?? []) {
+        const old = data?.comments.find((c) => c.id === comment.id);
+        if (old)
+          client.setQueryData<CommentsListResponse>(
+            key,
+            (current) =>
+              current && {
+                ...current,
+                comments: current.comments.map((c) =>
+                  c.id === comment.id ? { ...c, reactions: old.reactions } : c,
+                ),
+              },
+          );
+      }
+    },
+    onSuccess: (reactions, { comment }, context) => {
+      for (const [key] of context?.previous ?? [])
+        client.setQueryData<CommentsListResponse>(
+          key,
+          (data) =>
+            data && {
+              ...data,
+              comments: data.comments.map((c) => (c.id === comment.id ? { ...c, reactions } : c)),
+            },
+        );
+    },
+    onSettled: (_data, _error, { comment }) => {
+      void client.invalidateQueries({ queryKey: ['comments', 'page', comment.pageId] });
+      if (comment.blockId)
+        void client.invalidateQueries({ queryKey: queryKeys.comments.block(comment.blockId) });
+    },
+  });
 }

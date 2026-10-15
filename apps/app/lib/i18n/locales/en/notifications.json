@@ -18,5 +18,6 @@
   "pageShared": "%{name} shared %{page} with you",
   "open": "Open notification",
   "dismiss": "Dismiss notification",
-  "reminder": "Reminder"
+  "reminder": "Reminder",
+  "pageEdited": "%{page} was edited"
 }

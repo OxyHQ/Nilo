@@ -1,3 +1,4 @@
+import { DatabaseActionsMenu } from '@/components/database/database-actions-menu';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -126,6 +127,7 @@ export function InlineDatabaseBlock({
         <Text accessibilityRole="header" className="flex-1 text-sm font-semibold">
           {db.name || t('editor.inlineDatabase.defaultName')}
         </Text>
+        {!readOnly ? <DatabaseActionsMenu databaseId={db.id} /> : null}
         <Pressable
           accessibilityRole="link"
           accessibilityLabel={t('editor.inlineDatabase.openFullPage')}

@@ -79,6 +79,8 @@ export interface PropertyConfig {
   includeTime?: boolean;
   targetDatabaseId?: string;
   twoWay?: boolean;
+  /** Server-owned reciprocal property ID. Never included in writes. */
+  syncedPropertyId?: string;
   relationPropertyId?: string;
   targetPropertyId?: string;
   function?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'earliest' | 'latest';

@@ -1,3 +1,4 @@
+import { useWorkspaceLive } from '../realtime/use-live-updates';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOxy } from '@oxy.so/services';
 import axios from 'axios';
@@ -39,6 +40,7 @@ interface UpdatePageInput {
 }
 
 export function usePages(workspaceId: string | null) {
+  useWorkspaceLive(workspaceId);
   const { isAuthenticated } = useOxy();
 
   return useQuery<PagesListResponse>({
@@ -56,6 +58,7 @@ export function usePages(workspaceId: string | null) {
 
 /** Templates use a separate cache below the workspace page-list key. */
 export function useTemplates(workspaceId: string | null) {
+  useWorkspaceLive(workspaceId);
   const { isAuthenticated } = useOxy();
   return useAuthQuery<PagesListResponse>(
     queryKeys.pages.templates(workspaceId),
@@ -237,6 +240,7 @@ export function useBreadcrumb(pageId: string | null | undefined) {
  * Lists archived pages for a workspace. Backs the /trash route.
  */
 export function useArchivedPages(workspaceId: string | null) {
+  useWorkspaceLive(workspaceId);
   const { isAuthenticated } = useOxy();
 
   return useQuery<PagesListResponse>({
