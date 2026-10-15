@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
 import { findBlockById } from '../repositories/blocks.js';
@@ -20,9 +20,9 @@ import {
   type MentionSegment,
 } from '../repositories/comments.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { sendNotification } from '../lib/notification-service.js';
 import { log } from '../lib/logger.js';
+import { checkWorkspaceAccess } from '../lib/workspace-access.js';
 
 const router = Router();
 router.use(authenticateToken);
@@ -253,35 +253,6 @@ function handleZodError(err: unknown, res: Response): boolean {
 }
 
 /**
- * Inline workspace-membership check by resource workspace id. Mirrors the
- * pattern used by blocks.ts so we can authorize without forcing callers to
- * pass `X-Workspace-Id` for every comment route.
- */
-async function checkWorkspaceMembership(
-  req: Request,
-  res: Response,
-  workspaceId: string,
-): Promise<boolean> {
-  req.headers['x-workspace-id'] = String(workspaceId);
-  const passed = await new Promise<boolean>((resolve) => {
-    const next: NextFunction = (err?: unknown) => {
-      if (err) {
-        log.general.error({ err }, 'Workspace membership middleware errored');
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Workspace membership check failed' });
-        }
-        resolve(false);
-        return;
-      }
-      resolve(true);
-    };
-    requireWorkspaceMember(req, res, next);
-  });
-  if (!passed) return false;
-  return !res.headersSent;
-}
-
-/**
  * Best-effort notification fan-out. Logs failures but never throws — comment
  * creation must succeed even if downstream messaging is offline.
  */
@@ -368,7 +339,7 @@ router.get('/pages/:pageId/comments', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'viewer');
     if (!ok) return;
 
     // Thread listing: when hiding resolved threads we still need replies to
@@ -423,7 +394,7 @@ router.get('/blocks/:blockId/comments', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'viewer');
     if (!ok) return;
 
     const comments = await listCommentsByBlock(db, block.id);
@@ -456,7 +427,7 @@ router.post('/pages/:pageId/comments', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'commenter');
     if (!ok) return;
 
     // Validate block belongs to the same page (if provided).
@@ -551,7 +522,7 @@ router.patch('/comments/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, comment.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, comment.workspaceId, 'commenter');
     if (!ok) return;
 
     if (comment.authorId !== req.user.id) {
@@ -611,7 +582,7 @@ router.post('/comments/:id/resolve', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, comment.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, comment.workspaceId, 'commenter');
     if (!ok) return;
 
     // Already-resolved is not an error and not a write: the repository's
@@ -649,7 +620,7 @@ router.post('/comments/:id/unresolve', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, comment.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, comment.workspaceId, 'commenter');
     if (!ok) return;
 
     const unresolved =
@@ -683,7 +654,7 @@ router.delete('/comments/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, comment.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, comment.workspaceId, 'commenter');
     if (!ok) return;
 
     const isAuthor = comment.authorId === req.user.id;

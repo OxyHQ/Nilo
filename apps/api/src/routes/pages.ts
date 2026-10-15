@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
@@ -21,6 +21,7 @@ import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
+import { checkWorkspaceAccess, ensureRole } from '../lib/workspace-access.js';
 import {
   parsePropertyValue,
   serializeParsedValue,
@@ -109,38 +110,6 @@ function assertWorkspace(req: Request, res: Response): string | null {
     return null;
   }
   return workspaceId;
-}
-
-/**
- * Sets the X-Workspace-Id header from the given page's workspaceId, then
- * runs `requireWorkspaceMember` inline. Returns true if the caller is a
- * member; false (with a response already sent) otherwise.
- *
- * Used by `:id`-style routes where the workspace is not in the URL/query
- * but is derived from the loaded resource.
- */
-async function checkWorkspaceMembership(
-  req: Request,
-  res: Response,
-  workspaceId: string,
-): Promise<boolean> {
-  req.headers['x-workspace-id'] = workspaceId;
-  const passed = await new Promise<boolean>((resolve) => {
-    const next: NextFunction = (err?: unknown) => {
-      if (err) {
-        log.general.error({ err }, 'Workspace membership middleware errored');
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Workspace membership check failed' });
-        }
-        resolve(false);
-        return;
-      }
-      resolve(true);
-    };
-    requireWorkspaceMember(req, res, next);
-  });
-  if (!passed) return false;
-  return !res.headersSent;
 }
 
 /**
@@ -248,7 +217,7 @@ router.get('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'viewer');
     if (!ok) return;
 
     res.json({ page: serializePage(page) });
@@ -277,6 +246,7 @@ router.post(
       const body = createPageSchema.parse(req.body);
       const workspaceId = assertWorkspace(req, res);
       if (!workspaceId) return;
+      if (!ensureRole(req, res, 'editor')) return;
       if (body.workspaceId !== workspaceId) {
         res.status(403).json({ error: 'Workspace mismatch' });
         return;
@@ -349,7 +319,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'editor');
     if (!ok) return;
 
     if (body.parentId !== undefined && body.parentId !== null) {
@@ -460,7 +430,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'editor');
     if (!ok) return;
 
     if (hard) {
@@ -514,7 +484,7 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, source.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, source.workspaceId, 'editor');
     if (!ok) return;
 
     const userId = req.user?.id;
@@ -577,7 +547,7 @@ router.get('/:id/breadcrumb', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, head.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, head.workspaceId, 'viewer');
     if (!ok) return;
 
     // One recursive walk instead of one query per level. The depth bound and
@@ -696,7 +666,7 @@ router.get('/:id/export', async (req: Request, res: Response) => {
       return;
     }
 
-    const ok = await checkWorkspaceMembership(req, res, page.workspaceId);
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'viewer');
     if (!ok) return;
 
     const blocks = await listBlocksForPageByOrder(db, page.id);

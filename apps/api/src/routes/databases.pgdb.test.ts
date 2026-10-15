@@ -33,7 +33,7 @@ import type { WorkspaceRole } from '../db/schema/workspaces.js';
  * on Mongo, so it is not under test here — but the mock does resolve the
  * workspace id the same way the real middleware does (param, then query, then
  * the `X-Workspace-Id` header) and refuses a workspace the caller is not a
- * member of, because several route paths depend on `checkWorkspaceMembership`
+ * member of, because several route paths depend on `checkWorkspaceAccess`
  * rejecting rather than passing.
  *
  * Every assertion is scoped to a workspace, database or page id this file
