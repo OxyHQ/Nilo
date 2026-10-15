@@ -145,5 +145,70 @@
       "description": "Hace referencia a otro bloque (marcador de posición de la fase 3).",
       "keywords": "sincronizado, espejo, referencia"
     }
+  },
+  "ui": {
+    "placeholder": "Escribe '/' para ver comandos",
+    "emptyHeading": "Encabezado",
+    "emptyListItem": "Lista",
+    "emptyToggle": "Desplegable",
+    "slashNoResults": "Sin resultados",
+    "turnInto": "Convertir en",
+    "duplicate": "Duplicar",
+    "delete": "Eliminar",
+    "moveUp": "Mover arriba",
+    "moveDown": "Mover abajo",
+    "indent": "Aumentar sangría",
+    "outdent": "Reducir sangría",
+    "color": "Color",
+    "background": "Fondo",
+    "bold": "Negrita",
+    "italic": "Cursiva",
+    "underline": "Subrayado",
+    "strike": "Tachado",
+    "code": "Código",
+    "link": "Enlace",
+    "linkPlaceholder": "Pega un enlace",
+    "removeLink": "Quitar enlace",
+    "apply": "Aplicar",
+    "blockMenu": "Opciones del bloque",
+    "dragHandle": "Arrastra para mover",
+    "addBelow": "Añadir un bloque debajo",
+    "toggleOpen": "Contraer",
+    "toggleClosed": "Expandir",
+    "checkbox": "Hecho",
+    "comment": "Comentar"
+  },
+  "slashGroups": {
+    "basic": "Bloques básicos",
+    "media": "Multimedia",
+    "advanced": "Avanzado",
+    "embeds": "Insertados",
+    "database": "Base de datos"
+  },
+  "colors": {
+    "default": "Predeterminado",
+    "gray": "Gris",
+    "brown": "Marrón",
+    "orange": "Naranja",
+    "yellow": "Amarillo",
+    "green": "Verde",
+    "blue": "Azul",
+    "purple": "Morado",
+    "pink": "Rosa",
+    "red": "Rojo"
+  },
+  "status": {
+    "saving": "Guardando…",
+    "saved": "Guardado",
+    "offline": "Sin conexión: los cambios se sincronizarán al reconectar",
+    "error": "No se pudo guardar un cambio",
+    "rejected": "Otra persona cambió este bloque; tu edición se deshizo.",
+    "collaborators": {
+      "one": "%{count} persona más aquí",
+      "other": "%{count} personas más aquí"
+    }
+  },
+  "tableOfContents": {
+    "empty": "Añade encabezados para completar el índice."
   }
 }

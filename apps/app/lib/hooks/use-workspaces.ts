@@ -120,3 +120,11 @@ export function useDeleteWorkspace() {
     },
   });
 }
+
+/** The signed-in member's role in `workspaceId`, once the workspace list has loaded. */
+export function useWorkspaceRole(
+  workspaceId: string | null | undefined,
+): WorkspaceRole | undefined {
+  const { data } = useWorkspaces();
+  return data?.find((workspace) => workspace.id === workspaceId)?.role;
+}

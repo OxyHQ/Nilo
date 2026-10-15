@@ -1,4 +1,5 @@
 import { View } from 'react-native';
+import { CalloutIcon } from '@/components/page-chrome/callout-icon';
 import { Text } from '@/components/ui/text';
 import { MONO_FONT_FAMILY } from '@/lib/fonts';
 import { Check } from 'lucide-react-native';
@@ -25,10 +26,6 @@ function getText(content: Record<string, unknown>): string {
 
 function getChecked(content: Record<string, unknown>): boolean {
   return content.checked === true;
-}
-
-function getIcon(content: Record<string, unknown>): string {
-  return typeof content.icon === 'string' ? content.icon : '💡';
 }
 
 function getLanguage(content: Record<string, unknown>): string {
@@ -144,9 +141,7 @@ function CodeBlock({ content }: { content: Record<string, unknown> }) {
 function CalloutBlock({ content }: { content: Record<string, unknown> }) {
   return (
     <View className="flex-row gap-3 rounded-xl bg-muted/40 px-4 py-3">
-      <Text className="text-2xl" style={{ lineHeight: 28 }}>
-        {getIcon(content)}
-      </Text>
+      <CalloutIcon value={content.icon} size={22} />
       <Text className="text-base leading-7 text-foreground flex-1">{getText(content)}</Text>
     </View>
   );

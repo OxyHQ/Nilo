@@ -93,18 +93,23 @@ describe('the checked-in public surfaces describe routes that exist', () => {
     ).not.toContain("|| 'https://nilo.so'");
   });
 
-  it('binds notification sockets to the server-validated Oxy session', () => {
-    const serverSocket = readFileSync(resolve(REPOSITORY_ROOT, 'apps/api/src/socket.ts'), 'utf8');
-    const clientSocket = readFileSync(
-      resolve(REPOSITORY_ROOT, 'apps/app/lib/hooks/use-notification-setup.ts'),
-      'utf8',
-    );
+  it('binds realtime sockets to the server-validated Oxy session', () => {
+    const read = (path: string) => readFileSync(resolve(REPOSITORY_ROOT, path), 'utf8');
+    const serverSocket = read('apps/api/src/socket.ts');
+    const clientSocket = read('apps/app/lib/realtime/socket.ts');
+    const notifications = read('apps/app/lib/hooks/use-notification-setup.ts');
+    const layout = read('apps/app/app/_layout.tsx');
 
     expect(serverSocket).toContain('io.use(oxyClient.middleware.socket())');
     expect(serverSocket).toContain('socket.data.userId');
     expect(serverSocket).not.toContain("socket.on('subscribe-notifications'");
-    expect(clientSocket).toContain('oxyServices.session.accessToken');
-    expect(clientSocket).not.toContain("socket.emit('subscribe-notifications'");
+    // The one client socket hands the server the Oxy session's bearer, which
+    // the layout registers as the token source.
+    expect(clientSocket).toContain('callback(token ? { token } : {})');
+    expect(clientSocket).toContain('currentAccessToken()');
+    expect(layout).toContain('setTokenGetter(() => oxyServices.session.accessToken || null)');
+    expect(notifications).toContain('acquireSocket()');
+    expect(notifications).not.toContain("socket.emit('subscribe-notifications'");
   });
 
   it('generates a sitemap containing only Nilo routes that are present', () => {

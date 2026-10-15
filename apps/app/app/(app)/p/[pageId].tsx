@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MessageCircle } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
-import { Editor } from '@/components/editor/editor';
+import { PageEditor } from '@/components/page-editor/page-editor';
 import { ShareButton } from '@/components/sharing';
 import { CommentPanel } from '@/components/comments/comment-panel';
 import { PageChrome, PageHeader } from '@/components/page-chrome';
@@ -14,6 +14,8 @@ import { usePage } from '@/lib/hooks/use-pages';
 import { usePageComments } from '@/lib/hooks/use-comments';
 import { useDatabase } from '@/lib/hooks/use-databases';
 import { useTrackRecentPage } from '@/lib/hooks/use-track-recent-page';
+import { useWorkspaceRole } from '@/lib/hooks/use-workspaces';
+import { hasRole } from '@/lib/hooks/workspace-roles';
 import type { DatabaseRow, PropertyValue } from '@/lib/types/databases';
 import type { Page } from '@/lib/types/pages';
 
@@ -51,6 +53,7 @@ function PageDetail({ pageId }: { pageId: string }) {
   const { t } = useTranslation();
   const { data, isLoading, isError, error } = usePage(pageId);
   const { data: commentsData } = usePageComments(pageId, false);
+  const role = useWorkspaceRole(data?.page?.workspaceId);
   useTrackRecentPage(pageId);
 
   const [commentPanel, setCommentPanel] = React.useState<{
@@ -95,6 +98,7 @@ function PageDetail({ pageId }: { pageId: string }) {
   }
 
   const page = data.page;
+  const canEdit = hasRole(role, 'editor');
 
   const rightHeader = (
     <View className="flex-row items-center gap-2">
@@ -123,7 +127,11 @@ function PageDetail({ pageId }: { pageId: string }) {
           <PageHeader page={page} />
           <View className="px-6 md:px-10 max-w-3xl w-full mx-auto pt-4">
             <DatabaseRowProperties page={page} />
-            <Editor pageId={page.id} onOpenBlockComments={(blockId) => handleOpenPanel(blockId)} />
+            <PageEditor
+              pageId={page.id}
+              readOnly={!canEdit}
+              onOpenBlockComments={(blockId) => handleOpenPanel(blockId)}
+            />
           </View>
         </ScrollView>
 
