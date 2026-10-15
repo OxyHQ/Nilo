@@ -260,7 +260,7 @@ export const pagePermissions = pgTable(
 
 /* ──────────────────────── notifications ──────────────────────── */
 
-export const NOTIFICATION_TYPES = ['mention', 'comment_reply', 'page_shared'] as const;
+export const NOTIFICATION_TYPES = ['mention', 'comment_reply', 'page_shared', 'reminder'] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export const NOTIFICATION_CHANNELS = ['push', 'in_app'] as const;
@@ -455,5 +455,40 @@ export const webPushSubscriptions = pgTable(
      * The standalone `{ oxyUserId: 1 }` from `index: true` is NOT ported — a
      * strict prefix of the unique above.
      */
+  ],
+);
+
+/* ────────────────────────── reminders ────────────────────────── */
+
+/**
+ * A person's reminder about a page (or one block of it) at a time. The API's
+ * reminder sweep (`lib/reminders.ts`) notifies them when it is due and stamps
+ * `sentAt`; a reminder is personal, and is skipped if its owner can no
+ * longer open the page.
+ */
+export const reminders = pgTable(
+  'reminders',
+  {
+    id: generatedId(),
+    /** Oxy user id of the person reminded. */
+    userId: text().notNull(),
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    /** SET NULL: the reminder outlives the block, pointing at the page. */
+    blockId: text().references(() => blocks.id, { onDelete: 'set null' }),
+    remindAt: timestamptz().notNull(),
+    note: text(),
+    /** When the sweep notified them; null while pending. */
+    sentAt: timestamptz(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    // The sweep: pending reminders by due time.
+    index('reminders_pending_idx').on(t.remindAt).where(sql`${t.sentAt} is null`),
+    // "My reminders".
+    index('reminders_user_remind_idx').on(t.userId, t.remindAt),
+    index('reminders_page_idx').on(t.pageId),
+    index('reminders_block_idx').on(t.blockId),
   ],
 );

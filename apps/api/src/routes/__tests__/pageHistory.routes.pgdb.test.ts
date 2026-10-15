@@ -154,7 +154,8 @@ describe('page history', () => {
         pageId,
         blockId: null,
         authorId: EDITOR,
-        content: { segments: [{ type: 'text', text: 'on a' }], plainText: 'on a' },
+        contentSegments: [{ type: 'text', text: 'on a' }],
+        contentPlainText: 'on a',
       })
       .returning({ id: comments.id });
     await db

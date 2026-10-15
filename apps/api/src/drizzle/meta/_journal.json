@@ -85,6 +85,13 @@
       "when": 1792044466292,
       "tag": "0011_black_barracuda",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792044608741,
+      "tag": "0012_special_nebula",
+      "breakpoints": true
     }
   ]
 }

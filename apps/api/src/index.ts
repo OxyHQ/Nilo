@@ -24,6 +24,8 @@ import pagePermissionsRouter from './routes/page-permissions.js';
 import searchRouter from './routes/search.js';
 import publishRouter from './routes/publish.js';
 import pageHistoryRouter from './routes/page-history.js';
+import remindersRouter from './routes/reminders.js';
+import { startReminderSweep, stopReminderSweep } from './lib/reminders.js';
 import pagesRouter from './routes/pages.js';
 import blocksRouter from './routes/blocks.js';
 import databasesRouter from './routes/databases.js';
@@ -136,6 +138,7 @@ app.use('/workspaces', workspacesRouter);
 app.use(shareLinksRouter);
 app.use(publishRouter);
 app.use(pageHistoryRouter);
+app.use(remindersRouter);
 app.use(pagePermissionsRouter);
 app.use(blocksRouter);
 app.use(commentsRouter);
@@ -221,6 +224,7 @@ getDb()
   .then(() => {
     server.listen(PORT, '0.0.0.0', () => {
       log.general.info({ port: PORT }, 'API server listening');
+      startReminderSweep();
       // Verify Redis connectivity (non-blocking)
       import('./lib/redis.js').then(({ getRedisClient }) => {
         const redis = getRedisClient();
@@ -247,6 +251,7 @@ getDb()
       shuttingDown = true;
       log.general.info(`Received ${signal}. Starting graceful shutdown...`);
 
+      stopReminderSweep();
       // Stop accepting new connections
       server.close(() => {
         log.general.info('HTTP server closed (no new connections)');
