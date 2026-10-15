@@ -15,7 +15,7 @@ const AskAliaContext = createContext<(() => void) | null>(null);
  * while signed out opens the Oxy sign-in dialog instead of a sheet that could
  * not call Alia.
  */
-export function AskAliaProvider({ children }: { children: ReactNode }) {
+export function AskAliaRoot({ children }: { children: ReactNode }) {
   const { t, locale } = useTranslation();
   const { canUsePrivateApi, signIn } = useAuth();
   const chatRef = useRef<AliaChatSheetRef>(null);
@@ -36,7 +36,7 @@ export function AskAliaProvider({ children }: { children: ReactNode }) {
   }, [canUsePrivateApi, signIn]);
 
   return (
-    <AskAliaContext.Provider value={askAlia}>
+    <AskAliaContext value={askAlia}>
       {children}
       {canUsePrivateApi && (
         <AliaChatSheet
@@ -46,13 +46,13 @@ export function AskAliaProvider({ children }: { children: ReactNode }) {
           welcomeSuggestions={welcomeSuggestions}
         />
       )}
-    </AskAliaContext.Provider>
+    </AskAliaContext>
   );
 }
 
 /** Opens the Alia chat sheet, or the sign-in dialog when signed out. */
 export function useAskAlia(): () => void {
   const askAlia = useContext(AskAliaContext);
-  if (!askAlia) throw new Error('useAskAlia must be used inside <AskAliaProvider>');
+  if (!askAlia) throw new Error('useAskAlia must be used inside <AskAliaRoot>');
   return askAlia;
 }
