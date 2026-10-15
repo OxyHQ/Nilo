@@ -32,7 +32,7 @@ export function RecentsSection() {
   const pages = React.useMemo<Page[]>(() => {
     if (!data?.pages) return [];
     const byId = new Map<string, Page>();
-    for (const p of data.pages) byId.set(p._id, p);
+    for (const p of data.pages) byId.set(p.id, p);
     const out: Page[] = [];
     for (const id of recentPageIds) {
       const p = byId.get(id);
@@ -54,12 +54,12 @@ export function RecentsSection() {
       </View>
       <View>
         {pages.map((p) => {
-          const isActive = pathname === `/p/${p._id}`;
+          const isActive = pathname === `/p/${p.id}`;
           const title = p.title.trim() || t('pages.untitled');
           return (
             <Pressable
-              key={p._id}
-              onPress={() => router.push(`/p/${p._id}`)}
+              key={p.id}
+              onPress={() => router.push(`/p/${p.id}`)}
               accessibilityLabel={t('pages.openPage', { title })}
               className={
                 isActive

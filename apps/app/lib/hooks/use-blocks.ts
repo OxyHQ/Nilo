@@ -86,7 +86,7 @@ export function useUpdateBlock() {
       const previous = queryClient.getQueryData<BlocksListResponse>(queryKeys.blocks.list(pageId));
       if (previous) {
         queryClient.setQueryData<BlocksListResponse>(queryKeys.blocks.list(pageId), {
-          blocks: previous.blocks.map((b) => (b._id === id ? ({ ...b, ...patch } as Block) : b)),
+          blocks: previous.blocks.map((b) => (b.id === id ? ({ ...b, ...patch } as Block) : b)),
         });
       }
       return { previous, pageId };
@@ -119,7 +119,7 @@ export function useDeleteBlock() {
       const previous = queryClient.getQueryData<BlocksListResponse>(queryKeys.blocks.list(pageId));
       if (previous) {
         queryClient.setQueryData<BlocksListResponse>(queryKeys.blocks.list(pageId), {
-          blocks: previous.blocks.filter((b) => b._id !== id),
+          blocks: previous.blocks.filter((b) => b.id !== id),
         });
       }
       return { previous };

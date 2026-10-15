@@ -6,7 +6,7 @@ import { workspaceKeys } from './workspace-keys';
 export type WorkspaceRole = 'viewer' | 'commenter' | 'editor' | 'admin' | 'owner';
 
 export interface Workspace {
-  _id: string;
+  id: string;
   name: string;
   icon: string | null;
   ownerId: string;

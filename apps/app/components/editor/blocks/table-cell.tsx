@@ -13,9 +13,9 @@ export function TableCell({ block, onChangeContent }: BlockComponentProps) {
   const text = typeof block.content.text === 'string' ? block.content.text : '';
 
   const [draft, setDraft] = React.useState(text);
-  const lastBlockId = React.useRef(block._id);
-  if (lastBlockId.current !== block._id) {
-    lastBlockId.current = block._id;
+  const lastBlockId = React.useRef(block.id);
+  if (lastBlockId.current !== block.id) {
+    lastBlockId.current = block.id;
     setDraft(text);
   }
 

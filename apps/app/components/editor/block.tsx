@@ -199,7 +199,7 @@ export function BlockView({
           />
         </ListItemRow>
       );
-    case 'to_do':
+    case 'todo':
       return (
         <TodoBlock
           block={block}

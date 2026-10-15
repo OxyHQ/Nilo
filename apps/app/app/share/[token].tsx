@@ -123,7 +123,7 @@ export default function PublicSharePage() {
             {data.blocks.length === 0 ? (
               <Text className="text-sm text-muted-foreground">{t('pages.share.empty')}</Text>
             ) : (
-              data.blocks.map((block) => <SharedBlockRenderer key={block._id} block={block} />)
+              data.blocks.map((block) => <SharedBlockRenderer key={block.id} block={block} />)
             )}
           </View>
         </View>

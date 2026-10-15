@@ -89,7 +89,7 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
       .map((p) => {
         const title = p.title?.trim() || t('comments.mentions.untitled');
         return {
-          key: `page:${p._id}`,
+          key: `page:${p.id}`,
           kind: 'page',
           label: title,
           detail: p.icon
@@ -98,7 +98,7 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
           build: (): MentionSegment => ({
             type: 'mention',
             kind: 'page',
-            id: p._id,
+            id: p.id,
             originalText: `@${title}`,
           }),
         };

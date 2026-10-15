@@ -30,25 +30,25 @@ export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
 
   const candidates = React.useMemo(() => {
     const all = data?.pages ?? [];
-    const descendantIds = collectDescendantIds(all, page._id);
-    descendantIds.add(page._id);
+    const descendantIds = collectDescendantIds(all, page.id);
+    descendantIds.add(page.id);
     const normalized = query.trim().toLowerCase();
     return all
-      .filter((p) => !p.archived && !descendantIds.has(p._id))
+      .filter((p) => !p.archived && !descendantIds.has(p.id))
       .filter((p) => {
         if (!normalized) return true;
         const title = (p.title || t('pages.untitled')).toLowerCase();
         return title.includes(normalized);
       })
       .slice(0, 100);
-  }, [data?.pages, page._id, query, t]);
+  }, [data?.pages, page.id, query, t]);
 
   const handleMove = React.useCallback(
     (parentId: string | null) => {
-      updatePage.mutate({ id: page._id, parentId });
+      updatePage.mutate({ id: page.id, parentId });
       onOpenChange(false);
     },
-    [updatePage, page._id, onOpenChange],
+    [updatePage, page.id, onOpenChange],
   );
 
   return (
@@ -97,8 +97,8 @@ export function MoveToDialog({ open, onOpenChange, page }: MoveToDialogProps) {
           ) : (
             candidates.map((p) => (
               <Pressable
-                key={p._id}
-                onPress={() => handleMove(p._id)}
+                key={p.id}
+                onPress={() => handleMove(p.id)}
                 className="flex-row items-center gap-2 rounded-md px-2 py-2 hover:bg-muted"
                 accessibilityLabel={t('pages.moveDialog.moveUnder', {
                   title: p.title || t('pages.untitled'),
@@ -140,9 +140,9 @@ function collectDescendantIds(pages: Page[], rootId: string): Set<string> {
     for (const id of frontier) {
       const kids = childrenByParent.get(id) ?? [];
       for (const k of kids) {
-        if (collected.has(k._id)) continue;
-        collected.add(k._id);
-        next.push(k._id);
+        if (collected.has(k.id)) continue;
+        collected.add(k.id);
+        next.push(k.id);
       }
     }
     frontier = next;

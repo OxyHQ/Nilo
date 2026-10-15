@@ -83,7 +83,7 @@ function ExistingLinkRow({ link, pageId }: ExistingLinkRowProps) {
   }, [url]);
 
   const handleRevoke = React.useCallback(() => {
-    revoke(link._id, {
+    revoke(link.id, {
       onSuccess: () => toast.success(t('sharing.toasts.revoked')),
       onError: (err) => {
         const message =
@@ -91,7 +91,7 @@ function ExistingLinkRow({ link, pageId }: ExistingLinkRowProps) {
         toast.error(message);
       },
     });
-  }, [revoke, link._id]);
+  }, [revoke, link.id]);
 
   return (
     <View className="flex-row items-center gap-2 px-2 py-2 rounded-lg">
@@ -299,7 +299,7 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
             ) : (
               <View className="rounded-lg border border-border bg-card overflow-hidden">
                 {activeLinks.map((link, idx) => (
-                  <View key={link._id}>
+                  <View key={link.id}>
                     {idx > 0 ? <View className="h-px bg-border/50 mx-2" /> : null}
                     <ExistingLinkRow link={link} pageId={pageId} />
                   </View>

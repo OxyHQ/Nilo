@@ -96,7 +96,7 @@ export function useKeyboardShortcuts() {
           title: '',
         })
           .then((page) => {
-            r.push(`/p/${page._id}`);
+            r.push(`/p/${page.id}`);
           })
           .catch(() => {
             /* mutation surfaces errors via state */

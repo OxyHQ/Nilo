@@ -108,7 +108,7 @@ function PageDetail({ pageId }: { pageId: string }) {
           {openCommentCount > 0 ? openCommentCount : ''} {t('pages.comments.label')}
         </Text>
       </Pressable>
-      <ShareButton pageId={page._id} />
+      <ShareButton pageId={page.id} />
     </View>
   );
 
@@ -123,12 +123,12 @@ function PageDetail({ pageId }: { pageId: string }) {
           <PageHeader page={page} />
           <View className="px-6 md:px-10 max-w-3xl w-full mx-auto pt-4">
             <DatabaseRowProperties page={page} />
-            <Editor pageId={page._id} onOpenBlockComments={(blockId) => handleOpenPanel(blockId)} />
+            <Editor pageId={page.id} onOpenBlockComments={(blockId) => handleOpenPanel(blockId)} />
           </View>
         </ScrollView>
 
         <CommentPanel
-          pageId={page._id}
+          pageId={page.id}
           workspaceId={page.workspaceId}
           open={commentPanel.open}
           focusedBlockId={commentPanel.focusedBlockId}
@@ -152,8 +152,7 @@ function DatabaseRowProperties({ page }: { page: Page }) {
   const { data } = useDatabase(databaseId ?? undefined);
   if (!databaseId || !data?.database) return null;
   const row: DatabaseRow = {
-    id: page._id,
-    _id: page._id,
+    id: page.id,
     workspaceId: page.workspaceId,
     parentId: page.parentId,
     databaseId,

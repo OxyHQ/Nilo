@@ -50,15 +50,15 @@ export function PageChrome({ page, children, rightHeader }: PageChromeProps) {
 
   const handleIconSelect = React.useCallback(
     (next: string | null) => {
-      updatePage.mutate({ id: page._id, icon: next });
+      updatePage.mutate({ id: page.id, icon: next });
     },
-    [page._id, updatePage],
+    [page.id, updatePage],
   );
   const handleCoverSelect = React.useCallback(
     (next: string | null) => {
-      updatePage.mutate({ id: page._id, cover: next, coverPosition: 50 });
+      updatePage.mutate({ id: page.id, cover: next, coverPosition: 50 });
     },
-    [page._id, updatePage],
+    [page.id, updatePage],
   );
 
   const stateValue = React.useMemo<PageChromeState>(
@@ -72,10 +72,10 @@ export function PageChrome({ page, children, rightHeader }: PageChromeProps) {
         {/* Sticky top bar (always visible above the scroll). */}
         <View className="h-12 flex-row items-center justify-between border-b border-border/30 px-4 md:px-6">
           <View className="flex-1 min-w-0">
-            <Breadcrumb pageId={page._id} workspaceId={page.workspaceId} />
+            <Breadcrumb pageId={page.id} workspaceId={page.workspaceId} />
           </View>
           <View className="flex-row items-center gap-1">
-            <FavoriteButton pageId={page._id} favorited={page.favorited ?? false} />
+            <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
             {rightHeader}
             <PageActionsMenu page={page} />
           </View>
@@ -113,17 +113,17 @@ export function PageHeader({ page }: { page: Page }) {
       setTitleDraft(null);
       return;
     }
-    updatePage.mutate({ id: page._id, title: titleDraft });
+    updatePage.mutate({ id: page.id, title: titleDraft });
     setTitleDraft(null);
-  }, [titleDraft, page.title, page._id, updatePage]);
+  }, [titleDraft, page.title, page.id, updatePage]);
 
   const handleCommitReposition = React.useCallback(
     (nextPosition: number) => {
       const clamped = Math.min(100, Math.max(0, Math.round(nextPosition)));
       if (clamped === (page.coverPosition ?? 50)) return;
-      updatePage.mutate({ id: page._id, coverPosition: clamped });
+      updatePage.mutate({ id: page.id, coverPosition: clamped });
     },
-    [page._id, page.coverPosition, updatePage],
+    [page.id, page.coverPosition, updatePage],
   );
 
   return (

@@ -45,7 +45,7 @@ export function PageTree() {
         parentId: null,
         title: '',
       });
-      router.push(`/p/${page._id}`);
+      router.push(`/p/${page.id}`);
     } catch {
       // Mutation errors surface via TanStack Query state; no silent catch needed beyond no-op.
     }
@@ -99,7 +99,7 @@ export function PageTree() {
         <View className="pb-2">
           {tree.roots.map((page) => (
             <PageRowRecursive
-              key={page._id}
+              key={page.id}
               page={page}
               byId={tree.byId}
               depth={0}
@@ -134,8 +134,8 @@ function PageRowRecursive({
   activePath,
   workspaceId,
 }: PageRowRecursiveProps) {
-  const children = byId.get(page._id)?.children ?? [];
-  const isOpen = Boolean(expanded[page._id]);
+  const children = byId.get(page.id)?.children ?? [];
+  const isOpen = Boolean(expanded[page.id]);
   return (
     <View>
       <PageRow
@@ -143,14 +143,14 @@ function PageRowRecursive({
         depth={depth}
         hasChildren={children.length > 0}
         isOpen={isOpen}
-        onToggle={() => setExpanded((prev) => ({ ...prev, [page._id]: !prev[page._id] }))}
+        onToggle={() => setExpanded((prev) => ({ ...prev, [page.id]: !prev[page.id] }))}
         activePath={activePath}
         workspaceId={workspaceId}
       />
       {isOpen
         ? children.map((child) => (
             <PageRowRecursive
-              key={child._id}
+              key={child.id}
               page={child}
               byId={byId}
               depth={depth + 1}
@@ -190,28 +190,28 @@ const PageRow = React.memo(function PageRow({
   const createPage = useCreatePage();
   const deletePage = useDeletePage();
 
-  const isActive = activePath === `/p/${page._id}`;
+  const isActive = activePath === `/p/${page.id}`;
 
   const handleOpen = React.useCallback(() => {
-    router.push(`/p/${page._id}`);
-  }, [router, page._id]);
+    router.push(`/p/${page.id}`);
+  }, [router, page.id]);
 
   const handleAddChild = React.useCallback(async () => {
     try {
       const child = await createPage.mutateAsync({
         workspaceId,
-        parentId: page._id,
+        parentId: page.id,
         title: '',
       });
-      router.push(`/p/${child._id}`);
+      router.push(`/p/${child.id}`);
     } catch {
       // Mutation surfaces error via state; nothing else to do.
     }
-  }, [createPage, page._id, router, workspaceId]);
+  }, [createPage, page.id, router, workspaceId]);
 
   const handleDelete = React.useCallback(() => {
-    deletePage.mutate({ id: page._id, workspaceId });
-  }, [deletePage, page._id, workspaceId]);
+    deletePage.mutate({ id: page.id, workspaceId });
+  }, [deletePage, page.id, workspaceId]);
 
   const title = page.title.trim() ? page.title : t('pages.untitled');
   const indent = depth * INDENT_PX;

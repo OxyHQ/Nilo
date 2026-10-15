@@ -7,7 +7,7 @@
  *   `### `         → heading_3
  *   `* ` or `- `   → bulleted_list_item
  *   `1. ` (any digit run) → numbered_list_item
- *   `[] ` or `[ ] `       → to_do
+ *   `[] ` or `[ ] `       → todo
  *   `> `           → quote
  *   ```` ``` ````  → code (start fence)
  *   `---` on empty line → divider
@@ -35,7 +35,7 @@ const RULES: ReadonlyArray<{
   { pattern: /^### (.*)$/, type: 'heading_3' },
   { pattern: /^([*-]) (.*)$/, type: 'bulleted_list_item' },
   { pattern: /^\d+\. (.*)$/, type: 'numbered_list_item' },
-  { pattern: /^\[ ?\] (.*)$/, type: 'to_do' },
+  { pattern: /^\[ ?\] (.*)$/, type: 'todo' },
   { pattern: /^> (.*)$/, type: 'quote' },
   { pattern: /^```(.*)$/, type: 'code', allowEmptyResidual: true },
   { pattern: /^---$/, type: 'divider', allowEmptyResidual: true },

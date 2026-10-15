@@ -213,7 +213,6 @@ export type PropertyValue =
 
 export interface DatabaseRow {
   id: string;
-  _id: string;
   workspaceId: string;
   parentId: string | null;
   databaseId: string | null;

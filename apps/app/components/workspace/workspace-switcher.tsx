@@ -62,7 +62,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
   // default to the personal workspace, then the first available.
   const activeWorkspace = React.useMemo<Workspace | null>(() => {
     if (!workspaces || workspaces.length === 0) return null;
-    const byId = workspaces.find((w) => w._id === currentWorkspaceId);
+    const byId = workspaces.find((w) => w.id === currentWorkspaceId);
     if (byId) return byId;
     const personal = workspaces.find((w) => w.isPersonal);
     return personal ?? workspaces[0] ?? null;
@@ -75,8 +75,8 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
   // valid `currentWorkspaceId`.
   React.useEffect(() => {
     if (!activeWorkspace) return;
-    if (currentWorkspaceId === activeWorkspace._id) return;
-    setCurrentWorkspaceId(activeWorkspace._id);
+    if (currentWorkspaceId === activeWorkspace.id) return;
+    setCurrentWorkspaceId(activeWorkspace.id);
   }, [activeWorkspace, currentWorkspaceId, setCurrentWorkspaceId]);
 
   const handleSelect = React.useCallback(
@@ -92,7 +92,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
 
   const handleCreated = React.useCallback(
     (workspace: Workspace) => {
-      setCurrentWorkspaceId(workspace._id);
+      setCurrentWorkspaceId(workspace.id);
       setCreateOpen(false);
     },
     [setCurrentWorkspaceId],
@@ -173,10 +173,10 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
             <DropdownMenu.Label>{t('workspace.switcher.yourWorkspaces')}</DropdownMenu.Label>
           )}
           {(workspaces ?? []).map((workspace) => {
-            const isActive = workspace._id === activeWorkspace?._id;
+            const isActive = workspace.id === activeWorkspace?.id;
             const role = workspace.role;
             return (
-              <DropdownMenu.Item key={workspace._id} onSelect={() => handleSelect(workspace._id)}>
+              <DropdownMenu.Item key={workspace.id} onSelect={() => handleSelect(workspace.id)}>
                 {Platform.OS === 'web' ? (
                   <View className="flex-row items-center gap-2 w-full">
                     <WorkspaceIcon workspace={workspace} size={24} />

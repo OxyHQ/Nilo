@@ -52,7 +52,7 @@ export default function TrashRoute() {
   const handleRestore = React.useCallback(
     (page: Page) => {
       updatePage.mutate(
-        { id: page._id, archived: false },
+        { id: page.id, archived: false },
         {
           onSuccess: () => toast.success(t('pages.toasts.restored')),
           onError: (err) => toast.error(err.message || t('pages.toasts.restoreFailed')),
@@ -66,7 +66,7 @@ export default function TrashRoute() {
     if (!deleteTarget || !currentWorkspaceId) return;
     const target = deleteTarget;
     deletePage.mutate(
-      { id: target._id, workspaceId: currentWorkspaceId, hard: true },
+      { id: target.id, workspaceId: currentWorkspaceId, hard: true },
       {
         onSuccess: () => {
           toast.success(t('pages.toasts.deletedPermanently'));
@@ -138,7 +138,7 @@ export default function TrashRoute() {
         <ScrollView className="flex-1" contentContainerClassName="px-4 py-3 md:px-8">
           {pages.map((page) => (
             <TrashRow
-              key={page._id}
+              key={page.id}
               page={page}
               onRestore={() => handleRestore(page)}
               onHardDelete={() => setDeleteTarget(page)}
@@ -191,13 +191,13 @@ function TrashRow({ page, onRestore, onHardDelete, canHardDelete }: TrashRowProp
   return (
     <View className="flex-row items-center gap-3 rounded-md border border-border/40 px-3 py-2 mb-2 hover:bg-muted/40">
       <Pressable
-        onPress={() => router.push(`/p/${page._id}`)}
+        onPress={() => router.push(`/p/${page.id}`)}
         accessibilityLabel={t('pages.openPage', { title })}
         className="h-8 w-8 items-center justify-center rounded-md"
       >
         <IconDisplay value={page.icon} size={20} showPlaceholder />
       </Pressable>
-      <Pressable onPress={() => router.push(`/p/${page._id}`)} className="flex-1 min-w-0">
+      <Pressable onPress={() => router.push(`/p/${page.id}`)} className="flex-1 min-w-0">
         <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
           {title}
         </Text>

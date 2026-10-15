@@ -118,8 +118,8 @@ const DEFAULT_OPTIONS: readonly SlashMenuOption[] = [
     Icon: ListOrdered,
   },
   {
-    id: 'basic:to_do',
-    type: 'to_do',
+    id: 'basic:todo',
+    type: 'todo',
     label: 'To-do list',
     description: 'Track tasks with checkboxes.',
     keywords: ['todo', 'task', 'checkbox'],

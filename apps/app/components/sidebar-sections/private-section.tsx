@@ -36,7 +36,7 @@ export function PrivateSection() {
         parentId: null,
         title: '',
       });
-      router.push(`/p/${page._id}`);
+      router.push(`/p/${page.id}`);
     } catch {
       /* mutation surfaces errors via state */
     }

@@ -43,10 +43,10 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
           await mod.openBrowserAsync(targetUrl);
         }
       } else if (action === 'new-page') {
-        const res = await apiClient.post<{ page: { _id: string } }>(API_ROUTES.pages.create, {
+        const res = await apiClient.post<{ page: { id: string } }>(API_ROUTES.pages.create, {
           title: 'Untitled',
         });
-        router.push(`/p/${res.data.page._id}`);
+        router.push(`/p/${res.data.page.id}`);
       } else if (action === 'duplicate-template') {
         const templateId =
           typeof block.content.templateId === 'string' ? block.content.templateId : '';
@@ -55,11 +55,11 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
         } else {
           // Backend currently doesn't expose /pages/:id/duplicate — use create
           // as a fallback so the action still produces a new page.
-          const res = await apiClient.post<{ page: { _id: string } }>(API_ROUTES.pages.create, {
+          const res = await apiClient.post<{ page: { id: string } }>(API_ROUTES.pages.create, {
             title: 'Copy',
             parentId: templateId,
           });
-          router.push(`/p/${res.data.page._id}`);
+          router.push(`/p/${res.data.page.id}`);
         }
       } else if (action === 'webhook') {
         if (!webhookUrl) {

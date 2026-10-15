@@ -105,7 +105,7 @@ export function useUpdatePage() {
         queryKey: queryKeys.pages.list(page.workspaceId),
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.pages.detail(page._id),
+        queryKey: queryKeys.pages.detail(page.id),
       });
     },
   });
@@ -231,7 +231,7 @@ export function useEmptyTrash() {
 export function buildPageTree(pages: Page[]) {
   const byId = new Map<string, { page: Page; children: Page[] }>();
   for (const page of pages) {
-    byId.set(page._id, { page, children: [] });
+    byId.set(page.id, { page, children: [] });
   }
   const roots: Page[] = [];
   for (const page of pages) {

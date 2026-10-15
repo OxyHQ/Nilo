@@ -139,7 +139,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
   // Focus a freshly-created block when it appears in the rendered list.
   React.useEffect(() => {
     if (!focusRequest) return;
-    const target = blocks.find((b) => b._id === focusRequest);
+    const target = blocks.find((b) => b.id === focusRequest);
     if (!target) return;
     const handle = handleRefs.current[focusRequest]?.current;
     const input = inputRefs.current[focusRequest]?.current;
@@ -154,7 +154,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   const currentSegmentsFor = React.useCallback(
     (block: Block): Segment[] => {
-      const draft = drafts[block._id];
+      const draft = drafts[block.id];
       if (draft) return draft.segments;
       const segs = block.content.segments;
       if (segs && segs.length > 0) return segs;
@@ -166,7 +166,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   const currentTextFor = React.useCallback(
     (block: Block): string => {
-      const draft = drafts[block._id];
+      const draft = drafts[block.id];
       if (draft) return draft.text;
       return block.content.text ?? '';
     },
@@ -176,11 +176,11 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
   // -- Persist helpers ------------------------------------------------------
   const scheduleSave = React.useCallback(
     (block: Block, next: { segments: Segment[]; text: string }) => {
-      const existing = saveTimersRef.current[block._id];
+      const existing = saveTimersRef.current[block.id];
       if (existing) clearTimeout(existing);
-      saveTimersRef.current[block._id] = setTimeout(() => {
+      saveTimersRef.current[block.id] = setTimeout(() => {
         updateBlock.mutate({
-          id: block._id,
+          id: block.id,
           pageId,
           content: {
             ...block.content,
@@ -204,12 +204,12 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
   // -- Slash menu trigger detection -----------------------------------------
   const maybeOpenSlash = React.useCallback(
     (block: Block, text: string) => {
-      if (slash && slash.blockId === block._id) {
+      if (slash && slash.blockId === block.id) {
         if (text[slash.slashIndex] !== '/') {
           setSlash(null);
           return;
         }
-        const handle = handleRefs.current[block._id]?.current;
+        const handle = handleRefs.current[block.id]?.current;
         const range = handle?.getSelection();
         if (!range) return;
         const queryEnd = range.start;
@@ -225,7 +225,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
         setSlash({ ...slash, query });
         return;
       }
-      const handle = handleRefs.current[block._id]?.current;
+      const handle = handleRefs.current[block.id]?.current;
       const range = handle?.getSelection();
       if (!range) return;
       const caret = range.start;
@@ -234,7 +234,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
       if (justTyped !== '/') return;
       const prevChar = caret >= 2 ? text[caret - 2] : '';
       if (caret === 1 || prevChar === ' ' || prevChar === '\n') {
-        setSlash({ blockId: block._id, slashIndex: caret - 1, query: '' });
+        setSlash({ blockId: block.id, slashIndex: caret - 1, query: '' });
       }
     },
     [slash],
@@ -243,7 +243,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
   // -- Change handler from RichEditable -------------------------------------
   const handleChange = React.useCallback(
     (block: Block, next: { segments: Segment[]; text: string }) => {
-      setDrafts((prev) => ({ ...prev, [block._id]: next }));
+      setDrafts((prev) => ({ ...prev, [block.id]: next }));
       scheduleSave(block, next);
       if (Platform.OS === 'web') {
         maybeOpenSlash(block, next.text);
@@ -256,20 +256,20 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   const handleSlashSelect = React.useCallback(
     async (block: Block, nextType: BlockType) => {
-      if (!slash || slash.blockId !== block._id) return;
+      if (!slash || slash.blockId !== block.id) return;
       const text = currentTextFor(block);
       const stripped =
         text.slice(0, slash.slashIndex) + text.slice(slash.slashIndex + 1 + slash.query.length);
       const nextSegments: Segment[] = stripped.length > 0 ? [{ text: stripped }] : [];
       setDrafts((prev) => ({
         ...prev,
-        [block._id]: { segments: nextSegments, text: stripped },
+        [block.id]: { segments: nextSegments, text: stripped },
       }));
-      flushSave(block._id);
+      flushSave(block.id);
       setSlash(null);
       try {
         await updateBlock.mutateAsync({
-          id: block._id,
+          id: block.id,
           pageId,
           type: nextType,
           content: {
@@ -289,7 +289,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
               pageId,
               type: 'column',
               content: {},
-              parentBlockId: block._id,
+              parentBlockId: block.id,
               order: i,
             });
           }
@@ -299,7 +299,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
               pageId,
               type: 'table_row',
               content: {},
-              parentBlockId: block._id,
+              parentBlockId: block.id,
               order: r,
             });
             for (let c = 0; c < 2; c += 1) {
@@ -307,13 +307,13 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
                 pageId,
                 type: 'table_cell',
                 content: { text: '' },
-                parentBlockId: row._id,
+                parentBlockId: row.id,
                 order: c,
               });
             }
           }
         }
-        const handle = handleRefs.current[block._id]?.current;
+        const handle = handleRefs.current[block.id]?.current;
         handle?.focus();
       } catch {
         // Surface via mutation state.
@@ -339,7 +339,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   const handleSubmitNew = React.useCallback(
     async (block: Block) => {
-      const idx = blocks.findIndex((b) => b._id === block._id);
+      const idx = blocks.findIndex((b) => b.id === block.id);
       const nextOrder = orderForAfter(idx);
       try {
         const created = await createBlock.mutateAsync({
@@ -348,7 +348,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
           content: { text: '', segments: [] },
           order: nextOrder,
         });
-        setFocusRequest(created._id);
+        setFocusRequest(created.id);
       } catch {
         // Surface via mutation state.
       }
@@ -358,18 +358,18 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   const handleBackspaceAtStart = React.useCallback(
     async (block: Block) => {
-      const idx = blocks.findIndex((b) => b._id === block._id);
+      const idx = blocks.findIndex((b) => b.id === block.id);
       const previous = idx > 0 ? blocks[idx - 1] : null;
       const text = currentTextFor(block);
       if (text.length === 0 && blocks.length > 1) {
         try {
-          await deleteBlock.mutateAsync({ id: block._id, pageId });
-          if (previous) setFocusRequest(previous._id);
+          await deleteBlock.mutateAsync({ id: block.id, pageId });
+          if (previous) setFocusRequest(previous.id);
         } catch {
           // Surface via mutation state.
         }
       } else if (previous) {
-        handleRefs.current[previous._id]?.current?.focus();
+        handleRefs.current[previous.id]?.current?.focus();
       }
     },
     [blocks, currentTextFor, deleteBlock, pageId],
@@ -380,16 +380,16 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
       if (
         block.type !== 'bulleted_list_item' &&
         block.type !== 'numbered_list_item' &&
-        block.type !== 'to_do'
+        block.type !== 'todo'
       ) {
         return;
       }
-      const idx = blocks.findIndex((b) => b._id === block._id);
+      const idx = blocks.findIndex((b) => b.id === block.id);
       if (outdent) {
         if (!block.parentBlockId) return;
         try {
           await updateBlock.mutateAsync({
-            id: block._id,
+            id: block.id,
             pageId,
             parentBlockId: null,
           });
@@ -402,9 +402,9 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
       if (!above) return;
       try {
         await updateBlock.mutateAsync({
-          id: block._id,
+          id: block.id,
           pageId,
-          parentBlockId: above._id,
+          parentBlockId: above.id,
         });
       } catch {
         // Surface via mutation state.
@@ -415,9 +415,9 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   const handleToggleChecked = React.useCallback(
     (block: Block) => {
-      if (block.type !== 'to_do') return;
+      if (block.type !== 'todo') return;
       updateBlock.mutate({
-        id: block._id,
+        id: block.id,
         pageId,
         content: { ...block.content, checked: !block.content.checked },
       });
@@ -430,7 +430,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
       if (block.type !== 'toggle') return;
       const expanded = block.content.expanded !== false;
       updateBlock.mutate({
-        id: block._id,
+        id: block.id,
         pageId,
         content: { ...block.content, expanded: !expanded },
       });
@@ -456,7 +456,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
     },
     onDrop: (sourceId, indicator) => {
       const flat = blocks.filter((b) => !b.parentBlockId);
-      const ids = flat.map((b) => b._id);
+      const ids = flat.map((b) => b.id);
       const targetIndex = ids.indexOf(indicator.blockId);
       if (targetIndex < 0) return;
       const insertAt = indicator.position === 'above' ? targetIndex : targetIndex + 1;
@@ -466,7 +466,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
       reorderBlocks.mutate({ pageId, blockIds: without });
     },
     previewLabel: (id) => {
-      const b = blocks.find((x) => x._id === id);
+      const b = blocks.find((x) => x.id === id);
       const text = b ? currentTextFor(b) : '';
       const truncated = text.length > 40 ? `${text.slice(0, 40)}…` : text;
       return truncated || (b?.type ?? 'Block');
@@ -479,16 +479,16 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
       const text = currentTextFor(block);
       const detected = detectShortcut(text);
       if (!detected) return false;
-      flushSave(block._id);
+      flushSave(block.id);
       const nextSegments: Segment[] =
         detected.remainder.length > 0 ? [{ text: detected.remainder }] : [];
       setDrafts((prev) => ({
         ...prev,
-        [block._id]: { segments: nextSegments, text: detected.remainder },
+        [block.id]: { segments: nextSegments, text: detected.remainder },
       }));
       try {
         await updateBlock.mutateAsync({
-          id: block._id,
+          id: block.id,
           pageId,
           type: detected.type,
           content: {
@@ -499,16 +499,16 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
           },
         });
         if (detected.type === 'divider') {
-          const idx = blocks.findIndex((b) => b._id === block._id);
+          const idx = blocks.findIndex((b) => b.id === block.id);
           const created = await createBlock.mutateAsync({
             pageId,
             type: 'paragraph',
             content: { text: '', segments: [] },
             order: orderForAfter(idx),
           });
-          setFocusRequest(created._id);
+          setFocusRequest(created.id);
         } else {
-          handleRefs.current[block._id]?.current?.focus();
+          handleRefs.current[block.id]?.current?.focus();
         }
       } catch {
         // Surface via mutation state.
@@ -525,7 +525,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
    */
   const applyInlineShortcut = React.useCallback(
     (block: Block, latest: { segments: Segment[]; text: string }): boolean => {
-      const handle = handleRefs.current[block._id]?.current;
+      const handle = handleRefs.current[block.id]?.current;
       const range = handle?.getSelection();
       if (!range) return false;
       const text = latest.text;
@@ -547,11 +547,11 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
       }
       if (tail.length > 0) annotated.push({ text: tail });
       const next = { segments: annotated, text: newText };
-      setDrafts((prev) => ({ ...prev, [block._id]: next }));
+      setDrafts((prev) => ({ ...prev, [block.id]: next }));
       scheduleSave(block, next);
       const caret = innerEnd;
       requestAnimationFrame(() => {
-        handleRefs.current[block._id]?.current?.setSelection({
+        handleRefs.current[block.id]?.current?.setSelection({
           start: caret,
           end: caret,
         });
@@ -564,7 +564,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
   // -- Block-level rich text mutation ---------------------------------------
   const mutateSegmentsRange = React.useCallback(
     (blockId: string, range: CaretRange, patch: Parameters<typeof applyAnnotationRange>[3]) => {
-      const block = blocks.find((b) => b._id === blockId);
+      const block = blocks.find((b) => b.id === blockId);
       if (!block) return;
       const segments = ensureSegments(currentSegmentsFor(block), currentTextFor(block));
       const nextSegments = applyAnnotationRange(segments, range.start, range.end, patch);
@@ -578,7 +578,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   const toggleMark = React.useCallback(
     (blockId: string, range: CaretRange, mark: keyof FormattingState) => {
-      const block = blocks.find((b) => b._id === blockId);
+      const block = blocks.find((b) => b.id === blockId);
       if (!block) return;
       const segments = ensureSegments(currentSegmentsFor(block), currentTextFor(block));
       const active = rangeHasMark(segments, range.start, range.end, mark);
@@ -598,7 +598,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
         setToolbar(null);
         return;
       }
-      const node = blockNodeRefs.current[block._id];
+      const node = blockNodeRefs.current[block.id];
       const winSel = typeof window !== 'undefined' ? window.getSelection() : null;
       let anchor: ToolbarState['anchor'] = null;
       if (winSel && winSel.rangeCount > 0) {
@@ -627,7 +627,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
         strike: rangeHasMark(segments, range.start, range.end, 'strike'),
         code: rangeHasMark(segments, range.start, range.end, 'code'),
       };
-      setToolbar({ blockId: block._id, range, anchor, active });
+      setToolbar({ blockId: block.id, range, anchor, active });
     },
     [currentSegmentsFor, currentTextFor],
   );
@@ -643,7 +643,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
         setSlash(null);
         return true;
       }
-      if (slash && slash.blockId === block._id) {
+      if (slash && slash.blockId === block.id) {
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter') {
           // SlashMenu owns these via its own global listener.
           return false;
@@ -652,18 +652,18 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
       if (meta && event.key === '/') {
         event.preventDefault();
-        const node = blockNodeRefs.current[block._id];
+        const node = blockNodeRefs.current[block.id];
         if (node) {
           const rect = node.getBoundingClientRect();
           setActionMenu({
-            blockId: block._id,
+            blockId: block.id,
             anchor: {
               top: rect.bottom + window.scrollY + 4,
               left: rect.left + window.scrollX,
             },
           });
         } else {
-          setActionMenu({ blockId: block._id, anchor: null });
+          setActionMenu({ blockId: block.id, anchor: null });
         }
         return true;
       }
@@ -672,7 +672,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
         const text = currentTextFor(block);
         if (range.start === 0 && range.end === text.length) {
           event.preventDefault();
-          setSelectedIds(blocks.map((b) => b._id));
+          setSelectedIds(blocks.map((b) => b.id));
           return true;
         }
         return false;
@@ -680,34 +680,34 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
       if (meta && (event.key === 'b' || event.key === 'B')) {
         event.preventDefault();
-        toggleMark(block._id, range, 'bold');
+        toggleMark(block.id, range, 'bold');
         return true;
       }
       if (meta && (event.key === 'i' || event.key === 'I')) {
         event.preventDefault();
-        toggleMark(block._id, range, 'italic');
+        toggleMark(block.id, range, 'italic');
         return true;
       }
       if (meta && (event.key === 'u' || event.key === 'U')) {
         event.preventDefault();
-        toggleMark(block._id, range, 'underline');
+        toggleMark(block.id, range, 'underline');
         return true;
       }
       if (meta && (event.key === 'e' || event.key === 'E')) {
         event.preventDefault();
-        toggleMark(block._id, range, 'code');
+        toggleMark(block.id, range, 'code');
         return true;
       }
       if (meta && event.shiftKey && (event.key === 's' || event.key === 'S')) {
         event.preventDefault();
-        toggleMark(block._id, range, 'strike');
+        toggleMark(block.id, range, 'strike');
         return true;
       }
       if (meta && (event.key === 'k' || event.key === 'K')) {
         event.preventDefault();
         const url = window.prompt('Link URL');
         if (url !== null) {
-          mutateSegmentsRange(block._id, range, {
+          mutateSegmentsRange(block.id, range, {
             link: url.length === 0 ? undefined : url,
           });
         }
@@ -733,7 +733,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
           // Update local draft so detectShortcut sees the third dash.
           setDrafts((prev) => ({
             ...prev,
-            [block._id]: {
+            [block.id]: {
               segments: [{ text: '---' }],
               text: '---',
             },
@@ -751,7 +751,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
           event.preventDefault();
           setDrafts((prev) => ({
             ...prev,
-            [block._id]: { segments: [{ text: '```' }], text: '```' },
+            [block.id]: { segments: [{ text: '```' }], text: '```' },
           }));
           void applyMarkdownShortcut({
             ...block,
@@ -771,12 +771,12 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
     (block: Block, event: React.MouseEvent<HTMLDivElement>) => {
       if (Platform.OS !== 'web') return;
       if (event.shiftKey) {
-        const anchor = focusedId ?? selectedIds[0] ?? block._id;
-        const aIdx = blocks.findIndex((b) => b._id === anchor);
-        const bIdx = blocks.findIndex((b) => b._id === block._id);
+        const anchor = focusedId ?? selectedIds[0] ?? block.id;
+        const aIdx = blocks.findIndex((b) => b.id === anchor);
+        const bIdx = blocks.findIndex((b) => b.id === block.id);
         if (aIdx < 0 || bIdx < 0) return;
         const [lo, hi] = aIdx < bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
-        const ids = blocks.slice(lo, hi + 1).map((b) => b._id);
+        const ids = blocks.slice(lo, hi + 1).map((b) => b.id);
         setSelectedIds(ids);
         event.preventDefault();
       } else {
@@ -807,7 +807,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
       const meta = ev.metaKey || ev.ctrlKey;
       if (meta && (ev.key === 'c' || ev.key === 'C')) {
         const text = blocks
-          .filter((b) => selectedIds.includes(b._id))
+          .filter((b) => selectedIds.includes(b.id))
           .map((b) => currentTextFor(b))
           .join('\n');
         navigator.clipboard.writeText(text).catch(() => {
@@ -818,7 +818,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
       }
       if (meta && (ev.key === 'x' || ev.key === 'X')) {
         const text = blocks
-          .filter((b) => selectedIds.includes(b._id))
+          .filter((b) => selectedIds.includes(b.id))
           .map((b) => currentTextFor(b))
           .join('\n');
         navigator.clipboard.writeText(text).catch(() => {
@@ -848,7 +848,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   const handleTurnInto = React.useCallback(
     async (blockId: string, type: BlockType) => {
-      const block = blocks.find((b) => b._id === blockId);
+      const block = blocks.find((b) => b.id === blockId);
       if (!block) return;
       try {
         await updateBlock.mutateAsync({
@@ -869,9 +869,9 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   const handleDuplicate = React.useCallback(
     async (blockId: string) => {
-      const block = blocks.find((b) => b._id === blockId);
+      const block = blocks.find((b) => b.id === blockId);
       if (!block) return;
-      const idx = blocks.findIndex((b) => b._id === blockId);
+      const idx = blocks.findIndex((b) => b.id === blockId);
       try {
         const created = await createBlock.mutateAsync({
           pageId,
@@ -880,7 +880,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
           order: orderForAfter(idx),
           parentBlockId: block.parentBlockId,
         });
-        setFocusRequest(created._id);
+        setFocusRequest(created.id);
       } catch {
         // Surface via mutation state.
       }
@@ -901,7 +901,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   const handleSetColor = React.useCallback(
     (blockId: string, color: BlockColor) => {
-      const block = blocks.find((b) => b._id === blockId);
+      const block = blocks.find((b) => b.id === blockId);
       if (!block) return;
       updateBlock.mutate({
         id: blockId,
@@ -917,7 +917,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
 
   const handleSetBackground = React.useCallback(
     (blockId: string, color: BlockColor) => {
-      const block = blocks.find((b) => b._id === blockId);
+      const block = blocks.find((b) => b.id === blockId);
       if (!block) return;
       updateBlock.mutate({
         id: blockId,
@@ -946,9 +946,9 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
    */
   const handleChangeContent = React.useCallback(
     (block: Block, next: Block['content']) => {
-      flushSave(block._id);
+      flushSave(block.id);
       updateBlock.mutate({
-        id: block._id,
+        id: block.id,
         pageId,
         content: { ...block.content, ...next },
       });
@@ -969,7 +969,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
           counter = 1;
           lastParent = b.parentBlockId;
         }
-        result[b._id] = counter;
+        result[b.id] = counter;
       } else {
         counter = 0;
         lastParent = undefined;
@@ -989,7 +989,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
         content: { text: '', segments: [] },
         order: nextOrder,
       });
-      setFocusRequest(created._id);
+      setFocusRequest(created.id);
     } catch {
       // Surface via mutation state.
     }
@@ -1073,7 +1073,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
           blockNode={blockNodeRefs.current[slash.blockId] ?? null}
           query={slash.query}
           onSelect={(type) => {
-            const block = blocks.find((b) => b._id === slash.blockId);
+            const block = blocks.find((b) => b.id === slash.blockId);
             if (block) void handleSlashSelect(block, type);
           }}
           onClose={closeSlash}
@@ -1084,7 +1084,7 @@ export function Editor({ pageId, onOpenBlockComments }: EditorProps) {
         <BlockActionMenu
           open
           anchor={actionMenu.anchor}
-          currentType={blocks.find((b) => b._id === actionMenu.blockId)?.type ?? 'paragraph'}
+          currentType={blocks.find((b) => b.id === actionMenu.blockId)?.type ?? 'paragraph'}
           onClose={closeActionMenu}
           onTurnInto={(t) => void handleTurnInto(actionMenu.blockId, t)}
           onDuplicate={() => void handleDuplicate(actionMenu.blockId)}
@@ -1191,27 +1191,27 @@ const CONTAINER_BLOCK_TYPES = new Set<BlockType>(['columns', 'column', 'table', 
 
 function renderBlockTree(args: RenderArgs): React.ReactNode {
   const { block, depth, childMap, dnd, selectedIds, hoveredId, numberedIndex, handlers } = args;
-  const isSelected = selectedIds.includes(block._id);
-  const isHovered = hoveredId === block._id;
-  const isDragOver = dnd.indicator?.blockId === block._id ? dnd.indicator.position : null;
-  const children = childMap.get(block._id) ?? [];
+  const isSelected = selectedIds.includes(block.id);
+  const isHovered = hoveredId === block.id;
+  const isDragOver = dnd.indicator?.blockId === block.id ? dnd.indicator.position : null;
+  const children = childMap.get(block.id) ?? [];
   const expanded = block.type === 'toggle' ? block.content.expanded !== false : true;
   const containerOwnsChildren = CONTAINER_BLOCK_TYPES.has(block.type);
 
   const rowContent = (
     <View className={cn('relative', isSelected ? 'rounded bg-primary/10' : null)}>
       <DragHandle
-        visible={isHovered || dnd.draggingBlockId === block._id}
-        blockId={block._id}
-        onOpenMenu={(anchor) => handlers.openActionMenu(block._id, anchor)}
+        visible={isHovered || dnd.draggingBlockId === block.id}
+        blockId={block.id}
+        onOpenMenu={(anchor) => handlers.openActionMenu(block.id, anchor)}
         onPlus={() => handlers.onPlus(block)}
-        onDragStart={(ev) => dnd.onHandlePointerDown(block._id, ev)}
+        onDragStart={(ev) => dnd.onHandlePointerDown(block.id, ev)}
       />
       <BlockView
         block={block}
         autoFocus={false}
-        inputRef={handlers.getInputRef(block._id)}
-        handleRef={handlers.getHandleRef(block._id)}
+        inputRef={handlers.getInputRef(block.id)}
+        handleRef={handlers.getHandleRef(block.id)}
         onChangeContent={(next) => handlers.onChangeContent(block, next)}
         renderChildren={handlers.renderChildrenOf}
         handlers={{
@@ -1226,7 +1226,7 @@ function renderBlockTree(args: RenderArgs): React.ReactNode {
           onSelectionChange: (range) => handlers.onSelectionChange(block, range),
           onToggleChecked: () => handlers.onToggleChecked(block),
           onToggleExpanded: () => handlers.onToggleExpanded(block),
-          listIndex: numberedIndex[block._id],
+          listIndex: numberedIndex[block.id],
         }}
       />
     </View>
@@ -1237,8 +1237,8 @@ function renderBlockTree(args: RenderArgs): React.ReactNode {
       <View className="flex-1 min-w-0">{rowContent}</View>
       <View className="w-7 items-end pt-1 shrink-0">
         <CommentIndicator
-          blockId={block._id}
-          onPress={() => handlers.onOpenBlockComments?.(block._id)}
+          blockId={block.id}
+          onPress={() => handlers.onOpenBlockComments?.(block.id)}
           alwaysVisible={Platform.OS === 'web' ? isHovered : false}
         />
       </View>
@@ -1249,16 +1249,16 @@ function renderBlockTree(args: RenderArgs): React.ReactNode {
 
   if (Platform.OS === 'web') {
     return (
-      <View key={block._id} style={{ marginLeft: depth * 24 }}>
+      <View key={block.id} style={{ marginLeft: depth * 24 }}>
         <div
           ref={(el) => {
-            handlers.blockNodeRefs.current[block._id] = el;
+            handlers.blockNodeRefs.current[block.id] = el;
           }}
-          data-block-id={block._id}
-          onMouseEnter={() => handlers.setHoveredId(block._id)}
-          onMouseLeave={() => handlers.setHoveredId(hoveredId === block._id ? null : hoveredId)}
+          data-block-id={block.id}
+          onMouseEnter={() => handlers.setHoveredId(block.id)}
+          onMouseLeave={() => handlers.setHoveredId(hoveredId === block.id ? null : hoveredId)}
           onMouseDown={(e) => handlers.onMouseDown(block, e)}
-          onFocusCapture={() => handlers.setFocusedId(block._id)}
+          onFocusCapture={() => handlers.setFocusedId(block.id)}
           style={{ position: 'relative' }}
         >
           {isDragOver === 'above' ? <DropIndicatorLine /> : null}
@@ -1275,7 +1275,7 @@ function renderBlockTree(args: RenderArgs): React.ReactNode {
   }
 
   return (
-    <View key={block._id} style={{ marginLeft: depth * 16 }}>
+    <View key={block.id} style={{ marginLeft: depth * 16 }}>
       {withComments}
       {block.type === 'toggle' && !expanded ? null : (
         <View>

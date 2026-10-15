@@ -31,7 +31,7 @@ export default function HomePage() {
   }, [data?.pages]);
 
   if (mostRecent) {
-    return <Redirect href={`/p/${mostRecent._id}`} />;
+    return <Redirect href={`/p/${mostRecent.id}`} />;
   }
 
   const handleCreate = async () => {
@@ -42,7 +42,7 @@ export default function HomePage() {
         parentId: null,
         title: '',
       });
-      router.push(`/p/${page._id}`);
+      router.push(`/p/${page.id}`);
     } catch {
       // mutation surfaces via state.
     }

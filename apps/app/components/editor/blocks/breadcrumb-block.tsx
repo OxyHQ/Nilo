@@ -54,8 +54,8 @@ export function BreadcrumbBlock({ block }: BlockComponentProps) {
   return (
     <View className="flex-row items-center flex-wrap gap-1 my-1">
       {trail.data.pages.map((p, idx) => (
-        <View key={p._id} className="flex-row items-center gap-1">
-          <Pressable onPress={() => router.push(`/p/${p._id}`)}>
+        <View key={p.id} className="flex-row items-center gap-1">
+          <Pressable onPress={() => router.push(`/p/${p.id}`)}>
             <Text className="text-xs text-muted-foreground hover:text-foreground">
               {p.title || 'Untitled'}
             </Text>

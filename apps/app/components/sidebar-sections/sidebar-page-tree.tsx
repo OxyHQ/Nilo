@@ -25,10 +25,10 @@ interface TreeNode {
 
 function buildLocalTree(pages: Page[]): TreeNode[] {
   const lookup = new Map<string, TreeNode>();
-  for (const p of pages) lookup.set(p._id, { page: p, children: [] });
+  for (const p of pages) lookup.set(p.id, { page: p, children: [] });
   const roots: TreeNode[] = [];
   for (const p of pages) {
-    const node = lookup.get(p._id);
+    const node = lookup.get(p.id);
     if (!node) continue;
     if (p.parentId && lookup.has(p.parentId)) {
       lookup.get(p.parentId)?.children.push(node);
@@ -65,7 +65,7 @@ export function SidebarPageTree({
   const roots = React.useMemo(() => buildLocalTree(pages), [pages]);
   const pagesById = React.useMemo(() => {
     const m = new Map<string, Page>();
-    for (const p of pages) m.set(p._id, p);
+    for (const p of pages) m.set(p.id, p);
     return m;
   }, [pages]);
 
@@ -80,7 +80,7 @@ export function SidebarPageTree({
       if (position === 'inside' || position === 'before' || position === 'after') {
         let cursor: Page | undefined = target;
         while (cursor) {
-          if (cursor._id === sourceId) return;
+          if (cursor.id === sourceId) return;
           if (!cursor.parentId) break;
           cursor = pagesById.get(cursor.parentId);
         }
@@ -90,8 +90,8 @@ export function SidebarPageTree({
       let newParentId: string | null;
       let newOrder: number;
       if (position === 'inside') {
-        newParentId = target._id;
-        const siblings = pages.filter((p) => p.parentId === target._id).map((p) => p.order ?? 0);
+        newParentId = target.id;
+        const siblings = pages.filter((p) => p.parentId === target.id).map((p) => p.order ?? 0);
         newOrder = (siblings.length ? Math.max(...siblings) : -1) + 1;
       } else {
         newParentId = target.parentId ?? null;
@@ -122,7 +122,7 @@ export function SidebarPageTree({
       <View>
         {roots.map((node) => (
           <TreeNodeRow
-            key={node.page._id}
+            key={node.page.id}
             node={node}
             depth={0}
             activePath={pathname}
@@ -159,15 +159,15 @@ function TreeNodeRow({
   enableDrag,
   onCommit,
 }: TreeNodeRowProps) {
-  const isOpen = Boolean(expanded[node.page._id]);
+  const isOpen = Boolean(expanded[node.page.id]);
   const hasChildren = node.children.length > 0;
-  const isActive = activePath === `/p/${node.page._id}`;
+  const isActive = activePath === `/p/${node.page.id}`;
 
   const handleDrop = React.useCallback(
     (sourceId: string, position: 'before' | 'after' | 'inside') => {
-      onCommit({ sourceId, targetId: node.page._id, position });
+      onCommit({ sourceId, targetId: node.page.id, position });
     },
-    [node.page._id, onCommit],
+    [node.page.id, onCommit],
   );
 
   return (
@@ -180,7 +180,7 @@ function TreeNodeRow({
         onToggle={() =>
           setExpanded((prev) => ({
             ...prev,
-            [node.page._id]: !prev[node.page._id],
+            [node.page.id]: !prev[node.page.id],
           }))
         }
         isActive={isActive}
@@ -191,7 +191,7 @@ function TreeNodeRow({
       {isOpen
         ? node.children.map((child) => (
             <TreeNodeRow
-              key={child.page._id}
+              key={child.page.id}
               node={child}
               depth={depth + 1}
               activePath={activePath}

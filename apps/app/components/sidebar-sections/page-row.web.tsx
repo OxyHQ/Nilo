@@ -21,8 +21,8 @@ export function SidebarPageRow(props: PageRowSharedProps) {
   const { page, enableDrag = true } = props;
   const drag = usePageDrag();
   const [dropIndicator, setDropIndicator] = React.useState<DropPosition | null>(null);
-  const isDragging = drag.draggingId === page._id;
-  const domId = React.useMemo(() => `sidebar-page-row-${page._id}`, [page._id]);
+  const isDragging = drag.draggingId === page.id;
+  const domId = React.useMemo(() => `sidebar-page-row-${page.id}`, [page.id]);
 
   const computePosition = React.useCallback((node: HTMLElement, clientY: number): DropPosition => {
     const rect = node.getBoundingClientRect();
@@ -43,10 +43,10 @@ export function SidebarPageRow(props: PageRowSharedProps) {
     const onDragStart = (e: DragEvent) => {
       if (!e.dataTransfer) return;
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData(DRAG_MIME, page._id);
+      e.dataTransfer.setData(DRAG_MIME, page.id);
       // Fallback so other browsers can read the id.
-      e.dataTransfer.setData('text/plain', page._id);
-      drag.setDraggingId(page._id);
+      e.dataTransfer.setData('text/plain', page.id);
+      drag.setDraggingId(page.id);
     };
 
     const onDragEnd = () => {
@@ -61,7 +61,7 @@ export function SidebarPageRow(props: PageRowSharedProps) {
       }
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      if (!drag.draggingId || drag.draggingId === page._id) {
+      if (!drag.draggingId || drag.draggingId === page.id) {
         setDropIndicator(null);
         return;
       }
@@ -77,7 +77,7 @@ export function SidebarPageRow(props: PageRowSharedProps) {
       const position = computePosition(node, e.clientY);
       setDropIndicator(null);
       drag.setDraggingId(null);
-      if (!sourceId || sourceId === page._id) return;
+      if (!sourceId || sourceId === page.id) return;
       props.onDrop?.(sourceId, position);
     };
 
@@ -95,7 +95,7 @@ export function SidebarPageRow(props: PageRowSharedProps) {
       node.removeEventListener('dragleave', onDragLeave);
       node.removeEventListener('drop', onDrop);
     };
-  }, [computePosition, domId, drag, enableDrag, page._id, props]);
+  }, [computePosition, domId, drag, enableDrag, page.id, props]);
 
   return (
     <SharedPageRow

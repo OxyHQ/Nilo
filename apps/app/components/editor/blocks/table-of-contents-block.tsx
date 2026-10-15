@@ -44,7 +44,7 @@ export function TableOfContentsBlock({ block }: BlockComponentProps) {
         const text = typeof b.content.text === 'string' ? b.content.text : '';
         if (!text.trim()) continue;
         const depth = b.type === 'heading_1' ? 1 : b.type === 'heading_2' ? 2 : 3;
-        out.push({ id: b._id, text, depth });
+        out.push({ id: b.id, text, depth });
       }
     }
     return out;

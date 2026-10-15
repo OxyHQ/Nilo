@@ -78,40 +78,40 @@ export function SharedPageRow({
   const isFavorite = Boolean(page.favorited);
 
   const handleOpen = React.useCallback(() => {
-    router.push(`/p/${page._id}`);
-  }, [router, page._id]);
+    router.push(`/p/${page.id}`);
+  }, [router, page.id]);
 
   const handleAddChild = React.useCallback(async () => {
     try {
       const child = await createPage.mutateAsync({
         workspaceId,
-        parentId: page._id,
+        parentId: page.id,
         title: '',
       });
-      router.push(`/p/${child._id}`);
+      router.push(`/p/${child.id}`);
     } catch {
       /* mutation surfaces errors via state */
     }
-  }, [createPage, page._id, router, workspaceId]);
+  }, [createPage, page.id, router, workspaceId]);
 
   const handleDelete = React.useCallback(() => {
-    deletePage.mutate({ id: page._id, workspaceId });
-  }, [deletePage, page._id, workspaceId]);
+    deletePage.mutate({ id: page.id, workspaceId });
+  }, [deletePage, page.id, workspaceId]);
 
   const handleDuplicate = React.useCallback(() => {
-    duplicatePage.mutate({ id: page._id, workspaceId });
-  }, [duplicatePage, page._id, workspaceId]);
+    duplicatePage.mutate({ id: page.id, workspaceId });
+  }, [duplicatePage, page.id, workspaceId]);
 
   const handleToggleFavorite = React.useCallback(() => {
     // Optimistic toggle. The Page chrome agent owns the canonical UI in the
     // page header; we keep this entrypoint for parity with Notion behavior.
-    updatePage.mutate({ id: page._id, favorited: !isFavorite });
-  }, [updatePage, page._id, isFavorite]);
+    updatePage.mutate({ id: page.id, favorited: !isFavorite });
+  }, [updatePage, page.id, isFavorite]);
 
   const handleMoveToRoot = React.useCallback(() => {
     if (!page.parentId) return;
-    updatePage.mutate({ id: page._id, parentId: null });
-  }, [updatePage, page._id, page.parentId]);
+    updatePage.mutate({ id: page.id, parentId: null });
+  }, [updatePage, page.id, page.parentId]);
 
   const containerClass = isActive
     ? 'flex-row items-center bg-muted'

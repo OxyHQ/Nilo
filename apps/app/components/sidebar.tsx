@@ -89,7 +89,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
         parentId: null,
         title: '',
       });
-      router.push(`/p/${page._id}`);
+      router.push(`/p/${page.id}`);
     } catch {
       /* mutation surfaces errors via state */
     }

@@ -20,8 +20,7 @@ import type { Page, PageResponse } from '../types/pages';
  */
 function pageToDatabaseRow(page: Page): DatabaseRow {
   return {
-    id: page._id,
-    _id: page._id,
+    id: page.id,
     workspaceId: page.workspaceId,
     parentId: page.parentId,
     databaseId: page.databaseId ?? null,

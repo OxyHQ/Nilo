@@ -88,7 +88,7 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
     (role: WorkspaceRole) => {
       if (role === member.role) return;
       updateRole(
-        { memberId: member._id, role },
+        { memberId: member.id, role },
         {
           onSuccess: () => {
             toast.success(
@@ -112,7 +112,7 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
   );
 
   const handleRemove = React.useCallback(() => {
-    removeMember(member._id, {
+    removeMember(member.id, {
       onSuccess: () => {
         toast.success(t('workspace.members.removed', { name: memberDisplayName(member) }));
       },
@@ -209,7 +209,7 @@ export function MembersSection() {
 
   const { data: workspaces } = useWorkspaces();
   const currentWorkspace = React.useMemo(
-    () => workspaces?.find((w) => w._id === currentWorkspaceId) ?? null,
+    () => workspaces?.find((w) => w.id === currentWorkspaceId) ?? null,
     [workspaces, currentWorkspaceId],
   );
 
@@ -271,7 +271,7 @@ export function MembersSection() {
         ) : (
           <View className="px-1 py-1">
             {sortedMembers.map((member, idx) => (
-              <View key={member._id}>
+              <View key={member.id}>
                 {idx > 0 ? <View className="h-px bg-border/50 mx-2" /> : null}
                 <MemberRow
                   member={member}

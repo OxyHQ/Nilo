@@ -7,15 +7,12 @@
  *   - inline rich-text `Segment[]` alongside plain `text`
  *   - block-level `color` / `backgroundColor` (Notion named colors)
  *
- * Frontend uses `"to_do"` as the BlockType name because that's what the
- * existing UI already shipped; backend stores `"todo"`. The route serializer
- * normalizes — see `mapBlockType` in `use-blocks.ts` if a future cleanup
- * unifies them. Today the type string is identical on both sides for every
- * type except todo, and `to_do` is the frontend canonical name.
+ * Block type names are the API's (`apps/api/src/db/schema/pages.ts`
+ * `BLOCK_TYPES`), one spelling on both sides.
  */
 
 export interface Page {
-  _id: string;
+  id: string;
   workspaceId: string;
   parentId: string | null;
   ownerId: string;
@@ -65,7 +62,7 @@ export type BlockType =
   | 'heading_3'
   | 'bulleted_list_item'
   | 'numbered_list_item'
-  | 'to_do'
+  | 'todo'
   | 'quote'
   | 'divider'
   | 'code'
@@ -197,7 +194,7 @@ export interface BlockContent {
 }
 
 export interface Block {
-  _id: string;
+  id: string;
   pageId: string;
   parentBlockId: string | null;
   type: BlockType;

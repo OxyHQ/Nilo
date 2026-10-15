@@ -479,7 +479,7 @@ const DEFAULT_TEXT: Record<string, LocalizedText> = {
       );
     },
   },
-  'basic:to_do': {
+  'basic:todo': {
     get label() {
       return i18n.t('editor.slashMenu.todo.label');
     },

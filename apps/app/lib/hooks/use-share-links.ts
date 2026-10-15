@@ -10,7 +10,7 @@ export type ShareLinkScope = 'read' | 'comment' | 'edit';
 export const SHARE_LINK_SCOPES: ShareLinkScope[] = ['read', 'comment', 'edit'];
 
 export interface ShareLink {
-  _id: string;
+  id: string;
   pageId: string;
   token: string;
   scope: ShareLinkScope;
@@ -27,7 +27,7 @@ export interface CreateShareLinkInput {
 }
 
 export interface SharedBlock {
-  _id: string;
+  id: string;
   pageId: string;
   parentBlockId: string | null;
   type: string;
@@ -37,7 +37,7 @@ export interface SharedBlock {
 
 export interface SharedPage {
   page: {
-    _id: string;
+    id: string;
     title: string;
     icon: string | null;
     cover: string | null;

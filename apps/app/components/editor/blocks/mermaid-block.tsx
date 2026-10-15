@@ -31,9 +31,9 @@ export function MermaidBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
   const code = typeof block.content.code === 'string' ? block.content.code : '';
   const [draft, setDraft] = React.useState(code);
-  const lastBlockId = React.useRef(block._id);
-  if (lastBlockId.current !== block._id) {
-    lastBlockId.current = block._id;
+  const lastBlockId = React.useRef(block.id);
+  if (lastBlockId.current !== block.id) {
+    lastBlockId.current = block.id;
     setDraft(code);
   }
 

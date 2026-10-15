@@ -7,7 +7,7 @@ import type { BlockComponentProps } from './types';
 /**
  * Toggle block — clickable header that expands/collapses its children.
  * `content.expanded` is the persisted state. The editor wires children
- * via `renderChildren(block._id)` (children point at this block via
+ * via `renderChildren(block.id)` (children point at this block via
  * `parentBlockId`). Coordinated with Editor v2 — this is the renderer;
  * the framework already exposes the type via the slash menu.
  */
@@ -17,9 +17,9 @@ export function ToggleBlock({ block, onChangeContent, renderChildren }: BlockCom
   const expanded = block.content.expanded !== false;
 
   const [draft, setDraft] = React.useState(text);
-  const lastBlockId = React.useRef(block._id);
-  if (lastBlockId.current !== block._id) {
-    lastBlockId.current = block._id;
+  const lastBlockId = React.useRef(block.id);
+  if (lastBlockId.current !== block.id) {
+    lastBlockId.current = block.id;
     setDraft(text);
   }
 
@@ -53,7 +53,7 @@ export function ToggleBlock({ block, onChangeContent, renderChildren }: BlockCom
         </View>
       </View>
       {expanded && renderChildren ? (
-        <View className="ml-6">{renderChildren(block._id)}</View>
+        <View className="ml-6">{renderChildren(block.id)}</View>
       ) : null}
     </View>
   );

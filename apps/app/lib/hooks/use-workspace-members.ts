@@ -16,7 +16,7 @@ export interface WorkspaceMemberUser {
 }
 
 export interface WorkspaceMember {
-  _id: string;
+  id: string;
   workspaceId: string;
   userId: string;
   role: WorkspaceRole;

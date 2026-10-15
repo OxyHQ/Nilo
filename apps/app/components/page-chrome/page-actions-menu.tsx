@@ -40,36 +40,36 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
 
   const handleDuplicate = React.useCallback(() => {
     duplicatePage.mutate(
-      { id: page._id, workspaceId: page.workspaceId },
+      { id: page.id, workspaceId: page.workspaceId },
       {
         onSuccess: (created) => {
           toast.success(t('pages.toasts.duplicated'));
-          router.push(`/p/${created._id}`);
+          router.push(`/p/${created.id}`);
         },
         onError: (err) => {
           toast.error(err.message || t('pages.toasts.duplicateFailed'));
         },
       },
     );
-  }, [duplicatePage, page._id, page.workspaceId, router, t]);
+  }, [duplicatePage, page.id, page.workspaceId, router, t]);
 
   const handleFavorite = React.useCallback(() => {
-    updatePage.mutate({ id: page._id, favorited: !page.favorited });
-  }, [updatePage, page._id, page.favorited]);
+    updatePage.mutate({ id: page.id, favorited: !page.favorited });
+  }, [updatePage, page.id, page.favorited]);
 
   const handleCopyLink = React.useCallback(async () => {
     const origin =
       Platform.OS === 'web' && typeof window !== 'undefined'
         ? window.location.origin
         : 'https://nilo.so';
-    const url = `${origin}/p/${page._id}`;
+    const url = `${origin}/p/${page.id}`;
     await Clipboard.setStringAsync(url);
     toast.success(t('pages.toasts.linkCopied'));
-  }, [page._id, t]);
+  }, [page.id, t]);
 
   const handleExportMarkdown = React.useCallback(async () => {
     try {
-      const res = await apiClient.get<string>(API_ROUTES.pages.export(page._id), {
+      const res = await apiClient.get<string>(API_ROUTES.pages.export(page.id), {
         params: { format: 'md' },
         responseType: 'text',
         transformResponse: [(d: string) => d],
@@ -96,11 +96,11 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
       const msg = err instanceof Error ? err.message : t('pages.toasts.exportFailed');
       toast.error(msg);
     }
-  }, [page._id, page.title, t]);
+  }, [page.id, page.title, t]);
 
   const handleMoveToTrash = React.useCallback(() => {
     deletePage.mutate(
-      { id: page._id, workspaceId: page.workspaceId },
+      { id: page.id, workspaceId: page.workspaceId },
       {
         onSuccess: () => {
           toast.success(t('pages.toasts.movedToTrash'));
@@ -111,22 +111,22 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
         },
       },
     );
-  }, [deletePage, page._id, page.workspaceId, router, t]);
+  }, [deletePage, page.id, page.workspaceId, router, t]);
 
   const handleRestore = React.useCallback(() => {
     updatePage.mutate(
-      { id: page._id, archived: false },
+      { id: page.id, archived: false },
       {
         onSuccess: () => {
           toast.success(t('pages.toasts.restored'));
         },
       },
     );
-  }, [updatePage, page._id, t]);
+  }, [updatePage, page.id, t]);
 
   const handleHardDelete = React.useCallback(() => {
     deletePage.mutate(
-      { id: page._id, workspaceId: page.workspaceId, hard: true },
+      { id: page.id, workspaceId: page.workspaceId, hard: true },
       {
         onSuccess: () => {
           toast.success(t('pages.toasts.deletedPermanently'));
@@ -137,7 +137,7 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
         },
       },
     );
-  }, [deletePage, page._id, page.workspaceId, router, t]);
+  }, [deletePage, page.id, page.workspaceId, router, t]);
 
   return (
     <>

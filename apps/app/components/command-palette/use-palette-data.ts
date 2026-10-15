@@ -81,7 +81,7 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
 
   const pageById = React.useMemo(() => {
     const m = new Map<string, Page>();
-    for (const p of pageData?.pages ?? []) m.set(p._id, p);
+    for (const p of pageData?.pages ?? []) m.set(p.id, p);
     return m;
   }, [pageData?.pages]);
 
@@ -114,8 +114,8 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
       const title = p.title.trim() || t('commandPalette.untitled');
       return {
         kind: 'page',
-        id: `page:${p._id}`,
-        pageId: p._id,
+        id: `page:${p.id}`,
+        pageId: p.id,
         searchValue: `${title} ${breadcrumb}`.trim(),
         title,
         subtitle: breadcrumb || undefined,
@@ -145,7 +145,7 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
       const username = m.user?.username ?? null;
       return {
         kind: 'member',
-        id: `member:${m._id}`,
+        id: `member:${m.id}`,
         searchValue: `${title} ${email ?? ''} ${username ?? ''}`.trim(),
         title,
         subtitle: email ?? (username ? `@${username}` : undefined),
@@ -178,7 +178,7 @@ export function usePaletteData({ query }: UsePaletteDataParams): PaletteData {
               title: '',
             })
             .then((page) => {
-              router.push(`/p/${page._id}`);
+              router.push(`/p/${page.id}`);
             })
             .catch(() => {
               /* mutation surfaces errors via state */
