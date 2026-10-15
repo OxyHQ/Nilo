@@ -106,6 +106,8 @@ export async function nextBlockOrder(
 }
 
 export interface CreateBlockInput {
+  /** A client-minted UUIDv7; the database mints one when absent. */
+  id?: string;
   pageId: string;
   parentBlockId?: string | null;
   type: BlockType;
@@ -118,6 +120,7 @@ export async function createBlock(db: PgHandle, input: CreateBlockInput): Promis
   const [row] = await db
     .insert(blocks)
     .values({
+      ...(input.id && { id: input.id }),
       pageId: input.pageId,
       parentBlockId: input.parentBlockId ?? null,
       type: input.type,

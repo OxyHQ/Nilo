@@ -76,6 +76,17 @@ const blockColorSchema = z.enum(BLOCK_COLORS);
  * Editors that don't read `segments` keep working against `text`; both stay
  * in sync at the route boundary (see `syncSegmentsAndText`).
  */
+/**
+ * Link targets a reader may follow. Anything else (`javascript:`, `data:`) is
+ * rejected: page text is rendered as links in every reader's browser.
+ */
+const SAFE_LINK = /^(https?:|mailto:|tel:|\/|#)/i;
+
+const mentionSchema = z.object({
+  indicator: z.string().min(1).max(4),
+  attributes: z.record(z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/i), z.string().max(512)),
+});
+
 const segmentSchema = z.object({
   text: z.string(),
   bold: z.boolean().optional(),
@@ -85,7 +96,12 @@ const segmentSchema = z.object({
   code: z.boolean().optional(),
   color: blockColorSchema.optional(),
   background: blockColorSchema.optional(),
-  link: z.string().optional(),
+  link: z
+    .string()
+    .max(2048)
+    .refine((href) => SAFE_LINK.test(href.trim()), 'Unsafe link')
+    .optional(),
+  mention: mentionSchema.optional(),
 });
 
 /**
@@ -556,6 +572,12 @@ router.patch('/blocks/:id', async (req: Request, res: Response) => {
         res.status(400).json({ error: 'Parent block belongs to a different page' });
         return;
       }
+      const pageBlocks = await listBlocksForPage(db, block.pageId);
+      const parentOf = new Map(pageBlocks.map((b) => [b.id, b.parentBlockId]));
+      if (isDescendantOrSelf(parentOf, body.parentBlockId, block.id)) {
+        res.status(400).json({ error: 'A block cannot be nested inside itself' });
+        return;
+      }
     }
 
     let content: BlockContent | undefined;
@@ -684,6 +706,169 @@ router.post('/pages/:pageId/blocks/reorder', async (req: Request, res: Response)
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to reorder blocks');
     res.status(500).json({ error: 'Failed to reorder blocks' });
+  }
+});
+
+/** Whether `id` is `ancestor` or sits under it, following `parentOf`. */
+function isDescendantOrSelf(
+  parentOf: ReadonlyMap<string, string | null>,
+  id: string | null,
+  ancestor: string,
+): boolean {
+  const seen = new Set<string>();
+  let current = id;
+  while (current !== null && !seen.has(current)) {
+    if (current === ancestor) return true;
+    seen.add(current);
+    current = parentOf.get(current) ?? null;
+  }
+  return false;
+}
+
+const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const blockOperationSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('insert'),
+    /** Client-minted, so an operation can name a block created earlier in the batch. */
+    id: z.string().regex(UUID_V7, 'New block ids must be UUIDv7'),
+    parentBlockId: entityIdSchema.nullable(),
+    type: blockTypeSchema,
+    content: z.unknown().optional(),
+    order: z.number().finite(),
+  }),
+  z.object({
+    kind: z.literal('update'),
+    id: entityIdSchema,
+    type: blockTypeSchema.optional(),
+    content: z.unknown().optional(),
+  }),
+  z.object({
+    kind: z.literal('move'),
+    id: entityIdSchema,
+    parentBlockId: entityIdSchema.nullable(),
+    order: z.number().finite(),
+  }),
+  z.object({ kind: z.literal('remove'), id: entityIdSchema }),
+]);
+
+const blockTransactionSchema = z.object({
+  ops: z.array(blockOperationSchema).min(1).max(500),
+});
+
+class TransactionRejected extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * POST /pages/:pageId/blocks/transactions
+ *
+ * Applies one editor transaction — an ordered list of insert / update / move
+ * / remove operations — atomically: every operation is validated against the
+ * page's blocks as the earlier operations left them, and any failure rolls
+ * the whole list back. This is how the editor saves: one request per user
+ * action, in order, with the ids it minted.
+ */
+router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ pageId: entityIdSchema }).parse(req.params);
+    const body = blockTransactionSchema.parse(req.body);
+
+    const db = getDb();
+    const page = await findPageById(db, params.pageId);
+    if (!page) {
+      res.status(404).json({ error: 'Page not found' });
+      return;
+    }
+    const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'editor');
+    if (!ok) return;
+
+    await db.transaction(async (tx) => {
+      const rows = await listBlocksForPage(tx, page.id);
+      const types = new Map<string, BlockType>(rows.map((b) => [b.id, b.type]));
+      const contents = new Map<string, BlockContent>(rows.map((b) => [b.id, b.content]));
+      const parentOf = new Map<string, string | null>(rows.map((b) => [b.id, b.parentBlockId]));
+
+      const requireBlock = (id: string) => {
+        if (!types.has(id)) throw new TransactionRejected(404, `Block ${id} is not on this page`);
+      };
+      const requireParent = (id: string | null) => {
+        if (id !== null && !types.has(id)) {
+          throw new TransactionRejected(400, `Parent block ${id} is not on this page`);
+        }
+      };
+
+      for (const op of body.ops) {
+        switch (op.kind) {
+          case 'insert': {
+            if (types.has(op.id) || (await findBlockById(tx, op.id))) {
+              throw new TransactionRejected(409, `Block ${op.id} already exists`);
+            }
+            requireParent(op.parentBlockId);
+            const content = normalizeContent(op.type, op.content);
+            await createBlock(tx, {
+              id: op.id,
+              pageId: page.id,
+              parentBlockId: op.parentBlockId,
+              type: op.type,
+              content,
+              order: op.order,
+            });
+            types.set(op.id, op.type);
+            contents.set(op.id, content);
+            parentOf.set(op.id, op.parentBlockId);
+            break;
+          }
+          case 'update': {
+            requireBlock(op.id);
+            if (op.type === undefined && op.content === undefined) break;
+            const type = op.type ?? (types.get(op.id) as BlockType);
+            const content = normalizeContent(type, op.content ?? contents.get(op.id));
+            await updateBlock(tx, op.id, { type: op.type, content });
+            types.set(op.id, type);
+            contents.set(op.id, content);
+            break;
+          }
+          case 'move': {
+            requireBlock(op.id);
+            requireParent(op.parentBlockId);
+            if (isDescendantOrSelf(parentOf, op.parentBlockId, op.id)) {
+              throw new TransactionRejected(400, 'A block cannot be nested inside itself');
+            }
+            await updateBlock(tx, op.id, { parentBlockId: op.parentBlockId, order: op.order });
+            parentOf.set(op.id, op.parentBlockId);
+            break;
+          }
+          case 'remove': {
+            requireBlock(op.id);
+            await deleteBlockTree(tx, op.id);
+            for (const [id] of parentOf) {
+              if (isDescendantOrSelf(parentOf, id, op.id)) {
+                types.delete(id);
+                contents.delete(id);
+              }
+            }
+            for (const id of [...parentOf.keys()]) if (!types.has(id)) parentOf.delete(id);
+            break;
+          }
+        }
+      }
+    });
+
+    res.json({ ok: true });
+  } catch (error: unknown) {
+    if (error instanceof TransactionRejected) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to apply block transaction');
+    res.status(500).json({ error: 'Failed to apply block transaction' });
   }
 });
 

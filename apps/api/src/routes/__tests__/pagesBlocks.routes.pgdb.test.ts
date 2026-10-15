@@ -837,3 +837,151 @@ describe('role enforcement', () => {
     }
   });
 });
+
+describe('POST /pages/:pageId/blocks/transactions', () => {
+  const ws = () => ({ 'x-workspace-id': workspaceId });
+  const tx = (pageId: unknown, ops: unknown[]) =>
+    api('POST', `/pages/${pageId}/blocks/transactions`, { ops }, ws());
+  const rowsOf = async (pageId: string) =>
+    db.select().from(blocks).where(eq(blocks.pageId, pageId));
+
+  it('inserts client-named blocks, nesting under one created earlier in the batch', async () => {
+    const page = await createPage();
+    const parent = uuidv7();
+    const child = uuidv7();
+    const res = await tx(page.id, [
+      {
+        kind: 'insert',
+        id: parent,
+        parentBlockId: null,
+        type: 'toggle',
+        content: { text: 'T' },
+        order: 1,
+      },
+      {
+        kind: 'insert',
+        id: child,
+        parentBlockId: parent,
+        type: 'paragraph',
+        content: { segments: [{ text: 'hi', bold: true }] },
+        order: 1,
+      },
+    ]);
+    expect(res.status).toBe(200);
+    const rows = await rowsOf(page.id as string);
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    expect(byId.get(child)?.parentBlockId).toBe(parent);
+    expect(byId.get(child)?.content).toMatchObject({ text: 'hi' });
+  });
+
+  it('updates, moves and removes a subtree', async () => {
+    const page = await createPage();
+    const [a, b, c] = [uuidv7(), uuidv7(), uuidv7()];
+    await tx(page.id, [
+      { kind: 'insert', id: a, parentBlockId: null, type: 'paragraph', content: {}, order: 1 },
+      { kind: 'insert', id: b, parentBlockId: null, type: 'paragraph', content: {}, order: 2 },
+      { kind: 'insert', id: c, parentBlockId: b, type: 'paragraph', content: {}, order: 1 },
+    ]);
+    const res = await tx(page.id, [
+      { kind: 'update', id: a, type: 'heading_1', content: { text: 'Title' } },
+      { kind: 'move', id: a, parentBlockId: null, order: 3 },
+      { kind: 'remove', id: b },
+    ]);
+    expect(res.status).toBe(200);
+    const rows = await rowsOf(page.id as string);
+    expect(rows.map((r) => r.id)).toEqual([a]);
+    expect(rows[0]).toMatchObject({ type: 'heading_1', order: 3 });
+  });
+
+  it('rolls the whole batch back when one operation is invalid', async () => {
+    const page = await createPage();
+    const [a, b] = [uuidv7(), uuidv7()];
+    await tx(page.id, [
+      { kind: 'insert', id: a, parentBlockId: null, type: 'paragraph', content: {}, order: 1 },
+    ]);
+    const res = await tx(page.id, [
+      { kind: 'insert', id: b, parentBlockId: a, type: 'paragraph', content: {}, order: 1 },
+      // `a` into its own child: a cycle.
+      { kind: 'move', id: a, parentBlockId: b, order: 1 },
+    ]);
+    expect(res.status).toBe(400);
+    expect((await rowsOf(page.id as string)).map((r) => r.id)).toEqual([a]);
+  });
+
+  it('rejects an id that already exists, a parent from another page, and a javascript: link', async () => {
+    const page = await createPage();
+    const other = await createPage();
+    const foreign = uuidv7();
+    await tx(other.id, [
+      {
+        kind: 'insert',
+        id: foreign,
+        parentBlockId: null,
+        type: 'paragraph',
+        content: {},
+        order: 1,
+      },
+    ]);
+
+    expect(
+      (
+        await tx(page.id, [
+          { kind: 'insert', id: foreign, parentBlockId: null, type: 'paragraph', order: 1 },
+        ])
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await tx(page.id, [
+          { kind: 'insert', id: uuidv7(), parentBlockId: foreign, type: 'paragraph', order: 1 },
+        ])
+      ).status,
+    ).toBe(400);
+    const unsafe = await tx(page.id, [
+      {
+        kind: 'insert',
+        id: uuidv7(),
+        parentBlockId: null,
+        type: 'paragraph',
+        content: { segments: [{ text: 'x', link: 'javascript:alert(1)' }] },
+        order: 1,
+      },
+    ]);
+    expect(unsafe.status).toBe(400);
+    expect(await rowsOf(page.id as string)).toHaveLength(0);
+  });
+
+  it('refuses a viewer', async () => {
+    const page = await createPage();
+    ctx.role = 'viewer';
+    try {
+      const res = await tx(page.id, [
+        { kind: 'insert', id: uuidv7(), parentBlockId: null, type: 'paragraph', order: 1 },
+      ]);
+      expect(res.status).toBe(403);
+    } finally {
+      ctx.role = 'owner';
+    }
+  });
+});
+
+describe('PATCH /blocks/:id nesting', () => {
+  it('rejects nesting a block under its own descendant', async () => {
+    const page = await createPage();
+    const parent = await createBlock(page.id as string, { type: 'toggle', content: {} });
+    const child = await createBlock(page.id as string, {
+      type: 'paragraph',
+      content: {},
+      parentBlockId: parent.id,
+    });
+    const res = await api(
+      'PATCH',
+      `/blocks/${parent.id}`,
+      { parentBlockId: child.id },
+      {
+        'x-workspace-id': workspaceId,
+      },
+    );
+    expect(res.status).toBe(400);
+  });
+});
