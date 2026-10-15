@@ -65,6 +65,18 @@ describe('blocksToDocument', () => {
 });
 
 describe('contentOf', () => {
+  it('keeps a toggle heading a toggle through the API and back', () => {
+    const { doc } = blocksToDocument([
+      block('h', 0, {
+        type: 'heading_2',
+        content: { text: 'Plan', toggleable: true, expanded: false },
+      }),
+    ]);
+    const heading = getBlock(doc, 'h');
+    expect(heading.props).toMatchObject({ toggleable: true, expanded: false });
+    expect(contentOf(heading)).toMatchObject({ text: 'Plan', toggleable: true, expanded: false });
+  });
+
   it('round-trips page mentions in the canonical backlink segment shape', () => {
     const segment = {
       text: '@Target',

@@ -14,6 +14,18 @@ import { uuidv7 } from '@oxy.so/db';
 import { normalizeContent } from '@nilo/contracts';
 
 describe('block content normalization', () => {
+  it('keeps a toggle heading toggleable, and adds nothing to a plain heading', () => {
+    expect(
+      normalizeContent('heading_2', { text: 'Plan', toggleable: true, expanded: false }),
+    ).toMatchObject({
+      toggleable: true,
+      expanded: false,
+    });
+    const plain = normalizeContent('heading_2', { text: 'Plan' });
+    expect(plain).not.toHaveProperty('toggleable');
+    expect(plain).not.toHaveProperty('expanded');
+  });
+
   it('validates image content', () => {
     const out = normalizeContent('image', {
       url: 'https://cdn/image.png',

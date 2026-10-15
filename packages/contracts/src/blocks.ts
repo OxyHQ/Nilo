@@ -142,6 +142,11 @@ const textContentSchema = z.object({
   segments: z.array(segmentSchema).optional(),
   ...styleFields,
 });
+/** A heading may be a toggle (Notion's toggle heading): it then folds what is under it. */
+const headingContentSchema = textContentSchema.extend({
+  toggleable: z.boolean().optional(),
+  expanded: z.boolean().optional(),
+});
 const todoContentSchema = z.object({
   text: z.string().default(''),
   segments: z.array(segmentSchema).optional(),
@@ -339,10 +344,11 @@ export function normalizeContent(type: BlockType, content: unknown): BlockConten
       : {};
 
   switch (type) {
-    case 'paragraph':
     case 'heading_1':
     case 'heading_2':
     case 'heading_3':
+      return syncTextFromSegments(headingContentSchema.parse(incoming));
+    case 'paragraph':
     case 'bulleted_list_item':
     case 'numbered_list_item':
     case 'quote':
@@ -403,10 +409,11 @@ export function normalizeContent(type: BlockType, content: unknown): BlockConten
 /** Every type's content schema, for deriving defaults and allowed fields. */
 function schemaFor(type: BlockType): z.AnyZodObject {
   switch (type) {
-    case 'paragraph':
     case 'heading_1':
     case 'heading_2':
     case 'heading_3':
+      return headingContentSchema;
+    case 'paragraph':
     case 'bulleted_list_item':
     case 'numbered_list_item':
     case 'quote':
