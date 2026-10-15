@@ -27,6 +27,7 @@ import pageHistoryRouter from './routes/page-history.js';
 import remindersRouter from './routes/reminders.js';
 import importRouter from './routes/import.js';
 import backlinksRouter from './routes/backlinks.js';
+import formsRouter from './routes/forms.js';
 import { startReminderSweep, stopReminderSweep } from './lib/reminders.js';
 import pagesRouter from './routes/pages.js';
 import blocksRouter from './routes/blocks.js';
@@ -129,6 +130,9 @@ app.use((_req, res, next) => {
 });
 
 // Block payloads and database properties may contain structured document data.
+// The API runs behind one load balancer: the client's address is the last hop
+// it adds to X-Forwarded-For. Rate limits key on it (`lib/rate-limit.ts`).
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -137,6 +141,7 @@ app.use('/health', healthRouter);
 app.use('/feedback', feedbackRouter);
 app.use('/notifications', notificationsRouter);
 app.use('/workspaces', workspacesRouter);
+app.use(formsRouter);
 app.use(shareLinksRouter);
 app.use(publishRouter);
 app.use(pageHistoryRouter);

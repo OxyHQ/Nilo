@@ -14,6 +14,7 @@ import { getDb } from '../db/client.js';
 import { hasRole } from '../db/schema/workspaces.js';
 import { log } from '../lib/logger.js';
 import { checkPageAccess } from '../lib/page-access.js';
+import { rateLimit } from '../lib/rate-limit.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { listBlocksForPageByOrder } from '../repositories/blocks.js';
 import { findPageChain } from '../repositories/pagePermissions.js';
@@ -27,6 +28,8 @@ import {
 } from '../repositories/pages.js';
 
 const router = Router();
+/** Published pages are read without signing in: bounded per client address. */
+const publicReads = rateLimit({ name: 'public-page', limit: 240, windowMs: 60_000 });
 
 const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 const slugSchema = z.string().regex(/^[a-z0-9-]{1,120}$/);
@@ -184,7 +187,7 @@ async function publishedRoot(res: Response, slug: string): Promise<PageRow | nul
 }
 
 /** GET /public/pages/:slug — a published page, for anyone. */
-router.get('/public/pages/:slug', async (req: Request, res: Response) => {
+router.get('/public/pages/:slug', publicReads, async (req: Request, res: Response) => {
   try {
     const parsed = slugSchema.safeParse(req.params.slug);
     if (!parsed.success) {
@@ -204,7 +207,7 @@ router.get('/public/pages/:slug', async (req: Request, res: Response) => {
  * GET /public/pages/:slug/:pageId — a subpage of a published page: reachable
  * only through live, unrestricted pages from the published one down.
  */
-router.get('/public/pages/:slug/:pageId', async (req: Request, res: Response) => {
+router.get('/public/pages/:slug/:pageId', publicReads, async (req: Request, res: Response) => {
   try {
     const slug = slugSchema.safeParse(req.params.slug);
     const pageId = entityIdSchema.safeParse(req.params.pageId);

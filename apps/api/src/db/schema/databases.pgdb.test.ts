@@ -167,7 +167,7 @@ describe('database_views_type', () => {
       .values({ workspaceId, ownerId: 'owner' })
       .returning({ id: databases.id });
 
-    expect(DATABASE_VIEW_TYPES.length).toBe(6);
+    expect(DATABASE_VIEW_TYPES.length).toBe(7);
     for (const type of DATABASE_VIEW_TYPES) {
       await expect(
         db.insert(databaseViews).values({ databaseId: database.id, type }),

@@ -9,6 +9,7 @@ import {
   pgTable,
   text,
   type AnyPgColumn,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
 import { pages } from './pages.js';
@@ -152,6 +153,8 @@ export const DATABASE_VIEW_TYPES = [
   'list',
   'calendar',
   'timeline',
+  // A form: each response becomes a row (`database_forms` holds its link).
+  'form',
 ] as const;
 export type DatabaseViewType = (typeof DATABASE_VIEW_TYPES)[number];
 
@@ -483,5 +486,37 @@ export const databaseViews = pgTable(
           `'$[*].direction ? (!(${jsonPathAnyOf(SORT_DIRECTIONS)}))'`,
         )})`,
     ),
+  ],
+);
+
+/**
+ * The link of a form view: anyone with it (or, with `requireSignIn`, anyone
+ * signed in) can submit a response, which becomes a row. Deleted with its
+ * view. The token is the only lookup key of the public endpoints, stored
+ * verbatim like a share link's.
+ */
+export const databaseForms = pgTable(
+  'database_forms',
+  {
+    id: generatedId(),
+    viewId: text()
+      .notNull()
+      .references(() => databaseViews.id, { onDelete: 'cascade' }),
+    databaseId: text()
+      .notNull()
+      .references(() => databases.id, { onDelete: 'cascade' }),
+    token: text().notNull(),
+    /** Accepting responses. */
+    open: boolean().notNull().default(true),
+    requireSignIn: boolean().notNull().default(false),
+    /** Oxy user id of whoever created the link. */
+    createdBy: text().notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex('database_forms_view_key').on(t.viewId),
+    uniqueIndex('database_forms_token_key').on(t.token),
+    index('database_forms_database_idx').on(t.databaseId),
   ],
 );
