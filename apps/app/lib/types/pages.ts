@@ -23,6 +23,9 @@ export interface Page {
   cover: string | null;
   /** 0–100, vertical focal point used when cropping the cover image. */
   coverPosition: number;
+  publishedAt: string | null;
+  publishSlug: string | null;
+  publishIndexing: boolean;
   restricted: boolean;
   template: boolean;
   archived: boolean;

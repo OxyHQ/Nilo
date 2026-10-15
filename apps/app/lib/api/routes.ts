@@ -1,8 +1,16 @@
 /** Routes consumed by the Nilo workspace client. */
 export const API_ROUTES = {
   search: '/search',
+  publicPage: (slug: string, pageId?: string) =>
+    `/public/pages/${encodeURIComponent(slug)}${pageId ? `/${encodeURIComponent(pageId)}` : ''}`,
+  reminders: { list: '/reminders', delete: (id: string) => `/reminders/${id}` },
   pages: {
     list: '/pages',
+    publish: (id: string) => `/pages/${id}/publish`,
+    versions: (id: string) => `/pages/${id}/versions`,
+    version: (id: string, versionId: string) => `/pages/${id}/versions/${versionId}`,
+    restoreVersion: (id: string, versionId: string) => `/pages/${id}/versions/${versionId}/restore`,
+    reminders: (id: string) => `/pages/${id}/reminders`,
     shared: '/pages/shared',
     permissions: (id: string) => `/pages/${id}/permissions`,
     permission: (id: string, userId: string) =>

@@ -1,4 +1,16 @@
 export const queryKeys = {
+  publicPages: {
+    all: ['public-pages'] as const,
+    detail: (slug: string, pageId?: string) => ['public-pages', slug, pageId] as const,
+  },
+  versions: {
+    list: (id: string) => ['versions', id] as const,
+    detail: (id: string, versionId: string) => ['version', id, versionId] as const,
+  },
+  reminders: {
+    all: ['reminders'] as const,
+    list: (userId?: string, pageId?: string) => ['reminders', userId, pageId] as const,
+  },
   search: {
     all: ['search'] as const,
     workspace: (workspaceId: string | null) => ['search', workspaceId] as const,

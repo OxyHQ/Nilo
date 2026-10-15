@@ -202,5 +202,62 @@
     "fromTemplate": "From template…",
     "creating": "Creating page…",
     "createFailed": "Could not create the page. Check your access to the destination and try again."
+  },
+  "publish": {
+    "title": "Publish",
+    "enabled": "Publish to web",
+    "description": "Anyone with the public link can read this page and its unrestricted subpages.",
+    "noPermission": "Only the page creator or members with full access can publish this page.",
+    "failed": "Could not update publishing. Check your access and try again.",
+    "copy": "Copy public link",
+    "copyFailed": "Could not copy the link.",
+    "indexing": "Allow search engines",
+    "published": "Published to web",
+    "notFound": "Page not found",
+    "notFoundBody": "This page is not published or is no longer publicly available.",
+    "loadFailed": "Could not load this page",
+    "tryAgain": "Please check your connection and try again.",
+    "retry": "Try again",
+    "breadcrumb": "Page breadcrumb",
+    "subpages": "Subpages"
+  },
+  "history": {
+    "title": "Page history",
+    "description": "Previous versions are saved automatically after quiet periods and before a restore.",
+    "empty": "No previous versions yet.",
+    "loadFailed": "Could not load page history.",
+    "entry": "%{time} · %{name} · %{count} blocks",
+    "preview": "Version preview",
+    "restore": "Restore this version",
+    "noPermission": "Editor access is required to restore a version.",
+    "confirmTitle": "Restore this version?",
+    "confirmBody": "The current blocks will be replaced. The current state will be saved as another version.",
+    "restored": "Version restored",
+    "restoreFailed": "Could not restore this version. Check your access and try again."
+  },
+  "reminders": {
+    "title": "Remind me…",
+    "description": "Create a personal reminder for this page.",
+    "upcoming": "Reminders",
+    "empty": "No reminders yet.",
+    "loadFailed": "Could not load reminders.",
+    "date": "Date (YYYY-MM-DD)",
+    "dateFormat": "YYYY-MM-DD",
+    "time": "Time (24-hour HH:MM)",
+    "timeFormat": "HH:MM",
+    "localTime": "Dates and times use your device’s local time zone.",
+    "invalid": "Enter a valid future date and time within the next five years.",
+    "note": "Note (optional)",
+    "save": "Create reminder",
+    "created": "Reminder created",
+    "createFailed": "Could not create the reminder.",
+    "delete": "Delete reminder",
+    "deleteFailed": "Could not delete the reminder.",
+    "sent": "Delivered",
+    "choices": {
+      "hour": "In 1 hour",
+      "tomorrow": "Tomorrow 9:00",
+      "week": "Next week"
+    }
   }
 }

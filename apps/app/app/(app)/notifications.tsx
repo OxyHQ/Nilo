@@ -1,3 +1,4 @@
+import { ReminderList } from '@/components/reminders/reminder-list';
 import { PageSharedNotification } from '@/components/sharing/page-shared-notification';
 import { View, ScrollView, Pressable, Platform } from 'react-native';
 import { Switch } from '@/components/ui/switch';
@@ -29,6 +30,7 @@ import {
 
 const TYPE_ICONS: Record<Notification['type'], typeof MessageSquare> = {
   page_shared: UserPlus,
+  reminder: Bell,
   mention: MessageSquare,
   comment_reply: MessageSquare,
 };
@@ -107,7 +109,12 @@ export default function NotificationsScreen() {
   const handleNotificationPress = useCallback(
     (notification: Notification) => {
       const pageId = notification.data?.pageId;
-      if (typeof pageId === 'string') router.push(`/p/${pageId}`);
+      const blockId = notification.data?.blockId;
+      if (typeof pageId === 'string')
+        router.push({
+          pathname: '/p/[pageId]',
+          params: { pageId, ...(typeof blockId === 'string' ? { blockId } : {}) },
+        });
       if (notification.status !== 'read') {
         markAsRead.mutate(notification.id);
       }
@@ -187,6 +194,10 @@ export default function NotificationsScreen() {
         </Animated.View>
       )}
 
+      <View className="p-6 border-b border-border">
+        <ReminderList />
+      </View>
+
       {/* Notification Feed */}
       {isLoading ? (
         <View className="items-center justify-center py-12">
@@ -230,7 +241,9 @@ export default function NotificationsScreen() {
                           className={`text-sm ${isUnread ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'}`}
                           numberOfLines={1}
                         >
-                          {notification.title}
+                          {notification.type === 'reminder'
+                            ? t('notifications.reminder')
+                            : notification.title}
                         </Text>
                       )}
                       <View className="flex-row items-center gap-2">

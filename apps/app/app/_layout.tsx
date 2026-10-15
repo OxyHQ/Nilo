@@ -71,6 +71,8 @@ function AppContent() {
         }}
       >
         <Stack.Screen name="(app)" options={{ headerShown: false }} />
+        <Stack.Screen name="pub/[slug]" options={{ headerShown: false }} />
+        <Stack.Screen name="pub/[slug]/[pageId]" options={{ headerShown: false }} />
         <Stack.Screen name="share/[token]" options={{ headerShown: false }} />
       </Stack>
     </AuthSetup>

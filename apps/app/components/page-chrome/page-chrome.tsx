@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Platform, Pressable, TextInput, View, type GestureResponderEvent } from 'react-native';
-import { ImageIcon, Move, Smile } from 'lucide-react-native';
+import { Globe, ImageIcon, Move, Smile } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -44,6 +44,8 @@ const StateContext = React.createContext<PageChromeState | null>(null);
  * can open them via `usePageChrome()`.
  */
 export function PageChrome({ page, children, rightHeader, readOnly = false }: PageChromeProps) {
+  const { t } = useTranslation();
+  const { colors } = useColorScheme();
   const updatePage = useUpdatePage();
   const [iconOpen, setIconOpen] = React.useState(false);
   const [coverOpen, setCoverOpen] = React.useState(false);
@@ -79,8 +81,13 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
             {!readOnly ? (
               <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
             ) : null}
+            {page.publishedAt ? (
+              <View accessible accessibilityLabel={t('pages.publish.published')} className="px-1">
+                <Globe size={14} color={colors.mutedForeground} />
+              </View>
+            ) : null}
             {rightHeader}
-            {!readOnly ? <PageActionsMenu page={page} /> : null}
+            <PageActionsMenu page={page} readOnly={readOnly} />
           </View>
         </View>
 

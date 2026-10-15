@@ -17,5 +17,6 @@
   "someone": "Alguien",
   "pageShared": "%{name} ha compartido %{page} contigo",
   "open": "Abrir notificación",
-  "dismiss": "Descartar notificación"
+  "dismiss": "Descartar notificación",
+  "reminder": "Recordatorio"
 }

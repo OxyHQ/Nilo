@@ -202,5 +202,62 @@
     "fromTemplate": "Desde una plantilla…",
     "creating": "Creando página…",
     "createFailed": "No se pudo crear la página. Comprueba tu acceso al destino e inténtalo de nuevo."
+  },
+  "publish": {
+    "title": "Publicar",
+    "enabled": "Publicar en la web",
+    "description": "Cualquier persona con el enlace público puede leer esta página y sus subpáginas sin restricciones.",
+    "noPermission": "Solo quien creó la página o los miembros con acceso completo pueden publicarla.",
+    "failed": "No se pudo actualizar la publicación. Comprueba tu acceso e inténtalo de nuevo.",
+    "copy": "Copiar enlace público",
+    "copyFailed": "No se pudo copiar el enlace.",
+    "indexing": "Permitir motores de búsqueda",
+    "published": "Publicada en la web",
+    "notFound": "Página no encontrada",
+    "notFoundBody": "Esta página no está publicada o ya no está disponible públicamente.",
+    "loadFailed": "No se pudo cargar esta página",
+    "tryAgain": "Comprueba tu conexión e inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "breadcrumb": "Ruta de la página",
+    "subpages": "Subpáginas"
+  },
+  "history": {
+    "title": "Historial de la página",
+    "description": "Las versiones anteriores se guardan automáticamente tras periodos de inactividad y antes de restaurar.",
+    "empty": "Todavía no hay versiones anteriores.",
+    "loadFailed": "No se pudo cargar el historial de la página.",
+    "entry": "%{time} · %{name} · %{count} bloques",
+    "preview": "Vista previa de la versión",
+    "restore": "Restaurar esta versión",
+    "noPermission": "Se necesita acceso de edición para restaurar una versión.",
+    "confirmTitle": "¿Restaurar esta versión?",
+    "confirmBody": "Se reemplazarán los bloques actuales. El estado actual se guardará como otra versión.",
+    "restored": "Versión restaurada",
+    "restoreFailed": "No se pudo restaurar esta versión. Comprueba tu acceso e inténtalo de nuevo."
+  },
+  "reminders": {
+    "title": "Recordarme…",
+    "description": "Crea un recordatorio personal para esta página.",
+    "upcoming": "Recordatorios",
+    "empty": "Todavía no hay recordatorios.",
+    "loadFailed": "No se pudieron cargar los recordatorios.",
+    "date": "Fecha (AAAA-MM-DD)",
+    "dateFormat": "AAAA-MM-DD",
+    "time": "Hora (24 horas HH:MM)",
+    "timeFormat": "HH:MM",
+    "localTime": "Las fechas y horas usan la zona horaria local de tu dispositivo.",
+    "invalid": "Introduce una fecha y hora futuras válidas dentro de los próximos cinco años.",
+    "note": "Nota (opcional)",
+    "save": "Crear recordatorio",
+    "created": "Recordatorio creado",
+    "createFailed": "No se pudo crear el recordatorio.",
+    "delete": "Eliminar recordatorio",
+    "deleteFailed": "No se pudo eliminar el recordatorio.",
+    "sent": "Entregado",
+    "choices": {
+      "hour": "Dentro de 1 hora",
+      "tomorrow": "Mañana a las 9:00",
+      "week": "La próxima semana"
+    }
   }
 }

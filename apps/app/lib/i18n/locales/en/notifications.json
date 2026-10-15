@@ -17,5 +17,6 @@
   "someone": "Someone",
   "pageShared": "%{name} shared %{page} with you",
   "open": "Open notification",
-  "dismiss": "Dismiss notification"
+  "dismiss": "Dismiss notification",
+  "reminder": "Reminder"
 }

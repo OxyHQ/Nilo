@@ -1,3 +1,4 @@
+import { PublishSection } from './publish-section';
 import React from 'react';
 import { View, Pressable, Platform, ActivityIndicator, ScrollView } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -214,6 +215,7 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
           keyboardShouldPersistTaps="handled"
           contentContainerClassName="gap-3"
         >
+          <PublishSection pageId={pageId} />
           {permissions.isLoading ? (
             <ActivityIndicator />
           ) : permissions.isError ? (

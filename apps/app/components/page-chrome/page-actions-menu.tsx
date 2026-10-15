@@ -1,3 +1,5 @@
+import { PageHistoryDialog } from './page-history-dialog';
+import { ReminderDialog } from '@/components/reminders/reminder-dialog';
 import * as React from 'react';
 import { Platform, Pressable } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -17,6 +19,7 @@ import { MoveToDialog } from './move-to-dialog';
 
 interface PageActionsMenuProps {
   page: Page;
+  readOnly?: boolean;
 }
 
 /**
@@ -24,7 +27,7 @@ interface PageActionsMenuProps {
  * and dialogs that the actions list expects (duplicate, move, favorite,
  * trash). Renders different items when the page is already archived.
  */
-export function PageActionsMenu({ page }: PageActionsMenuProps) {
+export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -33,6 +36,8 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
   const updatePage = useUpdatePage();
   const deletePage = useDeletePage();
 
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [remindersOpen, setRemindersOpen] = React.useState(false);
   const [moveOpen, setMoveOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
 
@@ -152,7 +157,14 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
           </Pressable>
         </DropdownMenu.Trigger>
         <DropdownMenu.Content>
-          {!page.archived ? (
+          <DropdownMenu.Item key="history" onSelect={() => setHistoryOpen(true)}>
+            <DropdownMenu.ItemTitle>{t('pages.history.title')}</DropdownMenu.ItemTitle>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item key="reminders" onSelect={() => setRemindersOpen(true)}>
+            <DropdownMenu.ItemTitle>{t('pages.reminders.title')}</DropdownMenu.ItemTitle>
+          </DropdownMenu.Item>
+          {!readOnly && <DropdownMenu.Separator />}
+          {readOnly ? null : !page.archived ? (
             <>
               <DropdownMenu.Item
                 key="template"
@@ -229,6 +241,10 @@ export function PageActionsMenu({ page }: PageActionsMenuProps) {
         </DropdownMenu.Content>
       </DropdownMenu.Root>
 
+      {historyOpen ? <PageHistoryDialog page={page} onClose={() => setHistoryOpen(false)} /> : null}
+      {remindersOpen ? (
+        <ReminderDialog pageId={page.id} onClose={() => setRemindersOpen(false)} />
+      ) : null}
       <MoveToDialog open={moveOpen} onOpenChange={setMoveOpen} page={page} />
 
       <ConfirmationDialog

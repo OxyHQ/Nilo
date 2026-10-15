@@ -11,7 +11,7 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSharedPage, type SharedPage } from '@/lib/hooks/use-share-links';
-import { SharedBlockRenderer } from '@/components/sharing/shared-block-renderer';
+import { SharedBlockTree } from '@/components/sharing/shared-block-renderer';
 
 interface ShareLoadStateProps {
   title: string;
@@ -149,11 +149,7 @@ export default function PublicSharePage() {
           ) : null}
           <SharedPageHeader page={data.page} />
           <View className="gap-1.5">
-            {data.blocks.length === 0 ? (
-              <Text className="text-sm text-muted-foreground">{t('pages.share.empty')}</Text>
-            ) : (
-              data.blocks.map((block) => <SharedBlockRenderer key={block.id} block={block} />)
-            )}
+            <SharedBlockTree blocks={data.blocks} />
           </View>
         </View>
       </ScrollView>

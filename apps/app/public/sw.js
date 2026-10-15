@@ -16,9 +16,10 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const data = event.notification.data;
+  const payload = event.notification.data;
+  const data = payload?.data ?? payload;
   const url = typeof data?.pageId === 'string'
-    ? `/p/${encodeURIComponent(data.pageId)}`
+    ? `/p/${encodeURIComponent(data.pageId)}${typeof data.blockId === 'string' ? `?blockId=${encodeURIComponent(data.blockId)}` : ''}`
     : '/notifications';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {

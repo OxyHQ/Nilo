@@ -4,19 +4,13 @@ import { Text } from '@/components/ui/text';
 import { MONO_FONT_FAMILY } from '@/lib/fonts';
 import { Check } from 'lucide-react-native';
 import { useColorScheme } from '@/lib/useColorScheme';
-import type { SharedBlock } from '@/lib/hooks/use-share-links';
+import { buildBlockTree, type ReadOnlyBlock, type BlockTreeNode } from '@/lib/block-tree';
+import { useMemo } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 
-/**
- * SharedBlockRenderer — read-only block renderer for the public
- * `/share/[token]` page. Mirrors Phase 1's block type enum but never
- * renders editable inputs. When Phase 1 frontend ships a shared
- * `BlockRenderer` with a `readOnly` prop, this file should be replaced
- * by that import to keep one source of truth for block layouts.
- */
-
 interface SharedBlockRendererProps {
-  block: SharedBlock;
+  block: ReadOnlyBlock;
+  listIndex?: number;
 }
 
 function getText(content: Record<string, unknown>): string {
@@ -147,9 +141,11 @@ function CalloutBlock({ content }: { content: Record<string, unknown> }) {
   );
 }
 
-export function SharedBlockRenderer({ block }: SharedBlockRendererProps) {
+export function SharedBlockRenderer({ block, listIndex = 1 }: SharedBlockRendererProps) {
   const { t } = useTranslation();
   switch (block.type) {
+    case 'toggle':
+    case 'table_cell':
     case 'paragraph':
       return <ParagraphBlock content={block.content} />;
     case 'heading_1':
@@ -161,11 +157,16 @@ export function SharedBlockRenderer({ block }: SharedBlockRendererProps) {
     case 'bulleted_list_item':
       return <BulletedListBlock content={block.content} />;
     case 'numbered_list_item':
-      return <NumberedListBlock content={block.content} index={block.order + 1} />;
+      return <NumberedListBlock content={block.content} index={listIndex} />;
     case 'todo':
       return <TodoBlock content={block.content} />;
     case 'quote':
       return <QuoteBlock content={block.content} />;
+    case 'columns':
+    case 'column':
+    case 'table':
+    case 'table_row':
+      return null;
     case 'divider':
       return <DividerBlock />;
     case 'code':
@@ -179,4 +180,33 @@ export function SharedBlockRenderer({ block }: SharedBlockRendererProps) {
         </Text>
       );
   }
+}
+
+/** Shared nesting and sibling ordering for published pages and version previews. */
+export function SharedBlockTree({ blocks }: { blocks: readonly ReadOnlyBlock[] }) {
+  const { t } = useTranslation();
+  const tree = useMemo(() => buildBlockTree(blocks), [blocks]);
+  if (!tree.length)
+    return <Text className="text-sm text-muted-foreground">{t('pages.share.empty')}</Text>;
+  return <BlockBranch nodes={tree} />;
+}
+function BlockBranch({ nodes }: { nodes: BlockTreeNode[] }) {
+  let listIndex = 0;
+  return (
+    <View className="gap-1.5">
+      {nodes.map(({ block, children }) => {
+        listIndex = block.type === 'numbered_list_item' ? listIndex + 1 : 0;
+        return (
+          <View key={block.id} className="gap-1.5">
+            <SharedBlockRenderer block={block} listIndex={listIndex} />
+            {children.length ? (
+              <View className="pl-4 border-l border-border">
+                <BlockBranch nodes={children} />
+              </View>
+            ) : null}
+          </View>
+        );
+      })}
+    </View>
+  );
 }

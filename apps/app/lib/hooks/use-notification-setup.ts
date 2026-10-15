@@ -1,3 +1,4 @@
+import { queryKeys } from './query-keys';
 /**
  * useNotificationSetup — Push notification registration, foreground handling,
  * tap deep-linking, and real-time Socket.IO notification subscription.
@@ -95,7 +96,11 @@ export function useNotificationSetup() {
       if (!isAuthenticated) return;
       const pageId = response.notification.request.content.data?.pageId;
       if (typeof pageId === 'string') {
-        router.push({ pathname: '/(app)/p/[pageId]', params: { pageId } });
+        const blockId = response.notification.request.content.data?.blockId;
+        router.push({
+          pathname: '/(app)/p/[pageId]',
+          params: { pageId, ...(typeof blockId === 'string' ? { blockId } : {}) },
+        });
       }
     });
 
@@ -166,6 +171,7 @@ export function useNotificationSetup() {
     const onNotification = () => {
       // Invalidate React Query caches so notification list + unread count refresh
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reminders.all });
       void invalidatePageAccess(queryClient);
     };
     socket.on('notification', onNotification);
