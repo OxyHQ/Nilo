@@ -22,7 +22,7 @@ import {
   updateWorkspace,
 } from '../repositories/workspaces.js';
 import { log } from '../lib/logger.js';
-import { loadMemberProfiles } from '../lib/member-profiles.js';
+import { findUserByEmail, loadMemberProfiles } from '../lib/member-profiles.js';
 
 const router = Router();
 
@@ -371,25 +371,6 @@ router.get(
     }
   },
 );
-
-/**
- * Find an Oxy user by email via the SDK's `users.search` method. Returns
- * the matching user or null. Email match is case-insensitive and exact.
- */
-async function findUserByEmail(email: string): Promise<{ id: string; email?: string } | null> {
-  try {
-    const response = await oxyClient.users.search(email, { limit: 5 });
-    const target = email.toLowerCase();
-    const hit = response.data.find(
-      (u) => typeof u.email === 'string' && u.email.toLowerCase() === target,
-    );
-    if (!hit) return null;
-    return { id: hit.id, email: hit.email };
-  } catch (err: unknown) {
-    log.general.warn({ err, email }, 'users.search failed during workspace invite');
-    return null;
-  }
-}
 
 /**
  * POST /api/workspaces/:workspaceId/members

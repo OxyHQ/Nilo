@@ -12,6 +12,7 @@ import { getDb } from '../db/client.js';
 import { PAGE_GRANT_ROLES, type PageGrantRole } from '../db/schema/collab.js';
 import { compareRoles, hasRole } from '../db/schema/workspaces.js';
 import { log } from '../lib/logger.js';
+import { findUserByEmail, loadMemberProfiles } from '../lib/member-profiles.js';
 import { sendNotification } from '../lib/notification-service.js';
 import { checkPageAccess, grantReach } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -66,6 +67,9 @@ router.get('/pages/:pageId/permissions', authenticateToken, async (req: Request,
       if (!current || compareRoles(grant.role, current.role) > 0) byUser.set(grant.userId, grant);
     }
 
+    // Names and avatars, so the share menu shows people rather than ids.
+    const profiles = await loadMemberProfiles([...byUser.keys()]);
+
     res.json({
       pageId,
       restricted: access.chain[0]?.restricted ?? false,
@@ -84,6 +88,7 @@ router.get('/pages/:pageId/permissions', authenticateToken, async (req: Request,
         )
         .map((grant) => ({
           userId: grant.userId,
+          user: profiles.get(grant.userId) ?? null,
           role: grant.role,
           grantedBy: grant.grantedBy,
           // Inherited from this page above (null when granted here).
@@ -100,10 +105,67 @@ router.get('/pages/:pageId/permissions', authenticateToken, async (req: Request,
 });
 
 /**
+ * Share `pageId` with `userId` at `role` (or change their role), within the
+ * limits above, and notify them the first time. Sends the response.
+ */
+async function grantAccess(
+  req: Request,
+  res: Response,
+  pageId: string,
+  userId: string,
+  role: PageGrantRole,
+): Promise<void> {
+  const db = getDb();
+  const access = await checkPageAccess(req, res, db, pageId, 'editor');
+  if (!access) return;
+  const callerId = req.user?.id as string;
+  if (compareRoles(role, access.role) > 0) {
+    res.status(403).json({
+      error: 'You cannot give more access than you have',
+      code: 'INSUFFICIENT_ROLE',
+      required: role,
+      actual: access.role,
+    });
+    return;
+  }
+  const page = await findPageById(db, pageId);
+  if (!page) {
+    res.status(404).json({ error: 'Page not found' });
+    return;
+  }
+  const existing = await findGrant(db, pageId, userId);
+  // Someone else's stronger grant is only changed by someone at least as strong.
+  if (existing && compareRoles(existing.role, access.role) > 0) {
+    res
+      .status(403)
+      .json({ error: 'That person has more access than you', code: 'INSUFFICIENT_ROLE' });
+    return;
+  }
+  const grant = await upsertGrant(db, { pageId, userId, role, grantedBy: callerId });
+
+  if (!existing && userId !== callerId) {
+    try {
+      await sendNotification({
+        userId,
+        type: 'page_shared',
+        title: `A page was shared with you: ${page.title || 'Untitled'}`,
+        body: '',
+        priority: 'normal',
+        data: { pageId, workspaceId: page.workspaceId, role, sharedBy: callerId },
+      });
+    } catch (err: unknown) {
+      log.general.warn({ err, pageId, userId }, 'Failed to notify about a shared page');
+    }
+  }
+
+  res.json({ grant: { userId: grant.userId, role: grant.role, grantedBy: grant.grantedBy } });
+}
+
+/**
  * PUT /pages/:pageId/permissions/:userId { role }
  *
- * Share the page (and its subtree) with a person, or change their role on it.
- * They are told by notification the first time.
+ * Share the page (and its subtree) with a person by their Oxy id, or change
+ * their role on it.
  */
 router.put(
   '/pages/:pageId/permissions/:userId',
@@ -114,50 +176,38 @@ router.put(
         .object({ pageId: entityIdSchema, userId: userIdSchema })
         .parse(req.params);
       const { role } = grantSchema.parse(req.body);
-      const db = getDb();
-      const access = await checkPageAccess(req, res, db, pageId, 'editor');
-      if (!access) return;
-      const callerId = req.user?.id as string;
-      if (compareRoles(role, access.role) > 0) {
-        res.status(403).json({
-          error: 'You cannot give more access than you have',
-          code: 'INSUFFICIENT_ROLE',
-          required: role,
-          actual: access.role,
-        });
-        return;
-      }
-      const page = await findPageById(db, pageId);
-      if (!page) {
-        res.status(404).json({ error: 'Page not found' });
-        return;
-      }
-      const existing = await findGrant(db, pageId, userId);
-      // Someone else's stronger grant is only changed by someone at least as strong.
-      if (existing && compareRoles(existing.role, access.role) > 0) {
+      await grantAccess(req, res, pageId, userId, role);
+    } catch (error: unknown) {
+      if (handleZodError(error, res)) return;
+      log.general.error({ err: error }, 'Failed to share page');
+      res.status(500).json({ error: 'Failed to share page' });
+    }
+  },
+);
+
+/**
+ * POST /pages/:pageId/permissions { email, role }
+ *
+ * Share the page with the Oxy user who has this email. As with workspace
+ * invites, no account is created on their behalf: an unknown email is a 404.
+ */
+router.post(
+  '/pages/:pageId/permissions',
+  authenticateToken,
+  async (req: Request, res: Response) => {
+    try {
+      const { pageId } = z.object({ pageId: entityIdSchema }).parse(req.params);
+      const { email, role } = grantSchema
+        .extend({ email: z.string().trim().email() })
+        .parse(req.body);
+      const user = await findUserByEmail(email);
+      if (!user) {
         res
-          .status(403)
-          .json({ error: 'That person has more access than you', code: 'INSUFFICIENT_ROLE' });
+          .status(404)
+          .json({ error: 'No Oxy user found with that email', code: 'USER_NOT_FOUND' });
         return;
       }
-      const grant = await upsertGrant(db, { pageId, userId, role, grantedBy: callerId });
-
-      if (!existing && userId !== callerId) {
-        try {
-          await sendNotification({
-            userId,
-            type: 'page_shared',
-            title: `A page was shared with you: ${page.title || 'Untitled'}`,
-            body: '',
-            priority: 'normal',
-            data: { pageId, workspaceId: page.workspaceId, role, sharedBy: callerId },
-          });
-        } catch (err: unknown) {
-          log.general.warn({ err, pageId, userId }, 'Failed to notify about a shared page');
-        }
-      }
-
-      res.json({ grant: { userId: grant.userId, role: grant.role, grantedBy: grant.grantedBy } });
+      await grantAccess(req, res, pageId, user.id, role);
     } catch (error: unknown) {
       if (handleZodError(error, res)) return;
       log.general.error({ err: error }, 'Failed to share page');

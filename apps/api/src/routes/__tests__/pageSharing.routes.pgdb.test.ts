@@ -279,6 +279,16 @@ describe('who may share what', () => {
     ]);
   });
 
+  it('refuses an email that names no Oxy user, creating nobody', async () => {
+    const target = await page(OWNER);
+    const res = await api(OWNER, 'POST', `/pages/${target}/permissions`, {
+      email: 'nobody@example.test',
+      role: 'viewer',
+    });
+    expect(res.status).toBe(404);
+    expect(res.json.code).toBe('USER_NOT_FOUND');
+  });
+
   it('lets a person leave a page shared with them', async () => {
     const target = await page(OWNER);
     await share(OWNER, target, GUEST, 'viewer');

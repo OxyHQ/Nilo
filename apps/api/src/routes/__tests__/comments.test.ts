@@ -54,13 +54,11 @@ vi.mock('../../lib/page-access.js', () => ({
       if (role && ranks.indexOf(role) >= ranks.indexOf(minRole)) {
         return { role, memberRole: role, chain: [], grants: [] };
       }
-      res
-        .status(403)
-        .json({
-          code: role ? 'INSUFFICIENT_ROLE' : 'NO_PAGE_ACCESS',
-          required: minRole,
-          actual: role ?? null,
-        });
+      res.status(403).json({
+        code: role ? 'INSUFFICIENT_ROLE' : 'NO_PAGE_ACCESS',
+        required: minRole,
+        actual: role ?? null,
+      });
       return null;
     },
   ),
