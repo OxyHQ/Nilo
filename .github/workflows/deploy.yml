@@ -83,8 +83,13 @@ jobs:
           OXY_1519_ROLLOUT_HOLD: ${{ vars.OXY_1519_ROLLOUT_HOLD }}
         run: python3 .github/scripts/verify-manual-frontend.py
 
+      # API_URL lets the Worker fill in a published page's title, summary and
+      # text for readers without script (search engines, link previews). The
+      # same origin the build gave the app; without it the Worker serves the
+      # app's page unchanged.
       - name: Deploy the Worker
-        run: cd apps/app && bunx wrangler@4 deploy
+        run: cd apps/app && bunx wrangler@4 deploy --var "API_URL:$NILO_API_URL"
         env:
+          NILO_API_URL: ${{ vars.NILO_API_URL }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

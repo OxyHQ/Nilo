@@ -1,7 +1,10 @@
 import {
   type BlockNode,
   blocksToHtml,
+  blocksToHtmlBody,
   blocksToMarkdown,
+  blocksToText,
+  blocksToTree,
   markdownTitle,
   markdownToBlocks,
   mergeSegments,
@@ -214,5 +217,35 @@ describe('blocksToHtml', () => {
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('<title>A &lt;b&gt;title&lt;/b&gt;</title>');
     expect(html).not.toContain('javascript:');
+  });
+});
+
+describe('blocksToText and blocksToHtmlBody', () => {
+  const tree = blocksToTree([
+    { id: 'h', parentBlockId: null, type: 'heading_1', content: { text: 'Plan' }, order: 1 },
+    {
+      id: 'p',
+      parentBlockId: null,
+      type: 'paragraph',
+      content: { segments: [{ text: 'Uno  ' }, { text: 'dos', bold: true }] },
+      order: 2,
+    },
+    { id: 'c', parentBlockId: 'p', type: 'paragraph', content: { text: 'tres <b>' }, order: 1 },
+  ]);
+
+  it('reads the text in order, one space between blocks', () => {
+    expect(blocksToText(tree)).toBe('Plan Uno dos tres <b>');
+  });
+
+  it('cuts at a word near the limit', () => {
+    expect(blocksToText(tree, 12)).toBe('Plan Uno…');
+    expect(blocksToText(tree, 12).length).toBeLessThanOrEqual(12);
+  });
+
+  it('renders the body escaped, without a document around it', () => {
+    const html = blocksToHtmlBody(tree);
+    expect(html).toContain('<h1>Plan</h1>');
+    expect(html).toContain('tres &lt;b&gt;');
+    expect(html).not.toContain('<html');
   });
 });

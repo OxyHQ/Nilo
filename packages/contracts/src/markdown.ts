@@ -757,6 +757,45 @@ function renderNodesHtml(blocks: readonly BlockNode[]): string {
   return out.join('\n');
 }
 
+/** Block trees → the HTML of their content alone, escaped as in `blocksToHtml`. */
+export function blocksToHtmlBody(blocks: readonly BlockNode[]): string {
+  return renderNodesHtml(blocks);
+}
+
+/** The text of block trees in reading order, one space between blocks, cut at `limit` characters. */
+export function blocksToText(
+  blocks: readonly BlockNode[],
+  limit = Number.POSITIVE_INFINITY,
+): string {
+  const parts: string[] = [];
+  let length = 0;
+  let left = false;
+  const walk = (nodes: readonly BlockNode[]) => {
+    for (const node of nodes) {
+      if (length > limit) {
+        left = true;
+        return;
+      }
+      const text = segmentsOf(node.content)
+        .map((segment) => segment.text)
+        .join('')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (text) {
+        parts.push(text);
+        length += text.length + 1;
+      }
+      walk(node.children);
+    }
+  };
+  walk(blocks);
+  const text = parts.join(' ');
+  if (text.length <= limit && !left) return text;
+  const cut = text.slice(0, limit - 1);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > limit * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+
 /** Block trees → a standalone HTML document. */
 export function blocksToHtml(blocks: readonly BlockNode[], title: string): string {
   const name = escapeHtml(title || 'Untitled');

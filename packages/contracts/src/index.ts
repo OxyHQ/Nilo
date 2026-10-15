@@ -17,7 +17,9 @@ export { compareOrder, MIN_ORDER_GAP, placeAfter, type Sibling } from './order';
 export {
   type BlockNode,
   blocksToHtml,
+  blocksToHtmlBody,
   blocksToMarkdown,
+  blocksToText,
   blocksToTree,
   escapeHtml,
   type FlatBlock,
