@@ -295,28 +295,34 @@ async function runImport(
 }
 
 /** POST /pages/import { workspaceId, parentId?, files: [{ path, content }] } */
-router.post('/pages/import', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const body = importSchema.parse(req.body);
-    const total = body.files.reduce((sum, f) => sum + Buffer.byteLength(f.content), 0);
-    if (total > MAX_TOTAL_BYTES) {
-      res.status(413).json({ error: 'The import is too large' });
-      return;
+router.post(
+  '/pages/import',
+  authenticateToken,
+  // Room for MAX_TOTAL_BYTES of Markdown plus JSON's escaping.
+  express.json({ limit: '30mb' }),
+  async (req: Request, res: Response) => {
+    try {
+      const body = importSchema.parse(req.body);
+      const total = body.files.reduce((sum, f) => sum + Buffer.byteLength(f.content), 0);
+      if (total > MAX_TOTAL_BYTES) {
+        res.status(413).json({ error: 'The import is too large' });
+        return;
+      }
+      await runImport(req, res, {
+        workspaceId: body.workspaceId,
+        parentId: body.parentId ?? null,
+        files: body.files as ImportFile[],
+      });
+    } catch (error: unknown) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: 'Invalid input', details: error.errors });
+        return;
+      }
+      log.general.error({ err: error }, 'Import failed');
+      res.status(500).json({ error: 'Import failed' });
     }
-    await runImport(req, res, {
-      workspaceId: body.workspaceId,
-      parentId: body.parentId ?? null,
-      files: body.files as ImportFile[],
-    });
-  } catch (error: unknown) {
-    if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Invalid input', details: error.errors });
-      return;
-    }
-    log.general.error({ err: error }, 'Import failed');
-    res.status(500).json({ error: 'Import failed' });
-  }
-});
+  },
+);
 
 /** POST /pages/import/zip?workspaceId=…[&parentId=…] with the ZIP as the body (`application/zip`). */
 router.post(

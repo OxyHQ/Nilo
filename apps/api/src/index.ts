@@ -119,6 +119,8 @@ app.use((req, res, next) => {
       'X-Oxy-Edge-Region',
       'X-Oxy-Activity-Id',
     ],
+    // Downloads name their file, and rate-limited answers say when to retry.
+    exposedHeaders: ['Content-Disposition', 'Retry-After'],
     optionsSuccessStatus: 200,
   })(req, res, next);
 });
@@ -129,11 +131,14 @@ app.use((_req, res, next) => {
   next();
 });
 
-// Block payloads and database properties may contain structured document data.
 // The API runs behind one load balancer: the client's address is the last hop
 // it adds to X-Forwarded-For. Rate limits key on it (`lib/rate-limit.ts`).
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
-app.use(express.json({ limit: '10mb' }));
+
+// Block payloads and database properties may contain structured document data.
+// Imports parse their own, larger bodies (`routes/import.ts`).
+const jsonBody = express.json({ limit: '10mb' });
+app.use((req, res, next) => (req.path === '/pages/import' ? next() : jsonBody(req, res, next)));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Routes
