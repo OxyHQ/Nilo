@@ -284,8 +284,12 @@ function isEmpty(value: unknown, type: DatabasePropertyType): boolean {
     case 'multi_select':
       return !Array.isArray(v.optionIds) || v.optionIds.length === 0;
     case 'date':
+    case 'created_time':
+    case 'last_edited_time':
       return !v.start;
     case 'person':
+    case 'created_by':
+    case 'last_edited_by':
       return !Array.isArray(v.userIds) || v.userIds.length === 0;
     case 'files':
       return !Array.isArray(v.files) || v.files.length === 0;
@@ -370,6 +374,8 @@ function evaluateCondition(
     }
     case 'multi_select':
     case 'person':
+    case 'created_by':
+    case 'last_edited_by':
     case 'relation': {
       const arr =
         (obj.optionIds as string[] | undefined) ??

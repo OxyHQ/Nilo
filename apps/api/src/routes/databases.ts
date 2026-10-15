@@ -20,7 +20,7 @@ import {
   type ViewConfig,
   type ViewSort,
 } from '../db/schema/databases.js';
-import type { PageRow } from '../repositories/pages.js';
+import type { DatabaseRowKey, PageRow } from '../repositories/pages.js';
 import {
   countViews,
   deleteDatabase,
@@ -47,6 +47,8 @@ import {
   createPage,
   deleteDatabaseRows,
   findPageById,
+  findPagesByIds,
+  listDatabaseRowKeys,
   listDatabaseRows,
   listPages,
   nextDatabaseRowOrder,
@@ -929,44 +931,43 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       view = await findDefaultView(handle, db.id);
     }
 
-    // Load all rows for the database. Filter / sort in JS — Phase 4 keeps
-    // the typed property layer simple and database sizes are bounded by
-    // the soft cap (10k rows in Phase 5 is the design target).
-    const rowDocs = await listDatabaseRows(handle, db.id, { archived: false, template: false });
-
     const propertyById = new Map<string, DatabaseProperty>();
     for (const p of db.propertiesSchema.properties) propertyById.set(p.id, p);
 
-    // Formulas and rollups are computed, not stored: a view that filters or
-    // sorts on one needs every row's computed values first.
+    // A view is filtered and sorted on what it reads, then only the rows of
+    // the page it returns are loaded whole. Formulas and rollups are computed,
+    // not stored: a view that reads one computes them for every row first.
     const viewReads = [
       ...(view?.filters ? filterPropertyIds(view.filters as Filter) : []),
       ...(view?.sorts ?? []).map((s) => s.propertyId),
     ];
-    const derivedAll = readsComputed(viewReads, propertyById)
-      ? await resolveDerivedForRows(handle, rowDocs, db.propertiesSchema)
-      : null;
-    const rowsWithComputed = derivedAll
-      ? rowDocs.map((row) => ({
-          ...row,
-          properties: { ...row.properties, ...derivedAll.get(row.id) },
-        }))
-      : rowDocs;
+    const computed = readsComputed(viewReads, propertyById);
+    let candidates: Array<DatabaseRowKey | PageRow>;
+    let derivedAll: Awaited<ReturnType<typeof resolveDerivedForRows>> | null = null;
+    if (computed) {
+      const rowDocs = await listDatabaseRows(handle, db.id, { archived: false, template: false });
+      derivedAll = await resolveDerivedForRows(handle, rowDocs, db.propertiesSchema);
+      candidates = rowDocs.map((row) => ({
+        ...row,
+        properties: { ...row.properties, ...derivedAll?.get(row.id) },
+      }));
+    } else {
+      candidates = await listDatabaseRowKeys(handle, db.id, viewReads);
+    }
 
-    let filtered = rowsWithComputed;
+    let filtered = candidates;
     if (query.search) {
       const needle = query.search.toLowerCase();
       filtered = filtered.filter((r) => r.title.toLowerCase().includes(needle));
     }
-    if (view?.filters && view.filters.filters.length > 0) {
-      const viewFilter = view.filters as Filter;
+    const viewFilter = view?.filters as Filter | undefined;
+    if (viewFilter && viewFilter.kind === 'group' && viewFilter.filters.length > 0) {
       filtered = filtered.filter((r) => evaluateFilter(viewFilter, r, propertyById));
     }
+    // Rows arrive oldest first; a stable sort keeps that order among the rows
+    // the view's sorts do not tell apart, so paging is deterministic.
     if (view?.sorts && view.sorts.length > 0) {
-      const compare = compareBySorts(view.sorts, propertyById);
-      filtered = [...filtered].sort(compare);
-    } else {
-      filtered = [...filtered].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      filtered = [...filtered].sort(compareBySorts(view.sorts, propertyById));
     }
 
     const pageSize = Math.min(
@@ -974,10 +975,21 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       Math.max(1, Number(query.pageSize ?? view?.pageSize ?? DEFAULT_VIEW_PAGE_SIZE)),
     );
     const cursorOffset = Number(query.cursor ?? '0');
-    const slice = filtered.slice(cursorOffset, cursorOffset + pageSize);
+    const pageIds = filtered.slice(cursorOffset, cursorOffset + pageSize).map((r) => r.id);
     const nextCursor =
       cursorOffset + pageSize < filtered.length ? String(cursorOffset + pageSize) : null;
 
+    const byId = new Map(
+      (computed
+        ? (candidates as PageRow[])
+        : await findPagesByIds(handle, pageIds, { archived: false })
+      ).map((row) => [row.id, row] as const),
+    );
+    // A row archived between the two reads is left out of the page.
+    const slice = pageIds.flatMap((id) => {
+      const row = byId.get(id);
+      return row ? [row] : [];
+    });
     const derivedSlice =
       derivedAll ?? (await resolveDerivedForRows(handle, slice, db.propertiesSchema));
     const serializedRows = slice.map((row) =>

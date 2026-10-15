@@ -856,6 +856,66 @@ describe('rows', () => {
     expect(second.body.cursor).toBeNull();
   });
 
+  it('pages through rows the view cannot tell apart once each, and returns them whole', async () => {
+    const databaseId = await createDatabase();
+    const added = await api('POST', `/api/databases/${databaseId}/properties`, {
+      name: 'Notes',
+      type: 'text',
+    });
+    const notes = asArray(asRecord(asRecord(added.body.database).schema).properties)
+      .map((p) => asRecord(p))
+      .find((p) => p.name === 'Notes');
+    const notesId = String(notes?.id);
+    for (let i = 0; i < 23; i += 1) {
+      await api('POST', `/api/databases/${databaseId}/rows`, {
+        title: `row ${i}`,
+        properties: { [notesId]: { text: `note ${i}` } },
+      });
+    }
+    // Created in the same instant: only the id tells them apart.
+    await db
+      .update(pages)
+      .set({ createdAt: new Date('2026-01-01T00:00:00Z') })
+      .where(eq(pages.databaseId, databaseId));
+    // A view sorting on a property every row shares: a checkbox none has set.
+    const flagged = await api('POST', `/api/databases/${databaseId}/properties`, {
+      name: 'Flag',
+      type: 'checkbox',
+    });
+    const flagId = String(
+      asArray(asRecord(asRecord(flagged.body.database).schema).properties)
+        .map((p) => asRecord(p))
+        .find((p) => p.name === 'Flag')?.id,
+    );
+    const view = await api('POST', `/api/databases/${databaseId}/views`, {
+      name: 'All alike',
+      type: 'table',
+      sorts: [{ propertyId: flagId, direction: 'asc' }],
+    });
+    const viewId = idOf(view.body.view);
+
+    const seen: Record<string, unknown>[] = [];
+    let cursor: unknown = null;
+    do {
+      const page = await api(
+        'GET',
+        `/api/databases/${databaseId}/rows?viewId=${viewId}&pageSize=5${cursor ? `&cursor=${cursor}` : ''}`,
+      );
+      expect(page.body.total).toBe(23);
+      seen.push(...asArray(page.body.rows).map((r) => asRecord(r)));
+      cursor = page.body.cursor;
+    } while (cursor);
+
+    const ids = seen.map((r) => String(r.id));
+    expect(new Set(ids).size).toBe(23);
+    expect(ids).toEqual([...ids].sort());
+    // Properties the view does not read come back too.
+    for (const row of seen) {
+      const n = String(row.title).slice('row '.length);
+      expect(asRecord(asRecord(row.properties)[notesId]).text).toBe(`note ${n}`);
+    }
+  });
+
   it('applies a view filter and a view sort to the Postgres rows', async () => {
     const databaseId = await createDatabase();
     for (const title of ['keep me', 'drop me', 'keep also']) {
