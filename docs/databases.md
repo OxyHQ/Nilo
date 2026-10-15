@@ -41,7 +41,13 @@ itself two-way is **sub-items**: "Sub-items" and "Sub-items (parent)".
 
 ## Views
 
-Table, board, calendar, gallery, list, timeline and form. A database's own
+Table, board, calendar, gallery, list, timeline and form. A view's rows are
+filtered and sorted on only the properties it reads, and only the rows of the
+page asked for are loaded whole; a view reading a formula or rollup computes
+them for every row first. Rows start oldest first (the id breaks a tie), so a
+view pages the same way every time (`cursor` is an offset).
+
+A database's own
 views are its editors' to change. An `inline_database` block showing a
 database from elsewhere is a **linked view**: it has views of its own
 (`database_views.block_id`, gone with the block), kept by whoever may edit

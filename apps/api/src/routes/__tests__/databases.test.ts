@@ -152,6 +152,42 @@ describe('evaluateFilter', () => {
     const pass = evaluateFilter({ kind: 'group', combinator: 'and', filters: [] }, r, byId);
     expect(pass).toBe(true);
   });
+
+  it('filters on when and by whom a row was created and edited', () => {
+    const meta: DatabaseProperty[] = [
+      { id: 'created', name: 'Created', type: 'created_time' },
+      { id: 'edited', name: 'Edited', type: 'last_edited_time' },
+      { id: 'creator', name: 'Created by', type: 'created_by' },
+      { id: 'editor', name: 'Edited by', type: 'last_edited_by' },
+    ];
+    const metaById = new Map(meta.map((p) => [p.id, p]));
+    const r = {
+      title: 'Row',
+      properties: {},
+      ownerId: 'ana',
+      lastEditedBy: 'bo',
+      createdAt: new Date('2026-03-01T10:00:00Z'),
+      updatedAt: new Date('2026-03-05T10:00:00Z'),
+    };
+    const passes = (propertyId: string, operator: string, value: unknown) =>
+      evaluateFilter(
+        {
+          kind: 'group',
+          combinator: 'and',
+          filters: [{ kind: 'condition', propertyId, operator, value }],
+        },
+        r,
+        metaById,
+      );
+    expect(passes('created', 'before', '2026-03-02')).toBe(true);
+    expect(passes('created', 'after', '2026-03-02')).toBe(false);
+    expect(passes('created', 'equals', '2026-03-01')).toBe(true);
+    expect(passes('edited', 'on_or_after', '2026-03-05')).toBe(true);
+    expect(passes('creator', 'contains', 'ana')).toBe(true);
+    expect(passes('creator', 'does_not_contain', 'ana')).toBe(false);
+    expect(passes('editor', 'contains', 'bo')).toBe(true);
+    expect(passes('editor', 'contains', 'ana')).toBe(false);
+  });
 });
 
 describe('compareBySorts', () => {
