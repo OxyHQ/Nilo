@@ -74,7 +74,8 @@ import { buildDefaultSchema, NAME_PROPERTY_ID } from '../lib/databases/schema-de
 import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
 import { evaluateFilter, filterGroupSchema } from '../lib/databases/filters.js';
 import { compareBySorts } from '../lib/databases/sorts.js';
-import { evaluateFormulaExpression } from '../lib/databases/formula.js';
+import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js';
+import { rowFormulaContext } from '../lib/databases/row-values.js';
 import { resolveRollup } from '../lib/databases/rollups.js';
 
 const router = Router();
@@ -365,6 +366,12 @@ async function resolveDerivedProperties(
   schema: DatabaseSchema,
 ): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {};
+  // Rollups first: formulas can read them.
+  const rollups = new Map<string, FormulaValue>();
+  for (const prop of schema.properties) {
+    if (prop.type === 'rollup') rollups.set(prop.id, await resolveRollup(handle, prop, row));
+  }
+  const formulaContext = rowFormulaContext(row, schema, rollups);
   for (const prop of schema.properties) {
     switch (prop.type) {
       case 'created_time':
@@ -385,18 +392,12 @@ async function resolveDerivedProperties(
         out[prop.id] = { userIds: row.ownerId ? [row.ownerId] : [] };
         break;
       case 'formula': {
-        const expr = prop.config?.expression ?? '';
-        const value = evaluateFormulaExpression(expr);
-        out[prop.id] =
-          typeof value === 'number'
-            ? { number: value }
-            : typeof value === 'string'
-              ? { text: value }
-              : { text: '' };
+        const { value, error } = formulaContext.evaluate(prop);
+        out[prop.id] = formulaCellValue(value, error);
         break;
       }
       case 'rollup': {
-        const value = await resolveRollup(handle, prop, row);
+        const value = rollups.get(prop.id) ?? null;
         out[prop.id] =
           value === null
             ? { text: '' }

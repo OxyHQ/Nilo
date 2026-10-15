@@ -535,6 +535,41 @@ describe('properties', () => {
 // ---------------------------------------------------------------------------
 
 describe('rows', () => {
+  it('computes formulas from the row, and marks a cycle as an error', async () => {
+    const databaseId = await createDatabase({
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'pts', name: 'Points', type: 'number' },
+          {
+            id: 'dbl',
+            name: 'Double',
+            type: 'formula',
+            config: { expression: 'prop("Points") * 2' },
+          },
+          {
+            id: 'lbl',
+            name: 'Label',
+            type: 'formula',
+            config: { expression: 'prop("Name") + " (" + prop("Double") + ")"' },
+          },
+          { id: 'a', name: 'A', type: 'formula', config: { expression: 'prop("B") + 1' } },
+          { id: 'b', name: 'B', type: 'formula', config: { expression: 'prop("A") + 1' } },
+        ],
+      },
+    });
+    const created = await api('POST', `/api/databases/${databaseId}/rows`, {
+      title: 'Spec',
+      properties: { pts: { number: 4 } },
+    });
+    const row = asRecord(created.body.row);
+    const props = asRecord(row.properties);
+    expect(props.dbl).toEqual({ number: 8 });
+    expect(props.lbl).toEqual({ text: 'Spec (8)' });
+    expect(asRecord(props.a).error).toMatch(/refers to itself/);
+    expect(asRecord(props.b).error).toMatch(/refers to itself/);
+  });
+
   it('stores property values as jsonb and mirrors the name into the title', async () => {
     const databaseId = await createDatabase();
     const created = await api('POST', `/api/databases/${databaseId}/rows`, {
