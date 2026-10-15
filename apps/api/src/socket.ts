@@ -5,6 +5,7 @@ import type http from 'node:http';
 import { getRedisClient, getRedisSubClient } from './lib/redis.js';
 import { log } from './lib/logger.js';
 import { oxyClient } from './middleware/auth.js';
+import { registerPageRooms } from './collab/page-rooms.js';
 
 const ALLOWED_ORIGINS = [process.env.WEB_URL || 'http://localhost:3000', 'https://nilo.so'];
 
@@ -41,6 +42,7 @@ export function initSocket(server: http.Server): Server {
     if (typeof userId === 'string') {
       socket.join(`user:${userId}`);
     }
+    if (io) registerPageRooms(io, socket);
   });
 
   return io;

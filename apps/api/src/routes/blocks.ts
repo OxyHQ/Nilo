@@ -15,7 +15,9 @@ import {
   reorderBlocks,
   updateBlock,
 } from '../repositories/blocks.js';
-import { findPageById } from '../repositories/pages.js';
+import { bumpBlocksVersion, findPageById } from '../repositories/pages.js';
+import { broadcastPageTransaction } from '../collab/page-rooms.js';
+import { getIO } from '../socket.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { log } from '../lib/logger.js';
 import { checkWorkspaceAccess } from '../lib/workspace-access.js';
@@ -468,7 +470,7 @@ router.get('/pages/:pageId/blocks', async (req: Request, res: Response) => {
 
     const blocks = await listBlocksForPage(db, page.id);
 
-    res.json({ blocks: blocks.map((b) => serializeBlock(b)) });
+    res.json({ blocks: blocks.map((b) => serializeBlock(b)), version: page.blocksVersion });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list blocks');
@@ -754,6 +756,8 @@ const blockOperationSchema = z.discriminatedUnion('kind', [
 
 const blockTransactionSchema = z.object({
   ops: z.array(blockOperationSchema).min(1).max(500),
+  /** The sender's socket, which is left out of the broadcast (it has the change). */
+  socketId: z.string().max(64).optional(),
 });
 
 class TransactionRejected extends Error {
@@ -788,7 +792,9 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
     const ok = await checkWorkspaceAccess(req, res, page.workspaceId, 'editor');
     if (!ok) return;
 
-    await db.transaction(async (tx) => {
+    // The operations as applied, content normalized, for collaborators.
+    const applied: unknown[] = [];
+    const version = await db.transaction(async (tx) => {
       const rows = await listBlocksForPage(tx, page.id);
       const types = new Map<string, BlockType>(rows.map((b) => [b.id, b.type]));
       const contents = new Map<string, BlockContent>(rows.map((b) => [b.id, b.content]));
@@ -822,6 +828,7 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
             types.set(op.id, op.type);
             contents.set(op.id, content);
             parentOf.set(op.id, op.parentBlockId);
+            applied.push({ ...op, content });
             break;
           }
           case 'update': {
@@ -832,6 +839,7 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
             await updateBlock(tx, op.id, { type: op.type, content });
             types.set(op.id, type);
             contents.set(op.id, content);
+            applied.push({ kind: 'update', id: op.id, type, content });
             break;
           }
           case 'move': {
@@ -842,6 +850,7 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
             }
             await updateBlock(tx, op.id, { parentBlockId: op.parentBlockId, order: op.order });
             parentOf.set(op.id, op.parentBlockId);
+            applied.push(op);
             break;
           }
           case 'remove': {
@@ -854,13 +863,20 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
               }
             }
             for (const id of [...parentOf.keys()]) if (!types.has(id)) parentOf.delete(id);
+            applied.push(op);
             break;
           }
         }
       }
+      return bumpBlocksVersion(tx, page.id);
     });
 
-    res.json({ ok: true });
+    broadcastPageTransaction(
+      getIO(),
+      { pageId: page.id, version, actorId: req.user?.id ?? '', ops: applied },
+      body.socketId,
+    );
+    res.json({ ok: true, version });
   } catch (error: unknown) {
     if (error instanceof TransactionRejected) {
       res.status(error.status).json({ error: error.message });

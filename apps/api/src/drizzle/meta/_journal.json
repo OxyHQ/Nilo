@@ -29,6 +29,13 @@
       "when": 1788339490939,
       "tag": "0003_chief_mach_iv",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792036938551,
+      "tag": "0004_thick_ink",
+      "breakpoints": true
     }
   ]
 }

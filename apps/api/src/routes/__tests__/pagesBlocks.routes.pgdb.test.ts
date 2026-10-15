@@ -985,3 +985,40 @@ describe('PATCH /blocks/:id nesting', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('blocks version', () => {
+  it('advances once per transaction and is returned with the blocks', async () => {
+    const page = await createPage();
+    const ws = { 'x-workspace-id': workspaceId };
+    const first = await api('GET', `/pages/${page.id}/blocks`, undefined, ws);
+    expect(first.json.version).toBe(0);
+    const a = await api(
+      'POST',
+      `/pages/${page.id}/blocks/transactions`,
+      { ops: [{ kind: 'insert', id: uuidv7(), parentBlockId: null, type: 'paragraph', order: 1 }] },
+      ws,
+    );
+    expect(a.json).toEqual({ ok: true, version: 1 });
+    const b = await api(
+      'POST',
+      `/pages/${page.id}/blocks/transactions`,
+      { ops: [{ kind: 'insert', id: uuidv7(), parentBlockId: null, type: 'paragraph', order: 2 }] },
+      ws,
+    );
+    expect(b.json.version).toBe(2);
+    expect((await api('GET', `/pages/${page.id}/blocks`, undefined, ws)).json.version).toBe(2);
+  });
+
+  it('does not advance when the transaction is rejected', async () => {
+    const page = await createPage();
+    const ws = { 'x-workspace-id': workspaceId };
+    const bad = await api(
+      'POST',
+      `/pages/${page.id}/blocks/transactions`,
+      { ops: [{ kind: 'remove', id: uuidv7() }] },
+      ws,
+    );
+    expect(bad.status).toBe(404);
+    expect((await api('GET', `/pages/${page.id}/blocks`, undefined, ws)).json.version).toBe(0);
+  });
+});

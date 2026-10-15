@@ -447,3 +447,18 @@ export async function findPageAncestry(db: PgHandle, id: string): Promise<PageCr
     icon: typeof row.icon === 'string' ? row.icon : null,
   }));
 }
+
+/**
+ * Advance a page's blocks version by one and return the new value. Called
+ * inside the transaction that applies a block transaction, so the version
+ * and the change commit together.
+ */
+export async function bumpBlocksVersion(db: PgHandle, pageId: string): Promise<number> {
+  const [row] = await db
+    .update(pages)
+    .set({ blocksVersion: sql`${pages.blocksVersion} + 1` })
+    .where(eq(pages.id, pageId))
+    .returning({ version: pages.blocksVersion });
+  if (!row) throw new Error(`bumpBlocksVersion found no page ${pageId}`);
+  return row.version;
+}

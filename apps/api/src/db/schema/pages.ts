@@ -4,6 +4,7 @@ import {
   check,
   doublePrecision,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -93,6 +94,12 @@ export const pages = pgTable(
      * genuinely ran.
      */
     order: doublePrecision().notNull().default(0),
+    /**
+     * Incremented by every applied block transaction. Collaborators compare it
+     * with the version they hold to know whether they missed a change, and
+     * the transactions endpoint returns the version it produced.
+     */
+    blocksVersion: integer().notNull().default(0),
     /**
      * Non-null when this page is a row of a database (Phase 4).
      *
