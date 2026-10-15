@@ -47,6 +47,12 @@ vi.mock('../../middleware/workspace.js', () => ({
 // Page access is the member's role here (the rule has its own tests); the
 // shape mirrors `checkPageAccess`.
 vi.mock('../../lib/page-access.js', () => ({
+  // Everyone mentioned can open the page, except the one named as a stranger.
+  resolvePageAccess: vi.fn(async (_db: unknown, userId: string) =>
+    userId.includes('not-in-workspace')
+      ? null
+      : { role: 'viewer', memberRole: null, chain: [], grants: [] },
+  ),
   checkPageAccess: vi.fn(
     async (req: any, res: any, _db: unknown, _pageId: string, minRole: string) => {
       const ranks = ['viewer', 'commenter', 'editor', 'admin', 'owner'];
@@ -226,8 +232,7 @@ describe('comments route', () => {
       expect(res.status).toHaveBeenCalledWith(400);
     });
 
-    it('validates a user mention belongs to the workspace', async () => {
-      mockMember.listMembershipsForUsers.mockResolvedValue([]);
+    it('refuses to mention someone who cannot open the page', async () => {
       const handler = findHandler('post', '/pages/:pageId/comments');
       const req = makeReq({
         params: { pageId: PAGE_ID },

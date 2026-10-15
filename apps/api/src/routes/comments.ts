@@ -22,7 +22,7 @@ import {
 import { authenticateToken } from '../middleware/auth.js';
 import { sendNotification } from '../lib/notification-service.js';
 import { log } from '../lib/logger.js';
-import { checkPageAccess } from '../lib/page-access.js';
+import { checkPageAccess, resolvePageAccess } from '../lib/page-access.js';
 import { hasRole } from '../db/schema/workspaces.js';
 
 const router = Router();
@@ -97,13 +97,15 @@ function flattenSegments(segments: CommentSegment[]): string {
  * normalized segment list (with explicit `type: 'text'` on text segments)
  * plus the set of mentioned user ids.
  *
- * - `kind: 'user'`: `id` must be a workspace member.
+ * - `kind: 'user'`: `id` must be someone who can open the page (a member
+ *   with access, or a guest it is shared with) — a mention notifies them.
  * - `kind: 'page'`: `id` must be a Page in the same workspace.
  * - `kind: 'date'`: `date` must be present (validated as ISO yyyy-mm-dd).
  */
 async function validateAndNormalizeContent(
   segments: z.infer<typeof segmentSchema>[],
   workspaceId: string,
+  pageId: string,
 ): Promise<{ segments: CommentSegment[]; mentionedUserIds: string[] }> {
   const userIds = new Set<string>();
   const pageIds = new Set<string>();
@@ -162,20 +164,16 @@ async function validateAndNormalizeContent(
     }
   }
 
-  // Verify user mentions belong to the workspace.
-  if (userIds.size > 0) {
-    const members = await listMembershipsForUsers(getDb(), workspaceId, Array.from(userIds));
-    const validUserIds = new Set(members.map((m) => m.userId));
-    for (const id of userIds) {
-      if (!validUserIds.has(id)) {
-        throw new z.ZodError([
-          {
-            code: 'custom',
-            path: ['segments'],
-            message: `User ${id} is not a member of this workspace`,
-          },
-        ]);
-      }
+  // Verify mentioned people can open the page.
+  for (const id of userIds) {
+    if (!(await resolvePageAccess(getDb(), id, pageId))) {
+      throw new z.ZodError([
+        {
+          code: 'custom',
+          path: ['segments'],
+          message: `User ${id} cannot open this page`,
+        },
+      ]);
     }
   }
 
@@ -475,6 +473,7 @@ router.post('/pages/:pageId/comments', async (req: Request, res: Response) => {
     const { segments, mentionedUserIds } = await validateAndNormalizeContent(
       body.content.segments,
       page.workspaceId,
+      page.id,
     );
 
     const content: CommentContent = {
@@ -544,6 +543,7 @@ router.patch('/comments/:id', async (req: Request, res: Response) => {
     const { segments } = await validateAndNormalizeContent(
       body.content.segments,
       comment.workspaceId,
+      comment.pageId,
     );
 
     const updated = await updateCommentContent(
