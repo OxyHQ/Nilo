@@ -16,6 +16,9 @@ vi.mock('../../repositories/comments.js', () => ({
   setCommentResolvedAt: vi.fn(),
   deleteComment: vi.fn(),
   deleteCommentThread: vi.fn(),
+  listReactions: vi.fn(async () => new Map()),
+  addReaction: vi.fn(),
+  removeReaction: vi.fn(),
 }));
 
 vi.mock('../../repositories/pages.js', () => ({

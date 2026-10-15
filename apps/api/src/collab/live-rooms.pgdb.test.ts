@@ -35,6 +35,8 @@ vi.mock('../lib/logger.js', () => ({
 const { registerLiveRooms } = await import('./live-rooms.js');
 const { default: pagesRouter } = await import('../routes/pages.js');
 const { default: databasesRouter } = await import('../routes/databases.js');
+const { default: commentsRouter } = await import('../routes/comments.js');
+const { registerPageRooms } = await import('./page-rooms.js');
 
 let db: TestDatabase;
 let httpServer: http.Server;
@@ -99,6 +101,7 @@ beforeAll(async () => {
   app.use(express.json());
   app.use('/pages', pagesRouter);
   app.use('/databases', databasesRouter);
+  app.use(commentsRouter);
   httpServer = http.createServer(app);
   io = new Server(httpServer);
   ctx.io = io;
@@ -106,7 +109,10 @@ beforeAll(async () => {
     socket.data.userId = socket.handshake.auth.userId;
     nextMiddleware();
   });
-  io.on('connection', (socket) => registerLiveRooms(io, socket));
+  io.on('connection', (socket) => {
+    registerPageRooms(io, socket);
+    registerLiveRooms(io, socket);
+  });
   await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
   origin = `http://127.0.0.1:${(httpServer.address() as AddressInfo).port}`;
 });
@@ -158,5 +164,20 @@ describe('database rooms', () => {
       (await api('ann', 'POST', `/databases/${databaseId}/rows`, { title: 'One' })).status,
     ).toBe(201);
     expect(await heard).toEqual({ databaseId });
+  });
+});
+
+describe('page rooms and comments', () => {
+  it("hear that a page's comments changed", async () => {
+    const made = await api('ann', 'POST', '/pages', { workspaceId, title: 'Talked about' });
+    const pageId = (made.json.page as { id: string }).id;
+    const bo = await client('bo');
+    expect((await join(bo, 'page:join', pageId)).ok).toBe(true);
+    const heard = hear<{ pageId: string }>(bo, 'page:comments');
+    const comment = await api('ann', 'POST', `/pages/${pageId}/comments`, {
+      content: { segments: [{ type: 'text', text: 'hi' }] },
+    });
+    expect(comment.status).toBe(201);
+    expect(await heard).toEqual({ pageId });
   });
 });

@@ -18,7 +18,13 @@ import {
   type CommentSegment,
   type CommentRow,
   type MentionSegment,
+  addReaction,
+  listReactions,
+  type ReactionSummary,
+  removeReaction,
 } from '../repositories/comments.js';
+import { announceComments } from '../collab/live-rooms.js';
+import { REACTION_MAX } from '../db/schema/collab.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { sendNotification } from '../lib/notification-service.js';
 import { log } from '../lib/logger.js';
@@ -228,8 +234,10 @@ async function validateAndNormalizeContent(
 
 type SerializableComment = CommentRow;
 
-function serializeComment(c: SerializableComment) {
+function serializeComment(c: SerializableComment, reactions: readonly ReactionSummary[] = []) {
   return {
+    /** Emoji reactions: each emoji with who reacted, first used first. */
+    reactions,
     id: c.id,
     workspaceId: c.workspaceId,
     pageId: c.pageId,
@@ -242,6 +250,18 @@ function serializeComment(c: SerializableComment) {
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
+}
+
+/** Comments as the API returns them, with their reactions. */
+async function serializeComments(
+  db: ReturnType<typeof getDb>,
+  list: readonly SerializableComment[],
+) {
+  const reactions = await listReactions(
+    db,
+    list.map((c) => c.id),
+  );
+  return list.map((c) => serializeComment(c, reactions.get(c.id)));
 }
 
 function handleZodError(err: unknown, res: Response): boolean {
@@ -391,7 +411,7 @@ router.get('/pages/:pageId/comments', async (req: Request, res: Response) => {
     const all = await listCommentsByPage(db, page.id);
 
     if (includeResolved) {
-      res.json({ comments: all.map((c) => serializeComment(c)) });
+      res.json({ comments: await serializeComments(db, all) });
       return;
     }
 
@@ -405,7 +425,7 @@ router.get('/pages/:pageId/comments', async (req: Request, res: Response) => {
       return !resolvedTopIds.has(rootId);
     });
 
-    res.json({ comments: filtered.map((c) => serializeComment(c)) });
+    res.json({ comments: await serializeComments(db, filtered) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list page comments');
@@ -440,7 +460,7 @@ router.get('/blocks/:blockId/comments', async (req: Request, res: Response) => {
 
     const comments = await listCommentsByBlock(db, block.id);
 
-    res.json({ comments: comments.map((c) => serializeComment(c)) });
+    res.json({ comments: await serializeComments(getDb(), comments) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list block comments');
@@ -546,6 +566,7 @@ router.post('/pages/:pageId/comments', async (req: Request, res: Response) => {
       },
     );
 
+    announceComments(comment.pageId);
     res.status(201).json({ comment: serializeComment(comment) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -608,7 +629,8 @@ router.patch('/comments/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    res.json({ comment: serializeComment(updated) });
+    announceComments(updated.pageId);
+    res.json({ comment: (await serializeComments(db, [updated]))[0] });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to update comment');
@@ -644,7 +666,8 @@ router.post('/comments/:id/resolve', async (req: Request, res: Response) => {
     const resolved =
       comment.resolvedAt === null ? await setCommentResolvedAt(db, comment.id, new Date()) : null;
 
-    res.json({ comment: serializeComment(resolved ?? comment) });
+    announceComments(comment.pageId);
+    res.json({ comment: (await serializeComments(db, [resolved ?? comment]))[0] });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to resolve comment');
@@ -677,7 +700,8 @@ router.post('/comments/:id/unresolve', async (req: Request, res: Response) => {
     const unresolved =
       comment.resolvedAt !== null ? await setCommentResolvedAt(db, comment.id, null) : null;
 
-    res.json({ comment: serializeComment(unresolved ?? comment) });
+    announceComments(comment.pageId);
+    res.json({ comment: (await serializeComments(db, [unresolved ?? comment]))[0] });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to unresolve comment');
@@ -723,6 +747,7 @@ router.delete('/comments/:id', async (req: Request, res: Response) => {
       await deleteComment(db, comment.id);
     }
 
+    announceComments(comment.pageId);
     res.json({ success: true });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -730,5 +755,46 @@ router.delete('/comments/:id', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to delete comment' });
   }
 });
+
+/** An emoji, with its modifiers — not words, not whitespace. */
+const emojiSchema = z
+  .string()
+  .min(1)
+  .max(REACTION_MAX)
+  .refine(
+    (value) =>
+      /\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(value) &&
+      !/[\s\p{L}\p{N}]/u.test(value.replace(/[\u{1F3FB}-\u{1F3FF}]/gu, '')),
+    'Not an emoji',
+  );
+
+/**
+ * PUT /comments/:id/reactions/:emoji — react; DELETE takes the reaction back.
+ * Whoever may comment on the page may react. Answers the comment's reactions.
+ */
+async function react(req: Request, res: Response, adding: boolean): Promise<void> {
+  try {
+    const params = z.object({ id: objectIdSchema, emoji: emojiSchema }).parse(req.params);
+    const db = getDb();
+    const comment = await findCommentById(db, params.id);
+    if (!comment) {
+      res.status(404).json({ error: 'Comment not found' });
+      return;
+    }
+    if (!(await checkPageAccess(req, res, db, comment.pageId, 'commenter'))) return;
+    const reaction = { commentId: comment.id, userId: req.user?.id ?? '', emoji: params.emoji };
+    if (adding) await addReaction(db, reaction);
+    else await removeReaction(db, reaction);
+    announceComments(comment.pageId);
+    res.json({ reactions: (await listReactions(db, [comment.id])).get(comment.id) ?? [] });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to react to comment');
+    res.status(500).json({ error: 'Failed to react to comment' });
+  }
+}
+
+router.put('/comments/:id/reactions/:emoji', (req, res) => react(req, res, true));
+router.delete('/comments/:id/reactions/:emoji', (req, res) => react(req, res, false));
 
 export default router;

@@ -20,6 +20,7 @@ import { findDatabaseById } from '../repositories/databases.js';
 import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
 import { findMembership } from '../repositories/workspaces.js';
 import { getIO } from '../socket.js';
+import { pageRoom } from './page-rooms.js';
 
 const ID_PATTERN = /^[0-9a-f-]{24,36}$/i;
 
@@ -99,6 +100,11 @@ function emitSoon(room: string, event: string, payload: Record<string, string>):
       getIO()?.to(room).emit(event, payload);
     }, COALESCE_MS),
   );
+}
+
+/** A page's comments changed (made, edited, resolved, deleted, reacted to): its room hears. */
+export function announceComments(pageId: string): void {
+  emitSoon(pageRoom(pageId), 'page:comments', { pageId });
 }
 
 /**

@@ -475,4 +475,25 @@ describe('following pages', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(notified.filter((n) => n.type === 'mention')).toEqual([]);
   });
+
+  it('takes emoji reactions on comments from those who may comment', async () => {
+    const target = await page(OWNER, { title: 'Reacted' });
+    const made = await api(OWNER, 'POST', `/pages/${target}/comments`, {
+      content: { segments: [{ type: 'text', text: 'Ship it?' }] },
+    });
+    const id = (made.json.comment as { id: string }).id;
+    const thumbs = encodeURIComponent('👍');
+    expect((await api(EDITOR, 'PUT', `/comments/${id}/reactions/${thumbs}`)).status).toBe(200);
+    const both = await api(OWNER, 'PUT', `/comments/${id}/reactions/${thumbs}`);
+    expect(both.json.reactions).toEqual([{ emoji: '👍', userIds: [EDITOR, OWNER] }]);
+    // Not words; not a viewer.
+    expect((await api(OWNER, 'PUT', `/comments/${id}/reactions/yes`)).status).toBe(400);
+    expect((await api(VIEWER, 'PUT', `/comments/${id}/reactions/${thumbs}`)).status).toBe(403);
+
+    const listed = await api(OWNER, 'GET', `/pages/${target}/comments`);
+    const [comment] = listed.json.comments as { reactions: unknown }[];
+    expect(comment?.reactions).toEqual([{ emoji: '👍', userIds: [EDITOR, OWNER] }]);
+    const taken = await api(EDITOR, 'DELETE', `/comments/${id}/reactions/${thumbs}`);
+    expect(taken.json.reactions).toEqual([{ emoji: '👍', userIds: [OWNER] }]);
+  });
 });

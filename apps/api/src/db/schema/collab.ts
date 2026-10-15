@@ -521,3 +521,27 @@ export const pageFollows = pgTable(
     index('page_follows_user_idx').on(t.userId),
   ],
 );
+
+/** The longest reaction: an emoji with its modifiers (flags, skin tones, ZWJ sequences). */
+export const REACTION_MAX = 32;
+
+/** Emoji reactions to a comment, one row per person and emoji. */
+export const commentReactions = pgTable(
+  'comment_reactions',
+  {
+    commentId: text()
+      .notNull()
+      .references(() => comments.id, { onDelete: 'cascade' }),
+    /** Oxy user id. */
+    userId: text().notNull(),
+    emoji: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.commentId, t.userId, t.emoji] }),
+    check(
+      'comment_reactions_emoji_length',
+      sql`char_length(${t.emoji}) between 1 and ${sql.raw(String(REACTION_MAX))}`,
+    ),
+  ],
+);
