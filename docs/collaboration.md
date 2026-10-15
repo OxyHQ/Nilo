@@ -138,3 +138,15 @@ anchors stay), so open editors receive it live.
   against the real endpoint, room and PostgreSQL, with seeded random
   concurrent edits and lost responses. `LIVE_SEEDS=1,2,3 LIVE_STEPS=200` runs a
   longer soak; `LIVE_TRACE=<dir>` keeps a failing run's exchange.
+
+## Canvas pages
+
+A page whose `mode` is `canvas` lays its top-level blocks out as notes
+(`canvas_note`, with `x`, `y` and `width` in its content) on an infinite
+surface; each note holds its own blocks. Notes are blocks like any other, so
+moving, resizing, writing in and deleting them are transactions: they sync,
+undo, work offline and respect the lock as everything else does. Turning a
+page into a canvas wraps its blocks in one note; turning it back puts each
+note's blocks in place, notes read top to bottom then left to right
+(`apps/app/lib/editor/canvas.ts`). Exports and published pages read a canvas
+in that order.

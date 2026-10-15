@@ -249,3 +249,24 @@ describe('blocksToText and blocksToHtmlBody', () => {
     expect(html).not.toContain('<html');
   });
 });
+
+describe('canvas notes in exports', () => {
+  const tree = blocksToTree([
+    { id: 'n', parentBlockId: null, type: 'canvas_note', content: { x: 0, y: 0 }, order: 1 },
+    { id: 'p', parentBlockId: 'n', type: 'paragraph', content: { text: 'Inside' }, order: 1 },
+    {
+      id: 'l',
+      parentBlockId: 'n',
+      type: 'bulleted_list_item',
+      content: { text: 'Item' },
+      order: 2,
+    },
+  ]);
+
+  it('reads a note as its blocks, not indented under it', () => {
+    expect(blocksToMarkdown(tree)).toBe('Inside\n\n- Item\n');
+    expect(blocksToHtmlBody(tree)).toBe(
+      '<section class="note"><p>Inside</p>\n<ul><li>Item</li></ul></section>',
+    );
+  });
+});

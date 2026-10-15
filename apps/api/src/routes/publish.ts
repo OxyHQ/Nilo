@@ -140,6 +140,7 @@ function publicPage(page: PageRow) {
     coverPosition: page.coverPosition,
     // How it is laid out, as its readers see it.
     font: page.font,
+    mode: page.mode,
     fullWidth: page.fullWidth,
     smallText: page.smallText,
     updatedAt: page.updatedAt,

@@ -6,7 +6,12 @@ import type { PageFont } from '@/lib/types/pages';
 import { MONO_FONT_FAMILY, PAGE_FONT_FAMILIES } from '@/lib/fonts';
 import { Check, ChevronRight, ChevronDown } from 'lucide-react-native';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { buildBlockTree, type ReadOnlyBlock, type BlockTreeNode } from '@/lib/block-tree';
+import {
+  buildBlockTree,
+  inReadingOrder,
+  type ReadOnlyBlock,
+  type BlockTreeNode,
+} from '@/lib/block-tree';
 import { useMemo, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -211,7 +216,7 @@ export function SharedBlockTree({
 }) {
   const { t } = useTranslation();
   const textStyle = useMemo(() => ({ fontFamily: PAGE_FONT_FAMILIES[font] }), [font]);
-  const tree = useMemo(() => buildBlockTree(blocks), [blocks]);
+  const tree = useMemo(() => inReadingOrder(buildBlockTree(blocks)), [blocks]);
   if (!tree.length)
     return <Text className="text-sm text-muted-foreground">{t('pages.share.empty')}</Text>;
   return (
@@ -252,6 +257,14 @@ function BlockNode({
     block.type === 'toggle' ||
     (/^heading_[123]$/.test(block.type) && block.content.toggleable === true);
   const Chevron = expanded ? ChevronDown : ChevronRight;
+  // A canvas note, read as a page: its blocks in a frame, not under a line.
+  if (block.type === 'canvas_note') {
+    return (
+      <View className="gap-1.5 rounded-xl border border-border px-3 py-2">
+        <BlockBranch nodes={childrenNodes} />
+      </View>
+    );
+  }
   return (
     <View className="gap-1.5">
       <View className="flex-row items-center gap-1">

@@ -23,6 +23,7 @@ import { usePageEditorContext } from './page-editor-context';
 import { useEditorMentions } from './use-editor-mentions';
 import { useOpenEditorMention, openEditorLink } from './open-target';
 import { createMarkers, createRenderers } from './renderers';
+import { PageCanvas } from './page-canvas';
 
 const paragraph = (): BlockSnapshot => ({ type: 'paragraph', text: [] });
 
@@ -71,8 +72,11 @@ export function PageEditor({
   readOnly = false,
   onOpenBlockComments,
   focusedBlockId,
+  layout = 'document',
 }: {
   pageId: string;
+  /** Top to bottom, or the page's notes on a canvas (`page-canvas.tsx`). */
+  layout?: 'document' | 'canvas';
   focusedBlockId?: string;
   readOnly?: boolean;
   /** Open the comment panel on one block. */
@@ -183,10 +187,33 @@ export function PageEditor({
     );
   }
 
+  const editorProps = {
+    store,
+    controller,
+    decorations,
+    mentions,
+    onOpenMention,
+    onOpenLink: openEditorLink,
+    slashItems,
+    onSlashAction,
+    renderers,
+    markers,
+    blockActions,
+    theme,
+    labels,
+    readOnly,
+  };
+
   return (
-    <View>
+    <View className={layout === 'canvas' ? 'flex-1' : undefined}>
       {!readOnly || status === 'offline' ? (
-        <View className="mb-2 flex-row items-center justify-end gap-3">
+        <View
+          className={
+            layout === 'canvas'
+              ? 'flex-row items-center justify-end gap-3 px-4 py-1.5'
+              : 'mb-2 flex-row items-center justify-end gap-3'
+          }
+        >
           <PresenceAvatars collaborators={collaborators} />
           <Text
             className={
@@ -228,22 +255,7 @@ export function PageEditor({
           }}
         />
       ) : null}
-      <BlockEditor
-        store={store}
-        controller={controller}
-        decorations={decorations}
-        mentions={mentions}
-        onOpenMention={onOpenMention}
-        onOpenLink={openEditorLink}
-        slashItems={slashItems}
-        onSlashAction={onSlashAction}
-        renderers={renderers}
-        markers={markers}
-        blockActions={blockActions}
-        theme={theme}
-        labels={labels}
-        readOnly={readOnly}
-      />
+      {layout === 'canvas' ? <PageCanvas {...editorProps} /> : <BlockEditor {...editorProps} />}
     </View>
   );
 }

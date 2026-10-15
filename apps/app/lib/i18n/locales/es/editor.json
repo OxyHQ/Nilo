@@ -265,5 +265,19 @@
     "people": "Personas",
     "pages": "Páginas",
     "date": "Fecha"
+  },
+  "canvas": {
+    "label": "Lienzo",
+    "empty": "Haz doble clic en cualquier sitio, o pulsa Nueva nota, para colocar una nota.",
+    "emptyReadOnly": "Este lienzo aún no tiene notas.",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "resetZoom": "Volver al 100 %",
+    "fit": "Ver todas las notas",
+    "newNote": "Nueva nota",
+    "moveNote": "Mover la nota",
+    "resizeNote": "Cambiar el ancho de la nota",
+    "deleteNote": "Eliminar la nota",
+    "writeInNote": "Escribir en esta nota"
   }
 }

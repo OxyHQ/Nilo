@@ -183,6 +183,13 @@
       "when": 1792055595178,
       "tag": "0025_linked_views",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792071838416,
+      "tag": "0026_canvas_pages",
+      "breakpoints": true
     }
   ]
 }

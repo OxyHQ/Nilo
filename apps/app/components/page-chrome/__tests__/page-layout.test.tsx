@@ -1,3 +1,4 @@
+jest.mock('@/components/page-chrome/canvas-switch', () => ({ CanvasSwitch: () => null }));
 jest.mock('@/lib/realtime/use-live-updates', () => ({
   useWorkspaceLive: jest.fn(),
   useDatabaseLive: jest.fn(),
@@ -68,6 +69,7 @@ const initial: Page = {
   fullWidth: false,
   smallText: false,
   font: 'default',
+  mode: 'document',
   locked: false,
   archived: false,
   favorited: false,

@@ -330,5 +330,10 @@
   "offline": {
     "available": "Available offline",
     "hint": "Keep this page on this device to read and edit it without a connection."
+  },
+  "canvas": {
+    "mode": "Canvas",
+    "hint": "Place the page's content as notes on an infinite canvas. Turning it off puts the notes back in order, top to bottom.",
+    "failed": "The page's layout could not be changed"
   }
 }

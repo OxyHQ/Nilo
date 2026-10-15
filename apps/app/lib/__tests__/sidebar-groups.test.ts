@@ -17,6 +17,7 @@ function page(id: string, patch: Partial<Page> = {}): Page {
     fullWidth: false,
     smallText: false,
     font: 'default',
+    mode: 'document',
     locked: false,
     publishedAt: null,
     publishSlug: null,

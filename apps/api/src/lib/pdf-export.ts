@@ -40,6 +40,8 @@ const LINK = '#0969da';
 const RULE = '#d0d7de';
 const SHADE = '#f6f8fa';
 const HEADINGS = { heading_1: 20, heading_2: 16, heading_3: 13 } as const;
+/** Blocks that only hold others: their content goes where they are, not indented. */
+const CONTAINERS = new Set(['columns', 'column', 'canvas_note']);
 
 /** Bytes of an image a block points at, or null to show it as a link. */
 export type ImageLoader = (url: string) => Promise<Buffer | null>;
@@ -294,11 +296,8 @@ class Writer {
           this.inline(text, x);
           this.gap(5);
         }
-        // Columns and other containers: their content, one after another.
-        this.nodes(
-          block.children,
-          block.type === 'column' || block.type === 'columns' ? depth : depth + 1,
-        );
+        // Columns, canvas notes and other containers: their content, one after another.
+        this.nodes(block.children, CONTAINERS.has(block.type) ? depth : depth + 1);
       }
     }
   }

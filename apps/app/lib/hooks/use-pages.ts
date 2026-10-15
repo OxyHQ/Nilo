@@ -21,6 +21,7 @@ interface UpdatePageInput {
   fullWidth?: boolean;
   smallText?: boolean;
   font?: Page['font'];
+  mode?: Page['mode'];
   locked?: boolean;
   title?: string;
   icon?: string | null;

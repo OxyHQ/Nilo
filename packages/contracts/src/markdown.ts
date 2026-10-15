@@ -569,6 +569,7 @@ function renderNodeMarkdown(block: BlockNode, depth: number, index: number): str
     }
     case 'columns':
     case 'column':
+    case 'canvas_note':
     case 'table_row':
     case 'sync_block':
       return children;
@@ -749,6 +750,9 @@ function renderNodesHtml(blocks: readonly BlockNode[]): string {
         break;
       case 'column':
         out.push(`<div class="column">${children}</div>`);
+        break;
+      case 'canvas_note':
+        out.push(`<section class="note">${children}</section>`);
         break;
       default:
         if (inline || children) out.push(`${inline ? `<p>${inline}</p>` : ''}${children}`);

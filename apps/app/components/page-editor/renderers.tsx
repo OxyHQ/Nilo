@@ -115,6 +115,14 @@ function TableOfContents({ store }: { store: EditorStore }) {
   );
 }
 
+/**
+ * A canvas note seen in a document (while the page is being turned back into
+ * one, or by someone whose screen has not followed yet): its blocks, framed.
+ */
+function NoteInDocument({ renderChildren }: BlockRendererProps) {
+  return <View className="my-1 rounded-xl border border-border px-3 py-1">{renderChildren()}</View>;
+}
+
 /** Every block type Nilo draws itself, keyed by type. */
 export function createRenderers(pageId: string, store: EditorStore): Record<string, BlockRenderer> {
   return {
@@ -127,6 +135,7 @@ export function createRenderers(pageId: string, store: EditorStore): Record<stri
     bookmark: adapt(BookmarkBlock, pageId),
     embed: adapt(EmbedBlock, pageId),
     columns: adapt(ColumnsBlock, pageId),
+    canvas_note: NoteInDocument,
     column: adapt(ColumnBlock, pageId),
     table: adapt(TableBlock, pageId),
     table_row: adapt(TableRow, pageId),

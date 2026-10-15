@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 import { Lock, MessageCircle } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
+import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import {
   PageEditorProvider,
@@ -163,20 +164,39 @@ function PageDetail({
     <PageEditorProvider pageId={pageId} readOnly={contentReadOnly}>
       <PageChrome page={page} readOnly={!canEdit} rightHeader={rightHeader}>
         <View className="flex-1 flex-row">
-          <EditorScrollView>
-            <PageHeader page={page} readOnly={!canEdit} />
-            <View
-              className={cn('px-6 md:px-10 w-full mx-auto pt-4', !page.fullWidth && 'max-w-3xl')}
-            >
-              <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
+          {page.mode === 'canvas' ? (
+            // A canvas fills the page: notes are placed on it, not scrolled through.
+            <View className="flex-1">
+              <View className="flex-row items-center gap-2 border-b border-border px-4 py-2">
+                <IconDisplay value={page.icon} size={18} />
+                <Text className="text-base font-semibold text-foreground" numberOfLines={1}>
+                  {page.title || t('pages.untitled')}
+                </Text>
+              </View>
               <PageEditor
                 pageId={page.id}
                 focusedBlockId={blockId}
                 readOnly={contentReadOnly}
                 onOpenBlockComments={handleOpenPanel}
+                layout="canvas"
               />
             </View>
-          </EditorScrollView>
+          ) : (
+            <EditorScrollView>
+              <PageHeader page={page} readOnly={!canEdit} />
+              <View
+                className={cn('px-6 md:px-10 w-full mx-auto pt-4', !page.fullWidth && 'max-w-3xl')}
+              >
+                <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
+                <PageEditor
+                  pageId={page.id}
+                  focusedBlockId={blockId}
+                  readOnly={contentReadOnly}
+                  onOpenBlockComments={handleOpenPanel}
+                />
+              </View>
+            </EditorScrollView>
+          )}
 
           <CommentPanel
             canComment={hasRole(role, 'commenter')}

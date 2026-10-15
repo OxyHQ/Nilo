@@ -58,6 +58,17 @@ describe('block content normalization', () => {
     expect(() => normalizeContent('columns', { columnCount: 5 })).toThrow();
   });
 
+  it('places a canvas note, within a sensible width', () => {
+    expect(normalizeContent('canvas_note', {})).toMatchObject({ x: 0, y: 0, width: 360 });
+    expect(normalizeContent('canvas_note', { x: -50, y: 12.5, width: 500 })).toMatchObject({
+      x: -50,
+      y: 12.5,
+      width: 500,
+    });
+    expect(() => normalizeContent('canvas_note', { width: 20 })).toThrow();
+    expect(() => normalizeContent('canvas_note', { x: Number.POSITIVE_INFINITY })).toThrow();
+  });
+
   it('defaults table rows/cols', () => {
     const out = normalizeContent('table', {});
     expect(out.rows).toBe(2);
