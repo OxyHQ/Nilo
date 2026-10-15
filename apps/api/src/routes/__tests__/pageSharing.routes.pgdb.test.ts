@@ -52,6 +52,7 @@ const { default: shareLinksRouter } = await import('../share-links.js');
 const { default: backlinksRouter } = await import('../backlinks.js');
 const { default: followsRouter } = await import('../page-follows.js');
 const { default: commentsRouter } = await import('../comments.js');
+const { default: databasesRouter } = await import('../databases.js');
 
 let db: TestDatabase;
 let server: Server;
@@ -136,6 +137,7 @@ beforeAll(async () => {
   app.use(pagePermissionsRouter);
   app.use(blocksRouter);
   app.use('/pages', pagesRouter);
+  app.use('/databases', databasesRouter);
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -527,5 +529,65 @@ describe('following pages', () => {
     expect((await edit()).status).toBe(200);
     await new Promise((r) => setTimeout(r, 100));
     expect(edited()).toEqual([OWNER, VIEWER].sort());
+  });
+
+  it('lets whoever may edit a page keep their own views of a database linked there', async () => {
+    const created = await api(OWNER, 'POST', '/databases', { workspaceId, name: 'Roadmap' });
+    const databaseId = (created.json.database as { id: string }).id;
+    // A workspace viewer may only read the database, but may edit this page.
+    const host = await page(OWNER, { title: 'My board' });
+    await share(OWNER, host, VIEWER, 'editor');
+    const blockId = uuidv7();
+    const placed = await api(VIEWER, 'POST', `/pages/${host}/blocks/transactions`, {
+      ops: [
+        {
+          kind: 'insert',
+          id: blockId,
+          parentBlockId: null,
+          afterId: null,
+          type: 'inline_database',
+          content: { databaseId },
+        },
+      ],
+    });
+    expect(placed.status).toBe(200);
+
+    const linked = await api(VIEWER, 'POST', `/databases/${databaseId}/views`, {
+      name: 'Mine',
+      type: 'table',
+      blockId,
+    });
+    expect(linked.status).toBe(201);
+    const viewId = (linked.json.view as { id: string }).id;
+    // The database's own views stay its editors'.
+    expect(
+      (await api(VIEWER, 'POST', `/databases/${databaseId}/views`, { name: 'No', type: 'table' }))
+        .status,
+    ).toBe(403);
+    const own = (await api(OWNER, 'GET', `/databases/${databaseId}/views`)).json.views as {
+      id: string;
+    }[];
+    expect(own.map((v) => v.id)).not.toContain(viewId);
+    const block = (await api(VIEWER, 'GET', `/databases/${databaseId}/views?blockId=${blockId}`))
+      .json.views as { id: string }[];
+    expect(block.map((v) => v.id)).toEqual([viewId]);
+    expect(
+      (
+        await api(VIEWER, 'PATCH', `/databases/${databaseId}/views/${viewId}`, {
+          sorts: [{ propertyId: 'name', direction: 'desc' }],
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (await api(VIEWER, 'GET', `/databases/${databaseId}/rows?viewId=${viewId}`)).status,
+    ).toBe(200);
+
+    // The block gone, its views go too.
+    await api(VIEWER, 'POST', `/pages/${host}/blocks/transactions`, {
+      ops: [{ kind: 'remove', id: blockId }],
+    });
+    expect((await api(OWNER, 'GET', `/databases/${databaseId}/rows?viewId=${viewId}`)).status).toBe(
+      404,
+    );
   });
 });

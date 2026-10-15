@@ -322,6 +322,8 @@ describe('columns', () => {
       new Set([
         'id',
         'database_id',
+        // A linked view's block (not in the Mongo document).
+        'block_id',
         'name',
         'type',
         'is_default',
@@ -410,12 +412,13 @@ describe('indexes and foreign keys', () => {
     );
 
     /**
-     * Exactly four: the workspace, the view's database, the inline
-     * database's host page (`databases_parent_page_idx` covers it) and the
-     * teamspace of a database in no page (`databases_teamspace_idx`). An
-     * equality, not a floor, so a new foreign key meets this assertion.
+     * Exactly five: the workspace, the view's database, the inline
+     * database's host page (`databases_parent_page_idx` covers it), the
+     * teamspace of a database in no page (`databases_teamspace_idx`) and a
+     * linked view's block (`database_views_block_idx`). An equality, not a
+     * floor, so a new foreign key meets this assertion.
      */
-    expect(foreignKeys).toHaveLength(4);
+    expect(foreignKeys).toHaveLength(5);
 
     const leadsWith = new Set(indexes.map((i) => `${i.tbl}.${i.first_col}`));
     // Floor: a query that returned nothing would make the loop below vacuous.

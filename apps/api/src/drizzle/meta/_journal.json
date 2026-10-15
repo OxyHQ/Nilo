@@ -176,6 +176,13 @@
       "when": 1792054538646,
       "tag": "0024_page_edited_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792055595178,
+      "tag": "0025_linked_views",
+      "breakpoints": true
     }
   ]
 }

@@ -12,7 +12,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
-import { pages } from './pages.js';
+import { blocks, pages } from './pages.js';
 import { workspaces } from './workspaces.js';
 import { teamspaces } from './teamspaces.js';
 
@@ -446,6 +446,12 @@ export const databaseViews = pgTable(
     databaseId: text()
       .notNull()
       .references(() => databases.id, { onDelete: 'cascade' }),
+    /**
+     * A linked view's block (an `inline_database` block showing this database
+     * in another page): null for the database's own views. A linked block's
+     * views are its own, edited by those who may edit its page, and go with it.
+     */
+    blockId: text().references(() => blocks.id, { onDelete: 'cascade' }),
     name: text().notNull().default(''),
     type: text().$type<DatabaseViewType>().notNull().default('table'),
     isDefault: boolean().notNull().default(false),
@@ -470,6 +476,7 @@ export const databaseViews = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
+    index('database_views_block_idx').on(t.blockId),
     /**
      * Every view listing is `where database_id = ? order by "order", created_at`
      * (`routes/databases.ts:607-609, 695-697, 1110-1112, 1276-1277`), and

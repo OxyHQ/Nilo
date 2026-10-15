@@ -88,6 +88,7 @@ import { rowFormulaContext } from '../lib/databases/row-values.js';
 import { linkTwoWay, syncRelations, unlinkTwoWay } from '../lib/databases/relations.js';
 import { resolveRollups } from '../lib/databases/rollups.js';
 import { placeOrRefuse } from '../lib/placement.js';
+import { findBlockById } from '../repositories/blocks.js';
 import { findMembership } from '../repositories/workspaces.js';
 import { announceChange } from '../collab/live-rooms.js';
 
@@ -246,6 +247,8 @@ const updateViewSchema = z
   });
 
 const createViewSchema = z.object({
+  /** A linked view: the `inline_database` block showing this database elsewhere. */
+  blockId: entityIdSchema.nullable().optional(),
   name: z.string().min(1).max(200),
   type: viewTypeSchema,
   isDefault: z.boolean().optional(),
@@ -333,6 +336,8 @@ function serializeView(view: DatabaseViewRecord) {
   return {
     id: view.id,
     databaseId: view.databaseId,
+    /** A linked view's block; null for the database's own views. */
+    blockId: view.blockId,
     name: view.name,
     type: view.type,
     isDefault: view.isDefault,
@@ -1096,19 +1101,47 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
 // Views
 // ---------------------------------------------------------------------------
 
+/**
+ * Who may read or change a set of views. The database's own: read with the
+ * database, changed by its editors. A linked block's (an `inline_database`
+ * block showing the database in another page): read and changed by those who
+ * may read or edit that page, as long as they may open the database — so a
+ * linked view of a database you only read is yours to filter, as in Notion.
+ */
+async function checkViewsAccess(
+  req: Request,
+  res: Response,
+  handle: ReturnType<typeof getDb>,
+  db: NonNullable<Awaited<ReturnType<typeof findDatabaseWorkspaceId>>>,
+  blockId: string | null,
+  write: boolean,
+): Promise<boolean> {
+  if (blockId === null)
+    return checkDatabaseAccess(req, res, handle, db, write ? 'editor' : 'viewer');
+  const block = await findBlockById(handle, blockId);
+  if (!block || block.type !== 'inline_database' || block.content.databaseId !== db.id) {
+    res.status(404).json({ error: 'Linked view not found' });
+    return false;
+  }
+  if (!(await checkPageAccess(req, res, handle, block.pageId, write ? 'editor' : 'viewer'))) {
+    return false;
+  }
+  return checkDatabaseAccess(req, res, handle, db, 'viewer');
+}
+
 router.get('/:id/views', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
+    const { blockId } = z.object({ blockId: entityIdSchema.optional() }).parse(req.query);
     const handle = getDb();
     const db = await findDatabaseWorkspaceId(handle, params.id);
     if (!db) {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkDatabaseAccess(req, res, handle, db, 'viewer');
-    if (!ok) return;
+    if (!(await checkViewsAccess(req, res, handle, db, blockId ?? null, false))) return;
 
-    const views = await listViewsByDatabase(handle, db.id);
+    const views = await listViewsByDatabase(handle, db.id, blockId ?? null);
     res.json({ views: views.map((v) => serializeView(v)) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1128,11 +1161,11 @@ router.post('/:id/views', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
-    if (!ok) return;
+    const blockId = body.blockId ?? null;
+    if (!(await checkViewsAccess(req, res, handle, db, blockId, true))) return;
 
     // `??`, not `||`: `order: 0` is a legitimate explicit order.
-    const nextOrder = body.order ?? (await nextViewOrder(handle, db.id));
+    const nextOrder = body.order ?? (await nextViewOrder(handle, db.id, blockId));
 
     // Convert nullable groupBy { propertyId } into the storage shape.
     const groupByValue: { propertyId: string } | null =
@@ -1144,6 +1177,7 @@ router.post('/:id/views', async (req: Request, res: Response) => {
 
     const view = await insertDatabaseView(handle, {
       databaseId: db.id,
+      blockId,
       name: body.name,
       type: body.type,
       isDefault: body.isDefault ?? false,
@@ -1177,21 +1211,19 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
-    if (!ok) return;
-
     const view = await findViewById(handle, params.viewId, db.id);
     if (!view) {
       res.status(404).json({ error: 'View not found' });
       return;
     }
+    if (!(await checkViewsAccess(req, res, handle, db, view.blockId, true))) return;
 
     // Promoting a view and demoting the previous default(s) commit
     // together — Mongo demoted first and saved the target afterwards, so a
     // failure between the two left the database with no default at all.
     const updated = await handle.transaction(async (tx) => {
       if (body.isDefault) {
-        await demoteOtherDefaultViews(tx, db.id, view.id);
+        await demoteOtherDefaultViews(tx, db.id, view.id, view.blockId);
       }
       return updateDatabaseView(tx, view.id, {
         name: body.name,
@@ -1236,18 +1268,16 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
-    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
-    if (!ok) return;
-
     const view = await findViewById(handle, params.viewId, db.id);
     if (!view) {
       res.status(404).json({ error: 'View not found' });
       return;
     }
+    if (!(await checkViewsAccess(req, res, handle, db, view.blockId, true))) return;
 
     // Don't allow deleting the last view — promote another to default
     // if we're removing the default.
-    const total = await countViews(handle, db.id);
+    const total = await countViews(handle, db.id, view.blockId);
     if (total <= 1) {
       res.status(400).json({ error: 'Cannot delete the last view' });
       return;
@@ -1258,7 +1288,7 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
     await handle.transaction(async (tx) => {
       await deleteDatabaseView(tx, view.id);
       if (!view.isDefault) return;
-      const fallback = await findFirstViewByOrder(tx, db.id);
+      const fallback = await findFirstViewByOrder(tx, db.id, view.blockId);
       if (fallback) {
         await updateDatabaseView(tx, fallback.id, { isDefault: true });
       }
