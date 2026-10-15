@@ -19,6 +19,7 @@ import { acquireSocket, releaseSocket } from '@/lib/realtime/socket';
 import type { Block } from '@/lib/types/pages';
 import { RemoteFollower } from './follower';
 import { clearSavedPage, PendingClock, readSavedPage, writeSavedPage } from './offline';
+import { offlinePages } from './offline-pages';
 import { NILO_SCHEMA } from './schema';
 import {
   type AppliedOperation,
@@ -44,7 +45,7 @@ export interface PageEditorState {
   error: Error | null;
 }
 
-interface BlocksResponse {
+export interface BlocksResponse {
   blocks: Block[];
   version: number;
   /** From `resume`: which of the keys sent the blocks already include. */
@@ -113,6 +114,22 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
       }, 400);
     };
 
+    // The page as the server last confirmed it, for opening it offline
+    // (offline-pages.ts): once everything sent is saved, not mid-change.
+    let copyTimer: ReturnType<typeof setTimeout> | undefined;
+    const keepCopy = () => {
+      clearTimeout(copyTimer);
+      copyTimer = setTimeout(() => {
+        const snapshot = session?.snapshot();
+        if (!snapshot || snapshot.pending.length > 0) return;
+        void offlinePages.save(pageId, {
+          version: snapshot.version,
+          base: snapshot.base,
+          orders: orders.toJSON(),
+        });
+      }, 1500);
+    };
+
     /** A store and session over `doc`, resuming `pending`; null for a read-only page. */
     const open = (doc: EditorDocument, version: number, pending: readonly PendingTransaction[]) => {
       session?.dispose();
@@ -160,6 +177,7 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
             onStatus: (next) => {
               setStatus(next);
               persist();
+              if (next === 'saved') keepCopy();
             },
             onRejected: setRejected,
             onDesync: () => void load(),
@@ -248,6 +266,13 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
         open(loaded.doc, res.data.version, pending);
         drain(res.data.version);
         setError(null);
+        // Opened: kept as a recent page, with the blocks just read.
+        void offlinePages.opened(pageId);
+        void offlinePages.save(pageId, {
+          version: res.data.version,
+          base: loaded.doc,
+          orders: orders.toJSON(),
+        });
       } catch (err: unknown) {
         if (disposed || run !== generation.current) return;
         // No connection: keep editing what this client has, and sync when it is back.
@@ -262,6 +287,24 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
           setError(null);
           return;
         }
+        // No connection and no work of its own: the copy kept on the device.
+        if (!local && isAxiosError(err) && !err.response) {
+          const copy = await offlinePages.read(pageId);
+          if (disposed || run !== generation.current) return;
+          if (copy) {
+            orders = OrderBook.from(copy.orders);
+            const pending = [...late];
+            settle();
+            open(copy.base, copy.version, pending);
+            drain(copy.version);
+            setStatus('offline');
+            setError(null);
+            return;
+          }
+        }
+        // Deleted, or no longer this member's to read: not kept offline either.
+        const status = isAxiosError(err) ? err.response?.status : undefined;
+        if (status === 403 || status === 404) void offlinePages.forget(pageId);
         buffered = null;
         settle();
         setError(err instanceof Error ? err : new Error(String(err)));
@@ -314,6 +357,7 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
       socket.off('connect', join);
       socket.off('disconnect', clearPresence);
       clearTimeout(refreshTimer);
+      clearTimeout(copyTimer);
       // Whatever is still unconfirmed is written now, not after the delay.
       clearTimeout(saveTimer);
       // Mid-reload, the work is what the reload was handing over.
