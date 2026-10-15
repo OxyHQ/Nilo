@@ -1,0 +1,7 @@
+{
+  "title": "Notificaciones",
+  "subtitle": "Gestiona tus preferencias de notificaciones",
+  "pushNotifications": "Notificaciones push",
+  "pushDescription": "Recibe alertas sobre la actividad del workspace",
+  "permissionDenied": "Las notificaciones están bloqueadas. Habilítalas en los ajustes del dispositivo para recibirlas."
+}

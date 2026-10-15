@@ -1,7 +1,6 @@
 import { I18n } from 'i18n-js';
 import { getLocales } from 'expo-localization';
-import en from './locales/en.json';
-import es from './locales/es.json';
+import { en, es } from './catalogs';
 
 // Create i18n instance with translations
 // Using BCP 47 locale codes (en-US, es-ES) with fallback to language codes (en, es)

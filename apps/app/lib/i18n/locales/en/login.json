@@ -1,0 +1,19 @@
+{
+  "title": "Sign in or sign up",
+  "subtitle": "to continue to Nilo",
+  "continueWithGoogle": "Continue with Google",
+  "continueWithMicrosoft": "Continue with Microsoft",
+  "continueWithApple": "Continue with Apple",
+  "continueWithTelegram": "Continue with Telegram",
+  "emailPlaceholder": "Email",
+  "passwordPlaceholder": "Password",
+  "forgotPassword": "Forgot password?",
+  "signInButton": "Sign in",
+  "signingIn": "Signing in...",
+  "footerText": "Don't have an account?",
+  "footerLink": "Sign up",
+  "termsPrefix": "By continuing, you agree to Nilo's ",
+  "termsOfService": "Terms of Service",
+  "termsAnd": " and ",
+  "privacyPolicy": "Privacy Policy"
+}
