@@ -19,6 +19,8 @@ import { applyBlockTransaction, type BlockOperation } from '../lib/block-transac
 import { log } from '../lib/logger.js';
 import { checkPageAccess } from '../lib/page-access.js';
 import { checkWorkspaceAccess } from '../lib/workspace-access.js';
+import { createDatabaseWithRows } from '../lib/databases/create.js';
+import { csvToDatabase } from '../lib/databases/csv.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { createPage, findPageById, nextSiblingOrder } from '../repositories/pages.js';
 
@@ -59,54 +61,112 @@ const normalizePath = (path: string) =>
     .filter((part) => part && part !== '.' && part !== '..')
     .join('/');
 
+interface PlannedDatabase {
+  key: string;
+  /** The page whose folder holds the CSV, when there is one. */
+  parentKey: string | null;
+  name: string;
+  csv: string;
+  /** Row titles → the Markdown Notion exported for each row's page. */
+  rowBodies: Map<string, string>;
+}
+
 /**
- * The pages an import creates, parents before children. Files that are not
- * Markdown are skipped (returned, so the caller can say so).
+ * Notion writes a row's properties as `Name: value` lines under its title;
+ * those are already columns, so only what follows them is the row's content.
  */
-export function planImport(files: readonly ImportFile[]): { pages: Planned[]; skipped: string[] } {
+function rowContent(markdown: string, columns: readonly string[]): string {
+  const { body } = markdownTitle(markdown);
+  const lines = body.replace(/^\s*\n/, '').split('\n');
+  let i = 0;
+  while (i < lines.length && columns.some((c) => (lines[i] as string).startsWith(`${c}: `))) i += 1;
+  return lines.slice(i).join('\n');
+}
+
+/**
+ * What an import creates, parents before children: a page per Markdown
+ * file (and per folder with no file of its own), a database per CSV (a
+ * Notion export's `…_all.csv` preferred, with its rows' Markdown from the
+ * same-named folder). Other files are skipped and returned.
+ */
+export function planImport(files: readonly ImportFile[]): {
+  pages: Planned[];
+  databases: PlannedDatabase[];
+  skipped: string[];
+} {
   const skipped: string[] = [];
   const markdown = new Map<string, string>();
+  const csv = new Map<string, { content: string; all: boolean }>();
   for (const file of files) {
     const path = normalizePath(file.path);
     if (/\.(md|markdown)$/i.test(path))
       markdown.set(path.replace(/\.(md|markdown)$/i, ''), file.content);
-    else if (!path.startsWith('__MACOSX/') && !path.endsWith('/')) skipped.push(path);
+    else if (/\.csv$/i.test(path)) {
+      const all = /_all\.csv$/i.test(path);
+      const key = path.replace(/(_all)?\.csv$/i, '');
+      if (!csv.has(key) || all) csv.set(key, { content: file.content, all });
+    } else if (!path.startsWith('__MACOSX/') && !path.endsWith('/')) skipped.push(path);
   }
+  const dirOf = (key: string) => key.split('/').slice(0, -1).join('/');
+  // Markdown inside a database's folder is its rows' content, not pages.
+  const rowFiles = new Map<string, Map<string, string>>();
+  for (const [key, content] of [...markdown]) {
+    const dir = dirOf(key);
+    if (!csv.has(dir)) continue;
+    markdown.delete(key);
+    const title = markdownTitle(content).title ?? withoutNotionId(key.split('/').pop() as string);
+    rowFiles.set(dir, (rowFiles.get(dir) ?? new Map()).set(title, content));
+  }
+
   const keys = new Set(markdown.keys());
   // Folders that hold files but have no page of their own become pages too.
-  for (const key of [...keys]) {
+  for (const key of [...markdown.keys(), ...csv.keys()]) {
     const parts = key.split('/');
     for (let i = 1; i < parts.length; i += 1) keys.add(parts.slice(0, i).join('/'));
   }
+  for (const key of csv.keys()) keys.delete(key);
   // A Notion export wraps everything in one folder with no page of its own: drop it.
-  const tops = new Set([...keys].map((k) => k.split('/')[0] as string));
+  const tops = new Set([...keys, ...csv.keys()].map((k) => k.split('/')[0] as string));
   const [onlyTop] = [...tops];
   const wrapper =
-    tops.size === 1 && onlyTop && !markdown.has(onlyTop) && keys.size > 1 ? onlyTop : null;
+    tops.size === 1 && onlyTop && !markdown.has(onlyTop) && keys.size + csv.size > 1
+      ? onlyTop
+      : null;
+  const local = (key: string) => (wrapper ? key.slice(wrapper.length + 1) : key);
 
   const pages: Planned[] = [];
   for (const key of [...keys].sort(
     (a, b) => a.split('/').length - b.split('/').length || a.localeCompare(b),
   )) {
     if (key === wrapper) continue;
-    const local = wrapper ? key.slice(wrapper.length + 1) : key;
-    const parts = local.split('/');
+    const parts = local(key).split('/');
     const parentLocal = parts.slice(0, -1).join('/');
     const content = markdown.get(key);
     const name = withoutNotionId(parts[parts.length - 1] as string) || 'Untitled';
     if (content === undefined) {
-      pages.push({ key: local, parentKey: parentLocal || null, title: name, blocks: [] });
+      pages.push({ key: local(key), parentKey: parentLocal || null, title: name, blocks: [] });
       continue;
     }
     const { title, body } = markdownTitle(content);
     pages.push({
-      key: local,
+      key: local(key),
       parentKey: parentLocal || null,
       title: title ?? name,
       blocks: markdownToBlocks(body),
     });
   }
-  return { pages, skipped };
+
+  const databases: PlannedDatabase[] = [...csv].map(([key, file]) => {
+    const parts = local(key).split('/');
+    return {
+      key: local(key),
+      parentKey: parts.slice(0, -1).join('/') || null,
+      name: withoutNotionId(parts[parts.length - 1] as string) || 'Untitled',
+      csv: file.content,
+      rowBodies: rowFiles.get(key) ?? new Map(),
+    };
+  });
+  return { pages, databases, skipped };
 }
 
 /** Insert operations for block trees: parents first, each after its previous sibling. */
@@ -149,13 +209,15 @@ async function runImport(
     return;
   }
   const userId = req.user?.id as string;
-  const { pages, skipped } = planImport(input.files);
-  if (pages.length === 0) {
-    res.status(400).json({ error: 'No Markdown files to import', skipped });
+  const { pages, databases, skipped } = planImport(input.files);
+  if (pages.length === 0 && databases.length === 0) {
+    res.status(400).json({ error: 'Nothing to import: no Markdown or CSV files', skipped });
     return;
   }
 
   const created = new Map<string, string>();
+  /** Each created page's last top-level block, so a database's block goes after it. */
+  const lastBlock = new Map<string, string | null>();
   const out: { id: string; title: string; parentId: string | null }[] = [];
   for (const planned of pages) {
     const parentId = planned.parentKey
@@ -171,9 +233,65 @@ async function runImport(
     created.set(planned.key, page.id);
     const ops = insertOperations(planned.blocks);
     if (ops.length > 0) await applyBlockTransaction(db, { pageId: page.id, ops, actorId: userId });
+    const tops = ops.filter((op) => op.kind === 'insert' && op.parentBlockId === null);
+    lastBlock.set(page.id, tops.length > 0 ? (tops[tops.length - 1] as { id: string }).id : null);
     out.push({ id: page.id, title: page.title, parentId });
   }
-  res.status(201).json({ pages: out, skipped });
+
+  const databasesOut: { id: string; name: string; parentPageId: string | null; rows: number }[] =
+    [];
+  for (const planned of databases) {
+    const host = planned.parentKey
+      ? (created.get(planned.parentKey) ?? input.parentId)
+      : input.parentId;
+    const parsed = csvToDatabase(planned.csv);
+    const made = await db.transaction((tx) =>
+      createDatabaseWithRows(tx, {
+        workspaceId: input.workspaceId,
+        name: planned.name,
+        ownerId: userId,
+        schema: parsed.schema,
+        isInline: host !== null,
+        parentPageId: host,
+        rows: parsed.rows,
+      }),
+    );
+    // An inline database shows where it was: at the end of its page.
+    if (host) {
+      const id = uuidv7();
+      await applyBlockTransaction(db, {
+        pageId: host,
+        ops: [
+          {
+            kind: 'insert',
+            id,
+            parentBlockId: null,
+            afterId: lastBlock.get(host) ?? null,
+            type: 'inline_database',
+            content: { databaseId: made.database.id },
+          },
+        ],
+        actorId: userId,
+      });
+      lastBlock.set(host, id);
+    }
+    // Each row's own content, from its exported page.
+    const columns = parsed.schema.properties.map((p) => p.name);
+    for (const [i, row] of parsed.rows.entries()) {
+      const body = planned.rowBodies.get(row.title);
+      const rowId = made.rowIds[i];
+      if (!body || !rowId) continue;
+      const ops = insertOperations(markdownToBlocks(rowContent(body, columns)));
+      if (ops.length > 0) await applyBlockTransaction(db, { pageId: rowId, ops, actorId: userId });
+    }
+    databasesOut.push({
+      id: made.database.id,
+      name: made.database.name,
+      parentPageId: host,
+      rows: made.rowIds.length,
+    });
+  }
+  res.status(201).json({ pages: out, databases: databasesOut, skipped });
 }
 
 /** POST /pages/import { workspaceId, parentId?, files: [{ path, content }] } */
@@ -220,9 +338,9 @@ router.post(
       let total = 0;
       let count = 0;
       const entries = unzipSync(new Uint8Array(req.body), {
-        // Only Markdown is read; bounded before anything is inflated.
+        // Only Markdown and CSV are read; bounded before anything is inflated.
         filter: (file) => {
-          if (!/\.(md|markdown)$/i.test(file.name)) return false;
+          if (!/\.(md|markdown|csv)$/i.test(file.name)) return false;
           count += 1;
           total += file.originalSize;
           return count <= MAX_FILES && total <= MAX_TOTAL_BYTES;

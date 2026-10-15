@@ -9,7 +9,7 @@ import express from 'express';
 import { strToU8, zipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { closeDb } from '../../db/client.js';
-import { blocks } from '../../db/schema/pages.js';
+import { blocks, pages } from '../../db/schema/pages.js';
 import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
 import {
   closeTestDb,
@@ -34,6 +34,7 @@ vi.mock('../../lib/logger.js', () => ({
 
 const { default: importRouter } = await import('../import.js');
 const { default: pagesRouter } = await import('../pages.js');
+const { default: databasesRouter } = await import('../databases.js');
 
 let db: TestDatabase;
 let server: Server;
@@ -80,6 +81,7 @@ beforeAll(async () => {
   app.use(express.json({ limit: '10mb' }));
   app.use(importRouter);
   app.use('/pages', pagesRouter);
+  app.use('/databases', databasesRouter);
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -185,6 +187,55 @@ describe('POST /pages/import/zip', () => {
     expect((res.json.pages as { title: string }[]).map((p) => p.title)).toEqual(['Docs', 'API']);
   });
 
+  it('imports a Notion database: an inline database in its page, rows with their content', async () => {
+    const id = '0123456789abcdef0123456789abcdef';
+    const zip = zipSync({
+      [`Export/Team ${id}.md`]: strToU8('# Team\n\nOur tasks:'),
+      [`Export/Team ${id}/Tasks fedcba9876543210fedcba9876543210.csv`]: strToU8(
+        'Name,Status\nWrite,Todo\nShip,Done\n',
+      ),
+      [`Export/Team ${id}/Tasks fedcba9876543210fedcba9876543210/Write 11111111111111111111111111111111.md`]:
+        strToU8('# Write\n\nStatus: Todo\n\nDraft the **spec**'),
+    });
+    const res = await call(
+      EDITOR,
+      'POST',
+      `/pages/import/zip?workspaceId=${workspaceId}`,
+      zip,
+      'application/zip',
+    );
+    expect(res.status).toBe(201);
+    const team = (res.json.pages as { id: string; title: string }[]).find(
+      (p) => p.title === 'Team',
+    );
+    const [database] = res.json.databases as {
+      id: string;
+      name: string;
+      parentPageId: string;
+      rows: number;
+    }[];
+    expect(database).toMatchObject({ name: 'Tasks', parentPageId: team?.id, rows: 2 });
+
+    const hostBlocks = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.pageId, team?.id as string));
+    expect(hostBlocks.map((b) => b.type)).toEqual(
+      expect.arrayContaining(['paragraph', 'inline_database']),
+    );
+    const [row] = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.databaseId, database?.id as string))
+      .orderBy(pages.order)
+      .limit(1);
+    const rowBlocks = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.pageId, row?.id as string));
+    expect(rowBlocks.map((b) => b.content.text)).toEqual(['Draft the spec']);
+  });
+
   it('refuses what is not a ZIP', async () => {
     const res = await call(
       EDITOR,
@@ -194,5 +245,28 @@ describe('POST /pages/import/zip', () => {
       'application/zip',
     );
     expect(res.status).toBe(400);
+  });
+});
+
+describe('database CSV', () => {
+  it('imports a CSV as a database and exports it back', async () => {
+    const created = await call(
+      EDITOR,
+      'POST',
+      '/databases/import/csv',
+      JSON.stringify({
+        workspaceId,
+        name: 'Budget',
+        csv: 'Item,Cost,Paid\nRent,1200,Yes\nFood,300,No\n',
+      }),
+    );
+    expect(created.status).toBe(201);
+    const database = created.json.database as { id: string };
+    expect(created.json.rows).toBe(2);
+    const exported = await call(EDITOR, 'GET', `/databases/${database.id}/export?format=csv`);
+    expect(exported.status).toBe(200);
+    expect(exported.text.replace(/^\uFEFF/, '')).toBe(
+      'Item,Cost,Paid\r\nRent,1200,Yes\r\nFood,300,No\r\n',
+    );
   });
 });

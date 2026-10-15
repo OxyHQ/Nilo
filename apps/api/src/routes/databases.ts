@@ -57,6 +57,12 @@ import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
 import { checkWorkspaceAccess } from '../lib/workspace-access.js';
 import {
+  createDatabaseWithRows,
+  createDefaultViewForDatabase,
+  normalizeIncomingProperties,
+} from '../lib/databases/create.js';
+import { csvToDatabase, databaseToCsv } from '../lib/databases/csv.js';
+import {
   checkDatabaseAccess,
   checkPageAccess,
   databaseHosts,
@@ -348,40 +354,6 @@ function serializeRow(row: PageRow, opts?: RowSerializationOpts) {
 }
 
 /**
- * Normalize incoming property values for create/update. Returns a
- * key->stored-shape map. Throws ZodError for invalid shapes.
- *
- * Drops keys that:
- *   - reference an unknown property id
- *   - reference a server-derived property (rollup, formula, created_time,
- *     created_by, last_edited_time, last_edited_by)
- */
-function normalizeIncomingProperties(
-  schema: DatabaseSchema,
-  incoming: Record<string, unknown>,
-): { stored: Record<string, unknown>; nameFromProperty: string | null } {
-  const byId = new Map<string, DatabaseProperty>();
-  for (const prop of schema.properties) byId.set(prop.id, prop);
-
-  const stored: Record<string, unknown> = {};
-  let nameFromProperty: string | null = null;
-
-  for (const [key, raw] of Object.entries(incoming)) {
-    const prop = byId.get(key);
-    if (!prop) continue;
-    const parsed = parsePropertyValue(prop.type, raw);
-    if (!parsed) continue;
-    const serialized = serializeParsedValue(parsed);
-    stored[key] = serialized;
-    if (key === NAME_PROPERTY_ID && parsed.kind === 'text') {
-      nameFromProperty = parsed.text;
-    }
-  }
-
-  return { stored, nameFromProperty };
-}
-
-/**
  * Resolve server-derived properties (rollup, formula, created_time, etc.)
  * for a row at read time. Returns a plain key->value map keyed by
  * propertyId. The caller merges this into the row payload sent to the
@@ -438,33 +410,6 @@ async function resolveDerivedProperties(
     }
   }
   return out;
-}
-
-/**
- * The view every new database is created with.
- *
- * Takes a handle rather than reaching for the pool: `POST /databases` creates
- * the database and this view in ONE transaction. Under Mongo they were two
- * independent writes, so a failure between them left a database with no views
- * at all — a state the rest of the route refuses to produce (`DELETE
- * /:id/views/:viewId` will not remove the last one). This makes the storage
- * uphold an invariant the code already tried to hold; it does not invent one.
- */
-async function createDefaultViewForDatabase(handle: PgHandle, databaseId: string): Promise<void> {
-  await insertDatabaseView(handle, {
-    databaseId,
-    name: 'All',
-    type: 'table',
-    isDefault: true,
-    filters: EMPTY_FILTER_GROUP,
-    sorts: [],
-    groupBy: null,
-    hiddenProperties: [],
-    frozenProperties: [],
-    pageSize: DEFAULT_VIEW_PAGE_SIZE,
-    config: {},
-    order: 0,
-  });
 }
 
 /**
@@ -1170,6 +1115,102 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to delete view');
     res.status(500).json({ error: 'Failed to delete view' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// CSV
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /databases/:id/export?format=csv — the rows as CSV, one column per
+ * stored property (formulas and rollups are computed, not stored, and left
+ * out), values as people read them.
+ */
+router.get('/:id/export', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ id: entityIdSchema }).parse(req.params);
+    z.object({ format: z.literal('csv').default('csv') }).parse(req.query);
+    const handle = getDb();
+    const db = await findDatabaseById(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+    if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
+    const rows = await listDatabaseRows(handle, db.id, { archived: false });
+    const name = db.name?.trim() || 'Untitled';
+    const ascii =
+      name
+        .normalize('NFKD')
+        .replace(/[^a-zA-Z0-9-_]+/gu, '-')
+        .replace(/^-+|-+$/g, '') || 'database';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${ascii}.csv"; filename*=UTF-8''${encodeURIComponent(`${name}.csv`)}`,
+    );
+    // A BOM so spreadsheet apps read the file as UTF-8.
+    res.send(`\uFEFF${databaseToCsv(db.propertiesSchema, rows)}`);
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to export database');
+    res.status(500).json({ error: 'Failed to export database' });
+  }
+});
+
+const importCsvSchema = z.object({
+  workspaceId: entityIdSchema,
+  /** An inline database in this page; a full-page database when absent. */
+  parentPageId: entityIdSchema.nullable().optional(),
+  name: z.string().trim().max(500).optional(),
+  csv: z
+    .string()
+    .min(1)
+    .max(10 * 1024 * 1024),
+});
+
+/**
+ * POST /databases/import/csv { workspaceId, parentPageId?, name?, csv }
+ *
+ * A database from a CSV with a header row: the first column is the Name,
+ * the others get the type every value fits (checkbox, number, date, URL,
+ * email, select, multi-select, else text).
+ */
+router.post('/import/csv', async (req: Request, res: Response) => {
+  try {
+    const body = importCsvSchema.parse(req.body);
+    const userId = req.user?.id as string;
+    const handle = getDb();
+    if (body.parentPageId) {
+      const parent = await findPageById(handle, body.parentPageId);
+      if (!parent || parent.workspaceId !== body.workspaceId) {
+        res.status(400).json({ error: 'The destination is not a page of this workspace' });
+        return;
+      }
+      if (!(await checkPageAccess(req, res, handle, parent.id, 'editor'))) return;
+    } else if (!(await checkWorkspaceAccess(req, res, body.workspaceId, 'editor'))) {
+      return;
+    }
+    const parsed = csvToDatabase(body.csv);
+    const created = await handle.transaction((tx) =>
+      createDatabaseWithRows(tx, {
+        workspaceId: body.workspaceId,
+        name: body.name || 'Imported',
+        ownerId: userId,
+        schema: parsed.schema,
+        isInline: Boolean(body.parentPageId),
+        parentPageId: body.parentPageId ?? null,
+        rows: parsed.rows,
+      }),
+    );
+    res
+      .status(201)
+      .json({ database: serializeDatabase(created.database), rows: created.rowIds.length });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to import CSV');
+    res.status(500).json({ error: 'Failed to import CSV' });
   }
 });
 
