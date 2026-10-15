@@ -23,6 +23,8 @@ import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
 import { placeOrRefuse } from '../lib/placement.js';
+import { syncRelations } from '../lib/databases/relations.js';
+import type { DatabaseRecord } from '../repositories/databases.js';
 import {
   accessibleAncestry,
   checkPageAccess,
@@ -495,6 +497,8 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return;
     }
 
+    let rowDatabase: DatabaseRecord | null = null;
+
     // Built by assignment rather than by spreading `body`, because `title` is
     // written twice below and the second write has to win.
     const patch = {
@@ -529,6 +533,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
         res.status(404).json({ error: 'Database not found for row' });
         return;
       }
+      rowDatabase = database;
       const schemaById = new Map(database.propertiesSchema.properties.map((p) => [p.id, p]));
       // Only the keys that survive validation are sent. `mergeProperties` is a
       // shallow top-level merge into the stored object, so the keys the request
@@ -562,7 +567,14 @@ router.patch('/:id', async (req: Request, res: Response) => {
       };
     }
 
-    const updated = await updatePage(db, page.id, patch);
+    // A row's two-way relations change their other side in the same write.
+    const updated = await db.transaction(async (tx) => {
+      const written = await updatePage(tx, page.id, patch);
+      if (written && rowDatabase && patch.mergeProperties && !written.template) {
+        await syncRelations(tx, rowDatabase, page.id, page.properties, written.properties);
+      }
+      return written;
+    });
     if (!updated) {
       res.status(404).json({ error: 'Page not found' });
       return;

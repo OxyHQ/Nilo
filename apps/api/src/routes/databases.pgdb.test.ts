@@ -109,6 +109,7 @@ vi.mock('../middleware/workspace.js', () => ({
 
 // `vi.mock` is hoisted above this, so the router resolves the mocks.
 import databasesRouter from './databases.js';
+import pagesRouter from './pages.js';
 
 let db: TestDatabase;
 let originalDatabaseUrl: string | undefined;
@@ -223,6 +224,8 @@ beforeAll(async () => {
   const app = express();
   app.use(express.json());
   app.use('/api/databases', databasesRouter);
+  // Row edits go through the page route.
+  app.use('/api/pages', pagesRouter);
   server = createServer(app);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as AddressInfo;
@@ -467,6 +470,92 @@ describe('DELETE /api/databases/:id', () => {
 // ---------------------------------------------------------------------------
 // Properties
 // ---------------------------------------------------------------------------
+
+describe('two-way relations', () => {
+  const schemaOf = async (id: string) =>
+    asArray(
+      asRecord((await api('GET', `/api/databases/${id}`)).body.database).schema
+        ? asRecord(asRecord((await api('GET', `/api/databases/${id}`)).body.database).schema)
+            .properties
+        : [],
+    ) as { id: string; name: string; type: string; config?: Record<string, unknown> }[];
+  const rowProps = async (rowId: string) =>
+    asRecord(asRecord((await db.select().from(pages).where(eq(pages.id, rowId)))[0]).properties);
+  const row = async (databaseId: string, title: string, properties: Record<string, unknown> = {}) =>
+    idOf((await api('POST', `/api/databases/${databaseId}/rows`, { title, properties })).body.row);
+
+  it('keep the other side in step as rows are linked and unlinked, and go together', async () => {
+    const projects = await createDatabase({ name: 'Projects' });
+    const tasks = await createDatabase({ name: 'Tasks' });
+    const added = await api('POST', `/api/databases/${tasks}/properties`, {
+      id: 'project',
+      name: 'Project',
+      type: 'relation',
+      config: { targetDatabaseId: projects, twoWay: true },
+    });
+    expect(added.status).toBe(201);
+    const other = (await schemaOf(projects)).find((p) => p.type === 'relation');
+    expect(other).toMatchObject({
+      name: 'Tasks',
+      config: { targetDatabaseId: tasks, twoWay: true, syncedPropertyId: 'project' },
+    });
+
+    const launch = await row(projects, 'Launch');
+    const write = await row(tasks, 'Write', { project: { pageIds: [launch] } });
+    const test = await row(tasks, 'Test', { project: { pageIds: [launch] } });
+    expect(asRecord((await rowProps(launch))[other?.id as string]).pageIds).toEqual([write, test]);
+
+    // Unlinked from one side, gone from the other.
+    expect(
+      (await api('PATCH', `/api/pages/${write}`, { properties: { project: { pageIds: [] } } }))
+        .status,
+    ).toBe(200);
+    expect(asRecord((await rowProps(launch))[other?.id as string]).pageIds).toEqual([test]);
+
+    // Deleting the relation takes its other side with it.
+    expect((await api('DELETE', `/api/databases/${tasks}/properties/project`)).status).toBe(200);
+    expect((await schemaOf(projects)).some((p) => p.type === 'relation')).toBe(false);
+    expect((await rowProps(launch))[other?.id as string]).toBeUndefined();
+  });
+
+  it('relate a database to itself: sub-items and their parent', async () => {
+    const tasks = await createDatabase({ name: 'Plan' });
+    await api('POST', `/api/databases/${tasks}/properties`, {
+      id: 'subs',
+      name: 'Sub-items',
+      type: 'relation',
+      config: { targetDatabaseId: tasks, twoWay: true },
+    });
+    const parentProp = (await schemaOf(tasks)).find((p) => p.name === 'Sub-items (parent)');
+    expect(parentProp).toBeDefined();
+    const child = await row(tasks, 'Child');
+    const parent = await row(tasks, 'Parent', { subs: { pageIds: [child] } });
+    expect(asRecord((await rowProps(child))[parentProp?.id as string]).pageIds).toEqual([parent]);
+  });
+
+  it('fill the other side from existing links when made two-way later', async () => {
+    const teams = await createDatabase({ name: 'Teams' });
+    const people = await createDatabase({ name: 'People' });
+    await api('POST', `/api/databases/${people}/properties`, {
+      id: 'team',
+      name: 'Team',
+      type: 'relation',
+      config: { targetDatabaseId: teams },
+    });
+    const core = await row(teams, 'Core');
+    const ana = await row(people, 'Ana', { team: { pageIds: [core] } });
+    const made = await api('PATCH', `/api/databases/${people}/properties/team`, {
+      config: { targetDatabaseId: teams, twoWay: true },
+    });
+    expect(made.status).toBe(200);
+    const other = (await schemaOf(teams)).find((p) => p.type === 'relation');
+    expect(asRecord((await rowProps(core))[other?.id as string]).pageIds).toEqual([ana]);
+    // Renaming it keeps the link.
+    await api('PATCH', `/api/databases/${people}/properties/team`, { name: 'Squad' });
+    const renamed = (await schemaOf(people)).find((p) => p.id === 'team');
+    expect(renamed?.config).toMatchObject({ twoWay: true, syncedPropertyId: other?.id });
+  });
+});
 
 describe('properties', () => {
   it('adds a property, assigning option ids', async () => {

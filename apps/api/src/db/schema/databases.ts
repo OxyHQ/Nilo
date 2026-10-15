@@ -119,7 +119,10 @@ export interface PropertyConfig {
   includeTime?: boolean;
   // relation
   targetDatabaseId?: string;
+  /** Two-way: the other side is a relation property of the target database. */
   twoWay?: boolean;
+  /** For a two-way relation: that property's id (`lib/databases/relations.ts`). */
+  syncedPropertyId?: string;
   // rollup
   relationPropertyId?: string;
   targetPropertyId?: string;

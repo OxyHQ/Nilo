@@ -85,6 +85,7 @@ import {
 import { compareBySorts } from '../lib/databases/sorts.js';
 import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js';
 import { rowFormulaContext } from '../lib/databases/row-values.js';
+import { linkTwoWay, syncRelations, unlinkTwoWay } from '../lib/databases/relations.js';
 import { resolveRollups } from '../lib/databases/rollups.js';
 import { placeOrRefuse } from '../lib/placement.js';
 import { findMembership } from '../repositories/workspaces.js';
@@ -609,8 +610,17 @@ router.post('/', async (req: Request, res: Response) => {
         teamspaceId: place.teamspaceId,
         archived: false,
       });
+      // Two-way relations in the schema get their other side.
+      let linked = db;
+      const twoWayIds = db.propertiesSchema.properties
+        .filter((p) => p.type === 'relation' && p.config?.twoWay)
+        .map((p) => p.id);
+      for (const id of twoWayIds) {
+        const property = linked.propertiesSchema.properties.find((p) => p.id === id);
+        if (property) linked = (await linkTwoWay(tx, linked, property)) ?? linked;
+      }
       await createDefaultViewForDatabase(tx, db.id);
-      return { db, views: await listViewsByDatabase(tx, db.id) };
+      return { db: linked, views: await listViewsByDatabase(tx, db.id) };
     });
 
     announceChange({ workspaceId });
@@ -750,8 +760,13 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
     }
 
     db.propertiesSchema.properties.push(property);
+    normalizeSchema(db.propertiesSchema);
+    const twoWay = property.type === 'relation' && property.config?.twoWay === true;
     const updated = await handle.transaction(async (tx) => {
-      const written = await writeDatabaseSchema(tx, db.id, normalizeSchema(db.propertiesSchema));
+      // A two-way relation gets its other side in the target database.
+      const written = twoWay
+        ? await linkTwoWay(tx, db, property)
+        : await writeDatabaseSchema(tx, db.id, db.propertiesSchema);
       // A new ID property numbers the rows already there, oldest first.
       if (written && property.type === 'unique_id')
         await numberExistingRows(tx, db.id, property.id);
@@ -799,8 +814,20 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
       type: body.type ?? current.type,
       config: body.config !== undefined ? (body.config as PropertyConfig) : current.config,
     };
+    // Two-way links are the server's: kept, made or undone as the property changes.
+    const wasTwoWay = current.type === 'relation' && current.config?.twoWay === true;
+    const isTwoWay = next.type === 'relation' && next.config?.twoWay === true;
+    const sameTarget = current.config?.targetDatabaseId === next.config?.targetDatabaseId;
+    if (wasTwoWay && isTwoWay && sameTarget) {
+      next.config = { ...next.config, syncedPropertyId: current.config?.syncedPropertyId };
+    }
     db.propertiesSchema.properties[idx] = next;
-    const updated = await writeDatabaseSchema(handle, db.id, normalizeSchema(db.propertiesSchema));
+    normalizeSchema(db.propertiesSchema);
+    const updated = await handle.transaction(async (tx) => {
+      if (wasTwoWay && !(isTwoWay && sameTarget)) await unlinkTwoWay(tx, db, current);
+      if (isTwoWay && !(wasTwoWay && sameTarget)) return linkTwoWay(tx, db, next);
+      return writeDatabaseSchema(tx, db.id, db.propertiesSchema);
+    });
     if (!updated) {
       res.status(404).json({ error: 'Database not found' });
       return;
@@ -834,15 +861,20 @@ router.delete('/:id/properties/:propertyId', async (req: Request, res: Response)
       res.status(400).json({ error: 'Cannot delete the Name property' });
       return;
     }
-    const propertiesSchema: DatabaseSchema = {
-      properties: db.propertiesSchema.properties.filter((p) => p.id !== params.propertyId),
-    };
+    const removed = db.propertiesSchema.properties.find((p) => p.id === params.propertyId);
 
     // Dropping the property from the schema and from every row is one
     // logical write: the schema is what tells a reader the key exists, so a
     // failure between the two leaves values no reader can reach and no
     // writer will overwrite.
     const updated = await handle.transaction(async (tx) => {
+      // A two-way relation's other side goes with it.
+      if (removed?.type === 'relation' && removed.config?.twoWay) {
+        await unlinkTwoWay(tx, db, removed);
+      }
+      const propertiesSchema: DatabaseSchema = {
+        properties: db.propertiesSchema.properties.filter((p) => p.id !== params.propertyId),
+      };
       const row = await writeDatabaseSchema(tx, db.id, propertiesSchema);
       if (!row) return null;
       await removePropertyFromDatabaseRows(tx, db.id, params.propertyId);
@@ -1044,6 +1076,8 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
         template: body.template === true,
       });
       if (template) await duplicateBlocksToPage(tx, template.id, created.id);
+      // Its two-way relations show it on their other side (not a template's).
+      if (!created.template) await syncRelations(tx, db, created.id, {}, created.properties);
       return created;
     });
 
