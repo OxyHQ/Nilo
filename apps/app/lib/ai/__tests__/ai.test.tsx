@@ -1,0 +1,156 @@
+import { OxyInferenceError } from '@oxy.so/core/inference';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { answerText, instructionFor, MAX_INPUT_CHARS, messagesFor } from '../actions';
+import { AI_POWER_LEVEL, failureOf, useAiAction, useAiAvailable } from '../use-ai';
+
+const mockClient = { listRoutingProfiles: jest.fn(), respond: jest.fn() };
+let mockAuthenticated = true;
+jest.mock('@oxy.so/core/inference', () => {
+  const actual = jest.requireActual('@oxy.so/core/inference');
+  return { ...actual, createInferenceClient: () => mockClient };
+});
+jest.mock('@oxy.so/services', () => ({
+  useOxy: () => ({ isAuthenticated: mockAuthenticated, oxyServices: {} }),
+}));
+
+const refusal = (code: string, retryable: boolean) =>
+  new OxyInferenceError({
+    code: code as never,
+    message: code,
+    retryable,
+    requestId: 'req-1',
+    status: 400,
+  });
+
+describe('the actions', () => {
+  it("asks for the result alone, as Markdown, in the text's own language", () => {
+    for (const action of [
+      'improve',
+      'fixSpelling',
+      'shorter',
+      'longer',
+      'simplify',
+      'summarize',
+    ] as const) {
+      const instruction = instructionFor(action);
+      expect(instruction).toContain('Answer with the result only, as Markdown');
+      expect(instruction).toContain('same language as the text');
+    }
+    expect(instructionFor('translate', 'ja')).toContain('into Japanese');
+    expect(instructionFor('translate', 'ja')).not.toContain('same language');
+  });
+
+  it("sends the instruction as the system message and the text as the member's", () => {
+    const [system, user] = messagesFor('summarize', 'Long text');
+    expect(system).toMatchObject({ role: 'system', content: [{ type: 'text' }] });
+    expect(user).toEqual({ role: 'user', content: [{ type: 'text', text: 'Long text' }] });
+  });
+
+  it('reads only what the assistant wrote', () => {
+    expect(
+      answerText([
+        { role: 'user', content: [{ type: 'text', text: 'ignored' }] },
+        { role: 'assistant', content: [{ type: 'text', text: ' Hello ' }, { type: 'image' }] },
+        { role: 'assistant', content: [{ type: 'text', text: 'world' }] },
+      ]),
+    ).toBe('Hello world');
+  });
+});
+
+describe('edge refusals, as the member can act on them', () => {
+  it('reads the code and whether it may be retried, never the status', () => {
+    expect(failureOf(refusal('rate_limited', true))).toEqual({
+      kind: 'tryLater',
+      requestId: 'req-1',
+    });
+    expect(failureOf(refusal('insufficient_balance', false))).toEqual({
+      kind: 'account',
+      requestId: 'req-1',
+    });
+    expect(failureOf(refusal('context_length_exceeded', false))).toEqual({ kind: 'tooLong' });
+    expect(failureOf(refusal('policy_violation', false))).toEqual({
+      kind: 'unavailable',
+      requestId: 'req-1',
+    });
+    expect(failureOf(new Error('network'))).toEqual({ kind: 'unavailable' });
+  });
+});
+
+let available: boolean;
+let action: ReturnType<typeof useAiAction>;
+function Probe() {
+  available = useAiAvailable();
+  action = useAiAction();
+  return null;
+}
+let renderer: ReactTestRenderer | undefined;
+async function mount() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  await act(async () => {
+    renderer = create(
+      <QueryClientProvider client={client}>
+        <Probe />
+      </QueryClientProvider>,
+    );
+  });
+  // Let the power levels arrive.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockAuthenticated = true;
+  mockClient.listRoutingProfiles.mockResolvedValue([{ slug: 'instant' }, { slug: 'high' }]);
+});
+afterEach(() => {
+  act(() => renderer?.unmount());
+  renderer = undefined;
+});
+
+describe('running an action', () => {
+  it('is offered once the edge lists the power level for this member', async () => {
+    await mount();
+    expect(available).toBe(true);
+  });
+
+  it('is not offered when the edge lists nothing, or before signing in', async () => {
+    mockClient.listRoutingProfiles.mockResolvedValue([]);
+    await mount();
+    expect(available).toBe(false);
+    act(() => renderer?.unmount());
+    jest.clearAllMocks();
+    mockAuthenticated = false;
+    await mount();
+    expect(available).toBe(false);
+    expect(mockClient.listRoutingProfiles).not.toHaveBeenCalled();
+  });
+
+  it('names the power level and nothing else, and answers with the text', async () => {
+    mockClient.respond.mockResolvedValue({
+      requestId: 'r',
+      output: [{ role: 'assistant', content: [{ type: 'text', text: '- one\n- two' }] }],
+    });
+    await mount();
+    let result = '';
+    await act(async () => {
+      result = await action.mutateAsync({ action: 'summarize', text: '  page text  ' });
+    });
+    expect(result).toBe('- one\n- two');
+    const [request] = mockClient.respond.mock.calls[0];
+    expect(Object.keys(request).sort()).toEqual(['input', 'routingProfile']);
+    expect(request.routingProfile).toBe(AI_POWER_LEVEL);
+    expect(request.input[1].content[0].text).toBe('page text');
+  });
+
+  it('sends nothing for empty or overlong text', async () => {
+    await mount();
+    for (const text of ['   ', 'x'.repeat(MAX_INPUT_CHARS + 1)]) {
+      await act(async () => {
+        await action.mutateAsync({ action: 'improve', text }).catch(() => undefined);
+      });
+    }
+    expect(mockClient.respond).not.toHaveBeenCalled();
+  });
+});

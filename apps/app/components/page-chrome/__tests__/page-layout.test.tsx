@@ -1,4 +1,5 @@
 jest.mock('@/components/page-chrome/canvas-switch', () => ({ CanvasSwitch: () => null }));
+jest.mock('@/components/page-chrome/ai-page-action', () => ({ AiPageAction: () => null }));
 jest.mock('@/lib/realtime/use-live-updates', () => ({
   useWorkspaceLive: jest.fn(),
   useDatabaseLive: jest.fn(),

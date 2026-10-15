@@ -3,6 +3,7 @@
  * A namespace is registered here once; its keys live in `locales/<lang>/<ns>.json`
  * and `__tests__/catalogs.test.ts` keeps both languages and the code in step.
  */
+import enAi from './locales/en/ai.json';
 import enAlia from './locales/en/alia.json';
 import enCommandPalette from './locales/en/commandPalette.json';
 import enComments from './locales/en/comments.json';
@@ -23,6 +24,7 @@ import enSidebar from './locales/en/sidebar.json';
 import enTrash from './locales/en/trash.json';
 import enWelcome from './locales/en/welcome.json';
 import enWorkspace from './locales/en/workspace.json';
+import esAi from './locales/es/ai.json';
 import esAlia from './locales/es/alia.json';
 import esCommandPalette from './locales/es/commandPalette.json';
 import esComments from './locales/es/comments.json';
@@ -45,6 +47,7 @@ import esWelcome from './locales/es/welcome.json';
 import esWorkspace from './locales/es/workspace.json';
 
 export const en = {
+  ai: enAi,
   alia: enAlia,
   commandPalette: enCommandPalette,
   comments: enComments,
@@ -68,6 +71,7 @@ export const en = {
 };
 
 export const es = {
+  ai: esAi,
   alia: esAlia,
   commandPalette: esCommandPalette,
   comments: esComments,

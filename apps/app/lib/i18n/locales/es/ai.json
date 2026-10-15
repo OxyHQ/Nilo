@@ -1,0 +1,42 @@
+{
+  "ask": "Preguntar a la IA",
+  "summarizePage": "Resumir con IA",
+  "titleBlock": "IA en este bloque",
+  "titlePage": "IA en esta página",
+  "working": "Escribiendo…",
+  "result": "Resultado",
+  "check": "La IA puede equivocarse. Léelo antes de usarlo.",
+  "discard": "Descartar",
+  "again": "Reintentar",
+  "replace": "Reemplazar",
+  "insertBelow": "Insertar debajo",
+  "insertTop": "Insertar al principio",
+  "chooseLanguage": "Traducir a",
+  "requestId": "Solicitud %{id}",
+  "actions": {
+    "improve": "Mejorar la redacción",
+    "fixSpelling": "Corregir ortografía y gramática",
+    "shorter": "Acortar",
+    "longer": "Alargar",
+    "simplify": "Simplificar el lenguaje",
+    "summarize": "Resumir",
+    "translate": "Traducir…"
+  },
+  "languages": {
+    "en": "Inglés",
+    "es": "Español",
+    "fr": "Francés",
+    "de": "Alemán",
+    "pt": "Portugués",
+    "it": "Italiano",
+    "ja": "Japonés",
+    "zh": "Chino (simplificado)"
+  },
+  "failure": {
+    "empty": "Aquí no hay texto con el que trabajar.",
+    "tooLong": "Es demasiado largo para que la IA lo procese de una vez. Prueba con una parte más corta.",
+    "tryLater": "La IA está ocupada. Vuelve a intentarlo en un momento.",
+    "account": "A tu cuenta no le queda uso de IA. Revisa tu plan o tus límites de gasto en Oxy.",
+    "unavailable": "La IA no pudo hacerlo. Si vuelve a pasar, informa de la solicitud de abajo."
+  }
+}
