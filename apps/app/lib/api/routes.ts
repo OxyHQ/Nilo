@@ -15,9 +15,8 @@ export const API_ROUTES = {
     emptyTrash: (id: string) => `/workspaces/${id}/trash/empty`,
   },
   blocks: {
-    update: (id: string) => `/blocks/${id}`,
-    delete: (id: string) => `/blocks/${id}`,
-    reorder: (pageId: string) => `/pages/${pageId}/blocks/reorder`,
+    // Blocks are written only through `/pages/:id/blocks/transactions` (lib/editor).
+    transactions: (pageId: string) => `/pages/${pageId}/blocks/transactions`,
     comments: (id: string) => `/blocks/${id}/comments`,
   },
   comments: {

@@ -77,30 +77,6 @@ export async function findBlocksByIds(db: PgHandle, ids: readonly string[]): Pro
     .where(inArray(blocks.id, [...ids]));
 }
 
-/**
- * The order a new sibling takes within `(pageId, parentBlockId)` —
- * `routes/blocks.ts:478-482`. See `pagesRepository.nextSiblingOrder` for why
- * `max()` is safe to read as a `number` here while `count(*)` is not.
- */
-export async function nextBlockOrder(
-  db: PgHandle,
-  scope: { pageId: string; parentBlockId: string | null },
-): Promise<number> {
-  const [row] = await db
-    .select({ maxOrder: sql<number | null>`max(${blocks.order})` })
-    .from(blocks)
-    .where(
-      and(
-        eq(blocks.pageId, scope.pageId),
-        scope.parentBlockId === null
-          ? isNull(blocks.parentBlockId)
-          : eq(blocks.parentBlockId, scope.parentBlockId),
-      ),
-    );
-  const maxOrder = row?.maxOrder;
-  return maxOrder === null || maxOrder === undefined ? 0 : maxOrder + 1;
-}
-
 export interface CreateBlockInput {
   /** A client-minted UUIDv7; the database mints one when absent. */
   id?: string;
@@ -203,79 +179,6 @@ export async function deleteBlockTree(db: PgHandle, rootId: string): Promise<num
     throw new Error(`deleteBlockTree read a non-numeric count: ${typeof deleted}`);
   }
   return deleted;
-}
-
-export interface ReorderResult {
-  /** Rows on the page whose id was submitted. Postgres `rowCount` semantics. */
-  matched: number;
-  /**
-   * Rows whose `order` actually changed.
-   *
-   * This is NARROWER than the number the Mongo route reported, and the
-   * difference is deliberate. Mongoose stamps `updatedAt` onto every operation
-   * of a `bulkWrite`, so `Block.bulkWrite` (`routes/blocks.ts:661`) rewrote
-   * every matched document and its `modifiedCount` equalled `matchedCount`
-   * whether or not any block moved. Reporting that number here would mean
-   * rewriting rows that did not move purely to keep a count company, and
-   * bumping their `updatedAt` — signal a collab layer reads. Nothing consumes
-   * either field: the single caller discards the response body
-   * (`apps/app/lib/hooks/use-blocks.ts:164`).
-   */
-  modified: number;
-}
-
-/**
- * `POST /api/pages/:pageId/blocks/reorder` — `routes/blocks.ts:654-667`.
- *
- * The route assigns each block its index in the submitted array. It validates
- * every input up front and says why: "Without MongoDB transactions (which
- * require a replica set and aren't assumed available), the inputs are fully
- * validated up-front to minimize the chance of a partial-write outcome"
- * (`routes/blocks.ts:613-617`). Postgres has the transaction, so the count and
- * the write happen inside one — the partial-write outcome the route could only
- * make unlikely is now impossible.
- *
- * Both counts are read with an explicit `::int`. `count(*)` is `bigint`, which
- * postgres.js decodes as a STRING while drizzle types it `number`; without the
- * cast, `matched === blockIds.length` compares a string to a number and is
- * false for every non-empty input.
- */
-export async function reorderBlocks(
-  db: PgHandle,
-  pageId: string,
-  blockIds: readonly string[],
-): Promise<ReorderResult> {
-  if (blockIds.length === 0) return { matched: 0, modified: 0 };
-
-  const targets = sql.join(
-    blockIds.map((id, index) => sql`(${id}::text, ${index}::double precision)`),
-    sql`, `,
-  );
-  // `updatedAt` is maintained by the application, and `$onUpdate` only fires
-  // through the query builder — a hand-written UPDATE has to stamp it. Bound as
-  // an ISO string with an explicit cast rather than as a `Date`: postgres.js
-  // fails to serialise a bare `Date` into a statement built this way.
-  const now = new Date().toISOString();
-
-  return db.transaction(async (tx) => {
-    const [matchedRow] = await tx
-      .select({ total: sql<number>`count(*)::int` })
-      .from(blocks)
-      .where(and(eq(blocks.pageId, pageId), inArray(blocks.id, [...blockIds])));
-
-    const moved = await tx.execute(sql`
-      update ${blocks}
-      set ${sql.identifier(sqlColumnName(blocks.order))} = target.ord,
-          ${sql.identifier(sqlColumnName(blocks.updatedAt))} = ${now}::timestamptz
-      from (values ${targets}) as target(id, ord)
-      where ${qualified(blocks.id)} = target.id
-        and ${qualified(blocks.pageId)} = ${pageId}
-        and ${qualified(blocks.order)} is distinct from target.ord
-      returning ${qualified(blocks.id)}
-    `);
-
-    return { matched: matchedRow?.total ?? 0, modified: moved.length };
-  });
 }
 
 /**

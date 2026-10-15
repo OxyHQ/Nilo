@@ -8,6 +8,7 @@ import {
 import { isAxiosError } from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import apiClient from '@/lib/api/client';
+import { API_ROUTES } from '@/lib/api/routes';
 import { uuidv7 } from '@/lib/ids';
 import { acquireSocket, releaseSocket } from '@/lib/realtime/socket';
 import type { Block } from '@/lib/types/pages';
@@ -73,7 +74,7 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
     const load = async () => {
       const run = ++generation.current;
       try {
-        const res = await apiClient.get<BlocksResponse>(`/pages/${pageId}/blocks`);
+        const res = await apiClient.get<BlocksResponse>(API_ROUTES.pages.blocks(pageId));
         if (disposed || run !== generation.current) return;
         const loaded = blocksToDocument(res.data.blocks, res.data.version);
         orders = loaded.orders;
@@ -92,7 +93,7 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
                 const ops = transactionToWire(tx, before);
                 try {
                   const result = await apiClient.post<{ version: number; ops: AppliedOperation[] }>(
-                    `/pages/${pageId}/blocks/transactions`,
+                    API_ROUTES.blocks.transactions(pageId),
                     { ops, socketId: socket.id },
                   );
                   // The orders the server chose for this change.

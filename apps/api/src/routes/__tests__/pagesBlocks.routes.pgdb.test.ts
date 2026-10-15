@@ -144,15 +144,48 @@ async function createPage(input: Record<string, unknown> = {}): Promise<Record<s
   return res.json.page as Record<string, unknown>;
 }
 
+/**
+ * One block through the transactions endpoint (the only way blocks are
+ * written), last among its siblings unless `afterId` says otherwise.
+ */
 async function createBlock(
   pageId: string,
-  input: Record<string, unknown>,
+  input: {
+    type: string;
+    content?: Record<string, unknown>;
+    parentBlockId?: unknown;
+    afterId?: unknown;
+  },
 ): Promise<Record<string, unknown>> {
-  const res = await api('POST', `/pages/${pageId}/blocks`, input, {
-    'x-workspace-id': workspaceId,
-  });
-  expect(res.status).toBe(201);
-  return res.json.block as Record<string, unknown>;
+  const ws = { 'x-workspace-id': workspaceId };
+  const listed = await api('GET', `/pages/${pageId}/blocks`, undefined, ws);
+  const siblings = (listed.json.blocks as { id: string; parentBlockId: string | null }[]).filter(
+    (b) => b.parentBlockId === (input.parentBlockId ?? null),
+  );
+  const id = uuidv7();
+  const res = await api(
+    'POST',
+    `/pages/${pageId}/blocks/transactions`,
+    {
+      ops: [
+        {
+          kind: 'insert',
+          id,
+          parentBlockId: input.parentBlockId ?? null,
+          afterId: input.afterId === undefined ? (siblings.at(-1)?.id ?? null) : input.afterId,
+          type: input.type,
+          content: input.content ?? {},
+        },
+      ],
+    },
+    ws,
+  );
+  expect(res.status).toBe(200);
+  const after = await api('GET', `/pages/${pageId}/blocks`, undefined, ws);
+  return (after.json.blocks as Record<string, unknown>[]).find((b) => b.id === id) as Record<
+    string,
+    unknown
+  >;
 }
 
 beforeAll(async () => {
@@ -575,18 +608,15 @@ describe('GET /pages/:id/export', () => {
     const heading = await createBlock(page.id as string, {
       type: 'heading_1',
       content: { text: 'Heading' },
-      order: 0,
     });
     await createBlock(page.id as string, {
       type: 'bulleted_list_item',
       content: { text: 'nested' },
       parentBlockId: heading.id,
-      order: 1,
     });
     await createBlock(page.id as string, {
       type: 'todo',
       content: { text: 'done', checked: true },
-      order: 2,
     });
 
     const res = await api('GET', `/pages/${page.id}/export?format=md`);
@@ -599,23 +629,23 @@ describe('GET /pages/:id/export', () => {
 });
 
 describe('blocks', () => {
+  const tx = (pageId: unknown, ops: unknown[]) =>
+    api('POST', `/pages/${pageId}/blocks/transactions`, { ops }, { 'x-workspace-id': workspaceId });
+
   it('lists top-level blocks before nested ones', async () => {
     const page = await createPage();
     const parent = await createBlock(page.id as string, {
       type: 'toggle',
       content: { text: 'parent' },
-      order: 0,
     });
     await createBlock(page.id as string, {
       type: 'paragraph',
       content: { text: 'nested' },
       parentBlockId: parent.id,
-      order: 0,
     });
     const sibling = await createBlock(page.id as string, {
       type: 'paragraph',
       content: { text: 'sibling' },
-      order: 1,
     });
 
     const res = await api('GET', `/pages/${page.id}/blocks`, undefined, {
@@ -628,83 +658,54 @@ describe('blocks', () => {
     expect(listed.map((b) => b.id).slice(0, 2)).toEqual([parent.id, sibling.id]);
   });
 
-  it('defaults order to max+1 within its own parent', async () => {
-    const page = await createPage();
-    const a = await createBlock(page.id as string, { type: 'paragraph', content: {} });
-    const b = await createBlock(page.id as string, { type: 'paragraph', content: {} });
-    const nested = await createBlock(page.id as string, {
-      type: 'paragraph',
-      content: {},
-      parentBlockId: a.id,
-    });
-    expect(a.order).toBe(0);
-    expect(b.order).toBe(1);
-    // Scoped to `(pageId, parentBlockId)`, so a first child restarts at 0.
-    expect(nested.order).toBe(0);
-  });
-
-  it('400s a parent block on another page', async () => {
-    const page = await createPage();
-    const other = await createPage();
-    const foreign = await createBlock(other.id as string, {
-      type: 'paragraph',
-      content: {},
-    });
-    const res = await api(
-      'POST',
-      `/pages/${page.id}/blocks`,
-      { type: 'paragraph', content: {}, parentBlockId: foreign.id },
-      { 'x-workspace-id': workspaceId },
-    );
-    expect(res.status).toBe(400);
-  });
-
   it('re-normalizes content against the new type when only the type changes', async () => {
     const page = await createPage();
     const block = await createBlock(page.id as string, {
       type: 'paragraph',
       content: { text: 'carry me' },
     });
-    const res = await api('PATCH', `/blocks/${block.id}`, { type: 'todo' });
+    const res = await tx(page.id, [{ kind: 'update', id: block.id, type: 'todo' }]);
     expect(res.status).toBe(200);
-    const updated = res.json.block as { type: string; content: Record<string, unknown> };
-    expect(updated.type).toBe('todo');
-    expect(updated.content.text).toBe('carry me');
+    const [row] = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.id, block.id as string));
+    expect(row?.type).toBe('todo');
+    expect(row?.content.text).toBe('carry me');
     // `todo`'s own default, filled in because the type changed under it.
-    expect(updated.content.checked).toBe(false);
+    expect(row?.content.checked).toBe(false);
   });
 
-  it('un-nests a block on an explicit null parent', async () => {
+  it('un-nests a block moved to the top level', async () => {
     const page = await createPage();
-    const parent = await createBlock(page.id as string, { type: 'toggle', content: {} });
+    const parent = await createBlock(page.id as string, { type: 'toggle' });
     const child = await createBlock(page.id as string, {
       type: 'paragraph',
-      content: {},
       parentBlockId: parent.id,
     });
-    const res = await api('PATCH', `/blocks/${child.id}`, { parentBlockId: null });
-    expect((res.json.block as { parentBlockId: string | null }).parentBlockId).toBeNull();
+    const res = await tx(page.id, [
+      { kind: 'move', id: child.id, parentBlockId: null, afterId: parent.id },
+    ]);
+    expect(res.status).toBe(200);
+    const [row] = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.id, child.id as string));
+    expect(row?.parentBlockId).toBeNull();
   });
 
-  it('deletes a block subtree and counts it', async () => {
+  it('removes a block with its subtree and nothing else', async () => {
     const page = await createPage();
-    const root = await createBlock(page.id as string, { type: 'toggle', content: {} });
+    const root = await createBlock(page.id as string, { type: 'toggle' });
     const child = await createBlock(page.id as string, {
       type: 'paragraph',
-      content: {},
       parentBlockId: root.id,
     });
-    await createBlock(page.id as string, {
-      type: 'paragraph',
-      content: {},
-      parentBlockId: child.id,
-    });
-    const keep = await createBlock(page.id as string, { type: 'paragraph', content: {} });
+    await createBlock(page.id as string, { type: 'paragraph', parentBlockId: child.id });
+    const keep = await createBlock(page.id as string, { type: 'paragraph' });
 
-    const res = await api('DELETE', `/blocks/${root.id}`);
+    const res = await tx(page.id, [{ kind: 'remove', id: root.id }]);
     expect(res.status).toBe(200);
-    expect(res.json.deleted).toBe(3);
-
     const left = await db
       .select()
       .from(blocks)
@@ -712,73 +713,30 @@ describe('blocks', () => {
     expect(left.map((b) => b.id)).toEqual([keep.id]);
   });
 
-  describe('reorder', () => {
-    it('assigns each block its index, and counts only what moved', async () => {
-      const page = await createPage();
-      const a = await createBlock(page.id as string, { type: 'paragraph', content: {}, order: 0 });
-      const b = await createBlock(page.id as string, { type: 'paragraph', content: {}, order: 1 });
-      const c = await createBlock(page.id as string, { type: 'paragraph', content: {}, order: 2 });
-
-      const res = await api(
-        'POST',
-        `/pages/${page.id}/blocks/reorder`,
-        { blockIds: [c.id, b.id, a.id] },
-        { 'x-workspace-id': workspaceId },
-      );
-      expect(res.status).toBe(200);
-      expect(res.json.matched).toBe(3);
-      // `b` is already at index 1 and does not move — Mongo reported 3 here
-      // because it rewrote every matched document to stamp `updatedAt`.
-      expect(res.json.modified).toBe(2);
-
-      const after = await db
-        .select()
-        .from(blocks)
-        .where(eq(blocks.pageId, page.id as string));
-      const orderById = new Map(after.map((r) => [r.id, r.order]));
-      expect(orderById.get(c.id as string)).toBe(0);
-      expect(orderById.get(b.id as string)).toBe(1);
-      expect(orderById.get(a.id as string)).toBe(2);
+  it('rejects nesting a block under its own descendant', async () => {
+    const page = await createPage();
+    const parent = await createBlock(page.id as string, { type: 'toggle' });
+    const child = await createBlock(page.id as string, {
+      type: 'paragraph',
+      parentBlockId: parent.id,
     });
+    const res = await tx(page.id, [
+      { kind: 'move', id: parent.id, parentBlockId: child.id, afterId: null },
+    ]);
+    expect(res.status).toBe(400);
+  });
 
-    it('400s duplicate ids rather than resolving them arbitrarily', async () => {
-      const page = await createPage();
-      const a = await createBlock(page.id as string, { type: 'paragraph', content: {} });
-      const res = await api(
-        'POST',
-        `/pages/${page.id}/blocks/reorder`,
-        { blockIds: [a.id, a.id] },
-        { 'x-workspace-id': workspaceId },
-      );
-      expect(res.status).toBe(400);
-    });
-
-    it('404s an id that names no block', async () => {
-      const page = await createPage();
-      const res = await api(
-        'POST',
-        `/pages/${page.id}/blocks/reorder`,
-        { blockIds: [uuidv7()] },
-        { 'x-workspace-id': workspaceId },
-      );
-      expect(res.status).toBe(404);
-    });
-
-    it('400s a block that belongs to another page', async () => {
-      const page = await createPage();
-      const other = await createPage();
-      const foreign = await createBlock(other.id as string, {
-        type: 'paragraph',
-        content: {},
-      });
-      const res = await api(
-        'POST',
-        `/pages/${page.id}/blocks/reorder`,
-        { blockIds: [foreign.id] },
-        { 'x-workspace-id': workspaceId },
-      );
-      expect(res.status).toBe(400);
-    });
+  it('has no other way to write blocks', async () => {
+    const page = await createPage();
+    const block = await createBlock(page.id as string, { type: 'paragraph' });
+    const ws = { 'x-workspace-id': workspaceId };
+    const legacy = await Promise.all([
+      api('POST', `/pages/${page.id}/blocks`, { type: 'paragraph', content: {} }, ws),
+      api('PATCH', `/blocks/${block.id}`, { content: { text: 'changed' } }, ws),
+      api('DELETE', `/blocks/${block.id}`, undefined, ws),
+      api('POST', `/pages/${page.id}/blocks/reorder`, { blockIds: [block.id] }, ws),
+    ]);
+    for (const res of legacy) expect(res.status).toBe(404);
   });
 });
 
@@ -801,9 +759,12 @@ describe('role enforcement', () => {
         api('PATCH', `/pages/${page.id}`, { title: 'changed' }),
         api('DELETE', `/pages/${page.id}`),
         api('POST', `/pages/${page.id}/duplicate`),
-        api('POST', `/pages/${page.id}/blocks`, { type: 'paragraph', content: {} }, ws),
-        api('PATCH', `/blocks/${block.id}`, { content: { text: 'changed' } }, ws),
-        api('DELETE', `/blocks/${block.id}`, undefined, ws),
+        api(
+          'POST',
+          `/pages/${page.id}/blocks/transactions`,
+          { ops: [{ kind: 'update', id: block.id, content: { text: 'changed' } }] },
+          ws,
+        ),
       ]);
       for (const res of writes) {
         expect(res.status).toBe(403);
@@ -823,7 +784,7 @@ describe('role enforcement', () => {
       .select()
       .from(blocks)
       .where(eq(blocks.id, block.id as string));
-    expect(kept?.content).toEqual({ text: 'kept' });
+    expect(kept?.content).toMatchObject({ text: 'kept' });
   });
 
   it('lets an editor write', async () => {
@@ -1010,27 +971,6 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
     } finally {
       ctx.role = 'owner';
     }
-  });
-});
-
-describe('PATCH /blocks/:id nesting', () => {
-  it('rejects nesting a block under its own descendant', async () => {
-    const page = await createPage();
-    const parent = await createBlock(page.id as string, { type: 'toggle', content: {} });
-    const child = await createBlock(page.id as string, {
-      type: 'paragraph',
-      content: {},
-      parentBlockId: parent.id,
-    });
-    const res = await api(
-      'PATCH',
-      `/blocks/${parent.id}`,
-      { parentBlockId: child.id },
-      {
-        'x-workspace-id': workspaceId,
-      },
-    );
-    expect(res.status).toBe(400);
   });
 });
 

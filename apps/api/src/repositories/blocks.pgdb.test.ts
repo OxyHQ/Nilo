@@ -24,8 +24,6 @@ import {
   findBlocksByIds,
   listBlocksForPage,
   listBlocksForPageByOrder,
-  nextBlockOrder,
-  reorderBlocks,
   updateBlock,
 } from './blocks.js';
 
@@ -215,30 +213,6 @@ describe('blocks repository (real database)', () => {
     });
   });
 
-  describe('nextBlockOrder', () => {
-    it('is 0 with no sibling, max+1 otherwise, and scoped to the parent block', async () => {
-      const page = await seedPage();
-      expect(await nextBlockOrder(db, { pageId: page, parentBlockId: null })).toBe(0);
-
-      const parent = await createBlock(db, { pageId: page, type: 'toggle', content: {}, order: 3 });
-      expect(await nextBlockOrder(db, { pageId: page, parentBlockId: null })).toBe(4);
-      expect(await nextBlockOrder(db, { pageId: page, parentBlockId: parent.id })).toBe(0);
-
-      await createBlock(db, {
-        pageId: page,
-        parentBlockId: parent.id,
-        type: 'paragraph',
-        content: {},
-        order: 1.5,
-      });
-      const next = await nextBlockOrder(db, { pageId: page, parentBlockId: parent.id });
-      expect(typeof next).toBe('number');
-      expect(next).toBe(2.5);
-
-      await deletePageTree(db, page);
-    });
-  });
-
   describe('updateBlock', () => {
     it('writes only defined keys, replaces content whole, and un-nests on an explicit null', async () => {
       const page = await seedPage();
@@ -360,121 +334,6 @@ describe('blocks repository (real database)', () => {
       expect(await findBlocksByIds(db, [])).toEqual([]);
 
       await deletePageTree(db, page);
-    });
-  });
-
-  describe('reorderBlocks', () => {
-    it('assigns array position as order, and reports matched and modified as numbers', async () => {
-      const page = await seedPage();
-      const first = await createBlock(db, {
-        pageId: page,
-        type: 'paragraph',
-        content: {},
-        order: 0,
-      });
-      const second = await createBlock(db, {
-        pageId: page,
-        type: 'paragraph',
-        content: {},
-        order: 1,
-      });
-      const third = await createBlock(db, {
-        pageId: page,
-        type: 'paragraph',
-        content: {},
-        order: 2,
-      });
-
-      const reversed = await reorderBlocks(db, page, [third.id, second.id, first.id]);
-      // `count(*)` is bigint and postgres.js decodes it as a STRING while
-      // drizzle types it `number`. Without the `::int`, this comparison is
-      // `"3" === 3` and fails — which is the point of asserting the type.
-      expect(typeof reversed.matched).toBe('number');
-      expect(reversed).toEqual({ matched: 3, modified: 2 });
-      expect((await listBlocksForPageByOrder(db, page)).map((block) => block.id)).toEqual([
-        third.id,
-        second.id,
-        first.id,
-      ]);
-
-      await deletePageTree(db, page);
-    });
-
-    it('matches every submitted row but modifies none when nothing moves', async () => {
-      const page = await seedPage();
-      const first = await createBlock(db, {
-        pageId: page,
-        type: 'paragraph',
-        content: {},
-        order: 0,
-      });
-      const second = await createBlock(db, {
-        pageId: page,
-        type: 'paragraph',
-        content: {},
-        order: 1,
-      });
-
-      const before = await findBlockById(db, first.id);
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      const settled = await reorderBlocks(db, page, [first.id, second.id]);
-      expect(settled).toEqual({ matched: 2, modified: 0 });
-
-      // A row that did not move keeps its `updatedAt`. Mongoose stamped one on
-      // every operation of a bulkWrite; this port does not rewrite a row it did
-      // not change.
-      const after = await findBlockById(db, first.id);
-      expect(after?.updatedAt.getTime()).toBe(before?.updatedAt.getTime());
-
-      await deletePageTree(db, page);
-    });
-
-    it('stamps updatedAt on the rows that did move', async () => {
-      const page = await seedPage();
-      const first = await createBlock(db, {
-        pageId: page,
-        type: 'paragraph',
-        content: {},
-        order: 0,
-      });
-      const second = await createBlock(db, {
-        pageId: page,
-        type: 'paragraph',
-        content: {},
-        order: 1,
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      await reorderBlocks(db, page, [second.id, first.id]);
-      const moved = await findBlockById(db, first.id);
-      expect(moved?.updatedAt.getTime()).toBeGreaterThan(first.updatedAt.getTime());
-
-      await deletePageTree(db, page);
-    });
-
-    it('refuses to touch a block on another page, and answers 0/0 for no ids', async () => {
-      const page = await seedPage();
-      const otherPage = await seedPage();
-      const mine = await createBlock(db, {
-        pageId: page,
-        type: 'paragraph',
-        content: {},
-        order: 0,
-      });
-      const theirs = await createBlock(db, {
-        pageId: otherPage,
-        type: 'paragraph',
-        content: {},
-        order: 5,
-      });
-
-      const result = await reorderBlocks(db, page, [mine.id, theirs.id]);
-      expect(result.matched).toBe(1);
-      expect((await findBlockById(db, theirs.id))?.order).toBe(5);
-      expect(await reorderBlocks(db, page, [])).toEqual({ matched: 0, modified: 0 });
-
-      await deletePageTree(db, page);
-      await deletePageTree(db, otherPage);
     });
   });
 
