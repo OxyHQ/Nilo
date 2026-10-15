@@ -49,6 +49,7 @@ const { default: pagesRouter } = await import('../pages.js');
 const { default: blocksRouter } = await import('../blocks.js');
 const { default: pagePermissionsRouter } = await import('../page-permissions.js');
 const { default: shareLinksRouter } = await import('../share-links.js');
+const { default: backlinksRouter } = await import('../backlinks.js');
 
 let db: TestDatabase;
 let server: Server;
@@ -127,6 +128,7 @@ beforeAll(async () => {
   const app = express();
   app.use(express.json());
   app.use(shareLinksRouter);
+  app.use(backlinksRouter);
   app.use(pagePermissionsRouter);
   app.use(blocksRouter);
   app.use('/pages', pagesRouter);
@@ -357,5 +359,40 @@ describe('database rows', () => {
     // A grant on the host page reaches its rows.
     await share(OWNER, host, GUEST, 'viewer');
     expect((await api(GUEST, 'GET', `/pages/${row?.id}`)).status).toBe(200);
+  });
+});
+
+describe('backlinks', () => {
+  it('lists the pages that link to or mention a page, among those the caller can open', async () => {
+    const target = await page(OWNER, { title: 'Target' });
+    const viaBlock = await page(OWNER, { title: 'Via block' });
+    const viaMention = await page(OWNER, { title: 'Via mention' });
+    const viaLink = await page(OWNER, { title: 'Via link' });
+    const secret = await page(OWNER, { title: 'Secret' });
+    const insert = (pageId: string, type: string, content: Record<string, unknown>) =>
+      api(OWNER, 'POST', `/pages/${pageId}/blocks/transactions`, {
+        ops: [{ kind: 'insert', id: uuidv7(), parentBlockId: null, afterId: null, type, content }],
+      });
+    await insert(viaBlock, 'link_to_page', { pageId: target });
+    await insert(viaMention, 'paragraph', {
+      segments: [
+        { text: 'see ' },
+        { text: 'Target', mention: { indicator: '@', attributes: { kind: 'page', id: target } } },
+      ],
+    });
+    await insert(viaLink, 'paragraph', { segments: [{ text: 'here', link: `/p/${target}` }] });
+    await insert(secret, 'link_to_page', { pageId: target });
+    await api(OWNER, 'PATCH', `/pages/${secret}`, { restricted: true });
+
+    const titles = async (user: string) =>
+      (
+        (await api(user, 'GET', `/pages/${target}/backlinks`)).json.backlinks as {
+          page: { title: string };
+        }[]
+      )
+        .map((b) => b.page.title)
+        .sort();
+    expect(await titles(OWNER)).toEqual(['Secret', 'Via block', 'Via link', 'Via mention']);
+    expect(await titles(VIEWER)).toEqual(['Via block', 'Via link', 'Via mention']);
   });
 });
