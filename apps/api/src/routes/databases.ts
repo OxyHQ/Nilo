@@ -56,6 +56,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
 import { checkWorkspaceAccess } from '../lib/workspace-access.js';
+import { duplicateBlocksToPage } from '../repositories/blocks.js';
 import {
   createDatabaseWithRows,
   createDefaultViewForDatabase,
@@ -185,6 +186,8 @@ const updatePropertySchema = z
 const createRowSchema = z.object({
   title: z.string().max(2000).optional(),
   properties: z.record(z.unknown()).optional(),
+  /** A row template of this database to start from (its values, icon, cover and content). */
+  templateId: entityIdSchema.optional(),
 });
 
 const updateViewSchema = z
@@ -837,7 +840,7 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     // Load all rows for the database. Filter / sort in JS — Phase 4 keeps
     // the typed property layer simple and database sizes are bounded by
     // the soft cap (10k rows in Phase 5 is the design target).
-    const rowDocs = await listDatabaseRows(handle, db.id, { archived: false });
+    const rowDocs = await listDatabaseRows(handle, db.id, { archived: false, template: false });
 
     const propertyById = new Map<string, DatabaseProperty>();
     for (const p of db.propertiesSchema.properties) propertyById.set(p.id, p);
@@ -919,19 +922,31 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
           ? nameFromProperty
           : '';
 
-    const nextOrder = await nextDatabaseRowOrder(handle, db.id);
+    // A template gives its values (the request's win), icon, cover and content.
+    const template = body.templateId ? await findPageById(handle, body.templateId) : null;
+    if (body.templateId && (!template || template.databaseId !== db.id || !template.template)) {
+      res.status(400).json({ error: 'That is not a row template of this database' });
+      return;
+    }
 
-    const row = await createPage(handle, {
-      workspaceId: db.workspaceId,
-      parentId: null,
-      title,
-      icon: null,
-      cover: null,
-      ownerId: userId,
-      archived: false,
-      order: nextOrder,
-      databaseId: db.id,
-      properties: stored,
+    const row = await handle.transaction(async (tx) => {
+      const created = await createPage(tx, {
+        workspaceId: db.workspaceId,
+        parentId: null,
+        title:
+          template && typeof body.title !== 'string' && nameFromProperty === null
+            ? template.title
+            : title,
+        icon: template?.icon ?? null,
+        cover: template?.cover ?? null,
+        ownerId: userId,
+        archived: false,
+        order: await nextDatabaseRowOrder(tx, db.id),
+        databaseId: db.id,
+        properties: { ...(template?.properties ?? {}), ...stored },
+      });
+      if (template) await duplicateBlocksToPage(tx, template.id, created.id);
+      return created;
     });
 
     const derived = await resolveDerivedProperties(handle, row, db.propertiesSchema);
@@ -1121,6 +1136,29 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /databases/:id/templates — the database's row templates (rows marked
+ * `template`, kept out of the rows themselves).
+ */
+router.get('/:id/templates', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ id: entityIdSchema }).parse(req.params);
+    const handle = getDb();
+    const db = await findDatabaseById(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+    if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
+    const templates = await listDatabaseRows(handle, db.id, { archived: false, template: true });
+    res.json({ templates: templates.map((t) => serializeRow(t, { derived: {} })) });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to list row templates');
+    res.status(500).json({ error: 'Failed to list row templates' });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // CSV
 // ---------------------------------------------------------------------------
@@ -1141,7 +1179,7 @@ router.get('/:id/export', async (req: Request, res: Response) => {
       return;
     }
     if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
-    const rows = await listDatabaseRows(handle, db.id, { archived: false });
+    const rows = await listDatabaseRows(handle, db.id, { archived: false, template: false });
     const name = db.name?.trim() || 'Untitled';
     const ascii =
       name

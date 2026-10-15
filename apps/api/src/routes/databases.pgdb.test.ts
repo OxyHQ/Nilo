@@ -570,6 +570,48 @@ describe('rows', () => {
     expect(asRecord(props.b).error).toMatch(/refers to itself/);
   });
 
+  it('creates rows from a row template, which is not itself listed as a row', async () => {
+    const databaseId = await createDatabase();
+    const made = await api('POST', `/api/databases/${databaseId}/rows`, { title: 'Bug report' });
+    const templateId = idOf(made.body.row);
+    await db
+      .update(pages)
+      .set({ template: true, icon: 'emoji:🐞' })
+      .where(eq(pages.id, templateId));
+    await db
+      .insert(blocks)
+      .values({ pageId: templateId, type: 'paragraph', content: { text: 'Steps:' }, order: 1 });
+
+    const listed = await api('GET', `/api/databases/${databaseId}/rows`);
+    expect((listed.body.rows as unknown[]).length).toBe(0);
+    const templates = await api('GET', `/api/databases/${databaseId}/templates`);
+    expect((templates.body.templates as { id: string }[]).map((t) => t.id)).toEqual([templateId]);
+
+    const fromTemplate = await api('POST', `/api/databases/${databaseId}/rows`, { templateId });
+    expect(fromTemplate.status).toBe(201);
+    const row = asRecord(fromTemplate.body.row);
+    expect(row.title).toBe('Bug report');
+    const [stored] = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.id, idOf(fromTemplate.body.row)));
+    expect(stored?.icon).toBe('emoji:🐞');
+    expect(stored?.template).toBe(false);
+    const copied = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.pageId, stored?.id as string));
+    expect(copied.map((b) => b.content.text)).toEqual(['Steps:']);
+
+    expect(
+      (
+        await api('POST', `/api/databases/${databaseId}/rows`, {
+          templateId: idOf(fromTemplate.body.row),
+        })
+      ).status,
+    ).toBe(400);
+  });
+
   it('stores property values as jsonb and mirrors the name into the title', async () => {
     const databaseId = await createDatabase();
     const created = await api('POST', `/api/databases/${databaseId}/rows`, {

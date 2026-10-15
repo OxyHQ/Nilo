@@ -321,6 +321,8 @@ export async function removePropertyFromDatabaseRows(
 export interface ListDatabaseRowsFilter {
   /** `routes/databases.ts:955` reads live rows only; the hard delete at :765 reads all. */
   archived?: boolean;
+  /** `true` — the database's row templates only; `false` — rows proper; absent — both. */
+  template?: boolean;
 }
 
 /** `GET /api/databases/:id/rows` — `routes/databases.ts:955`. */
@@ -331,6 +333,7 @@ export async function listDatabaseRows(
 ): Promise<PageRow[]> {
   const predicates = [eq(pages.databaseId, databaseId)];
   if (filter.archived !== undefined) predicates.push(eq(pages.archived, filter.archived));
+  if (filter.template !== undefined) predicates.push(eq(pages.template, filter.template));
   return db
     .select()
     .from(pages)
