@@ -83,7 +83,7 @@ import {
 import { compareBySorts } from '../lib/databases/sorts.js';
 import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js';
 import { rowFormulaContext } from '../lib/databases/row-values.js';
-import { resolveRollup } from '../lib/databases/rollups.js';
+import { resolveRollups } from '../lib/databases/rollups.js';
 
 const router = Router();
 
@@ -371,22 +371,36 @@ function serializeRow(row: PageRow, opts?: RowSerializationOpts) {
 }
 
 /**
- * Resolve server-derived properties (rollup, formula, created_time, etc.)
- * for a row at read time. Returns a plain key->value map keyed by
- * propertyId. The caller merges this into the row payload sent to the
- * client.
+ * Server-derived properties (rollup, formula, created_time, etc.) of rows at
+ * read time: row id → property id → value, merged by the caller into the row
+ * payload. Rollups are read for all the rows at once (`resolveRollups`).
  */
+async function resolveDerivedForRows(
+  handle: PgHandle,
+  rows: readonly PageRow[],
+  schema: DatabaseSchema,
+): Promise<Map<string, Record<string, unknown>>> {
+  const rollups = await resolveRollups(handle, schema, rows);
+  return new Map(rows.map((row) => [row.id, deriveRow(row, schema, rollups.get(row.id))]));
+}
+
 async function resolveDerivedProperties(
   handle: PgHandle,
   row: PageRow,
   schema: DatabaseSchema,
 ): Promise<Record<string, unknown>> {
+  return (await resolveDerivedForRows(handle, [row], schema)).get(row.id) ?? {};
+}
+
+/** One row's derived properties, its rollups already resolved. */
+function deriveRow(
+  row: PageRow,
+  schema: DatabaseSchema,
+  rollupValues: ReadonlyMap<string, FormulaValue> | undefined,
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   // Rollups first: formulas can read them.
-  const rollups = new Map<string, FormulaValue>();
-  for (const prop of schema.properties) {
-    if (prop.type === 'rollup') rollups.set(prop.id, await resolveRollup(handle, prop, row));
-  }
+  const rollups = new Map<string, FormulaValue>(rollupValues ?? []);
   const formulaContext = rowFormulaContext(row, schema, rollups);
   for (const prop of schema.properties) {
     switch (prop.type) {
@@ -870,16 +884,14 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       ...(view?.filters ? filterPropertyIds(view.filters as Filter) : []),
       ...(view?.sorts ?? []).map((s) => s.propertyId),
     ];
-    const rowsWithComputed = readsComputed(viewReads, propertyById)
-      ? await Promise.all(
-          rowDocs.map(async (row) => ({
-            ...row,
-            properties: {
-              ...row.properties,
-              ...(await resolveDerivedProperties(handle, row, db.propertiesSchema)),
-            },
-          })),
-        )
+    const derivedAll = readsComputed(viewReads, propertyById)
+      ? await resolveDerivedForRows(handle, rowDocs, db.propertiesSchema)
+      : null;
+    const rowsWithComputed = derivedAll
+      ? rowDocs.map((row) => ({
+          ...row,
+          properties: { ...row.properties, ...derivedAll.get(row.id) },
+        }))
       : rowDocs;
 
     let filtered = rowsWithComputed;
@@ -906,11 +918,10 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     const nextCursor =
       cursorOffset + pageSize < filtered.length ? String(cursorOffset + pageSize) : null;
 
-    const serializedRows = await Promise.all(
-      slice.map(async (row) => {
-        const derived = await resolveDerivedProperties(handle, row, db.propertiesSchema);
-        return serializeRow(row, { derived });
-      }),
+    const derivedSlice =
+      derivedAll ?? (await resolveDerivedForRows(handle, slice, db.propertiesSchema));
+    const serializedRows = slice.map((row) =>
+      serializeRow(row, { derived: derivedSlice.get(row.id) ?? {} }),
     );
 
     res.json({
@@ -1216,14 +1227,9 @@ router.get('/:id/templates', async (req: Request, res: Response) => {
     }
     if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
     const templates = await listDatabaseRows(handle, db.id, { archived: false, template: true });
+    const derived = await resolveDerivedForRows(handle, templates, db.propertiesSchema);
     res.json({
-      templates: await Promise.all(
-        templates.map(async (t) =>
-          serializeRow(t, {
-            derived: await resolveDerivedProperties(handle, t, db.propertiesSchema),
-          }),
-        ),
-      ),
+      templates: templates.map((t) => serializeRow(t, { derived: derived.get(t.id) ?? {} })),
     });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;

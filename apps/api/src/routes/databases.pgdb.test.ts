@@ -944,6 +944,78 @@ describe('rows', () => {
     expect(asRecord(properties.total).number).toBe(12);
   });
 
+  it('rolls up every row of a view from its own relations, and sorts by it', async () => {
+    const targetId = await createDatabase({
+      name: 'Points',
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'pts', name: 'Points', type: 'number' },
+        ],
+      },
+    });
+    const targets: string[] = [];
+    for (let i = 1; i <= 10; i += 1) {
+      const made = await api('POST', `/api/databases/${targetId}/rows`, {
+        title: `t${i}`,
+        properties: { pts: { number: i } },
+      });
+      targets.push(idOf(made.body.row));
+    }
+    const sourceId = await createDatabase({
+      name: 'Many rollups',
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'rel', name: 'Related', type: 'relation', config: { targetDatabaseId: targetId } },
+          {
+            id: 'sum',
+            name: 'Sum',
+            type: 'rollup',
+            config: { relationPropertyId: 'rel', targetPropertyId: 'pts', function: 'sum' },
+          },
+          {
+            id: 'double',
+            name: 'Double',
+            type: 'formula',
+            config: { expression: 'prop("Sum") * 2' },
+          },
+        ],
+      },
+    });
+    // Row k relates to targets 1..k (sum k(k+1)/2); 60 rows.
+    const ROWS = 60;
+    for (let k = 1; k <= ROWS; k += 1) {
+      await api('POST', `/api/databases/${sourceId}/rows`, {
+        title: `r${k}`,
+        properties: { rel: { pageIds: targets.slice(0, Math.min(k, 10)) } },
+      });
+    }
+    const listed = await api('GET', `/api/databases/${sourceId}/rows?pageSize=500`);
+    const rows = asArray(listed.body.rows).map((r) => asRecord(r));
+    expect(rows).toHaveLength(ROWS);
+    for (const row of rows) {
+      const k = Math.min(Number(String(row.title).slice(1)), 10);
+      const props = asRecord(row.properties);
+      expect(asRecord(props.sum).number).toBe((k * (k + 1)) / 2);
+      expect(asRecord(props.double).number).toBe(k * (k + 1));
+    }
+
+    // Sorted by the formula over the rollup, largest first.
+    const views = await api('GET', `/api/databases/${sourceId}/views`);
+    const viewId = idOf(asArray(views.body.views)[0]);
+    const patched = await api('PATCH', `/api/databases/${sourceId}/views/${viewId}`, {
+      sorts: [{ propertyId: 'double', direction: 'desc' }],
+    });
+    expect(patched.status).toBe(200);
+    const sorted = await api(
+      'GET',
+      `/api/databases/${sourceId}/rows?viewId=${viewId}&pageSize=500`,
+    );
+    const first = asRecord(asArray(sorted.body.rows)[0]);
+    expect(asRecord(asRecord(first.properties).double).number).toBe(110);
+  });
+
   it('counts an empty relation as 0 and a missing one as blank', async () => {
     const databaseId = await createDatabase({
       name: 'Empty rollups',
