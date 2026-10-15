@@ -9,10 +9,11 @@ import {
   pgTable,
   primaryKey,
   text,
+  uniqueIndex,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
-import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
+import { createdAt, generatedId, inList, timestamptz, updatedAt } from '@oxy.so/db';
 import { databases } from './databases.js';
 import { workspaces } from './workspaces.js';
 
@@ -103,6 +104,18 @@ export const pages = pgTable(
      */
     template: boolean().notNull().default(false),
     /**
+     * Published to the web: readable by anyone at `/public/pages/<publishSlug>`,
+     * with its subpages (restricted ones excepted). Null when not published.
+     */
+    publishedAt: timestamptz(),
+    /**
+     * The page's public address. Kept when the page is unpublished, so
+     * publishing it again restores the same link.
+     */
+    publishSlug: text(),
+    /** Whether search engines may index the published page. */
+    publishIndexing: boolean().notNull().default(false),
+    /**
      * Sibling ordering. `double precision`, not an integer: `PATCH
      * /api/pages/:id` accepts `z.number().finite()`, so a client may write a
      * fractional order to insert between two neighbours without renumbering.
@@ -171,6 +184,8 @@ export const pages = pgTable(
      * matched no index there either and simply scanned.
      */
     index('pages_parent_idx').on(t.parentId),
+    // The public address resolves to exactly one page.
+    uniqueIndex('pages_publish_slug_key').on(t.publishSlug),
     /**
      * Ported from `PageSchema` field `favorited: { index: true }`, deliberately
      * reshaped. A standalone btree on a boolean is not a usable access path,

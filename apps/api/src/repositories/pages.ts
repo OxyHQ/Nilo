@@ -227,6 +227,9 @@ export interface UpdatePageInput {
   favorited?: boolean;
   restricted?: boolean;
   template?: boolean;
+  publishedAt?: Date | null;
+  publishSlug?: string;
+  publishIndexing?: boolean;
   /**
    * Shallow top-level MERGE into the stored object, never a replacement.
    *
@@ -276,6 +279,9 @@ export async function updatePage(
   if (patch.favorited !== undefined) values.favorited = patch.favorited;
   if (patch.restricted !== undefined) values.restricted = patch.restricted;
   if (patch.template !== undefined) values.template = patch.template;
+  if (patch.publishedAt !== undefined) values.publishedAt = patch.publishedAt;
+  if (patch.publishSlug !== undefined) values.publishSlug = patch.publishSlug;
+  if (patch.publishIndexing !== undefined) values.publishIndexing = patch.publishIndexing;
   if (patch.mergeProperties !== undefined) {
     values.properties = sql`${pages.properties} || ${JSON.stringify(patch.mergeProperties)}::jsonb`;
   }
@@ -511,4 +517,13 @@ export async function recordPageTransaction(
       ),
     );
   await db.insert(pageTransactions).values(record);
+}
+
+/** The page published (or once published) at `slug`. */
+export async function findPageByPublishSlug(
+  db: PgHandle,
+  slug: string,
+): Promise<PageRow | undefined> {
+  const [row] = await db.select().from(pages).where(eq(pages.publishSlug, slug));
+  return row;
 }

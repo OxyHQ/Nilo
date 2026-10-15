@@ -99,6 +99,10 @@ describe('pages repository (real database)', () => {
       'restricted',
       // Written by `PATCH /pages/:id` and by copying a template.
       'template',
+      // Written by `POST/DELETE /pages/:id/publish`.
+      'publishedAt',
+      'publishSlug',
+      'publishIndexing',
       'order',
       // Written by `bumpBlocksVersion`, inside every block transaction.
       'blocksVersion',
@@ -111,7 +115,7 @@ describe('pages repository (real database)', () => {
       // spells. `sqlColumnName` is used below where the SQL identifier is what
       // matters — reading one for the other is the 42703 trap.
       const declared = getTableConfig(pages).columns.map((column) => column.name);
-      expect(WRITER_FIELDS.length).toBe(15);
+      expect(WRITER_FIELDS.length).toBe(18);
       for (const field of WRITER_FIELDS) expect(declared).toContain(field);
       expect(new Set(declared)).toEqual(
         new Set([...WRITER_FIELDS, 'id', 'createdAt', 'updatedAt']),
@@ -125,7 +129,7 @@ describe('pages repository (real database)', () => {
       `);
       const live = new Set(rows.map((row) => row.column_name));
       const config = getTableConfig(pages);
-      expect(config.columns.length).toBe(18);
+      expect(config.columns.length).toBe(21);
       for (const column of config.columns) expect(live).toContain(sqlColumnName(column));
       expect(live.size).toBe(config.columns.length);
     });
@@ -151,6 +155,8 @@ describe('pages repository (real database)', () => {
           'pages_properties_gin_idx',
           // Full-text search (`GET /search`).
           'pages_title_search_idx',
+          // The public address of a published page.
+          'pages_publish_slug_key',
         ]),
       );
     });
