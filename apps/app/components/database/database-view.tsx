@@ -1,3 +1,4 @@
+import { RowsScrollView } from './rows-scroll-view';
 import { ViewForm } from './view-form';
 import * as React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
@@ -23,6 +24,10 @@ interface DatabaseViewContainerProps {
   rows: DatabaseRow[];
   isLoading: boolean;
   readOnly?: boolean;
+  viewsReadOnly?: boolean;
+  total?: number;
+  onLoadMore?: () => void;
+  isFetchingMore?: boolean;
 }
 
 /**
@@ -35,8 +40,11 @@ export function DatabaseViewContainer({
   rows,
   isLoading,
   readOnly = false,
+  viewsReadOnly = readOnly,
+  total,
+  onLoadMore,
+  isFetchingMore,
 }: DatabaseViewContainerProps) {
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [sortOpen, setSortOpen] = React.useState(false);
@@ -48,7 +56,7 @@ export function DatabaseViewContainer({
 
   return (
     <View className="flex-1">
-      {!readOnly ? (
+      {!viewsReadOnly ? (
         <View className="flex-row items-center justify-between px-6 py-2 border-b border-border">
           <View className="flex-row items-center gap-1">
             <ToolButton
@@ -71,15 +79,25 @@ export function DatabaseViewContainer({
                   : t('databases.toolbar.sort')
               }
             />
-            <AddPropertyButton database={database} />
+            {!readOnly ? <AddPropertyButton database={database} /> : null}
           </View>
-          <NewRowMenu databaseId={database.id} />
+          {!readOnly ? <NewRowMenu databaseId={database.id} /> : null}
         </View>
       ) : null}
 
+      {total !== undefined ? (
+        <Text className="px-4 py-1 text-xs text-muted-foreground">
+          {t('databases.rows.total', { count: total })}
+        </Text>
+      ) : null}
+      {isFetchingMore ? (
+        <Text accessibilityLiveRegion="polite" className="px-4 text-xs text-muted-foreground">
+          {t('common.loading')}
+        </Text>
+      ) : null}
       <View className="flex-1">
         {view.type === 'table' ? (
-          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+          <RowsScrollView onLoadMore={onLoadMore}>
             <ViewTable
               readOnly={readOnly}
               database={database}
@@ -87,7 +105,7 @@ export function DatabaseViewContainer({
               rows={rows}
               isLoading={isLoading}
             />
-          </ScrollView>
+          </RowsScrollView>
         ) : null}
         {view.type === 'board' ? (
           <ViewBoard
@@ -100,6 +118,7 @@ export function DatabaseViewContainer({
         ) : null}
         {view.type === 'gallery' ? (
           <ViewGallery
+            onLoadMore={onLoadMore}
             readOnly={readOnly}
             database={database}
             view={view}
@@ -109,6 +128,7 @@ export function DatabaseViewContainer({
         ) : null}
         {view.type === 'list' ? (
           <ViewList
+            onLoadMore={onLoadMore}
             readOnly={readOnly}
             database={database}
             view={view}
@@ -128,7 +148,7 @@ export function DatabaseViewContainer({
         ) : null}
       </View>
 
-      {!readOnly ? (
+      {!viewsReadOnly ? (
         <>
           <FilterBuilder
             rows={rows}

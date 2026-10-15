@@ -1,3 +1,4 @@
+import { formatMentionDate } from '@/components/page-editor/date-mentions';
 import { createContext, useContext } from 'react';
 import { Link } from 'expo-router';
 import { Text } from '@/components/ui/text';
@@ -45,7 +46,7 @@ export function BlockText({
 
 function TextSegment({ segment }: { segment: Segment }) {
   const slug = useContext(PublicMentionContext);
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const text = (
     <Text
       inherit
@@ -59,7 +60,9 @@ function TextSegment({ segment }: { segment: Segment }) {
             : undefined,
       }}
     >
-      {segment.text}
+      {segment.mention?.attributes.kind === 'date'
+        ? (formatMentionDate(segment.mention.attributes.date, locale) ?? segment.text)
+        : segment.text}
     </Text>
   );
   const mention = segment.mention?.attributes;

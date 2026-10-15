@@ -54,7 +54,11 @@ export function FormulaEditor({
       });
       const result = await rows.refetch();
       if (result.isError) setError(t('databases.formula.refreshFailed'));
-      else setPreview({ value: result.data?.rows[0]?.properties[property.id] ?? null, expression });
+      else
+        setPreview({
+          value: result.data?.pages[0]?.rows[0]?.properties[property.id] ?? null,
+          expression,
+        });
     } catch {
       setError(t('databases.formula.saveFailed'));
     } finally {

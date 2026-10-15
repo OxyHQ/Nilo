@@ -27,7 +27,10 @@
     "delete": "Eliminar vista",
     "namePlaceholder": "Nombre de la vista",
     "form": "Formulario",
-    "createFailed": "No se pudo crear la vista. Inténtalo de nuevo."
+    "createFailed": "No se pudo crear la vista. Inténtalo de nuevo.",
+    "settings": "Ajustes de %{name}",
+    "updateFailed": "No se pudo actualizar la vista.",
+    "deleteFailed": "No se pudo eliminar la vista."
   },
   "propertyTypes": {
     "text": "Texto",
@@ -339,5 +342,8 @@
     "collapse": "Contraer subelementos de %{title}",
     "removeDescription": "¿Eliminar las propiedades de subelementos y elementos superiores y sus enlaces? Se conservarán las páginas.",
     "failed": "No se pudo crear la fila. Inténtalo de nuevo."
+  },
+  "rows": {
+    "total": "%{count} filas"
   }
 }

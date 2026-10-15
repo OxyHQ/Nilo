@@ -7,6 +7,7 @@ import { API_ROUTES } from '../api/routes';
 import { queryKeys } from './query-keys';
 import type {
   Database,
+  DatabaseDetail,
   DatabaseResponse,
   DatabaseSchema,
   DatabasesListResponse,
@@ -61,18 +62,12 @@ export function useDatabases(workspaceId: string | null) {
 export function useDatabase(id: string | undefined) {
   useDatabaseLive(id);
   const { isAuthenticated } = useOxy();
-  return useQuery<{ database: Database; views: DatabaseView[] }>({
+  return useQuery<DatabaseDetail>({
     queryKey: id ? queryKeys.databases.detail(id) : ['database', 'none'],
     queryFn: async () => {
       if (!id) throw new Error('Database id required');
-      const res = await apiClient.get<{
-        database: Database;
-        views: DatabaseView[];
-      }>(API_ROUTES.databases.get(id));
-      return {
-        database: res.data.database,
-        views: res.data.views ?? [],
-      };
+      const res = await apiClient.get<DatabaseDetail>(API_ROUTES.databases.get(id));
+      return res.data;
     },
     retry: (count, error) => {
       if (axios.isAxiosError(error) && [403, 404].includes(error.response?.status ?? 0))

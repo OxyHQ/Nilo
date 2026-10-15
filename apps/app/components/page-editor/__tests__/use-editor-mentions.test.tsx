@@ -48,7 +48,9 @@ afterEach(() => {
 });
 it('uses recent pages for empty queries without making an empty search request', async () => {
   const result = await source.search({ indicator: '@', text: '' });
-  expect(result.map((item) => item.attributes.id)).toEqual(['oxy-user', 'recent', 'old']);
+  expect(
+    result.filter((item) => item.attributes.kind !== 'date').map((item) => item.attributes.id),
+  ).toEqual(['oxy-user', 'recent', 'old']);
   expect(apiClient.get).not.toHaveBeenCalled();
 });
 it('keeps its source stable across data rerenders', async () => {

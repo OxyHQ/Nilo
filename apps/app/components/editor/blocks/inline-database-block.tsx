@@ -1,3 +1,8 @@
+import { useInlineDatabaseViews } from '@/lib/hooks/use-inline-database-views';
+import { useCreateView } from '@/lib/hooks/use-database-views';
+import { usePageEditorContext } from '@/components/page-editor/page-editor-context';
+import { ViewTab, NewViewPicker } from '@/components/database/database-header';
+import { toast } from '@oxy.so/bloom/toast';
 import { DatabaseActionsMenu } from '@/components/database/database-actions-menu';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
@@ -12,6 +17,7 @@ import { useDatabase, useCreateDatabase } from '@/lib/hooks/use-databases';
 import { useDatabaseRows } from '@/lib/hooks/use-database-rows';
 import { usePage } from '@/lib/hooks/use-pages';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { hasRole } from '@/lib/hooks/workspace-roles';
 import type { BlockComponentProps } from './types';
 
 export function InlineDatabaseBlock({
@@ -22,13 +28,26 @@ export function InlineDatabaseBlock({
   const { t } = useTranslation();
   const { colors } = useColorScheme();
   const router = useRouter();
-  const databaseId =
-    block.content.databaseId === '000000000000000000000000' ? undefined : block.content.databaseId;
+  const databaseId = block.content.databaseId;
   const database = useDatabase(databaseId);
   const page = usePage(block.pageId);
   const create = useCreateDatabase();
   const [activeViewId, setActiveViewId] = useState<string | undefined>();
-  const views = database.data?.views ?? [];
+  const { status: editorStatus } = usePageEditorContext();
+  const viewState = useInlineDatabaseViews({
+    database: database.data?.database,
+    ownViews: database.data?.views ?? [],
+    pageId: block.pageId,
+    blockId: block.id,
+    readOnly,
+    saved: editorStatus === 'saved',
+    defaultName: t('databases.views.table'),
+  });
+  // The caller's role on the database itself, as the API reports it.
+  const canEditSource = hasRole(database.data?.role, 'editor');
+  const views = viewState.views;
+  const createView = useCreateView();
+  const [newViewOpen, setNewViewOpen] = useState(false);
   const selectedView =
     views.find((view) => view.id === (activeViewId ?? block.content.viewId)) ??
     views.find((view) => view.isDefault) ??
@@ -38,8 +57,9 @@ export function InlineDatabaseBlock({
       ? databaseId
       : undefined,
     selectedView?.id ?? null,
+    selectedView?.type,
   );
-  const error = database.error ?? rows.error ?? create.error;
+  const error = database.error ?? viewState.error ?? rows.error ?? create.error;
   const status = axios.isAxiosError(error) ? error.response?.status : undefined;
   const databaseStatus = axios.isAxiosError(database.error)
     ? database.error.response?.status
@@ -50,7 +70,7 @@ export function InlineDatabaseBlock({
     (!database.isLoading && !database.isError && !database.data?.database);
 
   if (status === 403) return <State message={t('editor.inlineDatabase.noAccess')} />;
-  if (database.isLoading)
+  if (database.isLoading || viewState.isLoading)
     return (
       <ActivityIndicator
         accessibilityLabel={t('editor.inlineDatabase.loading')}
@@ -108,6 +128,7 @@ export function InlineDatabaseBlock({
           accessibilityLabel={t('editor.inlineDatabase.retry')}
           onPress={() => {
             void database.refetch();
+            if (viewState.linked) viewState.retry();
             if (database.data && selectedView) void rows.refetch();
           }}
         >
@@ -127,7 +148,7 @@ export function InlineDatabaseBlock({
         <Text accessibilityRole="header" className="flex-1 text-sm font-semibold">
           {db.name || t('editor.inlineDatabase.defaultName')}
         </Text>
-        {!readOnly ? <DatabaseActionsMenu databaseId={db.id} /> : null}
+        {!readOnly && !viewState.linked ? <DatabaseActionsMenu databaseId={db.id} /> : null}
         <Pressable
           accessibilityRole="link"
           accessibilityLabel={t('editor.inlineDatabase.openFullPage')}
@@ -147,18 +168,44 @@ export function InlineDatabaseBlock({
         keyboardShouldPersistTaps="handled"
       >
         {views.map((view) => (
-          <Pressable
+          <ViewTab
             key={view.id}
-            accessibilityRole="tab"
-            accessibilityLabel={view.name}
-            accessibilityState={{ selected: view.id === selectedView?.id }}
+            view={view}
+            database={db}
+            active={view.id === selectedView?.id}
+            readOnly={readOnly}
             onPress={() => setActiveViewId(view.id)}
-            className={`px-3 py-2 ${view.id === selectedView?.id ? 'bg-muted' : 'hover:bg-muted'}`}
-          >
-            <Text className="text-sm">{view.name}</Text>
-          </Pressable>
+          />
         ))}
+        {!readOnly ? (
+          <Button
+            variant="ghost"
+            accessibilityLabel={t('databases.views.new')}
+            onPress={() => setNewViewOpen(true)}
+          >
+            <Text>{t('databases.views.new')}</Text>
+          </Button>
+        ) : null}
       </ScrollView>
+      <NewViewPicker
+        open={!readOnly && newViewOpen}
+        onClose={() => setNewViewOpen(false)}
+        pending={createView.isPending}
+        onChoose={async (type) => {
+          try {
+            const view = await createView.mutateAsync({
+              databaseId: db.id,
+              blockId: viewState.linked ? block.id : undefined,
+              type,
+              name: t(`databases.views.${type}`),
+            });
+            setActiveViewId(view.id);
+            setNewViewOpen(false);
+          } catch {
+            toast.error(t('databases.views.createFailed'));
+          }
+        }}
+      />
       {selectedView ? (
         <View style={{ height: 400 }}>
           <DatabaseViewContainer
@@ -166,7 +213,14 @@ export function InlineDatabaseBlock({
             view={selectedView}
             rows={rows.data?.rows ?? []}
             isLoading={rows.isLoading}
-            readOnly={readOnly}
+            readOnly={readOnly || (viewState.linked && !canEditSource)}
+            viewsReadOnly={readOnly}
+            total={rows.data?.total}
+            isFetchingMore={rows.isFetchingNextPage}
+            onLoadMore={() => {
+              if (rows.hasNextPage && !rows.isFetching)
+                void rows.fetchNextPage({ cancelRefetch: false });
+            }}
           />
         </View>
       ) : (

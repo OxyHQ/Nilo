@@ -1,13 +1,13 @@
 import { BlockText, blockTextSegments, PublicMentionContext } from './block-text';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
 import { Text, TextStyleContext } from '@/components/ui/text';
 import type { PageFont } from '@/lib/types/pages';
 import { MONO_FONT_FAMILY, PAGE_FONT_FAMILIES } from '@/lib/fonts';
-import { Check } from 'lucide-react-native';
+import { Check, ChevronRight, ChevronDown } from 'lucide-react-native';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { buildBlockTree, type ReadOnlyBlock, type BlockTreeNode } from '@/lib/block-tree';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 
 interface SharedBlockRendererProps {
@@ -52,7 +52,11 @@ function HeadingBlock({ content, level }: { content: Record<string, unknown>; le
       : level === 2
         ? 'text-2xl font-bold text-foreground mt-3'
         : 'text-xl font-semibold text-foreground mt-2';
-  return <Text className={className}>{text}</Text>;
+  return (
+    <Text accessibilityRole="header" className={className}>
+      {text}
+    </Text>
+  );
 }
 
 function BulletedListBlock({ content }: { content: Record<string, unknown> }) {
@@ -225,16 +229,54 @@ function BlockBranch({ nodes }: { nodes: BlockTreeNode[] }) {
       {nodes.map(({ block, children }) => {
         listIndex = block.type === 'numbered_list_item' ? listIndex + 1 : 0;
         return (
-          <View key={block.id} className="gap-1.5">
-            <SharedBlockRenderer block={block} listIndex={listIndex} />
-            {children.length ? (
-              <View className="pl-4 border-l border-border">
-                <BlockBranch nodes={children} />
-              </View>
-            ) : null}
-          </View>
+          <BlockNode key={block.id} block={block} listIndex={listIndex} childrenNodes={children} />
         );
       })}
+    </View>
+  );
+}
+
+function BlockNode({
+  block,
+  listIndex,
+  childrenNodes,
+}: {
+  block: ReadOnlyBlock;
+  listIndex: number;
+  childrenNodes: BlockTreeNode[];
+}) {
+  const { t } = useTranslation();
+  const { colors } = useColorScheme();
+  const [expanded, setExpanded] = useState(block.content.expanded !== false);
+  const toggle =
+    block.type === 'toggle' ||
+    (/^heading_[123]$/.test(block.type) && block.content.toggleable === true);
+  const Chevron = expanded ? ChevronDown : ChevronRight;
+  return (
+    <View className="gap-1.5">
+      <View className="flex-row items-center gap-1">
+        {toggle ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+            accessibilityLabel={t(expanded ? 'sharing.blocks.collapse' : 'sharing.blocks.expand', {
+              title: getText(block.content) || t('sharing.blocks.untitledHeading'),
+            })}
+            onPress={() => setExpanded((value) => !value)}
+            className="p-1"
+          >
+            <Chevron size={18} color={colors.mutedForeground} />
+          </Pressable>
+        ) : null}
+        <View className="flex-1">
+          <SharedBlockRenderer block={block} listIndex={listIndex} />
+        </View>
+      </View>
+      {childrenNodes.length && (!toggle || expanded) ? (
+        <View className="pl-4 border-l border-border">
+          <BlockBranch nodes={childrenNodes} />
+        </View>
+      ) : null}
     </View>
   );
 }

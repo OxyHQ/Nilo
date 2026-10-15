@@ -16,13 +16,14 @@ export function useEditorMentions(pageId: string, workspaceId: string | undefine
   const members = useWorkspaceMembers(workspaceId);
   const permissions = usePagePermissions(pageId);
   const pages = usePages(workspaceId ?? null);
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const latest = useRef({
     workspaceId,
     members: members.data,
     permissions: permissions.data,
     pages: pages.data,
     t,
+    locale,
   });
   latest.current = {
     workspaceId,
@@ -30,6 +31,7 @@ export function useEditorMentions(pageId: string, workspaceId: string | undefine
     permissions: permissions.data,
     pages: pages.data,
     t,
+    locale,
   };
   const generation = useRef(0);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Changing page/workspace invalidates in-flight answers, just like unmounting.
@@ -75,12 +77,14 @@ export function useEditorMentions(pageId: string, workspaceId: string | undefine
         if (run !== generation.current) return [];
         return mentionSearchResults({
           text,
+          locale: current.locale,
           people: mentionablePeople(current.members ?? [], current.permissions).map((person) => ({
             id: person.userId,
             name: memberProfileName(person) ?? current.t('pages.info.unknownMember'),
           })),
           pages: [...found.map(({ page }) => page), ...localPages],
           labels: {
+            date: current.t('editor.mentions.date'),
             people: current.t('editor.mentions.people'),
             pages: current.t('editor.mentions.pages'),
             untitled: current.t('pages.untitled'),

@@ -172,13 +172,14 @@ export function DatabaseHeader({
 }
 
 interface ViewTabProps {
+  readOnly?: boolean;
   view: DatabaseView;
   active: boolean;
   onPress: () => void;
   database: Database;
 }
 
-function ViewTab({ view, active, onPress, database }: ViewTabProps) {
+export function ViewTab({ view, active, onPress, database, readOnly = false }: ViewTabProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const Icon = VIEW_ICONS[view.type] ?? TableIcon;
@@ -193,21 +194,28 @@ function ViewTab({ view, active, onPress, database }: ViewTabProps) {
   };
 
   const commitRename = async () => {
-    if (renameDraft === null) return close();
+    if (readOnly || renameDraft === null) return close();
     if (renameDraft.trim() === view.name) return close();
-    await updateView.mutateAsync({
-      databaseId: database.id,
-      viewId: view.id,
-      name: renameDraft.trim(),
-    });
-    close();
+    try {
+      await updateView.mutateAsync({
+        databaseId: database.id,
+        viewId: view.id,
+        name: renameDraft.trim(),
+      });
+      close();
+    } catch {
+      toast.error(t('databases.views.updateFailed'));
+    }
   };
 
   return (
     <View>
       <Pressable
         onPress={onPress}
-        onLongPress={() => setMenuOpen(true)}
+        accessibilityRole="tab"
+        accessibilityLabel={view.name}
+        accessibilityState={{ selected: active }}
+        onLongPress={readOnly ? undefined : () => setMenuOpen(true)}
         className={`flex-row items-center gap-1.5 px-2 py-1 rounded ${
           active ? 'bg-muted' : 'hover:bg-muted/60'
         }`}
@@ -218,15 +226,24 @@ function ViewTab({ view, active, onPress, database }: ViewTabProps) {
         >
           {view.name}
         </Text>
-        <Pressable
-          onPress={() => setMenuOpen(true)}
-          className="p-0.5 rounded hover:bg-muted-foreground/10"
-        >
-          <Settings2 size={10} color={colors.mutedForeground} />
-        </Pressable>
+        {!readOnly ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('databases.views.settings', { name: view.name })}
+            onPress={() => setMenuOpen(true)}
+            className="p-0.5 rounded hover:bg-muted-foreground/10"
+          >
+            <Settings2 size={10} color={colors.mutedForeground} />
+          </Pressable>
+        ) : null}
       </Pressable>
 
-      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={close}>
+      <Modal
+        visible={!readOnly && menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={close}
+      >
         <Pressable style={StyleSheet.absoluteFill} className="bg-black/40" onPress={close} />
         <View
           className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2"
@@ -239,18 +256,28 @@ function ViewTab({ view, active, onPress, database }: ViewTabProps) {
             {renameDraft === null ? (
               <>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('databases.views.rename')}
                   onPress={() => setRenameDraft(view.name)}
                   className="px-2 py-1.5 rounded hover:bg-muted"
                 >
                   <Text className="text-sm text-foreground">{t('databases.views.rename')}</Text>
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('databases.views.delete')}
+                  disabled={deleteView.isPending}
                   onPress={async () => {
-                    await deleteView.mutateAsync({
-                      databaseId: database.id,
-                      viewId: view.id,
-                    });
-                    close();
+                    try {
+                      await deleteView.mutateAsync({
+                        databaseId: database.id,
+                        viewId: view.id,
+                        blockId: view.blockId,
+                      });
+                      close();
+                    } catch {
+                      toast.error(t('databases.views.deleteFailed'));
+                    }
                   }}
                   className="px-2 py-1.5 rounded hover:bg-muted"
                 >
@@ -260,6 +287,7 @@ function ViewTab({ view, active, onPress, database }: ViewTabProps) {
             ) : (
               <>
                 <TextInput
+                  accessibilityLabel={t('databases.views.namePlaceholder')}
                   value={renameDraft}
                   onChangeText={setRenameDraft}
                   placeholder={t('databases.views.namePlaceholder')}
@@ -271,10 +299,21 @@ function ViewTab({ view, active, onPress, database }: ViewTabProps) {
                   onSubmitEditing={commitRename}
                 />
                 <View className="flex-row justify-end gap-2 mt-1">
-                  <Pressable onPress={close} className="px-3 py-1 rounded-md bg-muted">
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.cancel')}
+                    onPress={close}
+                    className="px-3 py-1 rounded-md bg-muted"
+                  >
                     <Text className="text-sm text-foreground">{t('common.cancel')}</Text>
                   </Pressable>
-                  <Pressable onPress={commitRename} className="px-3 py-1 rounded-md bg-primary">
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.save')}
+                    disabled={updateView.isPending || !renameDraft.trim()}
+                    onPress={commitRename}
+                    className="px-3 py-1 rounded-md bg-primary"
+                  >
                     <Text className="text-sm text-primary-foreground">{t('common.save')}</Text>
                   </Pressable>
                 </View>
@@ -294,7 +333,7 @@ interface NewViewPickerProps {
   pending: boolean;
 }
 
-function NewViewPicker({ open, onClose, onChoose, pending }: NewViewPickerProps) {
+export function NewViewPicker({ open, onClose, onChoose, pending }: NewViewPickerProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const types: DatabaseViewType[] = [

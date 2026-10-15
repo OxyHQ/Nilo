@@ -54,14 +54,16 @@ it('saves the expression and displays only the refreshed server result', async (
     config: { expression: '1 + 2', format: 'percent' },
   });
   expect(renderer.root.findAllByType(ComputedCell)).toHaveLength(0);
-  await act(async () => resolve({ data: { rows: [{ properties: { f: { number: 27 } } }] } }));
+  await act(async () =>
+    resolve({ data: { pages: [{ rows: [{ properties: { f: { number: 27 } } }] }] } }),
+  );
   expect(renderer.root.findByType(ComputedCell).props.value).toEqual({ number: 27 });
   act(() => renderer.root.findByType(Textarea).props.onChangeText('4 + 5'));
   expect(renderer.root.findAllByType(ComputedCell)).toHaveLength(0);
 });
 it('previews a server formula error and reports refresh failures', async () => {
   mockRefetch.mockResolvedValueOnce({
-    data: { rows: [{ properties: { f: { text: '', error: 'Cycle' } } }] },
+    data: { pages: [{ rows: [{ properties: { f: { text: '', error: 'Cycle' } } }] }] },
   });
   await act(async () => save().props.onPress());
   expect(renderer.root.findByType(ComputedCell).props.value.error).toBe('Cycle');

@@ -78,3 +78,41 @@ it('uses the page face throughout shared text while preserving the code face', (
   const code = texts.find((node) => node.props.children === 'const x = 1')!;
   expect(StyleSheet.flatten(code.props.style).fontFamily).toBe('JetBrains Mono');
 });
+it.each([undefined, 'site'])(
+  'folds toggle heading children while retaining a heading in previews and public pages (%s)',
+  (publicSlug) => {
+    const toggleBlocks = [
+      {
+        id: 'heading',
+        parentBlockId: null,
+        type: 'heading_2',
+        order: 0,
+        content: { text: 'Toggle title', toggleable: true, expanded: false },
+      },
+      {
+        id: 'child',
+        parentBlockId: 'heading',
+        type: 'paragraph',
+        order: 0,
+        content: { text: 'Folded content' },
+      },
+    ];
+    act(() => {
+      renderer = create(<SharedBlockTree blocks={toggleBlocks} publicSlug={publicSlug} />);
+    });
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('Folded content');
+    expect(
+      renderer.root.findAllByType(RNText).some((node) => node.props.accessibilityRole === 'header'),
+    ).toBe(true);
+    const disclosure = () =>
+      renderer.root
+        .findAllByProps({ accessibilityRole: 'button' })
+        .find((node) => node.props.accessibilityState?.expanded !== undefined)!;
+    expect(disclosure().props.accessibilityState.expanded).toBe(false);
+    act(() => disclosure().props.onPress());
+    expect(disclosure().props.accessibilityState.expanded).toBe(true);
+    expect(JSON.stringify(renderer.toJSON())).toContain('Folded content');
+    act(() => disclosure().props.onPress());
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('Folded content');
+  },
+);

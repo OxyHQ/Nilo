@@ -1,7 +1,8 @@
+import { RowsScrollView } from './rows-scroll-view';
 import { nestSubItems, subItemProperties } from '@/lib/sub-items';
 import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronRight, Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
@@ -17,13 +18,21 @@ interface ViewListProps {
   rows: DatabaseRow[];
   isLoading: boolean;
   readOnly?: boolean;
+  onLoadMore?: () => void;
 }
 
 /**
  * List view — vertical, minimal density. Title + a few preview props,
  * one row per line. Tapping a row navigates to its detail page.
  */
-export function ViewList({ database, view, rows, isLoading, readOnly = false }: ViewListProps) {
+export function ViewList({
+  database,
+  view,
+  rows,
+  isLoading,
+  onLoadMore,
+  readOnly = false,
+}: ViewListProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -62,7 +71,7 @@ export function ViewList({ database, view, rows, isLoading, readOnly = false }: 
   }
 
   return (
-    <ScrollView>
+    <RowsScrollView onLoadMore={onLoadMore}>
       {nestedRows.map((entry) => {
         if (entry.kind === 'new')
           return !readOnly ? (
@@ -131,6 +140,6 @@ export function ViewList({ database, view, rows, isLoading, readOnly = false }: 
           </Text>
         </Pressable>
       ) : null}
-    </ScrollView>
+    </RowsScrollView>
   );
 }

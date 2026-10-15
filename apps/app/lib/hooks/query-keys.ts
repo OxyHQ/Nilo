@@ -45,6 +45,7 @@ export const queryKeys = {
     list: (workspaceId: string | null) => ['databases', workspaceId] as const,
     detail: (id: string) => ['database', id] as const,
     views: (id: string) => ['database', id, 'views'] as const,
+    blockViews: (id: string, blockId: string) => ['database', id, 'views', blockId] as const,
     rows: (id: string, viewId: string | null) => ['database', id, 'rows', viewId] as const,
     /** One row with its computed values (`rows` holds lists only). */
     row: (id: string, rowId: string) => ['database', id, 'row', rowId] as const,

@@ -149,6 +149,26 @@
       "label": "Base de datos — Integrada",
       "description": "Crea una base de datos dentro de esta página.",
       "keywords": "base de datos,integrada,tabla,tablero,lista"
+    },
+    "toggleHeading1": {
+      "label": "Encabezado desplegable 1",
+      "description": "Un encabezado que pliega su contenido.",
+      "keywords": "desplegable, encabezado, h1, plegar"
+    },
+    "toggleHeading2": {
+      "label": "Encabezado desplegable 2",
+      "description": "Un encabezado que pliega su contenido.",
+      "keywords": "desplegable, encabezado, h2, plegar"
+    },
+    "toggleHeading3": {
+      "label": "Encabezado desplegable 3",
+      "description": "Un encabezado que pliega su contenido.",
+      "keywords": "desplegable, encabezado, h3, plegar"
+    },
+    "linkedDatabase": {
+      "label": "Vista enlazada de base de datos",
+      "description": "Muestra otra base de datos con vistas propias.",
+      "keywords": "enlace, base de datos, referencia, vista"
     }
   },
   "ui": {
@@ -236,10 +256,13 @@
     "loading": "Cargando base de datos",
     "loadFailed": "No se pudo cargar esta base de datos.",
     "retry": "Reintentar",
-    "openFullPage": "Abrir como página completa"
+    "openFullPage": "Abrir como página completa",
+    "search": "Buscar bases de datos",
+    "noResults": "No se encontraron bases de datos"
   },
   "mentions": {
     "people": "Personas",
-    "pages": "Páginas"
+    "pages": "Páginas",
+    "date": "Fecha"
   }
 }

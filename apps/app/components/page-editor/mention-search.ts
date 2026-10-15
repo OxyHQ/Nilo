@@ -1,3 +1,4 @@
+import { dateMentionMatches, formatMentionDate } from './date-mentions';
 import type { MentionItem } from '@oxy.so/bloom-editor';
 import type { WorkspaceMember } from '@/lib/hooks/use-workspace-members';
 import type { PagePermissions } from '@/lib/hooks/use-page-permissions';
@@ -27,11 +28,15 @@ export function mentionSearchResults({
   people,
   pages,
   labels,
+  locale = 'en',
+  now,
 }: {
   text: string;
   people: readonly { id: string; name: string }[];
   pages: readonly { id: string; title: string }[];
-  labels: { people: string; pages: string; untitled: string };
+  labels: { people: string; pages: string; untitled: string; date: string };
+  locale?: string;
+  now?: Date;
 }): MentionItem[] {
   const query = normalizeMentionQuery(text);
   const matches = (label: string) => normalizeMentionQuery(label).includes(query);
@@ -58,5 +63,11 @@ export function mentionSearchResults({
       group: labels.pages,
       attributes: { kind: 'page', id },
     }));
-  return [...users, ...documents];
+  const dates = dateMentionMatches(text, now).map((date) => ({
+    id: `date:${date}`,
+    label: formatMentionDate(date, locale) ?? date,
+    group: labels.date,
+    attributes: { kind: 'date', date },
+  }));
+  return [...users, ...documents, ...dates];
 }

@@ -1,3 +1,4 @@
+import type { WorkspaceRole } from '../hooks/use-workspaces';
 /**
  * Shared types for Databases (Phase 4).
  *
@@ -157,6 +158,7 @@ export interface ViewConfig {
 }
 
 export interface DatabaseView {
+  blockId?: string | null;
   id: string;
   databaseId: string;
   name: string;
@@ -248,6 +250,13 @@ export interface DatabasesListResponse {
 export interface DatabaseResponse {
   database: Database;
   views?: DatabaseView[];
+}
+
+/** `GET /databases/:id`: the database, its own views and the caller's role on it. */
+export interface DatabaseDetail {
+  database: Database;
+  views: DatabaseView[];
+  role: WorkspaceRole;
 }
 
 export interface DatabaseRowsResponse {

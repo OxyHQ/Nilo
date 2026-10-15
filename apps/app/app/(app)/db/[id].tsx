@@ -45,9 +45,10 @@ function DatabasePage({ id }: { id: string }) {
   const selectedViewId = activeViewId ?? defaultViewId;
 
   const selectedView = views.find((v) => v.id === selectedViewId) ?? null;
-  const { data: rowsData, isLoading: isLoadingRows } = useDatabaseRows(
-    selectedView?.type === 'form' ? undefined : id,
+  const rows = useDatabaseRows(
+    selectedView && selectedView.type !== 'form' ? id : undefined,
     selectedViewId,
+    selectedView?.type,
   );
 
   if (isLoading) {
@@ -89,8 +90,14 @@ function DatabasePage({ id }: { id: string }) {
         <DatabaseViewContainer
           database={data.database}
           view={selectedView}
-          rows={rowsData?.rows ?? []}
-          isLoading={isLoadingRows}
+          rows={rows.data?.rows ?? []}
+          isLoading={rows.isLoading}
+          total={rows.data?.total}
+          isFetchingMore={rows.isFetchingNextPage}
+          onLoadMore={() => {
+            if (rows.hasNextPage && !rows.isFetching)
+              void rows.fetchNextPage({ cancelRefetch: false });
+          }}
         />
       ) : (
         <View className="flex-1 items-center justify-center">

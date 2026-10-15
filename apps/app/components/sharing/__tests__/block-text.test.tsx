@@ -73,3 +73,27 @@ it('continues to render legacy plain-text blocks', () => {
   });
   expect(JSON.stringify(renderer.toJSON())).toContain('Legacy text');
 });
+it.each([undefined, 'site'])(
+  'renders date mentions from canonical dates in previews and public pages (%s)',
+  (slug) => {
+    act(() => {
+      renderer = create(
+        <PublicMentionContext.Provider value={slug}>
+          <BlockText
+            content={{
+              segments: [
+                {
+                  text: 'old label',
+                  mention: { indicator: '@', attributes: { kind: 'date', date: '2026-10-17' } },
+                },
+              ],
+            }}
+          />
+        </PublicMentionContext.Provider>,
+      );
+    });
+    expect(JSON.stringify(renderer.toJSON())).toContain('October 17, 2026');
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('old label');
+    expect(renderer.root.findAllByType(Link)).toHaveLength(0);
+  },
+);

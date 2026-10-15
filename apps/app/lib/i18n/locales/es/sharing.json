@@ -52,7 +52,9 @@
   "blocks": {
     "emptyParagraph": "Párrafo vacío",
     "untitledHeading": "Encabezado sin título",
-    "unsupported": "Tipo de bloque no compatible: %{type}"
+    "unsupported": "Tipo de bloque no compatible: %{type}",
+    "expand": "Expandir %{title}",
+    "collapse": "Contraer %{title}"
   },
   "roles": {
     "viewer": "Puede ver",

@@ -149,6 +149,26 @@
       "label": "Database — Inline",
       "description": "Create a database inside this page.",
       "keywords": "database,inline,table,board,list"
+    },
+    "toggleHeading1": {
+      "label": "Toggle heading 1",
+      "description": "A heading that folds its children.",
+      "keywords": "toggle, heading, h1, collapse, disclosure"
+    },
+    "toggleHeading2": {
+      "label": "Toggle heading 2",
+      "description": "A heading that folds its children.",
+      "keywords": "toggle, heading, h2, collapse, disclosure"
+    },
+    "toggleHeading3": {
+      "label": "Toggle heading 3",
+      "description": "A heading that folds its children.",
+      "keywords": "toggle, heading, h3, collapse, disclosure"
+    },
+    "linkedDatabase": {
+      "label": "Linked view of database",
+      "description": "Show another database with views of your own.",
+      "keywords": "linked, database, reference, view"
     }
   },
   "ui": {
@@ -236,10 +256,13 @@
     "loading": "Loading database",
     "loadFailed": "Could not load this database.",
     "retry": "Try again",
-    "openFullPage": "Open as full page"
+    "openFullPage": "Open as full page",
+    "search": "Search databases",
+    "noResults": "No databases found"
   },
   "mentions": {
     "people": "People",
-    "pages": "Pages"
+    "pages": "Pages",
+    "date": "Date"
   }
 }

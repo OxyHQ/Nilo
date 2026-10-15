@@ -1,10 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  type InfiniteData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import axios from 'axios';
 import { useOxy } from '@oxy.so/services';
 import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
 import { queryKeys } from './query-keys';
 import type {
+  DatabaseViewType,
   DatabaseRow,
   DatabaseRowResponse,
   DatabaseRowsResponse,
@@ -59,48 +66,38 @@ interface DeleteRowInput {
   rowId: string;
 }
 
-/** The largest page the rows endpoint serves. */
-const ROWS_PAGE_SIZE = 500;
-
-/**
- * List every row of the given database. When `viewId` is passed, the server
- * applies that view's filters and sorts. The endpoint pages its answer
- * (`cursor`); every page is fetched, so a view never silently stops at the
- * first page.
- *
- * The query is keyed on (databaseId, viewId) so switching views fetches
- * fresh rows. We mirror the view's full payload in the response so
- * downstream UI can render badges (active sort, active filter count)
- * without a second roundtrip.
- */
-export function useDatabaseRows(databaseId: string | undefined, viewId: string | null) {
+/** Infinite queries refetch only the pages already loaded on live invalidation. */
+export function useDatabaseRows(
+  databaseId: string | undefined,
+  viewId: string | null,
+  type: DatabaseViewType = 'table',
+) {
   const { isAuthenticated } = useOxy();
-  return useQuery<DatabaseRowsResponse>({
-    queryKey: databaseId
-      ? queryKeys.databases.rows(databaseId, viewId)
-      : ['database', 'none', 'rows'],
-    queryFn: async () => {
+  const incremental = ['table', 'list', 'gallery'].includes(type);
+  const query = useInfiniteQuery({
+    queryKey: [
+      ...queryKeys.databases.rows(databaseId ?? 'none', viewId),
+      incremental ? 'paged' : 'all',
+    ],
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam, signal }): Promise<DatabaseRowsResponse> => {
       if (!databaseId) throw new Error('Database id required');
-      const rows: DatabaseRow[] = [];
-      let cursor: string | null = null;
-      let first: DatabaseRowsResponse | null = null;
+      let cursor = pageParam;
+      let result: DatabaseRowsResponse | undefined;
       do {
-        const res: { data: DatabaseRowsResponse } = await apiClient.get<DatabaseRowsResponse>(
+        const { data }: { data: DatabaseRowsResponse } = await apiClient.get<DatabaseRowsResponse>(
           API_ROUTES.databases.listRows(databaseId),
           {
-            params: {
-              ...(viewId && { viewId }),
-              pageSize: String(ROWS_PAGE_SIZE),
-              ...(cursor && { cursor }),
-            },
+            signal,
+            params: { ...(viewId && { viewId }), pageSize: '100', ...(cursor && { cursor }) },
           },
         );
-        first ??= res.data;
-        rows.push(...res.data.rows);
-        cursor = res.data.cursor;
-      } while (cursor);
-      return { ...first, rows, cursor: null };
+        result = result ? { ...data, rows: [...result.rows, ...data.rows] } : data;
+        cursor = data.cursor;
+      } while (!incremental && cursor);
+      return result;
     },
+    getNextPageParam: (last) => last.cursor ?? undefined,
     retry: (count, error) => {
       if (axios.isAxiosError(error) && [403, 404].includes(error.response?.status ?? 0))
         return false;
@@ -108,7 +105,32 @@ export function useDatabaseRows(databaseId: string | undefined, viewId: string |
     },
     enabled: isAuthenticated && Boolean(databaseId),
   });
+  const first = query.data?.pages[0];
+  return {
+    ...query,
+    data: first ? { ...first, rows: uniqueRows(query.data?.pages ?? []) } : undefined,
+  };
 }
+
+/**
+ * The loaded pages' rows, each once. The cursor is an offset, so a row
+ * inserted between two page requests moves another across the boundary and
+ * both pages can carry it.
+ */
+function uniqueRows(pages: readonly DatabaseRowsResponse[]): DatabaseRow[] {
+  const seen = new Set<string>();
+  const rows: DatabaseRow[] = [];
+  for (const page of pages) {
+    for (const row of page.rows) {
+      if (seen.has(row.id)) continue;
+      seen.add(row.id);
+      rows.push(row);
+    }
+  }
+  return rows;
+}
+
+type RowsCache = InfiniteData<DatabaseRowsResponse>;
 
 /** One row with its computed values (formulas, rollups), whatever view it falls in. */
 export function useDatabaseRow(databaseId: string | undefined, rowId: string) {
@@ -158,30 +180,34 @@ export function useUpdateRow() {
       return pageToDatabaseRow(res.data.page);
     },
     onMutate: async ({ databaseId, rowId, ...patch }) => {
-      const queries = queryClient.getQueriesData<DatabaseRowsResponse>({
+      await queryClient.cancelQueries({ queryKey: ['database', databaseId, 'rows'] });
+      const queries = queryClient.getQueriesData<RowsCache>({
         queryKey: ['database', databaseId, 'rows'],
       });
       const previous: Array<{
         key: unknown[];
-        data: DatabaseRowsResponse | undefined;
+        data: RowsCache | undefined;
       }> = [];
       for (const [key, data] of queries) {
         previous.push({ key: key as unknown[], data });
         if (!data) continue;
-        queryClient.setQueryData<DatabaseRowsResponse>(key as unknown[], {
+        queryClient.setQueryData<RowsCache>(key as unknown[], {
           ...data,
-          rows: data.rows.map((r) =>
-            r.id === rowId
-              ? {
-                  ...r,
-                  ...patch,
-                  properties: {
-                    ...r.properties,
-                    ...((patch.properties ?? {}) as Record<string, PropertyValue>),
-                  },
-                }
-              : r,
-          ),
+          pages: data.pages.map((page) => ({
+            ...page,
+            rows: page.rows.map((r) =>
+              r.id === rowId
+                ? {
+                    ...r,
+                    ...patch,
+                    properties: {
+                      ...r.properties,
+                      ...((patch.properties ?? {}) as Record<string, PropertyValue>),
+                    },
+                  }
+                : r,
+            ),
+          })),
         });
       }
       return { previous };
@@ -191,7 +217,7 @@ export function useUpdateRow() {
         | {
             previous?: Array<{
               key: unknown[];
-              data: DatabaseRowsResponse | undefined;
+              data: RowsCache | undefined;
             }>;
           }
         | undefined;

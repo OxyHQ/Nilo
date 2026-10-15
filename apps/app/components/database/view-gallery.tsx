@@ -1,5 +1,6 @@
+import { RowsScrollView } from './rows-scroll-view';
 import * as React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ImageIcon, Plus } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
@@ -15,6 +16,7 @@ interface ViewGalleryProps {
   rows: DatabaseRow[];
   isLoading: boolean;
   readOnly?: boolean;
+  onLoadMore?: () => void;
 }
 
 const CARD_WIDTH = 240;
@@ -29,6 +31,7 @@ export function ViewGallery({
   rows,
   isLoading,
   readOnly = false,
+  onLoadMore,
 }: ViewGalleryProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
@@ -50,7 +53,7 @@ export function ViewGallery({
   }
 
   return (
-    <ScrollView>
+    <RowsScrollView onLoadMore={onLoadMore}>
       <View className="flex-row flex-wrap gap-3 p-3">
         {rows.map((row) => {
           const cover = readCover(row, view, database);
@@ -65,24 +68,14 @@ export function ViewGallery({
             >
               <View className="h-32 bg-muted items-center justify-center">
                 {cover ? (
-                  // We render <img> on web; native shows the placeholder.
-                  // Phase 4 keeps it light — no react-native Image to avoid
-                  // remote-url permissions complications.
-                  cover.kind === 'url' && typeof window !== 'undefined' ? (
-                    <img
-                      src={cover.url}
-                      alt=""
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                      }}
-                    />
-                  ) : (
-                    <ImageIcon size={28} color="#9ca3af" />
-                  )
+                  <Image
+                    source={{ uri: cover.url }}
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                    accessible={false}
+                  />
                 ) : (
-                  <ImageIcon size={24} color="#cbd5e1" />
+                  <ImageIcon size={24} color={colors.mutedForeground} />
                 )}
               </View>
               <View className="p-3 gap-1">
@@ -123,7 +116,7 @@ export function ViewGallery({
           </Pressable>
         ) : null}
       </View>
-    </ScrollView>
+    </RowsScrollView>
   );
 }
 

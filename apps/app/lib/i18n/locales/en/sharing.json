@@ -52,7 +52,9 @@
   "blocks": {
     "emptyParagraph": "Empty paragraph",
     "untitledHeading": "Untitled heading",
-    "unsupported": "Unsupported block type: %{type}"
+    "unsupported": "Unsupported block type: %{type}",
+    "expand": "Expand %{title}",
+    "collapse": "Collapse %{title}"
   },
   "roles": {
     "viewer": "Can view",

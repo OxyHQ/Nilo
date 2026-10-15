@@ -2,7 +2,7 @@ import { mentionablePeople, mentionSearchResults } from '../mention-search';
 import type { PagePermissions } from '@/lib/hooks/use-page-permissions';
 import type { WorkspaceMember } from '@/lib/hooks/use-workspace-members';
 
-const labels = { people: 'Personas', pages: 'Páginas', untitled: 'Sin título' };
+const labels = { date: 'Fecha', people: 'Personas', pages: 'Páginas', untitled: 'Sin título' };
 const people = [
   { id: 'same', name: 'José Díaz' },
   { id: 'other', name: 'Ana' },
@@ -14,7 +14,7 @@ const pages = [
 const search = (text: string) => mentionSearchResults({ text, people, pages, labels });
 
 it('groups people and pages with localized headings and canonical attributes', () => {
-  expect(search('')).toEqual([
+  expect(search('').filter((item) => item.attributes.kind !== 'date')).toEqual([
     {
       id: 'user:same',
       label: 'José Díaz',
