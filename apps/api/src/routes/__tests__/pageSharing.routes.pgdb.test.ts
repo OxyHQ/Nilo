@@ -496,4 +496,36 @@ describe('following pages', () => {
     const taken = await api(EDITOR, 'DELETE', `/comments/${id}/reactions/${thumbs}`);
     expect(taken.json.reactions).toEqual([{ emoji: '👍', userIds: [OWNER] }]);
   });
+
+  it('tells the followers who can open a page that it was edited, once in a while', async () => {
+    const target = await page(OWNER, { title: 'Roadmap' });
+    expect((await api(VIEWER, 'PUT', `/pages/${target}/follow`)).status).toBe(200);
+    const edit = () =>
+      api(EDITOR, 'POST', `/pages/${target}/blocks/transactions`, {
+        ops: [
+          {
+            kind: 'insert',
+            id: uuidv7(),
+            parentBlockId: null,
+            afterId: null,
+            type: 'paragraph',
+            content: {},
+          },
+        ],
+      });
+    notified.length = 0;
+    expect((await edit()).status).toBe(200);
+    await new Promise((r) => setTimeout(r, 100));
+    const edited = () =>
+      notified
+        .filter((n) => n.type === 'page_edited')
+        .map((n) => n.userId)
+        .sort();
+    // The creator and the follower; not the editor.
+    expect(edited()).toEqual([OWNER, VIEWER].sort());
+    // Typing on: nothing more for now.
+    expect((await edit()).status).toBe(200);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(edited()).toEqual([OWNER, VIEWER].sort());
+  });
 });

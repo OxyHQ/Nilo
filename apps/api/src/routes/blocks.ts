@@ -10,6 +10,8 @@ import { snapshotPage } from '../repositories/pageVersions.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { log } from '../lib/logger.js';
 import { sendNotification } from '../lib/notification-service.js';
+import { recentlyNotified } from '../repositories/notifications.js';
+import { listFollowers } from '../repositories/pageFollows.js';
 import { checkPageAccess, resolvePageAccess } from '../lib/page-access.js';
 import {
   applyBlockTransaction,
@@ -165,6 +167,52 @@ async function notifyMentioned(
   }
 }
 
+/** How often one process looks at a page's followers while it is being edited. */
+const EDIT_CHECK_MS = 60_000;
+/** One unread "edited" notification per follower and page in this window. */
+const EDIT_NOTICE_WINDOW = '1 hour';
+const lastEditCheck = new Map<string, number>();
+
+/**
+ * Tell the people following a page that someone edited it, as Notion's
+ * updates do — never the editor, only those who can still open it, in the app
+ * only, and grouped: nothing more while an earlier one is unread and recent.
+ * The editor saves as you type, so a page is looked at once a minute at most.
+ */
+async function notifyFollowersOfEdit(page: { id: string; title: string }, authorId: string) {
+  const now = Date.now();
+  if (now - (lastEditCheck.get(page.id) ?? 0) < EDIT_CHECK_MS) return;
+  lastEditCheck.set(page.id, now);
+  if (lastEditCheck.size > 10_000) lastEditCheck.clear();
+  try {
+    const db = getDb();
+    const followers = (await listFollowers(db, page.id)).filter((id) => id !== authorId);
+    if (followers.length === 0) return;
+    const told = new Set(
+      await recentlyNotified(db, {
+        type: 'page_edited',
+        pageId: page.id,
+        userIds: followers,
+        within: EDIT_NOTICE_WINDOW,
+      }),
+    );
+    for (const userId of followers) {
+      if (told.has(userId) || !(await resolvePageAccess(db, userId, page.id))) continue;
+      await sendNotification({
+        userId,
+        type: 'page_edited',
+        title: `${page.title || 'Untitled'} was edited`,
+        body: '',
+        priority: 'low',
+        channels: ['in_app'],
+        data: { pageId: page.id, authorId },
+      });
+    }
+  } catch (err: unknown) {
+    log.general.warn({ err, pageId: page.id }, 'Failed to tell followers of an edit');
+  }
+}
+
 /**
  * POST /pages/:pageId/blocks/transactions
  *
@@ -202,6 +250,8 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
     // The sender gets the operations as applied too: the orders the server chose.
     res.json({ ok: true, version: result.version, ops: result.ops });
     void notifyMentioned(result.mentioned, { id: page.id, title: page.title }, req.user?.id ?? '');
+    if (!result.replayed)
+      void notifyFollowersOfEdit({ id: page.id, title: page.title }, req.user?.id ?? '');
   } catch (error: unknown) {
     if (error instanceof TransactionRejected) {
       res
