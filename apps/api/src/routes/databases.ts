@@ -387,10 +387,12 @@ async function resolveDerivedProperties(
       case 'created_by':
         out[prop.id] = { userIds: row.ownerId ? [row.ownerId] : [] };
         break;
-      case 'last_edited_by':
-        // No separate "last editor" tracking yet — fall back to owner.
-        out[prop.id] = { userIds: row.ownerId ? [row.ownerId] : [] };
+      case 'last_edited_by': {
+        // Never edited since it was created: its creator.
+        const editor = row.lastEditedBy ?? row.ownerId;
+        out[prop.id] = { userIds: editor ? [editor] : [] };
         break;
+      }
       case 'formula': {
         const { value, error } = formulaContext.evaluate(prop);
         out[prop.id] = formulaCellValue(value, error);

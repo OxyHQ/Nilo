@@ -161,7 +161,7 @@ export async function applyBlockTransaction(
         return { version: done.version, replayed: true };
       }
     }
-    const version = await bumpBlocksVersion(tx, input.pageId);
+    const version = await bumpBlocksVersion(tx, input.pageId, input.actorId || undefined);
     const rows = await listBlocksForPage(tx, input.pageId);
     await input.beforeChange?.(tx, rows);
     const types = new Map<string, BlockType>(rows.map((b) => [b.id, b.type]));

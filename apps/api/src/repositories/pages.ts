@@ -230,6 +230,7 @@ export interface UpdatePageInput {
   publishedAt?: Date | null;
   publishSlug?: string;
   publishIndexing?: boolean;
+  lastEditedBy?: string;
   /**
    * Shallow top-level MERGE into the stored object, never a replacement.
    *
@@ -282,6 +283,7 @@ export async function updatePage(
   if (patch.publishedAt !== undefined) values.publishedAt = patch.publishedAt;
   if (patch.publishSlug !== undefined) values.publishSlug = patch.publishSlug;
   if (patch.publishIndexing !== undefined) values.publishIndexing = patch.publishIndexing;
+  if (patch.lastEditedBy !== undefined) values.lastEditedBy = patch.lastEditedBy;
   if (patch.mergeProperties !== undefined) {
     values.properties = sql`${pages.properties} || ${JSON.stringify(patch.mergeProperties)}::jsonb`;
   }
@@ -466,10 +468,17 @@ export async function findPageAncestry(db: PgHandle, id: string): Promise<PageCr
  * inside the transaction that applies a block transaction, so the version
  * and the change commit together.
  */
-export async function bumpBlocksVersion(db: PgHandle, pageId: string): Promise<number> {
+export async function bumpBlocksVersion(
+  db: PgHandle,
+  pageId: string,
+  editorId?: string,
+): Promise<number> {
   const [row] = await db
     .update(pages)
-    .set({ blocksVersion: sql`${pages.blocksVersion} + 1` })
+    .set({
+      blocksVersion: sql`${pages.blocksVersion} + 1`,
+      ...(editorId && { lastEditedBy: editorId }),
+    })
     .where(eq(pages.id, pageId))
     .returning({ version: pages.blocksVersion });
   if (!row) throw new Error(`bumpBlocksVersion found no page ${pageId}`);

@@ -206,6 +206,9 @@ describe('page history', () => {
     await ageVersions(pageId);
     await tx(pageId, [{ kind: 'update', id: a, content: { text: '3' } }]);
     expect(await versionsOf(EDITOR, pageId)).toHaveLength(2);
+    // And who made the change is recorded on the page.
+    const read = await api(EDITOR, 'GET', `/pages/${pageId}`);
+    expect((read.json.page as { lastEditedBy: string }).lastEditedBy).toBe(EDITOR);
   });
 
   it('restores nesting: blocks the version keeps come out from under blocks it does not', async () => {

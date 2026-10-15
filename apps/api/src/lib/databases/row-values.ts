@@ -56,8 +56,9 @@ export function rowFormulaContext(
       case 'last_edited_time':
         return row.updatedAt;
       case 'created_by':
-      case 'last_edited_by':
         return [row.ownerId];
+      case 'last_edited_by':
+        return [row.lastEditedBy ?? row.ownerId];
       case 'rollup':
         return rollups.get(property.id) ?? null;
       case 'formula': {

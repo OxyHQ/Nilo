@@ -159,6 +159,7 @@ function serializePage(page: PageRow) {
     publishedAt: page.publishedAt,
     publishSlug: page.publishSlug,
     publishIndexing: page.publishIndexing,
+    lastEditedBy: page.lastEditedBy,
     order: page.order,
     databaseId: page.databaseId,
     properties: page.properties,
@@ -448,6 +449,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       favorited: body.favorited,
       restricted: body.restricted,
       template: body.template,
+      lastEditedBy: userId,
       mergeProperties: undefined as Record<string, unknown> | undefined,
     };
 

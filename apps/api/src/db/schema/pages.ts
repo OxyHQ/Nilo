@@ -116,6 +116,11 @@ export const pages = pgTable(
     /** Whether search engines may index the published page. */
     publishIndexing: boolean().notNull().default(false),
     /**
+     * Oxy user id of whoever last changed the page (its blocks or its fields);
+     * null until someone does. `updatedAt` is when.
+     */
+    lastEditedBy: text(),
+    /**
      * Sibling ordering. `double precision`, not an integer: `PATCH
      * /api/pages/:id` accepts `z.number().finite()`, so a client may write a
      * fractional order to insert between two neighbours without renumbering.

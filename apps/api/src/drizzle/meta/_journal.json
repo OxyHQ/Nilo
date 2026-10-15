@@ -92,6 +92,13 @@
       "when": 1792044608741,
       "tag": "0012_special_nebula",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792046559554,
+      "tag": "0013_lumpy_solo",
+      "breakpoints": true
     }
   ]
 }
