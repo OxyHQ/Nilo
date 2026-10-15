@@ -333,3 +333,34 @@ export const pageTransactions = pgTable(
     index('page_transactions_page_created_idx').on(t.pageId, t.createdAt),
   ],
 );
+
+/** A block as a version keeps it. */
+export interface VersionBlock {
+  id: string;
+  parentBlockId: string | null;
+  type: BlockType;
+  content: BlockContent;
+  order: number;
+}
+
+/**
+ * Page history: the page's blocks as they were, kept before the first change
+ * after a quiet spell and before every restore, so any of them can be looked
+ * at and restored. Pruned to the newest `PAGE_VERSIONS_KEPT` per page.
+ */
+export const pageVersions = pgTable(
+  'page_versions',
+  {
+    id: generatedId(),
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    /** The page's blocks version the snapshot shows. */
+    blocksVersion: integer().notNull(),
+    blocks: jsonb().$type<VersionBlock[]>().notNull(),
+    /** Who made the change that followed, i.e. whose edit this version precedes. */
+    createdBy: text().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('page_versions_page_created_idx').on(t.pageId, t.createdAt)],
+);
