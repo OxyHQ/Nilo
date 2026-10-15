@@ -40,10 +40,12 @@
       "expo-asset",
       "expo-notifications",
       [
-        "expo-speech-recognition",
+        "react-native-audio-api",
         {
-          "microphonePermission": "Allow Nilo to hear what you dictate and say to Alia.",
-          "speechRecognitionPermission": "Allow Nilo to turn your speech into text."
+          "iosMicrophonePermission": "Allow Nilo to hear what you dictate and say to Alia.",
+          "iosBackgroundMode": false,
+          "androidForegroundService": false,
+          "androidPermissions": ["android.permission.RECORD_AUDIO"]
         }
       ],
       [

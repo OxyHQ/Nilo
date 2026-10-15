@@ -1,11 +1,11 @@
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
-import type { LucideIcon } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
 
 interface SidebarItemProps {
-  icon: LucideIcon;
+  /** A Lucide icon, or any component that draws itself at `size` (and `color`, if it has one). */
+  icon: React.ComponentType<{ size?: number; color?: string }>;
   label: string;
   onPress: () => void;
   isActive?: boolean;
