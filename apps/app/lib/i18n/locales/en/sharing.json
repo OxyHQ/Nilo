@@ -53,6 +53,7 @@
     "emptyParagraph": "Empty paragraph",
     "untitledHeading": "Untitled heading",
     "unsupported": "Unsupported block type: %{type}",
+    "fileUnavailable": "This file is unavailable right now",
     "expand": "Expand %{title}",
     "collapse": "Collapse %{title}"
   },

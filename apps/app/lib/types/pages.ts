@@ -179,6 +179,8 @@ export interface BlockContent {
   backgroundColor?: BlockColor;
   // Media / embed
   url?: string;
+  /** An attachment in Oxy's file manager (`@nilo/contracts` `files.ts`); `url` is then empty. */
+  fileId?: string;
   caption?: string;
   alt?: string;
   width?: number;

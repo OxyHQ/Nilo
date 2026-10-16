@@ -7,7 +7,7 @@ Express and TypeScript API for the Nilo workspace.
 - PostgreSQL/Drizzle is the only database and `DATABASE_URL` is required.
 - Socket.IO provides real-time workspace updates.
 - Redis/Valkey is optional for Socket.IO scale-out.
-- S3-compatible storage and browser push are optional.
+- Browser push is optional. Attachments live in Oxy's file manager (`docs/files.md`).
 - Oxy session verification comes from `@oxy.so/core/server`.
 
 Nilo has no provider runtime, provider-key storage, model routing, billing

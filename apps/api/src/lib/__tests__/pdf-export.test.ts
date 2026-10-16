@@ -109,6 +109,23 @@ describe('blocksToPdf', () => {
     expect(raw).toContain('/URI (https://img.example/b.svg)');
   });
 
+  it('asks for an attachment by its file id and never links to it', async () => {
+    const blocks = [
+      block('image', { fileId: 'img1', url: '' }),
+      block('image', { fileId: 'img2', url: '', alt: 'Plano' }),
+      block('file', { fileId: 'doc1', url: '', name: 'informe.pdf' }),
+    ];
+    const asked: string[] = [];
+    const pdf = await blocksToPdf(blocks, 'Adjuntos', async (source) => {
+      asked.push(source);
+      return source === 'file:img1' ? png() : null;
+    });
+    const raw = pdf.toString('latin1');
+    expect(asked).toEqual(['file:img1', 'file:img2']);
+    expect(raw.match(/\/Subtype \/Image/g)).toHaveLength(1);
+    expect(raw).not.toContain('/URI');
+  });
+
   it('leaves out an image that fails to load', async () => {
     const pdf = await blocksToPdf([block('image', { url: 'https://img.example/x.png' })], 'X', () =>
       Promise.reject(new Error('offline')),

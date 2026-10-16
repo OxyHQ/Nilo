@@ -146,7 +146,11 @@ export function PageHistoryDialog({ page, onClose }: { page: Page; onClose: () =
                       </Button>
                     </View>
                   ) : preview.data ? (
-                    <SharedBlockTree blocks={preview.data.blocks} font={page.font} />
+                    <SharedBlockTree
+                      blocks={preview.data.blocks}
+                      font={page.font}
+                      fileScope={{ kind: 'page', pageId: page.id }}
+                    />
                   ) : null}
                 </View>
               ) : null}

@@ -63,10 +63,14 @@ model, credential, conversation or chat-completion route.
 `POST /databases/import/csv`, forms (`GET/PUT/DELETE
 /databases/:id/views/:viewId/form`, public `GET/POST /forms/:token`).
 
-## Search, uploads, embeds, feedback
+## Search, files, embeds, feedback
 
 - `GET /search?workspaceId&q` — titles and text, accent-insensitive.
-- `POST /uploads/presign`, `PUT /uploads/local/:token` (local storage only).
+- `POST /pages/:id/files { fileId, name }` (editor) — record a file uploaded
+  to Oxy and linked to Nilo as an attachment of the page.
+- `POST /pages/:id/files/urls`, `POST /share/:token/files/urls`,
+  `POST /public/pages/:slug/files/urls { pageId? }` — `{ ids }` → short-lived
+  URLs for the files the reader may see (`docs/files.md`).
 - `POST /embed/preview` — a URL's metadata, fetched safely (no private
   addresses).
 - `POST/GET /feedback`, `GET /feedback/:id`.

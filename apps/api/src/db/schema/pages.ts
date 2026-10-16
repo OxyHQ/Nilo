@@ -407,3 +407,30 @@ export const pageVersions = pgTable(
   },
   (t) => [index('page_versions_page_created_idx').on(t.pageId, t.createdAt)],
 );
+
+/**
+ * An attachment of a page: a file in Oxy's file manager that a member
+ * uploaded, owns there and linked to Nilo (`@nilo/contracts` `files.ts`).
+ * The row is what lets Nilo serve it: a URL is minted only for a file of the
+ * reader's workspace that the page was given or one of its blocks holds, so
+ * knowing a file's id is not enough to read it from somewhere else.
+ */
+export const pageFiles = pgTable(
+  'page_files',
+  {
+    /** The Oxy file id. A file belongs to one workspace, once. */
+    fileId: text().primaryKey(),
+    workspaceId: text()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    /** The page it was uploaded to; a copy of its block elsewhere still holds it. */
+    pageId: text().references(() => pages.id, { onDelete: 'set null' }),
+    uploadedBy: text().notNull(),
+    name: text().notNull(),
+    /** Measured by Oxy, not reported by the uploader. */
+    mime: text().notNull(),
+    size: integer().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('page_files_page_idx').on(t.pageId), check('page_files_size', sql`${t.size} >= 0`)],
+);

@@ -8,7 +8,13 @@
  * block points at becomes a link.
  */
 import { createRequire } from 'node:module';
-import { type BlockNode, mergeSegments, type Segment, segmentsOf } from '@nilo/contracts';
+import {
+  type BlockNode,
+  blockFileId,
+  mergeSegments,
+  type Segment,
+  segmentsOf,
+} from '@nilo/contracts';
 import PDFDocument from 'pdfkit';
 
 declare global {
@@ -44,9 +50,20 @@ const HEADINGS = { heading_1: 20, heading_2: 16, heading_3: 13 } as const;
 const CONTAINERS = new Set(['columns', 'column', 'canvas_note']);
 
 /** Bytes of an image a block points at, or null to show it as a link. */
-export type ImageLoader = (url: string) => Promise<Buffer | null>;
+/**
+ * Loads one image by its source: a URL, or `file:<id>` for an attachment in
+ * Oxy's file manager, which the caller resolves (its URL is a credential that
+ * expires, so it never reaches the document).
+ */
+export type ImageLoader = (source: string) => Promise<Buffer | null>;
 
 const stringOf = (value: unknown) => (typeof value === 'string' ? value : '');
+
+/** An image block's source for {@link ImageLoader}. */
+export function imageSource(content: Record<string, unknown>): string {
+  const fileId = blockFileId(content);
+  return fileId ? `file:${fileId}` : stringOf(content.url);
+}
 
 /**
  * What one export may take in images: how many, how much at once, how many
@@ -323,7 +340,8 @@ class Writer {
       }
       case 'image': {
         const url = stringOf(block.content.url);
-        const bytes = url ? this.images.get(url) : undefined;
+        const source = imageSource(block.content);
+        const bytes = source ? this.images.get(source) : undefined;
         if (bytes) {
           const width = this.width - (x - MARGIN);
           const image = doc.openImage(bytes);
@@ -337,6 +355,12 @@ class Writer {
             this.inline([{ text: caption }], x, { size: BODY * 0.85, color: MUTED });
           }
           this.gap(8);
+        } else if (blockFileId(block.content)) {
+          const label = stringOf(block.content.alt) || stringOf(block.content.caption);
+          if (label) {
+            this.inline([{ text: label }], x, { color: MUTED });
+            this.gap(4);
+          }
         } else if (url) {
           this.inline([{ text: stringOf(block.content.alt) || url, link: url }], x);
           this.gap(4);
@@ -351,7 +375,11 @@ class Writer {
       case 'embed': {
         const url = stringOf(block.content.url);
         const label = stringOf(block.content.title) || stringOf(block.content.name) || url;
-        if (url) {
+        if (blockFileId(block.content)) {
+          // An attachment's URL lasts minutes: the document names the file instead.
+          this.inline([{ text: stringOf(block.content.name) || 'File' }], x);
+          this.gap(4);
+        } else if (url) {
           this.inline([{ text: label, link: url }], x);
           this.gap(4);
         }
@@ -410,12 +438,12 @@ class Writer {
   }
 }
 
-/** Every image URL in the tree, in order, once. */
-function imageUrls(blocks: readonly BlockNode[], into: string[] = []): string[] {
+/** Every image source in the tree (`imageSource`), in order, once. */
+export function imageSources(blocks: readonly BlockNode[], into: string[] = []): string[] {
   for (const block of blocks) {
-    const url = block.type === 'image' ? stringOf(block.content.url) : '';
-    if (url && !into.includes(url)) into.push(url);
-    imageUrls(block.children, into);
+    const source = block.type === 'image' ? imageSource(block.content) : '';
+    if (source && !into.includes(source)) into.push(source);
+    imageSources(block.children, into);
   }
   return into;
 }
@@ -426,7 +454,7 @@ export async function blocksToPdf(
   title: string,
   loadImage: ImageLoader = async () => null,
 ): Promise<Buffer> {
-  const images = await loadImages(imageUrls(blocks), loadImage);
+  const images = await loadImages(imageSources(blocks), loadImage);
 
   const name = title.trim() || 'Untitled';
   const doc = new PDFDocument({

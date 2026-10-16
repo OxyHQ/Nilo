@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link2 } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { fetchEmbedPreview } from '@/lib/uploads/upload-file';
+import { fetchEmbedPreview } from '@/lib/embed-preview';
 import type { BlockComponentProps } from './types';
 
 /**

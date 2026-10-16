@@ -11,6 +11,15 @@ export {
   SAFE_LINK,
   segmentSchema,
 } from './blocks';
+export {
+  blockFileId,
+  type FileUrl,
+  type FileUrlScope,
+  MAX_FILE_BYTES,
+  MAX_FILE_URL_IDS,
+  NILO_FILE_ENTITY_TYPE,
+  NILO_OXY_APPLICATION_ID,
+} from './files';
 export { isEntityId } from './ids';
 export { TRANSACTION_KEY_RETENTION_MS } from './transactions';
 export { compareOrder, MIN_ORDER_GAP, placeAfter, type Sibling } from './order';

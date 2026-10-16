@@ -87,14 +87,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 
 WORKDIR /app
 
-# The code is root-owned and read-only to the app user, so a compromised
-# process cannot rewrite its own bundle or dependencies. The one directory the
-# API writes is `uploads/` under its working directory (the local-disk upload
-# fallback in src/routes/uploads.ts, used only when no S3 bucket is set), so
-# that directory alone belongs to `bun`, the image's own unprivileged user
-# (uid/gid 1000). CI's image smoke (.github/scripts/smoke-api-image.sh) asserts
-# both, and boots the image as ECS runs it.
-RUN install -d -o bun -g bun -m 0755 /app/uploads
+# The code is root-owned and read-only to the app user (`bun`, uid/gid 1000),
+# so a compromised process cannot rewrite its own bundle or dependencies. The
+# API writes nothing to disk: attachments live in Oxy's file manager. CI's
+# image smoke (.github/scripts/smoke-api-image.sh) asserts it, and boots the
+# image as ECS runs it.
 
 COPY --from=production-deps /app/node_modules ./node_modules
 COPY package.json ./
