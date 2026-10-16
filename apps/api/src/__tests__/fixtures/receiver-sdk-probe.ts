@@ -56,7 +56,9 @@ globalThis.fetch = new Proxy(originalFetch, {
 async function run(): Promise<void> {
   try {
     issuer = createServer((req, res) => {
-      if (!req.url?.startsWith('/session/validate/receiver-session')) {
+      // A server validates its request's bearer with `validate-header`, which
+      // binds the token to its session (core 4.18); `validate` is the unbound path.
+      if (!/^\/session\/validate(-header)?\/receiver-session(\?|$)/.test(req.url ?? '')) {
         res.writeHead(404).end();
         return;
       }

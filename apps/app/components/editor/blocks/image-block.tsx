@@ -9,7 +9,7 @@ import { TextField, TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useOxy } from '@oxy.so/services';
 import { useQueryClient } from '@tanstack/react-query';
-import { useFileImageSource, useFileScope } from '@/lib/files/file-urls';
+import { useFileImageSource, useFileRemoved, useFileScope } from '@/lib/files/file-urls';
 import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { BlockComponentProps } from './types';
@@ -30,7 +30,9 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
   const { oxyServices } = useOxy();
   const queryClient = useQueryClient();
   const fileId = blockFileId(block.content);
-  const fileSource = useFileImageSource(useFileScope(block.pageId), fileId);
+  const scope = useFileScope(block.pageId);
+  const fileSource = useFileImageSource(scope, fileId);
+  const removed = useFileRemoved(scope, fileId);
   const pastedUrl = typeof block.content.url === 'string' ? block.content.url : '';
   const url = fileId ? (fileSource?.uri ?? null) : pastedUrl;
   const caption = typeof block.content.caption === 'string' ? block.content.caption : '';
@@ -82,13 +84,21 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
   };
 
   // An attachment whose URL has not arrived yet: its place, not the picker.
+  // One Oxy removed (deleted, trashed by its owner, taken down) says so.
   if (fileId && !url) {
     return (
       <View
-        className="rounded-lg bg-muted/40"
+        className="items-center justify-center gap-2 rounded-lg bg-muted/40"
         style={{ width: '100%', aspectRatio: 16 / 9 }}
         accessibilityLabel={typeof block.content.alt === 'string' ? block.content.alt : undefined}
-      />
+      >
+        {removed ? (
+          <>
+            <RiImageLine size="sm" fill={colors.mutedForeground} />
+            <Text className="text-sm text-muted-foreground">This image was removed</Text>
+          </>
+        ) : null}
+      </View>
     );
   }
 

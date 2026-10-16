@@ -63,6 +63,12 @@ export interface Note {
   kind: NoteKind;
   /** Oxy file ids. */
   attachments: string[];
+  /**
+   * The attachments Oxy has said it no longer serves — deleted, moved to their
+   * owner's trash, or taken down (Oxy ADR 0043 file events): show them as
+   * removed, never from a copy kept on the device.
+   */
+  removedAttachments: string[];
   /** The owner's reminder on the note, delivered or not; null when there is none. */
   reminderAt: string | null;
   order: number;

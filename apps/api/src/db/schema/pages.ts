@@ -467,6 +467,12 @@ export const pageVersions = pgTable(
  * The row is what lets Nilo serve it: a URL is minted only for a file of the
  * reader's workspace that the page was given or one of its blocks holds, so
  * knowing a file's id is not enough to read it from somewhere else.
+ *
+ * The row is also Nilo's USE of the file in Oxy (Oxy ADR 0043): while it
+ * exists, Oxy holds the reference the owner made, `(file, Nilo, 'page',
+ * page_id)`. Deleting the row is what releases it — a trigger
+ * (`db/triggers.ts`) queues the removal in `file_reference_removals` in the
+ * same statement, whichever path deletes it (`docs/files.md`).
  */
 export const pageFiles = pgTable(
   'page_files',
@@ -476,8 +482,15 @@ export const pageFiles = pgTable(
     workspaceId: text()
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
-    /** The page it was uploaded to; a copy of its block elsewhere still holds it. */
-    pageId: text().references(() => pages.id, { onDelete: 'set null' }),
+    /**
+     * The page it was uploaded to, which is also the entity its owner linked
+     * it to in Oxy. Deliberately NOT a foreign key: it outlives the page, both
+     * because a copy of its block elsewhere still holds the file and because
+     * it names the Oxy reference that must be removed when the row goes.
+     * NULL only on rows recorded before 0039, whose page was deleted under
+     * the old `ON DELETE SET NULL`.
+     */
+    pageId: text(),
     uploadedBy: text().notNull(),
     name: text().notNull(),
     /** Measured by Oxy, not reported by the uploader. */

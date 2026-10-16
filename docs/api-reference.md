@@ -132,8 +132,11 @@ the catalog after each healthy rollout.
 - `POST /pages/:id/files { fileId, name }` (editor) — record a file uploaded
   to Oxy and linked to Nilo as an attachment of the page.
 - `POST /pages/:id/files/urls`, `POST /share/:token/files/urls`,
-  `POST /public/pages/:slug/files/urls { pageId? }` — `{ ids }` → short-lived
-  URLs for the files the reader may see (`docs/files.md`).
+  `POST /public/pages/:slug/files/urls { pageId? }` — `{ ids }` →
+  `{ files, removed }`: short-lived URLs for the files the reader may see, and
+  the ids of those Oxy no longer serves (`docs/files.md`).
+- `POST /webhooks/oxy/files` — Oxy's file events, signed (`oxy-signature`,
+  `OXY_FILES_WEBHOOK_SECRET`); read raw, before any body parser.
 - `POST /embed/preview` — a URL's metadata, fetched safely (no private
   addresses).
 - `POST/GET /feedback`, `GET /feedback/:id`.

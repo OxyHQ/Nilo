@@ -2,14 +2,25 @@
  * Attachments in Oxy's file manager against PostgreSQL: recording a file on a
  * page, who gets URLs for it (members, a copy of its block, a share link, a
  * published page) and who does not (another workspace, a page that never held
- * it), and the cache that spares Oxy's mint limit.
+ * it), and the cache that spares Oxy's mint limit. Then Nilo's side of Oxy's
+ * record of who uses a file (Oxy ADR 0043): letting go of an attachment, the
+ * queue that tells Oxy, the daily run, and the file events Oxy sends back.
  */
+import { createHmac } from 'node:crypto';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { uuidv7 } from '@oxy.so/db';
+import { eq, inArray, isNull } from 'drizzle-orm';
 import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeDb } from '../../db/client.js';
+import {
+  fileReferenceRemovals,
+  fileReferenceRuns,
+  oxyFileEvents,
+  oxyFileStatuses,
+} from '../../db/schema/files.js';
+import { pageDocs, pageFiles, pages, pageVersions } from '../../db/schema/pages.js';
 import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
 import {
   closeTestDb,
@@ -38,6 +49,46 @@ const linkedDownloadUrls = vi.fn(async (ids: string[]) =>
   }),
 );
 
+type Reference = { fileId: string; entityType: string; entityId: string };
+/** What Oxy was told to remove, and whether it answers. */
+const removedInOxy: Reference[] = [];
+let oxyDown = false;
+const removeReferences = vi.fn(async (refs: Reference[]) => {
+  if (oxyDown) throw Object.assign(new Error('Oxy is down'), { status: 503 });
+  removedInOxy.push(...refs);
+  return refs.map((ref) => ({ ...ref, result: 'removed' as const }));
+});
+/** The inventories reconciliation sent, and how it answers. */
+const inventories: {
+  entityType: string;
+  items: { fileId: string; entityId: string }[];
+  dryRun: boolean;
+}[] = [];
+let reconcileAnswer: 'ok' | 'in_progress' = 'ok';
+const reconcileReferences = vi.fn(
+  async (
+    entityType: string,
+    items: AsyncIterable<{ fileId: string; entityId: string }>,
+    options: { dryRun?: boolean },
+  ) => {
+    if (reconcileAnswer === 'in_progress') {
+      throw Object.assign(new Error('in progress'), { status: 409 });
+    }
+    const sent: { fileId: string; entityId: string }[] = [];
+    for await (const item of items) sent.push(item);
+    inventories.push({ entityType, items: sent, dryRun: options.dryRun === true });
+    return {
+      sessionId: 's',
+      entityType,
+      dryRun: options.dryRun === true,
+      added: 0,
+      removed: 0,
+      unchanged: sent.length,
+      refused: 0,
+    };
+  },
+);
+
 vi.mock('../../middleware/auth.js', () => ({
   authenticateToken: (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const id = req.header('x-test-user');
@@ -51,7 +102,17 @@ vi.mock('../../middleware/auth.js', () => ({
   oxyClient: {
     // The real limiters resolve an optional session through this; anonymous here.
     middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
-    assets: { linkedDownloadUrls: (ids: string[]) => linkedDownloadUrls(ids) },
+    assets: {
+      linkedDownloadUrls: (ids: string[]) => linkedDownloadUrls(ids),
+      references: {
+        remove: (refs: Reference[]) => removeReferences(refs),
+        reconcile: (
+          entityType: string,
+          items: AsyncIterable<{ fileId: string; entityId: string }>,
+          options: { dryRun?: boolean },
+        ) => reconcileReferences(entityType, items, options),
+      },
+    },
   },
 }));
 vi.mock('../../socket.js', () => ({ getIO: () => null }));
@@ -65,6 +126,12 @@ const { default: shareLinksRouter } = await import('../share-links.js');
 const { default: pagesRouter } = await import('../pages.js');
 const { default: blocksRouter } = await import('../blocks.js');
 const { resetLocalFileUrls } = await import('../../lib/files.js');
+const { drainReferenceRemovals, reconcileMode, runDailyFileWork, runDailyFileWorkIfDue } =
+  await import('../../lib/file-references.js');
+const { OXY_FILE_EVENTS_PATH, oxyFileEventsHandler, rawFileEventBody } = await import(
+  '../oxy-file-events.js'
+);
+const { resetPersonalWorkspace } = await import('../../repositories/workspaces.js');
 
 let db: TestDatabase;
 let server: Server;
@@ -143,6 +210,9 @@ beforeAll(async () => {
     { workspaceId: otherWorkspaceId, userId: STRANGER, role: 'owner' },
   ]);
   const app = express();
+  app.post(OXY_FILE_EVENTS_PATH, rawFileEventBody, (req, res) => {
+    void oxyFileEventsHandler(req, res);
+  });
   app.use(express.json());
   app.use(filesRouter);
   app.use(publishRouter);
@@ -268,5 +338,393 @@ describe('URLs for readers', () => {
     const second = await urlsFor(OWNER, path, { ids: [fileId] });
     expect(second[0]?.url).toBe(first[0]?.url);
     expect(linkedDownloadUrls).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** The removals queued for `fileIds`, as Oxy would be told them. */
+async function queued(fileIds: string[]) {
+  return db
+    .select({
+      fileId: fileReferenceRemovals.fileId,
+      entityType: fileReferenceRemovals.entityType,
+      entityId: fileReferenceRemovals.entityId,
+    })
+    .from(fileReferenceRemovals)
+    .where(inArray(fileReferenceRemovals.fileId, fileIds));
+}
+
+/** What Oxy last said about `fileId`; no record is `active`. */
+const statusOf = async (fileId: string) =>
+  (await db.select().from(oxyFileStatuses).where(eq(oxyFileStatuses.fileId, fileId)))[0]?.status ??
+  'active';
+
+const recorded = async (fileId: string) =>
+  (await db.select().from(pageFiles).where(eq(pageFiles.fileId, fileId)))[0];
+
+/** Run the daily run's sweep, with reconciliation off. */
+const sweep = () => runDailyFileWork(db, { mode: 'off', graceMs: 0 });
+
+describe('letting go of an attachment', () => {
+  it('keeps it, and its Oxy reference, while its page is in the trash', async () => {
+    const target = await page('Trashed');
+    const fileId = await attach(target);
+    expect((await api(OWNER, 'DELETE', `/pages/${target}`)).status).toBe(200);
+    await sweep();
+    expect(await recorded(fileId)).toBeDefined();
+    expect(await queued([fileId])).toEqual([]);
+  });
+
+  it('keeps it past its page while a copy of its block holds it, then lets it go', async () => {
+    const original = await page('Original');
+    const fileId = await attach(original);
+    const copy = await page('Copy');
+    await imageBlock(copy, fileId);
+    expect((await api(OWNER, 'DELETE', `/pages/${original}?hard=true`)).status).toBe(200);
+
+    // The page is gone, the attachment and the page its reference names are not.
+    expect((await recorded(fileId))?.pageId).toBe(original);
+    await sweep();
+    expect(await recorded(fileId)).toBeDefined();
+    expect((await urlsFor(OWNER, `/pages/${copy}/files/urls`, { ids: [fileId] })).length).toBe(1);
+
+    expect((await api(OWNER, 'DELETE', `/pages/${copy}?hard=true`)).status).toBe(200);
+    await sweep();
+    expect(await recorded(fileId)).toBeUndefined();
+    expect(await queued([fileId])).toEqual([{ fileId, entityType: 'page', entityId: original }]);
+  });
+
+  it('keeps it while a kept version or an unprojected document of another page holds it', async () => {
+    const original = await page('Versioned');
+    const fileId = await attach(original);
+    const holder = await page('Holder');
+    await db.insert(pageVersions).values({
+      pageId: holder,
+      blocksVersion: 1,
+      blocks: [{ id: uuidv7(), parentBlockId: null, type: 'image', content: { fileId }, order: 1 }],
+      createdBy: OWNER,
+    });
+    const other = await attach(original);
+    const docHolder = await page('Doc holder');
+    await db
+      .insert(pageDocs)
+      .values({ pageId: docHolder, state: Buffer.from(`\u0001yjs:${other}\u0000`, 'utf8') })
+      .onConflictDoUpdate({
+        target: pageDocs.pageId,
+        set: { state: Buffer.from(`\u0001yjs:${other}\u0000`, 'utf8') },
+      });
+    expect((await api(OWNER, 'DELETE', `/pages/${original}?hard=true`)).status).toBe(200);
+    await sweep();
+    expect(await recorded(fileId)).toBeDefined();
+    expect(await recorded(other)).toBeDefined();
+    expect(await queued([fileId, other])).toEqual([]);
+  });
+
+  it('queues the removal whatever deletes the row: a reset of the personal workspace', async () => {
+    const owner = testScope('files-reset');
+    const [personal] = await db
+      .insert(workspaces)
+      .values({ name: testScope('files-personal'), ownerId: owner, isPersonal: true })
+      .returning();
+    await db
+      .insert(workspaceMembers)
+      .values({ workspaceId: personal.id, userId: owner, role: 'owner' });
+    const target = await page('Reset me', personal.id, owner);
+    const fileId = await attach(target, owner);
+    await resetPersonalWorkspace(db, personal, 'Personal');
+    expect(await recorded(fileId)).toBeUndefined();
+    expect(await queued([fileId])).toEqual([{ fileId, entityType: 'page', entityId: target }]);
+  });
+
+  it('queues nothing for a row recorded before page ids were kept', async () => {
+    const target = await page('Legacy');
+    const fileId = await attach(target);
+    await db.update(pageFiles).set({ pageId: null }).where(eq(pageFiles.fileId, fileId));
+    await db.delete(pageFiles).where(eq(pageFiles.fileId, fileId));
+    expect(await queued([fileId])).toEqual([]);
+  });
+});
+
+describe("a page's files property (Noted's attachments)", () => {
+  const attachments = (...fileIds: string[]) => ({
+    attachments: {
+      files: [
+        ...fileIds.map((fileId) => ({ name: 'a', fileId })),
+        { name: 'l', url: 'https://x.test/l' },
+      ],
+    },
+  });
+
+  it('lets go of a file taken out of the property, unless the page was also given it', async () => {
+    const note = await page('Note');
+    const uploaded = await attach(note);
+    await db
+      .update(pages)
+      .set({ properties: attachments('noted-a', 'noted-b', uploaded) })
+      .where(eq(pages.id, note));
+    await db
+      .update(pages)
+      .set({ properties: attachments('noted-b') })
+      .where(eq(pages.id, note));
+    expect(await queued(['noted-a', 'noted-b', uploaded])).toEqual([
+      { fileId: 'noted-a', entityType: 'page', entityId: note },
+    ]);
+  });
+
+  it('lets go of every listed file when the page is deleted for good', async () => {
+    const note = await page('Erased note');
+    await db
+      .update(pages)
+      .set({ properties: attachments('noted-c') })
+      .where(eq(pages.id, note));
+    expect((await api(OWNER, 'DELETE', `/pages/${note}`)).status).toBe(200);
+    expect(await queued(['noted-c'])).toEqual([]);
+    expect((await api(OWNER, 'DELETE', `/pages/${note}?hard=true`)).status).toBe(200);
+    expect(await queued(['noted-c'])).toEqual([
+      { fileId: 'noted-c', entityType: 'page', entityId: note },
+    ]);
+  });
+
+  it('keeps an uploaded file referenced while the page still lists it', async () => {
+    const note = await page('Listed upload');
+    const uploaded = await attach(note);
+    await db
+      .update(pages)
+      .set({ properties: attachments(uploaded) })
+      .where(eq(pages.id, note));
+    await db.delete(pageFiles).where(eq(pageFiles.fileId, uploaded));
+    expect(await queued([uploaded])).toEqual([]);
+  });
+
+  it('are in the inventory reconciliation sends', async () => {
+    const note = await page('Inventoried note');
+    await db
+      .update(pages)
+      .set({ properties: attachments('noted-d') })
+      .where(eq(pages.id, note));
+    await db.delete(pageFiles).where(isNull(pageFiles.pageId));
+    inventories.length = 0;
+    await runDailyFileWork(db, { mode: 'dry-run', graceMs: 0 });
+    expect(inventories[0]?.items).toContainEqual({ fileId: 'noted-d', entityId: note });
+  });
+});
+
+describe('telling Oxy', () => {
+  it('sends each queued removal once, and keeps it while Oxy cannot be told', async () => {
+    await db.delete(fileReferenceRemovals);
+    const target = await page('Told');
+    const fileId = await attach(target);
+    await db.delete(pageFiles).where(eq(pageFiles.fileId, fileId));
+    removedInOxy.length = 0;
+
+    oxyDown = true;
+    // Ahead of the database's clock, which stamped the row.
+    const now = new Date(Date.now() + 5_000);
+    expect(await drainReferenceRemovals(db, now)).toEqual({ sent: 0, deferred: 1 });
+    const [waiting] = await db
+      .select()
+      .from(fileReferenceRemovals)
+      .where(eq(fileReferenceRemovals.fileId, fileId));
+    expect(waiting?.attempts).toBe(1);
+    expect(waiting?.lastError).toBe('Oxy is down');
+    expect(waiting?.nextAttemptAt.getTime()).toBeGreaterThan(now.getTime());
+    // Not due yet: nothing is sent.
+    oxyDown = false;
+    expect(await drainReferenceRemovals(db, now)).toEqual({ sent: 0, deferred: 0 });
+
+    const later = new Date(now.getTime() + 2 * 60_000);
+    expect(await drainReferenceRemovals(db, later)).toEqual({ sent: 1, deferred: 0 });
+    expect(removedInOxy).toEqual([{ fileId, entityType: 'page', entityId: target }]);
+    expect(await queued([fileId])).toEqual([]);
+  });
+
+  it('leases what it claims, so a second task does not send it too', async () => {
+    await db.delete(fileReferenceRemovals);
+    await db.insert(fileReferenceRemovals).values({
+      fileId: 'leased-file',
+      entityType: 'page',
+      entityId: 'p',
+      nextAttemptAt: new Date(Date.now() - 60_000),
+    });
+    let release: () => void = () => {};
+    removeReferences.mockImplementationOnce(
+      (refs) =>
+        new Promise((resolve) => {
+          release = () => resolve(refs.map((ref) => ({ ...ref, result: 'removed' as const })));
+        }),
+    );
+    const first = drainReferenceRemovals(db);
+    await vi.waitFor(() =>
+      expect(removeReferences).toHaveBeenLastCalledWith([
+        { fileId: 'leased-file', entityType: 'page', entityId: 'p' },
+      ]),
+    );
+    expect(await drainReferenceRemovals(db)).toEqual({ sent: 0, deferred: 0 });
+    release();
+    expect(await first).toEqual({ sent: 1, deferred: 0 });
+  });
+});
+
+describe('the daily run', () => {
+  it('reconciles the page references as a dry run unless told to commit', async () => {
+    expect(reconcileMode(undefined)).toBe('dry-run');
+    expect(reconcileMode('commit')).toBe('commit');
+    expect(reconcileMode('yes')).toBe('dry-run');
+
+    const target = await page('Inventory');
+    const fileId = await attach(target);
+    // A row naming no page (another test's) would hold the commit back.
+    await db.delete(pageFiles).where(isNull(pageFiles.pageId));
+
+    inventories.length = 0;
+    await runDailyFileWork(db, { mode: 'dry-run', graceMs: 0 });
+    await runDailyFileWork(db, { mode: 'commit', graceMs: 0 });
+    expect(inventories.map((run) => [run.entityType, run.dryRun])).toEqual([
+      ['page', true],
+      ['page', false],
+    ]);
+    expect(inventories[1]?.items).toContainEqual({ fileId, entityId: target });
+  });
+
+  it('will not commit while an attachment names no page, nor fail on a run in progress', async () => {
+    const target = await page('Unnamed');
+    const fileId = await attach(target);
+    await imageBlock(target, fileId);
+    await db.update(pageFiles).set({ pageId: null }).where(eq(pageFiles.fileId, fileId));
+    inventories.length = 0;
+    const report = await runDailyFileWork(db, { mode: 'commit', graceMs: 0 });
+    expect(report.reconcile).toMatchObject({ dryRun: true });
+    expect(inventories[0]?.dryRun).toBe(true);
+    expect(inventories[0]?.items.map((item) => item.fileId)).not.toContain(fileId);
+    // Still held by its block, the sweep kept it; done with it now.
+    await db.delete(pageFiles).where(eq(pageFiles.fileId, fileId));
+
+    reconcileAnswer = 'in_progress';
+    try {
+      const busy = await runDailyFileWork(db, { mode: 'commit', graceMs: 0 });
+      expect(busy.reconcile).toMatchObject({ skipped: 'in_progress' });
+    } finally {
+      reconcileAnswer = 'ok';
+    }
+  });
+
+  it('runs once a day, whichever task asks', async () => {
+    await db.delete(fileReferenceRuns).where(eq(fileReferenceRuns.job, 'nightly'));
+    const now = new Date();
+    const first = await runDailyFileWorkIfDue(db, { mode: 'off', graceMs: 0, now });
+    expect(first).not.toBeNull();
+    expect(await runDailyFileWorkIfDue(db, { mode: 'off', graceMs: 0, now })).toBeNull();
+    const tomorrow = new Date(now.getTime() + 25 * 60 * 60_000);
+    expect(
+      await runDailyFileWorkIfDue(db, { mode: 'off', graceMs: 0, now: tomorrow }),
+    ).not.toBeNull();
+  });
+
+  it('asks Oxy again about a file marked trashed, in case its restore was never delivered', async () => {
+    const target = await page('Restored');
+    const fileId = await attach(target);
+    await db
+      .insert(oxyFileStatuses)
+      .values({ fileId, status: 'trash', statusAt: new Date(Date.now() - 60_000) });
+    resetLocalFileUrls();
+    await sweep();
+    expect(await statusOf(fileId)).toBe('active');
+  });
+});
+
+const SECRET = 'whsec_test';
+
+async function deliver(event: unknown, secret = SECRET) {
+  const body = JSON.stringify(event);
+  const t = Math.floor(Date.now() / 1000);
+  const v1 = createHmac('sha256', secret).update(`${t}.${body}`).digest('hex');
+  const res = await fetch(`${base}${OXY_FILE_EVENTS_PATH}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'oxy-signature': `t=${t},v1=${v1}` },
+    body,
+  });
+  return { status: res.status, text: await res.text() };
+}
+
+const fileEvent = (fileId: string, type: string, status: string, occurredAt: Date) => ({
+  id: uuidv7(),
+  type,
+  occurredAt: occurredAt.toISOString(),
+  file: { id: fileId, ownerKind: 'account', visibility: 'private', status },
+  references: [{ entityType: 'page', entityId: 'p' }],
+});
+
+describe('file events from Oxy', () => {
+  let previousSecret: string | undefined;
+  beforeAll(() => {
+    previousSecret = process.env.OXY_FILES_WEBHOOK_SECRET;
+    process.env.OXY_FILES_WEBHOOK_SECRET = SECRET;
+  });
+  afterAll(() => {
+    process.env.OXY_FILES_WEBHOOK_SECRET = previousSecret;
+  });
+
+  it('answer the endpoint challenge, even before a secret is configured', async () => {
+    process.env.OXY_FILES_WEBHOOK_SECRET = '';
+    try {
+      const res = await fetch(`${base}${OXY_FILE_EVENTS_PATH}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ type: 'webhook.challenge', challenge: 'c-123' }),
+      });
+      expect(await res.json()).toEqual({ challenge: 'c-123' });
+      // Any real event waits in Oxy's retries until the secret is set.
+      expect((await deliver(fileEvent('x', 'file.deleted', 'deleted', new Date()))).status).toBe(
+        503,
+      );
+    } finally {
+      process.env.OXY_FILES_WEBHOOK_SECRET = SECRET;
+    }
+  });
+
+  it('refuse a request Oxy did not sign', async () => {
+    expect(
+      (await deliver(fileEvent('x', 'file.deleted', 'deleted', new Date()), 'whsec_wrong')).status,
+    ).toBe(401);
+  });
+
+  it('show a taken-down file as removed to readers, and stop asking Oxy for it', async () => {
+    const target = await page('Takedown');
+    const fileId = await attach(target);
+    const path = `/pages/${target}/files/urls`;
+    const event = fileEvent(fileId, 'file.blocked', 'blocked', new Date());
+    expect((await deliver(event)).status).toBe(204);
+    expect(await statusOf(fileId)).toBe('blocked');
+
+    resetLocalFileUrls();
+    linkedDownloadUrls.mockClear();
+    const answer = (await api(VIEWER, 'POST', path, { ids: [fileId] })).json;
+    expect(answer).toEqual({ files: [], removed: [fileId] });
+    expect(linkedDownloadUrls).not.toHaveBeenCalled();
+
+    // A redelivery is acknowledged and changes nothing.
+    expect((await deliver(event)).status).toBe(204);
+    const seen = await db.select().from(oxyFileEvents).where(eq(oxyFileEvents.eventId, event.id));
+    expect(seen.length).toBe(1);
+  });
+
+  it('never let an older event overwrite a newer one', async () => {
+    const target = await page('Out of order');
+    const fileId = await attach(target);
+    const now = Date.now();
+    await deliver(fileEvent(fileId, 'file.restored', 'active', new Date(now)));
+    await deliver(fileEvent(fileId, 'file.trashed', 'trash', new Date(now - 60_000)));
+    expect(await statusOf(fileId)).toBe('active');
+    await deliver(fileEvent(fileId, 'file.deleted', 'deleted', new Date(now + 60_000)));
+    expect(await statusOf(fileId)).toBe('deleted');
+    expect(
+      (await api(OWNER, 'POST', `/pages/${target}/files/urls`, { ids: [fileId] })).json.removed,
+    ).toEqual([fileId]);
+  });
+
+  it('acknowledge an event about a file Nilo does not hold', async () => {
+    expect(
+      (await deliver(fileEvent('not-nilos', 'file.visibility_changed', 'active', new Date())))
+        .status,
+    ).toBe(204);
   });
 });

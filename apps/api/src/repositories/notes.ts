@@ -28,6 +28,7 @@ import {
 import { relationIds } from '../lib/databases/relations.js';
 import { FOLDER_PROPERTY, NOTE_PROPERTY, noteColorInNilo } from '../lib/databases/system.js';
 import type { DatabaseRecord } from './databases.js';
+import { removedFileIds } from './fileReferences.js';
 import type { PageRow } from './pages.js';
 
 /** The notes and folders databases a request works in. */
@@ -67,7 +68,11 @@ export interface NoteParts {
   appData: { data: Record<string, unknown>; revision: number } | null;
 }
 
-export function toNote(page: PageRow, parts: NoteParts): Note {
+export function toNote(
+  page: PageRow,
+  parts: NoteParts,
+  removedFiles: ReadonlySet<string> = new Set(),
+): Note {
   const properties = page.properties;
   const color = optionOf(properties, NOTE_PROPERTY.color);
   const kind = optionOf(properties, NOTE_PROPERTY.kind);
@@ -86,6 +91,7 @@ export function toNote(page: PageRow, parts: NoteParts): Note {
     trashed: page.archived,
     kind: isNoteKind(kind) ? kind : 'note',
     attachments: attachmentsOf(properties),
+    removedAttachments: attachmentsOf(properties).filter((id) => removedFiles.has(id)),
     reminderAt: parts.reminderAt?.toISOString() ?? null,
     order: page.order,
     appData: parts.appData,
@@ -158,7 +164,12 @@ export async function readNotes(
     home.ownerId,
     rows.map((row) => row.id),
   );
-  return rows.map((row) => toNote(row, parts.get(row.id) as NoteParts));
+  // What Oxy said it no longer serves (`routes/oxy-file-events.ts`).
+  const removed = await removedFileIds(
+    db,
+    rows.flatMap((row) => attachmentsOf(row.properties)),
+  );
+  return rows.map((row) => toNote(row, parts.get(row.id) as NoteParts, removed));
 }
 
 /** A row of the notes database, or null when the id names anything else. */

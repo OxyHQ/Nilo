@@ -54,6 +54,7 @@
     "untitledHeading": "Untitled heading",
     "unsupported": "Unsupported block type: %{type}",
     "fileUnavailable": "This file is unavailable right now",
+    "fileRemoved": "This file was removed",
     "expand": "Expand %{title}",
     "collapse": "Collapse %{title}"
   },

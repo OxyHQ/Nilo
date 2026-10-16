@@ -27,6 +27,13 @@ in issues. This file holds only rules, commands, and pointers. Budget: under
   or developer provider-key routes. Adding a new workspace feature must not
   weaken `inferenceBoundary.test.ts` or `inferenceBoundary.pgdb.test.ts`.
 
+- Oxy's references to Nilo's files are released by triggers on `page_files`
+  and `pages` (`apps/api/src/db/triggers.ts`, `docs/files.md`), which
+  drizzle-kit does not know: a migration that rebuilds either table recreates
+  them. `page_files.page_id` names the Oxy reference and must never become a
+  foreign key again. Never let reconciliation commit without reading its
+  dry-run report: a removed owner reference cannot be recreated.
+
 ## Product vocabulary
 
 Use page, block, database, view, workspace, member, and collaboration. Do not

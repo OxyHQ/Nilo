@@ -9,10 +9,11 @@ import type { AddressInfo } from 'node:net';
 import type { Note, NoteBlock, NotesSyncPage } from '@oxy.so/nilo-contracts';
 import { uuidv7 } from '@oxy.so/db';
 import express from 'express';
-import { and, eq, isNull, like, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, like, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { closeDb } from '../../db/client.js';
 import { reminders } from '../../db/schema/collab.js';
+import { fileReferenceRemovals, oxyFileStatuses } from '../../db/schema/files.js';
 import { pages } from '../../db/schema/pages.js';
 import { workspaces } from '../../db/schema/workspaces.js';
 import {
@@ -417,6 +418,25 @@ describe('what a review found', () => {
       { name: 'A.png', fileId: 'oxy-a' },
       { name: '', fileId: 'oxy-b' },
     ]);
+  });
+
+  it('lists the attachments Oxy no longer serves, and lets go of one taken off', async () => {
+    const kept = `oxy-kept-${uuidv7()}`;
+    const gone = `oxy-gone-${uuidv7()}`;
+    const note = await create({ attachments: [kept, gone] });
+    await db
+      .insert(oxyFileStatuses)
+      .values({ fileId: gone, status: 'blocked', statusAt: new Date() });
+    const read = (await api('GET', `/notes/${note.id}`)).json.note as Note;
+    expect(read.attachments).toEqual([kept, gone]);
+    expect(read.removedAttachments).toEqual([gone]);
+
+    await api('PATCH', `/notes/${note.id}`, { attachments: [kept] });
+    const queued = await db
+      .select({ fileId: fileReferenceRemovals.fileId, entityId: fileReferenceRemovals.entityId })
+      .from(fileReferenceRemovals)
+      .where(inArray(fileReferenceRemovals.fileId, [kept, gone]));
+    expect(queued).toEqual([{ fileId: gone, entityId: note.id }]);
   });
 
   it('refuses blocks that do not form a tree', async () => {
