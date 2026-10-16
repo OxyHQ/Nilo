@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { nestSubItems, subItemProperties } from '@/lib/sub-items';
 import { ViewList } from '../view-list';
 import { ViewTable } from '../view-table';
@@ -90,7 +91,9 @@ it.each([ViewList, ViewTable])(
   (Component) => {
     act(() => {
       renderer = create(
-        <Component database={database} view={view} rows={rows} isLoading={false} />,
+        <BloomTestProviders>
+          <Component database={database} view={view} rows={rows} isLoading={false} />
+        </BloomTestProviders>,
       );
     });
     expect(renderer.root.findAllByType(SubItemToggle).map((node) => node.props.title)).toEqual([
@@ -119,7 +122,9 @@ it.each([ViewList, ViewTable])(
 it.each([ViewList, ViewTable])('allows read-only expansion without creation', (Component) => {
   act(() => {
     renderer = create(
-      <Component database={database} view={view} rows={rows} isLoading={false} readOnly />,
+      <BloomTestProviders>
+        <Component database={database} view={view} rows={rows} isLoading={false} readOnly />
+      </BloomTestProviders>,
     );
   });
   act(() => renderer.root.findAllByType(SubItemToggle)[0].props.onPress());

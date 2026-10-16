@@ -1,16 +1,9 @@
 import React from 'react';
-import { View, Pressable } from 'react-native';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
+import { View } from 'react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
+import { TextFieldInput, TextFieldLabel } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useCreateWorkspace, type Workspace } from '@/lib/hooks/use-workspaces';
 import { toast } from '@oxy.so/bloom/toast';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -40,25 +33,23 @@ const EMOJI_OPTIONS = [
 ];
 
 interface CreateWorkspaceModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  /** The caller opens the dialog; it closes itself on cancel and on success. */
+  control: DialogControlProps;
   /** Called with the freshly-created workspace on success. */
   onCreated?: (workspace: Workspace) => void;
 }
 
-export function CreateWorkspaceModal({ open, onOpenChange, onCreated }: CreateWorkspaceModalProps) {
+export function CreateWorkspaceModal({ control, onCreated }: CreateWorkspaceModalProps) {
   const { t } = useTranslation();
   const [name, setName] = React.useState('');
   const [icon, setIcon] = React.useState<string>(EMOJI_OPTIONS[0] ?? '');
   const { mutate, isPending } = useCreateWorkspace();
 
   // Reset form whenever the modal is dismissed.
-  React.useEffect(() => {
-    if (!open) {
-      setName('');
-      setIcon(EMOJI_OPTIONS[0] ?? '');
-    }
-  }, [open]);
+  const handleClosed = React.useCallback(() => {
+    setName('');
+    setIcon(EMOJI_OPTIONS[0] ?? '');
+  }, []);
 
   const trimmed = name.trim();
   const canSubmit = trimmed.length > 0 && !isPending;
@@ -70,6 +61,7 @@ export function CreateWorkspaceModal({ open, onOpenChange, onCreated }: CreateWo
       {
         onSuccess: (workspace) => {
           toast.success(t('workspace.create.created', { name: workspace.name }));
+          control.close();
           onCreated?.(workspace);
         },
         onError: (error) => {
@@ -79,69 +71,69 @@ export function CreateWorkspaceModal({ open, onOpenChange, onCreated }: CreateWo
         },
       },
     );
-  }, [canSubmit, mutate, trimmed, icon, onCreated, t]);
+  }, [canSubmit, mutate, trimmed, icon, control, onCreated, t]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('workspace.create.title')}</DialogTitle>
-          <DialogDescription>{t('workspace.create.description')}</DialogDescription>
-        </DialogHeader>
-
-        <View className="gap-3">
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-foreground">{t('common.name')}</Text>
-            <Input
-              value={name}
-              onChangeText={setName}
-              placeholder={t('workspace.create.namePlaceholder')}
-              autoCapitalize="words"
-              autoFocus
-              maxLength={80}
-              onSubmitEditing={handleSubmit}
-              returnKeyType="done"
-            />
-          </View>
-
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-foreground">
-              {t('workspace.create.icon')}
-            </Text>
-            <View className="flex-row flex-wrap gap-1.5">
-              {EMOJI_OPTIONS.map((emoji) => {
-                const selected = emoji === icon;
-                return (
-                  <Pressable
-                    key={emoji}
-                    onPress={() => setIcon(emoji)}
-                    className={`h-9 w-9 items-center justify-center rounded-lg border ${
-                      selected
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border bg-background hover:bg-muted'
-                    }`}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('workspace.create.useIcon', { emoji })}
-                  >
-                    <Text className="text-lg" style={{ lineHeight: 22 }}>
-                      {emoji}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
+    <Dialog
+      control={control}
+      onClose={handleClosed}
+      placement={{ base: 'bottom', md: 'center' }}
+      title={t('workspace.create.title')}
+      description={t('workspace.create.description')}
+    >
+      <View className="gap-3">
+        <View>
+          <TextFieldLabel>{t('common.name')}</TextFieldLabel>
+          <TextFieldInput
+            label={t('common.name')}
+            value={name}
+            onChangeText={setName}
+            placeholder={t('workspace.create.namePlaceholder')}
+            autoCapitalize="words"
+            autoFocus
+            maxLength={80}
+            onSubmitEditing={handleSubmit}
+            returnKeyType="done"
+          />
         </View>
 
-        <DialogFooter>
-          <Button variant="outline" onPress={() => onOpenChange(false)} disabled={isPending}>
-            <Text>{t('common.cancel')}</Text>
-          </Button>
-          <Button onPress={handleSubmit} disabled={!canSubmit} isLoading={isPending}>
-            <Text>{t('workspace.create.submit')}</Text>
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+        <View className="gap-1.5">
+          <Text variant="body-medium">{t('workspace.create.icon')}</Text>
+          <View className="flex-row flex-wrap gap-1.5">
+            {EMOJI_OPTIONS.map((emoji) => (
+              <Button
+                key={emoji}
+                appearance="outline"
+                iconOnly
+                pressed={emoji === icon}
+                onPress={() => setIcon(emoji)}
+                accessibilityLabel={t('workspace.create.useIcon', { emoji })}
+                icon={
+                  <Text className="text-lg text-foreground" style={{ lineHeight: 22 }}>
+                    {emoji}
+                  </Text>
+                }
+              />
+            ))}
+          </View>
+        </View>
+      </View>
+
+      {/* Not Dialog `actions`: a declarative action cannot show the submit's spinner. */}
+      <View className="mt-5 flex-row justify-end gap-2">
+        <Button appearance="outline" onPress={() => control.close()} disabled={isPending}>
+          {t('common.cancel')}
+        </Button>
+        <Button
+          appearance="solid"
+          tone="accent"
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+          loading={isPending}
+        >
+          {t('workspace.create.submit')}
+        </Button>
+      </View>
     </Dialog>
   );
 }

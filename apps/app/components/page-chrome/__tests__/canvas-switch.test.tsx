@@ -1,6 +1,7 @@
 import { documentFromSnapshot, EditorStore, getBlock } from '@oxy.so/bloom-editor/model';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@oxy.so/bloom/switch';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { NOTE } from '@/lib/editor/canvas';
 import { NILO_SCHEMA } from '@/lib/editor/schema';
 import type { Page } from '@/lib/types/pages';
@@ -25,7 +26,7 @@ const newId = () => `b${++n}`;
 const page = (mode: Page['mode']) => ({ id: 'p', mode, locked: false }) as Page;
 let renderer: ReactTestRenderer;
 const toggle = (value: boolean) =>
-  act(() => renderer.root.findByType(Switch).props.onValueChange(value));
+  act(() => renderer.root.findByType(Switch).props.onCheckedChange(value));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -46,7 +47,11 @@ afterEach(() => act(() => renderer.unmount()));
 
 it('puts the page in a note, then saves the mode', () => {
   act(() => {
-    renderer = create(<CanvasSwitch page={page('document')} />);
+    renderer = create(
+      <BloomTestProviders>
+        <CanvasSwitch page={page('document')} />
+      </BloomTestProviders>,
+    );
   });
   toggle(true);
   const store = mockStore as EditorStore;
@@ -56,7 +61,11 @@ it('puts the page in a note, then saves the mode', () => {
 
 it('puts the blocks back when the mode cannot be saved', () => {
   act(() => {
-    renderer = create(<CanvasSwitch page={page('document')} />);
+    renderer = create(
+      <BloomTestProviders>
+        <CanvasSwitch page={page('document')} />
+      </BloomTestProviders>,
+    );
   });
   toggle(true);
   act(() => mockMutate.mock.calls[0]?.[1].onError(new Error('offline')));
@@ -71,7 +80,11 @@ it('puts the blocks back when the mode cannot be saved', () => {
 it('is not offered before the page has loaded', () => {
   mockStore = null;
   act(() => {
-    renderer = create(<CanvasSwitch page={page('canvas')} />);
+    renderer = create(
+      <BloomTestProviders>
+        <CanvasSwitch page={page('canvas')} />
+      </BloomTestProviders>,
+    );
   });
-  expect(renderer.toJSON()).toBeNull();
+  expect(renderer.root.findByType(CanvasSwitch).children).toHaveLength(0);
 });

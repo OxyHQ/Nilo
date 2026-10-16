@@ -1,5 +1,7 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import type { ReactNode } from 'react';
 import { StyleSheet, Text as RNText, View } from 'react-native';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import PublicSitePage from '../public-site-page';
 import { SharedBlockTree } from '../shared-block-renderer';
 
@@ -15,9 +17,6 @@ jest.mock('expo-router', () => ({
 jest.mock('expo-router/head', () => ({ __esModule: true, default: () => null }));
 jest.mock('@oxy.so/bloom/fonts', () => ({
   fontFamilies: { sans: 'Inter', display: 'BlomusModernus', mono: 'JetBrains Mono' },
-}));
-jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0 }),
 }));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -46,30 +45,34 @@ jest.mock('@/lib/hooks/use-page-extras', () => ({
 }));
 let renderer: ReactTestRenderer;
 afterEach(() => act(() => renderer.unmount()));
+const themed = (node: ReactNode) => <BloomTestProviders>{node}</BloomTestProviders>;
 it('applies published font and width, ignoring small text and locking', () => {
   mockFullWidth = true;
   act(() => {
-    renderer = create(<PublicSitePage />);
+    renderer = create(themed(<PublicSitePage />));
   });
   const title = renderer.root
     .findAllByType(RNText)
     .find((node) => node.props.children === 'Published title')!;
   expect(StyleSheet.flatten(title.props.style).fontFamily).toBe('BlomusModernus');
-  expect(title.props.className).toContain('text-3xl');
+  const heading = renderer.root.findAll(
+    (node) => node.props.children === 'Published title' && node.props.className !== undefined,
+  );
+  expect(heading[0].props.className).toContain('text-3xl');
   expect(renderer.root.findByType(SharedBlockTree).props.font).toBe('serif');
   expect(JSON.stringify(renderer.toJSON())).not.toContain('pages.lock');
   expect(
     renderer.root.findAllByType(View).some((node) => node.props.className?.includes('max-w-3xl')),
   ).toBe(false);
   mockFullWidth = false;
-  act(() => renderer.update(<PublicSitePage />));
+  act(() => renderer.update(themed(<PublicSitePage />)));
   expect(
     renderer.root.findAllByType(View).some((node) => node.props.className?.includes('max-w-3xl')),
   ).toBe(true);
 });
 it('uses the page face throughout shared text while preserving the code face', () => {
   act(() => {
-    renderer = create(<SharedBlockTree blocks={blocks} font="serif" />);
+    renderer = create(themed(<SharedBlockTree blocks={blocks} font="serif" />));
   });
   const texts = renderer.root.findAllByType(RNText);
   expect(
@@ -98,7 +101,7 @@ it.each([undefined, 'site'])(
       },
     ];
     act(() => {
-      renderer = create(<SharedBlockTree blocks={toggleBlocks} publicSlug={publicSlug} />);
+      renderer = create(themed(<SharedBlockTree blocks={toggleBlocks} publicSlug={publicSlug} />));
     });
     expect(JSON.stringify(renderer.toJSON())).not.toContain('Folded content');
     expect(

@@ -1,15 +1,12 @@
 import { useState } from 'react';
-import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { toast } from '@oxy.so/bloom/toast';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog, type DialogAction, useDialogControl } from '@oxy.so/bloom/dialog';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Item } from '@oxy.so/bloom/item';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { SharedBlockTree } from '@/components/sharing/shared-block-renderer';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePageVersions, usePageVersion, useRestoreVersion } from '@/lib/hooks/use-page-extras';
@@ -38,136 +35,134 @@ export function PageHistoryDialog({ page, onClose }: { page: Page; onClose: () =
   const canRestore = !access.isError && hasRole(access.data?.role, 'editor');
   const restore = useRestoreVersion(page);
   const [confirm, setConfirm] = useState(false);
+  const control = useDialogControl();
+  const { width } = useWindowDimensions();
+
+  const restoreSelected = async () => {
+    if (!canRestore || restore.isPending || !selectedId) return;
+    try {
+      await restore.mutateAsync(selectedId);
+      setConfirm(false);
+      toast.success(t('pages.history.restored'));
+    } catch {
+      toast.error(t('pages.history.restoreFailed'));
+    }
+  };
+  const actions: DialogAction[] | undefined = confirm
+    ? [
+        {
+          label: t(restore.isPending ? 'common.processing' : 'pages.history.restore'),
+          disabled: !canRestore || restore.isPending,
+          shouldCloseOnPress: false,
+          onPress: () => void restoreSelected(),
+        },
+        {
+          label: t('common.cancel'),
+          color: 'cancel',
+          disabled: restore.isPending,
+          shouldCloseOnPress: false,
+          onPress: () => setConfirm(false),
+        },
+      ]
+    : selectedId
+      ? [
+          {
+            label: t('pages.history.restore'),
+            disabled: !canRestore || restore.isPending || !preview.data || preview.isError,
+            shouldCloseOnPress: false,
+            onPress: () => setConfirm(true),
+          },
+        ]
+      : undefined;
+
   return (
     <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open && !restore.isPending) {
-          if (confirm) setConfirm(false);
-          else onClose();
-        }
-      }}
+      control={control}
+      startOpen
+      onClose={onClose}
+      // The confirm step is left with its own Cancel, and nothing is dismissed
+      // mid-restore.
+      dismissOnBackdrop={!confirm && !restore.isPending}
+      placement={{ base: 'bottom', md: 'center' }}
+      maxWidth={page.fullWidth ? width : 768}
+      scrollable={false}
+      title={t(confirm ? 'pages.history.confirmTitle' : 'pages.history.title')}
+      description={t(confirm ? 'pages.history.confirmBody' : 'pages.history.description')}
+      actions={actions}
     >
-      <DialogContent className={page.fullWidth ? 'max-w-full' : 'max-w-3xl'}>
-        {confirm ? (
-          <View className="gap-4">
-            <DialogHeader>
-              <DialogTitle>{t('pages.history.confirmTitle')}</DialogTitle>
-              <DialogDescription>{t('pages.history.confirmBody')}</DialogDescription>
-            </DialogHeader>
-            <Button
-              disabled={!canRestore || restore.isPending}
-              onPress={async () => {
-                if (!canRestore || restore.isPending || !selectedId) return;
-                try {
-                  await restore.mutateAsync(selectedId);
-                  setConfirm(false);
-                  toast.success(t('pages.history.restored'));
-                } catch {
-                  toast.error(t('pages.history.restoreFailed'));
-                }
-              }}
-              accessibilityLabel={t('pages.history.restore')}
-            >
-              <Text>{t(restore.isPending ? 'common.processing' : 'pages.history.restore')}</Text>
-            </Button>
-            <Button
-              variant="outline"
-              disabled={restore.isPending}
-              onPress={() => setConfirm(false)}
-            >
-              <Text>{t('common.cancel')}</Text>
-            </Button>
-          </View>
-        ) : (
-          <>
-            <DialogHeader>
-              <DialogTitle>{t('pages.history.title')}</DialogTitle>
-              <DialogDescription>{t('pages.history.description')}</DialogDescription>
-            </DialogHeader>
-            <ScrollView
-              style={{ maxHeight: 540, flexShrink: 1 }}
-              contentContainerClassName="gap-4"
-              keyboardShouldPersistTaps="handled"
-            >
-              {list.isLoading ? (
-                <ActivityIndicator accessibilityLabel={t('common.loading')} />
-              ) : list.isError ? (
-                <View className="gap-2">
-                  <Text accessibilityRole="alert">{t('pages.history.loadFailed')}</Text>
-                  <Button variant="outline" onPress={() => list.refetch()}>
-                    <Text>{t('pages.publish.retry')}</Text>
-                  </Button>
-                </View>
-              ) : !list.data?.versions.length ? (
-                <Text>{t('pages.history.empty')}</Text>
-              ) : (
-                <View className="gap-2">
-                  {list.data.versions.map((version) => {
-                    const member = members.data?.find(
-                      (entry) => entry.userId === version.createdBy,
-                    );
-                    const name =
-                      (member && memberProfileName(member)) ||
-                      version.createdBy ||
-                      t('notifications.someone');
-                    const label = t('pages.history.entry', {
-                      time: relativeTime(version.createdAt, locale),
-                      name,
-                      count: version.blockCount,
-                    });
-                    return (
-                      <Button
-                        key={version.id}
-                        variant={selectedId === version.id ? 'secondary' : 'ghost'}
-                        className="h-auto py-3 justify-start"
-                        onPress={() => setSelected(version.id)}
-                        accessibilityLabel={label}
-                        accessibilityState={{ selected: selectedId === version.id }}
-                      >
-                        <Text className="web:whitespace-normal">{label}</Text>
-                      </Button>
-                    );
-                  })}
-                </View>
-              )}
-              {selectedId ? (
-                <View className="border-t border-border pt-4 gap-3">
-                  <Text accessibilityRole="header" className="font-semibold">
-                    {t('pages.history.preview')}
-                  </Text>
-                  {preview.isLoading ? (
-                    <ActivityIndicator accessibilityLabel={t('common.loading')} />
-                  ) : preview.isError ? (
-                    <View className="gap-2">
-                      <Text accessibilityRole="alert">{t('pages.history.loadFailed')}</Text>
-                      <Button variant="outline" onPress={() => preview.refetch()}>
-                        <Text>{t('pages.publish.retry')}</Text>
-                      </Button>
-                    </View>
-                  ) : preview.data ? (
-                    <SharedBlockTree blocks={preview.data.blocks} font={page.font} />
-                  ) : null}
-                </View>
-              ) : null}
-            </ScrollView>
+      {confirm ? null : (
+        <>
+          <ScrollView
+            style={{ maxHeight: 540, flexShrink: 1 }}
+            contentContainerClassName="gap-4"
+            keyboardShouldPersistTaps="handled"
+          >
+            {list.isLoading ? (
+              <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
+            ) : list.isError ? (
+              <View className="gap-2">
+                <Text variant="body-regular" accessibilityRole="alert">
+                  {t('pages.history.loadFailed')}
+                </Text>
+                <Button appearance="outline" tone="neutral" onPress={() => list.refetch()}>
+                  {t('pages.publish.retry')}
+                </Button>
+              </View>
+            ) : !list.data?.versions.length ? (
+              <EmptyState variant="compact" title={t('pages.history.empty')} />
+            ) : (
+              <View className="gap-2">
+                {list.data.versions.map((version) => {
+                  const member = members.data?.find((entry) => entry.userId === version.createdBy);
+                  const name =
+                    (member && memberProfileName(member)) ||
+                    version.createdBy ||
+                    t('notifications.someone');
+                  const label = t('pages.history.entry', {
+                    time: relativeTime(version.createdAt, locale),
+                    name,
+                    count: version.blockCount,
+                  });
+                  return (
+                    <Item
+                      key={version.id}
+                      title={label}
+                      role="radio"
+                      selected={selectedId === version.id}
+                      onPress={() => setSelected(version.id)}
+                      accessibilityLabel={label}
+                    />
+                  );
+                })}
+              </View>
+            )}
             {selectedId ? (
-              <Button
-                disabled={!canRestore || restore.isPending || !preview.data || preview.isError}
-                onPress={() => setConfirm(true)}
-                accessibilityLabel={t('pages.history.restore')}
-              >
-                <Text>{t('pages.history.restore')}</Text>
-              </Button>
+              <View className="border-t border-border pt-4 gap-3">
+                <Text accessibilityRole="header" variant="headline-semibold">
+                  {t('pages.history.preview')}
+                </Text>
+                {preview.isLoading ? (
+                  <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
+                ) : preview.isError ? (
+                  <View className="gap-2">
+                    <Text variant="body-regular" accessibilityRole="alert">
+                      {t('pages.history.loadFailed')}
+                    </Text>
+                    <Button appearance="outline" tone="neutral" onPress={() => preview.refetch()}>
+                      {t('pages.publish.retry')}
+                    </Button>
+                  </View>
+                ) : preview.data ? (
+                  <SharedBlockTree blocks={preview.data.blocks} font={page.font} />
+                ) : null}
+              </View>
             ) : null}
-            {!canRestore ? (
-              <Text className="text-sm text-muted-foreground">
-                {t('pages.history.noPermission')}
-              </Text>
-            ) : null}
-          </>
-        )}
-      </DialogContent>
+          </ScrollView>
+          {!canRestore ? (
+            <Text className="text-sm text-muted-foreground">{t('pages.history.noPermission')}</Text>
+          ) : null}
+        </>
+      )}
     </Dialog>
   );
 }

@@ -1,14 +1,20 @@
 import { RelationCell } from './relation-cell';
 import { ComputedCell } from './computed-cell';
 import * as React from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { Check, ChevronDown, Plus, X } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Check, ChevronDown, X } from 'lucide-react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { Checkbox } from '@oxy.so/bloom/checkbox';
+import { Chip } from '@oxy.so/bloom/chip';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Item } from '@oxy.so/bloom/item';
+import { Popover, PopoverContent, PopoverTrigger } from '@oxy.so/bloom/popover';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { DatabaseProperty, PropertyValue, SelectOption } from '@/lib/types/databases';
 import { SELECT_COLOR_CLASSES } from './select-color';
-import { centeredModalStyle } from './centered-modal-style';
 
 export interface PropertyCellProps {
   readOnly?: boolean;
@@ -84,7 +90,11 @@ export function PropertyCell({
       );
     case 'checkbox':
       return (
-        <CheckboxCell value={readChecked(value)} onChange={(checked) => onChange({ checked })} />
+        <CheckboxCell
+          label={property.name}
+          value={readChecked(value)}
+          onChange={(checked) => onChange({ checked })}
+        />
       );
     case 'select':
       return (
@@ -194,7 +204,7 @@ function PropertyValueText({ property, value }: Pick<PropertyCellProps, 'propert
     default:
       return <DerivedCell value={value} variant="card" />;
   }
-  return <Text className="text-sm text-foreground py-1">{display || '—'}</Text>;
+  return <Text className="py-1 text-sm text-foreground">{display || '—'}</Text>;
 }
 
 // --- typed readers ---------------------------------------------------------
@@ -401,7 +411,7 @@ function NumberCell({ property, value, autoFocus, onChange, variant }: NumberCel
             }
           />
           {displayValue !== draft && draft.length > 0 ? (
-            <Text className="text-xs text-muted-foreground ml-2">{displayValue}</Text>
+            <Text className="ml-2 text-xs text-muted-foreground">{displayValue}</Text>
           ) : null}
         </View>
       )}
@@ -432,23 +442,13 @@ function formatNumber(value: number | null, property: DatabaseProperty): string 
 }
 
 interface CheckboxCellProps {
+  label: string;
   value: boolean;
   onChange: (next: boolean) => void;
 }
 
-function CheckboxCell({ value, onChange }: CheckboxCellProps) {
-  return (
-    <Pressable
-      onPress={() => onChange(!value)}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: value }}
-      className={`h-5 w-5 items-center justify-center rounded border ${
-        value ? 'bg-primary border-primary' : 'border-border bg-background'
-      }`}
-    >
-      {value ? <Check size={14} color="#ffffff" /> : null}
-    </Pressable>
-  );
+function CheckboxCell({ label, value, onChange }: CheckboxCellProps) {
+  return <Checkbox checked={value} onCheckedChange={onChange} accessibilityLabel={label} />;
 }
 
 interface SelectCellProps extends CellVariantProps {
@@ -458,14 +458,29 @@ interface SelectCellProps extends CellVariantProps {
 }
 
 function SelectCell({ property, value, onChange, variant }: SelectCellProps) {
+  const { colors } = useColorScheme();
   const [open, setOpen] = React.useState(false);
   const options = property.config?.options ?? [];
   const selected = options.find((o) => o.id === value) ?? null;
 
   return (
-    <>
+    <SelectPicker
+      open={open}
+      onOpenChange={setOpen}
+      options={options}
+      selectedIds={selected ? [selected.id] : []}
+      multi={false}
+      onSelect={(id) => {
+        onChange(id);
+        setOpen(false);
+      }}
+      onClear={() => {
+        onChange(null);
+        setOpen(false);
+      }}
+    >
       <Pressable
-        onPress={() => setOpen(true)}
+        accessibilityLabel={property.name}
         className={`flex-row items-center ${variant === 'table' ? 'py-0.5' : 'py-1'}`}
       >
         {selected ? (
@@ -474,25 +489,10 @@ function SelectCell({ property, value, onChange, variant }: SelectCellProps) {
           <Text className="text-sm text-muted-foreground">—</Text>
         )}
         {variant !== 'card' ? (
-          <ChevronDown size={12} color="#9ca3af" style={{ marginLeft: 4 }} />
+          <ChevronDown size={12} color={colors.mutedForeground} style={{ marginLeft: 4 }} />
         ) : null}
       </Pressable>
-      <SelectPicker
-        open={open}
-        onClose={() => setOpen(false)}
-        options={options}
-        selectedIds={selected ? [selected.id] : []}
-        multi={false}
-        onSelect={(id) => {
-          onChange(id);
-          setOpen(false);
-        }}
-        onClear={() => {
-          onChange(null);
-          setOpen(false);
-        }}
-      />
-    </>
+    </SelectPicker>
   );
 }
 
@@ -508,9 +508,20 @@ function MultiSelectCell({ property, value, onChange, variant }: MultiSelectCell
   const selected = options.filter((o) => value.includes(o.id));
 
   return (
-    <>
+    <SelectPicker
+      open={open}
+      onOpenChange={setOpen}
+      options={options}
+      selectedIds={value}
+      multi
+      onSelect={(id) => {
+        const next = value.includes(id) ? value.filter((x) => x !== id) : [...value, id];
+        onChange(next);
+      }}
+      onClear={() => onChange([])}
+    >
       <Pressable
-        onPress={() => setOpen(true)}
+        accessibilityLabel={property.name}
         className={`flex-row flex-wrap items-center gap-1 ${
           variant === 'table' ? 'py-0.5' : 'py-1'
         }`}
@@ -521,22 +532,14 @@ function MultiSelectCell({ property, value, onChange, variant }: MultiSelectCell
           selected.map((o) => <SelectChip key={o.id} option={o} />)
         )}
       </Pressable>
-      <SelectPicker
-        open={open}
-        onClose={() => setOpen(false)}
-        options={options}
-        selectedIds={value}
-        multi
-        onSelect={(id) => {
-          const next = value.includes(id) ? value.filter((x) => x !== id) : [...value, id];
-          onChange(next);
-        }}
-        onClear={() => onChange([])}
-      />
-    </>
+    </SelectPicker>
   );
 }
 
+/**
+ * An option's colour pill. Bloom's `Chip` hues have no brown, orange or pink, and a
+ * single rose for red, so the option colours stay on the select palette classes.
+ */
 function SelectChip({ option }: { option: SelectOption }) {
   const palette = SELECT_COLOR_CLASSES[option.color] ?? SELECT_COLOR_CLASSES.default;
   return (
@@ -548,22 +551,25 @@ function SelectChip({ option }: { option: SelectOption }) {
 
 interface SelectPickerProps {
   open: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
   options: SelectOption[];
   selectedIds: string[];
   multi: boolean;
   onSelect: (id: string) => void;
   onClear: () => void;
+  /** The cell that opens the picker; the popover anchors to it. */
+  children: React.ReactElement;
 }
 
 function SelectPicker({
   open,
-  onClose,
+  onOpenChange,
   options,
   selectedIds,
   multi,
   onSelect,
   onClear,
+  children,
 }: SelectPickerProps) {
   const [query, setQuery] = React.useState('');
   const { colors } = useColorScheme();
@@ -576,59 +582,58 @@ function SelectPicker({
   }, [options, query]);
 
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={StyleSheet.absoluteFill} className="bg-black/40" onPress={onClose} />
-      <View className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2 max-w-md">
-        <View
-          className="bg-popover border border-border rounded-2xl shadow-xl p-3 m-3 web:m-0"
-          style={centeredModalStyle(360, 360)}
-        >
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder={t('databases.properties.searchOptions')}
-            placeholderTextColor={colors.mutedForeground}
-            className="text-sm text-foreground border border-border rounded-md px-2 py-1 mb-2"
-            style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
-            underlineColorAndroid="transparent"
-          />
-          <ScrollView style={{ maxHeight: 280 }}>
-            {filtered.length === 0 ? (
-              <View className="px-3 py-3">
-                <Text className="text-sm text-muted-foreground">
-                  {t('databases.properties.noOptions')}
-                </Text>
-              </View>
-            ) : (
-              filtered.map((o) => {
-                const selected = selectedIds.includes(o.id);
-                return (
-                  <Pressable
-                    key={o.id}
-                    onPress={() => onSelect(o.id)}
-                    className="flex-row items-center justify-between px-2 py-1.5 rounded hover:bg-muted"
-                  >
-                    <SelectChip option={o} />
-                    {selected ? <Check size={14} color={colors.foreground} /> : null}
-                  </Pressable>
-                );
-              })
-            )}
-          </ScrollView>
-          {selectedIds.length > 0 ? (
-            <Pressable
-              onPress={onClear}
-              className="mt-2 flex-row items-center gap-2 px-2 py-1 rounded hover:bg-muted"
-            >
-              <X size={12} color={colors.mutedForeground} />
-              <Text className="text-xs text-muted-foreground">
-                {multi ? t('databases.actions.clearAll') : t('databases.actions.clear')}
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
-    </Modal>
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>{children}</PopoverTrigger>
+      <PopoverContent
+        align="start"
+        minWidth={280}
+        label={t('databases.properties.searchOptions')}
+        className="gap-2"
+      >
+        <TextFieldInput
+          size="sm"
+          label={t('databases.properties.searchOptions')}
+          value={query}
+          onChangeText={setQuery}
+        />
+        <ScrollView style={{ maxHeight: 280 }} keyboardShouldPersistTaps="handled">
+          {filtered.length === 0 ? (
+            <EmptyState
+              // icon: ListTodo
+              variant="compact"
+              title={t('databases.properties.noOptions')}
+            />
+          ) : (
+            filtered.map((o) => {
+              const selected = selectedIds.includes(o.id);
+              return (
+                <Item
+                  key={o.id}
+                  density="compact"
+                  role={multi ? 'checkbox' : 'option'}
+                  selected={selected}
+                  accessibilityLabel={o.name}
+                  title={<SelectChip option={o} />}
+                  trailing={selected ? <Check size={14} color={colors.foreground} /> : null}
+                  onPress={() => onSelect(o.id)}
+                />
+              );
+            })
+          )}
+        </ScrollView>
+        {selectedIds.length > 0 ? (
+          <Button
+            appearance="plain"
+            size="sm"
+            className="self-start"
+            onPress={onClear}
+            renderLeadingIcon={({ size, color }) => <X size={size} color={color} />}
+          >
+            {multi ? t('databases.actions.clearAll') : t('databases.actions.clear')}
+          </Button>
+        ) : null}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -651,7 +656,7 @@ function DateCell({ value, onChange, variant }: DateCellProps) {
   // Native fallback
   return (
     <View className={variant === 'panel' ? 'py-1' : ''}>
-      <Text className="text-sm text-foreground">{display}</Text>
+      <Text variant="body-regular">{display}</Text>
     </View>
   );
 }
@@ -718,9 +723,9 @@ function PersonCell({ value, variant }: ReadOnlyArrayCellProps) {
   return (
     <View className={`flex-row flex-wrap gap-1 ${variant === 'panel' ? 'py-1' : ''}`}>
       {value.map((id) => (
-        <View key={id} className="px-2 py-0.5 rounded-md bg-muted">
-          <Text className="text-xs text-foreground">{shortenUserId(id)}</Text>
-        </View>
+        <Chip key={id} size="sm">
+          {shortenUserId(id)}
+        </Chip>
       ))}
     </View>
   );
@@ -742,11 +747,9 @@ function FilesCell({ value }: FilesCellProps) {
   return (
     <View className="flex-row flex-wrap gap-1">
       {value.slice(0, 3).map((f) => (
-        <View key={f.url} className="px-2 py-0.5 rounded-md bg-muted">
-          <Text className="text-xs text-foreground" numberOfLines={1}>
-            {f.name}
-          </Text>
-        </View>
+        <Chip key={f.url} size="sm">
+          {f.name}
+        </Chip>
       ))}
       {value.length > 3 ? (
         <Text className="text-xs text-muted-foreground">+{value.length - 3}</Text>
@@ -766,11 +769,11 @@ function DerivedCell({ value, format }: DerivedCellProps) {
     return <Text className="text-sm text-muted-foreground">—</Text>;
   }
   if ('number' in value && typeof value.number === 'number') {
-    return <Text className="text-sm text-foreground">{value.number}</Text>;
+    return <Text variant="body-regular">{value.number}</Text>;
   }
   if ('text' in value && typeof value.text === 'string') {
     return (
-      <Text className="text-sm text-foreground" numberOfLines={1}>
+      <Text variant="body-regular" numberOfLines={1}>
         {value.text || '—'}
       </Text>
     );
@@ -778,24 +781,8 @@ function DerivedCell({ value, format }: DerivedCellProps) {
   if ('start' in value && typeof value.start === 'string') {
     const d = new Date(value.start);
     if (format === 'date' && !Number.isNaN(d.getTime())) {
-      return <Text className="text-sm text-foreground">{d.toLocaleDateString(locale)}</Text>;
+      return <Text variant="body-regular">{d.toLocaleDateString(locale)}</Text>;
     }
   }
   return <Text className="text-sm text-muted-foreground">—</Text>;
-}
-
-/**
- * "+ Add option" button for property menus.
- */
-export function AddOptionButton({ onPress, label }: { onPress: () => void; label: string }) {
-  const { colors } = useColorScheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      className="flex-row items-center gap-1 px-2 py-1 rounded hover:bg-muted"
-    >
-      <Plus size={12} color={colors.mutedForeground} />
-      <Text className="text-xs text-muted-foreground">{label}</Text>
-    </Pressable>
-  );
 }

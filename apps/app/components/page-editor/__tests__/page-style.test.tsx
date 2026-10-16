@@ -1,5 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { EditorStore } from '@oxy.so/bloom-editor/model';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { NILO_SCHEMA } from '@/lib/editor/schema';
 import { DatabasePicker } from '../database-picker';
 import { BlockEditor } from '@oxy.so/bloom-editor';
@@ -38,6 +39,7 @@ jest.mock('@oxy.so/bloom-editor', () => ({
   blockColors: () => ({}),
 }));
 jest.mock('@oxy.so/bloom/theme', () => ({
+  ...jest.requireActual('@oxy.so/bloom/theme'),
   useTheme: () => mockTheme,
   resolveAccentColors: () => ({ background: 'blue' }),
 }));
@@ -76,9 +78,11 @@ jest.mock('react-native-keyboard-controller', () => ({
 
 function Surface() {
   return (
-    <PageEditorProvider pageId="page" readOnly={false}>
-      <PageEditor pageId="page" onOpenBlockComments={() => {}} />
-    </PageEditorProvider>
+    <BloomTestProviders>
+      <PageEditorProvider pageId="page" readOnly={false}>
+        <PageEditor pageId="page" onOpenBlockComments={() => {}} />
+      </PageEditorProvider>
+    </BloomTestProviders>
   );
 }
 let renderer: ReactTestRenderer;

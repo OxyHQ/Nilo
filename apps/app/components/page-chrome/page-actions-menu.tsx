@@ -4,23 +4,23 @@ import { saveExport } from '@/lib/save-export';
 import { PageHistoryDialog } from './page-history-dialog';
 import { ReminderDialog } from '@/components/reminders/reminder-dialog';
 import * as React from 'react';
-import { Platform, Pressable, ScrollView, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { MoreHorizontal } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useOxy } from '@oxy.so/services';
 import { toast } from '@oxy.so/bloom/toast';
 import { Popover, PopoverTrigger, PopoverContent, PopoverSeparator } from '@oxy.so/bloom/popover';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
-import { Switch } from '@/components/ui/switch';
+import { Button } from '@oxy.so/bloom/button';
+import { Item } from '@oxy.so/bloom/item';
+import { RadioGroup } from '@oxy.so/bloom/radio';
+import { confirm } from '@oxy.so/bloom/surfaces';
+import { Switch } from '@oxy.so/bloom/switch';
+import { Text } from '@oxy.so/bloom/typography';
 import { AiPageAction } from './ai-page-action';
 import { CanvasSwitch } from './canvas-switch';
 import { OfflineSwitch } from './offline-switch';
 import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
-import { cn } from '@/lib/utils';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
-import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useDeletePage, useDuplicatePage, useUpdatePage } from '@/lib/hooks/use-pages';
 import { EXPORT_FORMATS, type ExportFormat } from '@/lib/export-formats';
@@ -49,7 +49,6 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
   const router = useRouter();
   const follow = usePageFollow(page.id);
   const setFollow = useSetPageFollow(page.id);
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const { user } = useOxy();
   const duplicatePage = useDuplicatePage();
@@ -62,7 +61,6 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [remindersOpen, setRemindersOpen] = React.useState(false);
   const [moveOpen, setMoveOpen] = React.useState(false);
-  const [deleteOpen, setDeleteOpen] = React.useState(false);
 
   const isOwner = user?.id === page.ownerId;
 
@@ -160,13 +158,13 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
         }}
       >
         <PopoverTrigger asChild>
-          <Pressable
+          <Button
+            appearance="subtle"
+            tone="neutral"
+            iconOnly
             accessibilityLabel={t('pages.actions.menu')}
-            accessibilityRole="button"
-            className="h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
-          >
-            <MoreHorizontal size={16} color={colors.foreground} />
-          </Pressable>
+            renderLeadingIcon={({ size, color }) => <MoreHorizontal size={size} color={color} />}
+          />
         </PopoverTrigger>
         <PopoverContent align="end" label={t('pages.actions.menu')} className="w-72">
           <ScrollView style={{ maxHeight: 560 }} keyboardShouldPersistTaps="handled">
@@ -178,43 +176,45 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
                 >
                   {t('pages.style.title')}
                 </Text>
-                <View className="flex-row gap-2">
-                  {(['default', 'serif', 'mono'] as const).map((font) => (
-                    <Button
-                      key={font}
-                      variant="ghost"
-                      className={cn(
-                        'h-auto flex-1 gap-1 px-1 py-2',
-                        (page.font ?? 'default') === font && 'bg-muted',
-                      )}
-                      disabled={updatePage.isPending}
-                      accessibilityRole="radio"
-                      accessibilityState={{ checked: (page.font ?? 'default') === font }}
-                      accessibilityLabel={t(`pages.style.${font}`)}
-                      onPress={() =>
-                        updatePage.mutate(
-                          { id: page.id, font },
-                          {
-                            onError: () => toast.error(t('pages.style.updateFailed')),
-                          },
-                        )
-                      }
-                    >
-                      <Text className="text-2xl" style={{ fontFamily: PAGE_FONT_FAMILIES[font] }}>
-                        {t('pages.style.sample')}
-                      </Text>
-                      <Text className="text-xs">{t(`pages.style.${font}`)}</Text>
-                    </Button>
-                  ))}
-                </View>
+                <RadioGroup
+                  variant="chip"
+                  label={t('pages.style.title')}
+                  className="flex-row gap-2"
+                  optionStyle={{ flex: 1 }}
+                  value={page.font ?? 'default'}
+                  disabled={updatePage.isPending}
+                  onValueChange={(font) =>
+                    updatePage.mutate(
+                      { id: page.id, font },
+                      {
+                        onError: () => toast.error(t('pages.style.updateFailed')),
+                      },
+                    )
+                  }
+                  options={(['default', 'serif', 'mono'] as const).map((font) => ({
+                    value: font,
+                    accessibilityLabel: t(`pages.style.${font}`),
+                    labelContent: (
+                      <View className="items-center gap-1">
+                        <Text
+                          className="text-2xl text-foreground"
+                          style={{ fontFamily: PAGE_FONT_FAMILIES[font] }}
+                        >
+                          {t('pages.style.sample')}
+                        </Text>
+                        <Text variant="caption-1-regular">{t(`pages.style.${font}`)}</Text>
+                      </View>
+                    ),
+                  }))}
+                />
                 {(['smallText', 'fullWidth', 'locked'] as const).map((field) => (
                   <View key={field} className="flex-row items-center justify-between gap-3">
-                    <Text className="text-sm">{t(`pages.style.${field}`)}</Text>
+                    <Text variant="body-regular">{t(`pages.style.${field}`)}</Text>
                     <Switch
-                      value={Boolean(page[field])}
+                      checked={Boolean(page[field])}
                       disabled={updatePage.isPending}
                       accessibilityLabel={t(`pages.style.${field}`)}
-                      onValueChange={(value) =>
+                      onCheckedChange={(value) =>
                         updatePage.mutate(
                           { id: page.id, [field]: value },
                           {
@@ -350,7 +350,17 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
                     destructive
                     onPress={() => {
                       setMenuOpen(false);
-                      setDeleteOpen(true);
+                      void confirm({
+                        title: t('pages.deleteDialog.title'),
+                        description: t('pages.deleteDialog.description', {
+                          title: page.title || t('pages.untitled'),
+                        }),
+                        confirmLabel: t('common.delete'),
+                        cancelLabel: t('common.cancel'),
+                        destructive: true,
+                      }).then((confirmed) => {
+                        if (confirmed) handleHardDelete();
+                      });
                     }}
                   />
                 ) : null}
@@ -372,18 +382,6 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
         <ReminderDialog pageId={page.id} onClose={() => setRemindersOpen(false)} />
       ) : null}
       <MoveToDialog open={moveOpen} onOpenChange={setMoveOpen} page={page} />
-
-      <ConfirmationDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title={t('pages.deleteDialog.title')}
-        description={t('pages.deleteDialog.description', {
-          title: page.title || t('pages.untitled'),
-        })}
-        confirmText={t('common.delete')}
-        confirmVariant="destructive"
-        onConfirm={handleHardDelete}
-      />
     </>
   );
 }
@@ -400,14 +398,14 @@ function Action({
   destructive?: boolean;
 }) {
   return (
-    <Button
-      variant="ghost"
-      className="justify-start"
+    <Item
+      title={label}
+      density="compact"
+      role="menuitem"
       onPress={onPress}
       disabled={disabled}
+      destructive={destructive}
       accessibilityLabel={label}
-    >
-      <Text className={cn('text-sm', destructive && 'text-destructive')}>{label}</Text>
-    </Button>
+    />
   );
 }

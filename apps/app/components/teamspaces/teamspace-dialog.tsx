@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Text } from '@/components/ui/text';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
+import { Item } from '@oxy.so/bloom/item';
+import { Loading } from '@oxy.so/bloom/loading';
+import { RadioGroup } from '@oxy.so/bloom/radio';
+import { TextFieldInput, TextFieldLabel } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { apiErrorMessage } from '@/lib/api/error-message';
 import {
@@ -19,17 +22,27 @@ import { hasRole } from '@/lib/hooks/workspace-roles';
 import { useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
 import { profileName, useMemberProfiles } from '@/lib/hooks/use-member-profiles';
 
+/** What the dialog shows: the list, the create form, or one teamspace's settings. */
+export type TeamspaceSelection = 'browse' | 'create' | Teamspace;
+
+const PRIVACIES: TeamspacePrivacy[] = ['open', 'closed', 'private'];
+
+/**
+ * Browse, create and manage teamspaces. The caller owns the dialog's `control`
+ * and what it shows, so it can set `selection` and open in one press.
+ */
 export function TeamspaceDialog({
+  control,
   workspaceId,
-  initial,
-  onClose,
+  selection,
+  onSelect,
 }: {
+  control: DialogControlProps;
   workspaceId: string;
-  initial: 'browse' | 'create' | Teamspace;
-  onClose: () => void;
+  selection: TeamspaceSelection;
+  onSelect: (selection: TeamspaceSelection) => void;
 }) {
   const { t } = useTranslation();
-  const [selection, setSelection] = useState(initial);
   const teamspaces = useTeamspaces(workspaceId);
   const role = useWorkspaceRole(workspaceId);
   const mutation = useTeamspaceMutation(workspaceId);
@@ -44,92 +57,85 @@ export function TeamspaceDialog({
         ? 'workspace.teamspaces.create'
         : 'workspace.teamspaces.settings',
   );
+  const close = () => control.close();
   return (
     <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
+      control={control}
+      placement={{ base: 'bottom', md: 'center' }}
+      maxWidth={512}
+      title={title}
+      label={title}
+      actions={[{ label: t('common.close'), color: 'cancel' }]}
     >
-      <DialogContent
-        accessibilityLabel={title}
-        className="max-w-lg gap-3 p-4"
-        showCloseButton={false}
-      >
-        <View className="flex-row items-center justify-between gap-2">
-          <DialogTitle>{title}</DialogTitle>
-          <Button variant="ghost" accessibilityLabel={t('common.close')} onPress={onClose}>
-            <Text>{t('common.close')}</Text>
-          </Button>
-        </View>
-        <ScrollView className="max-h-[32rem]" keyboardShouldPersistTaps="handled">
-          {selection === 'browse' ? (
-            <View className="gap-3">
-              {hasRole(role, 'editor') ? (
-                <Button
-                  accessibilityLabel={t('workspace.teamspaces.create')}
-                  onPress={() => setSelection('create')}
-                >
-                  <Text>{t('workspace.teamspaces.create')}</Text>
-                </Button>
-              ) : null}
-              {teamspaces.isPending ? <Text>{t('common.loading')}</Text> : null}
-              {teamspaces.isError ? (
-                <Text accessibilityRole="alert">
-                  {apiErrorMessage(teamspaces.error, t('workspace.teamspaces.failed'))}
-                </Text>
-              ) : null}
-              {teamspaces.data
-                ?.filter((space) => !space.archived)
-                .map((space) => (
-                  <View key={space.id} className="gap-2 rounded-lg border border-border p-3">
-                    <Button
-                      variant="ghost"
-                      accessibilityLabel={space.name}
-                      onPress={() => setSelection(space)}
-                    >
-                      <Text>
-                        {space.icon} {space.name}
+      {selection === 'browse' ? (
+        <View className="gap-3 pb-4">
+          {hasRole(role, 'editor') ? (
+            <Button
+              appearance="solid"
+              tone="accent"
+              accessibilityLabel={t('workspace.teamspaces.create')}
+              onPress={() => onSelect('create')}
+            >
+              {t('workspace.teamspaces.create')}
+            </Button>
+          ) : null}
+          {teamspaces.isPending ? (
+            <Loading variant="inline" size="sm" text={t('common.loading')} />
+          ) : null}
+          {teamspaces.isError ? (
+            <Text accessibilityRole="alert" className="text-sm text-destructive">
+              {apiErrorMessage(teamspaces.error, t('workspace.teamspaces.failed'))}
+            </Text>
+          ) : null}
+          {teamspaces.data
+            ?.filter((space) => !space.archived)
+            .map((space) => (
+              <View key={space.id} className="rounded-lg border border-border">
+                <Item
+                  accessibilityLabel={space.name}
+                  onPress={() => onSelect(space)}
+                  title={`${space.icon ?? ''} ${space.name}`.trim()}
+                  subtitle={t(`workspace.teamspaces.privacy.${space.privacy}`)}
+                  trailing={
+                    space.role ? (
+                      <Text className="text-sm text-muted-foreground">
+                        {t('workspace.teamspaces.joined')}
                       </Text>
-                    </Button>
-                    <Text className="text-sm text-muted-foreground">
-                      {t(`workspace.teamspaces.privacy.${space.privacy}`)}
-                    </Text>
-                    {space.description ? (
-                      <Text className="text-sm">{space.description}</Text>
-                    ) : null}
-                    {space.role ? (
-                      <Text>{t('workspace.teamspaces.joined')}</Text>
                     ) : space.privacy === 'open' ? (
                       <Button
-                        variant="outline"
+                        appearance="outline"
+                        size="sm"
+                        stopPropagation
                         disabled={mutation.isPending}
                         accessibilityLabel={t('workspace.teamspaces.joinName', {
                           name: space.name,
                         })}
                         onPress={() => mutation.mutate({ action: 'join', id: space.id })}
                       >
-                        <Text>{t('workspace.teamspaces.join')}</Text>
+                        {t('workspace.teamspaces.join')}
                       </Button>
-                    ) : null}
-                  </View>
-                ))}
-              {mutation.isError ? (
-                <Text accessibilityRole="alert" className="text-destructive">
-                  {apiErrorMessage(mutation.error, t('workspace.teamspaces.failed'))}
-                </Text>
-              ) : null}
-            </View>
-          ) : (
-            <TeamspaceDetails
-              key={selected?.id ?? 'create'}
-              workspaceId={workspaceId}
-              teamspace={selected}
-              onClose={onClose}
-            />
-          )}
-        </ScrollView>
-      </DialogContent>
+                    ) : undefined
+                  }
+                />
+                {space.description ? (
+                  <Text className="px-4 pb-3 text-sm text-foreground">{space.description}</Text>
+                ) : null}
+              </View>
+            ))}
+          {mutation.isError ? (
+            <Text accessibilityRole="alert" className="text-sm text-destructive">
+              {apiErrorMessage(mutation.error, t('workspace.teamspaces.failed'))}
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        <TeamspaceDetails
+          key={selected?.id ?? 'create'}
+          workspaceId={workspaceId}
+          teamspace={selected}
+          onClose={close}
+        />
+      )}
     </Dialog>
   );
 }
@@ -167,12 +173,13 @@ function TeamspaceDetails({
     owners <= 1 && members.data?.some((m) => m.userId === user?.id && m.role === 'owner');
   const busy = mutation.isPending;
   return (
-    <View className="gap-3">
+    <View className="gap-3 pb-4">
       {(['name', 'icon', 'description'] as const).map((field) => (
-        <View key={field} className="gap-1">
-          <Text className="text-sm font-medium">{t(`workspace.teamspaces.${field}`)}</Text>
-          <Input
-            accessibilityLabel={t(`workspace.teamspaces.${field}`)}
+        <View key={field}>
+          <TextFieldLabel>{t(`workspace.teamspaces.${field}`)}</TextFieldLabel>
+          <TextFieldInput
+            label={t(`workspace.teamspaces.${field}`)}
+            placeholder={null}
             value={field === 'name' ? name : field === 'icon' ? icon : description}
             onChangeText={field === 'name' ? setName : field === 'icon' ? setIcon : setDescription}
             maxLength={field === 'description' ? 2000 : 200}
@@ -181,25 +188,18 @@ function TeamspaceDetails({
           />
         </View>
       ))}
-      <Text className="text-sm font-medium">{t('workspace.teamspaces.privacyLabel')}</Text>
-      {(['open', 'closed', 'private'] as const).map((value) => (
-        <View key={value} className="gap-1">
-          <Button
-            variant={privacy === value ? 'secondary' : 'outline'}
-            role="radio"
-            accessibilityRole="radio"
-            accessibilityState={{ checked: privacy === value }}
-            accessibilityLabel={t(`workspace.teamspaces.privacy.${value}`)}
-            disabled={!manages || Boolean(teamspace?.isDefault) || busy}
-            onPress={() => setPrivacy(value)}
-          >
-            <Text>{t(`workspace.teamspaces.privacy.${value}`)}</Text>
-          </Button>
-          <Text className="text-xs text-muted-foreground">
-            {t(`workspace.teamspaces.explanation.${value}`)}
-          </Text>
-        </View>
-      ))}
+      <Text variant="body-medium">{t('workspace.teamspaces.privacyLabel')}</Text>
+      <RadioGroup
+        label={t('workspace.teamspaces.privacyLabel')}
+        value={privacy}
+        onValueChange={(value) => setPrivacy(value as TeamspacePrivacy)}
+        disabled={!manages || Boolean(teamspace?.isDefault) || busy}
+        options={PRIVACIES.map((value) => ({
+          value,
+          label: t(`workspace.teamspaces.privacy.${value}`),
+          description: t(`workspace.teamspaces.explanation.${value}`),
+        }))}
+      />
       {teamspace?.isDefault ? (
         <Text className="text-sm text-muted-foreground">
           {t('workspace.teamspaces.defaultInfo')}
@@ -207,6 +207,8 @@ function TeamspaceDetails({
       ) : null}
       {manages ? (
         <Button
+          appearance="solid"
+          tone="accent"
           disabled={!name.trim() || busy}
           accessibilityLabel={t(teamspace ? 'common.save' : 'workspace.teamspaces.create')}
           onPress={() => {
@@ -224,17 +226,19 @@ function TeamspaceDetails({
             );
           }}
         >
-          <Text>{t(teamspace ? 'common.save' : 'workspace.teamspaces.create')}</Text>
+          {t(teamspace ? 'common.save' : 'workspace.teamspaces.create')}
         </Button>
       ) : null}
       {teamspace ? (
         <>
-          <Text accessibilityRole="header" className="font-semibold">
+          <Text accessibilityRole="header" variant="headline-semibold">
             {t('workspace.teamspaces.members', { count: members.data?.length ?? 0 })}
           </Text>
-          {members.isPending ? <Text>{t('common.loading')}</Text> : null}
+          {members.isPending ? (
+            <Loading variant="inline" size="sm" text={t('common.loading')} />
+          ) : null}
           {members.isError ? (
-            <Text accessibilityRole="alert">
+            <Text accessibilityRole="alert" className="text-sm text-destructive">
               {apiErrorMessage(members.error, t('workspace.teamspaces.failed'))}
             </Text>
           ) : null}
@@ -243,14 +247,15 @@ function TeamspaceDetails({
             const label = memberName(member.userId);
             return (
               <View key={member.userId} className="gap-2 border-b border-border py-2">
-                <Text>{label}</Text>
+                <Text variant="body-regular">{label}</Text>
                 <Text className="text-xs text-muted-foreground">
                   {t(`workspace.teamspaces.roles.${member.role}`)}
                 </Text>
                 {manages ? (
                   <View className="flex-row flex-wrap gap-2">
                     <Button
-                      variant="outline"
+                      appearance="outline"
+                      size="sm"
                       disabled={busy || last}
                       accessibilityLabel={t('workspace.teamspaces.changeRoleFor', { name: label })}
                       onPress={() =>
@@ -262,17 +267,16 @@ function TeamspaceDetails({
                         })
                       }
                     >
-                      <Text>
-                        {t(
-                          member.role === 'owner'
-                            ? 'workspace.teamspaces.makeMember'
-                            : 'workspace.teamspaces.makeOwner',
-                        )}
-                      </Text>
+                      {t(
+                        member.role === 'owner'
+                          ? 'workspace.teamspaces.makeMember'
+                          : 'workspace.teamspaces.makeOwner',
+                      )}
                     </Button>
                     {!teamspace.isDefault ? (
                       <Button
-                        variant="ghost"
+                        appearance="subtle"
+                        size="sm"
                         disabled={busy || last}
                         accessibilityLabel={t('workspace.teamspaces.removeName', { name: label })}
                         onPress={() =>
@@ -282,7 +286,7 @@ function TeamspaceDetails({
                           )
                         }
                       >
-                        <Text>{t('workspace.teamspaces.remove')}</Text>
+                        {t('workspace.teamspaces.remove')}
                       </Button>
                     ) : null}
                   </View>
@@ -292,16 +296,18 @@ function TeamspaceDetails({
           })}
           {manages ? (
             <View className="gap-2">
-              <Text className="font-medium">{t('workspace.teamspaces.addMember')}</Text>
-              <Input
-                accessibilityLabel={t('workspace.teamspaces.findMember')}
+              <Text variant="body-medium">{t('workspace.teamspaces.addMember')}</Text>
+              <TextFieldInput
+                label={t('workspace.teamspaces.findMember')}
                 placeholder={t('workspace.teamspaces.findMember')}
                 value={memberSearch}
                 onChangeText={setMemberSearch}
               />
-              {workspaceMembers.isPending ? <Text>{t('common.loading')}</Text> : null}
+              {workspaceMembers.isPending ? (
+                <Loading variant="inline" size="sm" text={t('common.loading')} />
+              ) : null}
               {workspaceMembers.isError ? (
-                <Text accessibilityRole="alert">
+                <Text accessibilityRole="alert" className="text-sm text-destructive">
                   {apiErrorMessage(workspaceMembers.error, t('workspace.teamspaces.failed'))}
                 </Text>
               ) : null}
@@ -316,7 +322,7 @@ function TeamspaceDetails({
                 .map((m) => (
                   <Button
                     key={m.userId}
-                    variant="outline"
+                    appearance="outline"
                     disabled={busy || !members.data}
                     accessibilityLabel={t('workspace.teamspaces.addName', {
                       name: memberName(m.userId),
@@ -330,7 +336,7 @@ function TeamspaceDetails({
                       })
                     }
                   >
-                    <Text>{t('workspace.teamspaces.addName', { name: memberName(m.userId) })}</Text>
+                    {t('workspace.teamspaces.addName', { name: memberName(m.userId) })}
                   </Button>
                 ))}
             </View>
@@ -342,7 +348,7 @@ function TeamspaceDetails({
           ) : null}
           {teamspace.role && !teamspace.isDefault ? (
             <Button
-              variant="outline"
+              appearance="outline"
               disabled={busy || Boolean(lastOwner) || !members.data}
               accessibilityLabel={t('workspace.teamspaces.leave')}
               onPress={() => {
@@ -353,14 +359,17 @@ function TeamspaceDetails({
                   );
               }}
             >
-              <Text>{t('workspace.teamspaces.leave')}</Text>
+              {t('workspace.teamspaces.leave')}
             </Button>
           ) : null}
           {manages && !teamspace.isDefault ? (
             <>
-              {archiveConfirm ? <Text>{t('workspace.teamspaces.archiveInfo')}</Text> : null}
+              {archiveConfirm ? (
+                <Text variant="body-regular">{t('workspace.teamspaces.archiveInfo')}</Text>
+              ) : null}
               <Button
-                variant="destructive"
+                appearance="solid"
+                tone="danger"
                 disabled={busy}
                 accessibilityLabel={t(
                   archiveConfirm
@@ -376,13 +385,11 @@ function TeamspaceDetails({
                     : setArchiveConfirm(true)
                 }
               >
-                <Text>
-                  {t(
-                    archiveConfirm
-                      ? 'workspace.teamspaces.confirmArchive'
-                      : 'workspace.teamspaces.archive',
-                  )}
-                </Text>
+                {t(
+                  archiveConfirm
+                    ? 'workspace.teamspaces.confirmArchive'
+                    : 'workspace.teamspaces.archive',
+                )}
               </Button>
             </>
           ) : null}

@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { File as FileIcon, Upload } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Button } from '@oxy.so/bloom/button';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { uploadFile } from '@/lib/uploads/upload-file';
 import type { BlockComponentProps } from './types';
@@ -97,7 +98,11 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
           <FileIcon size={16} color={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">File</Text>
         </View>
-        <Pressable
+        <Button
+          appearance="solid"
+          tone="accent"
+          size="sm"
+          className="self-start"
           onPress={() => {
             if (Platform.OS === 'web') {
               fileInputRef.current?.click();
@@ -105,14 +110,11 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
               void handleNativeUpload();
             }
           }}
-          className="flex-row items-center gap-1 self-start rounded-md bg-primary px-3 py-1.5"
           disabled={busy}
+          renderLeadingIcon={({ size, color }) => <Upload size={size} color={color} />}
         >
-          <Upload size={14} color={colors.primaryForeground} />
-          <Text className="text-sm font-medium" style={{ color: colors.primaryForeground }}>
-            {busy ? 'Uploading…' : 'Choose file'}
-          </Text>
-        </Pressable>
+          {busy ? 'Uploading…' : 'Choose file'}
+        </Button>
         {Platform.OS === 'web' ? (
           <input
             ref={fileInputRef}
@@ -139,7 +141,7 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
         <View className="flex-row items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2">
           <FileIcon size={18} color={colors.foreground} />
           <View className="flex-1">
-            <Text className="text-sm text-foreground">{displayName}</Text>
+            <Text variant="body-regular">{displayName}</Text>
             {sizeLabel ? <Text className="text-xs text-muted-foreground">{sizeLabel}</Text> : null}
           </View>
         </View>
@@ -156,7 +158,7 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
     >
       <FileIcon size={18} color={colors.foreground} />
       <View className="flex-1">
-        <Text className="text-sm text-foreground">{displayName}</Text>
+        <Text variant="body-regular">{displayName}</Text>
         {sizeLabel ? <Text className="text-xs text-muted-foreground">{sizeLabel}</Text> : null}
       </View>
     </Pressable>

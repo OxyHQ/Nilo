@@ -1,24 +1,11 @@
-import React from 'react';
+import type React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Platform } from 'react-native';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { DatabaseViewContainer } from '../database-view';
 import { PropertyCell } from '../property-cell';
 import type { Database, DatabaseRow, DatabaseView, DatabaseViewType } from '@/lib/types/databases';
 
-jest.mock('@/components/ui/dropdown-menu', () => {
-  const { View, Text } = require('react-native');
-  return {
-    Root: View,
-    Trigger: View,
-    Content: View,
-    Item: View,
-    ItemTitle: Text,
-    Separator: View,
-    Sub: View,
-    SubTrigger: View,
-    SubContent: View,
-  };
-});
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock('@/lib/hooks/use-forms', () => ({
   useFormLink: jest.fn(),
@@ -106,6 +93,11 @@ const rows: DatabaseRow[] = [
   },
 ];
 
+/** Bloom's providers: closed menus still mount their native sheet. */
+function Bloom({ children }: { children: React.ReactNode }) {
+  return <BloomTestProviders>{children}</BloomTestProviders>;
+}
+
 let renderer: ReactTestRenderer;
 const originalOS = Platform.OS;
 beforeEach(() => {
@@ -121,13 +113,15 @@ it.each<DatabaseViewType>(['table', 'board', 'gallery', 'list'])(
   (type) => {
     act(() => {
       renderer = create(
-        <DatabaseViewContainer
-          database={database}
-          view={{ ...view, type }}
-          rows={rows}
-          isLoading={false}
-          readOnly
-        />,
+        <Bloom>
+          <DatabaseViewContainer
+            database={database}
+            view={{ ...view, type }}
+            rows={rows}
+            isLoading={false}
+            readOnly
+          />
+        </Bloom>,
       );
     });
     expect(renderer.root.findAllByType(PropertyCell).length).toBeGreaterThan(0);
@@ -150,7 +144,9 @@ it.each<DatabaseViewType>(['table', 'board', 'gallery', 'list'])(
 it('keeps table editing and creation available to editors', () => {
   act(() => {
     renderer = create(
-      <DatabaseViewContainer database={database} view={view} rows={rows} isLoading={false} />,
+      <Bloom>
+        <DatabaseViewContainer database={database} view={view} rows={rows} isLoading={false} />
+      </Bloom>,
     );
   });
   expect(renderer.root.findAllByType('input').length).toBeGreaterThan(0);
@@ -164,13 +160,15 @@ it('keeps table editing and creation available to editors', () => {
 it('keeps the form builder and management requests unavailable in read-only mode', () => {
   act(() => {
     renderer = create(
-      <DatabaseViewContainer
-        database={database}
-        view={{ ...view, type: 'form' }}
-        rows={rows}
-        isLoading={false}
-        readOnly
-      />,
+      <Bloom>
+        <DatabaseViewContainer
+          database={database}
+          view={{ ...view, type: 'form' }}
+          rows={rows}
+          isLoading={false}
+          readOnly
+        />
+      </Bloom>,
     );
   });
   expect(JSON.stringify(renderer.toJSON())).toContain('databases.form.editorsOnly');

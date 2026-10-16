@@ -1,16 +1,17 @@
 import { useCommentsLive } from '@/lib/realtime/use-live-updates';
 import * as React from 'react';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { MessageCircle } from 'lucide-react-native';
+import { CloseButton } from '@oxy.so/bloom/button';
+import { Dialog } from '@oxy.so/bloom/dialog';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Loading } from '@oxy.so/bloom/loading';
 import {
-  ActivityIndicator,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { CheckCheck, MessageCircle, X } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+  SegmentedControl,
+  SegmentedControlItem,
+  SegmentedControlItemText,
+} from '@oxy.so/bloom/segmented-control';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { groupIntoThreads, useCreateComment, usePageComments } from '@/lib/hooks/use-comments';
 import { CommentComposer } from './comment-composer';
@@ -88,67 +89,57 @@ export function CommentPanel({
 
   const body = (
     <View
-      className="h-full bg-background border-l border-border flex-1"
+      className={
+        Platform.OS === 'web' ? 'h-full flex-1 border-l border-border bg-background' : 'flex-1'
+      }
       style={Platform.OS === 'web' ? { width: 360, maxWidth: '100%' } : undefined}
     >
       <View className="flex-row items-center justify-between border-b border-border px-4 py-3">
         <View className="flex-row items-center gap-2">
           <MessageCircle size={16} color={colors.foreground} />
-          <Text className="text-sm font-semibold text-foreground">{headerTitle}</Text>
+          <Text variant="body-semibold">{headerTitle}</Text>
         </View>
-        <Pressable
-          onPress={onClose}
-          accessibilityLabel={t('comments.panel.close')}
-          className="rounded-md p-1 hover:bg-muted"
-        >
-          <X size={16} color={colors.mutedForeground} />
-        </Pressable>
+        <CloseButton onPress={onClose} accessibilityLabel={t('comments.panel.close')} />
       </View>
 
-      <View className="flex-row gap-1 border-b border-border px-4 py-2">
-        {(['open', 'all', 'resolved'] as FilterMode[]).map((mode) => (
-          <Pressable
-            key={mode}
-            onPress={() => setFilter(mode)}
-            className={
-              filter === mode
-                ? 'rounded-md bg-muted px-2 py-1'
-                : 'rounded-md px-2 py-1 hover:bg-muted'
-            }
-          >
-            <Text
-              className={
-                filter === mode
-                  ? 'text-xs font-medium text-foreground capitalize'
-                  : 'text-xs text-muted-foreground capitalize'
-              }
-            >
-              {mode === 'open'
-                ? t('comments.filters.open')
-                : mode === 'all'
-                  ? t('comments.filters.all')
-                  : t('comments.filters.resolved')}
-            </Text>
-          </Pressable>
-        ))}
+      <View className="border-b border-border px-4 py-2">
+        <SegmentedControl
+          type="tabs"
+          size="sm"
+          value={filter}
+          onValueChange={(mode: FilterMode) => setFilter(mode)}
+        >
+          {(['open', 'all', 'resolved'] as FilterMode[]).map((mode) => (
+            <SegmentedControlItem key={mode} value={mode}>
+              <SegmentedControlItemText>
+                {mode === 'open'
+                  ? t('comments.filters.open')
+                  : mode === 'all'
+                    ? t('comments.filters.all')
+                    : t('comments.filters.resolved')}
+              </SegmentedControlItemText>
+            </SegmentedControlItem>
+          ))}
+        </SegmentedControl>
       </View>
 
       <ScrollView className="flex-1" contentContainerClassName="p-3 gap-3">
         {isLoading ? (
           <View className="items-center py-8">
-            <ActivityIndicator color={colors.mutedForeground} />
+            <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
           </View>
         ) : threads.length === 0 ? (
-          <View className="items-center gap-2 py-12 px-4">
-            <CheckCheck size={24} color={colors.mutedForeground} />
-            <Text className="text-sm text-muted-foreground text-center">
-              {filter === 'resolved'
+          <EmptyState
+            variant="compact"
+            // icon: CheckCheck
+            description={
+              filter === 'resolved'
                 ? t('comments.panel.emptyResolved')
                 : filter === 'open'
                   ? t('comments.panel.emptyOpen')
-                  : t('comments.panel.emptyAll')}
-            </Text>
-          </View>
+                  : t('comments.panel.emptyAll')
+            }
+          />
         ) : (
           threads.map((thread) => (
             <CommentThread
@@ -190,17 +181,19 @@ export function CommentPanel({
     );
   }
 
+  // Native: a bottom sheet. The route owns `open`, so this is Bloom's
+  // controlled mode — a backdrop press or drag asks the route via `onClose`.
   return (
-    <Modal visible={open} animationType="slide" onRequestClose={onClose} transparent>
-      <View className="flex-1 bg-black/50">
-        <Pressable
-          onPress={onClose}
-          style={StyleSheet.absoluteFill}
-          accessibilityLabel={t('comments.panel.dismiss')}
-        />
-        <View className="mt-20 flex-1 rounded-t-2xl overflow-hidden">{body}</View>
-      </View>
-    </Modal>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      placement="bottom"
+      scrollable={false}
+      contentPadding={0}
+      label={headerTitle}
+    >
+      {body}
+    </Dialog>
   );
 }
 

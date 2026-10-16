@@ -1,10 +1,11 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Button } from '@oxy.so/bloom/button';
+import { confirm } from '@oxy.so/bloom/surfaces';
+import { Switch } from '@oxy.so/bloom/switch';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { RelationSettings } from '../relation-settings';
-import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { useDeleteProperty } from '@/lib/hooks/use-database-properties';
 import apiClient from '@/lib/api/client';
 import type { Database, DatabaseProperty } from '@/lib/types/databases';
@@ -19,7 +20,22 @@ jest.mock('@/lib/api/client', () => ({
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
-jest.mock('@/components/ui/confirmation-dialog', () => ({ ConfirmationDialog: () => null }));
+jest.mock('@oxy.so/bloom/surfaces', () => ({ confirm: jest.fn() }));
+/** Holds the confirm surface open until the test answers it. */
+function pendingConfirm() {
+  let answer: (confirmed: boolean) => void = () => {};
+  jest.mocked(confirm).mockReturnValue(
+    new Promise<boolean>((resolve) => {
+      answer = resolve;
+    }),
+  );
+  return (confirmed: boolean) =>
+    act(async () => {
+      answer(confirmed);
+      // Let the awaiting handler run its continuation inside this act.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+}
 const property: DatabaseProperty = {
   id: 'rel',
   name: 'Projects',
@@ -57,24 +73,38 @@ afterEach(() => {
   act(() => renderer.unmount());
   client.clear();
 });
+/** The relation target's radio group (a memo component, so found by its props). */
+function radioGroup() {
+  return renderer.root.findAll(
+    (node) => node.props.label === 'databases.relations.target' && node.props.onValueChange,
+  )[0];
+}
 async function mount(existing?: DatabaseProperty) {
   await act(async () => {
     renderer = create(
-      <QueryClientProvider client={client}>
-        <DeleteHook />
-        <RelationSettings database={database} property={existing} onDone={onDone} />
-      </QueryClientProvider>,
+      <BloomTestProviders>
+        <QueryClientProvider client={client}>
+          <DeleteHook />
+          <RelationSettings database={database} property={existing} onDone={onDone} />
+        </QueryClientProvider>
+      </BloomTestProviders>,
     );
   });
 }
 it('confirms before disabling two-way, strips server-owned fields, and refreshes both databases', async () => {
   await mount(property);
   const invalidate = jest.spyOn(client, 'invalidateQueries');
-  act(() => renderer.root.findByType(Switch).props.onValueChange(false));
-  expect(renderer.root.findByType(ConfirmationDialog).props.open).toBe(true);
-  expect(renderer.root.findByType(Switch).props.value).toBe(true);
+  const answer = pendingConfirm();
+  act(() => {
+    renderer.root.findByType(Switch).props.onCheckedChange(false);
+  });
+  expect(confirm).toHaveBeenCalledWith(
+    expect.objectContaining({ title: 'databases.relations.removeTitle', destructive: true }),
+  );
+  expect(renderer.root.findByType(Switch).props.checked).toBe(true);
   expect(apiClient.patch).not.toHaveBeenCalled();
-  await act(async () => renderer.root.findByType(ConfirmationDialog).props.onConfirm());
+  await answer(true);
+  expect(renderer.root.findByType(Switch).props.checked).toBe(false);
   await act(async () => {
     renderer.root.findByType(Button).props.onPress();
   });
@@ -87,12 +117,10 @@ it('confirms before disabling two-way, strips server-owned fields, and refreshes
 });
 it('creates a relation with an explicit target and twoWay flag', async () => {
   await mount();
-  act(() =>
-    renderer.root
-      .find((node) => node.props.accessibilityLabel === 'Projects' && node.props.onPress)
-      .props.onPress(),
-  );
-  act(() => renderer.root.findByType(Switch).props.onValueChange(true));
+  act(() => radioGroup().props.onValueChange('target'));
+  act(() => {
+    renderer.root.findByType(Switch).props.onCheckedChange(true);
+  });
   await act(async () => renderer.root.findByType(Button).props.onPress());
   expect(apiClient.post).toHaveBeenCalledWith('/databases/db/properties', {
     name: 'databases.propertyTypes.relation',
@@ -112,14 +140,14 @@ it('invalidates the removed reciprocal database even when it is absent from the 
 
 it('asks before retargeting an existing reciprocal, then saves the new target', async () => {
   await mount(property);
-  act(() =>
-    renderer.root
-      .find((node) => node.props.accessibilityLabel === 'Tasks' && node.props.onPress)
-      .props.onPress(),
-  );
-  act(() => renderer.root.findByType(Button).props.onPress());
+  act(() => radioGroup().props.onValueChange('db'));
+  const answer = pendingConfirm();
+  act(() => {
+    renderer.root.findByType(Button).props.onPress();
+  });
+  expect(confirm).toHaveBeenCalled();
   expect(apiClient.patch).not.toHaveBeenCalled();
-  await act(async () => renderer.root.findByType(ConfirmationDialog).props.onConfirm());
+  await answer(true);
   expect(apiClient.patch).toHaveBeenCalledWith('/databases/db/properties/rel', {
     config: { targetDatabaseId: 'db', twoWay: true },
   });

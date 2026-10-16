@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { Platform, Pressable, TextInput, View } from 'react-native';
 import { Music } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { BlockComponentProps } from './types';
 
@@ -29,13 +30,12 @@ export function AudioBlock({ block, onChangeContent }: BlockComponentProps) {
           <Music size={16} color={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">Audio</Text>
         </View>
-        <TextInput
+        <TextFieldInput
+          label="Paste audio URL"
           value={urlDraft}
           onChangeText={setUrlDraft}
           onBlur={() => onChangeContent({ ...block.content, url: urlDraft.trim() })}
           placeholder="Paste audio URL"
-          placeholderTextColor={colors.mutedForeground}
-          className="rounded-md bg-background px-2 py-1.5 text-sm text-foreground border border-input"
         />
       </View>
     );
@@ -54,7 +54,7 @@ export function AudioBlock({ block, onChangeContent }: BlockComponentProps) {
           }}
         >
           <Music size={14} color={colors.foreground} />
-          <Text className="text-sm text-foreground">{url}</Text>
+          <Text variant="body-regular">{url}</Text>
         </Pressable>
       )}
       <TextInput

@@ -1,8 +1,6 @@
-import React from 'react';
-import { Pressable } from 'react-native';
 import { Share2 } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
-import { useColorScheme } from '@/lib/useColorScheme';
+import { Button } from '@oxy.so/bloom/button';
+import { useDialogControl } from '@oxy.so/bloom/dialog';
 import { ShareModal } from './share-modal';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -18,30 +16,23 @@ interface ShareButtonProps {
  * render anywhere; the only requirement is a valid pageId.
  */
 export function ShareButton({ pageId, compact = false }: ShareButtonProps) {
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const [open, setOpen] = React.useState(false);
+  const control = useDialogControl();
 
   if (!pageId) return null;
 
   return (
     <>
-      <Pressable
-        onPress={() => setOpen(true)}
-        className={
-          compact
-            ? 'h-9 w-9 items-center justify-center rounded-lg hover:bg-muted'
-            : 'h-9 px-3 flex-row items-center gap-1.5 rounded-lg border border-border hover:bg-muted'
-        }
-        accessibilityRole="button"
+      <Button
+        appearance={compact ? 'subtle' : 'outline'}
+        iconOnly={compact}
+        onPress={control.open}
         accessibilityLabel={t('sharing.button.label')}
+        renderLeadingIcon={({ size, color }) => <Share2 size={size} color={color} />}
       >
-        <Share2 size={14} color={colors.foreground} />
-        {!compact && (
-          <Text className="text-xs font-semibold text-foreground">{t('sharing.button.share')}</Text>
-        )}
-      </Pressable>
-      <ShareModal open={open} onOpenChange={setOpen} pageId={pageId} />
+        {compact ? undefined : t('sharing.button.share')}
+      </Button>
+      <ShareModal control={control} pageId={pageId} />
     </>
   );
 }

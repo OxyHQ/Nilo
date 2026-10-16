@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Pressable } from 'react-native';
 import { vars } from 'nativewind';
-import { Text } from '@/components/ui/text';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { LanguageSelector } from '@/components/language-selector';

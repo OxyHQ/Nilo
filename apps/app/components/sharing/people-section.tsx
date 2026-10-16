@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { View, Pressable } from 'react-native';
-import { Image } from 'expo-image';
+import { View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import { Text } from '@/components/ui/text';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Avatar } from '@oxy.so/bloom/avatar';
+import { Button, LinkButton } from '@oxy.so/bloom/button';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePage } from '@/lib/hooks/use-pages';
 import { memberProfileName } from '@/lib/hooks/use-workspace-members';
@@ -34,16 +35,19 @@ export function InheritedPageLink({
   const router = useRouter();
   const label = t('sharing.people.inherited', { title: data?.page.title || pageId });
   return (
-    <Pressable
+    <LinkButton
       accessibilityRole="link"
       accessibilityLabel={label}
+      linkTone="secondary"
+      underline="rest"
+      size="xs"
       onPress={() => {
         onNavigate();
         router.push(`/p/${pageId}`);
       }}
     >
-      <Text className="text-xs text-muted-foreground underline">{label}</Text>
-    </Pressable>
+      {label}
+    </LinkButton>
   );
 }
 
@@ -57,7 +61,7 @@ function PersonRow({
   onNavigate: () => void;
 }) {
   const { t } = useTranslation();
-  const { user, oxyServices } = useOxy();
+  const { user } = useOxy();
   const update = useUpdatePageAccess(permissions.pageId);
   const remove = useRemovePageAccess(permissions.pageId);
   const name = memberProfileName(grant) || grant.userId;
@@ -65,21 +69,12 @@ function PersonRow({
   const editable = canManagePageGrant(permissions.role, grant);
   const canRemove = !grant.inheritedFrom && (self || editable);
   const pending = update.isPending || remove.isPending;
-  const avatar = grant.user?.avatar
-    ? oxyServices.assets.publicUrl(grant.user.avatar, 'thumb')
-    : null;
   return (
     <View className="gap-1 py-2">
       <View className="flex-row items-center gap-2">
-        <View className="h-8 w-8 rounded-full bg-muted items-center justify-center overflow-hidden">
-          {avatar ? (
-            <Image source={{ uri: avatar }} style={{ width: 32, height: 32 }} contentFit="cover" />
-          ) : (
-            <Text className="text-xs font-semibold text-foreground">{name[0]?.toUpperCase()}</Text>
-          )}
-        </View>
+        <Avatar source={grant.user?.avatar} variant="thumb" name={name} size={32} />
         <View className="flex-1 min-w-0 gap-0.5">
-          <Text className="text-sm text-foreground" numberOfLines={1}>
+          <Text variant="body-regular" numberOfLines={1}>
             {name}
             {self ? ` ${t('sharing.people.you')}` : ''}
           </Text>
@@ -107,19 +102,18 @@ function PersonRow({
           <Text className="text-xs text-muted-foreground">{t(`sharing.roles.${grant.role}`)}</Text>
         )}
         {canRemove ? (
-          <Pressable
+          <Button
+            appearance="plain"
+            tone="danger"
+            size="sm"
             disabled={pending}
-            accessibilityRole="button"
             accessibilityLabel={
               self ? t('sharing.people.leave') : t('sharing.people.removePerson', { name })
             }
             onPress={() => remove.mutate(grant.userId)}
-            className="px-2 py-2 rounded-lg hover:bg-muted"
           >
-            <Text className="text-xs text-destructive">
-              {self ? t('sharing.people.leave') : t('sharing.people.remove')}
-            </Text>
-          </Pressable>
+            {self ? t('sharing.people.leave') : t('sharing.people.remove')}
+          </Button>
         ) : null}
       </View>
       {update.isError || remove.isError ? (
@@ -155,21 +149,22 @@ export function PeopleSection({
       {canManage ? (
         <View className="gap-2">
           <View className="flex-row items-center gap-2 flex-wrap">
-            <Input
-              className="flex-1 min-w-32"
-              accessibilityLabel={t('sharing.people.email')}
-              placeholder={t('sharing.people.email')}
-              editable={!invite.isPending}
-              value={email}
-              onChangeText={(value) => {
-                setEmail(value);
-                invite.reset();
-              }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              onSubmitEditing={submit}
-            />
+            <View className="flex-1 min-w-32">
+              <TextFieldInput
+                label={t('sharing.people.email')}
+                placeholder={t('sharing.people.email')}
+                editable={!invite.isPending}
+                value={email}
+                onChangeText={(value) => {
+                  setEmail(value);
+                  invite.reset();
+                }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                onSubmitEditing={submit}
+              />
+            </View>
             <PageRolePicker
               role={role}
               callerRole={permissions.role}
@@ -181,10 +176,10 @@ export function PeopleSection({
               size="sm"
               accessibilityLabel={t('sharing.people.invite')}
               disabled={!valid || invite.isPending || !canAssignPageRole(permissions.role, role)}
-              isLoading={invite.isPending}
+              loading={invite.isPending}
               onPress={submit}
             >
-              <Text>{t('sharing.people.invite')}</Text>
+              {t('sharing.people.invite')}
             </Button>
           </View>
           {invite.isError ? (
@@ -200,9 +195,13 @@ export function PeopleSection({
         </View>
       ) : null}
       <View>
-        <Text className="text-sm font-semibold text-foreground">{t('sharing.people.title')}</Text>
+        <Text variant="body-semibold">{t('sharing.people.title')}</Text>
         {permissions.grants.length === 0 ? (
-          <Text className="text-xs text-muted-foreground py-2">{t('sharing.people.empty')}</Text>
+          <EmptyState
+            variant="compact"
+            // icon: UserRound
+            title={t('sharing.people.empty')}
+          />
         ) : null}
         {permissions.grants.map((grant) => (
           <PersonRow

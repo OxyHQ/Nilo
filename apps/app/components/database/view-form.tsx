@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { ScrollView, View, ActivityIndicator } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { Button } from '@oxy.so/bloom/button';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Switch } from '@oxy.so/bloom/switch';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Textarea } from '@oxy.so/bloom/textarea';
 import { toast } from '@oxy.so/bloom/toast';
-import { Text } from '@/components/ui/text';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { FormFields } from '@/components/forms/form-fields';
 import { buildFormUrl } from '@/components/sharing/build-share-url';
@@ -26,7 +27,9 @@ export function ViewForm({
 }) {
   const { t } = useTranslation();
   if (readOnly)
-    return <Text className="p-6 text-muted-foreground">{t('databases.form.editorsOnly')}</Text>;
+    return (
+      <Text className="p-6 text-base text-muted-foreground">{t('databases.form.editorsOnly')}</Text>
+    );
   return <FormBuilder key={view.id} database={database} view={view} />;
 }
 function FormBuilder({ database, view }: { database: Database; view: DatabaseView }) {
@@ -66,34 +69,35 @@ function FormBuilder({ database, view }: { database: Database; view: DatabaseVie
       keyboardShouldPersistTaps="handled"
       contentContainerClassName="p-6 gap-5 max-w-3xl w-full mx-auto"
     >
-      <Text accessibilityRole="header" className="text-lg font-semibold">
+      <Text accessibilityRole="header" variant="title-3-semibold">
         {t('databases.form.builder')}
       </Text>
-      <Text>{t('databases.form.title')}</Text>
-      <Input
-        accessibilityLabel={t('databases.form.title')}
+      <Text variant="body-regular">{t('databases.form.title')}</Text>
+      <TextFieldInput
+        label={t('databases.form.title')}
+        placeholder={null}
         value={current.name}
         editable={!update.isPending}
         onChangeText={(name) => setDraft({ ...current, name })}
       />
-      <Text>{t('databases.form.description')}</Text>
+      <Text variant="body-regular">{t('databases.form.description')}</Text>
       <Textarea
         accessibilityLabel={t('databases.form.description')}
         value={current.description}
         editable={!update.isPending}
         onChangeText={(description) => setDraft({ ...current, description })}
       />
-      <Text className="font-medium">{t('databases.form.fields')}</Text>
+      <Text variant="headline-medium">{t('databases.form.fields')}</Text>
       {fields.map((field) => (
         <View key={field.id} className="flex-row items-center justify-between gap-3">
-          <Text className="flex-1">
+          <Text className="flex-1 text-base text-foreground">
             {field.required ? t('databases.form.requiredLabel', { name: field.name }) : field.name}
           </Text>
           <Switch
             accessibilityLabel={t('databases.form.showField', { name: field.name })}
-            value={field.required || !current.hiddenProperties.includes(field.id)}
+            checked={field.required || !current.hiddenProperties.includes(field.id)}
             disabled={field.required || update.isPending}
-            onValueChange={(show) =>
+            onCheckedChange={(show) =>
               setDraft({
                 ...current,
                 hiddenProperties: show
@@ -105,31 +109,33 @@ function FormBuilder({ database, view }: { database: Database; view: DatabaseVie
         </View>
       ))}
       {update.isError ? (
-        <Text accessibilityRole="alert" className="text-destructive">
+        <Text accessibilityRole="alert" className="text-base text-destructive">
           {t('databases.form.saveFailed')}
         </Text>
       ) : null}
       <View className="flex-row gap-2">
         <Button
+          appearance="solid"
+          tone="accent"
           accessibilityLabel={t('common.save')}
           onPress={save}
           disabled={!draft || !current.name.trim() || update.isPending}
         >
-          <Text>{t('common.save')}</Text>
+          {t('common.save')}
         </Button>
         <Button
-          variant="outline"
+          appearance="outline"
           accessibilityLabel={t('databases.form.preview')}
-          accessibilityState={{ expanded: preview }}
+          aria-expanded={preview}
           onPress={() => setPreview(!preview)}
         >
-          <Text>{t('databases.form.preview')}</Text>
+          {t('databases.form.preview')}
         </Button>
       </View>
       {preview ? (
         <View className="rounded-lg border border-border p-4 gap-4">
-          <Text className="text-xl font-semibold">{current.name}</Text>
-          <Text>{current.description}</Text>
+          <Text variant="title-2-semibold">{current.name}</Text>
+          <Text variant="body-regular">{current.description}</Text>
           <FormFields
             fields={formFields(
               database.schema.properties,
@@ -162,89 +168,93 @@ function FormLinkPanel({ databaseId, viewId }: { databaseId: string; viewId: str
   };
   return (
     <View className="gap-3 border-t border-border pt-5">
-      <Text className="font-semibold">{t('databases.form.link')}</Text>
+      <Text variant="headline-semibold">{t('databases.form.link')}</Text>
       {query.isPending ? (
-        <ActivityIndicator />
+        <Loading variant="inline" />
       ) : query.isError ? (
         <>
-          <Text accessibilityRole="alert" className="text-destructive">
+          <Text accessibilityRole="alert" className="text-base text-destructive">
             {t('databases.form.loadFailed')}
           </Text>
           <Button
-            variant="outline"
+            appearance="outline"
             accessibilityLabel={t('databases.form.retry')}
             onPress={() => void query.refetch()}
           >
-            <Text>{t('databases.form.retry')}</Text>
+            {t('databases.form.retry')}
           </Button>
         </>
       ) : form ? (
         <>
-          <Input
-            accessibilityLabel={t('databases.form.link')}
+          <TextFieldInput
+            label={t('databases.form.link')}
+            placeholder={null}
             value={buildFormUrl(form.token)}
             editable={false}
           />
           <Button
-            variant="outline"
+            appearance="outline"
             accessibilityLabel={t('databases.form.copyLink')}
             onPress={copy}
           >
-            <Text>{t('databases.form.copyLink')}</Text>
+            {t('databases.form.copyLink')}
           </Button>
           {(['open', 'requireSignIn'] as const).map((key) => (
             <View key={key} className="flex-row items-center justify-between gap-3">
-              <Text className="flex-1">{t(`databases.form.${key}`)}</Text>
+              <Text className="flex-1 text-base text-foreground">{t(`databases.form.${key}`)}</Text>
               <Switch
                 accessibilityLabel={t(`databases.form.${key}`)}
-                value={form[key]}
+                checked={form[key]}
                 disabled={change.isPending}
-                onValueChange={(value) => change.mutate({ [key]: value })}
+                onCheckedChange={(value) => change.mutate({ [key]: value })}
               />
             </View>
           ))}
           {confirmDelete ? (
             <View className="gap-2">
-              <Text>{t('databases.form.deleteHint')}</Text>
+              <Text variant="body-regular">{t('databases.form.deleteHint')}</Text>
               <Button
-                variant="destructive"
+                appearance="solid"
+                tone="danger"
                 disabled={change.isPending}
                 accessibilityLabel={t('databases.form.deleteLink')}
                 onPress={() => change.mutate(null, { onSuccess: () => setConfirmDelete(false) })}
               >
-                <Text>{t('databases.form.deleteLink')}</Text>
+                {t('databases.form.deleteLink')}
               </Button>
               <Button
-                variant="outline"
+                appearance="outline"
                 disabled={change.isPending}
                 accessibilityLabel={t('common.cancel')}
                 onPress={() => setConfirmDelete(false)}
               >
-                <Text>{t('common.cancel')}</Text>
+                {t('common.cancel')}
               </Button>
             </View>
           ) : (
             <Button
-              variant="outline"
+              appearance="outline"
               disabled={change.isPending}
               accessibilityLabel={t('databases.form.deleteLink')}
               onPress={() => setConfirmDelete(true)}
             >
-              <Text>{t('databases.form.deleteLink')}</Text>
+              {t('databases.form.deleteLink')}
             </Button>
           )}
         </>
       ) : (
         <Button
+          appearance="solid"
+          tone="accent"
           disabled={change.isPending}
           accessibilityLabel={t('databases.form.createLink')}
           onPress={() => change.mutate({})}
         >
-          <Text>{t('databases.form.createLink')}</Text>
+          {t('databases.form.createLink')}
         </Button>
       )}
       {change.isError ? (
-        <Text accessibilityRole="alert" className="text-destructive">
+        <Text accessibilityRole="alert" className="text-base text-destructive">
           {t('databases.form.saveFailed')}
         </Text>
       ) : null}

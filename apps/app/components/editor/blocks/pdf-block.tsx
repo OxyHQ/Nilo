@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { FileText } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { BlockComponentProps } from './types';
 
@@ -28,13 +29,12 @@ export function PdfBlock({ block, onChangeContent }: BlockComponentProps) {
           <FileText size={16} color={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">PDF</Text>
         </View>
-        <TextInput
+        <TextFieldInput
+          label="Paste PDF URL"
           value={urlDraft}
           onChangeText={setUrlDraft}
           onBlur={() => onChangeContent({ ...block.content, url: urlDraft.trim() })}
           placeholder="Paste PDF URL"
-          placeholderTextColor={colors.mutedForeground}
-          className="rounded-md bg-background px-2 py-1.5 text-sm text-foreground border border-input"
         />
       </View>
     );
@@ -74,7 +74,7 @@ export function PdfBlock({ block, onChangeContent }: BlockComponentProps) {
       className="flex-row items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
     >
       <FileText size={18} color={colors.foreground} />
-      <Text className="text-sm text-foreground">Open PDF</Text>
+      <Text variant="body-regular">Open PDF</Text>
     </Pressable>
   );
 }

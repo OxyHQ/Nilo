@@ -3,177 +3,257 @@ import { SearchSnippet } from './search-snippet';
 import { SearchStatus } from './search-status';
 import { searchPageHref } from './search-results';
 import * as React from 'react';
-import {
-  Modal,
-  View,
-  Pressable,
-  ScrollView,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Search, FileText, Clock, X } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Clock, FileText } from 'lucide-react-native';
+import { Avatar } from '@oxy.so/bloom/avatar';
+import { CloseButton } from '@oxy.so/bloom/button';
+import { Dialog } from '@oxy.so/bloom/dialog';
+import { Divider } from '@oxy.so/bloom/divider';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Item } from '@oxy.so/bloom/item';
+import { Kbd } from '@oxy.so/bloom/kbd';
+import { Search } from '@oxy.so/bloom/search';
+import { Text } from '@oxy.so/bloom/typography';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { usePaletteData } from './use-palette-data';
-import type { PageItem, MemberItem, CommandItem } from './types';
+import type { AnyCommandItem, CommandItem, MemberItem, PageItem } from './types';
 import { useTranslation } from '@/hooks/useTranslation';
 
+/** The palette card's width on wide screens, and the height its results scroll in. */
+const PALETTE_MAX_WIDTH = 560;
+const RESULTS_MAX_HEIGHT = 420;
+
+interface PaletteKeyEvent {
+  key: string;
+  metaKey?: boolean;
+  ctrlKey?: boolean;
+  preventDefault: () => void;
+}
+
 /**
- * Native command palette — bottom sheet variant with the same item set as the
- * web modal. The web build resolves `command-palette.web.tsx`; this file is
- * the iOS/Android implementation.
+ * The command palette: a Bloom `Dialog` (a sheet on narrow screens, a centred
+ * card on wide ones) over the workspace's pages, people and commands. It opens
+ * on Cmd+K (handled by `useKeyboardShortcuts`) and from the sidebar Search
+ * button.
+ *
+ * Bloom's `Command` is not used because its rows take a label, a string
+ * description and a Bloom icon only: page icons, search snippets, the search
+ * status with its retry, member avatars and Cmd+Enter are all Nilo's.
+ *
+ * On web the results are keyboard-driven from the search field: the arrows move
+ * the highlight, Enter opens it, and Cmd+Enter opens a page in a new tab.
  */
 export function CommandPalette() {
   const open = useUIStore((s) => s.commandPaletteOpen);
   const setOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-
   const [query, setQuery] = React.useState('');
+  const [active, setActive] = React.useState(0);
 
-  React.useEffect(() => {
-    if (!open) setQuery('');
-  }, [open]);
+  // Open fresh: reset on the closed-to-open flip, during render, so the old
+  // query is never painted and the exit animation keeps the results it had.
+  const [wasOpen, setWasOpen] = React.useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (open) {
+      setQuery('');
+      setActive(0);
+    }
+  }
 
   const { recents, pages, members, commands, searchLoading, searchError, retrySearch } =
     usePaletteData({ query, enabled: open });
 
+  const close = React.useCallback(() => setOpen(false), [setOpen]);
+
   const openPage = React.useCallback(
-    (item: PageItem) => {
+    (item: PageItem, newTab = false) => {
       setOpen(false);
+      if (newTab && typeof window !== 'undefined') {
+        window.open(searchPageHref(item), '_blank', 'noopener,noreferrer');
+        return;
+      }
       router.push(searchPageHref(item));
     },
     [router, setOpen],
   );
 
-  const hasResults =
-    recents.length > 0 || pages.length > 0 || members.length > 0 || commands.length > 0;
+  const select = React.useCallback(
+    (item: AnyCommandItem, newTab = false) => {
+      if (item.kind === 'page') openPage(item, newTab);
+      // Future: jump to a member's profile / DM. Closing is all it does for now.
+      else if (item.kind === 'member') close();
+      else item.onSelect();
+    },
+    [openPage, close],
+  );
+
+  // Every result in display order; the highlight is an index into this.
+  const results = React.useMemo<AnyCommandItem[]>(
+    () => [...recents, ...pages, ...members, ...commands],
+    [recents, pages, members, commands],
+  );
+  const activeIndex = Math.min(active, Math.max(0, results.length - 1));
+
+  const changeQuery = React.useCallback((next: string) => {
+    setQuery(next);
+    setActive(0);
+  }, []);
+
+  const handleKeyDown = (e: PaletteKeyEvent) => {
+    if (results.length === 0) return;
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setActive((activeIndex + 1) % results.length);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setActive((activeIndex - 1 + results.length) % results.length);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        select(results[activeIndex], Boolean(e.metaKey || e.ctrlKey));
+        break;
+    }
+  };
+  // React Native's View types have no key events; react-native-web forwards them.
+  const keyProps: Record<string, unknown> =
+    Platform.OS === 'web' ? { onKeyDown: handleKeyDown } : {};
+
+  // Keep the highlighted row inside the results viewport (web).
+  const listRef = React.useRef<ScrollView | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the highlight moving is what re-runs this; the DOM carries the row.
+  React.useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const node = (
+      listRef.current as unknown as { getScrollableNode?: () => HTMLElement | null } | null
+    )?.getScrollableNode?.();
+    node?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({
+      block: 'nearest',
+    });
+  }, [activeIndex]);
+
+  // Recents reuse the page rows' objects, so a row is matched by position.
+  const pagesStart = recents.length;
+  const membersStart = pagesStart + pages.length;
+  const commandsStart = membersStart + members.length;
 
   return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="slide"
-      onRequestClose={() => setOpen(false)}
-      statusBarTranslucent
+    <Dialog
+      open={open}
+      onClose={close}
+      placement={{ base: 'bottom', md: 'center' }}
+      maxWidth={PALETTE_MAX_WIDTH}
+      contentPadding={0}
+      scrollable={false}
+      label={t('commandPalette.placeholder')}
     >
-      <Pressable className="flex-1 bg-black/50" onPress={() => setOpen(false)}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          className="flex-1 justify-end"
+      <View {...keyProps}>
+        <View className="flex-row items-center gap-2 p-3">
+          <View className="flex-1">
+            <Search
+              label={t('commandPalette.placeholder')}
+              placeholder={t('commandPalette.placeholder')}
+              value={query}
+              onChangeText={changeQuery}
+              onClearText={() => changeQuery('')}
+              autoFocus
+            />
+          </View>
+          <CloseButton size="sm" accessibilityLabel={t('commandPalette.close')} onPress={close} />
+        </View>
+        <Divider />
+        <ScrollView
+          ref={listRef}
+          style={{ maxHeight: RESULTS_MAX_HEIGHT }}
+          contentContainerClassName="p-2"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Pressable
-            onPress={(e) => e.stopPropagation()}
-            className="rounded-t-3xl bg-background"
-            style={{ maxHeight: '85%', paddingBottom: insets.bottom }}
-          >
-            {/* Drag handle */}
-            <View className="items-center pt-2 pb-1">
-              <View className="h-1 w-12 rounded-full bg-muted-foreground/30" />
-            </View>
+          {results.length === 0 && !query.trim() ? (
+            <EmptyState
+              variant="compact"
+              // icon: Search
+              title={t('commandPalette.noResults')}
+            />
+          ) : null}
 
-            {/* Search input */}
-            <View className="flex-row items-center gap-2 px-4 pb-3 pt-1">
-              <Search size={16} color={colors.mutedForeground} />
-              <TextInput
-                accessibilityLabel={t('commandPalette.placeholder')}
-                autoFocus
-                value={query}
-                onChangeText={setQuery}
-                placeholder={t('commandPalette.placeholder')}
-                placeholderTextColor={colors.mutedForeground}
-                className="flex-1 text-base text-foreground"
-                returnKeyType="search"
-              />
-              <Pressable
-                onPress={() => setOpen(false)}
-                accessibilityRole="button"
-                accessibilityLabel={t('commandPalette.close')}
-                className="h-8 w-8 items-center justify-center rounded-full"
-              >
-                <X size={16} color={colors.mutedForeground} />
-              </Pressable>
-            </View>
+          {recents.length > 0 ? (
+            <Group title={t('commandPalette.groups.recent')}>
+              {recents.map((item, index) => (
+                <PageRow
+                  key={item.id}
+                  item={item}
+                  active={activeIndex === index}
+                  onSelect={select}
+                  icon={<Clock size={16} color={colors.mutedForeground} />}
+                />
+              ))}
+            </Group>
+          ) : null}
 
-            <View className="h-px bg-border" />
-
-            <ScrollView
-              className="flex-1"
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              {!hasResults && !query.trim() ? (
-                <View className="px-4 py-10">
-                  <Text className="text-center text-sm text-muted-foreground">
-                    {t('commandPalette.noResults')}
-                  </Text>
-                </View>
+          {pages.length > 0 || query.trim() ? (
+            <Group title={t('commandPalette.groups.pages')}>
+              {query.trim() ? (
+                <SearchStatus
+                  loading={searchLoading}
+                  error={searchError}
+                  empty={pages.length === 0}
+                  retry={retrySearch}
+                />
               ) : null}
+              {pages.map((item, index) => (
+                <PageRow
+                  key={item.id}
+                  item={item}
+                  active={activeIndex === pagesStart + index}
+                  onSelect={select}
+                  icon={<FileText size={16} color={colors.mutedForeground} />}
+                />
+              ))}
+            </Group>
+          ) : null}
 
-              {recents.length > 0 ? (
-                <Group title={t('commandPalette.groups.recent')}>
-                  {recents.map((item) => (
-                    <PageRow
-                      key={item.id}
-                      item={item}
-                      onPress={openPage}
-                      leadingIcon={<Clock size={14} color={colors.mutedForeground} />}
-                    />
-                  ))}
-                </Group>
-              ) : null}
+          {members.length > 0 ? (
+            <Group title={t('commandPalette.groups.people')}>
+              {members.map((item, index) => (
+                <MemberRow
+                  key={item.id}
+                  item={item}
+                  active={activeIndex === membersStart + index}
+                  onSelect={select}
+                />
+              ))}
+            </Group>
+          ) : null}
 
-              {pages.length > 0 || query.trim() ? (
-                <Group title={t('commandPalette.groups.pages')}>
-                  {query.trim() ? (
-                    <SearchStatus
-                      loading={searchLoading}
-                      error={searchError}
-                      empty={pages.length === 0}
-                      retry={retrySearch}
-                    />
-                  ) : null}
-                  {pages.map((item) => (
-                    <PageRow key={item.id} item={item} onPress={openPage} />
-                  ))}
-                </Group>
-              ) : null}
-
-              {members.length > 0 ? (
-                <Group title={t('commandPalette.groups.people')}>
-                  {members.map((item) => (
-                    <MemberRow key={item.id} item={item} />
-                  ))}
-                </Group>
-              ) : null}
-
-              {commands.length > 0 ? (
-                <Group title={t('commandPalette.groups.commands')}>
-                  {commands.map((item) => (
-                    <CommandRow key={item.id} item={item} />
-                  ))}
-                </Group>
-              ) : null}
-
-              <View style={{ height: 16 }} />
-            </ScrollView>
-          </Pressable>
-        </KeyboardAvoidingView>
-      </Pressable>
-    </Modal>
+          {commands.length > 0 ? (
+            <Group title={t('commandPalette.groups.commands')}>
+              {commands.map((item, index) => (
+                <CommandRow
+                  key={item.id}
+                  item={item}
+                  active={activeIndex === commandsStart + index}
+                  onSelect={select}
+                />
+              ))}
+            </Group>
+          ) : null}
+        </ScrollView>
+      </View>
+    </Dialog>
   );
 }
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View className="px-2 py-1">
-      <View className="px-3 pt-3 pb-1">
+    <View className="py-1">
+      <View className="px-3 pt-2 pb-1">
         <Text className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           {title}
         </Text>
@@ -183,32 +263,17 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-interface PageRowProps {
-  item: PageItem;
-  onPress: (item: PageItem) => void;
-  leadingIcon?: React.ReactNode;
+interface RowProps<T extends AnyCommandItem> {
+  item: T;
+  /** The keyboard highlight. */
+  active: boolean;
+  onSelect: (item: AnyCommandItem) => void;
 }
 
-function PageRow({ item, onPress, leadingIcon }: PageRowProps) {
-  const { colors } = useColorScheme();
-  return (
-    <Pressable
-      onPress={() => onPress(item)}
-      accessibilityRole="button"
-      accessibilityLabel={item.title}
-      className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-muted"
-    >
-      <View className="h-6 w-6 items-center justify-center">
-        {item.icon ? (
-          <IconDisplay value={item.icon} size={16} />
-        ) : (
-          (leadingIcon ?? <FileText size={14} color={colors.mutedForeground} />)
-        )}
-      </View>
-      <View className="flex-1">
-        <Text className="text-sm text-foreground" numberOfLines={1}>
-          {item.title}
-        </Text>
+function PageRow({ item, active, onSelect, icon }: RowProps<PageItem> & { icon: React.ReactNode }) {
+  const details =
+    item.subtitle || item.snippet?.length ? (
+      <View>
         {item.subtitle ? (
           <Text className="text-xs text-muted-foreground" numberOfLines={1}>
             {item.subtitle}
@@ -216,58 +281,50 @@ function PageRow({ item, onPress, leadingIcon }: PageRowProps) {
         ) : null}
         <SearchSnippet parts={item.snippet} />
       </View>
-    </Pressable>
-  );
-}
-
-function MemberRow({ item }: { item: MemberItem }) {
-  const initial = (item.title?.[0] ?? '?').toUpperCase();
+    ) : undefined;
   return (
-    <Pressable
-      accessibilityRole="button"
+    <Item
+      role="option"
+      selected={active}
+      density="compact"
       accessibilityLabel={item.title}
-      className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-muted"
-    >
-      <View className="h-6 w-6 items-center justify-center rounded-full bg-muted">
-        <Text className="text-[10px] font-semibold text-muted-foreground">{initial}</Text>
-      </View>
-      <View className="flex-1">
-        <Text className="text-sm text-foreground" numberOfLines={1}>
-          {item.title}
-        </Text>
-        {item.subtitle ? (
-          <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-            {item.subtitle}
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
+      onPress={() => onSelect(item)}
+      leading={item.icon ? <IconDisplay value={item.icon} size={16} /> : icon}
+      title={item.title}
+      subtitle={details}
+    />
   );
 }
 
-function CommandRow({ item }: { item: CommandItem }) {
+function MemberRow({ item, active, onSelect }: RowProps<MemberItem>) {
+  return (
+    <Item
+      role="option"
+      selected={active}
+      density="compact"
+      accessibilityLabel={item.title}
+      onPress={() => onSelect(item)}
+      leading={<Avatar source={item.avatar} variant="thumb" name={item.title} size={24} />}
+      title={item.title}
+      subtitle={item.subtitle}
+    />
+  );
+}
+
+function CommandRow({ item, active, onSelect }: RowProps<CommandItem>) {
   const { colors } = useColorScheme();
   const Icon = item.icon;
   return (
-    <Pressable
-      onPress={() => item.onSelect()}
-      accessibilityRole="button"
+    <Item
+      role="option"
+      selected={active}
+      density="compact"
       accessibilityLabel={item.title}
-      className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-muted"
-    >
-      <View className="h-6 w-6 items-center justify-center">
-        {Icon ? <Icon size={16} color={colors.mutedForeground} /> : null}
-      </View>
-      <View className="flex-1">
-        <Text className="text-sm text-foreground" numberOfLines={1}>
-          {item.title}
-        </Text>
-        {item.subtitle ? (
-          <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-            {item.subtitle}
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
+      onPress={() => onSelect(item)}
+      leading={Icon ? <Icon size={16} color={colors.mutedForeground} /> : undefined}
+      title={item.title}
+      subtitle={item.subtitle}
+      trailing={item.shortcut ? <Kbd size="sm">{item.shortcut}</Kbd> : undefined}
+    />
   );
 }

@@ -1,10 +1,12 @@
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Button } from '@oxy.so/bloom/button';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 
 interface ViewCalendarProps {
@@ -20,7 +22,6 @@ interface ViewCalendarProps {
  */
 export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarProps) {
   const router = useRouter();
-  const { colors } = useColorScheme();
   const { t, locale } = useTranslation();
   const [cursor, setCursor] = React.useState(() => startOfMonth(new Date()));
 
@@ -36,27 +37,29 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
   if (isLoading) {
     return (
       <View className="py-10 items-center">
-        <ActivityIndicator color={colors.mutedForeground} />
+        <Loading variant="spinner" />
       </View>
     );
   }
 
   if (!dateProperty) {
     return (
-      <View className="px-6 py-10">
-        <Text className="text-sm text-muted-foreground">
-          {t('databases.calendar.needsDateProperty')}
-        </Text>
-      </View>
+      <EmptyState
+        // icon: Calendar
+        variant="compact"
+        title={t('databases.calendar.needsDateProperty')}
+      />
     );
   }
 
   if (Platform.OS !== 'web') {
     // Native fallback — show rows grouped by month
     return (
-      <View className="p-3">
-        <Text className="text-sm text-muted-foreground">{t('databases.calendar.webOnly')}</Text>
-      </View>
+      <EmptyState
+        // icon: Calendar
+        variant="compact"
+        title={t('databases.calendar.webOnly')}
+      />
     );
   }
 
@@ -71,26 +74,25 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
   return (
     <View className="p-3">
       <View className="flex-row items-center justify-between mb-3">
-        <Text className="text-base font-semibold text-foreground">{monthLabel}</Text>
+        <Text variant="headline-semibold">{monthLabel}</Text>
         <View className="flex-row gap-1">
-          <Pressable
+          <Button
+            iconOnly
+            appearance="plain"
+            size="xs"
             onPress={() => setCursor(addMonths(cursor, -1))}
-            className="p-1 rounded hover:bg-muted"
-          >
-            <ChevronLeft size={14} color={colors.foreground} />
-          </Pressable>
-          <Pressable
-            onPress={() => setCursor(startOfMonth(new Date()))}
-            className="px-2 py-1 rounded hover:bg-muted"
-          >
-            <Text className="text-xs text-foreground">{t('databases.calendar.today')}</Text>
-          </Pressable>
-          <Pressable
+            renderLeadingIcon={({ size, color }) => <ChevronLeft size={size} color={color} />}
+          />
+          <Button appearance="plain" size="xs" onPress={() => setCursor(startOfMonth(new Date()))}>
+            {t('databases.calendar.today')}
+          </Button>
+          <Button
+            iconOnly
+            appearance="plain"
+            size="xs"
             onPress={() => setCursor(addMonths(cursor, 1))}
-            className="p-1 rounded hover:bg-muted"
-          >
-            <ChevronRight size={14} color={colors.foreground} />
-          </Pressable>
+            renderLeadingIcon={({ size, color }) => <ChevronRight size={size} color={color} />}
+          />
         </View>
       </View>
 
@@ -122,7 +124,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
                     inMonth ? '' : 'opacity-40'
                   }`}
                 >
-                  <Text className="text-xs text-foreground mb-1">{day.getDate()}</Text>
+                  <Text className="mb-1 text-xs text-foreground">{day.getDate()}</Text>
                   <View className="gap-1">
                     {dayRows.slice(0, 3).map((row) => (
                       <Pressable
@@ -130,7 +132,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
                         onPress={() => router.push(`/p/${row.id}`)}
                         className="bg-primary/10 rounded px-1.5 py-0.5"
                       >
-                        <Text className="text-xs text-foreground" numberOfLines={1}>
+                        <Text variant="caption-1-regular" numberOfLines={1}>
                           {row.title || t('databases.untitled')}
                         </Text>
                       </Pressable>

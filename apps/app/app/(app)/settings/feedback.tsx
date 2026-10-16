@@ -1,8 +1,10 @@
-import { View, Platform, Pressable, ActivityIndicator } from 'react-native';
+import { View, Platform } from 'react-native';
 import { KeyboardAwareScrollView } from '@/lib/keyboard';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@oxy.so/bloom/button';
+import { RadioGroup } from '@oxy.so/bloom/radio';
+import { Textarea } from '@oxy.so/bloom/textarea';
+import { useTheme } from '@oxy.so/bloom/theme';
+import { Text } from '@oxy.so/bloom/typography';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import apiClient from '@/lib/api/client';
@@ -12,7 +14,6 @@ import { MessageSquare, Bug, Lightbulb, Sparkles, Star } from 'lucide-react-nati
 import { SettingsHeader } from '@/components/settings/settings-header';
 import { toast } from '@oxy.so/bloom/toast';
 import { useTranslation } from '@/hooks/useTranslation';
-import { cn } from '@/lib/utils';
 
 type FeedbackType = 'bug' | 'feature' | 'improvement' | 'other';
 
@@ -53,6 +54,7 @@ const feedbackTypes: FeedbackTypeOption[] = [
 export default function FeedbackScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
   const [selectedType, setSelectedType] = useState<FeedbackType | null>(null);
   const [message, setMessage] = useState('');
   const [rating, setRating] = useState<number | null>(null);
@@ -128,42 +130,33 @@ export default function FeedbackScreen() {
             <Text className="text-[11px] font-semibold text-muted-foreground tracking-wider uppercase">
               {t('feedback.typeQuestion')}
             </Text>
-            <View className="gap-2">
-              {feedbackTypes.map((option) => {
+            <RadioGroup
+              variant="card"
+              label={t('feedback.typeQuestion')}
+              value={selectedType ?? undefined}
+              onValueChange={(value) => setSelectedType(value as FeedbackType)}
+              options={feedbackTypes.map((option) => {
                 const Icon = option.icon;
-                const isSelected = selectedType === option.type;
-                return (
-                  <Pressable
-                    key={option.type}
-                    onPress={() => setSelectedType(option.type)}
-                    className={cn(
-                      'flex-row items-center gap-3 p-4 rounded-xl border',
-                      isSelected
-                        ? 'border-foreground bg-foreground/5'
-                        : 'border-border bg-muted/30',
-                    )}
-                  >
-                    <View
-                      className={cn(
-                        'p-2 rounded-full',
-                        isSelected ? 'bg-foreground/10' : 'bg-muted',
-                      )}
-                    >
-                      <Icon
-                        size={20}
-                        className={isSelected ? 'text-foreground' : 'text-muted-foreground'}
-                      />
+                return {
+                  value: option.type,
+                  label: t(option.labelKey),
+                  description: t(option.descriptionKey),
+                  labelContent: (
+                    <View className="flex-row items-center gap-3">
+                      <View className="p-2 rounded-full bg-muted">
+                        <Icon size={20} color={colors.textSecondary} />
+                      </View>
+                      <View className="flex-1">
+                        <Text variant="body-medium">{t(option.labelKey)}</Text>
+                        <Text className="text-xs text-muted-foreground">
+                          {t(option.descriptionKey)}
+                        </Text>
+                      </View>
                     </View>
-                    <View className="flex-1">
-                      <Text className="font-medium text-foreground">{t(option.labelKey)}</Text>
-                      <Text className="text-xs text-muted-foreground">
-                        {t(option.descriptionKey)}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
+                  ),
+                };
               })}
-            </View>
+            />
           </View>
 
           {/* Rating (Optional) */}
@@ -173,19 +166,22 @@ export default function FeedbackScreen() {
             </Text>
             <View className="flex-row gap-2">
               {[1, 2, 3, 4, 5].map((star) => (
-                <Pressable
+                <Button
                   key={star}
+                  appearance="plain"
+                  size="lg"
+                  iconOnly
+                  pressed={rating === star}
+                  accessibilityLabel={ratingLabels[star]}
                   onPress={() => setRating(rating === star ? null : star)}
-                  className="p-1.5 active:opacity-70"
-                >
-                  <Star
-                    size={24}
-                    className={
-                      rating && star <= rating ? 'text-yellow-500' : 'text-muted-foreground'
-                    }
-                    fill={rating && star <= rating ? '#eab308' : 'transparent'}
-                  />
-                </Pressable>
+                  icon={
+                    <Star
+                      size={24}
+                      color={rating && star <= rating ? colors.warning : colors.textSecondary}
+                      fill={rating && star <= rating ? colors.warning : 'transparent'}
+                    />
+                  }
+                />
               ))}
             </View>
             {rating && (
@@ -199,12 +195,13 @@ export default function FeedbackScreen() {
               {t('feedback.yourFeedback')}
             </Text>
             <Textarea
+              accessibilityLabel={t('feedback.yourFeedback')}
               placeholder={
                 selectedType ? placeholderMap[selectedType] : t('feedback.otherPlaceholder')
               }
               value={message}
               onChangeText={setMessage}
-              className="min-h-[150px]"
+              rows={6}
             />
             <Text className="text-xs text-muted-foreground">
               {t('feedback.characterCount', { count: message.length })}
@@ -214,16 +211,13 @@ export default function FeedbackScreen() {
           {/* Submit Button */}
           <View className="gap-4 pt-2">
             <Button
+              appearance="solid"
+              tone="accent"
               onPress={handleSubmit}
               disabled={submitting || !selectedType || !message.trim()}
+              loading={submitting}
             >
-              {submitting ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text className="text-sm font-medium text-primary-foreground">
-                  {t('feedback.submitButton')}
-                </Text>
-              )}
+              {t('feedback.submitButton')}
             </Button>
 
             <Text className="text-xs text-center text-muted-foreground">

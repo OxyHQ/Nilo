@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useUserById } from '@oxy.so/services';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
+import { Button } from '@oxy.so/bloom/button';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { profileName } from '@/lib/hooks/use-member-profiles';
 import { useAuthQuery } from '@/lib/hooks/create-query';
@@ -54,27 +54,30 @@ function Backlinks({ pageId }: { pageId: string }) {
   if (query.isError)
     return (
       <Button
-        variant="ghost"
+        appearance="subtle"
+        tone="neutral"
         size="sm"
         accessibilityLabel={t('pages.backlinks.retry')}
         onPress={() => void query.refetch()}
       >
-        <Text>{t('pages.backlinks.retry')}</Text>
+        {t('pages.backlinks.retry')}
       </Button>
     );
   const backlinks = query.data?.backlinks ?? [];
   const label = t('pages.backlinks.count', { count: backlinks.length });
   return (
     <View className="gap-2">
-      <Pressable
-        accessibilityRole="button"
+      <Button
+        appearance="plain"
+        tone="neutral"
+        size="xs"
+        className="self-start"
         accessibilityLabel={label}
-        accessibilityState={{ expanded }}
+        aria-expanded={expanded}
         onPress={() => setExpanded(!expanded)}
-        className="self-start rounded px-2 py-1 hover:bg-muted"
       >
-        <Text className="text-xs text-muted-foreground">{label}</Text>
-      </Pressable>
+        {label}
+      </Button>
       {expanded
         ? backlinks.map(({ page, text }) => (
             <Pressable
@@ -86,7 +89,7 @@ function Backlinks({ pageId }: { pageId: string }) {
             >
               <View className="flex-row items-center gap-2">
                 <IconDisplay value={page.icon} size={18} />
-                <Text className="text-sm font-medium">{page.title || t('pages.untitled')}</Text>
+                <Text variant="body-medium">{page.title || t('pages.untitled')}</Text>
               </View>
               {text ? (
                 <Text numberOfLines={2} className="text-xs text-muted-foreground">

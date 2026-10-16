@@ -4,18 +4,37 @@ import { PlacementSections } from './sidebar-sections/placement-sections';
 import { useNewPageStore } from '@/lib/stores/new-page-store';
 import { SharedWithMeSection } from './sidebar-sections/shared-with-me-section';
 import React from 'react';
-import { View, Pressable, Platform, Linking, ScrollView, useWindowDimensions } from 'react-native';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import { ChevronsLeft, ChevronsRight, LogIn, UserPlus, Plus } from 'lucide-react-native';
+import { View, Pressable, Linking, ScrollView, useWindowDimensions } from 'react-native';
+import { Button, LinkButton } from '@oxy.so/bloom/button';
+import { Divider } from '@oxy.so/bloom/divider';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
+import { Text } from '@oxy.so/bloom/typography';
+import {
+  Bell,
+  ChevronsLeft,
+  ChevronsRight,
+  FileText,
+  LogIn,
+  LogOut,
+  Plus,
+  Settings,
+  ShieldCheck,
+  User,
+  UserPlus,
+} from 'lucide-react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useRouter, usePathname } from 'expo-router';
 import { SettingsSidebar } from '@/components/settings/settings-sidebar';
 import { UserAvatar } from '@/components/user-avatar';
 import { useOxy, openAccountDialog } from '@oxy.so/services';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
-import { NiloWordmark } from '@/components/ui/nilo-wordmark';
+import { NiloWordmark } from '@/components/nilo-wordmark';
 import { WorkspaceSwitcher } from '@/components/workspace/workspace-switcher';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -118,13 +137,13 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
           {isAuthenticated ? (
             <WorkspaceSwitcher collapsed />
           ) : (
-            <Pressable
+            <Button
+              appearance="plain"
+              iconOnly
               onPress={handleHome}
-              className="h-14 items-center justify-center"
               accessibilityLabel={t('sidebar.home')}
-            >
-              <NiloWordmark width={20} color={colors.foreground} />
-            </Pressable>
+              icon={<NiloWordmark width={20} color={colors.foreground} />}
+            />
           )}
         </View>
 
@@ -133,31 +152,32 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
 
         {/* Footer: expand + avatar */}
         <View className="flex flex-col items-center gap-2 p-2 pt-1 shrink-0">
-          <Pressable
+          <Button
+            appearance="subtle"
+            iconOnly
             onPress={toggleSidebarCollapsed}
             accessibilityLabel={t('sidebar.expandSidebar')}
-            className="h-10 w-10 rounded-xl items-center justify-center hover:bg-muted"
-          >
-            <ChevronsRight size={18} color={colors.mutedForeground} />
-          </Pressable>
+            renderLeadingIcon={({ size, color }) => <ChevronsRight size={size} color={color} />}
+          />
           {isAuthenticated ? (
-            <Pressable
+            <Button
+              appearance="plain"
+              size="lg"
+              iconOnly
               onPress={handleAccount}
               accessibilityLabel={t('sidebar.account')}
-              className="rounded-full h-10 w-10 flex p-1 items-center justify-center overflow-visible"
-            >
-              <UserAvatar size={32} />
-            </Pressable>
+              icon={<UserAvatar size={32} />}
+            />
           ) : (
-            <Pressable
+            <Button
+              appearance="subtle"
+              tone="accent"
+              size="lg"
+              iconOnly
               onPress={handleLogin}
               accessibilityLabel={t('login.signInButton')}
-              className="rounded-full h-10 w-10 flex items-center justify-center bg-primary/10"
-            >
-              <Text className="text-sm font-bold text-primary">
-                {(t('login.signInButton')[0] || 'S').toUpperCase()}
-              </Text>
-            </Pressable>
+              renderLeadingIcon={({ size, color }) => <LogIn size={size} color={color} />}
+            />
           )}
         </View>
       </View>
@@ -187,13 +207,13 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
         )}
         {isLargeScreen && (
           <View className="shrink-0">
-            <Pressable
+            <Button
+              appearance="subtle"
+              iconOnly
               onPress={toggleSidebarCollapsed}
               accessibilityLabel={t('sidebar.collapseSidebar')}
-              className="h-10 w-10 rounded-xl items-center justify-center hover:bg-muted"
-            >
-              <ChevronsLeft size={18} color={colors.mutedForeground} />
-            </Pressable>
+              renderLeadingIcon={({ size, color }) => <ChevronsLeft size={size} color={color} />}
+            />
           </View>
         )}
       </View>
@@ -232,26 +252,26 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
       {/* + New page (visible when authenticated) */}
       {isAuthenticated && currentWorkspaceId ? (
         <View className="px-2 pt-1">
-          <Pressable
+          <Button
+            appearance="plain"
+            size="sm"
+            className="self-start"
             onPress={handleCreatePage}
             accessibilityLabel={t('sidebar.newPage')}
-            accessibilityRole="button"
-            className="flex-row items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60 active:bg-muted/60"
+            renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
           >
-            <Plus size={14} color={colors.mutedForeground} />
-            <Text className="text-sm text-muted-foreground">{t('sidebar.newPage')}</Text>
-          </Pressable>
+            {t('sidebar.newPage')}
+          </Button>
         </View>
       ) : null}
 
-      {/* Divider */}
-      <View className="mx-2 border-t border-border/30 mt-2" />
+      <Divider style={{ marginHorizontal: 8, marginTop: 8 }} />
 
       {/* Footer: user avatar / sign-in */}
       <View className="flex flex-col gap-2 mt-auto shrink-0 p-2 pt-1">
         {isAuthenticated ? (
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Pressable
                 accessibilityLabel={t('sidebar.accountMenu')}
                 accessibilityRole="button"
@@ -264,102 +284,106 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
                   {displayName}
                 </Text>
               </Pressable>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content>
-              {Platform.OS === 'web' ? (
-                <View className="flex-row items-center gap-2.5 px-2 py-2">
-                  <UserAvatar size={36} />
-                  <View>
-                    <Text className="text-sm font-semibold text-foreground">{displayName}</Text>
-                    {user?.username ? (
-                      <Text className="text-xs text-muted-foreground">{user.username}@oxy.so</Text>
-                    ) : null}
-                  </View>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <View className="flex-row items-center gap-2.5 px-2 py-2">
+                <UserAvatar size={36} />
+                <View>
+                  <Text variant="body-semibold">{displayName}</Text>
+                  {user?.username ? (
+                    <Text className="text-xs text-muted-foreground">{user.username}@oxy.so</Text>
+                  ) : null}
                 </View>
-              ) : (
-                <DropdownMenu.Label>{displayName}</DropdownMenu.Label>
-              )}
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item key="account" onSelect={handleAccount}>
-                <DropdownMenu.ItemIcon ios={{ name: 'person.circle' }} />
-                <DropdownMenu.ItemTitle>{t('sidebar.account')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item key="notifications" onSelect={handleNotifications}>
-                <DropdownMenu.ItemIcon ios={{ name: 'bell' }} />
-                <DropdownMenu.ItemTitle>
-                  {unreadCount > 0
-                    ? `${t('sidebar.notifications')} (${unreadCount})`
-                    : t('sidebar.notifications')}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item key="settings" onSelect={handleSettings}>
-                <DropdownMenu.ItemIcon ios={{ name: 'gearshape' }} />
-                <DropdownMenu.ItemTitle>{t('sidebar.settings')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item
-                key="terms"
-                onSelect={() =>
+              </View>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onPress={handleAccount}
+                leading={<User size={16} color={colors.mutedForeground} />}
+              >
+                {t('sidebar.account')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onPress={handleNotifications}
+                leading={<Bell size={16} color={colors.mutedForeground} />}
+              >
+                {unreadCount > 0
+                  ? `${t('sidebar.notifications')} (${unreadCount})`
+                  : t('sidebar.notifications')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onPress={handleSettings}
+                leading={<Settings size={16} color={colors.mutedForeground} />}
+              >
+                {t('sidebar.settings')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onPress={() =>
                   Linking.openURL('https://oxy.so/company/transparency/policies/terms-of-service')
                 }
+                leading={<FileText size={16} color={colors.mutedForeground} />}
               >
-                <DropdownMenu.ItemIcon ios={{ name: 'doc.text' }} />
-                <DropdownMenu.ItemTitle>{t('sidebar.termsOfService')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Item
-                key="privacy"
-                onSelect={() =>
+                {t('sidebar.termsOfService')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onPress={() =>
                   Linking.openURL('https://oxy.so/company/transparency/policies/privacy')
                 }
+                leading={<ShieldCheck size={16} color={colors.mutedForeground} />}
               >
-                <DropdownMenu.ItemIcon ios={{ name: 'hand.raised' }} />
-                <DropdownMenu.ItemTitle>{t('sidebar.privacyPolicy')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item key="logout" destructive onSelect={handleLogout}>
-                <DropdownMenu.ItemIcon ios={{ name: 'rectangle.portrait.and.arrow.right' }} />
-                <DropdownMenu.ItemTitle>{t('sidebar.logOut')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
+                {t('sidebar.privacyPolicy')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onPress={handleLogout}
+                leading={<LogOut size={16} color={colors.mutedForeground} />}
+              >
+                {t('sidebar.logOut')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
           <View className="gap-2">
-            <Button onPress={handleLogin} className="h-11 md:h-9 rounded-full w-full">
-              <View className="flex-row items-center gap-2 md:gap-1.5">
-                <LogIn size={16} className="text-primary-foreground" />
-                <Text className="text-sm md:text-xs font-semibold text-primary-foreground">
-                  {t('login.signInButton')}
-                </Text>
-              </View>
+            <Button
+              appearance="solid"
+              tone="accent"
+              className="w-full"
+              onPress={handleLogin}
+              renderLeadingIcon={({ size, color }) => <LogIn size={size} color={color} />}
+            >
+              {t('login.signInButton')}
             </Button>
             <Button
+              appearance="outline"
+              className="w-full"
               onPress={handleLogin}
-              variant="outline"
-              className="h-11 md:h-9 rounded-full w-full"
+              renderLeadingIcon={({ size, color }) => <UserPlus size={size} color={color} />}
             >
-              <View className="flex-row items-center gap-2 md:gap-1.5">
-                <UserPlus size={16} className="text-foreground" />
-                <Text className="text-sm md:text-xs font-medium">{t('login.footerLink')}</Text>
-              </View>
+              {t('login.footerLink')}
             </Button>
             <View className="flex-row items-center justify-center gap-1 mt-1">
-              <Text
-                className="text-[10px] text-muted-foreground underline"
+              <LinkButton
+                size="xs"
+                linkTone="secondary"
+                underline="rest"
                 onPress={() =>
                   Linking.openURL('https://oxy.so/company/transparency/policies/privacy')
                 }
               >
                 {t('sidebar.privacyPolicy')}
-              </Text>
+              </LinkButton>
               <Text className="text-[10px] text-muted-foreground">·</Text>
-              <Text
-                className="text-[10px] text-muted-foreground underline"
+              <LinkButton
+                size="xs"
+                linkTone="secondary"
+                underline="rest"
                 onPress={() =>
                   Linking.openURL('https://oxy.so/company/transparency/policies/terms-of-service')
                 }
               >
                 {t('sidebar.termsOfService')}
-              </Text>
+              </LinkButton>
             </View>
           </View>
         )}

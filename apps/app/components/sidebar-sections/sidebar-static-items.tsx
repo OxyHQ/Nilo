@@ -2,8 +2,8 @@ import { Platform, View } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { AliaAvatarIcon } from '@alia.onl/sdk/avatar';
 import { Search, Inbox, Settings, Trash2 } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
-import { Kbd, KbdGroup } from '@/components/ui/kbd';
+import { Badge } from '@oxy.so/bloom/badge';
+import { Kbd } from '@oxy.so/bloom/kbd';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useAskAlia } from '@/components/ask-alia';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -40,10 +40,10 @@ export function SidebarSearchButton() {
       accessibilityLabel={t('sidebar.searchLabel')}
       trailing={
         showShortcut ? (
-          <KbdGroup>
-            <Kbd>{mod}</Kbd>
-            <Kbd>K</Kbd>
-          </KbdGroup>
+          <View className="flex-row items-center gap-1">
+            <Kbd size="sm">{mod}</Kbd>
+            <Kbd size="sm">K</Kbd>
+          </View>
         ) : undefined
       }
     />
@@ -87,11 +87,7 @@ export function SidebarInboxButton({ unreadCount }: InboxButtonProps) {
       onPress={() => router.push('/(app)/notifications')}
       trailing={
         typeof unreadCount === 'number' && unreadCount > 0 ? (
-          <View className="rounded-full bg-primary px-1.5">
-            <Text className="text-[10px] font-semibold text-primary-foreground">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Text>
-          </View>
+          <Badge content={unreadCount} max={99} appearance="solid" tone="accent" />
         ) : undefined
       }
     />

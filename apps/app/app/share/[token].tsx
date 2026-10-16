@@ -1,13 +1,14 @@
 import React from 'react';
-import { View, ScrollView, Pressable, Platform, Linking, ActivityIndicator } from 'react-native';
+import { View, ScrollView, Pressable, Platform, Linking } from 'react-native';
 import { useOxy } from '@oxy.so/services';
-import { Button } from '@/components/ui/button';
+import { Button } from '@oxy.so/bloom/button';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useJoinShareLink } from '@/lib/hooks/use-page-permissions';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
-import { Text } from '@/components/ui/text';
-import { NiloWordmark } from '@/components/ui/nilo-wordmark';
-import { useColorScheme } from '@/lib/useColorScheme';
+import { NiloWordmark } from '@/components/nilo-wordmark';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSharedPage, type SharedPage } from '@/lib/hooks/use-share-links';
@@ -20,9 +21,10 @@ interface ShareLoadStateProps {
 
 function ShareLoadState({ title, body }: ShareLoadStateProps) {
   return (
-    <View className="flex-1 items-center justify-center px-6 gap-3">
-      <Text className="text-xl font-semibold text-foreground text-center">{title}</Text>
-      <Text className="text-sm text-muted-foreground text-center max-w-md">{body}</Text>
+    <View className="flex-1 items-center justify-center px-6">
+      <View className="w-full max-w-md">
+        <EmptyState title={title} description={body} />
+      </View>
     </View>
   );
 }
@@ -57,7 +59,6 @@ function ShareFooter() {
 
 export default function PublicSharePage() {
   const insets = useSafeAreaInsets();
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const { isAuthenticated } = useOxy();
   const router = useRouter();
@@ -85,7 +86,7 @@ export default function PublicSharePage() {
         className="flex-1 bg-background items-center justify-center"
         style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
       >
-        <ActivityIndicator color={colors.foreground} />
+        <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
       </View>
     );
   }
@@ -131,14 +132,16 @@ export default function PublicSharePage() {
           {isAuthenticated ? (
             <View className="gap-2 items-start">
               <Button
+                appearance="solid"
+                tone="accent"
                 accessibilityLabel={t('sharing.openInNilo')}
                 disabled={join.isPending}
-                isLoading={join.isPending}
+                loading={join.isPending}
                 onPress={() =>
                   join.mutate(token, { onSuccess: ({ pageId }) => router.push(`/p/${pageId}`) })
                 }
               >
-                <Text>{t('sharing.openInNilo')}</Text>
+                {t('sharing.openInNilo')}
               </Button>
               {join.isError ? (
                 <Text accessibilityRole="alert" className="text-sm text-destructive">
@@ -163,7 +166,7 @@ function SharedPageHeader({ page }: { page: SharedPage['page'] }) {
   return (
     <View className="gap-2">
       {page.icon ? (
-        <Text className="text-4xl" style={{ lineHeight: 48 }}>
+        <Text className="text-4xl text-foreground" style={{ lineHeight: 48 }}>
           {page.icon}
         </Text>
       ) : null}

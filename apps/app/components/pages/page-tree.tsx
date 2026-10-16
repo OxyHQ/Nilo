@@ -2,14 +2,30 @@ import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
 import { View, Pressable } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
-import { ChevronRight, ChevronDown, Plus, FileText } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import {
+  ChevronRight,
+  ChevronDown,
+  Plus,
+  FileText,
+  FilePlus,
+  Pencil,
+  Trash2,
+} from 'lucide-react-native';
+import { Button } from '@oxy.so/bloom/button';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@oxy.so/bloom/context-menu';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { buildPageTree, useDeletePage, usePages } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
 
 const INDENT_PX = 14;
 const ROW_HEIGHT = 28;
@@ -22,7 +38,6 @@ const ROW_HEIGHT = 28;
  */
 export function PageTree() {
   const pathname = usePathname();
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
 
@@ -59,13 +74,14 @@ export function PageTree() {
         <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t('pages.tree.heading')}
         </Text>
-        <Pressable
+        <Button
+          appearance="subtle"
+          size="xs"
+          iconOnly
           onPress={handleCreateRoot}
           accessibilityLabel={t('pages.tree.addPage')}
-          className="h-6 w-6 items-center justify-center rounded-md hover:bg-muted active:bg-muted"
-        >
-          <Plus size={14} color={colors.mutedForeground} />
-        </Pressable>
+          renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+        />
       </View>
 
       {/* Loading */}
@@ -78,9 +94,11 @@ export function PageTree() {
           <Text className="text-xs text-destructive">{t('pages.tree.loadFailed')}</Text>
         </View>
       ) : tree.roots.length === 0 ? (
-        <View className="px-3 py-3">
-          <Text className="text-xs text-muted-foreground">{t('pages.tree.empty')}</Text>
-        </View>
+        <EmptyState
+          variant="compact"
+          // icon: FileText
+          title={t('pages.tree.empty')}
+        />
       ) : (
         <View className="pb-2">
           {tree.roots.map((page) => (
@@ -194,14 +212,11 @@ const PageRow = React.memo(function PageRow({
   const indent = depth * INDENT_PX;
 
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
+    <ContextMenu>
+      {/* Long-press on native, right-click on web. */}
+      <ContextMenuTrigger asChild>
         <Pressable
           onPress={handleOpen}
-          onLongPress={() => {
-            // Long-press opens the dropdown via zeego on native; on web,
-            // users can right-click the trigger.
-          }}
           accessibilityLabel={t('pages.openPage', { title })}
           className={
             isActive
@@ -210,26 +225,28 @@ const PageRow = React.memo(function PageRow({
           }
           style={{ paddingLeft: 8 + indent, paddingRight: 8, height: ROW_HEIGHT }}
         >
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation();
-              if (hasChildren) onToggle();
-            }}
-            accessibilityLabel={isOpen ? t('pages.collapse') : t('pages.expand')}
-            className="h-5 w-5 items-center justify-center rounded"
-            disabled={!hasChildren}
-          >
-            {hasChildren ? (
-              isOpen ? (
-                <ChevronDown size={12} color={colors.mutedForeground} />
-              ) : (
-                <ChevronRight size={12} color={colors.mutedForeground} />
-              )
-            ) : null}
-          </Pressable>
+          {hasChildren ? (
+            <Button
+              appearance="plain"
+              size="xs"
+              iconOnly
+              stopPropagation
+              onPress={onToggle}
+              accessibilityLabel={isOpen ? t('pages.collapse') : t('pages.expand')}
+              renderLeadingIcon={({ size, color }) =>
+                isOpen ? (
+                  <ChevronDown size={size} color={color} />
+                ) : (
+                  <ChevronRight size={size} color={color} />
+                )
+              }
+            />
+          ) : (
+            <View className="h-6 w-6" />
+          )}
           <View className="h-5 w-5 items-center justify-center">
             {page.icon ? (
-              <Text className="text-sm leading-5">{page.icon}</Text>
+              <Text className="text-sm leading-5 text-foreground">{page.icon}</Text>
             ) : (
               <FileText size={13} color={colors.mutedForeground} />
             )}
@@ -245,22 +262,29 @@ const PageRow = React.memo(function PageRow({
             {title}
           </Text>
         </Pressable>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content>
-        <DropdownMenu.Item key="add-sub" onSelect={handleAddChild}>
-          <DropdownMenu.ItemIcon ios={{ name: 'doc' }} />
-          <DropdownMenu.ItemTitle>{t('pages.actions.addSubPage')}</DropdownMenu.ItemTitle>
-        </DropdownMenu.Item>
-        <DropdownMenu.Item key="rename" onSelect={handleOpen}>
-          <DropdownMenu.ItemIcon ios={{ name: 'pencil' }} />
-          <DropdownMenu.ItemTitle>{t('pages.actions.openAndRename')}</DropdownMenu.ItemTitle>
-        </DropdownMenu.Item>
-        <DropdownMenu.Separator />
-        <DropdownMenu.Item key="delete" destructive onSelect={handleDelete}>
-          <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
-          <DropdownMenu.ItemTitle>{t('common.delete')}</DropdownMenu.ItemTitle>
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem
+          leading={<FilePlus size={16} color={colors.mutedForeground} />}
+          onPress={handleAddChild}
+        >
+          {t('pages.actions.addSubPage')}
+        </ContextMenuItem>
+        <ContextMenuItem
+          leading={<Pencil size={16} color={colors.mutedForeground} />}
+          onPress={handleOpen}
+        >
+          {t('pages.actions.openAndRename')}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          leading={<Trash2 size={16} color={colors.mutedForeground} />}
+          variant="destructive"
+          onPress={handleDelete}
+        >
+          {t('common.delete')}
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 });

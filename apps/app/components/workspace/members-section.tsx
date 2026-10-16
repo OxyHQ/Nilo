@@ -1,12 +1,30 @@
 import React from 'react';
-import { View, Pressable, Platform, ActivityIndicator } from 'react-native';
+import { Text as RNText, View, Platform } from 'react-native';
 import { useOxy } from '@oxy.so/services';
-import { Image } from 'expo-image';
-import { UserPlus, MoreHorizontal } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
+import { UserPlus, MoreHorizontal, Trash2 } from 'lucide-react-native';
+import { Avatar } from '@oxy.so/bloom/avatar';
+import { Button } from '@oxy.so/bloom/button';
+import { useDialogControl } from '@oxy.so/bloom/dialog';
+import { Divider } from '@oxy.so/bloom/divider';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Item } from '@oxy.so/bloom/item';
+import { Loading } from '@oxy.so/bloom/loading';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectItemText,
+  SelectTrigger,
+  SelectValue,
+} from '@oxy.so/bloom/select';
 import { toast } from '@oxy.so/bloom/toast';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useWorkspaces } from '@/lib/hooks/use-workspaces';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
@@ -36,28 +54,9 @@ function memberInitial(member: WorkspaceMember): string {
 }
 
 function MemberAvatar({ member }: { member: WorkspaceMember }) {
-  const { oxyServices } = useOxy();
-  const avatarUrl = member.user?.avatar
-    ? oxyServices.assets.publicUrl(member.user.avatar, 'thumb')
-    : null;
-
-  return (
-    <View
-      className="rounded-full bg-muted items-center justify-center overflow-hidden"
-      style={{ width: 36, height: 36 }}
-    >
-      {avatarUrl ? (
-        <Image
-          source={{ uri: avatarUrl }}
-          style={{ width: 36, height: 36 }}
-          contentFit="cover"
-          transition={150}
-        />
-      ) : (
-        <Text className="text-sm font-bold text-foreground">{memberInitial(member)}</Text>
-      )}
-    </View>
-  );
+  // `source` is the bare Oxy file id: the resolver mounted in the root layout
+  // turns it into the thumb rendition's URL.
+  return <Avatar source={member.user?.avatar ?? null} initials={memberInitial(member)} size="lg" />;
 }
 
 interface MemberRowProps {
@@ -122,85 +121,87 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
     });
   }, [removeMember, member, t]);
 
+  const roleItems = ASSIGNABLE_ROLES.map((role) => ({ value: role, label: roleLabel(role) }));
+
   return (
-    <View className="flex-row items-center gap-3 py-3 px-2 rounded-lg">
-      <MemberAvatar member={member} />
-      <View className="flex-1 min-w-0">
-        <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
+    <Item
+      leading={<MemberAvatar member={member} />}
+      title={
+        <Text variant="body-medium" numberOfLines={1}>
           {memberDisplayName(member)}
           {isSelf ? (
-            <Text className="text-xs text-muted-foreground"> {t('workspace.members.you')}</Text>
+            <RNText className="text-xs text-muted-foreground"> {t('workspace.members.you')}</RNText>
           ) : null}
         </Text>
-        {member.user?.email ? (
-          <Text className="text-xs text-muted-foreground" numberOfLines={1} ellipsizeMode="tail">
-            {member.user.email}
-          </Text>
-        ) : null}
-      </View>
-
-      {canManage ? (
-        <View className="flex-row items-center gap-1 shrink-0">
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <Pressable
-                className="h-8 px-2 flex-row items-center gap-1 rounded-lg border border-border hover:bg-muted"
-                accessibilityRole="button"
-                accessibilityLabel={t('workspace.members.changeRole', {
-                  name: memberDisplayName(member),
-                })}
+      }
+      subtitle={member.user?.email || undefined}
+      trailing={
+        canManage ? (
+          <View className="flex-row items-center gap-1 shrink-0">
+            <Select
+              size="sm"
+              value={member.role}
+              onValueChange={(role) => handleChangeRole(role as WorkspaceRole)}
+              disabled={isUpdating || isRemoving}
+            >
+              <SelectTrigger
+                label={t('workspace.members.changeRole', { name: memberDisplayName(member) })}
                 disabled={isUpdating || isRemoving}
               >
-                <Text className="text-xs font-medium text-foreground">
-                  {roleLabel(member.role)}
-                </Text>
-              </Pressable>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content>
-              {ASSIGNABLE_ROLES.map((role) => (
-                <DropdownMenu.Item key={role} onSelect={() => handleChangeRole(role)}>
-                  <DropdownMenu.ItemTitle>{roleLabel(role)}</DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-              ))}
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent
+                items={roleItems}
+                renderItem={(item) => (
+                  <SelectItem value={item.value} label={item.label}>
+                    <SelectItemText>{item.label}</SelectItemText>
+                  </SelectItem>
+                )}
+              />
+            </Select>
 
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <Pressable
-                className="h-8 w-8 items-center justify-center rounded-lg hover:bg-muted"
-                accessibilityRole="button"
-                accessibilityLabel={t('workspace.members.moreActions', {
-                  name: memberDisplayName(member),
-                })}
-                disabled={isUpdating || isRemoving}
-              >
-                <MoreHorizontal size={16} color={colors.mutedForeground} />
-              </Pressable>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content>
-              <DropdownMenu.Item key="remove" destructive onSelect={handleRemove}>
-                <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
-                <DropdownMenu.ItemTitle>{t('workspace.members.remove')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
-        </View>
-      ) : (
-        <View className="h-8 px-2 items-center justify-center shrink-0">
-          <Text className="text-xs font-medium text-muted-foreground">
-            {roleLabel(member.role)}
-          </Text>
-        </View>
-      )}
-    </View>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  appearance="subtle"
+                  size="sm"
+                  iconOnly
+                  accessibilityLabel={t('workspace.members.moreActions', {
+                    name: memberDisplayName(member),
+                  })}
+                  disabled={isUpdating || isRemoving}
+                  renderLeadingIcon={({ size, color }) => (
+                    <MoreHorizontal size={size} color={color} />
+                  )}
+                />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onPress={handleRemove}
+                  leading={<Trash2 size={16} color={colors.mutedForeground} />}
+                >
+                  {t('workspace.members.remove')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </View>
+        ) : (
+          <View className="h-8 px-2 items-center justify-center shrink-0">
+            <Text className="text-xs font-medium text-muted-foreground">
+              {roleLabel(member.role)}
+            </Text>
+          </View>
+        )
+      }
+    />
   );
 }
 
 export function MembersSection() {
   const { user } = useOxy();
   const { t } = useTranslation();
-  const [inviteOpen, setInviteOpen] = React.useState(false);
+  const inviteDialog = useDialogControl();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
 
   const { data: workspaces } = useWorkspaces();
@@ -228,21 +229,20 @@ export function MembersSection() {
     <View className="gap-3">
       <View className="flex-row items-center justify-between">
         <View className="flex-1 min-w-0">
-          <Text className="text-sm font-medium text-foreground">
-            {currentWorkspace?.name ?? t('workspace.fallbackName')}
-          </Text>
+          <Text variant="body-medium">{currentWorkspace?.name ?? t('workspace.fallbackName')}</Text>
           <Text className="text-xs text-muted-foreground">
             {t('workspace.members.count', { count: members?.length ?? 0 })}
           </Text>
         </View>
         {canInvite && currentWorkspaceId ? (
-          <Button onPress={() => setInviteOpen(true)} size="sm">
-            <View className="flex-row items-center gap-1.5">
-              <UserPlus size={14} className="text-primary-foreground" />
-              <Text className="text-xs font-semibold text-primary-foreground">
-                {t('workspace.members.invite')}
-              </Text>
-            </View>
+          <Button
+            appearance="solid"
+            tone="accent"
+            size="sm"
+            onPress={() => inviteDialog.open()}
+            renderLeadingIcon={({ size, color }) => <UserPlus size={size} color={color} />}
+          >
+            {t('workspace.members.invite')}
           </Button>
         ) : null}
       </View>
@@ -250,7 +250,7 @@ export function MembersSection() {
       <View className="rounded-xl border border-border bg-card overflow-hidden">
         {isLoading ? (
           <View className="py-10 items-center justify-center">
-            <ActivityIndicator />
+            <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
           </View>
         ) : isError ? (
           <View className="py-6 px-4">
@@ -259,16 +259,12 @@ export function MembersSection() {
             </Text>
           </View>
         ) : sortedMembers.length === 0 ? (
-          <View className="py-10 items-center justify-center px-4">
-            <Text className="text-sm text-muted-foreground text-center">
-              {t('workspace.members.empty')}
-            </Text>
-          </View>
+          <EmptyState variant="compact" description={t('workspace.members.empty')} />
         ) : (
           <View className="px-1 py-1">
             {sortedMembers.map((member, idx) => (
               <View key={member.userId}>
-                {idx > 0 ? <View className="h-px bg-border/50 mx-2" /> : null}
+                {idx > 0 ? <Divider style={{ marginHorizontal: 8 }} /> : null}
                 <MemberRow
                   member={member}
                   workspaceId={currentWorkspaceId ?? ''}
@@ -282,11 +278,7 @@ export function MembersSection() {
       </View>
 
       {currentWorkspaceId ? (
-        <InviteMemberModal
-          open={inviteOpen}
-          onOpenChange={setInviteOpen}
-          workspaceId={currentWorkspaceId}
-        />
+        <InviteMemberModal control={inviteDialog} workspaceId={currentWorkspaceId} />
       ) : null}
 
       {!canInvite && currentWorkspace ? (

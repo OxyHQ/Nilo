@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { Platform, TextInput, View } from 'react-native';
 import { Workflow } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Pre } from '@oxy.so/bloom/code';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { BlockComponentProps } from './types';
 
@@ -90,9 +91,7 @@ export function MermaidBlock({ block, onChangeContent }: BlockComponentProps) {
       {Platform.OS === 'web' && renderError ? (
         <Text className="text-xs text-destructive">{renderError}</Text>
       ) : null}
-      {Platform.OS !== 'web' && code ? (
-        <Text className="text-sm text-foreground font-mono">{code}</Text>
-      ) : null}
+      {Platform.OS !== 'web' && code ? <Pre>{code}</Pre> : null}
     </View>
   );
 }

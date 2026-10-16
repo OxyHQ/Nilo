@@ -1,7 +1,8 @@
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Calendar, FileText, User } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Chip } from '@oxy.so/bloom/chip';
+import { Text } from '@oxy.so/bloom/typography';
 import { useOxy } from '@oxy.so/services';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { cn } from '@/lib/utils';
@@ -79,19 +80,19 @@ function MentionChip({ mention }: { mention: MentionSegment }) {
   };
 
   return (
-    <Pressable
+    <Chip
+      size="sm"
+      appearance="subtle"
+      tone="accent"
       onPress={handlePress}
-      className="flex-row items-center gap-1 rounded-md bg-primary/10 px-1.5 py-0.5 mx-0.5"
-      accessibilityRole="link"
+      leading={<Icon size={12} color={colors.primary} />}
       accessibilityLabel={t('comments.mentionLabel', { name: mention.originalText })}
+      style={{ marginHorizontal: 2 }}
     >
-      <Icon size={12} color={colors.primary} />
-      <Text className="text-xs font-medium text-primary">
-        {mention.kind === 'date' && mention.date
-          ? formatDate(mention.date)
-          : mention.originalText.replace(/^@/, '')}
-      </Text>
-    </Pressable>
+      {mention.kind === 'date' && mention.date
+        ? formatDate(mention.date)
+        : mention.originalText.replace(/^@/, '')}
+    </Chip>
   );
 }
 

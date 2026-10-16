@@ -1,8 +1,10 @@
 import * as React from 'react';
-import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Platform, TextInput, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { Image as ImageIcon, Upload } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Button } from '@oxy.so/bloom/button';
+import { TextField, TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { uploadFile } from '@/lib/uploads/upload-file';
 import type { BlockComponentProps } from './types';
@@ -95,15 +97,19 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
           <Text className="text-sm text-muted-foreground">Image</Text>
         </View>
         <View className="flex-row items-center gap-2">
-          <TextInput
-            value={urlDraft}
-            onChangeText={setUrlDraft}
-            onBlur={() => commitUrl(urlDraft)}
-            placeholder="Paste image URL"
-            placeholderTextColor={colors.mutedForeground}
-            className="flex-1 rounded-md bg-background px-2 py-1.5 text-sm text-foreground border border-input"
-          />
-          <Pressable
+          <TextField className="flex-1">
+            <TextFieldInput
+              label="Paste image URL"
+              value={urlDraft}
+              onChangeText={setUrlDraft}
+              onBlur={() => commitUrl(urlDraft)}
+              placeholder="Paste image URL"
+            />
+          </TextField>
+          <Button
+            appearance="solid"
+            tone="accent"
+            size="md"
             onPress={() => {
               if (Platform.OS === 'web') {
                 fileInputRef.current?.click();
@@ -111,14 +117,11 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
                 void handleNativeUpload();
               }
             }}
-            className="flex-row items-center gap-1 rounded-md bg-primary px-3 py-1.5"
             disabled={busy}
+            renderLeadingIcon={({ size, color }) => <Upload size={size} color={color} />}
           >
-            <Upload size={14} color={colors.primaryForeground} />
-            <Text className="text-sm font-medium" style={{ color: colors.primaryForeground }}>
-              {busy ? 'Uploading…' : 'Upload'}
-            </Text>
-          </Pressable>
+            {busy ? 'Uploading…' : 'Upload'}
+          </Button>
         </View>
         {Platform.OS === 'web' ? (
           <input

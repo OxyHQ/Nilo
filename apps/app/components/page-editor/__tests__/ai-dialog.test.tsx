@@ -6,6 +6,7 @@ import {
   removeBlocks,
 } from '@oxy.so/bloom-editor/model';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { NILO_SCHEMA } from '@/lib/editor/schema';
 import { AiDialog, type AiTarget } from '../ai-dialog';
 
@@ -26,16 +27,38 @@ jest.mock('@/lib/ai/use-ai', () => ({
 jest.mock('@oxy.so/services', () => ({
   useOxy: () => ({ isAuthenticated: true, oxyServices: {} }),
 }));
-jest.mock('@/components/ui/dialog', () => {
+// The dialog's body renders in place; closing it settles at once and reports
+// through `onClose`, as Bloom's does once its exit has run.
+jest.mock('@oxy.so/bloom/dialog', () => {
+  const { useImperativeHandle } = require('react');
   const { View } = require('react-native');
-  return { Dialog: View, DialogContent: View, DialogTitle: View };
+  return {
+    ...jest.requireActual('@oxy.so/bloom/dialog'),
+    Dialog: ({
+      control,
+      onClose,
+      children,
+    }: {
+      control?: { ref: unknown };
+      onClose?: () => void;
+      children?: React.ReactNode;
+    }) => {
+      useImperativeHandle(control?.ref as never, () => ({
+        open: () => {},
+        close: (cb?: () => void) => {
+          cb?.();
+          onClose?.();
+        },
+      }));
+      return <View>{children}</View>;
+    },
+  };
 });
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({
     t: (key: string, params?: { id?: string }) => (params?.id ? `${key}:${params.id}` : key),
   }),
 }));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 
 let n = 0;
 const newId = () => `b${++n}`;
@@ -51,10 +74,20 @@ const idle = (): Run => ({
 });
 const mount = (target: AiTarget, canvas = false) =>
   act(() => {
-    renderer = create(<AiDialog store={store} target={target} canvas={canvas} onClose={onClose} />);
+    renderer = create(
+      <BloomTestProviders>
+        <AiDialog store={store} target={target} canvas={canvas} onClose={onClose} />
+      </BloomTestProviders>,
+    );
   });
 const rerender = (target: AiTarget) =>
-  act(() => renderer.update(<AiDialog store={store} target={target} onClose={onClose} />));
+  act(() =>
+    renderer.update(
+      <BloomTestProviders>
+        <AiDialog store={store} target={target} onClose={onClose} />
+      </BloomTestProviders>,
+    ),
+  );
 const text = () => JSON.stringify(renderer.toJSON());
 const press = (label: string) => {
   const button = renderer.root.findAll(

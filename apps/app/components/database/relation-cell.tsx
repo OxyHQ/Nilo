@@ -1,6 +1,6 @@
 import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Text } from '@/components/ui/text';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useDatabaseRow } from '@/lib/hooks/use-database-rows';
 
@@ -37,7 +37,7 @@ function RelatedRow({ id, databaseId }: { id: string; databaseId?: string }) {
       }}
       className="rounded bg-muted px-2 py-1"
     >
-      <Text className="text-sm text-foreground">{title}</Text>
+      <Text variant="body-regular">{title}</Text>
     </Pressable>
   );
 }

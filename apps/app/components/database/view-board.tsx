@@ -1,10 +1,13 @@
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Plus } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Badge } from '@oxy.so/bloom/badge';
+import { Button } from '@oxy.so/bloom/button';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useColorScheme } from '@/lib/useColorScheme';
 import type {
   Database,
   DatabaseProperty,
@@ -37,7 +40,6 @@ const COLUMN_WIDTH = 280;
  */
 export function ViewBoard({ database, view, rows, isLoading, readOnly = false }: ViewBoardProps) {
   const router = useRouter();
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const createRow = useCreateRow();
   const updateRow = useUpdateRow();
@@ -103,18 +105,18 @@ export function ViewBoard({ database, view, rows, isLoading, readOnly = false }:
   if (isLoading) {
     return (
       <View className="py-10 items-center">
-        <ActivityIndicator color={colors.mutedForeground} />
+        <Loading variant="spinner" />
       </View>
     );
   }
 
   if (!groupByProperty) {
     return (
-      <View className="px-6 py-10">
-        <Text className="text-sm text-muted-foreground">
-          {t('databases.board.needsGroupProperty')}
-        </Text>
-      </View>
+      <EmptyState
+        // icon: Kanban
+        variant="compact"
+        title={t('databases.board.needsGroupProperty')}
+      />
     );
   }
 
@@ -184,7 +186,6 @@ interface BoardColumnProps {
 }
 
 function BoardColumn({ option, rows, onAddRow, onMoveTo, renderCard, readOnly }: BoardColumnProps) {
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const palette = SELECT_COLOR_CLASSES[option.color] ?? SELECT_COLOR_CLASSES.default;
 
@@ -212,17 +213,17 @@ function BoardColumn({ option, rows, onAddRow, onMoveTo, renderCard, readOnly }:
           <View className={`px-2 py-0.5 rounded-md ${palette.bg}`}>
             <Text className={`text-xs ${palette.fg}`}>{option.name}</Text>
           </View>
-          <Text className="text-xs text-muted-foreground">{rows.length}</Text>
+          <Badge content={rows.length} variant="subtle" />
         </View>
         {!readOnly ? (
-          <Pressable
-            accessibilityRole="button"
+          <Button
+            iconOnly
+            appearance="plain"
+            size="xs"
             accessibilityLabel={t('databases.actions.new')}
             onPress={onAddRow}
-            className="p-1 rounded hover:bg-muted"
-          >
-            <Plus size={14} color={colors.mutedForeground} />
-          </Pressable>
+            renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+          />
         ) : null}
       </View>
       <ScrollView style={{ maxHeight: 600 }}>
@@ -262,7 +263,7 @@ function BoardCard({ row, database, onOpen, readOnly }: BoardCardProps) {
       className="bg-card border border-border rounded-md px-3 py-2 shadow-sm"
       {...(dragHandlers as Record<string, unknown>)}
     >
-      <Text className="text-sm font-medium text-foreground mb-1" numberOfLines={2}>
+      <Text className="mb-1 text-sm font-medium text-foreground" numberOfLines={2}>
         {row.title || t('databases.untitled')}
       </Text>
       <View className="gap-1">

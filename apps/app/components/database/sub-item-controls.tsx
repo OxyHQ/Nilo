@@ -1,6 +1,7 @@
 import { Pressable } from 'react-native';
 import { ChevronDown, ChevronRight } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Button } from '@oxy.so/bloom/button';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 
 export function SubItemToggle({
@@ -15,21 +16,20 @@ export function SubItemToggle({
   const { t } = useTranslation();
   const Icon = expanded ? ChevronDown : ChevronRight;
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ expanded }}
+    <Button
+      iconOnly
+      appearance="plain"
+      size="xs"
+      // The toggle sits inside the row's own pressable, which opens the row.
+      stopPropagation
+      aria-expanded={expanded}
       accessibilityLabel={t(
         expanded ? 'databases.subItems.collapse' : 'databases.subItems.expand',
         { title: title || t('databases.untitled') },
       )}
-      onPress={(event) => {
-        event.stopPropagation();
-        onPress();
-      }}
-      className="p-1"
-    >
-      <Icon size={16} className="text-muted-foreground" />
-    </Pressable>
+      onPress={onPress}
+      renderLeadingIcon={({ size, color }) => <Icon size={size} color={color} />}
+    />
   );
 }
 

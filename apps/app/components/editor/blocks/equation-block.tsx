@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { Platform, TextInput, View } from 'react-native';
 import { Sigma } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Pre } from '@oxy.so/bloom/code';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { BlockComponentProps } from './types';
 
@@ -87,7 +88,7 @@ export function EquationBlock({ block, onChangeContent }: BlockComponentProps) {
           }}
         />
       ) : Platform.OS !== 'web' && latex ? (
-        <Text className="text-sm text-foreground font-mono">{latex}</Text>
+        <Pre>{latex}</Pre>
       ) : null}
     </View>
   );

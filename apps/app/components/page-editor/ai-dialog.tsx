@@ -5,10 +5,12 @@
  */
 import type { BlockId, EditorStore } from '@oxy.so/bloom-editor/model';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Text } from '@/components/ui/text';
+import { ScrollView, View } from 'react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
+import { Item } from '@oxy.so/bloom/item';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   type AiActionId,
@@ -27,7 +29,6 @@ import {
   isSameText,
   replaceBlockText,
 } from '@/lib/editor/markdown-blocks';
-import { useColorScheme } from '@/lib/useColorScheme';
 
 /** What an action reads: one block (and what it holds), or the whole page. */
 export type AiTarget = { kind: 'block'; blockId: BlockId } | { kind: 'page' };
@@ -47,7 +48,7 @@ export function AiDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const { colors } = useColorScheme();
+  const control = useDialogControl();
   const run = useAiAction();
   const [choosingLanguage, setChoosingLanguage] = useState(false);
   const [last, setLast] = useState<{ action: AiActionId; language?: TranslationLanguage } | null>(
@@ -103,7 +104,7 @@ export function AiDialog({
         ? replaceBlockText(c, target.blockId, markdown)
         : insertMarkdownAfter(c, target.blockId, markdown);
     });
-    onClose();
+    control.close();
   };
   const replaceable =
     target.kind === 'block' && canReplaceText(store.doc, store.schema, target.blockId);
@@ -113,22 +114,23 @@ export function AiDialog({
 
   return (
     <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) {
-          abort.current?.abort();
-          onClose();
-        }
+      control={control}
+      startOpen
+      onClose={() => {
+        abort.current?.abort();
+        onClose();
       }}
+      placement={{ base: 'bottom', md: 'center' }}
+      maxWidth={512}
+      title={t(target.kind === 'block' ? 'ai.titleBlock' : 'ai.titlePage')}
     >
-      <DialogContent className="max-w-lg gap-3">
-        <DialogTitle>{t(target.kind === 'block' ? 'ai.titleBlock' : 'ai.titlePage')}</DialogTitle>
+      <View className="gap-3">
         {run.isPending ? (
           <View className="flex-row items-center gap-3 py-4" accessibilityLiveRegion="polite">
-            <ActivityIndicator color={colors.mutedForeground} />
+            <Loading variant="inline" size="sm" />
             <Text className="flex-1 text-sm text-muted-foreground">{t('ai.working')}</Text>
-            <Button variant="ghost" size="sm" onPress={cancel}>
-              <Text>{t('common.cancel')}</Text>
+            <Button appearance="subtle" tone="neutral" size="sm" onPress={cancel}>
+              {t('common.cancel')}
             </Button>
           </View>
         ) : run.isSuccess ? (
@@ -137,45 +139,55 @@ export function AiDialog({
               className="max-h-80 rounded-md border border-border p-3"
               accessibilityLabel={t('ai.result')}
             >
-              <Text selectable className="text-sm text-foreground">
+              <Text selectable className="text-sm text-foreground web:select-text">
                 {run.data}
               </Text>
             </ScrollView>
             <Text className="text-xs text-muted-foreground">{t('ai.check')}</Text>
             {notice ? (
-              <Text className="text-sm text-foreground" accessibilityLiveRegion="polite">
+              <Text variant="body-regular" accessibilityLiveRegion="polite">
                 {t(`ai.notice.${notice}`)}
               </Text>
             ) : target.kind === 'block' && !replaceable ? (
               <Text className="text-xs text-muted-foreground">{t('ai.notice.insertOnly')}</Text>
             ) : null}
             <View className="flex-row flex-wrap justify-end gap-2">
-              <Button variant="ghost" onPress={onClose}>
-                <Text>{t('ai.discard')}</Text>
+              <Button appearance="subtle" tone="neutral" onPress={() => control.close()}>
+                {t('ai.discard')}
               </Button>
               {last ? (
-                <Button variant="outline" onPress={() => start(last.action, last.language)}>
-                  <Text>{t('ai.again')}</Text>
+                <Button
+                  appearance="outline"
+                  tone="neutral"
+                  onPress={() => start(last.action, last.language)}
+                >
+                  {t('ai.again')}
                 </Button>
               ) : null}
               {target.kind === 'block' ? (
                 <>
                   <Button
-                    variant={replaceable ? 'outline' : 'default'}
+                    appearance={replaceable ? 'outline' : 'solid'}
+                    tone={replaceable ? 'neutral' : 'accent'}
                     disabled={notice === 'blockGone'}
                     onPress={() => apply('below')}
                   >
-                    <Text>{t('ai.insertBelow')}</Text>
+                    {t('ai.insertBelow')}
                   </Button>
                   {replaceable ? (
-                    <Button disabled={notice !== null} onPress={() => apply('replace')}>
-                      <Text>{t('ai.replace')}</Text>
+                    <Button
+                      appearance="solid"
+                      tone="accent"
+                      disabled={notice !== null}
+                      onPress={() => apply('replace')}
+                    >
+                      {t('ai.replace')}
                     </Button>
                   ) : null}
                 </>
               ) : (
-                <Button onPress={() => apply('top')}>
-                  <Text>{t('ai.insertTop')}</Text>
+                <Button appearance="solid" tone="accent" onPress={() => apply('top')}>
+                  {t('ai.insertTop')}
                 </Button>
               )}
             </View>
@@ -184,37 +196,38 @@ export function AiDialog({
           <View className="gap-1">
             <View className="flex-row items-center justify-between">
               <Text className="text-sm text-muted-foreground">{t('ai.chooseLanguage')}</Text>
-              <Button variant="ghost" size="sm" onPress={() => setChoosingLanguage(false)}>
-                <Text>{t('ai.back')}</Text>
+              <Button
+                appearance="subtle"
+                tone="neutral"
+                size="sm"
+                onPress={() => setChoosingLanguage(false)}
+              >
+                {t('ai.back')}
               </Button>
             </View>
             {TRANSLATION_LANGUAGES.map((language) => (
-              <Button
+              <Item
                 key={language}
-                variant="ghost"
-                className="justify-start"
+                title={t(`ai.languages.${language}`)}
+                density="compact"
                 onPress={() => start('translate', language)}
-              >
-                <Text>{t(`ai.languages.${language}`)}</Text>
-              </Button>
+              />
             ))}
           </View>
         ) : (
           <View className="gap-1">
             {failure ? <FailureNote failure={failure} /> : null}
             {actions.map((action) => (
-              <Button
+              <Item
                 key={action}
-                variant="ghost"
-                className="justify-start"
+                title={t(`ai.actions.${action}`)}
+                density="compact"
                 onPress={() => (action === 'translate' ? setChoosingLanguage(true) : start(action))}
-              >
-                <Text>{t(`ai.actions.${action}`)}</Text>
-              </Button>
+              />
             ))}
           </View>
         )}
-      </DialogContent>
+      </View>
     </Dialog>
   );
 }
@@ -226,9 +239,9 @@ function FailureNote({ failure }: { failure: AiFailure }) {
   const requestId = 'requestId' in failure ? failure.requestId : undefined;
   return (
     <View className="mb-1 gap-0.5 rounded-md bg-muted p-2" accessibilityLiveRegion="polite">
-      <Text className="text-sm text-foreground">{t(`ai.failure.${failure.kind}`)}</Text>
+      <Text variant="body-regular">{t(`ai.failure.${failure.kind}`)}</Text>
       {requestId ? (
-        <Text selectable className="text-xs text-muted-foreground">
+        <Text selectable className="text-xs text-muted-foreground web:select-text">
           {t('ai.requestId', { id: requestId })}
         </Text>
       ) : null}

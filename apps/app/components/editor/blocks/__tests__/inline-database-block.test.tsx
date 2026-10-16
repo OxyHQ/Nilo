@@ -1,6 +1,7 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import apiClient from '@/lib/api/client';
 import { InlineDatabaseBlock } from '../inline-database-block';
 import { DatabaseViewContainer } from '@/components/database/database-view';
@@ -49,9 +50,11 @@ const tick = async () => {
 async function mount(readOnly = false) {
   await act(async () => {
     renderer = create(
-      <QueryClientProvider client={client}>
-        <InlineDatabaseBlock block={block} onChangeContent={jest.fn()} readOnly={readOnly} />
-      </QueryClientProvider>,
+      <BloomTestProviders>
+        <QueryClientProvider client={client}>
+          <InlineDatabaseBlock block={block} onChangeContent={jest.fn()} readOnly={readOnly} />
+        </QueryClientProvider>
+      </BloomTestProviders>,
     );
   });
   await tick();

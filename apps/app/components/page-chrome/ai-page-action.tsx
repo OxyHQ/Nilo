@@ -1,6 +1,5 @@
+import { Item } from '@oxy.so/bloom/item';
 import { usePageEditorContext } from '@/components/page-editor/page-editor-context';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAiAvailable } from '@/lib/ai/use-ai';
 
@@ -11,16 +10,15 @@ export function AiPageAction({ onOpen }: { onOpen: () => void }) {
   const available = useAiAvailable();
   if (!available || !store) return null;
   return (
-    <Button
-      variant="ghost"
-      className="justify-start"
+    <Item
+      title={t('ai.summarizePage')}
+      density="compact"
+      role="menuitem"
       accessibilityLabel={t('ai.summarizePage')}
       onPress={() => {
         onOpen();
         setAiTarget({ kind: 'page' });
       }}
-    >
-      <Text className="text-sm">{t('ai.summarizePage')}</Text>
-    </Button>
+    />
   );
 }

@@ -10,7 +10,6 @@ import type { BlockId, EditorStore } from '@oxy.so/bloom-editor/model';
 import { Maximize, Minus, Plus, StickyNote, Trash2 } from 'lucide-react-native';
 import {
   memo,
-  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -21,7 +20,10 @@ import {
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { Text } from '@/components/ui/text';
+import { Button } from '@oxy.so/bloom/button';
+import { ButtonGroup, ButtonGroupItem } from '@oxy.so/bloom/button-group';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
   addNote,
@@ -233,58 +235,50 @@ export function PageCanvas(props: SurfaceProps & { store: EditorStore; readOnly:
         </Animated.View>
         {root.length === 0 ? (
           <View style={styles.empty} pointerEvents="none">
-            <Text className="text-sm text-muted-foreground">
-              {t(readOnly ? 'editor.canvas.emptyReadOnly' : 'editor.canvas.empty')}
-            </Text>
+            <EmptyState
+              variant="compact"
+              title={t(readOnly ? 'editor.canvas.emptyReadOnly' : 'editor.canvas.empty')}
+            />
           </View>
         ) : null}
-        <View style={styles.controls} className="rounded-lg border border-border bg-background">
-          <Control label={t('editor.canvas.zoomOut')} onPress={() => zoomBy(1 / 1.25)}>
-            <Minus size={16} color={colors.foreground} />
-          </Control>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('editor.canvas.resetZoom')}
-            onPress={() => setView({ ...viewNow(), scale: 1 })}
-            className="px-1.5"
-          >
-            <Text className="text-xs tabular-nums text-foreground">{Math.round(zoom * 100)}%</Text>
-          </Pressable>
-          <Control label={t('editor.canvas.zoomIn')} onPress={() => zoomBy(1.25)}>
-            <Plus size={16} color={colors.foreground} />
-          </Control>
-          <Control label={t('editor.canvas.fit')} onPress={fit}>
-            <Maximize size={16} color={colors.foreground} />
-          </Control>
-          {!readOnly ? (
-            <Control label={t('editor.canvas.newNote')} onPress={newNoteInView}>
-              <StickyNote size={16} color={colors.foreground} />
-            </Control>
-          ) : null}
+        <View style={styles.controls}>
+          <ButtonGroup size="sm">
+            <ButtonGroupItem
+              iconOnly
+              accessibilityLabel={t('editor.canvas.zoomOut')}
+              onPress={() => zoomBy(1 / 1.25)}
+              renderLeadingIcon={({ size, color }) => <Minus size={size} color={color} />}
+            />
+            <ButtonGroupItem
+              accessibilityLabel={t('editor.canvas.resetZoom')}
+              onPress={() => setView({ ...viewNow(), scale: 1 })}
+            >
+              {`${Math.round(zoom * 100)}%`}
+            </ButtonGroupItem>
+            <ButtonGroupItem
+              iconOnly
+              accessibilityLabel={t('editor.canvas.zoomIn')}
+              onPress={() => zoomBy(1.25)}
+              renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+            />
+            <ButtonGroupItem
+              iconOnly
+              accessibilityLabel={t('editor.canvas.fit')}
+              onPress={fit}
+              renderLeadingIcon={({ size, color }) => <Maximize size={size} color={color} />}
+            />
+            {!readOnly ? (
+              <ButtonGroupItem
+                iconOnly
+                accessibilityLabel={t('editor.canvas.newNote')}
+                onPress={newNoteInView}
+                renderLeadingIcon={({ size, color }) => <StickyNote size={size} color={color} />}
+              />
+            ) : null}
+          </ButtonGroup>
         </View>
       </View>
     </EditorSurface>
-  );
-}
-
-function Control({
-  label,
-  onPress,
-  children,
-}: {
-  label: string;
-  onPress: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      onPress={onPress}
-      className="h-8 w-8 items-center justify-center rounded-md hover:bg-muted"
-    >
-      {children}
-    </Pressable>
   );
 }
 
@@ -307,16 +301,17 @@ function LooseBlocks({
       <View className="flex-row items-center justify-between gap-2">
         <Text className="text-xs text-muted-foreground">{t('editor.canvas.loose')}</Text>
         {!readOnly ? (
-          <Pressable
-            accessibilityRole="button"
+          <Button
+            appearance="plain"
+            tone="neutral"
+            size="xs"
             onPress={() => {
               store.sealHistory();
               store.run(toCanvas);
             }}
-            className="rounded-md px-2 py-1 hover:bg-muted"
           >
-            <Text className="text-xs text-foreground">{t('editor.canvas.putInNote')}</Text>
-          </Pressable>
+            {t('editor.canvas.putInNote')}
+          </Button>
         ) : null}
       </View>
       <BlockList ids={ids} depth={0} />
@@ -342,7 +337,6 @@ const CanvasNote = memo(function CanvasNote({
   heights: Map<BlockId, number>;
 }) {
   const { t } = useTranslation();
-  const { colors } = useColorScheme();
   const block = useSyncExternalStore(store.subscribe, () => store.getSnapshot().doc.blocks[id]);
   const frame = frameOf(store.doc, id);
   const dx = useSharedValue(0);
@@ -436,17 +430,18 @@ const CanvasNote = memo(function CanvasNote({
           </View>
         </GestureDetector>
         {!readOnly ? (
-          <Pressable
-            accessibilityRole="button"
+          <Button
+            appearance="subtle"
+            tone="neutral"
+            size="xs"
+            iconOnly
             accessibilityLabel={t('editor.canvas.deleteNote')}
             onPress={() => {
               store.sealHistory();
               store.run((c) => removeNote(c, id));
             }}
-            className="h-6 w-6 items-center justify-center rounded-md hover:bg-muted"
-          >
-            <Trash2 size={13} color={colors.mutedForeground} />
-          </Pressable>
+            renderLeadingIcon={({ size, color }) => <Trash2 size={size} color={color} />}
+          />
         ) : null}
       </View>
       <View className="px-4 pb-4">
@@ -490,14 +485,7 @@ const styles = StyleSheet.create({
   plane: { position: 'absolute', left: 0, top: 0, transformOrigin: '0 0' },
   note: { position: 'absolute' },
   resize: { position: 'absolute', right: -4, top: 12, bottom: 12, width: 8 },
-  controls: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 2,
-  },
+  controls: { position: 'absolute', right: 16, bottom: 16 },
   empty: {
     position: 'absolute',
     left: 0,

@@ -1,12 +1,11 @@
-import { View, useWindowDimensions } from 'react-native';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import { useNavigation } from 'expo-router';
-import { useRouter } from 'expo-router';
+import { useWindowDimensions } from 'react-native';
+import { useNavigation, useRouter } from 'expo-router';
 import type { DrawerNavigationProp } from 'expo-router/drawer';
 import type { ParamListBase } from '@react-navigation/native';
-import { Menu, ArrowLeft } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Menu } from 'lucide-react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { PageHeader } from '@oxy.so/bloom/page-header';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SettingsHeaderProps {
   title: string;
@@ -18,9 +17,9 @@ interface SettingsHeaderProps {
 export function SettingsHeader({ title, subtitle, showBack = false, onBack }: SettingsHeaderProps) {
   const navigation = useNavigation<DrawerNavigationProp<ParamListBase>>();
   const router = useRouter();
+  const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 768;
-  const insets = useSafeAreaInsets();
 
   const handleBack = () => {
     if (onBack) {
@@ -30,30 +29,27 @@ export function SettingsHeader({ title, subtitle, showBack = false, onBack }: Se
     }
   };
 
+  // A settings screen is a dense tool screen inside the drawer's content area:
+  // a flat bar with its hairline, not floating islands over the content.
   return (
-    <View
-      className="flex-row items-center gap-2 px-4 border-b border-border"
-      style={{ paddingTop: insets.top, height: 56 + insets.top }}
-    >
-      {!isLargeScreen && (
-        <Button
-          variant="ghost"
-          size="icon"
-          onPress={() => navigation.toggleDrawer()}
-          className="h-9 w-9 rounded-full"
-        >
-          <Menu size={20} className="text-muted-foreground" />
-        </Button>
-      )}
-      {showBack && (
-        <Button variant="ghost" size="icon" onPress={handleBack} className="h-9 w-9 rounded-full">
-          <ArrowLeft size={20} className="text-muted-foreground" />
-        </Button>
-      )}
-      <View className="flex-1">
-        <Text className="text-lg font-bold">{title}</Text>
-        {subtitle && <Text className="text-sm text-muted-foreground">{subtitle}</Text>}
-      </View>
-    </View>
+    <PageHeader
+      presentation="bar"
+      border="always"
+      title={title}
+      subtitle={subtitle}
+      onBack={showBack ? handleBack : undefined}
+      backLabel={t('common.back')}
+      leading={
+        isLargeScreen ? undefined : (
+          <Button
+            appearance="subtle"
+            iconOnly
+            accessibilityLabel={t('keyboardShortcuts.toggleSidebar')}
+            onPress={() => navigation.toggleDrawer()}
+            renderLeadingIcon={({ size, color }) => <Menu size={size} color={color} />}
+          />
+        )
+      }
+    />
   );
 }

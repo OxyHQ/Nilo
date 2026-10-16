@@ -1,9 +1,10 @@
 import { RowsScrollView } from './rows-scroll-view';
 import * as React from 'react';
-import { ActivityIndicator, Image, Pressable, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ImageIcon, Plus } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
@@ -47,7 +48,7 @@ export function ViewGallery({
   if (isLoading) {
     return (
       <View className="py-10 items-center">
-        <ActivityIndicator color={colors.mutedForeground} />
+        <Loading variant="spinner" />
       </View>
     );
   }
@@ -79,7 +80,7 @@ export function ViewGallery({
                 )}
               </View>
               <View className="p-3 gap-1">
-                <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
+                <Text variant="body-medium" numberOfLines={2}>
                   {row.title || t('databases.untitled')}
                 </Text>
                 <View className="gap-1">
@@ -110,7 +111,7 @@ export function ViewGallery({
             style={{ width: CARD_WIDTH, height: 200 }}
           >
             <Plus size={20} color={colors.mutedForeground} />
-            <Text className="text-sm text-muted-foreground mt-1">
+            <Text className="mt-1 text-sm text-muted-foreground">
               {createRow.isPending ? t('databases.actions.adding') : t('databases.gallery.newCard')}
             </Text>
           </Pressable>

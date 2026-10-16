@@ -1,10 +1,10 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Button } from '@/components/ui/button';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import type { OfflineEntry } from '@/lib/editor/offline-pages';
 import { formatSize, OfflineSection } from '../offline-section';
 
 const mockPush = jest.fn();
+const mockConfirm = jest.fn(async (_options: unknown) => false);
 const mockStore = {
   setPinned: jest.fn(async (_id: string, _pinned: boolean) => undefined),
   clear: jest.fn(async () => undefined),
@@ -18,7 +18,9 @@ jest.mock('@/lib/editor/offline-pages', () => ({
   },
 }));
 jest.mock('@/lib/editor/use-offline-pages', () => ({ useOfflinePageList: () => mockList }));
-jest.mock('@/components/ui/confirmation-dialog', () => ({ ConfirmationDialog: () => null }));
+jest.mock('@oxy.so/bloom/surfaces', () => ({
+  confirm: (options: unknown) => mockConfirm(options),
+}));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({
     locale: 'en-US',
@@ -40,14 +42,19 @@ const entry = (pageId: string, over: Partial<OfflineEntry> = {}): OfflineEntry =
 let renderer: ReactTestRenderer | undefined;
 const mount = () =>
   act(() => {
-    renderer = create(<OfflineSection />);
+    renderer = create(
+      <BloomTestProviders>
+        <OfflineSection />
+      </BloomTestProviders>,
+    );
   });
 const root = () => (renderer as ReactTestRenderer).root;
 const text = () => JSON.stringify(renderer?.toJSON());
+// The outermost pressable node carrying the label is the Bloom `Button` itself.
 const button = (label: string) => {
-  const found = root()
-    .findAllByType(Button)
-    .find((b) => b.props.accessibilityLabel === label);
+  const found = root().findAll(
+    (node) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function',
+  )[0];
   if (!found) throw new Error(`no button ${label}`);
   return found;
 };
@@ -93,15 +100,17 @@ it('opens a kept page', () => {
   expect(mockPush).toHaveBeenCalledWith('/p/Plan');
 });
 
-it('removes every page only after confirming', () => {
+it('removes every page only after confirming', async () => {
   mockList.pages = [entry('Plan')];
   mount();
-  const dialog = () => root().findByType(ConfirmationDialog);
-  expect(dialog().props.open).toBe(false);
-  act(() => button('settings.offline.removeAll').props.onPress());
-  expect(dialog().props.open).toBe(true);
+  mockConfirm.mockResolvedValueOnce(false);
+  await act(async () => button('settings.offline.removeAll').props.onPress());
+  expect(mockConfirm).toHaveBeenCalledWith(
+    expect.objectContaining({ title: 'settings.offline.removeAllTitle', destructive: true }),
+  );
   expect(mockStore.clear).not.toHaveBeenCalled();
-  act(() => void dialog().props.onConfirm());
+  mockConfirm.mockResolvedValueOnce(true);
+  await act(async () => button('settings.offline.removeAll').props.onPress());
   expect(mockStore.clear).toHaveBeenCalled();
 });
 

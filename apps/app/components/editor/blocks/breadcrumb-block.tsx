@@ -1,8 +1,7 @@
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
-import { ChevronRight } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
-import { useColorScheme } from '@/lib/useColorScheme';
+import { Breadcrumb, BreadcrumbItem } from '@oxy.so/bloom/breadcrumb';
+import { Text } from '@oxy.so/bloom/typography';
 import { useBreadcrumb } from '@/lib/hooks/use-pages';
 import type { BlockComponentProps } from './types';
 
@@ -12,7 +11,6 @@ import type { BlockComponentProps } from './types';
  * shared with the page header's.
  */
 export function BreadcrumbBlock({ block }: BlockComponentProps) {
-  const { colors } = useColorScheme();
   const pageId = block.pageId;
   const { data } = useBreadcrumb(pageId);
   const trail = data?.breadcrumb;
@@ -26,19 +24,12 @@ export function BreadcrumbBlock({ block }: BlockComponentProps) {
   }
 
   return (
-    <View className="flex-row items-center flex-wrap gap-1 my-1">
-      {trail.map((p, idx) => (
-        <View key={p.id} className="flex-row items-center gap-1">
-          <Pressable onPress={() => router.push(`/p/${p.id}`)}>
-            <Text className="text-xs text-muted-foreground hover:text-foreground">
-              {p.title || 'Untitled'}
-            </Text>
-          </Pressable>
-          {idx < trail.length - 1 ? (
-            <ChevronRight size={12} color={colors.mutedForeground} />
-          ) : null}
-        </View>
+    <Breadcrumb style={{ marginVertical: 4 }}>
+      {trail.map((p) => (
+        <BreadcrumbItem key={p.id} onPress={() => router.push(`/p/${p.id}`)}>
+          {p.title || 'Untitled'}
+        </BreadcrumbItem>
       ))}
-    </View>
+    </Breadcrumb>
   );
 }

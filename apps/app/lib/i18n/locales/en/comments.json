@@ -20,7 +20,6 @@
     "title": "Comments",
     "blockTitle": "Block comments",
     "close": "Close comments",
-    "dismiss": "Dismiss comment panel",
     "emptyResolved": "No resolved comments yet.",
     "emptyOpen": "No open comments. Hover a block to comment, or add a page-level note below.",
     "emptyAll": "No comments yet.",

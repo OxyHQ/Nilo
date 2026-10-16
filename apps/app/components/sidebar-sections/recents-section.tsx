@@ -2,16 +2,14 @@ import * as React from 'react';
 import { View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { FileText, Clock } from 'lucide-react-native';
-import { Pressable } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { Item } from '@oxy.so/bloom/item';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { usePages } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
-
-const ROW_HEIGHT = 28;
 
 /**
  * Recents — top 5 recently-opened pages from the persisted UI store. Renders
@@ -57,35 +55,23 @@ export function RecentsSection() {
           const isActive = pathname === `/p/${p.id}`;
           const title = p.title.trim() || t('pages.untitled');
           return (
-            <Pressable
+            <Item
               key={p.id}
+              density="compact"
+              active={isActive}
               onPress={() => router.push(`/p/${p.id}`)}
               accessibilityLabel={t('pages.openPage', { title })}
-              className={
-                isActive
-                  ? 'flex-row items-center bg-muted px-3 py-1 rounded-md'
-                  : 'flex-row items-center px-3 py-1 rounded-md hover:bg-muted/60 active:bg-muted/60'
+              leading={
+                <View className="h-5 w-5 items-center justify-center">
+                  {p.icon ? (
+                    <Text className="text-sm leading-5 text-foreground">{p.icon}</Text>
+                  ) : (
+                    <FileText size={13} color={colors.mutedForeground} />
+                  )}
+                </View>
               }
-              style={{ height: ROW_HEIGHT }}
-            >
-              <View className="h-5 w-5 items-center justify-center">
-                {p.icon ? (
-                  <Text className="text-sm leading-5">{p.icon}</Text>
-                ) : (
-                  <FileText size={13} color={colors.mutedForeground} />
-                )}
-              </View>
-              <Text
-                className={
-                  isActive
-                    ? 'ml-1 flex-1 text-sm font-medium text-foreground'
-                    : 'ml-1 flex-1 text-sm text-foreground'
-                }
-                numberOfLines={1}
-              >
-                {title}
-              </Text>
-            </Pressable>
+              title={title}
+            />
           );
         })}
       </View>

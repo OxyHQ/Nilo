@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
 import type { BlockComponentProps } from './types';
 
 /**
@@ -14,8 +14,8 @@ export function ColumnsBlock({ block, renderChildren }: BlockComponentProps) {
       {renderChildren ? (
         renderChildren(block.id)
       ) : (
-        <View className="flex-1 rounded-md border border-dashed border-border bg-muted/30 px-3 py-3">
-          <Text className="text-xs text-muted-foreground">Drop blocks into each column</Text>
+        <View className="flex-1 rounded-md border border-dashed border-border bg-muted/30 px-3">
+          <EmptyState variant="compact" description="Drop blocks into each column" />
         </View>
       )}
     </View>

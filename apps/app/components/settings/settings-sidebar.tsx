@@ -1,9 +1,12 @@
 import React from 'react';
-import { View, Pressable } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { View } from 'react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { Item } from '@oxy.so/bloom/item';
+import { Text } from '@oxy.so/bloom/typography';
 import { BaseSidebar } from '@/components/base-sidebar';
 import { useRouter, usePathname } from 'expo-router';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useColorScheme } from '@/lib/useColorScheme';
 import {
   User,
   Settings2,
@@ -53,6 +56,7 @@ export const SettingsSidebar = React.memo(function SettingsSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { t } = useTranslation();
+  const { colors } = useColorScheme();
 
   const activeId = React.useMemo(() => {
     if (pathname.includes('/settings/members')) return 'members';
@@ -72,13 +76,15 @@ export const SettingsSidebar = React.memo(function SettingsSidebar() {
 
   const header = (
     <View className="px-3 pt-4 pb-2">
-      <Pressable
+      <Button
+        appearance="plain"
+        size="sm"
+        className="self-start"
         onPress={handleBack}
-        className="flex-row items-center gap-2 px-2 h-8 rounded-lg hover:bg-sidebar-accent"
+        renderLeadingIcon={({ size, color }) => <ArrowLeft size={size} color={color} />}
       >
-        <ArrowLeft size={16} className="text-muted-foreground" />
-        <Text className="text-sm font-medium text-foreground">{t('common.back')}</Text>
-      </Pressable>
+        {t('common.back')}
+      </Button>
     </View>
   );
 
@@ -96,25 +102,16 @@ export const SettingsSidebar = React.memo(function SettingsSidebar() {
             const isActive = activeId === section.id;
 
             return (
-              <Pressable
+              <Item
                 key={section.id}
+                density="compact"
+                active={isActive}
                 onPress={() => handleSelect(section)}
-                className={`flex-row items-center rounded-lg px-2 h-8 ${
-                  isActive ? 'bg-sidebar-accent' : 'hover:bg-sidebar-accent/50'
-                }`}
-              >
-                <Icon
-                  size={16}
-                  className={isActive ? 'text-foreground' : 'text-muted-foreground'}
-                />
-                <Text
-                  className={`ml-2 text-sm flex-1 ${
-                    isActive ? 'font-medium text-foreground' : 'text-muted-foreground'
-                  }`}
-                >
-                  {t(section.labelKey)}
-                </Text>
-              </Pressable>
+                leading={
+                  <Icon size={16} color={isActive ? colors.foreground : colors.mutedForeground} />
+                }
+                title={t(section.labelKey)}
+              />
             );
           })}
         </View>

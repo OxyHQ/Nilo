@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { ScrollView } from 'react-native';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
+import { ScrollView, View } from 'react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Item } from '@oxy.so/bloom/item';
+import { Loading } from '@oxy.so/bloom/loading';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useDatabases } from '@/lib/hooks/use-databases';
 import { useTranslation } from '@/hooks/useTranslation';
 import { normalizeMentionQuery } from './mention-search';
@@ -18,6 +21,7 @@ export function DatabasePicker({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const control = useDialogControl();
   const [search, setSearch] = useState('');
   const databases = useDatabases(workspaceId);
   const matches = (databases.data?.databases ?? []).filter(
@@ -27,45 +31,46 @@ export function DatabasePicker({
   );
   return (
     <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
+      control={control}
+      startOpen
+      onClose={onClose}
+      placement={{ base: 'bottom', md: 'center' }}
+      title={t('editor.slashMenu.linkedDatabase.label')}
     >
-      <DialogContent>
-        <DialogTitle>{t('editor.slashMenu.linkedDatabase.label')}</DialogTitle>
-        <Input
+      <View className="gap-3">
+        <TextFieldInput
           value={search}
           onChangeText={setSearch}
           autoFocus
-          accessibilityLabel={t('editor.inlineDatabase.search')}
+          label={t('editor.inlineDatabase.search')}
           placeholder={t('editor.inlineDatabase.search')}
         />
-        {databases.isLoading ? <Text>{t('common.loading')}</Text> : null}
+        {databases.isLoading ? <Loading variant="inline" text={t('common.loading')} /> : null}
         {databases.isError ? (
           <>
-            <Text accessibilityRole="alert">{t('editor.inlineDatabase.loadFailed')}</Text>
-            <Button variant="outline" onPress={() => void databases.refetch()}>
-              <Text>{t('editor.inlineDatabase.retry')}</Text>
+            <Text variant="body-regular" accessibilityRole="alert">
+              {t('editor.inlineDatabase.loadFailed')}
+            </Text>
+            <Button appearance="outline" tone="neutral" onPress={() => void databases.refetch()}>
+              {t('editor.inlineDatabase.retry')}
             </Button>
           </>
         ) : null}
         <ScrollView keyboardShouldPersistTaps="handled">
           {matches.map((database) => (
-            <Button
+            <Item
               key={database.id}
-              variant="ghost"
+              title={database.name || t('editor.inlineDatabase.defaultName')}
+              density="compact"
               accessibilityLabel={database.name}
-              onPress={() => onChoose(database.id)}
-            >
-              <Text>{database.name || t('editor.inlineDatabase.defaultName')}</Text>
-            </Button>
+              onPress={() => control.close(() => onChoose(database.id))}
+            />
           ))}
           {!databases.isLoading && !databases.isError && !matches.length ? (
-            <Text>{t('editor.inlineDatabase.noResults')}</Text>
+            <EmptyState variant="compact" title={t('editor.inlineDatabase.noResults')} />
           ) : null}
         </ScrollView>
-      </DialogContent>
+      </View>
     </Dialog>
   );
 }

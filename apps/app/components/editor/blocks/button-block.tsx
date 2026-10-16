@@ -1,9 +1,15 @@
 import * as React from 'react';
-import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Wand2 } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { Text } from '@/components/ui/text';
-import { useColorScheme } from '@/lib/useColorScheme';
+import { Button } from '@oxy.so/bloom/button';
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+  SegmentedControlItemText,
+} from '@oxy.so/bloom/segmented-control';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useCreatePage, useDuplicatePage } from '@/lib/hooks/use-pages';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import type { ButtonAction } from '@/lib/types/pages';
@@ -21,7 +27,6 @@ import type { BlockComponentProps } from './types';
  * inline.
  */
 export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
-  const { colors } = useColorScheme();
   const label = typeof block.content.label === 'string' ? block.content.label : 'Button';
   const action: ButtonAction = (block.content.action as ButtonAction | undefined) ?? 'navigate';
   const targetUrl = typeof block.content.url === 'string' ? block.content.url : '';
@@ -78,70 +83,59 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
   return (
     <View className="gap-1 my-1">
       <View className="flex-row items-center gap-2">
-        <Pressable
+        <Button
+          appearance="solid"
+          tone="accent"
+          size="sm"
           onPress={click}
           disabled={busy}
-          className="flex-row items-center gap-1 rounded-md bg-primary px-3 py-1.5"
+          renderLeadingIcon={({ size, color }) => <Wand2 size={size} color={color} />}
         >
-          <Wand2 size={14} color={colors.primaryForeground} />
-          <Text className="text-sm font-medium" style={{ color: colors.primaryForeground }}>
-            {busy ? 'Working…' : label}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setEditing((v) => !v)}
-          className="rounded-md px-2 py-1 hover:bg-muted"
-        >
-          <Text className="text-xs text-muted-foreground">{editing ? 'Done' : 'Edit'}</Text>
-        </Pressable>
+          {busy ? 'Working…' : label}
+        </Button>
+        <Button appearance="plain" size="xs" onPress={() => setEditing((v) => !v)}>
+          {editing ? 'Done' : 'Edit'}
+        </Button>
       </View>
       {editing ? (
         <View className="rounded-md border border-border bg-muted/30 p-2 gap-1">
-          <TextInput
+          <TextFieldInput
+            label="Button label"
+            size="sm"
             value={label}
             onChangeText={(t) => onChangeContent({ ...block.content, label: t })}
             placeholder="Button label"
-            placeholderTextColor={colors.mutedForeground}
-            className="rounded bg-background px-2 py-1 text-sm text-foreground border border-input"
           />
-          <View className="flex-row gap-1 flex-wrap">
+          <SegmentedControl
+            type="radio"
+            size="sm"
+            value={action}
+            onValueChange={(a) => onChangeContent({ ...block.content, action: a })}
+          >
             {(
               ['navigate', 'new-page', 'duplicate-template', 'webhook'] as readonly ButtonAction[]
             ).map((a) => (
-              <Pressable
-                key={a}
-                onPress={() => onChangeContent({ ...block.content, action: a })}
-                className={
-                  a === action
-                    ? 'rounded-md px-2 py-1 bg-primary'
-                    : 'rounded-md px-2 py-1 bg-background border border-input'
-                }
-              >
-                <Text
-                  className={a === action ? 'text-xs font-medium' : 'text-xs text-muted-foreground'}
-                  style={a === action ? { color: colors.primaryForeground } : undefined}
-                >
-                  {a}
-                </Text>
-              </Pressable>
+              <SegmentedControlItem key={a} value={a}>
+                <SegmentedControlItemText>{a}</SegmentedControlItemText>
+              </SegmentedControlItem>
             ))}
-          </View>
+          </SegmentedControl>
           {action === 'navigate' ? (
-            <TextInput
+            <TextFieldInput
+              label="https://…"
+              size="sm"
               value={targetUrl}
               onChangeText={(t) => onChangeContent({ ...block.content, url: t.trim() })}
               placeholder="https://…"
-              placeholderTextColor={colors.mutedForeground}
-              className="rounded bg-background px-2 py-1 text-sm text-foreground border border-input"
             />
           ) : null}
           {action === 'webhook' ? (
-            <TextInput
+            <TextFieldInput
+              label="https://… (POST)"
+              size="sm"
               value={webhookUrl}
               onChangeText={(t) => onChangeContent({ ...block.content, webhookUrl: t.trim() })}
               placeholder="https://… (POST)"
-              placeholderTextColor={colors.mutedForeground}
-              className="rounded bg-background px-2 py-1 text-sm text-foreground border border-input"
             />
           ) : null}
         </View>

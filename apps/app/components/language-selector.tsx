@@ -1,9 +1,9 @@
-import { View, Pressable } from 'react-native';
-import { Text } from '@/components/ui/text';
 import { useTranslation } from '@/hooks/useTranslation';
-import { ChevronRight, Globe2 } from 'lucide-react-native';
+import { Globe2 } from 'lucide-react-native';
 import { useOxy } from '@oxy.so/services';
 import { getNativeLanguageName } from '@oxy.so/core';
+import { SettingsListGroup, SettingsListItem } from '@oxy.so/bloom/settings-list';
+import { useColorScheme } from '@/lib/useColorScheme';
 
 /**
  * The app's UI language is an Oxy-account concern, not Nilo's: Oxy already
@@ -15,6 +15,7 @@ import { getNativeLanguageName } from '@oxy.so/core';
  */
 export function LanguageSelector() {
   const { t } = useTranslation();
+  const { colors } = useColorScheme();
   const { showBottomSheet, currentLanguage, currentLanguages } = useOxy();
 
   // Account locales when there are any (signed in, or a guest override was
@@ -26,19 +27,15 @@ export function LanguageSelector() {
     .join(', ');
 
   return (
-    <View className="gap-2">
-      <View className="flex-row items-center gap-2">
-        <Globe2 size={20} className="text-primary" />
-        <Text className="text-base font-semibold">{t('settings.appLanguage.title')}</Text>
-      </View>
-      <Text className="text-sm text-muted-foreground">{t('settings.appLanguage.description')}</Text>
-      <Pressable
+    <SettingsListGroup
+      title={t('settings.appLanguage.title')}
+      footer={t('settings.appLanguage.description')}
+    >
+      <SettingsListItem
+        icon={<Globe2 size={20} color={colors.primary} />}
+        title={languageDescription}
         onPress={() => showBottomSheet?.('LanguageSelector')}
-        className="border border-border rounded-lg px-4 py-3 bg-background flex-row items-center justify-between"
-      >
-        <Text className="text-foreground">{languageDescription}</Text>
-        <ChevronRight size={20} className="text-muted-foreground" />
-      </Pressable>
-    </View>
+      />
+    </SettingsListGroup>
   );
 }

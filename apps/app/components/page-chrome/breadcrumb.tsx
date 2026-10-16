@@ -1,9 +1,7 @@
-import * as React from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Text } from '@/components/ui/text';
-import { useColorScheme } from '@/lib/useColorScheme';
+import { Breadcrumb as BloomBreadcrumb, BreadcrumbItem } from '@oxy.so/bloom/breadcrumb';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useBreadcrumb } from '@/lib/hooks/use-pages';
 import { useWorkspace } from '@/lib/hooks/use-workspaces';
@@ -24,7 +22,6 @@ interface BreadcrumbProps {
  */
 export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProps) {
   const router = useRouter();
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const { data: crumb } = useBreadcrumb(pageId);
   const { data: workspace } = useWorkspace(workspaceId);
@@ -38,64 +35,42 @@ export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProp
   const condensed = condenseAncestors(ancestors, maxItems);
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ alignItems: 'center' }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Pressable
+    <BloomBreadcrumb>
+      <BreadcrumbItem
         onPress={() => router.push('/(app)')}
         accessibilityLabel={t('pages.breadcrumb.workspaceHome')}
-        className="rounded-md px-1.5 py-1 hover:bg-muted"
       >
-        <Text className="text-xs text-muted-foreground">
-          {workspace?.name ?? t('pages.breadcrumb.workspace')}
-        </Text>
-      </Pressable>
+        {workspace?.name ?? t('pages.breadcrumb.workspace')}
+      </BreadcrumbItem>
 
-      {condensed.map((entry) => (
-        <React.Fragment key={entry.kind === 'page' ? `page-${entry.page.id}` : 'ellipsis'}>
-          <ChevronRight size={12} color={colors.mutedForeground} style={{ marginHorizontal: 2 }} />
-          {entry.kind === 'page' ? (
-            <Pressable
-              onPress={() => router.push(`/p/${entry.page.id}`)}
-              className="flex-row items-center rounded-md px-1.5 py-1 hover:bg-muted"
-              accessibilityLabel={entry.page.title || t('pages.untitled')}
-            >
-              {entry.page.icon ? (
-                <View className="mr-1">
-                  <IconDisplay value={entry.page.icon} size={14} />
-                </View>
-              ) : null}
-              <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-                {entry.page.title.trim() || t('pages.untitled')}
-              </Text>
-            </Pressable>
-          ) : (
-            <View className="px-1.5 py-1">
-              <Text className="text-xs text-muted-foreground">…</Text>
-            </View>
-          )}
-        </React.Fragment>
-      ))}
+      {condensed.map((entry) =>
+        entry.kind === 'page' ? (
+          <BreadcrumbItem
+            key={`page-${entry.page.id}`}
+            onPress={() => router.push(`/p/${entry.page.id}`)}
+            accessibilityLabel={entry.page.title || t('pages.untitled')}
+            leading={entry.page.icon ? <IconDisplay value={entry.page.icon} size={14} /> : null}
+          >
+            {entry.page.title.trim() || t('pages.untitled')}
+          </BreadcrumbItem>
+        ) : (
+          // The collapsed middle is not a destination, so it stays a plain
+          // list item rather than a pressable `BreadcrumbItem`.
+          <View key="ellipsis" role="listitem">
+            <Text className="text-xs text-muted-foreground">…</Text>
+          </View>
+        ),
+      )}
 
       {current ? (
-        <React.Fragment>
-          <ChevronRight size={12} color={colors.mutedForeground} style={{ marginHorizontal: 2 }} />
-          <View className="flex-row items-center rounded-md px-1.5 py-1">
-            {current.icon ? (
-              <View className="mr-1">
-                <IconDisplay value={current.icon} size={14} />
-              </View>
-            ) : null}
-            <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
-              {current.title.trim() || t('pages.untitled')}
-            </Text>
-          </View>
-        </React.Fragment>
+        <BreadcrumbItem
+          current
+          leading={current.icon ? <IconDisplay value={current.icon} size={14} /> : null}
+        >
+          {current.title.trim() || t('pages.untitled')}
+        </BreadcrumbItem>
       ) : null}
-    </ScrollView>
+    </BloomBreadcrumb>
   );
 }
 

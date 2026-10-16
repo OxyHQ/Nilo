@@ -1,7 +1,9 @@
 import * as React from 'react';
-import { Pressable, View } from 'react-native';
-import { AlertTriangle, Check } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { View } from 'react-native';
+import { AlertTriangle } from 'lucide-react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { Checkbox } from '@oxy.so/bloom/checkbox';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { DatabaseProperty, PropertyValue } from '@/lib/types/databases';
 
@@ -17,20 +19,22 @@ export function ComputedCell({
   if (value && 'error' in value && value.error) {
     return (
       <View className="gap-1">
-        <Pressable
-          accessibilityRole="button"
+        <Button
+          iconOnly
+          appearance="plain"
+          tone="danger"
+          size="xs"
+          className="self-start"
           accessibilityLabel={t('databases.formula.error', { message: value.error })}
           onHoverIn={() => setShowError(true)}
           onHoverOut={() => setShowError(false)}
           onFocus={() => setShowError(true)}
           onBlur={() => setShowError(false)}
           onPress={() => setShowError((v) => !v)}
-          className="self-start p-1"
-        >
-          <AlertTriangle size={14} className="text-destructive" />
-        </Pressable>
+          renderLeadingIcon={({ size, color }) => <AlertTriangle size={size} color={color} />}
+        />
         {showError ? (
-          <Text accessibilityRole="alert" className="text-xs text-destructive">
+          <Text accessibilityRole="alert" className="text-xs text-destructive web:select-text">
             {value.error}
           </Text>
         ) : null}
@@ -38,16 +42,7 @@ export function ComputedCell({
     );
   }
   if (value && 'checked' in value) {
-    return (
-      <View
-        accessibilityRole="checkbox"
-        accessibilityLabel={property.name}
-        accessibilityState={{ checked: value.checked, disabled: true }}
-        className="h-5 w-5 rounded border border-border items-center justify-center"
-      >
-        {value.checked ? <Check size={14} className="text-foreground" /> : null}
-      </View>
-    );
+    return <Checkbox checked={value.checked} disabled accessibilityLabel={property.name} />;
   }
   let display = '—';
   if (value && 'number' in value && value.number !== null) {
@@ -72,5 +67,5 @@ export function ComputedCell({
     if (!Number.isNaN(date.getTime()))
       display = value.includeTime ? date.toLocaleString(locale) : date.toLocaleDateString(locale);
   }
-  return <Text className="text-sm text-foreground">{display}</Text>;
+  return <Text variant="body-regular">{display}</Text>;
 }

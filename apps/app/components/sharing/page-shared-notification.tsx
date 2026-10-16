@@ -1,5 +1,5 @@
 import { useUserById } from '@oxy.so/services';
-import { Text } from '@/components/ui/text';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePage } from '@/lib/hooks/use-pages';
 import { WORKSPACE_ROLES } from '@/lib/hooks/workspace-roles';
@@ -17,7 +17,7 @@ export function PageSharedNotification({ notification }: { notification: Notific
     t('notifications.someone');
   const role = WORKSPACE_ROLES.find((role) => role === data?.role);
   return (
-    <Text className="text-sm text-foreground">
+    <Text variant="body-regular">
       {t('notifications.pageShared', { name, page: page?.page.title || t('pages.untitled') })}
       {role ? ` · ${t(`sharing.roles.${role}`)}` : ''}
     </Text>

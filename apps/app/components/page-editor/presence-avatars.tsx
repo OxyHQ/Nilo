@@ -3,7 +3,7 @@ import { collaboratorColor } from './presence';
 import { View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
 import { Avatar } from '@oxy.so/bloom/avatar';
-import { Text } from '@/components/ui/text';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { profileName, useMemberProfiles } from '@/lib/hooks/use-member-profiles';
 import type { Collaborator } from '@/lib/editor/use-page-editor';

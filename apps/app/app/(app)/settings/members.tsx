@@ -2,7 +2,7 @@ import React from 'react';
 import { View, ScrollView } from 'react-native';
 import { useOxy } from '@oxy.so/services';
 import { useRouter } from 'expo-router';
-import { Text } from '@/components/ui/text';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { SettingsHeader } from '@/components/settings/settings-header';
 import { MembersSection } from '@/components/workspace/members-section';
@@ -25,9 +25,7 @@ export default function SettingsMembersScreen() {
       <SettingsHeader title={t('settings.sections.members')} />
       <ScrollView className="flex-1" contentContainerClassName="p-5 max-w-3xl gap-6">
         <View className="gap-1">
-          <Text className="text-base font-semibold text-foreground">
-            {t('settings.members.title')}
-          </Text>
+          <Text variant="headline-semibold">{t('settings.members.title')}</Text>
           <Text className="text-sm text-muted-foreground">{t('settings.members.description')}</Text>
         </View>
         <MembersSection />

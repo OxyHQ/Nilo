@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
 import type { BlockComponentProps } from './types';
 
 /**
@@ -17,8 +17,8 @@ export function TableBlock({ block, renderChildren }: BlockComponentProps) {
         {renderChildren ? (
           renderChildren(block.id)
         ) : (
-          <View className="px-3 py-2">
-            <Text className="text-xs text-muted-foreground">Empty table</Text>
+          <View className="px-3">
+            <EmptyState variant="compact" description="Empty table" />
           </View>
         )}
       </View>

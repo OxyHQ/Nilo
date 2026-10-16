@@ -22,7 +22,7 @@ import { TableRow } from '@/components/editor/blocks/table-row';
 import type { BlockComponentProps } from '@/components/editor/blocks/types';
 import { VideoBlock } from '@/components/editor/blocks/video-block';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
-import { Text } from '@/components/ui/text';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { contentOf, fieldsFromContent } from '@/lib/editor/wire';
 import type { Block, BlockType } from '@/lib/types/pages';

@@ -1,8 +1,8 @@
 import { View } from 'react-native';
-import { Text } from '@/components/ui/text';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { Chip } from '@oxy.so/bloom/chip';
+import { Switch } from '@oxy.so/bloom/switch';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { FormDraft, FormField } from '@/lib/forms';
 
@@ -30,11 +30,11 @@ export function FormFields({
         const set = (next: string | string[] | boolean) => onChange({ ...draft, [field.id]: next });
         return (
           <View key={field.id} className="gap-2">
-            <Text className="font-medium">{label}</Text>
+            <Text variant="headline-medium">{label}</Text>
             {field.type === 'checkbox' ? (
               <Switch
-                value={value === true}
-                onValueChange={set}
+                checked={value === true}
+                onCheckedChange={set}
                 disabled={disabled}
                 accessibilityLabel={label}
               />
@@ -46,14 +46,12 @@ export function FormFields({
                     ? Array.isArray(value) && value.includes(option.id)
                     : value === option.id;
                   return (
-                    <Button
+                    <Chip
                       key={option.id}
                       size="sm"
-                      variant={selected ? 'default' : 'outline'}
+                      selected={selected}
                       disabled={disabled}
                       role={multi ? 'checkbox' : 'radio'}
-                      accessibilityRole={multi ? 'checkbox' : 'radio'}
-                      accessibilityState={{ checked: selected }}
                       accessibilityLabel={option.name}
                       onPress={() =>
                         set(
@@ -67,17 +65,17 @@ export function FormFields({
                         )
                       }
                     >
-                      <Text>{option.name}</Text>
-                    </Button>
+                      {option.name}
+                    </Chip>
                   );
                 })}
               </View>
             ) : (
-              <Input
+              <TextFieldInput
+                label={label}
                 value={typeof value === 'string' ? value : ''}
                 onChangeText={set}
                 editable={!disabled}
-                accessibilityLabel={label}
                 autoCapitalize={['email', 'url'].includes(field.type) ? 'none' : 'sentences'}
                 keyboardType={
                   field.type === 'number'
@@ -90,17 +88,18 @@ export function FormFields({
                           ? 'url'
                           : 'default'
                 }
-                placeholder={field.type === 'date' ? t('pages.reminders.dateFormat') : undefined}
+                // `null`, not `undefined`: Bloom shows the label as the placeholder otherwise.
+                placeholder={field.type === 'date' ? t('pages.reminders.dateFormat') : null}
               />
             )}
             {field.type === 'date' ? (
               <>
-                <Input
+                <TextFieldInput
+                  label={t('databases.form.timeFor', { name: field.name })}
                   value={String(draft[`${field.id}:time`] ?? '')}
                   editable={!disabled}
                   autoCapitalize="none"
                   onChangeText={(time) => onChange({ ...draft, [`${field.id}:time`]: time })}
-                  accessibilityLabel={t('databases.form.timeFor', { name: field.name })}
                   placeholder={t('databases.form.optionalTime')}
                 />
                 <Text className="text-xs text-muted-foreground">

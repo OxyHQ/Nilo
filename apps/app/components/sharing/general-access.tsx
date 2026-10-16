@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
-import { Text } from '@/components/ui/text';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@oxy.so/bloom/switch';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePage } from '@/lib/hooks/use-pages';
 import { useWorkspaces } from '@/lib/hooks/use-workspaces';
@@ -35,9 +35,9 @@ export function GeneralAccess({
   );
   return (
     <View className="rounded-xl border border-border p-3 gap-2">
-      <Text className="text-sm font-semibold text-foreground">{t('sharing.general.title')}</Text>
+      <Text variant="body-semibold">{t('sharing.general.title')}</Text>
       <View className="flex-row items-center justify-between gap-3">
-        <Text className="text-sm text-foreground flex-1">
+        <Text className="flex-1 text-sm text-foreground">
           {permissions.openToWorkspace
             ? t('sharing.general.everyone', {
                 workspace: workspace?.name ?? t('workspace.fallbackName'),
@@ -46,9 +46,9 @@ export function GeneralAccess({
         </Text>
         <Switch
           accessibilityLabel={t('sharing.general.restrict')}
-          value={!permissions.openToWorkspace}
+          checked={!permissions.openToWorkspace}
           disabled={!canRestrict || Boolean(permissions.restrictedFrom) || mutation.isPending}
-          onValueChange={(restricted) => mutation.mutate(restricted)}
+          onCheckedChange={(restricted) => mutation.mutate(restricted)}
         />
       </View>
       {permissions.restrictedFrom ? (

@@ -1,11 +1,12 @@
 import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { Plus } from 'lucide-react-native';
 import { Redirect } from 'expo-router';
 import { useOxy } from '@oxy.so/services';
-import { Text } from '@/components/ui/text';
-import { useColorScheme } from '@/lib/useColorScheme';
+import { Button } from '@oxy.so/bloom/button';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { usePages } from '@/lib/hooks/use-pages';
@@ -15,7 +16,6 @@ import { usePages } from '@/lib/hooks/use-pages';
  * to the most recently updated one. Otherwise show a "create first page" CTA.
  */
 export default function HomePage() {
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const { isAuthenticated } = useOxy();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
@@ -53,21 +53,20 @@ export default function HomePage() {
             {t('home.selectWorkspace')}
           </Text>
         ) : isLoading ? (
-          <ActivityIndicator color={colors.mutedForeground} />
+          <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
         ) : (
           <>
             <Text className="text-base text-muted-foreground text-center">{t('home.empty')}</Text>
-            <Pressable
-              accessibilityRole="button"
+            <Button
+              appearance="solid"
+              tone="accent"
+              size="lg"
               accessibilityLabel={t('home.createFirstPage')}
               onPress={handleCreate}
-              className="flex-row items-center gap-2 rounded-xl bg-primary px-4 py-3"
+              renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
             >
-              <Plus size={16} color={colors.primaryForeground} />
-              <Text className="text-sm font-semibold text-primary-foreground">
-                {t('home.createFirstPage')}
-              </Text>
-            </Pressable>
+              {t('home.createFirstPage')}
+            </Button>
           </>
         )}
       </View>

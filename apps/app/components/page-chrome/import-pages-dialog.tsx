@@ -1,15 +1,15 @@
 import { apiErrorMessage } from '@/lib/api/error-message';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import axios from 'axios';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog, type DialogAction, useDialogControl } from '@oxy.so/bloom/dialog';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useImportPages } from '@/lib/hooks/use-page-transfer';
-import { useColorScheme } from '@/lib/useColorScheme';
 
 export function ImportPagesDialog({
   workspaceId,
@@ -25,7 +25,7 @@ export function ImportPagesDialog({
   csvOnly?: boolean;
 }) {
   const { t } = useTranslation();
-  const { colors } = useColorScheme();
+  const control = useDialogControl();
   const router = useRouter();
   const mutation = useImportPages();
   const [busy, setBusy] = useState(false);
@@ -61,8 +61,8 @@ export function ImportPagesDialog({
         onProgress: setProgress,
       });
       if (imported.database) {
-        onClose();
-        router.push(`/db/${imported.database.id}`);
+        const id = imported.database.id;
+        control.close(() => router.push(`/db/${id}`));
       }
     } catch (error) {
       const status = axios.isAxiosError(error) ? error.response?.status : undefined;
@@ -84,24 +84,38 @@ export function ImportPagesDialog({
     }
   };
 
+  const actions: DialogAction[] = [
+    { label: t('common.close'), color: 'cancel', disabled: busy },
+    ...(!result
+      ? [
+          {
+            label: t('pages.import.chooseFiles'),
+            disabled: busy,
+            shouldCloseOnPress: false,
+            onPress: () => void pick(),
+          } satisfies DialogAction,
+        ]
+      : []),
+  ];
+
   return (
     <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open && !busyRef.current) onClose();
-      }}
+      control={control}
+      startOpen
+      onClose={onClose}
+      dismissOnBackdrop={!busy}
+      placement={{ base: 'bottom', md: 'center' }}
+      maxWidth={512}
+      label={title}
+      title={title}
+      actions={actions}
     >
-      <DialogContent
-        accessibilityLabel={title}
-        showCloseButton={false}
-        className="max-w-lg gap-4 p-5"
-      >
-        <DialogTitle accessibilityRole="header">{title}</DialogTitle>
+      <View className="gap-4">
         <Text className="text-sm text-muted-foreground">{t('pages.import.description')}</Text>
         <Text className="text-sm text-muted-foreground">{t('pages.import.csvHint')}</Text>
         {busy ? (
           <View className="flex-row items-center gap-2" accessibilityRole="progressbar">
-            <ActivityIndicator color={colors.mutedForeground} />
+            <Loading variant="inline" size="sm" />
             <Text accessibilityLiveRegion="polite" className="text-sm text-muted-foreground">
               {t(
                 progress === null
@@ -121,7 +135,7 @@ export function ImportPagesDialog({
         ) : null}
         {result ? (
           <View className="gap-3">
-            <Text accessibilityLiveRegion="polite">
+            <Text variant="headline-regular" accessibilityLiveRegion="polite">
               {t('pages.import.result', { count: result.pages.length })}
             </Text>
             {result.skipped.length > 0 ? (
@@ -140,38 +154,18 @@ export function ImportPagesDialog({
             ) : null}
             {first ? (
               <Button
+                appearance="solid"
+                tone="accent"
                 accessibilityRole="link"
                 accessibilityLabel={t('pages.import.openFirst')}
-                onPress={() => {
-                  onClose();
-                  router.push(`/p/${first.id}`);
-                }}
+                onPress={() => control.close(() => router.push(`/p/${first.id}`))}
               >
-                <Text>{t('pages.import.openFirst')}</Text>
+                {t('pages.import.openFirst')}
               </Button>
             ) : null}
           </View>
         ) : null}
-        <View className="flex-row justify-end gap-2">
-          <Button
-            variant="outline"
-            disabled={busy}
-            accessibilityLabel={t('common.close')}
-            onPress={onClose}
-          >
-            <Text>{t('common.close')}</Text>
-          </Button>
-          {!result ? (
-            <Button
-              disabled={busy}
-              accessibilityLabel={t('pages.import.chooseFiles')}
-              onPress={pick}
-            >
-              <Text>{t('pages.import.chooseFiles')}</Text>
-            </Button>
-          ) : null}
-        </View>
-      </DialogContent>
+      </View>
     </Dialog>
   );
 }

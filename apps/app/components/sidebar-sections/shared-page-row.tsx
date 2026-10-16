@@ -5,11 +5,28 @@ import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
 import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronDown, ChevronRight, FileText, MoreHorizontal, Plus } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import {
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  FileText,
+  MoreHorizontal,
+  Plus,
+  Star,
+  StarOff,
+  Trash2,
+} from 'lucide-react-native';
+import { Button } from '@oxy.so/bloom/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
 import { useDeletePage, useDuplicatePage, useUpdatePage } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import type { DropPosition } from './drag-context';
@@ -126,28 +143,29 @@ export function SharedPageRow({
           height: ROW_HEIGHT,
         }}
       >
-        <Pressable
-          onPress={(e) => {
-            e.stopPropagation();
-            if (hasChildren) onToggle();
-          }}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: isOpen }}
-          accessibilityLabel={isOpen ? t('pages.collapse') : t('pages.expand')}
-          className="h-5 w-5 items-center justify-center rounded"
-          disabled={!hasChildren}
-        >
-          {hasChildren ? (
-            isOpen ? (
-              <ChevronDown size={12} color={colors.mutedForeground} />
-            ) : (
-              <ChevronRight size={12} color={colors.mutedForeground} />
-            )
-          ) : null}
-        </Pressable>
+        {hasChildren ? (
+          <Button
+            appearance="plain"
+            size="xs"
+            iconOnly
+            stopPropagation
+            onPress={onToggle}
+            pressed={isOpen}
+            accessibilityLabel={isOpen ? t('pages.collapse') : t('pages.expand')}
+            renderLeadingIcon={({ size, color }) =>
+              isOpen ? (
+                <ChevronDown size={size} color={color} />
+              ) : (
+                <ChevronRight size={size} color={color} />
+              )
+            }
+          />
+        ) : (
+          <View className="h-5 w-5" />
+        )}
         <View className="h-5 w-5 items-center justify-center">
           {page.icon ? (
-            <Text className="text-sm leading-5">{page.icon}</Text>
+            <Text className="text-sm leading-5 text-foreground">{page.icon}</Text>
           ) : (
             <FileText size={13} color={colors.mutedForeground} />
           )}
@@ -166,51 +184,62 @@ export function SharedPageRow({
         {/* Hover actions: three-dot menu + add child */}
         {!readOnly ? (
           <View className="flex-row items-center">
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger>
-                <Pressable
-                  onPress={(e) => e.stopPropagation()}
-                  accessibilityRole="button"
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  appearance="plain"
+                  size="xs"
+                  iconOnly
+                  stopPropagation
                   accessibilityLabel={t('pages.actions.actionsFor', { title })}
-                  className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
+                  renderLeadingIcon={({ size, color }) => (
+                    <MoreHorizontal size={size} color={color} />
+                  )}
+                />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  onPress={handleToggleFavorite}
+                  leading={
+                    isFavorite ? (
+                      <StarOff size={16} color={colors.mutedForeground} />
+                    ) : (
+                      <Star size={16} color={colors.mutedForeground} />
+                    )
+                  }
                 >
-                  <MoreHorizontal size={14} color={colors.mutedForeground} />
-                </Pressable>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content>
-                <DropdownMenu.Item key="favorite" onSelect={handleToggleFavorite}>
-                  <DropdownMenu.ItemIcon ios={{ name: isFavorite ? 'star.slash' : 'star' }} />
-                  <DropdownMenu.ItemTitle>
-                    {isFavorite
-                      ? t('pages.actions.removeFromFavorites')
-                      : t('pages.actions.addToFavorites')}
-                  </DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item key="duplicate" onSelect={handleDuplicate}>
-                  <DropdownMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
-                  <DropdownMenu.ItemTitle>{t('pages.actions.duplicate')}</DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item key="move" onSelect={() => setMoveOpen(true)}>
-                  <DropdownMenu.ItemTitle>{t('pages.actions.moveTo')}</DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-                <DropdownMenu.Separator />
-                <DropdownMenu.Item key="delete" destructive onSelect={handleDelete}>
-                  <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
-                  <DropdownMenu.ItemTitle>{t('pages.actions.moveToTrash')}</DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                handleAddChild();
-              }}
-              accessibilityRole="button"
+                  {isFavorite
+                    ? t('pages.actions.removeFromFavorites')
+                    : t('pages.actions.addToFavorites')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onPress={handleDuplicate}
+                  leading={<Copy size={16} color={colors.mutedForeground} />}
+                >
+                  {t('pages.actions.duplicate')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onPress={() => setMoveOpen(true)}>
+                  {t('pages.actions.moveTo')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onPress={handleDelete}
+                  leading={<Trash2 size={16} color={colors.mutedForeground} />}
+                >
+                  {t('pages.actions.moveToTrash')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              appearance="plain"
+              size="xs"
+              iconOnly
+              stopPropagation
+              onPress={handleAddChild}
               accessibilityLabel={t('pages.actions.addSubPageTo', { title })}
-              className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
-            >
-              <Plus size={14} color={colors.mutedForeground} />
-            </Pressable>
+              renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+            />
           </View>
         ) : null}
       </Pressable>

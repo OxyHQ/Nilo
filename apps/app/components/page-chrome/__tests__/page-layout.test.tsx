@@ -9,8 +9,8 @@ import { TextInput } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PageActionsMenu } from '../page-actions-menu';
 import { PageChrome, PageHeader } from '../page-chrome';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { Switch } from '@oxy.so/bloom/switch';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import apiClient from '@/lib/api/client';
 import { usePage } from '@/lib/hooks/use-pages';
 import { queryKeys } from '@/lib/hooks/query-keys';
@@ -48,7 +48,7 @@ jest.mock('@/components/reminders/reminder-dialog', () => ({ ReminderDialog: () 
 jest.mock('../page-history-dialog', () => ({ PageHistoryDialog: () => null }));
 jest.mock('../import-pages-dialog', () => ({ ImportPagesDialog: () => null }));
 jest.mock('../move-to-dialog', () => ({ MoveToDialog: () => null }));
-jest.mock('@/components/ui/confirmation-dialog', () => ({ ConfirmationDialog: () => null }));
+jest.mock('@oxy.so/bloom/surfaces', () => ({ confirm: jest.fn().mockResolvedValue(true) }));
 jest.mock('../breadcrumb', () => ({ Breadcrumb: () => null }));
 jest.mock('../favorite-button', () => ({ FavoriteButton: () => null }));
 jest.mock('../cover-display', () => ({ CoverDisplay: () => null }));
@@ -107,19 +107,31 @@ async function mount(page = initial, readOnly = false) {
   });
   await act(async () => {
     renderer = create(
-      <QueryClientProvider client={client}>
-        <Surface readOnly={readOnly} />
-      </QueryClientProvider>,
+      <BloomTestProviders>
+        <QueryClientProvider client={client}>
+          <Surface readOnly={readOnly} />
+        </QueryClientProvider>
+      </BloomTestProviders>,
     );
   });
 }
 function cached() {
   return client.getQueryData<PageResponse>(queryKeys.pages.detail('page'))!.page;
 }
+/** The control labelled `label`, once (not its host views too). */
 function button(label: string) {
-  return renderer.root
-    .findAllByType(Button)
-    .find((node) => node.props.accessibilityLabel === label)!;
+  return renderer.root.findAll(
+    (node) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function',
+    { deep: false },
+  )[0]!;
+}
+/** The font choice labelled `label`. */
+function fontChoice(label: string) {
+  return renderer.root.findAll(
+    (node) =>
+      node.props.accessibilityLabel === label && typeof node.props.onValueChange === 'function',
+    { deep: false },
+  )[0]!;
 }
 function toggle(field: string) {
   return renderer.root
@@ -162,12 +174,12 @@ it.each(['default', 'serif', 'mono'] as const)(
   async (font) => {
     await mount({ ...initial, font: 'mono' });
     await act(async () => {
-      button(`pages.style.${font}`).props.onPress();
+      fontChoice(`pages.style.${font}`).props.onValueChange(font);
     });
     expect(apiClient.patch).toHaveBeenCalledWith('/pages/page', { font });
     expect(cached().font).toBe(font);
     await settle({ font });
-    expect(button(`pages.style.${font}`).props.accessibilityState.checked).toBe(true);
+    expect(fontChoice(`pages.style.${font}`).props.checked).toBe(true);
     expect(renderer.root.findByType(TextInput).props.style[0].fontFamily).toBe(
       { default: 'Inter', serif: 'BlomusModernus', mono: 'JetBrains Mono' }[font],
     );
@@ -179,19 +191,19 @@ it.each(['smallText', 'fullWidth', 'locked'] as const)(
     await mount();
     for (const value of [true, false]) {
       await act(async () => {
-        toggle(field).props.onValueChange(value);
+        toggle(field).props.onCheckedChange(value);
       });
       expect(apiClient.patch).toHaveBeenLastCalledWith('/pages/page', { [field]: value });
       expect(cached()[field]).toBe(value);
       await settle({ [field]: value });
-      expect(toggle(field).props.value).toBe(value);
+      expect(toggle(field).props.checked).toBe(value);
     }
   },
 );
 it('rolls back a failed setting and refetches the page', async () => {
   await mount();
   await act(async () => {
-    toggle('fullWidth').props.onValueChange(true);
+    toggle('fullWidth').props.onCheckedChange(true);
   });
   expect(cached().fullWidth).toBe(true);
   await act(async () => {

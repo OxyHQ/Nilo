@@ -2,8 +2,9 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { FormulaEditor } from '../formula-editor';
 import { ComputedCell } from '../computed-cell';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@oxy.so/bloom/button';
+import { Textarea } from '@oxy.so/bloom/textarea';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import type { Database, DatabaseProperty } from '@/lib/types/databases';
 
 const mockUpdate = jest.fn();
@@ -32,14 +33,16 @@ let renderer: ReactTestRenderer;
 beforeEach(() => {
   jest.clearAllMocks();
   act(() => {
-    renderer = create(<FormulaEditor database={database} property={property} onDone={jest.fn()} />);
+    renderer = create(
+      <BloomTestProviders>
+        <FormulaEditor database={database} property={property} onDone={jest.fn()} />
+      </BloomTestProviders>,
+    );
   });
 });
 afterEach(() => act(() => renderer.unmount()));
 const save = () =>
-  renderer.root
-    .findAllByType(Button)
-    .find((button) => button.props.children?.props?.children === 'common.save')!;
+  renderer.root.findAllByType(Button).find((button) => button.props.children === 'common.save')!;
 it('saves the expression and displays only the refreshed server result', async () => {
   let resolve: (data: unknown) => void = () => {};
   mockRefetch.mockReturnValue(
@@ -80,7 +83,7 @@ it('inserts a property at the selected cursor range', () => {
   );
   const picker = renderer.root
     .findAllByType(Button)
-    .find((button) => button.props.children?.props?.children === 'Name')!;
+    .find((button) => button.props.children === 'Name')!;
   act(() => picker.props.onPress());
   expect(renderer.root.findByType(Textarea).props.value).toBe('prop("Name") + 2');
 });

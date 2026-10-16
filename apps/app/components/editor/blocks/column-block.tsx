@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
 import type { BlockComponentProps } from './types';
 
 /**
@@ -15,8 +15,8 @@ export function ColumnBlock({ block, renderChildren }: BlockComponentProps) {
       {renderChildren ? (
         renderChildren(block.id)
       ) : (
-        <View className="rounded-md border border-dashed border-border bg-muted/30 px-2 py-3">
-          <Text className="text-xs text-muted-foreground">Empty column</Text>
+        <View className="rounded-md border border-dashed border-border bg-muted/30 px-2">
+          <EmptyState variant="compact" description="Empty column" />
         </View>
       )}
     </View>

@@ -1,9 +1,10 @@
 import { MONO_FONT_FAMILY } from '@/lib/fonts';
 import * as React from 'react';
 import { ScrollView, View } from 'react-native';
-import { Text } from '@/components/ui/text';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
+import { Button } from '@oxy.so/bloom/button';
+import { Item } from '@oxy.so/bloom/item';
+import { Textarea } from '@oxy.so/bloom/textarea';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useDatabaseRows } from '@/lib/hooks/use-database-rows';
 import { useUpdateProperty } from '@/lib/hooks/use-database-properties';
@@ -68,14 +69,14 @@ export function FormulaEditor({
   return (
     <ScrollView style={{ maxHeight: 480, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
       <View className="gap-3">
-        <Text className="font-semibold text-foreground">{t('databases.formula.edit')}</Text>
+        <Text variant="headline-semibold">{t('databases.formula.edit')}</Text>
         <Textarea
           maxLength={2000}
-          style={{ fontFamily: MONO_FONT_FAMILY }}
+          rows={4}
+          inputStyle={{ fontFamily: MONO_FONT_FAMILY }}
           value={expression}
           editable={!saving}
           accessibilityLabel={t('databases.formula.expression')}
-          className="font-mono min-h-24"
           autoCapitalize="none"
           autoCorrect={false}
           selection={selection}
@@ -83,44 +84,46 @@ export function FormulaEditor({
           onChangeText={setExpression}
         />
         <Text className="text-xs text-muted-foreground">{t('databases.formula.operators')}</Text>
-        <Text className="text-sm font-medium">{t('databases.formula.properties')}</Text>
+        <Text variant="body-medium">{t('databases.formula.properties')}</Text>
         <View className="flex-row flex-wrap gap-1">
           {database.schema.properties.map((p) => (
             <Button
               key={p.id}
               disabled={saving}
               size="sm"
-              variant="outline"
+              appearance="outline"
               accessibilityLabel={t('databases.formula.insert', { name: p.name })}
               onPress={() => insert(propertyExpression(p.name))}
             >
-              <Text>{p.name}</Text>
+              {p.name}
             </Button>
           ))}
         </View>
-        <Text className="text-sm font-medium">{t('databases.formula.functions')}</Text>
+        <Text variant="body-medium">{t('databases.formula.functions')}</Text>
         <ScrollView
           style={{ maxHeight: 160 }}
           nestedScrollEnabled
           keyboardShouldPersistTaps="handled"
         >
           {FORMULA_FUNCTIONS.map((name) => (
-            <Button
+            <Item
               key={name}
+              density="compact"
               disabled={saving}
-              variant="ghost"
-              className="h-auto items-start py-2"
+              accessibilityRole="button"
               accessibilityLabel={t('databases.formula.insert', { name })}
               onPress={() => insert(t(`databases.formula.help.${name}.example`))}
             >
-              <Text className="font-mono">{name}</Text>
-              <Text className="text-xs text-muted-foreground whitespace-normal">
+              <Text variant="body-regular" style={{ fontFamily: MONO_FONT_FAMILY }}>
+                {name}
+              </Text>
+              <Text className="text-xs text-muted-foreground">
                 {t(`databases.formula.help.${name}.description`)}
               </Text>
-              <Text className="font-mono text-xs">
+              <Text variant="caption-1-regular" style={{ fontFamily: MONO_FONT_FAMILY }}>
                 {t(`databases.formula.help.${name}.example`)}
               </Text>
-            </Button>
+            </Item>
           ))}
         </ScrollView>
         {error ? (
@@ -132,23 +135,25 @@ export function FormulaEditor({
           <View className="gap-2 rounded bg-muted p-3" accessibilityLiveRegion="polite">
             <Text className="text-xs text-muted-foreground">{t('databases.formula.preview')}</Text>
             {preview.value === null ? (
-              <Text>{t('databases.formula.empty')}</Text>
+              <Text variant="body-regular">{t('databases.formula.empty')}</Text>
             ) : (
               <ComputedCell property={property} value={preview.value} />
             )}
           </View>
         ) : null}
         <View className="flex-row justify-end gap-2">
-          <Button variant="outline" onPress={onDone} disabled={saving}>
-            <Text>{t('common.done')}</Text>
+          <Button appearance="outline" onPress={onDone} disabled={saving}>
+            {t('common.done')}
           </Button>
           <Button
+            appearance="solid"
+            tone="accent"
             onPress={() => {
               void save();
             }}
             disabled={saving}
           >
-            <Text>{t('common.save')}</Text>
+            {t('common.save')}
           </Button>
         </View>
       </View>

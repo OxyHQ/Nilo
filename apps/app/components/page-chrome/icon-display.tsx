@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Image, View } from 'react-native';
 import { FileText } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { getLucideIcon } from './lucide-icons';

@@ -1,9 +1,12 @@
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 import { Lock, MessageCircle } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Button } from '@oxy.so/bloom/button';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import {
@@ -49,7 +52,7 @@ export default function PageDetailRoute() {
   if (!pageId) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-base text-muted-foreground">{t('pages.noneSelected')}</Text>
+        <EmptyState description={t('pages.noneSelected')} />
       </View>
     );
   }
@@ -104,7 +107,7 @@ function PageDetail({
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator color={colors.mutedForeground} />
+        <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
       </View>
     );
   }
@@ -117,18 +120,15 @@ function PageDetail({
     const message = t(noAccess ? 'pages.noAccess' : 'pages.loadFailed');
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
-        <View className="max-w-md items-center gap-3">
-          <Text className="text-base text-foreground">{message}</Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('pages.backToWorkspace')}
-            onPress={() => router.replace('/(app)')}
-            className="rounded-md bg-primary px-4 py-2"
-          >
-            <Text className="text-sm font-medium text-primary-foreground">
-              {t('pages.backToWorkspace')}
-            </Text>
-          </Pressable>
+        <View className="w-full max-w-md">
+          <EmptyState
+            title={message}
+            action={{
+              label: t('pages.backToWorkspace'),
+              accessibilityLabel: t('pages.backToWorkspace'),
+              onPress: () => router.replace('/(app)'),
+            }}
+          />
         </View>
       </View>
     );
@@ -145,17 +145,15 @@ function PageDetail({
           <Lock size={14} color={colors.mutedForeground} />
         </View>
       ) : null}
-      <Pressable
-        accessibilityRole="button"
+      <Button
+        appearance="subtle"
+        size="sm"
         onPress={() => handleOpenPanel(null)}
         accessibilityLabel={t('pages.comments.open')}
-        className="flex-row items-center gap-1.5 rounded-md px-2 py-1 hover:bg-muted"
+        renderLeadingIcon={({ size, color }) => <MessageCircle size={size} color={color} />}
       >
-        <MessageCircle size={14} color={colors.foreground} />
-        <Text className="text-xs font-medium text-foreground">
-          {openCommentCount > 0 ? openCommentCount : ''} {t('pages.comments.label')}
-        </Text>
-      </Pressable>
+        {`${openCommentCount > 0 ? openCommentCount : ''} ${t('pages.comments.label')}`.trim()}
+      </Button>
       <ShareButton pageId={page.id} />
     </View>
   );
@@ -169,7 +167,7 @@ function PageDetail({
             <View className="flex-1">
               <View className="flex-row items-center gap-2 border-b border-border px-4 py-2">
                 <IconDisplay value={page.icon} size={18} />
-                <Text className="text-base font-semibold text-foreground" numberOfLines={1}>
+                <Text variant="headline-semibold" numberOfLines={1}>
                   {page.title || t('pages.untitled')}
                 </Text>
               </View>

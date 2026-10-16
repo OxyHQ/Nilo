@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSharedPages } from '@/lib/hooks/use-page-permissions';
 import { SidebarSection } from './sidebar-section';

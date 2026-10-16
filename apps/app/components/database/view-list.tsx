@@ -2,10 +2,11 @@ import { RowsScrollView } from './rows-scroll-view';
 import { nestSubItems, subItemProperties, useExpandedRows } from '@/lib/sub-items';
 import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronRight, Plus } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
@@ -57,7 +58,7 @@ export function ViewList({
   if (isLoading) {
     return (
       <View className="py-10 items-center">
-        <ActivityIndicator color={colors.mutedForeground} />
+        <Loading variant="spinner" />
       </View>
     );
   }
@@ -92,7 +93,7 @@ export function ViewList({
               />
             ) : null}
             <View className="flex-1">
-              <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
+              <Text variant="body-medium" numberOfLines={1}>
                 {row.title || t('databases.untitled')}
               </Text>
             </View>

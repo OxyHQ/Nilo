@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button } from '@/components/ui/button';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
-import { Text } from '@/components/ui/text';
+import { Button } from '@oxy.so/bloom/button';
+import { SettingsListGroup, SettingsListItem } from '@oxy.so/bloom/settings-list';
+import { confirm } from '@oxy.so/bloom/surfaces';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { type OfflineEntry, offlinePages } from '@/lib/editor/offline-pages';
 import { useOfflinePageList } from '@/lib/editor/use-offline-pages';
@@ -25,7 +25,6 @@ export function formatSize(bytes: number, locale: string): string {
 export function OfflineSection() {
   const { t, locale } = useTranslation();
   const { supported, pages } = useOfflinePageList();
-  const [confirmClear, setConfirmClear] = useState(false);
   const total = pages.reduce((sum, page) => sum + page.bytes, 0);
 
   if (!supported) {
@@ -39,41 +38,41 @@ export function OfflineSection() {
         <Text className="text-sm text-muted-foreground">{t('settings.offline.empty')}</Text>
       ) : (
         <>
-          <Text className="text-sm font-medium">
-            {t('settings.offline.total', {
+          <SettingsListGroup
+            title={t('settings.offline.total', {
               count: pages.length,
               size: formatSize(total, locale),
             })}
-          </Text>
-          <View className="rounded-lg border border-border">
-            {pages.map((page, i) => (
-              <OfflineRow key={page.pageId} page={page} last={i === pages.length - 1} />
+          >
+            {pages.map((page) => (
+              <OfflineRow key={page.pageId} page={page} />
             ))}
-          </View>
+          </SettingsListGroup>
           <Button
-            variant="outline"
+            appearance="outline"
+            tone="danger"
             className="self-start"
-            onPress={() => setConfirmClear(true)}
+            onPress={async () => {
+              const confirmed = await confirm({
+                title: t('settings.offline.removeAllTitle'),
+                description: t('settings.offline.removeAllDescription'),
+                confirmLabel: t('settings.offline.removeAll'),
+                cancelLabel: t('common.cancel'),
+                destructive: true,
+              });
+              if (confirmed) await offlinePages.clear();
+            }}
             accessibilityLabel={t('settings.offline.removeAll')}
           >
-            <Text className="text-sm text-destructive">{t('settings.offline.removeAll')}</Text>
+            {t('settings.offline.removeAll')}
           </Button>
         </>
       )}
-      <ConfirmationDialog
-        open={confirmClear}
-        onOpenChange={setConfirmClear}
-        title={t('settings.offline.removeAllTitle')}
-        description={t('settings.offline.removeAllDescription')}
-        confirmText={t('settings.offline.removeAll')}
-        confirmVariant="destructive"
-        onConfirm={() => offlinePages.clear()}
-      />
     </View>
   );
 }
 
-function OfflineRow({ page, last }: { page: OfflineEntry; last: boolean }) {
+function OfflineRow({ page }: { page: OfflineEntry }) {
   const { t, locale } = useTranslation();
   const router = useRouter();
   const title = page.title?.trim() || t('pages.untitled');
@@ -88,34 +87,28 @@ function OfflineRow({ page, last }: { page: OfflineEntry; last: boolean }) {
       })
     : t('settings.offline.notSaved');
   return (
-    <View
-      className={`flex-row items-center gap-3 px-3 py-2.5 ${last ? '' : 'border-b border-border'}`}
-    >
-      <Pressable
-        className="flex-1 gap-0.5"
-        accessibilityRole="link"
-        accessibilityLabel={t('settings.offline.open', { title })}
-        onPress={() => router.push(`/p/${page.pageId}`)}
-      >
-        <Text className="text-sm font-medium" numberOfLines={1}>
-          {title}
-        </Text>
-        <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-          {[why, formatSize(page.bytes, locale), saved].join(' · ')}
-        </Text>
-      </Pressable>
-      {pinned ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          accessibilityLabel={t('settings.offline.remove', { title })}
-          onPress={() => {
-            void offlinePages.setPinned(page.pageId, false);
-          }}
-        >
-          <Text className="text-sm">{t('settings.offline.removeOne')}</Text>
-        </Button>
-      ) : null}
-    </View>
+    <SettingsListItem
+      title={title}
+      description={[why, formatSize(page.bytes, locale), saved].join(' · ')}
+      accessibilityRole="link"
+      accessibilityLabel={t('settings.offline.open', { title })}
+      onPress={() => router.push(`/p/${page.pageId}`)}
+      showChevron={false}
+      rightElement={
+        pinned ? (
+          <Button
+            appearance="subtle"
+            size="sm"
+            stopPropagation
+            accessibilityLabel={t('settings.offline.remove', { title })}
+            onPress={() => {
+              void offlinePages.setPinned(page.pageId, false);
+            }}
+          >
+            {t('settings.offline.removeOne')}
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }
