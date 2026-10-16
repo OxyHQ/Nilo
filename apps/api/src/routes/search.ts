@@ -2,7 +2,8 @@
  * GET /search?workspaceId=…&q=…[&limit=20]
  *
  * Full-text search over a workspace's live pages: titles and block text, word
- * prefixes, every word required. Results are pages, best first, each with the
+ * prefixes, every word required; in titles, a word may also be close, typos
+ * included. Results are pages, best first, each with the
  * block that matched best and a snippet whose matches are marked (as parts,
  * never markup), and the titles of the pages above it. Only pages the caller
  * can open are returned.
@@ -20,6 +21,7 @@ import { listPages } from '../repositories/pages.js';
 import { findLiveWorkspaceById, findMembership } from '../repositories/workspaces.js';
 import {
   prefixQuery,
+  queryWords,
   searchBlockText,
   searchPageTitles,
   type SnippetPart,
@@ -68,7 +70,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
 
     // More than `limit` from each side: some are dropped for access below.
     const [titles, texts, all] = await Promise.all([
-      searchPageTitles(db, workspaceId, query, limit * 3),
+      searchPageTitles(db, workspaceId, queryWords(q), limit * 3),
       searchBlockText(db, workspaceId, query, limit * 3),
       listPages(db, { workspaceId, archived: false }),
     ]);

@@ -1,7 +1,7 @@
 # Local Postgres for the Nilo API test suite and for `bun run db:generate`.
 #
-# Plain `postgres:17-alpine` — this schema needs no PostGIS, no pgvector and no
-# pg_trgm. It tracks the major of the shared RDS instance the service deploys
+# Plain `postgres:17-alpine` — this schema needs no PostGIS and no pgvector;
+# `unaccent` and `pg_trgm` ship with the image as contrib modules. It tracks the major of the shared RDS instance the service deploys
 # against, so a version-dependent behaviour cannot differ between local and
 # production.
 #

@@ -253,6 +253,13 @@
       "when": 1792159041266,
       "tag": "0035_page_docs_projection",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792160182953,
+      "tag": "0036_fuzzy_titles",
+      "breakpoints": true
     }
   ]
 }
