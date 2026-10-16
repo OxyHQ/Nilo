@@ -74,8 +74,14 @@ function useLiveUpdates(kind: Kind, id: string | null | undefined) {
         )
           refresh();
       };
+      // A reset personal workspace is emptied, not changed: anything cached
+      // may be a page that is gone, so everything refetches.
+      const reset = (payload: { workspaceId?: string }) => {
+        if (payload?.workspaceId === id) void client.invalidateQueries();
+      };
       socket.on('connect', join);
       socket.on(event, changed);
+      if (kind === 'workspace') socket.on('workspace:reset', reset);
       if (socket.connected) join();
       entry = {
         count: 0,
@@ -84,6 +90,7 @@ function useLiveUpdates(kind: Kind, id: string | null | undefined) {
           clearTimeout(timer);
           socket.off('connect', join);
           socket.off(event, changed);
+          socket.off('workspace:reset', reset);
           // The editor owns the page room; a panel must never leave it.
           if (kind !== 'comments') socket.emit(`${kind}:leave`, id);
           releaseSocket();

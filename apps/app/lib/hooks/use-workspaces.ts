@@ -126,6 +126,24 @@ export function useDeleteWorkspace() {
   });
 }
 
+/**
+ * Reset a personal workspace: the API deletes everything in it for good and
+ * keeps its id. `confirm` is the workspace's current name, as the API checks.
+ * Every cached query may hold something that is gone, so all of them refetch.
+ */
+export function useResetWorkspace() {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, { workspaceId: string; confirm: string }>({
+    mutationFn: async ({ workspaceId, confirm }) => {
+      await apiClient.post(`${WORKSPACES_BASE}/${workspaceId}/reset`, { confirm });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries();
+    },
+  });
+}
+
 /** The signed-in member's role in `workspaceId`, once the workspace list has loaded. */
 export function useWorkspaceRole(
   workspaceId: string | null | undefined,

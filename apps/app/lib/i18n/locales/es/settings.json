@@ -85,6 +85,15 @@
     "deleteTitle": "¿Eliminar %{name}?",
     "deleteDescription": "Todos los miembros pierden el acceso a este espacio de trabajo y a sus páginas y bases de datos.",
     "deleted": "Se eliminó %{name}",
-    "deleteFailed": "No se pudo eliminar el espacio de trabajo."
+    "deleteFailed": "No se pudo eliminar el espacio de trabajo.",
+    "reset": "Restablecer espacio de trabajo",
+    "resetAction": "Restablecer",
+    "resetDescription": "Elimina para siempre todas las páginas, bases de datos y notas de tu espacio de trabajo personal. El espacio se queda, vacío.",
+    "resetTitle": "¿Restablecer tu espacio de trabajo personal?",
+    "resetPrompt": "Todo lo que contiene se eliminará para siempre y no se podrá recuperar. Escribe %{name} para confirmar.",
+    "resetInputLabel": "Nombre del espacio de trabajo",
+    "resetMismatch": "El nombre no coincide. No se ha eliminado nada.",
+    "resetDone": "Tu espacio de trabajo personal está vacío",
+    "resetFailed": "No se pudo restablecer el espacio de trabajo."
   }
 }

@@ -70,7 +70,8 @@
   "switcher": {
     "createFirst": "Crea tu primer espacio de trabajo",
     "switchLabel": "Cambiar de espacio de trabajo, actual: %{name}",
-    "yourWorkspaces": "Tus espacios de trabajo"
+    "yourWorkspaces": "Tus espacios de trabajo",
+    "personal": "Personal"
   },
   "teamspaces": {
     "title": "Espacios de equipo",
