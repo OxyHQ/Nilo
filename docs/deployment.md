@@ -26,10 +26,14 @@ Last verified: 2026-09-13.
 
 - The API requires `DATABASE_URL`, executes a real PostgreSQL query before
   listening, and uses only the Drizzle schema and migrations in this repo.
-- PostgreSQL 13 or later with the `unaccent` and `pg_trgm` extensions
-  available: migrations `0018_unaccent_search` and `0036_fuzzy_titles` create
-  them (trusted extensions, so the database owner can), the `nilo_search`
-  text search configuration and the `nilo_fold` function that search uses. What the schema cannot express lives in `src/db/prerequisites.ts`.
+- PostgreSQL 16 or later, built with ICU (production: RDS PostgreSQL 17), with
+  the `unaccent` and `pg_trgm` extensions available: migrations
+  `0018_unaccent_search` and `0036_fuzzy_titles` create them (trusted
+  extensions, so the database owner can), the `nilo_search` text search
+  configuration and the `nilo_fold` function search uses;
+  `0038_view_rows_keyset` creates the ICU collation views sort text by
+  (`nilo_sort`), and view filters read dates with `pg_input_is_valid` (16+).
+  What the schema cannot express lives in `src/db/prerequisites.ts`.
 - The frontend export preflight requires an explicit HTTPS
   `EXPO_PUBLIC_API_URL`. The Cloudflare workflow reads it from the
   `NILO_API_URL` repository variable and fails before export when it is

@@ -374,57 +374,6 @@ export async function listDatabaseRows(
     .orderBy(asc(pages.createdAt), asc(pages.id));
 }
 
-/** What a view filters and sorts a row on: its columns and the properties it reads. */
-export interface DatabaseRowKey {
-  id: string;
-  title: string;
-  ownerId: string;
-  lastEditedBy: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  /** Only the properties asked for; one the row has no value for is absent. */
-  properties: Record<string, unknown>;
-}
-
-/**
- * A database's live rows (no templates), in `listDatabaseRows`' order, with
- * only the named properties: a view filters and sorts these, then loads in
- * full just the rows of the page it returns.
- */
-export async function listDatabaseRowKeys(
-  db: PgHandle,
-  databaseId: string,
-  propertyIds: readonly string[],
-): Promise<DatabaseRowKey[]> {
-  const ids = [...new Set(propertyIds)];
-  const properties =
-    ids.length === 0
-      ? sql<Record<string, unknown>>`'{}'::jsonb`
-      : sql<Record<string, unknown>>`coalesce((
-          select jsonb_object_agg(entry.key, entry.value)
-          from jsonb_each(${pages.properties}) as entry
-          where entry.key in (${sql.join(
-            ids.map((id) => sql`${id}`),
-            sql`, `,
-          )})
-        ), '{}'::jsonb)`;
-  return db
-    .select({
-      id: pages.id,
-      title: pages.title,
-      ownerId: pages.ownerId,
-      lastEditedBy: pages.lastEditedBy,
-      createdAt: pages.createdAt,
-      updatedAt: pages.updatedAt,
-      properties,
-    })
-    .from(pages)
-    .where(
-      and(eq(pages.databaseId, databaseId), eq(pages.archived, false), eq(pages.template, false)),
-    )
-    .orderBy(asc(pages.createdAt), asc(pages.id));
-}
-
 /**
  * `DELETE /api/databases/:id?hard=true` — `routes/databases.ts:765-771`.
  *

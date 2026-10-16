@@ -42,10 +42,25 @@ itself two-way is **sub-items**: "Sub-items" and "Sub-items (parent)".
 ## Views
 
 Table, board, calendar, gallery, list, timeline and form. A view's rows are
-filtered and sorted on only the properties it reads, and only the rows of the
-page asked for are loaded whole; a view reading a formula or rollup computes
-them for every row first. Rows start oldest first (the id breaks a tie), so a
-view pages the same way every time (`cursor` is an offset).
+filtered, searched (by title), sorted and paged in PostgreSQL
+(`view-query.ts`): its filter tree and sorts compile to SQL over the rows'
+`properties` and page columns, and only the page asked for is read, with a
+count of the view's rows (`total`). Among rows its sorts do not tell apart,
+rows stay oldest first (the id breaks a tie). Empty values sort last
+ascending, first descending; select and status options in the order they are
+listed; text in ICU's root order, case and accents told apart (the `nilo_sort`
+collation in SQL, `compareText` in JS).
+
+Pages are a keyset: `cursor` is opaque (base64url JSON of the last row's sort
+values, creation time and id), so a row added, edited or archived between two
+requests moves nothing else across a page boundary. A cursor the API did not
+issue, or one from another view, is a 400.
+
+Formulas and rollups are computed, not stored, so a view that filters or
+sorts on one computes them for every row and filters and sorts in JS
+(`filters.ts`, `sorts.ts`), its cursor an offset. The two paths answer
+alike: `view-query.pgdb.test.ts` checks the SQL against the JS on random
+views over every stored property type.
 
 A database's own
 views are its editors' to change. An `inline_database` block showing a

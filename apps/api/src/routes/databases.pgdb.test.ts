@@ -834,7 +834,7 @@ describe('rows', () => {
     expect(asRecord(second.body.row).order).toBe(1);
   });
 
-  it('lists live rows, filters in JS, and paginates by offset', async () => {
+  it('lists live rows, searches them, and pages them through an opaque cursor', async () => {
     const databaseId = await createDatabase();
     for (const title of ['alpha', 'beta', 'gamma']) {
       await api('POST', `/api/databases/${databaseId}/rows`, { title });
@@ -854,10 +854,17 @@ describe('rows', () => {
 
     const paged = await api('GET', `/api/databases/${databaseId}/rows?pageSize=1`);
     expect(asArray(paged.body.rows)).toHaveLength(1);
-    expect(paged.body.cursor).toBe('1');
-    const second = await api('GET', `/api/databases/${databaseId}/rows?pageSize=1&cursor=1`);
+    const cursor = String(paged.body.cursor);
+    expect(cursor).toMatch(/^[A-Za-z0-9_-]+$/u);
+    const second = await api(
+      'GET',
+      `/api/databases/${databaseId}/rows?pageSize=1&cursor=${encodeURIComponent(cursor)}`,
+    );
     expect(asRecord(asArray(second.body.rows)[0]).title).toBe('beta');
     expect(second.body.cursor).toBeNull();
+    // An offset is not a cursor.
+    const offset = await api('GET', `/api/databases/${databaseId}/rows?pageSize=1&cursor=1`);
+    expect(offset.status).toBe(400);
   });
 
   it('pages through rows the view cannot tell apart once each, and returns them whole', async () => {
