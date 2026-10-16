@@ -204,6 +204,13 @@
       "when": 1792126014925,
       "tag": "0028_drop_workspace_icon",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792128454315,
+      "tag": "0029_page_files",
+      "breakpoints": true
     }
   ]
 }

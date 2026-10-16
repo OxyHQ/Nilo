@@ -53,6 +53,7 @@
     "emptyParagraph": "Párrafo vacío",
     "untitledHeading": "Encabezado sin título",
     "unsupported": "Tipo de bloque no compatible: %{type}",
+    "fileUnavailable": "Este archivo no está disponible ahora",
     "expand": "Expandir %{title}",
     "collapse": "Contraer %{title}"
   },

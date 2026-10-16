@@ -16,6 +16,7 @@ import { log } from '../lib/logger.js';
 import { checkPageAccess } from '../lib/page-access.js';
 import { rateLimit } from '../lib/rate-limit.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { respondWithFileUrls } from './files.js';
 import { listBlocksForPageByOrder } from '../repositories/blocks.js';
 import { findPageChain } from '../repositories/pagePermissions.js';
 import {
@@ -182,71 +183,86 @@ async function respondWithPublicPage(
   });
 }
 
-async function publishedRoot(res: Response, slug: string): Promise<PageRow | null> {
-  const root = await findPageByPublishSlug(getDb(), slug);
-  if (!root || !root.publishedAt || root.archived) {
-    res.status(404).json({ error: 'This page is not published' });
-    return null;
-  }
-  return root;
+/**
+ * The published page a reader asked for: the published page itself, or a
+ * subpage reachable from it only through live, unrestricted pages. Null when
+ * there is no such published page.
+ */
+async function findPublished(
+  slug: string,
+  pageId?: string,
+): Promise<{ root: PageRow; page: PageRow; trail: PageRow[] } | null> {
+  const db = getDb();
+  const root = await findPageByPublishSlug(db, slug);
+  if (!root || !root.publishedAt || root.archived) return null;
+  if (pageId === undefined || pageId === root.id) return { root, page: root, trail: [root] };
+
+  const chain = await findPageChain(db, pageId);
+  const rootAt = chain.findIndex((link) => link.id === root.id);
+  if (rootAt < 0) return null;
+  // The stretch from the page up to (not including) the published page.
+  const below = chain.slice(0, rootAt);
+  const rows = await findPagesByIds(
+    db,
+    below.map((link) => link.id),
+  );
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const stretch = below.map((link) => byId.get(link.id));
+  if (stretch.some((row) => !row || row.archived || row.restricted || row.template)) return null;
+  const trail = [root, ...(stretch as PageRow[]).reverse()];
+  return { root, page: trail.at(-1) as PageRow, trail };
+}
+
+function notPublished(res: Response): void {
+  res.status(404).json({ error: 'This page is not published' });
 }
 
 /** GET /public/pages/:slug — a published page, for anyone. */
 router.get('/public/pages/:slug', publicReads, async (req: Request, res: Response) => {
   try {
-    const parsed = slugSchema.safeParse(req.params.slug);
-    if (!parsed.success) {
-      res.status(404).json({ error: 'This page is not published' });
-      return;
-    }
-    const root = await publishedRoot(res, parsed.data);
-    if (!root) return;
-    await respondWithPublicPage(res, root, root, [root]);
+    const slug = slugSchema.safeParse(req.params.slug);
+    const found = slug.success ? await findPublished(slug.data) : null;
+    if (!found) return notPublished(res);
+    await respondWithPublicPage(res, found.root, found.page, found.trail);
   } catch (error: unknown) {
     log.general.error({ err: error }, 'Failed to read a published page');
     res.status(500).json({ error: 'Failed to load the page' });
   }
 });
 
-/**
- * GET /public/pages/:slug/:pageId — a subpage of a published page: reachable
- * only through live, unrestricted pages from the published one down.
- */
+/** GET /public/pages/:slug/:pageId — a subpage of a published page (`findPublished`). */
 router.get('/public/pages/:slug/:pageId', publicReads, async (req: Request, res: Response) => {
   try {
     const slug = slugSchema.safeParse(req.params.slug);
     const pageId = entityIdSchema.safeParse(req.params.pageId);
-    if (!slug.success || !pageId.success) {
-      res.status(404).json({ error: 'This page is not published' });
-      return;
-    }
-    const root = await publishedRoot(res, slug.data);
-    if (!root) return;
-
-    const db = getDb();
-    const chain = await findPageChain(db, pageId.data);
-    const rootAt = chain.findIndex((link) => link.id === root.id);
-    if (rootAt < 0) {
-      res.status(404).json({ error: 'This page is not published' });
-      return;
-    }
-    // The stretch from the page up to (not including) the published page.
-    const below = chain.slice(0, rootAt);
-    const rows = await findPagesByIds(
-      db,
-      below.map((link) => link.id),
-    );
-    const byId = new Map(rows.map((row) => [row.id, row]));
-    const stretch = below.map((link) => byId.get(link.id));
-    if (stretch.some((row) => !row || row.archived || row.restricted || row.template)) {
-      res.status(404).json({ error: 'This page is not published' });
-      return;
-    }
-    const trail = [root, ...(stretch as PageRow[]).reverse()];
-    await respondWithPublicPage(res, root, trail.at(-1) as PageRow, trail);
+    const found =
+      slug.success && pageId.success ? await findPublished(slug.data, pageId.data) : null;
+    if (!found) return notPublished(res);
+    await respondWithPublicPage(res, found.root, found.page, found.trail);
   } catch (error: unknown) {
     log.general.error({ err: error }, 'Failed to read a published subpage');
     res.status(500).json({ error: 'Failed to load the page' });
+  }
+});
+
+/**
+ * POST /public/pages/:slug/files/urls { pageId?, ids } — URLs for the files
+ * of a published page (or of a subpage of it), for anyone who may read it.
+ */
+router.post('/public/pages/:slug/files/urls', publicReads, async (req: Request, res: Response) => {
+  try {
+    const slug = slugSchema.safeParse(req.params.slug);
+    const rawPageId: unknown = req.body?.pageId;
+    const pageId = rawPageId === undefined ? undefined : entityIdSchema.safeParse(rawPageId);
+    const found =
+      slug.success && (pageId === undefined || pageId.success)
+        ? await findPublished(slug.data, pageId?.data)
+        : null;
+    if (!found) return notPublished(res);
+    await respondWithFileUrls(req, res, found.page);
+  } catch (error: unknown) {
+    log.general.error({ err: error }, 'Failed to read published file URLs');
+    res.status(500).json({ error: 'Failed to load files' });
   }
 });
 

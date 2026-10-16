@@ -176,8 +176,11 @@ const dividerContentSchema = z.object(styleFields);
 
 // --- Phase 3: media blocks ---
 const imageAlignmentSchema = z.enum(['left', 'center', 'right', 'full']);
+// `fileId`: an attachment in Oxy's file manager (`files.ts`); `url` then stays
+// empty. A block without it points at the URL someone pasted.
 const imageContentSchema = z.object({
   url: z.string().default(''),
+  fileId: z.string().optional(),
   caption: z.string().optional(),
   alt: z.string().optional(),
   width: z.number().finite().positive().optional(),
@@ -201,6 +204,7 @@ const audioContentSchema = z.object({
 
 const fileContentSchema = z.object({
   url: z.string().default(''),
+  fileId: z.string().optional(),
   name: z.string().default(''),
   size: z.number().int().nonnegative().default(0),
   mimeType: z.string().default('application/octet-stream'),

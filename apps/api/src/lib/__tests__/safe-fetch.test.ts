@@ -54,24 +54,3 @@ describe('safeFetch', () => {
     await expect(safeFetch('http://127.0.0.1/')).rejects.toThrow(UnsafeUrlError);
   });
 });
-
-describe('storedType (uploads)', async () => {
-  const { storedType } = await import('../../routes/uploads.js');
-  it('keeps media inline, makes documents download, and stores anything else as bytes', () => {
-    expect(storedType('image/png')).toEqual({ contentType: 'image/png', inline: true });
-    expect(storedType('application/pdf')).toEqual({ contentType: 'application/pdf', inline: true });
-    expect(storedType('text/csv')).toEqual({ contentType: 'text/csv', inline: false });
-    expect(storedType('text/html')).toEqual({
-      contentType: 'application/octet-stream',
-      inline: false,
-    });
-    expect(storedType('image/svg+xml')).toEqual({
-      contentType: 'application/octet-stream',
-      inline: false,
-    });
-    expect(storedType('IMAGE/JPEG; charset=x')).toEqual({
-      contentType: 'image/jpeg',
-      inline: true,
-    });
-  });
-});

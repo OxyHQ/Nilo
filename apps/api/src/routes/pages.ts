@@ -15,13 +15,21 @@ import {
   updatePage,
 } from '../repositories/pages.js';
 import { listBlocksForPage } from '../repositories/blocks.js';
-import { blocksToHtml, blocksToMarkdown, blocksToTree, inReadingOrder } from '@nilo/contracts';
+import {
+  type BlockNode,
+  blocksToHtml,
+  blocksToMarkdown,
+  blocksToTree,
+  inReadingOrder,
+} from '@nilo/contracts';
 import { copyPageTree } from '../repositories/pageCopies.js';
 import { follow } from '../repositories/pageFollows.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
-import { blocksToPdf } from '../lib/pdf-export.js';
+import { mintFileUrls } from '../lib/files.js';
+import { blocksToPdf, type ImageLoader, imageSources } from '../lib/pdf-export.js';
+import { servableFileIds } from '../repositories/pageFiles.js';
 import { safeFetch } from '../lib/safe-fetch.js';
 import { log } from '../lib/logger.js';
 import { rateLimit } from '../lib/rate-limit.js';
@@ -818,6 +826,26 @@ async function loadExportImage(url: string): Promise<Buffer | null> {
  * with their formatting and nesting (`@nilo/contracts` markdown/HTML,
  * `lib/pdf-export.ts`), every piece of text escaped in HTML.
  */
+/**
+ * The PDF's image loader: a URL as it is, an attachment (`file:<id>`) through
+ * a URL minted for it, when this page may show it.
+ */
+async function exportImageLoader(
+  page: { id: string; workspaceId: string },
+  tree: BlockNode[],
+): Promise<ImageLoader> {
+  const fileIds = imageSources(tree)
+    .filter((source) => source.startsWith('file:'))
+    .map((source) => source.slice('file:'.length));
+  const servable = await servableFileIds(getDb(), page, fileIds);
+  const minted = await mintFileUrls(servable);
+  return async (source) => {
+    if (!source.startsWith('file:')) return loadExportImage(source);
+    const file = minted.get(source.slice('file:'.length));
+    return file ? loadExportImage(file.url) : null;
+  };
+}
+
 /** A PDF is drawn on the server: a member gets a few a minute. */
 const pdfExports = rateLimit('page-export-pdf', { max: 10, windowMs: 60_000 });
 
@@ -853,7 +881,7 @@ router.get(
             : { extension: 'md', type: 'text/markdown; charset=utf-8' };
       const body =
         format === 'pdf'
-          ? await blocksToPdf(tree, title, loadExportImage)
+          ? await blocksToPdf(tree, title, await exportImageLoader(page, tree))
           : format === 'html'
             ? blocksToHtml(tree, title)
             : blocksToMarkdown(tree, title);
