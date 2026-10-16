@@ -22,7 +22,7 @@
         "@expo-google-fonts/inter": "0.4.2",
         "@expo-google-fonts/jetbrains-mono": "0.4.1",
         "@oxy.so/bloom-editor": "0.4.0",
-        "@oxy.so/bloom-text": "0.1.1",
+        "@oxy.so/bloom-text": "0.1.2",
         "@oxy.so/contracts": "4.16.0",
         "@oxy.so/core": "4.10.0",
         "@oxy.so/db": "1.0.0",
@@ -73,7 +73,7 @@
         "@oxy.so/app-preset": "3.2.1",
         "@oxy.so/bloom": "^10.13.0",
         "@oxy.so/bloom-editor": "0.4.0",
-        "@oxy.so/bloom-text": "0.1.1",
+        "@oxy.so/bloom-text": "0.1.2",
         "@oxy.so/contracts": "4.16.0",
         "@oxy.so/core": "4.10.0",
         "@oxy.so/nilo-contracts": "workspace:*",
@@ -187,7 +187,7 @@
       },
       "devDependencies": {
         "@oxy.so/bloom-editor": "0.4.0",
-        "@oxy.so/bloom-text": "0.1.1",
+        "@oxy.so/bloom-text": "0.1.2",
       },
       "peerDependencies": {
         "@oxy.so/bloom-editor": ">=0.4.0 <0.5.0",
@@ -768,7 +768,7 @@
 
     "@oxy.so/bloom-editor": ["@oxy.so/bloom-editor@0.4.0", "", { "dependencies": { "@oxy.so/bloom-text": "^0.1.1" }, "peerDependencies": { "react": ">=19.0.0", "react-native": ">=0.81.0", "yjs": ">=13.6.0 <14.0.0" } }, "sha512-Fn4GY8PDTXY+x2TG0HBsYfZQIvdmtm6RWdf+NfyBobzfSC/elEKcGglcS2RhEESgm2EaQtm0w3CDfYZPMJNJnQ=="],
 
-    "@oxy.so/bloom-text": ["@oxy.so/bloom-text@0.1.1", "", { "peerDependencies": { "react": ">=19.0.0", "react-native": ">=0.81.0", "react-native-enriched-html": "^1.1.1" } }, "sha512-C8ezlA6qbBar/0BNSq9+GTEnl4VY4o0LqLEU0L9bX/q2+9mzNO0MpyidS60Fu5GwlZVJBH3B7NERrDI5BZUC+w=="],
+    "@oxy.so/bloom-text": ["@oxy.so/bloom-text@0.1.2", "", { "peerDependencies": { "react": ">=19.0.0", "react-native": ">=0.81.0", "react-native-enriched-html": "^1.1.1" } }, "sha512-wOgRTrFDYk/e/QT+xTW9QwAGqumkdWXjeiZ3aXj/T6W38mmoE5r7RMcx3tjfZRnLgsQRHSdHe66upG6ZWsFZfw=="],
 
     "@oxy.so/contracts": ["@oxy.so/contracts@4.16.0", "", { "dependencies": { "zod": "^3.25.64" } }, "sha512-NNA9YkEFN1qX5O2baIhe+H7ssA6ydWpb7WHNE0L3lj9jns+AksRVDM6CTDJHCVNE53gnzizvIktQ7zwnl40eTg=="],
 

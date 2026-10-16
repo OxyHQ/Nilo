@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@oxy.so/bloom-editor": "0.4.0",
-    "@oxy.so/bloom-text": "0.1.1"
+    "@oxy.so/bloom-text": "0.1.2"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
