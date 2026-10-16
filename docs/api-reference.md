@@ -79,8 +79,12 @@ databases (`docs/databases.md`). Contract: `packages/contracts/src/notes.ts`.
   `appData` is written on `baseRevision` (409 `STALE_APP_DATA`). A note's body
   is its blocks, written whole and applied as block operations.
 - `GET /notes/sync?cursor&limit` — paged changes and deletions since the
-  cursor; `full` when the pass is the whole set; labels and folders on a
-  pass's last page.
+  cursor; `full` when the pass is the whole set; `reset` when the cursor was
+  for notes a workspace reset removed (the client drops everything it holds,
+  unsent edits included); labels and folders on a pass's last page.
+- `GET /notes/export` — every note (trash included), label and folder as JSON;
+  `POST /notes/erase { confirm: 'DELETE' }` — every note, folder and label for
+  good (the rest of the workspace stays).
 - `GET/POST /notes/labels`, `PATCH/DELETE /notes/labels/:id`;
   `GET/POST /notes/folders`, `PATCH/DELETE /notes/folders/:id` (deleting a
   folder moves its notes and subfolders up).

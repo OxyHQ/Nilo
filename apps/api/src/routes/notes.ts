@@ -11,6 +11,7 @@ import {
   noteCreateSchema,
   noteFolderWriteSchema,
   noteLabelWriteSchema,
+  type NotesExport,
   type NotesSyncPage,
   noteWriteSchema,
 } from '@oxy.so/nilo-contracts';
@@ -19,7 +20,8 @@ import { type Request, type Response, Router } from 'express';
 import { z } from 'zod';
 import { announceChange } from '../collab/live-rooms.js';
 import { getDb } from '../db/client.js';
-import { PAGE_TOMBSTONE_RETENTION_MS } from '../db/schema/pages.js';
+import { and, asc, eq } from 'drizzle-orm';
+import { PAGE_TOMBSTONE_RETENTION_MS, pages } from '../db/schema/pages.js';
 import { log } from '../lib/logger.js';
 import {
   createFolder,
@@ -28,6 +30,7 @@ import {
   deleteFolder,
   deleteLabel,
   deleteNote,
+  eraseNotes,
   NoteRejected,
   reorderNotes,
   updateFolder,
@@ -181,6 +184,8 @@ router.get('/sync', async (req: Request, res: Response) => {
     const db = getDb();
 
     const sameDatabase = cursor.d === undefined || cursor.d === home.notes.id;
+    // A cursor for notes a reset replaced: the client starts over, from nothing.
+    const reset = !sameDatabase;
     const continuing = sameDatabase && cursor.u !== undefined && cursor.t !== undefined;
     const end = continuing ? new Date(cursor.t as string) : await syncWatermark(db);
     let since = sameDatabase && cursor.s ? new Date(cursor.s) : null;
@@ -213,6 +218,7 @@ router.get('/sync', async (req: Request, res: Response) => {
       cursor: encodeCursor(next),
       hasMore,
       full,
+      reset,
       ...(!hasMore && {
         labels: labelOptions(home).map(toLabel),
         folders: await listFolders(db, home),
@@ -285,7 +291,8 @@ router.post('/labels', async (req: Request, res: Response) => {
 router.patch('/labels/:id', async (req: Request, res: Response) => {
   try {
     const { id } = z.object({ id: z.string().min(1).max(200) }).parse(req.params);
-    const body = noteLabelWriteSchema.parse(req.body);
+    // Either field alone: a rename, or a new colour.
+    const body = noteLabelWriteSchema.partial().parse(req.body);
     const home = await homeOf(req);
     const option = await updateLabel(getDb(), home, id, body);
     if (!option) {
@@ -348,7 +355,8 @@ router.post('/folders', async (req: Request, res: Response) => {
 router.patch('/folders/:id', async (req: Request, res: Response) => {
   try {
     const { id } = z.object({ id: idSchema }).parse(req.params);
-    const body = noteFolderWriteSchema.parse(req.body);
+    // Either field alone: a rename, or a move.
+    const body = noteFolderWriteSchema.partial().parse(req.body);
     const home = await homeOf(req);
     if (!(await updateFolder(getDb(), home, id, body))) {
       res.status(404).json({ error: 'Folder not found' });
@@ -379,6 +387,54 @@ router.delete('/folders/:id', async (req: Request, res: Response) => {
     if (await refused(error, res)) return;
     log.general.error({ err: error }, 'Failed to delete a folder');
     res.status(500).json({ error: 'Failed to delete a folder' });
+  }
+});
+
+// ── The whole account ────────────────────────────────────────────────
+
+/** GET /notes/export — every note (trash included), label and folder, as JSON to keep. */
+router.get('/export', async (req: Request, res: Response) => {
+  try {
+    const home = await homeOf(req);
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(pages)
+      .where(and(eq(pages.databaseId, home.notes.id), eq(pages.template, false)))
+      .orderBy(asc(pages.createdAt));
+    const body: NotesExport = {
+      exportedAt: new Date().toISOString(),
+      notes: await readNotes(db, home, rows),
+      labels: labelOptions(home).map(toLabel),
+      folders: await listFolders(db, home),
+    };
+    res.json(body);
+  } catch (error: unknown) {
+    log.general.error({ err: error }, 'Failed to export notes');
+    res.status(500).json({ error: 'Failed to export notes' });
+  }
+});
+
+/**
+ * POST /notes/erase { confirm: 'DELETE' } — every note, label and folder, for
+ * good. The rest of the workspace (pages, other databases) is left alone:
+ * erasing Noted's data is not resetting the workspace.
+ */
+router.post('/erase', async (req: Request, res: Response) => {
+  try {
+    const body = z.object({ confirm: z.literal('DELETE') }).safeParse(req.body);
+    if (!body.success) {
+      res.status(400).json({ error: "Send { confirm: 'DELETE' } to erase every note" });
+      return;
+    }
+    const home = await homeOf(req);
+    const erased = await eraseNotes(getDb(), home);
+    changed(home);
+    changed(home, home.folders.id);
+    res.json({ success: true, erased });
+  } catch (error: unknown) {
+    log.general.error({ err: error }, 'Failed to erase notes');
+    res.status(500).json({ error: 'Failed to erase notes' });
   }
 });
 

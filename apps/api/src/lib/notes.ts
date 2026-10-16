@@ -42,6 +42,7 @@ import {
   lockPage,
   nextDatabaseRowOrder,
   type PageRow,
+  recordTombstones,
 } from '../repositories/pages.js';
 import { snapshotPage } from '../repositories/pageVersions.js';
 import { applyBlockTransaction, TransactionRejected } from './block-transactions.js';
@@ -361,6 +362,42 @@ export async function createNote(
     .catch(rejected);
 }
 
+/**
+ * Every note and folder for good, and every label (`POST /notes/erase`), in
+ * one transaction. The rows leave tombstones, so other devices drop them.
+ */
+export async function eraseNotes(
+  db: NiloDatabase,
+  home: NotesHome,
+): Promise<{ notes: number; folders: number; labels: number }> {
+  return db.transaction(async (tx) => {
+    await lockDatabase(tx, home.notes.id, 'update');
+    await lockDatabase(tx, home.folders.id, 'update');
+    const notes = await tx
+      .delete(pages)
+      .where(eq(pages.databaseId, home.notes.id))
+      .returning({ id: pages.id, databaseId: pages.databaseId });
+    const folders = await tx
+      .delete(pages)
+      .where(eq(pages.databaseId, home.folders.id))
+      .returning({ id: pages.id, databaseId: pages.databaseId });
+    await recordTombstones(tx, [...notes, ...folders]);
+    const fresh = await findDatabaseById(tx, home.notes.id);
+    let labels = 0;
+    if (fresh) {
+      const config = labelsProperty(fresh.propertiesSchema);
+      labels = config.options.length;
+      config.options = [];
+      await tx
+        .update(databases)
+        .set({ propertiesSchema: fresh.propertiesSchema })
+        .where(eq(databases.id, home.notes.id));
+      home.notes = fresh;
+    }
+    return { notes: notes.length, folders: folders.length, labels };
+  });
+}
+
 /** Delete a note for good; its tombstone tells syncing clients. */
 export async function deleteNote(db: PgHandle, home: NotesHome, id: string): Promise<boolean> {
   if (!(await findNoteRow(db, home, id))) return false;
@@ -449,16 +486,19 @@ export async function updateLabel(
   db: NiloDatabase,
   home: NotesHome,
   id: string,
-  input: NoteLabelWrite,
+  input: Partial<NoteLabelWrite>,
 ): Promise<SelectOption | null> {
   return withNotesSchema(db, home, async (schema) => {
     const config = labelsProperty(schema);
     const option = config.options.find((o) => o.id === id);
     if (!option) return null;
-    if (config.options.some((o) => o.id !== id && sameName(o.name, input.name))) {
-      throw new NoteRejected(409, 'A label with that name exists', 'LABEL_EXISTS');
+    if (input.name !== undefined) {
+      const name = input.name;
+      if (config.options.some((o) => o.id !== id && sameName(o.name, name))) {
+        throw new NoteRejected(409, 'A label with that name exists', 'LABEL_EXISTS');
+      }
+      option.name = name.trim();
     }
-    option.name = input.name.trim();
     if (input.color !== undefined) {
       option.color = labelColor(input.color);
       if (input.color) option.noteColor = input.color;
@@ -563,19 +603,21 @@ export async function updateFolder(
   db: NiloDatabase,
   home: NotesHome,
   id: string,
-  input: NoteFolderWrite,
+  input: Partial<NoteFolderWrite>,
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
     await lockDatabase(tx, home.folders.id, 'update');
     const row = await findFolderRow(tx, home, id);
     if (!row) return false;
-    await tx
-      .update(pages)
-      .set({
-        title: input.name,
-        properties: sql`${pages.properties} || ${JSON.stringify({ [FOLDER_PROPERTY.name]: { text: input.name } })}::jsonb`,
-      })
-      .where(eq(pages.id, id));
+    if (input.name !== undefined) {
+      await tx
+        .update(pages)
+        .set({
+          title: input.name,
+          properties: sql`${pages.properties} || ${JSON.stringify({ [FOLDER_PROPERTY.name]: { text: input.name } })}::jsonb`,
+        })
+        .where(eq(pages.id, id));
+    }
     if (input.parentId !== undefined && input.parentId !== folderParent(row)) {
       if (input.parentId) await checkParent(tx, home, id, input.parentId);
       await setFolderParent(tx, home, row, input.parentId);
