@@ -9,6 +9,9 @@
  *   `database:<id>`, told `database:changed` when its rows, properties or
  *   views change.
  *
+ * - `workspace:reset` goes to `workspace:<id>` when a personal workspace is
+ *   emptied: whatever a client holds of it is gone, not merely stale.
+ *
  * The events carry ids only, never content: clients read again through the
  * API, which applies the access rule. Bursts are coalesced per room.
  */
@@ -122,4 +125,12 @@ export function announceChange(change: { workspaceId?: string; databaseId?: stri
       databaseId: change.databaseId,
     });
   }
+}
+
+/**
+ * A personal workspace was emptied. Sent at once rather than coalesced: it is
+ * one event per reset, and a client that hears it drops everything it holds.
+ */
+export function announceReset(workspaceId: string): void {
+  getIO()?.to(workspaceRoom(workspaceId)).emit('workspace:reset', { workspaceId });
 }

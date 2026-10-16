@@ -20,8 +20,8 @@ import { insertDatabase, insertDatabaseView } from '../src/repositories/database
 import { createPage } from '../src/repositories/pages.js';
 import {
   addMemberIfAbsent,
-  createPersonalWorkspaceIfAbsent,
   createWorkspace,
+  provisionPersonalWorkspace,
 } from '../src/repositories/workspaces.js';
 
 /** The Oxy account this seed hands ownership to. */
@@ -51,20 +51,11 @@ async function main(): Promise<void> {
 
   // The personal workspace uses the same idempotent path the auth middleware
   // does, so running this twice does not create a second one.
-  const personal =
-    (await createPersonalWorkspaceIfAbsent(db, { name: "Nate's Workspace", ownerId: OWNER_ID })) ??
-    null;
-  if (personal) {
-    await addMemberIfAbsent(db, {
-      workspaceId: personal.id,
-      userId: OWNER_ID,
-      role: 'owner',
-      invitedBy: null,
-    });
-    console.log(`  personal workspace ${personal.id}`);
-  } else {
-    console.log('  personal workspace already existed — left alone');
-  }
+  const personal = await provisionPersonalWorkspace(db, {
+    name: "Nate's Workspace",
+    ownerId: OWNER_ID,
+  });
+  console.log(`  personal workspace ${personal.id}`);
 
   const team = await createWorkspace(db, {
     name: 'Nilo Demo',

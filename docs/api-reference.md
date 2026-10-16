@@ -19,6 +19,10 @@ model, credential, conversation or chat-completion route.
 - `GET/POST /workspaces`, `GET/PATCH/DELETE /workspaces/:id`, members
   (`GET/POST /workspaces/:id/members`, `PATCH/DELETE …/members/:userId`),
   `POST /workspaces/:id/trash/empty`.
+- `GET /workspaces/personal` — the caller's personal workspace, provisioned
+  on the spot (see `docs/access.md`). `POST /workspaces/:id/reset`
+  `{ confirm: <current name> }` — owner only, personal only: permanently
+  removes every page, database, comment and extra teamspace, keeps the id.
 - `GET/POST /workspaces/:id/teamspaces`, `PATCH /teamspaces/:id`, members
   (`GET /teamspaces/:id/members`, `PUT/DELETE …/members/:userId`),
   `POST /teamspaces/:id/join`.
@@ -82,7 +86,7 @@ Types: `mention` (in comments and in page text), `comment_reply`,
 ## Real time (Socket.IO)
 
 Page rooms (`page:join`, transactions, presence, `page:comments`), workspace
-rooms (`workspace:changed`) and database rooms (`database:changed`):
+rooms (`workspace:changed`, `workspace:reset`) and database rooms (`database:changed`):
 `docs/collaboration.md`.
 
 ## Health

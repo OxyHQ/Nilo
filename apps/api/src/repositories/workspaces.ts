@@ -9,8 +9,12 @@
  * request — no throw, no log line.
  */
 
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { isUniqueViolation } from '@oxy.so/db';
+import { comments, notifications } from '../db/schema/collab.js';
+import { databases } from '../db/schema/databases.js';
+import { pages } from '../db/schema/pages.js';
+import { teamspaceMembers, teamspaces } from '../db/schema/teamspaces.js';
 import { workspaceMembers, workspaces, type WorkspaceRole } from '../db/schema/workspaces.js';
 import type { PgHandle } from '../db/client.js';
 import {
@@ -171,6 +175,133 @@ export async function createPersonalWorkspaceIfAbsent(
     .returning();
   if (row) await ensureDefaultTeamspace(db, row.id, row.ownerId);
   return row ?? null;
+}
+
+/**
+ * The owner's personal workspace, whole: the workspace, the owner's
+ * membership and the default teamspace commit together or not at all.
+ *
+ * It is also the repair path. The list of a user's workspaces starts from
+ * their memberships, so a personal workspace without its owner row is
+ * invisible, and provisioning that stopped at "the workspace exists" left it
+ * that way for good. Re-adding the owner is an idempotent insert, so every
+ * call heals that state instead of trusting it.
+ *
+ * A concurrent first provisioning is settled by the partial unique index: the
+ * losing insert waits for the winner to commit and returns nothing, and the
+ * read that follows (a new statement, so a new snapshot) sees the winner.
+ */
+export async function provisionPersonalWorkspace(
+  db: PgHandle,
+  values: { ownerId: string; name: string },
+): Promise<WorkspaceRow> {
+  return db.transaction(async (tx) => {
+    const workspace =
+      (await createPersonalWorkspaceIfAbsent(tx, values)) ??
+      (await findPersonalWorkspace(tx, values.ownerId));
+    if (!workspace) {
+      throw new Error(`personal workspace of ${values.ownerId} missing after provisioning`);
+    }
+    await addMemberIfAbsent(tx, {
+      workspaceId: workspace.id,
+      userId: values.ownerId,
+      role: 'owner',
+      invitedBy: null,
+    });
+    return workspace;
+  });
+}
+
+/** Whether the owner's personal workspace exists AND they are its owner member. */
+export async function findProvisionedPersonalWorkspace(
+  db: PgHandle,
+  ownerId: string,
+): Promise<WorkspaceRow | null> {
+  const [row] = await db
+    .select({ workspace: workspaces })
+    .from(workspaces)
+    .innerJoin(
+      workspaceMembers,
+      and(
+        eq(workspaceMembers.workspaceId, workspaces.id),
+        eq(workspaceMembers.userId, workspaces.ownerId),
+      ),
+    )
+    .where(and(eq(workspaces.ownerId, ownerId), eq(workspaces.isPersonal, true)))
+    .limit(1);
+  return row?.workspace ?? null;
+}
+
+/**
+ * Empty a personal workspace back to the state provisioning leaves it in,
+ * keeping its id. Permanent: nothing goes to the trash.
+ *
+ * Pages first, in one statement, so the self-reference finds no surviving
+ * child to detach; every table hanging off a page (blocks, comments,
+ * reminders, versions, grants, share links, follows, transactions) goes by
+ * cascade. Then the databases, whose rows are already gone, taking their views
+ * and forms. A notification about one of the deleted pages would open onto a
+ * 404, so those go too; not every sender records the workspace, but each one
+ * records the page.
+ *
+ * Teamspaces other than the default, and anyone but the owner, are removed:
+ * a personal workspace takes no invitations, so in practice there is no one
+ * else, but the reset restores the invariant rather than assuming it.
+ */
+export async function resetPersonalWorkspace(
+  db: PgHandle,
+  workspace: Pick<WorkspaceRow, 'id' | 'ownerId'>,
+  name: string,
+): Promise<{ pages: number; databases: number }> {
+  const { id, ownerId } = workspace;
+  return db.transaction(async (tx) => {
+    const removedPages = await tx
+      .delete(pages)
+      .where(eq(pages.workspaceId, id))
+      .returning({ id: pages.id });
+    const removedDatabases = await tx
+      .delete(databases)
+      .where(eq(databases.workspaceId, id))
+      .returning({ id: databases.id });
+    await tx.delete(comments).where(eq(comments.workspaceId, id));
+
+    const pageIds = removedPages.map((p) => p.id);
+    const aboutWorkspace = sql`${notifications.data} ->> 'workspaceId' = ${id}`;
+    await tx
+      .delete(notifications)
+      .where(
+        pageIds.length > 0
+          ? or(aboutWorkspace, inArray(sql`${notifications.data} ->> 'pageId'`, pageIds))
+          : aboutWorkspace,
+      );
+
+    await tx
+      .delete(teamspaces)
+      .where(and(eq(teamspaces.workspaceId, id), eq(teamspaces.isDefault, false)));
+    await tx
+      .delete(workspaceMembers)
+      .where(and(eq(workspaceMembers.workspaceId, id), ne(workspaceMembers.userId, ownerId)));
+    const general = await ensureDefaultTeamspace(tx, id, ownerId);
+    await tx
+      .delete(teamspaceMembers)
+      .where(
+        and(eq(teamspaceMembers.teamspaceId, general.id), ne(teamspaceMembers.userId, ownerId)),
+      );
+    await tx
+      .update(teamspaces)
+      .set({ name: 'General', icon: null, description: '', privacy: 'open' })
+      .where(eq(teamspaces.id, general.id));
+
+    await tx.update(workspaces).set({ name, avatar: null }).where(eq(workspaces.id, id));
+    await addMemberIfAbsent(tx, {
+      workspaceId: id,
+      userId: ownerId,
+      role: 'owner',
+      invitedBy: null,
+    });
+
+    return { pages: removedPages.length, databases: removedDatabases.length };
+  });
 }
 
 /** Every member of a workspace belongs to its default teamspace. */
