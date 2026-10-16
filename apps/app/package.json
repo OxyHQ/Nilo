@@ -21,7 +21,7 @@
     "@alia.onl/sdk": "^15.6.0",
     "@expo/html-elements": "^0.13.8",
     "@oxy.so/nilo-contracts": "workspace:*",
-    "@oxy.so/bloom": "^10.12.1",
+    "@oxy.so/bloom": "^10.13.0",
     "@oxy.so/bloom-editor": "0.2.0",
     "@oxy.so/bloom-text": "0.1.0",
     "@oxy.so/contracts": "4.16.0",
