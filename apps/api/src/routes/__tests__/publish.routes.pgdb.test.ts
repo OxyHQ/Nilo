@@ -29,7 +29,10 @@ vi.mock('../../middleware/auth.js', () => ({
     req.user = { id };
     next();
   },
-  oxyClient: {},
+  oxyClient: {
+    // The real limiters resolve an optional session through this; anonymous here.
+    middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
+  },
 }));
 vi.mock('../../socket.js', () => ({ getIO: () => null }));
 vi.mock('../../lib/logger.js', () => ({

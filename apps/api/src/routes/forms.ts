@@ -211,7 +211,7 @@ const describeField = (property: DatabaseProperty) => ({
 /** GET /forms/:token — the form: its title, description and fields. */
 router.get(
   '/forms/:token',
-  rateLimit({ name: 'form-read', limit: 120, windowMs: 60_000 }),
+  rateLimit('form-read', { max: 120, windowMs: 60_000 }),
   optionalAuth,
   async (req: Request, res: Response) => {
     try {
@@ -234,12 +234,7 @@ router.get(
 /** POST /forms/:token { values: { [propertyId]: value } } — a response, as a new row. */
 router.post(
   '/forms/:token',
-  rateLimit({
-    name: 'form-submit',
-    limit: 10,
-    windowMs: 60_000,
-    scope: (req) => String(req.params.token),
-  }),
+  rateLimit('form-submit', { max: 10, windowMs: 60_000 }),
   optionalAuth,
   async (req: Request, res: Response) => {
     try {

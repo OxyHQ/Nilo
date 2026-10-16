@@ -71,5 +71,7 @@ page.
 - Search (`GET /search`) returns only pages the caller can open; a guest
   searches the pages shared with them, without the path above them.
 
-Unauthenticated endpoints are rate limited per client address
-(`lib/rate-limit.ts`; Redis when configured).
+Every request counts against the caller's general budget, per member when
+signed in and per hashed client address otherwise (the SDK's
+`createOxyRateLimit`); public endpoints add a stricter budget of their own
+(`lib/rate-limit.ts`). Counted in Redis, so both API tasks share one window.

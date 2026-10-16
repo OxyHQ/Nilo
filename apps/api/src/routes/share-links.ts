@@ -289,7 +289,7 @@ router.delete('/share-links/:id', authenticateToken, async (req: Request, res: R
  */
 router.get(
   '/share/:token',
-  rateLimit({ name: 'share-read', limit: 240, windowMs: 60_000 }),
+  rateLimit('share-read', { max: 240, windowMs: 60_000 }),
   async (req: Request, res: Response) => {
     try {
       const token = paramString(req.params.token);
@@ -372,7 +372,7 @@ const ROLE_FOR_SCOPE: Record<ShareLinkScope, PageGrantRole> = {
  */
 router.post(
   '/share/:token/join',
-  rateLimit({ name: 'share-join', limit: 30, windowMs: 60_000 }),
+  rateLimit('share-join', { max: 30, windowMs: 60_000 }),
   authenticateToken,
   async (req: Request, res: Response) => {
     try {

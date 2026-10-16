@@ -6,7 +6,8 @@ Nilo is a Bun monorepo with an Expo client and an Express API.
 apps/app  -> HTTPS and Socket.IO -> apps/api -> PostgreSQL
 ```
 
-Redis/Valkey is optional and supports Socket.IO scale-out. S3-compatible
+Redis/Valkey is optional in development; in production it carries Socket.IO
+across tasks and shared rate limits. S3-compatible
 storage is optional for uploads. Neither service replaces PostgreSQL.
 
 ## Boundaries

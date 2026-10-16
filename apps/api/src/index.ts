@@ -38,6 +38,7 @@ import embedRouter from './routes/embed.js';
 
 // Socket.io
 import { initSocket } from './socket.js';
+import { rateLimit } from './lib/rate-limit.js';
 
 // Bun loads `.env` from the working directory before any module runs, and every
 // script that starts this server (`dev`, `start`) runs in apps/api, so it
@@ -126,6 +127,10 @@ app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
 const jsonBody = express.json({ limit: '10mb' });
 app.use((req, res, next) => (req.path === '/pages/import' ? next() : jsonBody(req, res, next)));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Every route but the health probes (the SDK exempts them) counts against the
+// caller's general budget, as in every Oxy backend; public routes add their own.
+app.use(rateLimit('general'));
 
 // Routes
 app.use('/health', healthRouter);
@@ -281,7 +286,9 @@ getDb()
                 ),
               );
           } else {
-            log.general.info('Redis not configured (REDIS_URL not set) — rate limiting disabled');
+            log.general.warn(
+              'Redis not configured (REDIS_URL not set): rate limits and real-time rooms are per task',
+            );
           }
         })
         // Redis is optional, so a failure here is a warning, not a boot failure —

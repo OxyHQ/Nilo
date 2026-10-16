@@ -41,6 +41,10 @@ vi.mock('../../repositories/workspaces.js', () => ({
 }));
 
 vi.mock('../../middleware/auth.js', () => ({
+  oxyClient: {
+    // The real limiters resolve an optional session through this; anonymous here.
+    middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
+  },
   authenticateToken: vi.fn((_req: unknown, _res: unknown, next: () => void) => next()),
 }));
 
