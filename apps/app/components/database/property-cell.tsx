@@ -2,7 +2,9 @@ import { RelationCell } from './relation-cell';
 import { ComputedCell } from './computed-cell';
 import * as React from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
-import { Check, ChevronDown, X } from 'lucide-react-native';
+import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
+import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Checkbox } from '@oxy.so/bloom/checkbox';
 import { Chip } from '@oxy.so/bloom/chip';
@@ -489,7 +491,7 @@ function SelectCell({ property, value, onChange, variant }: SelectCellProps) {
           <Text className="text-sm text-muted-foreground">—</Text>
         )}
         {variant !== 'card' ? (
-          <ChevronDown size={12} color={colors.mutedForeground} style={{ marginLeft: 4 }} />
+          <RiArrowDownSLine size="xs" fill={colors.mutedForeground} style={{ marginLeft: 4 }} />
         ) : null}
       </Pressable>
     </SelectPicker>
@@ -614,7 +616,11 @@ function SelectPicker({
                   selected={selected}
                   accessibilityLabel={o.name}
                   title={<SelectChip option={o} />}
-                  trailing={selected ? <Check size={14} color={colors.foreground} /> : null}
+                  trailing={
+                    selected ? (
+                      <RiCheckLine width={14} height={14} fill={colors.foreground} />
+                    ) : null
+                  }
                   onPress={() => onSelect(o.id)}
                 />
               );
@@ -630,7 +636,7 @@ function SelectPicker({
             // click still bubbles to it through React.
             stopPropagation
             onPress={onClear}
-            renderLeadingIcon={({ size, color }) => <X size={size} color={color} />}
+            leadingIcon={RiCloseLine}
           >
             {multi ? t('databases.actions.clearAll') : t('databases.actions.clear')}
           </Button>

@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { View, Pressable } from 'react-native';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react-native';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
+import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Collapsible } from '@oxy.so/bloom/collapsible';
 import { Text } from '@oxy.so/bloom/typography';
@@ -67,9 +69,9 @@ export function SidebarSection({
         >
           {collapsible && sectionKey ? (
             isOpen ? (
-              <ChevronDown size={10} color={colors.mutedForeground} />
+              <RiArrowDownSLine width={10} height={10} fill={colors.mutedForeground} />
             ) : (
-              <ChevronRight size={10} color={colors.mutedForeground} />
+              <RiArrowRightSLine width={10} height={10} fill={colors.mutedForeground} />
             )
           ) : (
             <View style={{ width: 10, height: 10 }} />
@@ -88,7 +90,7 @@ export function SidebarSection({
             accessibilityLabel={t('sidebar.addToSection', { title })}
             disabled={adding}
             loading={adding}
-            renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+            leadingIcon={RiAddLine}
           />
         ) : null}
       </View>

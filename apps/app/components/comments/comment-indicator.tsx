@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { MessageSquare } from 'lucide-react-native';
+import { RiMessage2Line } from '@oxy.so/bloom/icons/RiMessage2Line';
 import { Button } from '@oxy.so/bloom/button';
 import { useBlockComments } from '@/lib/hooks/use-comments';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -43,7 +43,7 @@ export function CommentIndicator({ blockId, onPress, alwaysVisible }: CommentInd
           ? t('comments.indicator.count', { count: openCount })
           : t('comments.indicator.add')
       }
-      renderLeadingIcon={({ size, color }) => <MessageSquare size={size} color={color} />}
+      leadingIcon={RiMessage2Line}
     >
       {openCount > 0 ? String(openCount) : t('comments.indicator.label')}
     </Button>

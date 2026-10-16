@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { Dice5, Trash2 } from 'lucide-react-native';
+import { RiDice5Line } from '@oxy.so/bloom/icons/RiDice5Line';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { Button } from '@oxy.so/bloom/button';
 import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
@@ -11,7 +12,7 @@ import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { EMOJI_CATEGORIES, SKIN_TONES, applySkinTone, type EmojiEntry } from './emoji-data';
-import { LUCIDE_ICONS } from './lucide-icons';
+import { PAGE_ICONS } from './page-icons';
 import { encodeEmoji, encodeIcon, encodeImage } from './icon-value';
 
 type Tab = 'emoji' | 'icon' | 'upload';
@@ -32,7 +33,7 @@ interface IconPickerProps {
 }
 
 /**
- * Page icon picker. Tabs: Emoji (default) | Icon (lucide) | Upload (web).
+ * Page icon picker. Tabs: Emoji (default) | Icon | Upload (web).
  * Layout-wise the picker fits a 672px-wide dialog.
  */
 export function IconPicker({ control, onSelect, onUploadImage }: IconPickerProps) {
@@ -79,7 +80,7 @@ export function IconPicker({ control, onSelect, onUploadImage }: IconPickerProps
             size="sm"
             onPress={() => handleSelect(randomEmojiEncoded())}
             accessibilityLabel={t('pages.iconPicker.randomEmoji')}
-            renderLeadingIcon={({ size, color }) => <Dice5 size={size} color={color} />}
+            leadingIcon={RiDice5Line}
           >
             {t('pages.iconPicker.random')}
           </Button>
@@ -89,7 +90,7 @@ export function IconPicker({ control, onSelect, onUploadImage }: IconPickerProps
             size="sm"
             onPress={() => handleSelect(null)}
             accessibilityLabel={t('pages.iconPicker.removeIcon')}
-            renderLeadingIcon={({ size, color }) => <Trash2 size={size} color={color} />}
+            leadingIcon={RiDeleteBin6Line}
           >
             {t('pages.iconPicker.remove')}
           </Button>
@@ -232,7 +233,7 @@ const EmojiCell = React.memo(function EmojiCell({ entry, modifier, onPress }: Em
 });
 
 /* ---------------------------------------------------------------- *
- * Icon tab (lucide)
+ * Icon tab (Bloom icons)
  * ---------------------------------------------------------------- */
 
 interface IconTabProps {
@@ -244,10 +245,8 @@ function IconTab({ query, onPickIcon }: IconTabProps) {
   const { t } = useTranslation();
   const normalized = query.trim().toLowerCase();
   const filtered = React.useMemo(() => {
-    if (!normalized) return LUCIDE_ICONS;
-    return LUCIDE_ICONS.filter(
-      (e) => e.name.includes(normalized) || e.keywords.includes(normalized),
-    );
+    if (!normalized) return PAGE_ICONS;
+    return PAGE_ICONS.filter((e) => e.name.includes(normalized) || e.keywords.includes(normalized));
   }, [normalized]);
 
   return (
@@ -269,7 +268,7 @@ function IconTab({ query, onPickIcon }: IconTabProps) {
                 className="h-9 w-9 items-center justify-center rounded-md hover:bg-muted active:bg-muted"
                 accessibilityLabel={entry.name}
               >
-                <Icon size={18} color={colors.foreground} />
+                <Icon width={18} height={18} fill={colors.foreground} />
               </Pressable>
             );
           })}

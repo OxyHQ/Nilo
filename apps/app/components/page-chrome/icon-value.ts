@@ -2,8 +2,8 @@
  * Encoding for the Page.icon string column.
  *
  * The model stores a single string with a `prefix:value` convention so a page
- * can hold any of: a unicode emoji, a named lucide icon, or an uploaded image
- * URL — without piling on new model columns. Legacy rows that contain a bare
+ * can hold any of: a unicode emoji, a named page icon (`page-icons.ts`), or an
+ * uploaded image URL — without piling on new model columns. Legacy rows that contain a bare
  * emoji (no prefix) are still rendered as such for backwards compatibility.
  */
 

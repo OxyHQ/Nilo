@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { RiArrowLeftSLine } from '@oxy.so/bloom/icons/RiArrowLeftSLine';
+import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
@@ -82,7 +83,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
             size="xs"
             accessibilityLabel={t('databases.calendar.previousMonth')}
             onPress={() => setCursor(addMonths(cursor, -1))}
-            renderLeadingIcon={({ size, color }) => <ChevronLeft size={size} color={color} />}
+            leadingIcon={RiArrowLeftSLine}
           />
           <Button appearance="plain" size="xs" onPress={() => setCursor(startOfMonth(new Date()))}>
             {t('databases.calendar.today')}
@@ -93,7 +94,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
             size="xs"
             accessibilityLabel={t('databases.calendar.nextMonth')}
             onPress={() => setCursor(addMonths(cursor, 1))}
-            renderLeadingIcon={({ size, color }) => <ChevronRight size={size} color={color} />}
+            leadingIcon={RiArrowRightSLine}
           />
         </View>
       </View>

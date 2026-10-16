@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { View } from 'react-native';
-import { AlertTriangle } from 'lucide-react-native';
+import { RiAlertLine } from '@oxy.so/bloom/icons/RiAlertLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Checkbox } from '@oxy.so/bloom/checkbox';
 import { Text } from '@oxy.so/bloom/typography';
@@ -33,7 +33,7 @@ export function ComputedCell({
           onFocus={() => setShowError(true)}
           onBlur={() => setShowError(false)}
           onPress={() => setShowError((v) => !v)}
-          renderLeadingIcon={({ size, color }) => <AlertTriangle size={size} color={color} />}
+          leadingIcon={RiAlertLine}
         />
         {showError ? (
           <Text accessibilityRole="alert" className="text-xs text-destructive web:select-text">

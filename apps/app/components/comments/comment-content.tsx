@@ -1,6 +1,8 @@
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Calendar, FileText, User } from 'lucide-react-native';
+import { RiCalendarLine } from '@oxy.so/bloom/icons/RiCalendarLine';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
+import { RiUserLine } from '@oxy.so/bloom/icons/RiUserLine';
 import { Chip } from '@oxy.so/bloom/chip';
 import { Text } from '@oxy.so/bloom/typography';
 import { useOxy } from '@oxy.so/services';
@@ -64,7 +66,12 @@ function MentionChip({ mention }: { mention: MentionSegment }) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
 
-  const Icon = mention.kind === 'user' ? User : mention.kind === 'page' ? FileText : Calendar;
+  const Icon =
+    mention.kind === 'user'
+      ? RiUserLine
+      : mention.kind === 'page'
+        ? RiFileTextLine
+        : RiCalendarLine;
 
   const handlePress = () => {
     if (mention.kind === 'page' && mention.id) {
@@ -85,7 +92,7 @@ function MentionChip({ mention }: { mention: MentionSegment }) {
       appearance="subtle"
       tone="accent"
       onPress={handlePress}
-      leading={<Icon size={12} color={colors.primary} />}
+      leading={<Icon width={12} height={12} fill={colors.primary} />}
       accessibilityLabel={t('comments.mentionLabel', { name: mention.originalText })}
       style={{ marginHorizontal: 2 }}
     >

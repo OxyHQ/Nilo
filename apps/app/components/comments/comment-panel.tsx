@@ -1,7 +1,7 @@
 import { useCommentsLive } from '@/lib/realtime/use-live-updates';
 import * as React from 'react';
 import { Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { MessageCircle } from 'lucide-react-native';
+import { RiChat3Line } from '@oxy.so/bloom/icons/RiChat3Line';
 import { CloseButton } from '@oxy.so/bloom/button';
 import { Dialog } from '@oxy.so/bloom/dialog';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
@@ -96,7 +96,7 @@ export function CommentPanel({
     >
       <View className="flex-row items-center justify-between border-b border-border px-4 py-3">
         <View className="flex-row items-center gap-2">
-          <MessageCircle size={16} color={colors.foreground} />
+          <RiChat3Line size="sm" fill={colors.foreground} />
           <Text variant="body-semibold">{headerTitle}</Text>
         </View>
         <CloseButton onPress={onClose} accessibilityLabel={t('comments.panel.close')} />

@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Pencil } from 'lucide-react-native';
+import { RiPencilLine } from '@oxy.so/bloom/icons/RiPencilLine';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import NotificationsScreen from '@/app/(app)/notifications';
 import { usePage } from '@/lib/hooks/use-pages';
@@ -58,7 +58,7 @@ it('renders the edit icon and translated page title, opens the page, and marks t
       </BloomTestProviders>,
     );
   });
-  expect(renderer.root.findAllByType(Pencil)).toHaveLength(1);
+  expect(renderer.root.findAllByType(RiPencilLine)).toHaveLength(1);
   expect(JSON.stringify(renderer.toJSON())).toContain('Roadmap was edited');
   expect(usePage).toHaveBeenCalledWith('page');
   act(() =>

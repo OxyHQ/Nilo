@@ -2,7 +2,10 @@ import { PublishSection } from './publish-section';
 import React from 'react';
 import { View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Copy, Link2, Trash2, ChevronDown } from 'lucide-react-native';
+import { RiFileCopyLine } from '@oxy.so/bloom/icons/RiFileCopyLine';
+import { RiLinkM } from '@oxy.so/bloom/icons/RiLinkM';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
 import { Divider } from '@oxy.so/bloom/divider';
@@ -103,7 +106,7 @@ function ExistingLinkRow({ link, pageId }: ExistingLinkRowProps) {
 
   return (
     <View className="flex-row items-center gap-2 px-2 py-2 rounded-lg">
-      <Link2 size={14} color={colors.mutedForeground} />
+      <RiLinkM width={14} height={14} fill={colors.mutedForeground} />
       <View className="flex-1 min-w-0">
         <Text
           className="text-xs text-foreground"
@@ -124,7 +127,7 @@ function ExistingLinkRow({ link, pageId }: ExistingLinkRowProps) {
         iconOnly
         onPress={handleCopy}
         accessibilityLabel={t('sharing.links.copy')}
-        renderLeadingIcon={({ size, color }) => <Copy size={size} color={color} />}
+        leadingIcon={RiFileCopyLine}
       />
       <Button
         appearance="subtle"
@@ -135,7 +138,7 @@ function ExistingLinkRow({ link, pageId }: ExistingLinkRowProps) {
         disabled={isRevoking}
         loading={isRevoking}
         accessibilityLabel={t('sharing.links.revoke')}
-        renderLeadingIcon={({ size, color }) => <Trash2 size={size} color={color} />}
+        leadingIcon={RiDeleteBin6Line}
       />
     </View>
   );
@@ -277,9 +280,7 @@ function ShareModalBody({ pageId, onNavigate }: { pageId: string; onNavigate: ()
                     accessibilityLabel={t('sharing.modal.selectedScope', {
                       scope: scopeLabel(scope),
                     })}
-                    renderTrailingIcon={({ size, color }) => (
-                      <ChevronDown size={size} color={color} />
-                    )}
+                    trailingIcon={RiArrowDownSLine}
                   >
                     {scopeLabel(scope)}
                   </Button>
@@ -315,7 +316,7 @@ function ShareModalBody({ pageId, onNavigate }: { pageId: string; onNavigate: ()
                   size="sm"
                   onPress={handleCopyActive}
                   accessibilityLabel={t('sharing.modal.copy')}
-                  renderLeadingIcon={({ size, color }) => <Copy size={size} color={color} />}
+                  leadingIcon={RiFileCopyLine}
                 >
                   {t('sharing.modal.copy')}
                 </Button>

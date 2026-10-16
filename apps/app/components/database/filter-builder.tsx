@@ -1,7 +1,9 @@
 import { resultPropertyFromRows } from '@/lib/formula-results';
 import * as React from 'react';
 import { ScrollView, View } from 'react-native';
-import { Filter as FilterIcon, Plus, Trash2 } from 'lucide-react-native';
+import { RiFilter3Line } from '@oxy.so/bloom/icons/RiFilter3Line';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { Button } from '@oxy.so/bloom/button';
 import { Chip } from '@oxy.so/bloom/chip';
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
@@ -203,7 +205,7 @@ export function FilterBuilder({ database: sourceDatabase, view, rows }: FilterBu
         size="sm"
         accessibilityLabel={label}
         onPress={open}
-        renderLeadingIcon={({ size, color }) => <FilterIcon size={size} color={color} />}
+        leadingIcon={RiFilter3Line}
       >
         {label}
       </Button>
@@ -321,7 +323,7 @@ function ConditionRow({ database, filter, onChange, onRemove }: ConditionRowProp
         size="xs"
         accessibilityLabel={t('common.delete')}
         onPress={onRemove}
-        renderLeadingIcon={({ size, color }) => <Trash2 size={size} color={color} />}
+        leadingIcon={RiDeleteBin6Line}
       />
     </View>
   );
@@ -367,12 +369,7 @@ function PropertyMenu({ label, properties, onPick }: PropertyMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          appearance="plain"
-          size="sm"
-          className="self-start"
-          renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
-        >
+        <Button appearance="plain" size="sm" className="self-start" leadingIcon={RiAddLine}>
           {label}
         </Button>
       </DropdownMenuTrigger>

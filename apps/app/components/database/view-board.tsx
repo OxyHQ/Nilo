@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { Badge } from '@oxy.so/bloom/badge';
 import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
@@ -222,7 +222,7 @@ function BoardColumn({ option, rows, onAddRow, onMoveTo, renderCard, readOnly }:
             size="xs"
             accessibilityLabel={t('databases.actions.new')}
             onPress={onAddRow}
-            renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+            leadingIcon={RiAddLine}
           />
         ) : null}
       </View>

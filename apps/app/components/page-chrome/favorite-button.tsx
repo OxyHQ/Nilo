@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Star } from 'lucide-react-native';
+import { RiStarLine } from '@oxy.so/bloom/icons/RiStarLine';
 import { Button } from '@oxy.so/bloom/button';
 import { useTheme } from '@oxy.so/bloom/theme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -31,13 +31,7 @@ export function FavoriteButton({ pageId, favorited }: FavoriteButtonProps) {
       iconOnly
       onPress={handleToggle}
       accessibilityLabel={favorited ? t('pages.favorite.remove') : t('pages.favorite.add')}
-      renderLeadingIcon={({ size, color }) => (
-        <Star
-          size={size}
-          color={favorited ? colors.warning : color}
-          fill={favorited ? colors.warning : 'transparent'}
-        />
-      )}
+      leadingIcon={RiStarLine}
     />
   );
 }

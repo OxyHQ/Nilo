@@ -10,7 +10,13 @@ import { SettingsListGroup, SettingsListItem } from '@oxy.so/bloom/settings-list
 import { Switch } from '@oxy.so/bloom/switch';
 import { Text } from '@oxy.so/bloom/typography';
 import { useRouter } from 'expo-router';
-import { Pencil, Bell, BellOff, CheckCheck, MessageSquare, UserPlus, X } from 'lucide-react-native';
+import { RiPencilLine } from '@oxy.so/bloom/icons/RiPencilLine';
+import { RiNotification3Line } from '@oxy.so/bloom/icons/RiNotification3Line';
+import { RiNotificationOffLine } from '@oxy.so/bloom/icons/RiNotificationOffLine';
+import { RiCheckDoubleLine } from '@oxy.so/bloom/icons/RiCheckDoubleLine';
+import { RiMessage2Line } from '@oxy.so/bloom/icons/RiMessage2Line';
+import { RiUserAddLine } from '@oxy.so/bloom/icons/RiUserAddLine';
+import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@oxy.so/services';
 import * as ExpoNotifications from 'expo-notifications';
@@ -27,13 +33,13 @@ import {
   type Notification,
 } from '@/lib/hooks/use-notifications';
 
-const TYPE_ICONS: Record<Notification['type'], typeof MessageSquare> = {
-  page_edited: Pencil,
-  page_shared: UserPlus,
-  reminder: Bell,
-  mention: MessageSquare,
-  comment_reply: MessageSquare,
-  page_comment: MessageSquare,
+const TYPE_ICONS: Record<Notification['type'], typeof RiMessage2Line> = {
+  page_edited: RiPencilLine,
+  page_shared: RiUserAddLine,
+  reminder: RiNotification3Line,
+  mention: RiMessage2Line,
+  comment_reply: RiMessage2Line,
+  page_comment: RiMessage2Line,
 };
 
 const PRIORITY_COLORS: Record<Notification['priority'], string> = {
@@ -134,7 +140,7 @@ export default function NotificationsScreen() {
   const notifications = data?.notifications || [];
   const unreadCount = data?.unreadCount || 0;
 
-  const StatusIcon = pushEnabled ? Bell : BellOff;
+  const StatusIcon = pushEnabled ? RiNotification3Line : RiNotificationOffLine;
 
   return (
     <View className="flex-1 bg-background">
@@ -154,7 +160,7 @@ export default function NotificationsScreen() {
                 appearance="subtle"
                 size="sm"
                 onPress={() => markAllAsRead.mutate()}
-                renderLeadingIcon={({ size, color }) => <CheckCheck size={size} color={color} />}
+                leadingIcon={RiCheckDoubleLine}
               >
                 {t('notifications.markAllRead')}
               </Button>
@@ -165,7 +171,7 @@ export default function NotificationsScreen() {
               pressed={showSettings}
               accessibilityLabel={t('notifications.pushNotifications')}
               onPress={() => setShowSettings((s) => !s)}
-              renderLeadingIcon={({ size, color }) => <Bell size={size} color={color} />}
+              leadingIcon={RiNotification3Line}
             />
           </View>
         }
@@ -178,7 +184,7 @@ export default function NotificationsScreen() {
             <View className="px-6 py-4 border-b border-border">
               <SettingsListGroup>
                 <SettingsListItem
-                  icon={<StatusIcon size={20} color={colors.mutedForeground} />}
+                  icon={<StatusIcon width={20} height={20} fill={colors.mutedForeground} />}
                   title={t('notifications.pushNotifications')}
                   description={t('notifications.pushDescription')}
                   rightElement={
@@ -222,7 +228,7 @@ export default function NotificationsScreen() {
         ) : (
           <View className="py-2">
             {notifications.map((notification) => {
-              const Icon = TYPE_ICONS[notification.type] || Bell;
+              const Icon = TYPE_ICONS[notification.type] || RiNotification3Line;
               const isUnread =
                 notification.status !== 'read' && notification.status !== 'dismissed';
               const priorityBorder =
@@ -238,7 +244,7 @@ export default function NotificationsScreen() {
                 >
                   <View className="flex-row items-start gap-3">
                     <View className={`mt-0.5 ${isUnread ? 'opacity-100' : 'opacity-50'}`}>
-                      <Icon size={16} className="text-muted-foreground" />
+                      <Icon width={16} height={16} fill={colors.mutedForeground} />
                     </View>
                     <View className="flex-1">
                       <View className="flex-row items-center justify-between mb-1">
@@ -269,7 +275,7 @@ export default function NotificationsScreen() {
                             onPress={() => dismiss.mutate(notification.id)}
                             accessibilityLabel={t('notifications.dismiss')}
                             hitSlop={8}
-                            renderLeadingIcon={({ size, color }) => <X size={size} color={color} />}
+                            leadingIcon={RiCloseLine}
                           />
                         </View>
                       </View>

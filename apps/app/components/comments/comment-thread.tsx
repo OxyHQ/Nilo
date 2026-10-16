@@ -1,14 +1,12 @@
 import { CommentReactions } from './comment-reactions';
 import * as React from 'react';
 import { View } from 'react-native';
-import {
-  Check,
-  CornerDownRight,
-  MessageSquare,
-  MoreHorizontal,
-  Trash2,
-  Undo2,
-} from 'lucide-react-native';
+import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
+import { RiCornerDownRightLine } from '@oxy.so/bloom/icons/RiCornerDownRightLine';
+import { RiMessage2Line } from '@oxy.so/bloom/icons/RiMessage2Line';
+import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
+import { RiArrowGoBackLine } from '@oxy.so/bloom/icons/RiArrowGoBackLine';
 import { Button } from '@oxy.so/bloom/button';
 import {
   DropdownMenu,
@@ -118,9 +116,9 @@ export function CommentThread({
               }
               renderLeadingIcon={({ size, color }) =>
                 isResolved ? (
-                  <Undo2 size={size} color={color} />
+                  <RiArrowGoBackLine width={size} height={size} fill={color} />
                 ) : (
-                  <Check size={size} color={color} />
+                  <RiCheckLine width={size} height={size} fill={color} />
                 )
               }
             >
@@ -171,7 +169,7 @@ export function CommentThread({
             className="self-start"
             onPress={() => setReplyOpen(true)}
             accessibilityLabel={t('comments.thread.replyToThread')}
-            renderLeadingIcon={({ size, color }) => <CornerDownRight size={size} color={color} />}
+            leadingIcon={RiCornerDownRightLine}
           >
             {t('comments.thread.reply')}
           </Button>
@@ -206,7 +204,11 @@ function CommentRow({ comment, currentUserId, compact, onDelete, rightSlot }: Co
               : 'h-7 w-7 items-center justify-center rounded-full bg-muted'
           }
         >
-          <MessageSquare size={compact ? 10 : 12} color={colors.mutedForeground} />
+          <RiMessage2Line
+            width={compact ? 10 : 12}
+            height={compact ? 10 : 12}
+            fill={colors.mutedForeground}
+          />
         </View>
         <Text variant="caption-1-medium">
           {/* Phase 2 backend returns authorId only; profile hydration arrives later. */}
@@ -226,15 +228,13 @@ function CommentRow({ comment, currentUserId, compact, onDelete, rightSlot }: Co
                 size="xs"
                 iconOnly
                 accessibilityLabel={t('comments.thread.moreActions')}
-                renderLeadingIcon={({ size, color }) => (
-                  <MoreHorizontal size={size} color={color} />
-                )}
+                leadingIcon={RiMoreLine}
               />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 onPress={onDelete}
-                leading={<Trash2 size={12} color={colors.foreground} />}
+                leading={<RiDeleteBin6Line size="xs" fill={colors.foreground} />}
               >
                 {t('common.delete')}
               </DropdownMenuItem>

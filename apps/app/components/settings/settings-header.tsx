@@ -2,7 +2,7 @@ import { useWindowDimensions } from 'react-native';
 import { useNavigation, useRouter } from 'expo-router';
 import type { DrawerNavigationProp } from 'expo-router/drawer';
 import type { ParamListBase } from '@react-navigation/native';
-import { Menu } from 'lucide-react-native';
+import { RiMenuLine } from '@oxy.so/bloom/icons/RiMenuLine';
 import { Button } from '@oxy.so/bloom/button';
 import { PageHeader } from '@oxy.so/bloom/page-header';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -46,7 +46,7 @@ export function SettingsHeader({ title, subtitle, showBack = false, onBack }: Se
             iconOnly
             accessibilityLabel={t('keyboardShortcuts.toggleSidebar')}
             onPress={() => navigation.toggleDrawer()}
-            renderLeadingIcon={({ size, color }) => <Menu size={size} color={color} />}
+            leadingIcon={RiMenuLine}
           />
         )
       }

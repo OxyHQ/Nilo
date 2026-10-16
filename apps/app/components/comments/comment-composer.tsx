@@ -7,7 +7,7 @@ import {
   type TextInputSelectionChangeEventData,
   View,
 } from 'react-native';
-import { Send } from 'lucide-react-native';
+import { RiSendPlaneLine } from '@oxy.so/bloom/icons/RiSendPlaneLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Textarea } from '@oxy.so/bloom/textarea';
 import { Text } from '@oxy.so/bloom/typography';
@@ -344,7 +344,7 @@ export function CommentComposer({
             disabled={isEmpty || submitting}
             loading={submitting}
             accessibilityLabel={t('comments.composer.send')}
-            renderLeadingIcon={({ size, color }) => <Send size={size} color={color} />}
+            leadingIcon={RiSendPlaneLine}
           >
             {submitting ? t('comments.composer.posting') : t('comments.composer.submit')}
           </Button>

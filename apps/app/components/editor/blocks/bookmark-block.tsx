@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useQuery } from '@tanstack/react-query';
-import { Link2 } from 'lucide-react-native';
+import { RiLinkM } from '@oxy.so/bloom/icons/RiLinkM';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -75,7 +75,7 @@ export function BookmarkBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
-          <Link2 size={16} color={colors.mutedForeground} />
+          <RiLinkM size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">Bookmark</Text>
         </View>
         <TextFieldInput

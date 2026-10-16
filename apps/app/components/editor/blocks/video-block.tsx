@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Platform, Pressable, TextInput, View } from 'react-native';
-import { Video as VideoIcon } from 'lucide-react-native';
+import { RiVideoLine } from '@oxy.so/bloom/icons/RiVideoLine';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -82,7 +82,7 @@ export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
-          <VideoIcon size={16} color={colors.mutedForeground} />
+          <RiVideoLine size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">Video</Text>
         </View>
         <TextFieldInput
@@ -141,7 +141,7 @@ export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
           }}
         >
           <View className="flex-row items-center gap-2">
-            <VideoIcon size={16} color={colors.foreground} />
+            <RiVideoLine size="sm" fill={colors.foreground} />
             <Text variant="body-regular">{url}</Text>
           </View>
         </Pressable>

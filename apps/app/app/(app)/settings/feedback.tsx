@@ -3,6 +3,7 @@ import { KeyboardAwareScrollView } from '@/lib/keyboard';
 import { Button } from '@oxy.so/bloom/button';
 import { RadioGroup } from '@oxy.so/bloom/radio';
 import { Textarea } from '@oxy.so/bloom/textarea';
+import type { BloomIconComponent } from '@oxy.so/bloom/icons';
 import { useTheme } from '@oxy.so/bloom/theme';
 import { Text } from '@oxy.so/bloom/typography';
 import { useState } from 'react';
@@ -10,7 +11,12 @@ import { useRouter } from 'expo-router';
 import apiClient from '@/lib/api/client';
 import Constants from 'expo-constants';
 import { isAxiosError } from 'axios';
-import { MessageSquare, Bug, Lightbulb, Sparkles, Star } from 'lucide-react-native';
+import { RiMessage2Line } from '@oxy.so/bloom/icons/RiMessage2Line';
+import { RiBugLine } from '@oxy.so/bloom/icons/RiBugLine';
+import { RiLightbulbLine } from '@oxy.so/bloom/icons/RiLightbulbLine';
+import { RiSparklingLine } from '@oxy.so/bloom/icons/RiSparklingLine';
+import { RiStarFill } from '@oxy.so/bloom/icons/RiStarFill';
+import { RiStarLine } from '@oxy.so/bloom/icons/RiStarLine';
 import { SettingsHeader } from '@/components/settings/settings-header';
 import { toast } from '@oxy.so/bloom/toast';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -21,7 +27,7 @@ interface FeedbackTypeOption {
   type: FeedbackType;
   labelKey: string;
   descriptionKey: string;
-  icon: React.ElementType;
+  icon: BloomIconComponent;
 }
 
 const feedbackTypes: FeedbackTypeOption[] = [
@@ -29,25 +35,25 @@ const feedbackTypes: FeedbackTypeOption[] = [
     type: 'bug',
     labelKey: 'feedback.bugReport',
     descriptionKey: 'feedback.bugDescription',
-    icon: Bug,
+    icon: RiBugLine,
   },
   {
     type: 'feature',
     labelKey: 'feedback.featureRequest',
     descriptionKey: 'feedback.featureDescription',
-    icon: Lightbulb,
+    icon: RiLightbulbLine,
   },
   {
     type: 'improvement',
     labelKey: 'feedback.improvement',
     descriptionKey: 'feedback.improvementDescription',
-    icon: Sparkles,
+    icon: RiSparklingLine,
   },
   {
     type: 'other',
     labelKey: 'feedback.other',
     descriptionKey: 'feedback.otherDescription',
-    icon: MessageSquare,
+    icon: RiMessage2Line,
   },
 ];
 
@@ -144,7 +150,7 @@ export default function FeedbackScreen() {
                   labelContent: (
                     <View className="flex-row items-center gap-3">
                       <View className="p-2 rounded-full bg-muted">
-                        <Icon size={20} color={colors.textSecondary} />
+                        <Icon width={20} height={20} fill={colors.textSecondary} />
                       </View>
                       <View className="flex-1">
                         <Text variant="body-medium">{t(option.labelKey)}</Text>
@@ -175,11 +181,11 @@ export default function FeedbackScreen() {
                   accessibilityLabel={ratingLabels[star]}
                   onPress={() => setRating(rating === star ? null : star)}
                   icon={
-                    <Star
-                      size={24}
-                      color={rating && star <= rating ? colors.warning : colors.textSecondary}
-                      fill={rating && star <= rating ? colors.warning : 'transparent'}
-                    />
+                    rating && star <= rating ? (
+                      <RiStarFill size="lg" fill={colors.warning} />
+                    ) : (
+                      <RiStarLine size="lg" fill={colors.textSecondary} />
+                    )
                   }
                 />
               ))}

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Platform, TextInput, View } from 'react-native';
-import { Workflow } from 'lucide-react-native';
+import { RiFlowChart } from '@oxy.so/bloom/icons/RiFlowChart';
 import { Pre } from '@oxy.so/bloom/code';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -69,7 +69,7 @@ export function MermaidBlock({ block, onChangeContent }: BlockComponentProps) {
   return (
     <View className="rounded-md border border-border bg-muted/30 px-3 py-2 my-1 gap-2">
       <View className="flex-row items-center gap-2">
-        <Workflow size={14} color={colors.mutedForeground} />
+        <RiFlowChart width={14} height={14} fill={colors.mutedForeground} />
         <Text className="text-xs text-muted-foreground">Mermaid diagram</Text>
       </View>
       <TextInput

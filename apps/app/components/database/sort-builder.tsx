@@ -1,6 +1,10 @@
 import * as React from 'react';
 import { ScrollView, View } from 'react-native';
-import { ArrowDownAZ, ArrowUpAZ, ArrowUpDown, Plus, Trash2 } from 'lucide-react-native';
+import { RiSortAlphabetAsc } from '@oxy.so/bloom/icons/RiSortAlphabetAsc';
+import { RiSortAlphabetDesc } from '@oxy.so/bloom/icons/RiSortAlphabetDesc';
+import { RiArrowUpDownLine } from '@oxy.so/bloom/icons/RiArrowUpDownLine';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { Button } from '@oxy.so/bloom/button';
 import { ButtonGroup, ButtonGroupItem } from '@oxy.so/bloom/button-group';
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
@@ -77,7 +81,7 @@ export function SortBuilder({ database, view }: SortBuilderProps) {
         size="sm"
         accessibilityLabel={label}
         onPress={open}
-        renderLeadingIcon={({ size, color }) => <ArrowUpDown size={size} color={color} />}
+        leadingIcon={RiArrowUpDownLine}
       >
         {label}
       </Button>
@@ -125,12 +129,7 @@ export function SortBuilder({ database, view }: SortBuilderProps) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                appearance="plain"
-                size="sm"
-                className="self-start"
-                renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
-              >
+              <Button appearance="plain" size="sm" className="self-start" leadingIcon={RiAddLine}>
                 {t('databases.sorts.add')}
               </Button>
             </DropdownMenuTrigger>
@@ -202,14 +201,14 @@ function SortRow({ database, sort, onChange, onRemove }: SortRowProps) {
           checked={sort.direction === 'asc'}
           accessibilityLabel={t('databases.properties.sortAscending')}
           onPress={() => onChange({ direction: 'asc' })}
-          renderLeadingIcon={({ size, color }) => <ArrowUpAZ size={size} color={color} />}
+          leadingIcon={RiSortAlphabetDesc}
         />
         <ButtonGroupItem
           iconOnly
           checked={sort.direction === 'desc'}
           accessibilityLabel={t('databases.properties.sortDescending')}
           onPress={() => onChange({ direction: 'desc' })}
-          renderLeadingIcon={({ size, color }) => <ArrowDownAZ size={size} color={color} />}
+          leadingIcon={RiSortAlphabetAsc}
         />
       </ButtonGroup>
 
@@ -220,7 +219,7 @@ function SortRow({ database, sort, onChange, onRemove }: SortRowProps) {
         size="xs"
         accessibilityLabel={t('common.delete')}
         onPress={onRemove}
-        renderLeadingIcon={({ size, color }) => <Trash2 size={size} color={color} />}
+        leadingIcon={RiDeleteBin6Line}
       />
     </View>
   );

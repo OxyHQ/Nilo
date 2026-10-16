@@ -5,7 +5,8 @@ import { searchPageHref } from './search-results';
 import * as React from 'react';
 import { Platform, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Clock, FileText } from 'lucide-react-native';
+import { RiTimeLine } from '@oxy.so/bloom/icons/RiTimeLine';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { Avatar } from '@oxy.so/bloom/avatar';
 import { CloseButton } from '@oxy.so/bloom/button';
 import { Dialog } from '@oxy.so/bloom/dialog';
@@ -195,7 +196,7 @@ export function CommandPalette() {
                   item={item}
                   active={activeIndex === index}
                   onSelect={select}
-                  icon={<Clock size={16} color={colors.mutedForeground} />}
+                  icon={<RiTimeLine size="sm" fill={colors.mutedForeground} />}
                 />
               ))}
             </Group>
@@ -217,7 +218,7 @@ export function CommandPalette() {
                   item={item}
                   active={activeIndex === pagesStart + index}
                   onSelect={select}
-                  icon={<FileText size={16} color={colors.mutedForeground} />}
+                  icon={<RiFileTextLine size="sm" fill={colors.mutedForeground} />}
                 />
               ))}
             </Group>
@@ -325,7 +326,7 @@ function CommandRow({ item, active, onSelect }: RowProps<CommandItem>) {
       density="compact"
       accessibilityLabel={item.title}
       onPress={() => onSelect(item)}
-      leading={Icon ? <Icon size={16} color={colors.mutedForeground} /> : undefined}
+      leading={Icon ? <Icon width={16} height={16} fill={colors.mutedForeground} /> : undefined}
       title={item.title}
       subtitle={item.subtitle}
       trailing={item.shortcut ? <Kbd size="sm">{item.shortcut}</Kbd> : undefined}

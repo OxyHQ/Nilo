@@ -5,17 +5,15 @@ import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
 import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import {
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  FileText,
-  MoreHorizontal,
-  Plus,
-  Star,
-  StarOff,
-  Trash2,
-} from 'lucide-react-native';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
+import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
+import { RiFileCopyLine } from '@oxy.so/bloom/icons/RiFileCopyLine';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
+import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiStarLine } from '@oxy.so/bloom/icons/RiStarLine';
+import { RiStarOffLine } from '@oxy.so/bloom/icons/RiStarOffLine';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { Button } from '@oxy.so/bloom/button';
 import {
   DropdownMenu,
@@ -154,9 +152,9 @@ export function SharedPageRow({
             accessibilityLabel={isOpen ? t('pages.collapse') : t('pages.expand')}
             renderLeadingIcon={({ size, color }) =>
               isOpen ? (
-                <ChevronDown size={size} color={color} />
+                <RiArrowDownSLine width={size} height={size} fill={color} />
               ) : (
-                <ChevronRight size={size} color={color} />
+                <RiArrowRightSLine width={size} height={size} fill={color} />
               )
             }
           />
@@ -167,7 +165,7 @@ export function SharedPageRow({
           {page.icon ? (
             <Text className="text-sm leading-5 text-foreground">{page.icon}</Text>
           ) : (
-            <FileText size={13} color={colors.mutedForeground} />
+            <RiFileTextLine width={13} height={13} fill={colors.mutedForeground} />
           )}
         </View>
         <Text
@@ -192,9 +190,7 @@ export function SharedPageRow({
                   iconOnly
                   stopPropagation
                   accessibilityLabel={t('pages.actions.actionsFor', { title })}
-                  renderLeadingIcon={({ size, color }) => (
-                    <MoreHorizontal size={size} color={color} />
-                  )}
+                  leadingIcon={RiMoreLine}
                 />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
@@ -202,9 +198,9 @@ export function SharedPageRow({
                   onPress={handleToggleFavorite}
                   leading={
                     isFavorite ? (
-                      <StarOff size={16} color={colors.mutedForeground} />
+                      <RiStarOffLine size="sm" fill={colors.mutedForeground} />
                     ) : (
-                      <Star size={16} color={colors.mutedForeground} />
+                      <RiStarLine size="sm" fill={colors.mutedForeground} />
                     )
                   }
                 >
@@ -214,7 +210,7 @@ export function SharedPageRow({
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onPress={handleDuplicate}
-                  leading={<Copy size={16} color={colors.mutedForeground} />}
+                  leading={<RiFileCopyLine size="sm" fill={colors.mutedForeground} />}
                 >
                   {t('pages.actions.duplicate')}
                 </DropdownMenuItem>
@@ -225,7 +221,7 @@ export function SharedPageRow({
                 <DropdownMenuItem
                   variant="destructive"
                   onPress={handleDelete}
-                  leading={<Trash2 size={16} color={colors.mutedForeground} />}
+                  leading={<RiDeleteBin6Line size="sm" fill={colors.mutedForeground} />}
                 >
                   {t('pages.actions.moveToTrash')}
                 </DropdownMenuItem>
@@ -238,7 +234,7 @@ export function SharedPageRow({
               stopPropagation
               onPress={handleAddChild}
               accessibilityLabel={t('pages.actions.addSubPageTo', { title })}
-              renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+              leadingIcon={RiAddLine}
             />
           </View>
         ) : null}

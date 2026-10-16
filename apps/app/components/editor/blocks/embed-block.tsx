@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Platform, Pressable, View } from 'react-native';
-import { Code as CodeIcon } from 'lucide-react-native';
+import { RiCodeSSlashLine } from '@oxy.so/bloom/icons/RiCodeSSlashLine';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -135,7 +135,7 @@ export function EmbedBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
-          <CodeIcon size={16} color={colors.mutedForeground} />
+          <RiCodeSSlashLine size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">Embed</Text>
         </View>
         <TextFieldInput

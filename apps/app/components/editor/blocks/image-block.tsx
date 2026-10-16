@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { Platform, TextInput, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { Image as ImageIcon, Upload } from 'lucide-react-native';
+import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
+import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';
 import { Button } from '@oxy.so/bloom/button';
 import { TextField, TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
@@ -93,7 +94,7 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
-          <ImageIcon size={16} color={colors.mutedForeground} />
+          <RiImageLine size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">Image</Text>
         </View>
         <View className="flex-row items-center gap-2">
@@ -118,7 +119,7 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
               }
             }}
             disabled={busy}
-            renderLeadingIcon={({ size, color }) => <Upload size={size} color={color} />}
+            leadingIcon={RiUpload2Line}
           >
             {busy ? 'Uploading…' : 'Upload'}
           </Button>

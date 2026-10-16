@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { RefreshCcw } from 'lucide-react-native';
+import { RiRefreshLine } from '@oxy.so/bloom/icons/RiRefreshLine';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { BlockComponentProps } from './types';
@@ -15,7 +15,7 @@ export function SyncBlock({ block }: BlockComponentProps) {
     typeof block.content.sourceBlockId === 'string' ? block.content.sourceBlockId : '';
   return (
     <View className="flex-row items-center gap-2 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2">
-      <RefreshCcw size={14} color={colors.mutedForeground} />
+      <RiRefreshLine width={14} height={14} fill={colors.mutedForeground} />
       <View className="flex-1">
         <Text className="text-sm text-muted-foreground">Synced block (Phase 3)</Text>
         {sourceId ? (

@@ -4,26 +4,24 @@ import { FormulaEditor } from './formula-editor';
 import { UniqueIdEditor } from './unique-id-editor';
 import * as React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import {
-  ArrowDownAZ,
-  ArrowUpAZ,
-  EyeOff,
-  Hash,
-  Pencil,
-  Trash2,
-  Type as TypeIcon,
-  Calendar,
-  CheckSquare,
-  Link as LinkIcon,
-  Mail,
-  Phone,
-  CircleUserRound,
-  PaperclipIcon,
-  ListTodo,
-  Sigma,
-  Plus,
-  ChevronRight,
-} from 'lucide-react-native';
+import { RiSortAlphabetAsc } from '@oxy.so/bloom/icons/RiSortAlphabetAsc';
+import { RiSortAlphabetDesc } from '@oxy.so/bloom/icons/RiSortAlphabetDesc';
+import { RiEyeOffLine } from '@oxy.so/bloom/icons/RiEyeOffLine';
+import { RiHashtag } from '@oxy.so/bloom/icons/RiHashtag';
+import { RiPencilLine } from '@oxy.so/bloom/icons/RiPencilLine';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
+import { RiText } from '@oxy.so/bloom/icons/RiText';
+import { RiCalendarLine } from '@oxy.so/bloom/icons/RiCalendarLine';
+import { RiCheckboxLine } from '@oxy.so/bloom/icons/RiCheckboxLine';
+import { RiLink } from '@oxy.so/bloom/icons/RiLink';
+import { RiMailLine } from '@oxy.so/bloom/icons/RiMailLine';
+import { RiPhoneLine } from '@oxy.so/bloom/icons/RiPhoneLine';
+import { RiAccountCircleLine } from '@oxy.so/bloom/icons/RiAccountCircleLine';
+import { RiAttachment2 } from '@oxy.so/bloom/icons/RiAttachment2';
+import { RiListCheck3 } from '@oxy.so/bloom/icons/RiListCheck3';
+import { RiFunctions } from '@oxy.so/bloom/icons/RiFunctions';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Dialog, type DialogControlProps, useDialogControl } from '@oxy.so/bloom/dialog';
 import {
@@ -58,6 +56,7 @@ import {
   useUpdateProperty,
 } from '@/lib/hooks/use-database-properties';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
+import type { BloomIconComponent } from '@oxy.so/bloom/icons';
 
 interface PropertyHeaderMenuProps {
   /** Opened by the column header that owns it. */
@@ -113,30 +112,27 @@ function propertyTypeLabel(type: DatabasePropertyType): string {
   }
 }
 
-const PROPERTY_TYPE_ICONS: Record<
-  DatabasePropertyType,
-  React.ComponentType<{ size?: number; color?: string }>
-> = {
-  unique_id: Hash,
-  text: TypeIcon,
-  number: Hash,
-  select: ListTodo,
-  multi_select: ListTodo,
-  status: ListTodo,
-  date: Calendar,
-  person: CircleUserRound,
-  files: PaperclipIcon,
-  checkbox: CheckSquare,
-  url: LinkIcon,
-  email: Mail,
-  phone: Phone,
-  relation: LinkIcon,
-  rollup: Sigma,
-  created_time: Calendar,
-  last_edited_time: Calendar,
-  created_by: CircleUserRound,
-  last_edited_by: CircleUserRound,
-  formula: Sigma,
+const PROPERTY_TYPE_ICONS: Record<DatabasePropertyType, BloomIconComponent> = {
+  unique_id: RiHashtag,
+  text: RiText,
+  number: RiHashtag,
+  select: RiListCheck3,
+  multi_select: RiListCheck3,
+  status: RiListCheck3,
+  date: RiCalendarLine,
+  person: RiAccountCircleLine,
+  files: RiAttachment2,
+  checkbox: RiCheckboxLine,
+  url: RiLink,
+  email: RiMailLine,
+  phone: RiPhoneLine,
+  relation: RiLink,
+  rollup: RiFunctions,
+  created_time: RiCalendarLine,
+  last_edited_time: RiCalendarLine,
+  created_by: RiAccountCircleLine,
+  last_edited_by: RiAccountCircleLine,
+  formula: RiFunctions,
 };
 
 /**
@@ -209,8 +205,8 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
     if (confirmed) await remove();
   };
 
-  const icon = (Icon: React.ComponentType<{ size?: number; color?: string }>) => (
-    <Icon size={14} color={colors.foreground} />
+  const icon = (Icon: BloomIconComponent) => (
+    <Icon width={14} height={14} fill={colors.foreground} />
   );
 
   return (
@@ -229,7 +225,7 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
           <Item
             density="compact"
             accessibilityRole="button"
-            leading={icon(Pencil)}
+            leading={icon(RiPencilLine)}
             title={t('databases.properties.rename')}
             onPress={() => {
               setNameDraft(property.name);
@@ -242,7 +238,7 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
             <Item
               density="compact"
               accessibilityRole="button"
-              leading={icon(ListTodo)}
+              leading={icon(RiListCheck3)}
               title={t('databases.properties.editOptions')}
               onPress={() => setMode('config')}
             />
@@ -251,7 +247,7 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
             <Item
               density="compact"
               accessibilityRole="button"
-              leading={icon(LinkIcon)}
+              leading={icon(RiLink)}
               title={t('databases.relations.configure')}
               onPress={() => setMode('config')}
             />
@@ -260,7 +256,7 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
             <Item
               density="compact"
               accessibilityRole="button"
-              leading={icon(property.type === 'formula' ? Sigma : Hash)}
+              leading={icon(property.type === 'formula' ? RiFunctions : RiHashtag)}
               title={t(
                 property.type === 'formula'
                   ? 'databases.formula.edit'
@@ -272,21 +268,21 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
           <Item
             density="compact"
             accessibilityRole="button"
-            leading={icon(ArrowUpAZ)}
+            leading={icon(RiSortAlphabetDesc)}
             title={t('databases.properties.sortAscending')}
             onPress={() => applySort('asc')}
           />
           <Item
             density="compact"
             accessibilityRole="button"
-            leading={icon(ArrowDownAZ)}
+            leading={icon(RiSortAlphabetAsc)}
             title={t('databases.properties.sortDescending')}
             onPress={() => applySort('desc')}
           />
           <Item
             density="compact"
             accessibilityRole="button"
-            leading={icon(EyeOff)}
+            leading={icon(RiEyeOffLine)}
             title={t('databases.properties.hideInView')}
             onPress={hide}
           />
@@ -295,7 +291,7 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
               density="compact"
               accessibilityRole="button"
               destructive
-              leading={<Trash2 size={14} color={theme.colors.error} />}
+              leading={<RiDeleteBin6Line width={14} height={14} fill={theme.colors.error} />}
               title={t('databases.properties.delete')}
               onPress={() => void requestRemove()}
             />
@@ -418,7 +414,7 @@ function SelectOptionsEditor({ property, database, onDone }: SelectOptionsEditor
           tone="accent"
           size="sm"
           onPress={addOption}
-          renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+          leadingIcon={RiAddLine}
         >
           {t('databases.actions.add')}
         </Button>
@@ -455,7 +451,7 @@ function OptionRow({ option, onRemove, onRecolor }: OptionRowProps) {
             className={`px-2 py-0.5 rounded-md ${palette.bg} flex-row items-center gap-1`}
           >
             <Text className={`text-xs ${palette.fg}`}>{option.name}</Text>
-            <ChevronRight size={10} color={colors.mutedForeground} />
+            <RiArrowRightSLine width={10} height={10} fill={colors.mutedForeground} />
           </Pressable>
         </PopoverTrigger>
         <PopoverContent align="start" label={option.name}>
@@ -485,7 +481,7 @@ function OptionRow({ option, onRemove, onRecolor }: OptionRowProps) {
         size="xs"
         accessibilityLabel={t('common.delete')}
         onPress={onRemove}
-        renderLeadingIcon={({ size, color }) => <Trash2 size={size} color={color} />}
+        leadingIcon={RiDeleteBin6Line}
       />
     </View>
   );
@@ -555,11 +551,7 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
     <>
       <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
-          <Button
-            appearance="plain"
-            size="sm"
-            renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
-          >
+          <Button appearance="plain" size="sm" leadingIcon={RiAddLine}>
             {isPending ? t('databases.actions.adding') : t('databases.properties.add')}
           </Button>
         </DropdownMenuTrigger>
@@ -573,7 +565,7 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
                   key={type}
                   // The menu stays open until the property is added.
                   keepOpen={type !== 'relation'}
-                  leading={<Icon size={14} color={colors.foreground} />}
+                  leading={<Icon width={14} height={14} fill={colors.foreground} />}
                   onPress={() => {
                     if (type === 'relation') {
                       relation.open();

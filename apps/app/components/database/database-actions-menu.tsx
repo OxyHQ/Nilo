@@ -1,7 +1,7 @@
 import { useDatabase } from '@/lib/hooks/use-databases';
 import { useAddProperty, useDeleteProperty } from '@/lib/hooks/use-database-properties';
 import { subItemProperties } from '@/lib/sub-items';
-import { MoreHorizontal } from 'lucide-react-native';
+import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
 import { Button } from '@oxy.so/bloom/button';
 import {
   DropdownMenu,
@@ -63,7 +63,7 @@ export function DatabaseActionsMenu({ databaseId }: { databaseId: string }) {
           iconOnly
           appearance="plain"
           accessibilityLabel={t('databases.csv.menu')}
-          renderLeadingIcon={({ size, color }) => <MoreHorizontal size={size} color={color} />}
+          leadingIcon={RiMoreLine}
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" label={t('databases.csv.menu')}>

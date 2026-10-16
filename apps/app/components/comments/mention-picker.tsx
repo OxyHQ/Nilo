@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { Platform, ScrollView, View } from 'react-native';
-import { Calendar, FileText, User } from 'lucide-react-native';
+import { RiCalendarLine } from '@oxy.so/bloom/icons/RiCalendarLine';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
+import { RiUserLine } from '@oxy.so/bloom/icons/RiUserLine';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Item } from '@oxy.so/bloom/item';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@oxy.so/bloom/popover';
@@ -138,14 +140,17 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
   if (!open) return null;
 
   const renderIcon = (kind: MentionKind) => {
-    if (kind === 'user') return <User size={16} color={colors.foreground} />;
-    if (kind === 'page') return <FileText size={16} color={colors.foreground} />;
-    return <Calendar size={16} color={colors.foreground} />;
+    if (kind === 'user') return <RiUserLine size="sm" fill={colors.foreground} />;
+    if (kind === 'page') return <RiFileTextLine size="sm" fill={colors.foreground} />;
+    return <RiCalendarLine size="sm" fill={colors.foreground} />;
   };
 
   return (
+    // Not modal: the user keeps typing and clicking in the composer while the
+    // picker is open, and a backdrop would swallow that first click.
     <Popover
       open
+      modal={false}
       onOpenChange={(next) => {
         if (!next) onClose();
       }}

@@ -3,7 +3,7 @@ import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
@@ -198,7 +198,7 @@ export function ViewTable({ database, view, rows, isLoading, readOnly = false }:
             onPress={handleNewRow}
             className="flex-row items-center gap-2 px-3 py-2 border-b border-border/60 hover:bg-muted/40"
           >
-            <Plus size={14} color={colors.mutedForeground} />
+            <RiAddLine width={14} height={14} fill={colors.mutedForeground} />
             <Text className="text-sm text-muted-foreground">
               {createRow.isPending ? t('databases.actions.adding') : t('databases.actions.new')}
             </Text>

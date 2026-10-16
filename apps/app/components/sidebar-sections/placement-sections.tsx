@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
 import { useRouter } from 'expo-router';
-import { Settings } from 'lucide-react-native';
+import { RiSettings3Line } from '@oxy.so/bloom/icons/RiSettings3Line';
 import { Button } from '@oxy.so/bloom/button';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
 import { Item } from '@oxy.so/bloom/item';
@@ -80,7 +80,7 @@ function WorkspacePlacements({ workspaceId }: { workspaceId: string }) {
                 iconOnly
                 accessibilityLabel={t('workspace.teamspaces.settingsFor', { name: teamspace.name })}
                 onPress={() => openDialog(teamspace)}
-                renderLeadingIcon={({ size, color }) => <Settings size={size} color={color} />}
+                leadingIcon={RiSettings3Line}
               />
             }
           >

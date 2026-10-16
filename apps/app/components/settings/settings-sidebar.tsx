@@ -7,47 +7,50 @@ import { BaseSidebar } from '@/components/base-sidebar';
 import { useRouter, usePathname } from 'expo-router';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
-import {
-  User,
-  Settings2,
-  MessageSquarePlus,
-  ArrowLeft,
-  Users,
-  CloudOff,
-  type LucideIcon,
-} from 'lucide-react-native';
+import { RiUserLine } from '@oxy.so/bloom/icons/RiUserLine';
+import { RiEqualizerLine } from '@oxy.so/bloom/icons/RiEqualizerLine';
+import { RiChatNewLine } from '@oxy.so/bloom/icons/RiChatNewLine';
+import { RiArrowLeftLine } from '@oxy.so/bloom/icons/RiArrowLeftLine';
+import { RiGroupLine } from '@oxy.so/bloom/icons/RiGroupLine';
+import { RiCloudOffLine } from '@oxy.so/bloom/icons/RiCloudOffLine';
+import type { BloomIconComponent } from '@oxy.so/bloom/icons';
 
 interface SettingsSection {
   id: string;
   route: string;
-  icon: LucideIcon;
+  icon: BloomIconComponent;
   labelKey: string;
 }
 
 const SECTIONS: SettingsSection[] = [
-  { id: 'account', route: '/(app)/settings', icon: User, labelKey: 'settings.sections.account' },
+  {
+    id: 'account',
+    route: '/(app)/settings',
+    icon: RiUserLine,
+    labelKey: 'settings.sections.account',
+  },
   {
     id: 'members',
     route: '/(app)/settings/members',
-    icon: Users,
+    icon: RiGroupLine,
     labelKey: 'settings.sections.members',
   },
   {
     id: 'general',
     route: '/(app)/settings/general',
-    icon: Settings2,
+    icon: RiEqualizerLine,
     labelKey: 'settings.sections.general',
   },
   {
     id: 'offline',
     route: '/(app)/settings/offline',
-    icon: CloudOff,
+    icon: RiCloudOffLine,
     labelKey: 'settings.sections.offline',
   },
   {
     id: 'feedback',
     route: '/(app)/settings/feedback',
-    icon: MessageSquarePlus,
+    icon: RiChatNewLine,
     labelKey: 'settings.sections.feedback',
   },
 ];
@@ -81,7 +84,7 @@ export const SettingsSidebar = React.memo(function SettingsSidebar() {
         size="sm"
         className="self-start"
         onPress={handleBack}
-        renderLeadingIcon={({ size, color }) => <ArrowLeft size={size} color={color} />}
+        leadingIcon={RiArrowLeftLine}
       >
         {t('common.back')}
       </Button>
@@ -108,7 +111,11 @@ export const SettingsSidebar = React.memo(function SettingsSidebar() {
                 active={isActive}
                 onPress={() => handleSelect(section)}
                 leading={
-                  <Icon size={16} color={isActive ? colors.foreground : colors.mutedForeground} />
+                  <Icon
+                    width={16}
+                    height={16}
+                    fill={isActive ? colors.foreground : colors.mutedForeground}
+                  />
                 }
                 title={t(section.labelKey)}
               />

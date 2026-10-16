@@ -2,10 +2,11 @@ import * as React from 'react';
 import { View } from 'react-native';
 import { Item } from '@oxy.so/bloom/item';
 import { useColorScheme } from '@/lib/useColorScheme';
+import type { BloomIconComponent } from '@oxy.so/bloom/icons';
 
 interface SidebarItemProps {
   /** A Lucide icon, or any component that draws itself at `size` (and `color`, if it has one). */
-  icon: React.ComponentType<{ size?: number; color?: string }>;
+  icon: BloomIconComponent;
   label: string;
   onPress: () => void;
   isActive?: boolean;
@@ -36,7 +37,7 @@ export const SidebarItem = React.memo(function SidebarItem({
       accessibilityLabel={accessibilityLabel ?? label}
       leading={
         <View className="h-5 w-5 items-center justify-center">
-          <Icon size={14} color={colors.mutedForeground} />
+          <Icon width={14} height={14} fill={colors.mutedForeground} />
         </View>
       }
       title={label}

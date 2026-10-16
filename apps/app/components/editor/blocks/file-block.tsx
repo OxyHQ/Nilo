@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Platform, Pressable, View } from 'react-native';
-import { File as FileIcon, Upload } from 'lucide-react-native';
+import { RiFileLine } from '@oxy.so/bloom/icons/RiFileLine';
+import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';
 import { Button } from '@oxy.so/bloom/button';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -95,7 +96,7 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
-          <FileIcon size={16} color={colors.mutedForeground} />
+          <RiFileLine size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">File</Text>
         </View>
         <Button
@@ -111,7 +112,7 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
             }
           }}
           disabled={busy}
-          renderLeadingIcon={({ size, color }) => <Upload size={size} color={color} />}
+          leadingIcon={RiUpload2Line}
         >
           {busy ? 'Uploading…' : 'Choose file'}
         </Button>
@@ -139,7 +140,7 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <a href={url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
         <View className="flex-row items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2">
-          <FileIcon size={18} color={colors.foreground} />
+          <RiFileLine width={18} height={18} fill={colors.foreground} />
           <View className="flex-1">
             <Text variant="body-regular">{displayName}</Text>
             {sizeLabel ? <Text className="text-xs text-muted-foreground">{sizeLabel}</Text> : null}
@@ -156,7 +157,7 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
       }}
       className="flex-row items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
     >
-      <FileIcon size={18} color={colors.foreground} />
+      <RiFileLine width={18} height={18} fill={colors.foreground} />
       <View className="flex-1">
         <Text variant="body-regular">{displayName}</Text>
         {sizeLabel ? <Text className="text-xs text-muted-foreground">{sizeLabel}</Text> : null}

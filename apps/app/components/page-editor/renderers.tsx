@@ -1,7 +1,7 @@
 import type { BlockRenderer, BlockRendererProps, EditorStore } from '@oxy.so/bloom-editor';
 import { type ComponentType, useSyncExternalStore } from 'react';
 import { Platform, Pressable, View } from 'react-native';
-import { List as ListIcon } from 'lucide-react-native';
+import { RiListUnordered } from '@oxy.so/bloom/icons/RiListUnordered';
 import { AudioBlock } from '@/components/editor/blocks/audio-block';
 import { BookmarkBlock } from '@/components/editor/blocks/bookmark-block';
 import { BreadcrumbBlock } from '@/components/editor/blocks/breadcrumb-block';
@@ -87,7 +87,7 @@ function TableOfContents({ store }: { store: EditorStore }) {
   if (headings.length === 0) {
     return (
       <View className="my-1 flex-row items-center gap-2 rounded-md border border-dashed border-border px-3 py-2">
-        <ListIcon size={14} color={colors.mutedForeground} />
+        <RiListUnordered width={14} height={14} fill={colors.mutedForeground} />
         <Text className="text-xs text-muted-foreground">{t('editor.tableOfContents.empty')}</Text>
       </View>
     );

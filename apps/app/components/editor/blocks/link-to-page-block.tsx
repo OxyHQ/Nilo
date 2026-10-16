@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { FileText } from 'lucide-react-native';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -46,7 +46,7 @@ export function LinkToPageBlock({ block, onChangeContent }: BlockComponentProps)
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-3 gap-2">
         <View className="flex-row items-center gap-2">
-          <FileText size={16} color={colors.mutedForeground} />
+          <RiFileTextLine size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">Link to page</Text>
         </View>
         <TextFieldInput
@@ -76,7 +76,7 @@ export function LinkToPageBlock({ block, onChangeContent }: BlockComponentProps)
       {icon ? (
         <Text variant="headline-regular">{icon}</Text>
       ) : (
-        <FileText size={14} color={colors.foreground} />
+        <RiFileTextLine width={14} height={14} fill={colors.foreground} />
       )}
       <Text className="text-sm text-foreground underline" numberOfLines={1}>
         {title}

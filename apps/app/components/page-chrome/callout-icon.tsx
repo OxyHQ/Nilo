@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import { IconDisplay } from './icon-display';
-import { getLucideIcon } from './lucide-icons';
+import { getPageIcon } from './page-icons';
 
 /**
  * A callout's icon, encoded like a page icon (`emoji:…`, `icon:…`,
@@ -10,7 +10,7 @@ import { getLucideIcon } from './lucide-icons';
 export function CalloutIcon({ value, size = 18 }: { value: unknown; size?: number }) {
   const raw = typeof value === 'string' ? value.trim() : '';
   const encoded =
-    raw && !raw.includes(':') && getLucideIcon(raw) ? `icon:${raw}` : raw || 'icon:lightbulb';
+    raw && !raw.includes(':') && getPageIcon(raw) ? `icon:${raw}` : raw || 'icon:lightbulb';
   return (
     <View
       className="items-center justify-center"

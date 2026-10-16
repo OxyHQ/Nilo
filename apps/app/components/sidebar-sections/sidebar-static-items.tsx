@@ -1,7 +1,10 @@
 import { Platform, View } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { AliaAvatarIcon } from '@alia.onl/sdk/avatar';
-import { Search, Inbox, Settings, Trash2 } from 'lucide-react-native';
+import { RiSearchLine } from '@oxy.so/bloom/icons/RiSearchLine';
+import { RiInbox2Line } from '@oxy.so/bloom/icons/RiInbox2Line';
+import { RiSettings3Line } from '@oxy.so/bloom/icons/RiSettings3Line';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { Badge } from '@oxy.so/bloom/badge';
 import { Kbd } from '@oxy.so/bloom/kbd';
 import { useUIStore } from '@/lib/stores/ui-store';
@@ -34,7 +37,7 @@ export function SidebarSearchButton() {
   const mod = modifierKey();
   return (
     <SidebarItem
-      icon={Search}
+      icon={RiSearchLine}
       label={t('sidebar.search')}
       onPress={() => setOpen(true)}
       accessibilityLabel={t('sidebar.searchLabel')}
@@ -51,8 +54,8 @@ export function SidebarSearchButton() {
 }
 
 /** `SidebarItem`'s icon slot hands over a size; the avatar takes it as its width. */
-function AliaGlyph({ size }: { size?: number }) {
-  return <AliaAvatarIcon width={size} height={size} />;
+function AliaGlyph({ width, height }: { width?: number; height?: number }) {
+  return <AliaAvatarIcon width={width} height={height} />;
 }
 
 /**
@@ -81,7 +84,7 @@ export function SidebarInboxButton({ unreadCount }: InboxButtonProps) {
 
   return (
     <SidebarItem
-      icon={Inbox}
+      icon={RiInbox2Line}
       label={t('sidebar.inbox')}
       isActive={isActive}
       onPress={() => router.push('/(app)/notifications')}
@@ -101,7 +104,7 @@ export function SidebarSettingsButton() {
   const { t } = useTranslation();
   return (
     <SidebarItem
-      icon={Settings}
+      icon={RiSettings3Line}
       label={t('sidebar.settingsAndMembers')}
       isActive={isActive}
       onPress={() => router.push('/(app)/settings')}
@@ -116,7 +119,7 @@ export function SidebarTrashButton() {
   const { t } = useTranslation();
   return (
     <SidebarItem
-      icon={Trash2}
+      icon={RiDeleteBin6Line}
       label={t('sidebar.trash')}
       isActive={isActive}
       onPress={() => router.push('/trash')}

@@ -2,7 +2,8 @@ import * as React from 'react';
 import { ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useOxy } from '@oxy.so/services';
-import { RotateCcw, Trash2 } from 'lucide-react-native';
+import { RiArrowGoBackLine } from '@oxy.so/bloom/icons/RiArrowGoBackLine';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Item } from '@oxy.so/bloom/item';
@@ -135,7 +136,7 @@ export default function TrashRoute() {
               onPress={handleEmptyTrash}
               disabled={emptyTrash.isPending || pages.length === 0}
               loading={emptyTrash.isPending}
-              renderLeadingIcon={({ size, color }) => <Trash2 size={size} color={color} />}
+              leadingIcon={RiDeleteBin6Line}
             >
               {t('trash.emptyTrash')}
             </Button>
@@ -199,7 +200,7 @@ function TrashRow({ page, onRestore, onHardDelete, canHardDelete }: TrashRowProp
               stopPropagation
               onPress={onRestore}
               accessibilityLabel={t('trash.restorePage')}
-              renderLeadingIcon={({ size, color }) => <RotateCcw size={size} color={color} />}
+              leadingIcon={RiArrowGoBackLine}
             >
               {t('trash.restore')}
             </Button>
@@ -211,7 +212,7 @@ function TrashRow({ page, onRestore, onHardDelete, canHardDelete }: TrashRowProp
                 stopPropagation
                 onPress={onHardDelete}
                 accessibilityLabel={t('trash.deletePagePermanently')}
-                renderLeadingIcon={({ size, color }) => <Trash2 size={size} color={color} />}
+                leadingIcon={RiDeleteBin6Line}
               >
                 {t('common.delete')}
               </Button>

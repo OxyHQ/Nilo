@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
-import { FileText, Clock } from 'lucide-react-native';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
+import { RiTimeLine } from '@oxy.so/bloom/icons/RiTimeLine';
 import { Item } from '@oxy.so/bloom/item';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -45,7 +46,7 @@ export function RecentsSection() {
   return (
     <View className="px-1 py-1">
       <View className="flex-row items-center gap-1 px-3 pb-1">
-        <Clock size={10} color={colors.mutedForeground} />
+        <RiTimeLine width={10} height={10} fill={colors.mutedForeground} />
         <Text className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           {t('sidebar.recent')}
         </Text>
@@ -66,7 +67,7 @@ export function RecentsSection() {
                   {p.icon ? (
                     <Text className="text-sm leading-5 text-foreground">{p.icon}</Text>
                   ) : (
-                    <FileText size={13} color={colors.mutedForeground} />
+                    <RiFileTextLine width={13} height={13} fill={colors.mutedForeground} />
                   )}
                 </View>
               }

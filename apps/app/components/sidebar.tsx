@@ -15,19 +15,17 @@ import {
   DropdownMenuTrigger,
 } from '@oxy.so/bloom/dropdown-menu';
 import { Text } from '@oxy.so/bloom/typography';
-import {
-  Bell,
-  ChevronsLeft,
-  ChevronsRight,
-  FileText,
-  LogIn,
-  LogOut,
-  Plus,
-  Settings,
-  ShieldCheck,
-  User,
-  UserPlus,
-} from 'lucide-react-native';
+import { RiNotification3Line } from '@oxy.so/bloom/icons/RiNotification3Line';
+import { RiArrowLeftDoubleLine } from '@oxy.so/bloom/icons/RiArrowLeftDoubleLine';
+import { RiArrowRightDoubleLine } from '@oxy.so/bloom/icons/RiArrowRightDoubleLine';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
+import { RiLoginBoxLine } from '@oxy.so/bloom/icons/RiLoginBoxLine';
+import { RiLogoutBoxRLine } from '@oxy.so/bloom/icons/RiLogoutBoxRLine';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiSettings3Line } from '@oxy.so/bloom/icons/RiSettings3Line';
+import { RiShieldCheckLine } from '@oxy.so/bloom/icons/RiShieldCheckLine';
+import { RiUserLine } from '@oxy.so/bloom/icons/RiUserLine';
+import { RiUserAddLine } from '@oxy.so/bloom/icons/RiUserAddLine';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useRouter, usePathname } from 'expo-router';
@@ -157,7 +155,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
             iconOnly
             onPress={toggleSidebarCollapsed}
             accessibilityLabel={t('sidebar.expandSidebar')}
-            renderLeadingIcon={({ size, color }) => <ChevronsRight size={size} color={color} />}
+            leadingIcon={RiArrowRightDoubleLine}
           />
           {isAuthenticated ? (
             <Button
@@ -176,7 +174,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
               iconOnly
               onPress={handleLogin}
               accessibilityLabel={t('login.signInButton')}
-              renderLeadingIcon={({ size, color }) => <LogIn size={size} color={color} />}
+              leadingIcon={RiLoginBoxLine}
             />
           )}
         </View>
@@ -212,7 +210,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
               iconOnly
               onPress={toggleSidebarCollapsed}
               accessibilityLabel={t('sidebar.collapseSidebar')}
-              renderLeadingIcon={({ size, color }) => <ChevronsLeft size={size} color={color} />}
+              leadingIcon={RiArrowLeftDoubleLine}
             />
           </View>
         )}
@@ -258,7 +256,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
             className="self-start"
             onPress={handleCreatePage}
             accessibilityLabel={t('sidebar.newPage')}
-            renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+            leadingIcon={RiAddLine}
           >
             {t('sidebar.newPage')}
           </Button>
@@ -301,13 +299,13 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onPress={handleAccount}
-                leading={<User size={16} color={colors.mutedForeground} />}
+                leading={<RiUserLine size="sm" fill={colors.mutedForeground} />}
               >
                 {t('sidebar.account')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onPress={handleNotifications}
-                leading={<Bell size={16} color={colors.mutedForeground} />}
+                leading={<RiNotification3Line size="sm" fill={colors.mutedForeground} />}
               >
                 {unreadCount > 0
                   ? `${t('sidebar.notifications')} (${unreadCount})`
@@ -315,7 +313,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 onPress={handleSettings}
-                leading={<Settings size={16} color={colors.mutedForeground} />}
+                leading={<RiSettings3Line size="sm" fill={colors.mutedForeground} />}
               >
                 {t('sidebar.settings')}
               </DropdownMenuItem>
@@ -324,7 +322,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
                 onPress={() =>
                   Linking.openURL('https://oxy.so/company/transparency/policies/terms-of-service')
                 }
-                leading={<FileText size={16} color={colors.mutedForeground} />}
+                leading={<RiFileTextLine size="sm" fill={colors.mutedForeground} />}
               >
                 {t('sidebar.termsOfService')}
               </DropdownMenuItem>
@@ -332,7 +330,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
                 onPress={() =>
                   Linking.openURL('https://oxy.so/company/transparency/policies/privacy')
                 }
-                leading={<ShieldCheck size={16} color={colors.mutedForeground} />}
+                leading={<RiShieldCheckLine size="sm" fill={colors.mutedForeground} />}
               >
                 {t('sidebar.privacyPolicy')}
               </DropdownMenuItem>
@@ -340,7 +338,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
               <DropdownMenuItem
                 variant="destructive"
                 onPress={handleLogout}
-                leading={<LogOut size={16} color={colors.mutedForeground} />}
+                leading={<RiLogoutBoxRLine size="sm" fill={colors.mutedForeground} />}
               >
                 {t('sidebar.logOut')}
               </DropdownMenuItem>
@@ -353,7 +351,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
               tone="accent"
               className="w-full"
               onPress={handleLogin}
-              renderLeadingIcon={({ size, color }) => <LogIn size={size} color={color} />}
+              leadingIcon={RiLoginBoxLine}
             >
               {t('login.signInButton')}
             </Button>
@@ -361,7 +359,7 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
               appearance="outline"
               className="w-full"
               onPress={handleLogin}
-              renderLeadingIcon={({ size, color }) => <UserPlus size={size} color={color} />}
+              leadingIcon={RiUserAddLine}
             >
               {t('login.footerLink')}
             </Button>

@@ -1,4 +1,4 @@
-import { Share2 } from 'lucide-react-native';
+import { RiShareLine } from '@oxy.so/bloom/icons/RiShareLine';
 import { Button } from '@oxy.so/bloom/button';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
 import { ShareModal } from './share-modal';
@@ -28,7 +28,7 @@ export function ShareButton({ pageId, compact = false }: ShareButtonProps) {
         iconOnly={compact}
         onPress={control.open}
         accessibilityLabel={t('sharing.button.label')}
-        renderLeadingIcon={({ size, color }) => <Share2 size={size} color={color} />}
+        leadingIcon={RiShareLine}
       >
         {compact ? undefined : t('sharing.button.share')}
       </Button>

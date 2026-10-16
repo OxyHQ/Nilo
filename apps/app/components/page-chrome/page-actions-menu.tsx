@@ -6,7 +6,7 @@ import { ReminderDialog } from '@/components/reminders/reminder-dialog';
 import * as React from 'react';
 import { Platform, ScrollView, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { MoreHorizontal } from 'lucide-react-native';
+import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
 import { useRouter } from 'expo-router';
 import { useOxy } from '@oxy.so/services';
 import { toast } from '@oxy.so/bloom/toast';
@@ -163,7 +163,7 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
             tone="neutral"
             iconOnly
             accessibilityLabel={t('pages.actions.menu')}
-            renderLeadingIcon={({ size, color }) => <MoreHorizontal size={size} color={color} />}
+            leadingIcon={RiMoreLine}
           />
         </PopoverTrigger>
         <PopoverContent align="end" label={t('pages.actions.menu')} className="w-72">

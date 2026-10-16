@@ -8,7 +8,8 @@ import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import { Database as DatabaseIcon, ExternalLink } from 'lucide-react-native';
+import { RiDatabase2Line } from '@oxy.so/bloom/icons/RiDatabase2Line';
+import { RiExternalLinkLine } from '@oxy.so/bloom/icons/RiExternalLinkLine';
 import { DatabaseViewContainer } from '@/components/database/database-view';
 import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
@@ -153,7 +154,7 @@ export function InlineDatabaseBlock({
         {db.icon ? (
           <Text variant="headline-regular">{db.icon}</Text>
         ) : (
-          <DatabaseIcon size={16} color={colors.mutedForeground} />
+          <RiDatabase2Line size="sm" fill={colors.mutedForeground} />
         )}
         <Text accessibilityRole="header" className="flex-1 text-sm font-semibold text-foreground">
           {db.name || t('editor.inlineDatabase.defaultName')}
@@ -166,7 +167,7 @@ export function InlineDatabaseBlock({
           accessibilityRole="link"
           accessibilityLabel={t('editor.inlineDatabase.openFullPage')}
           onPress={() => router.push(`/db/${db.id}`)}
-          renderLeadingIcon={({ size, color }) => <ExternalLink size={size} color={color} />}
+          leadingIcon={RiExternalLinkLine}
         >
           {t('editor.inlineDatabase.openFullPage')}
         </Button>

@@ -1,7 +1,9 @@
 import React from 'react';
 import { Text as RNText, View, Platform } from 'react-native';
 import { useOxy } from '@oxy.so/services';
-import { UserPlus, MoreHorizontal, Trash2 } from 'lucide-react-native';
+import { RiUserAddLine } from '@oxy.so/bloom/icons/RiUserAddLine';
+import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { Avatar } from '@oxy.so/bloom/avatar';
 import { Button } from '@oxy.so/bloom/button';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
@@ -170,16 +172,14 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
                     name: memberDisplayName(member),
                   })}
                   disabled={isUpdating || isRemoving}
-                  renderLeadingIcon={({ size, color }) => (
-                    <MoreHorizontal size={size} color={color} />
-                  )}
+                  leadingIcon={RiMoreLine}
                 />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem
                   variant="destructive"
                   onPress={handleRemove}
-                  leading={<Trash2 size={16} color={colors.mutedForeground} />}
+                  leading={<RiDeleteBin6Line size="sm" fill={colors.mutedForeground} />}
                 >
                   {t('workspace.members.remove')}
                 </DropdownMenuItem>
@@ -240,7 +240,7 @@ export function MembersSection() {
             tone="accent"
             size="sm"
             onPress={() => inviteDialog.open()}
-            renderLeadingIcon={({ size, color }) => <UserPlus size={size} color={color} />}
+            leadingIcon={RiUserAddLine}
           >
             {t('workspace.members.invite')}
           </Button>

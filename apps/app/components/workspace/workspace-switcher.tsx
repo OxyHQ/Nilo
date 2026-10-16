@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Pressable } from 'react-native';
-import { ChevronDown, Plus, Check } from 'lucide-react-native';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
 import { Avatar } from '@oxy.so/bloom/avatar';
 import { Button } from '@oxy.so/bloom/button';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
@@ -109,7 +111,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
           iconOnly={collapsed}
           onPress={handleCreate}
           accessibilityLabel={t('workspace.switcher.createFirst')}
-          renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+          leadingIcon={RiAddLine}
         >
           {collapsed ? undefined : t('workspace.create.submit')}
         </Button>
@@ -154,7 +156,12 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
                 >
                   {triggerLabel}
                 </Text>
-                <ChevronDown size={14} color={colors.mutedForeground} style={{ flexShrink: 0 }} />
+                <RiArrowDownSLine
+                  width={14}
+                  height={14}
+                  fill={colors.mutedForeground}
+                  style={{ flexShrink: 0 }}
+                />
               </>
             )}
           </Pressable>
@@ -172,7 +179,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
                 leading={<WorkspaceIcon workspace={workspace} size={24} />}
                 trailing={
                   isActive ? (
-                    <Check size={16} color={colors.foreground} style={{ flexShrink: 0 }} />
+                    <RiCheckLine size="sm" fill={colors.foreground} style={{ flexShrink: 0 }} />
                   ) : undefined
                 }
               >
@@ -190,7 +197,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onPress={handleCreate}
-            leading={<Plus size={14} color={colors.foreground} />}
+            leading={<RiAddLine width={14} height={14} fill={colors.foreground} />}
           >
             {t('workspace.create.title')}
           </DropdownMenuItem>

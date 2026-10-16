@@ -4,7 +4,11 @@ import { toast } from '@oxy.so/bloom/toast';
 import { PageInfo } from './page-info';
 import * as React from 'react';
 import { Platform, Pressable, TextInput, View, type GestureResponderEvent } from 'react-native';
-import { Globe, ImageIcon, Lock, Move, Smile } from 'lucide-react-native';
+import { RiGlobalLine } from '@oxy.so/bloom/icons/RiGlobalLine';
+import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
+import { RiLockLine } from '@oxy.so/bloom/icons/RiLockLine';
+import { RiDragMove2Line } from '@oxy.so/bloom/icons/RiDragMove2Line';
+import { RiEmotionHappyLine } from '@oxy.so/bloom/icons/RiEmotionHappyLine';
 import { Badge } from '@oxy.so/bloom/badge';
 import { Button } from '@oxy.so/bloom/button';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
@@ -97,7 +101,7 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
             ) : null}
             {page.publishedAt ? (
               <View accessible accessibilityLabel={t('pages.publish.published')} className="px-1">
-                <Globe size={14} color={colors.mutedForeground} />
+                <RiGlobalLine width={14} height={14} fill={colors.mutedForeground} />
               </View>
             ) : null}
             {rightHeader}
@@ -130,6 +134,7 @@ const RepositioningContext = React.createContext<boolean>(false);
 export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: boolean }) {
   const router = useRouter();
   const { t } = useTranslation();
+  const { colors } = useColorScheme();
   const state = React.useContext(StateContext);
   const repositioning = React.useContext(RepositioningContext);
   const updatePage = useUpdatePage();
@@ -246,7 +251,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
         )}
         {page.locked ? (
           <View className="mt-3 flex-row items-center gap-2 rounded-lg bg-muted px-3 py-2">
-            <Lock size={14} className="text-muted-foreground" />
+            <RiLockLine width={14} height={14} fill={colors.mutedForeground} />
             <Text className="flex-1 text-sm text-muted-foreground" accessibilityLiveRegion="polite">
               {t('pages.lock.banner')}
             </Text>
@@ -352,7 +357,7 @@ function CoverArea({
           size="sm"
           onPress={onToggleReposition}
           accessibilityLabel={t('pages.header.repositionCover')}
-          renderLeadingIcon={({ size, color }) => <Move size={size} color={color} />}
+          leadingIcon={RiDragMove2Line}
         >
           {repositioning ? t('pages.header.savePosition') : t('pages.header.reposition')}
         </Button>
@@ -362,7 +367,7 @@ function CoverArea({
           size="sm"
           onPress={onOpenPicker}
           accessibilityLabel={t('pages.header.changeCover')}
-          renderLeadingIcon={({ size, color }) => <ImageIcon size={size} color={color} />}
+          leadingIcon={RiImageLine}
         >
           {t('pages.header.changeCover')}
         </Button>
@@ -433,9 +438,9 @@ function AddChromeButton({ icon, label, onPress }: AddChromeButtonProps) {
       accessibilityLabel={label}
       renderLeadingIcon={({ size, color }) =>
         icon === 'emoji' ? (
-          <Smile size={size} color={color} />
+          <RiEmotionHappyLine width={size} height={size} fill={color} />
         ) : (
-          <ImageIcon size={size} color={color} />
+          <RiImageLine width={size} height={size} fill={color} />
         )
       }
     >

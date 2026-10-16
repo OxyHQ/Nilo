@@ -1,5 +1,6 @@
 import { Pressable } from 'react-native';
-import { ChevronDown, ChevronRight } from 'lucide-react-native';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
+import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -14,7 +15,7 @@ export function SubItemToggle({
   onPress: () => void;
 }) {
   const { t } = useTranslation();
-  const Icon = expanded ? ChevronDown : ChevronRight;
+  const Icon = expanded ? RiArrowDownSLine : RiArrowRightSLine;
   return (
     <Button
       iconOnly
@@ -28,7 +29,7 @@ export function SubItemToggle({
         { title: title || t('databases.untitled') },
       )}
       onPress={onPress}
-      renderLeadingIcon={({ size, color }) => <Icon size={size} color={color} />}
+      leadingIcon={Icon}
     />
   );
 }

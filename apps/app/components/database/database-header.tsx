@@ -2,18 +2,16 @@ import { toast } from '@oxy.so/bloom/toast';
 import { DatabaseActionsMenu } from './database-actions-menu';
 import * as React from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
-import {
-  Calendar,
-  ClipboardList,
-  GalleryVertical,
-  Image as ImageIcon,
-  Kanban,
-  ListIcon,
-  Plus,
-  Settings2,
-  Table as TableIcon,
-  TimerReset,
-} from 'lucide-react-native';
+import { RiCalendarLine } from '@oxy.so/bloom/icons/RiCalendarLine';
+import { RiFileList3Line } from '@oxy.so/bloom/icons/RiFileList3Line';
+import { RiGalleryView } from '@oxy.so/bloom/icons/RiGalleryView';
+import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
+import { RiKanbanView2 } from '@oxy.so/bloom/icons/RiKanbanView2';
+import { RiListUnordered } from '@oxy.so/bloom/icons/RiListUnordered';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiEqualizerLine } from '@oxy.so/bloom/icons/RiEqualizerLine';
+import { RiTableLine } from '@oxy.so/bloom/icons/RiTableLine';
+import { RiHistoryLine } from '@oxy.so/bloom/icons/RiHistoryLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Dialog } from '@oxy.so/bloom/dialog';
 import { Item } from '@oxy.so/bloom/item';
@@ -26,18 +24,16 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseView, DatabaseViewType } from '@/lib/types/databases';
 import { useUpdateDatabase } from '@/lib/hooks/use-databases';
 import { useCreateView, useDeleteView, useUpdateView } from '@/lib/hooks/use-database-views';
+import type { BloomIconComponent } from '@oxy.so/bloom/icons';
 
-const VIEW_ICONS: Record<
-  DatabaseViewType,
-  React.ComponentType<{ size?: number; color?: string }>
-> = {
-  form: ClipboardList,
-  table: TableIcon,
-  board: Kanban,
-  gallery: GalleryVertical,
-  list: ListIcon,
-  calendar: Calendar,
-  timeline: TimerReset,
+const VIEW_ICONS: Record<DatabaseViewType, BloomIconComponent> = {
+  form: RiFileList3Line,
+  table: RiTableLine,
+  board: RiKanbanView2,
+  gallery: RiGalleryView,
+  list: RiListUnordered,
+  calendar: RiCalendarLine,
+  timeline: RiHistoryLine,
 };
 
 /** Translated at call time: the locale can change while the app runs. */
@@ -111,7 +107,7 @@ export function DatabaseHeader({
         <View className="h-32 bg-muted">
           {/* Cover image — Phase 4 keeps it visually simple. */}
           <View className="absolute inset-0 items-center justify-center">
-            <ImageIcon size={28} color={colors.mutedForeground} />
+            <RiImageLine size="xl" fill={colors.mutedForeground} />
           </View>
         </View>
       ) : null}
@@ -120,7 +116,7 @@ export function DatabaseHeader({
           {database.icon ? (
             <Text className="text-4xl leading-none text-foreground">{database.icon}</Text>
           ) : (
-            <TableIcon size={28} color={colors.foreground} />
+            <RiTableLine size="xl" fill={colors.foreground} />
           )}
           <View className="flex-1">
             <TextInput
@@ -158,7 +154,7 @@ export function DatabaseHeader({
             appearance="plain"
             size="xs"
             onPress={() => setNewViewOpen(true)}
-            renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+            leadingIcon={RiAddLine}
           >
             {t('databases.views.new')}
           </Button>
@@ -185,7 +181,7 @@ interface ViewTabProps {
 export function ViewTab({ view, active, onPress, database, readOnly = false }: ViewTabProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const Icon = VIEW_ICONS[view.type] ?? TableIcon;
+  const Icon = VIEW_ICONS[view.type] ?? RiTableLine;
   const [menuOpen, setMenuOpen] = React.useState(false);
   const updateView = useUpdateView();
   const deleteView = useDeleteView();
@@ -228,7 +224,7 @@ export function ViewTab({ view, active, onPress, database, readOnly = false }: V
         onLongPress={readOnly ? undefined : () => setMenuOpen(true)}
         className="flex-row items-center gap-1.5"
       >
-        <Icon size={12} color={colors.foreground} />
+        <Icon width={12} height={12} fill={colors.foreground} />
         <Text
           className={`text-xs ${active ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
         >
@@ -249,7 +245,7 @@ export function ViewTab({ view, active, onPress, database, readOnly = false }: V
               appearance="plain"
               size="xs"
               accessibilityLabel={t('databases.views.settings', { name: view.name })}
-              renderLeadingIcon={({ size, color }) => <Settings2 size={size} color={color} />}
+              leadingIcon={RiEqualizerLine}
             />
           </PopoverTrigger>
           <PopoverContent align="start" minWidth={240} label={view.name} className="gap-2">
@@ -355,7 +351,7 @@ export function NewViewPicker({ open, onClose, onChoose, pending }: NewViewPicke
             density="compact"
             accessibilityRole="button"
             disabled={pending}
-            leading={<Icon size={14} color={colors.foreground} />}
+            leading={<Icon width={14} height={14} fill={colors.foreground} />}
             title={viewTypeLabel(type)}
             onPress={() => onChoose(type)}
           />

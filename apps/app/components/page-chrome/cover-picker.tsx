@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Image, Pressable, ScrollView, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { Trash2 } from 'lucide-react-native';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { Button } from '@oxy.so/bloom/button';
 import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
@@ -77,7 +77,7 @@ export function CoverPicker({ control, onSelect }: CoverPickerProps) {
             size="sm"
             onPress={() => handleSelect(null)}
             accessibilityLabel={t('pages.coverPicker.removeCover')}
-            renderLeadingIcon={({ size, color }) => <Trash2 size={size} color={color} />}
+            leadingIcon={RiDeleteBin6Line}
           >
             {t('pages.coverPicker.remove')}
           </Button>

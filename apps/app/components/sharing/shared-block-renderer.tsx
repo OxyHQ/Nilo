@@ -5,7 +5,9 @@ import { Text } from '@oxy.so/bloom/typography';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
 import type { PageFont } from '@/lib/types/pages';
 import { MONO_FONT_FAMILY, PAGE_FONT_FAMILIES } from '@/lib/fonts';
-import { Check, ChevronRight, ChevronDown } from 'lucide-react-native';
+import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
+import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { useColorScheme } from '@/lib/useColorScheme';
 import {
   buildBlockTree,
@@ -115,7 +117,7 @@ function TodoBlock({ content, textStyle }: BlockProps) {
           backgroundColor: checked ? colors.foreground : 'transparent',
         }}
       >
-        {checked ? <Check size={12} color={colors.background} /> : null}
+        {checked ? <RiCheckLine size="xs" fill={colors.background} /> : null}
       </View>
       <Text
         className={`text-base leading-7 flex-1 ${
@@ -277,7 +279,7 @@ function BlockNode({
   const toggle =
     block.type === 'toggle' ||
     (/^heading_[123]$/.test(block.type) && block.content.toggleable === true);
-  const Chevron = expanded ? ChevronDown : ChevronRight;
+  const Chevron = expanded ? RiArrowDownSLine : RiArrowRightSLine;
   // A canvas note, read as a page: its blocks in a frame, not under a line.
   if (block.type === 'canvas_note') {
     return (
@@ -299,7 +301,7 @@ function BlockNode({
             onPress={() => setExpanded((value) => !value)}
             className="p-1"
           >
-            <Chevron size={18} color={colors.mutedForeground} />
+            <Chevron width={18} height={18} fill={colors.mutedForeground} />
           </Pressable>
         ) : null}
         <View className="flex-1">

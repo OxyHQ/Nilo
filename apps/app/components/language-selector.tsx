@@ -1,5 +1,5 @@
 import { useTranslation } from '@/hooks/useTranslation';
-import { Globe2 } from 'lucide-react-native';
+import { RiEarthLine } from '@oxy.so/bloom/icons/RiEarthLine';
 import { useOxy } from '@oxy.so/services';
 import { getNativeLanguageName } from '@oxy.so/core';
 import { SettingsListGroup, SettingsListItem } from '@oxy.so/bloom/settings-list';
@@ -32,7 +32,7 @@ export function LanguageSelector() {
       footer={t('settings.appLanguage.description')}
     >
       <SettingsListItem
-        icon={<Globe2 size={20} color={colors.primary} />}
+        icon={<RiEarthLine size="md" fill={colors.primary} />}
         title={languageDescription}
         onPress={() => showBottomSheet?.('LanguageSelector')}
       />

@@ -1,7 +1,7 @@
 import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
 import { View } from 'react-native';
-import { Plus } from 'lucide-react-native';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { Redirect } from 'expo-router';
 import { useOxy } from '@oxy.so/services';
 import { Button } from '@oxy.so/bloom/button';
@@ -63,7 +63,7 @@ export default function HomePage() {
               size="lg"
               accessibilityLabel={t('home.createFirstPage')}
               onPress={handleCreate}
-              renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+              leadingIcon={RiAddLine}
             >
               {t('home.createFirstPage')}
             </Button>

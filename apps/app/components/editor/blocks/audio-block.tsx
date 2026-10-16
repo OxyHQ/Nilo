@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Platform, Pressable, TextInput, View } from 'react-native';
-import { Music } from 'lucide-react-native';
+import { RiMusic2Line } from '@oxy.so/bloom/icons/RiMusic2Line';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -27,7 +27,7 @@ export function AudioBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
-          <Music size={16} color={colors.mutedForeground} />
+          <RiMusic2Line size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">Audio</Text>
         </View>
         <TextFieldInput
@@ -53,7 +53,7 @@ export function AudioBlock({ block, onChangeContent }: BlockComponentProps) {
             import('expo-web-browser').then((mod) => mod.openBrowserAsync(url));
           }}
         >
-          <Music size={14} color={colors.foreground} />
+          <RiMusic2Line width={14} height={14} fill={colors.foreground} />
           <Text variant="body-regular">{url}</Text>
         </Pressable>
       )}

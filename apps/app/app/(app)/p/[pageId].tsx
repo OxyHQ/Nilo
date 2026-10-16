@@ -2,7 +2,8 @@ import * as React from 'react';
 import { Platform, ScrollView, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
-import { Lock, MessageCircle } from 'lucide-react-native';
+import { RiLockLine } from '@oxy.so/bloom/icons/RiLockLine';
+import { RiChat3Line } from '@oxy.so/bloom/icons/RiChat3Line';
 import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
@@ -142,7 +143,7 @@ function PageDetail({
     <View className="flex-row items-center gap-2">
       {page.restricted ? (
         <View accessible accessibilityLabel={t('pages.restricted')}>
-          <Lock size={14} color={colors.mutedForeground} />
+          <RiLockLine width={14} height={14} fill={colors.mutedForeground} />
         </View>
       ) : null}
       <Button
@@ -150,7 +151,7 @@ function PageDetail({
         size="sm"
         onPress={() => handleOpenPanel(null)}
         accessibilityLabel={t('pages.comments.open')}
-        renderLeadingIcon={({ size, color }) => <MessageCircle size={size} color={color} />}
+        leadingIcon={RiChat3Line}
       >
         {`${openCommentCount > 0 ? openCommentCount : ''} ${t('pages.comments.label')}`.trim()}
       </Button>

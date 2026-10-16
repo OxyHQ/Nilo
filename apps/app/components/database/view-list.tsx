@@ -4,7 +4,8 @@ import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronRight, Plus } from 'lucide-react-native';
+import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -110,7 +111,7 @@ export function ViewList({
                 </View>
               ))}
             </View>
-            <ChevronRight size={14} color={colors.mutedForeground} />
+            <RiArrowRightSLine width={14} height={14} fill={colors.mutedForeground} />
           </Pressable>
         );
       })}
@@ -127,7 +128,7 @@ export function ViewList({
           onPress={() => createRow.mutate({ databaseId: database.id })}
           className="flex-row items-center gap-2 px-4 py-2 hover:bg-muted/40"
         >
-          <Plus size={14} color={colors.mutedForeground} />
+          <RiAddLine width={14} height={14} fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">
             {createRow.isPending ? t('databases.actions.adding') : t('databases.actions.new')}
           </Text>

@@ -1,5 +1,5 @@
 import { View } from 'react-native';
-import { ChevronDown } from 'lucide-react-native';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { useRouter } from 'expo-router';
 import { Button } from '@oxy.so/bloom/button';
 import {
@@ -53,7 +53,7 @@ export function NewRowMenu({ databaseId }: { databaseId: string }) {
             tone="accent"
             size="sm"
             accessibilityLabel={t('databases.templates.menu')}
-            renderLeadingIcon={({ size, color }) => <ChevronDown size={size} color={color} />}
+            leadingIcon={RiArrowDownSLine}
           />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" label={t('databases.templates.menu')}>

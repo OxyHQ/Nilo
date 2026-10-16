@@ -7,7 +7,11 @@
  */
 import { BlockList, EditorSurface, type EditorSurfaceProps } from '@oxy.so/bloom-editor';
 import type { BlockId, EditorStore } from '@oxy.so/bloom-editor/model';
-import { Maximize, Minus, Plus, StickyNote, Trash2 } from 'lucide-react-native';
+import { RiFullscreenLine } from '@oxy.so/bloom/icons/RiFullscreenLine';
+import { RiSubtractLine } from '@oxy.so/bloom/icons/RiSubtractLine';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiStickyNoteLine } from '@oxy.so/bloom/icons/RiStickyNoteLine';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import {
   memo,
   useCallback,
@@ -247,7 +251,7 @@ export function PageCanvas(props: SurfaceProps & { store: EditorStore; readOnly:
               iconOnly
               accessibilityLabel={t('editor.canvas.zoomOut')}
               onPress={() => zoomBy(1 / 1.25)}
-              renderLeadingIcon={({ size, color }) => <Minus size={size} color={color} />}
+              leadingIcon={RiSubtractLine}
             />
             <ButtonGroupItem
               accessibilityLabel={t('editor.canvas.resetZoom')}
@@ -259,20 +263,20 @@ export function PageCanvas(props: SurfaceProps & { store: EditorStore; readOnly:
               iconOnly
               accessibilityLabel={t('editor.canvas.zoomIn')}
               onPress={() => zoomBy(1.25)}
-              renderLeadingIcon={({ size, color }) => <Plus size={size} color={color} />}
+              leadingIcon={RiAddLine}
             />
             <ButtonGroupItem
               iconOnly
               accessibilityLabel={t('editor.canvas.fit')}
               onPress={fit}
-              renderLeadingIcon={({ size, color }) => <Maximize size={size} color={color} />}
+              leadingIcon={RiFullscreenLine}
             />
             {!readOnly ? (
               <ButtonGroupItem
                 iconOnly
                 accessibilityLabel={t('editor.canvas.newNote')}
                 onPress={newNoteInView}
-                renderLeadingIcon={({ size, color }) => <StickyNote size={size} color={color} />}
+                leadingIcon={RiStickyNoteLine}
               />
             ) : null}
           </ButtonGroup>
@@ -440,7 +444,7 @@ const CanvasNote = memo(function CanvasNote({
               store.sealHistory();
               store.run((c) => removeNote(c, id));
             }}
-            renderLeadingIcon={({ size, color }) => <Trash2 size={size} color={color} />}
+            leadingIcon={RiDeleteBin6Line}
           />
         ) : null}
       </View>

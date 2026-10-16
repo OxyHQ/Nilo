@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Platform, View } from 'react-native';
-import { Wand2 } from 'lucide-react-native';
+import { RiMagicLine } from '@oxy.so/bloom/icons/RiMagicLine';
 import { router } from 'expo-router';
 import { Button } from '@oxy.so/bloom/button';
 import {
@@ -89,7 +89,7 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
           size="sm"
           onPress={click}
           disabled={busy}
-          renderLeadingIcon={({ size, color }) => <Wand2 size={size} color={color} />}
+          leadingIcon={RiMagicLine}
         >
           {busy ? 'Working…' : label}
         </Button>

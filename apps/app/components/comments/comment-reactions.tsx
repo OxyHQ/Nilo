@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
 import { useIsMutating } from '@tanstack/react-query';
-import { SmilePlus } from 'lucide-react-native';
+import { RiEmotionLine } from '@oxy.so/bloom/icons/RiEmotionLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
 import { Text } from '@oxy.so/bloom/typography';
@@ -86,7 +86,7 @@ export function CommentReactions({
             disabled={pending}
             accessibilityLabel={t('comments.reactions.add')}
             onPress={() => picker.open()}
-            renderLeadingIcon={({ size, color }) => <SmilePlus size={size} color={color} />}
+            leadingIcon={RiEmotionLine}
           />
         ) : null}
       </View>
