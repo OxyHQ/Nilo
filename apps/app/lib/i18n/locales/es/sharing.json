@@ -54,6 +54,7 @@
     "untitledHeading": "Encabezado sin título",
     "unsupported": "Tipo de bloque no compatible: %{type}",
     "fileUnavailable": "Este archivo no está disponible ahora",
+    "fileRemoved": "Este archivo se ha eliminado",
     "expand": "Expandir %{title}",
     "collapse": "Contraer %{title}"
   },

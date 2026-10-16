@@ -4,7 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NILO_OXY_APPLICATION_ID } from '@oxy.so/nilo-contracts';
 import type { OxyServices } from '@oxy.so/core';
 import apiClient from '@/lib/api/client';
-import { FileScopeProvider, freshFileUrl, useFileImageSource, useFileScope } from '../file-urls';
+import {
+  FileScopeProvider,
+  freshFileUrl,
+  isFileRemoved,
+  useFileImageSource,
+  useFileScope,
+} from '../file-urls';
 import { FileTooLargeError, uploadPageFile } from '../upload-page-file';
 
 jest.mock('@/lib/api/client', () => ({
@@ -156,9 +162,12 @@ describe('attached images', () => {
         </QueryClientProvider>,
       );
     });
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
+    // The URL's answer, then (without one) the disk copy's.
+    for (let tick = 0; tick < 3; tick++) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    }
     act(() => renderer?.unmount());
     return source;
   }
@@ -168,6 +177,15 @@ describe('attached images', () => {
       data: { files: [{ id: 'img', url: 'https://u/img', expiresIn: 300 }] },
     });
     expect(await sourceFor('img')).toEqual({ uri: 'https://u/img', cacheKey: 'img' });
+  });
+
+  it('never show a file Oxy removed, not even from the copy kept on disk', async () => {
+    post.mockResolvedValue({ data: { files: [], removed: ['img'] } });
+    mockGetCachePathAsync.mockClear();
+    mockGetCachePathAsync.mockResolvedValue('/data/cache/img');
+    expect(await sourceFor('img')).toBeNull();
+    expect(mockGetCachePathAsync).not.toHaveBeenCalled();
+    expect(isFileRemoved(client, { kind: 'page', pageId: 'p' }, 'img')).toBe(true);
   });
 
   it('fall back to the copy kept on disk when no URL can be had', async () => {

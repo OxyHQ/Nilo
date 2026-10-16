@@ -7,7 +7,7 @@ import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';
 import { Text } from '@oxy.so/bloom/typography';
 import { useOxy } from '@oxy.so/services';
 import { useQueryClient } from '@tanstack/react-query';
-import { freshFileUrl, useFileScope } from '@/lib/files/file-urls';
+import { freshFileUrl, isFileRemoved, useFileRemoved, useFileScope } from '@/lib/files/file-urls';
 import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { BlockComponentProps } from './types';
@@ -36,6 +36,8 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
   const queryClient = useQueryClient();
   const scope = useFileScope(block.pageId);
   const fileId = blockFileId(block.content);
+  // A file's URL is asked for only when the pill is pressed: this only listens.
+  const removed = useFileRemoved(scope, fileId, { fetch: false });
   const url = typeof block.content.url === 'string' ? block.content.url : '';
   const name = typeof block.content.name === 'string' ? block.content.name : '';
   const size = typeof block.content.size === 'number' ? block.content.size : 0;
@@ -82,7 +84,11 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
     try {
       const target = fileId && scope ? await freshFileUrl(queryClient, scope, fileId) : url;
       if (!target) {
-        setError('This file is unavailable');
+        setError(
+          fileId && scope && isFileRemoved(queryClient, scope, fileId)
+            ? 'This file was removed'
+            : 'This file is unavailable',
+        );
         return;
       }
       if (Platform.OS === 'web') window.open(target, '_blank', 'noopener,noreferrer');
@@ -150,7 +156,11 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
           {sizeLabel ? <Text className="text-xs text-muted-foreground">{sizeLabel}</Text> : null}
         </View>
       </Pressable>
-      {error ? <Text className="text-xs text-destructive">{error}</Text> : null}
+      {error ? (
+        <Text className="text-xs text-destructive">{error}</Text>
+      ) : removed ? (
+        <Text className="text-xs text-muted-foreground">This file was removed</Text>
+      ) : null}
     </View>
   );
 }

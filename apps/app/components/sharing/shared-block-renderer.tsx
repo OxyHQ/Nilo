@@ -10,6 +10,7 @@ import {
   FileScopeProvider,
   freshFileUrl,
   useFileImageSource,
+  useFileRemoved,
   useFileScope,
 } from '@/lib/files/file-urls';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
@@ -186,12 +187,22 @@ const stringOf = (value: unknown) => (typeof value === 'string' ? value : '');
 /** An image: a pasted URL, or an attachment through a URL minted for this reader. */
 function SharedImage({ content }: { content: Record<string, unknown> }) {
   const fileId = blockFileId(content);
-  const fileSource = useFileImageSource(useFileScope(undefined), fileId);
+  const { t } = useTranslation();
+  const scope = useFileScope(undefined);
+  const fileSource = useFileImageSource(scope, fileId);
+  const removed = useFileRemoved(scope, fileId);
   const url = fileId ? (fileSource?.uri ?? null) : stringOf(content.url);
   const caption = stringOf(content.caption);
   if (!url) {
     return fileId ? (
-      <View className="rounded-lg bg-muted/40" style={{ width: '100%', aspectRatio: 16 / 9 }} />
+      <View
+        className="items-center justify-center rounded-lg bg-muted/40"
+        style={{ width: '100%', aspectRatio: 16 / 9 }}
+      >
+        {removed ? (
+          <Text className="text-sm text-muted-foreground">{t('sharing.blocks.fileRemoved')}</Text>
+        ) : null}
+      </View>
     ) : null;
   }
   return (
@@ -216,6 +227,7 @@ function SharedFile({ content }: { content: Record<string, unknown> }) {
   const fileId = blockFileId(content);
   const url = stringOf(content.url);
   const [failed, setFailed] = useState(false);
+  const removed = useFileRemoved(scope, fileId, { fetch: false });
   if (!fileId && !url) return null;
   const name = stringOf(content.name) || url.split('/').pop() || 'file';
   const open = async () => {
@@ -236,7 +248,9 @@ function SharedFile({ content }: { content: Record<string, unknown> }) {
         <RiFileLine width={18} height={18} fill={colors.foreground} />
         <Text className="flex-1 text-sm text-foreground">{name}</Text>
       </Pressable>
-      {failed ? (
+      {removed ? (
+        <Text className="text-xs text-muted-foreground">{t('sharing.blocks.fileRemoved')}</Text>
+      ) : failed ? (
         <Text className="text-xs text-destructive">{t('sharing.blocks.fileUnavailable')}</Text>
       ) : null}
     </View>
