@@ -251,9 +251,15 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
     });
     // The sender gets the operations as applied too: the orders the server chose.
     res.json({ ok: true, version: result.version, ops: result.ops });
-    // An app syncing a system database (Noted's notes) hears a body edit as a row change.
-    if (!result.replayed && (await isSystemDatabase(db, page.databaseId))) {
-      announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
+    // An app syncing a system database (Noted's notes) hears a body edit as a
+    // row change. After the answer, so a failure here cannot answer twice.
+    if (!result.replayed && page.databaseId) {
+      void isSystemDatabase(db, page.databaseId)
+        .then((system) => {
+          if (system)
+            announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
+        })
+        .catch((err: unknown) => log.general.warn({ err }, 'Failed to announce a row edit'));
     }
     void notifyMentioned(result.mentioned, { id: page.id, title: page.title }, req.user?.id ?? '');
     if (!result.replayed)

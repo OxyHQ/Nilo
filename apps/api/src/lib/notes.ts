@@ -18,11 +18,17 @@ import type {
   NoteWrite,
 } from '@nilo/contracts';
 import { sqlColumnName } from '@oxy.so/db';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { NiloDatabase, PgHandle } from '../db/client.js';
 import { reminders } from '../db/schema/collab.js';
-import { type DatabaseSchema, databases } from '../db/schema/databases.js';
-import { type PageProperties, pageAppData, pages } from '../db/schema/pages.js';
+import { type DatabaseSchema, databases, type SelectOption } from '../db/schema/databases.js';
+import {
+  type PageProperties,
+  pageAppData,
+  pages,
+  pageTombstones,
+  transactionTime,
+} from '../db/schema/pages.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import {
   findFolderRow,
@@ -40,6 +46,7 @@ import {
 import { snapshotPage } from '../repositories/pageVersions.js';
 import { applyBlockTransaction, TransactionRejected } from './block-transactions.js';
 import { syncRelations } from './databases/relations.js';
+import type { FileValue } from './databases/property-values.js';
 import { createRow } from './databases/rows.js';
 import { FOLDER_PROPERTY, NOTE_PROPERTY } from './databases/system.js';
 import { restoreOperations } from './page-history.js';
@@ -58,10 +65,20 @@ export class NoteRejected extends Error {
 /** Far enough for any plan; the same bound as `routes/reminders.ts`. */
 const REMINDER_MAX_AHEAD_MS = 5 * 366 * 24 * 60 * 60 * 1000;
 
+/**
+ * Lock a system database's row until the transaction ends: `update` while its
+ * labels or folders change, `share` while a note is checked against them, so
+ * a note never ends up naming a label or folder deleted alongside.
+ */
+async function lockDatabase(tx: PgHandle, id: string, mode: 'update' | 'share'): Promise<void> {
+  await tx.select({ id: databases.id }).from(databases).where(eq(databases.id, id)).for(mode);
+}
+
 /** The row properties a note write sets, validated against the user's labels and folders. */
 async function propertiesOf(
   db: PgHandle,
   home: NotesHome,
+  page: PageRow,
   write: NoteWrite,
 ): Promise<PageProperties> {
   const properties: PageProperties = {};
@@ -73,20 +90,39 @@ async function propertiesOf(
     properties[NOTE_PROPERTY.archived] = { checked: write.archived };
   }
   if (write.labels !== undefined) {
+    await lockDatabase(db, home.notes.id, 'share');
+    const fresh = await findDatabaseById(db, home.notes.id);
+    if (fresh) home.notes = fresh;
     const known = new Set(labelOptions(home).map((option) => option.id));
     const unknown = write.labels.find((id) => !known.has(id));
     if (unknown) throw new NoteRejected(400, `Unknown label ${unknown}`, 'UNKNOWN_LABEL');
     properties[NOTE_PROPERTY.labels] = { optionIds: [...new Set(write.labels)] };
   }
   if (write.folderId !== undefined) {
+    await lockDatabase(db, home.folders.id, 'share');
     if (write.folderId && !(await findFolderRow(db, home, write.folderId))) {
       throw new NoteRejected(400, `Unknown folder ${write.folderId}`, 'UNKNOWN_FOLDER');
     }
     properties[NOTE_PROPERTY.folder] = { pageIds: write.folderId ? [write.folderId] : [] };
   }
   if (write.attachments !== undefined) {
+    // Noted's attachments are the Oxy files; links added in Nilo stay, and a
+    // file keeps the name it had.
+    const current = (
+      (page.properties[NOTE_PROPERTY.attachments] as { files?: FileValue[] } | undefined)?.files ??
+      []
+    ).filter((file) => file && typeof file === 'object');
+    const named = new Map(
+      current.flatMap((file) => (file.fileId ? [[file.fileId, file.name] as const] : [])),
+    );
     properties[NOTE_PROPERTY.attachments] = {
-      files: [...new Set(write.attachments)].map((fileId) => ({ name: '', fileId })),
+      files: [
+        ...current.filter((file) => !file.fileId),
+        ...[...new Set(write.attachments)].map((fileId) => ({
+          name: named.get(fileId) ?? '',
+          fileId,
+        })),
+      ],
     };
   }
   return properties;
@@ -103,6 +139,21 @@ async function writeReminder(
   if (remindAt && remindAt.getTime() - Date.now() > REMINDER_MAX_AHEAD_MS) {
     throw new NoteRejected(400, 'A reminder can be at most five years ahead');
   }
+  // The same time again is no change: a client resending the note's fields
+  // must not bring back a reminder that already went off.
+  const [latest] = await db
+    .select({ remindAt: reminders.remindAt })
+    .from(reminders)
+    .where(
+      and(
+        eq(reminders.pageId, pageId),
+        eq(reminders.userId, home.ownerId),
+        isNull(reminders.blockId),
+      ),
+    )
+    .orderBy(desc(reminders.createdAt))
+    .limit(1);
+  if ((latest?.remindAt.getTime() ?? null) === (remindAt?.getTime() ?? null)) return;
   await db
     .delete(reminders)
     .where(
@@ -160,6 +211,33 @@ async function writeBlocks(
   });
 }
 
+/**
+ * The blocks sent form a tree: unique ids, parents among them (or none), no
+ * cycle. `restoreOperations` would otherwise drop what it cannot place,
+ * silently.
+ */
+function checkBlockTree(blocks: readonly NoteBlock[]): void {
+  const parentOf = new Map(blocks.map((block) => [block.id, block.parentBlockId]));
+  if (parentOf.size !== blocks.length) {
+    throw new NoteRejected(400, 'Two blocks share an id', 'INVALID_BLOCKS');
+  }
+  for (const block of blocks) {
+    const seen = new Set<string>();
+    let current: string | null = block.id;
+    while (current !== null) {
+      if (seen.has(current)) {
+        throw new NoteRejected(400, 'The blocks nest in a cycle', 'INVALID_BLOCKS');
+      }
+      seen.add(current);
+      const parent = parentOf.get(current);
+      if (parent === undefined) {
+        throw new NoteRejected(400, `Block parent ${current} is not sent`, 'INVALID_BLOCKS');
+      }
+      current = parent;
+    }
+  }
+}
+
 const hasFields = (write: NoteWrite) =>
   Object.keys(write).some((key) => key !== 'baseUpdatedAt' && key !== 'blocks');
 
@@ -172,7 +250,7 @@ async function writeNoteParts(
   actorId: string,
 ): Promise<void> {
   if (hasFields(write)) {
-    const properties = await propertiesOf(tx, home, write);
+    const properties = await propertiesOf(tx, home, page, write);
     await tx
       .update(pages)
       .set({
@@ -188,10 +266,7 @@ async function writeNoteParts(
     if (write.appData) await writeAppData(tx, page.id, write.appData);
   }
   if (write.blocks) {
-    const ids = new Set(write.blocks.map((block) => block.id));
-    if (ids.size !== write.blocks.length) {
-      throw new NoteRejected(400, 'Two blocks share an id', 'DUPLICATE_BLOCK');
-    }
+    checkBlockTree(write.blocks as NoteBlock[]);
     // The schema requires every field; `strict: false` widens the inferred type.
     await writeBlocks(tx, page.id, write.blocks as NoteBlock[], actorId);
   }
@@ -238,7 +313,10 @@ export async function updateNote(
 /**
  * Create a note, under the id the device chose when it has one. A retry of a
  * create whose answer was lost finds its note and changes nothing: `existed`.
- * An id taken by any other page is refused without saying what it is.
+ * Creates of one id run one after another (an advisory lock on it), so
+ * concurrent retries all find the first. An id deleted for good stays
+ * deleted (410): a device replaying an old create must not bring it back. An
+ * id taken by any other page is refused without saying what it is.
  */
 export async function createNote(
   db: NiloDatabase,
@@ -250,6 +328,7 @@ export async function createNote(
   return db
     .transaction(async (tx) => {
       if (requested) {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${requested}, 0))`);
         const [taken] = await tx
           .select({ databaseId: pages.databaseId })
           .from(pages)
@@ -258,6 +337,11 @@ export async function createNote(
           if (taken.databaseId === home.notes.id) return { id: requested, existed: true };
           throw new NoteRejected(409, 'That note id is already in use', 'ID_TAKEN');
         }
+        const [tombstone] = await tx
+          .select({ pageId: pageTombstones.pageId })
+          .from(pageTombstones)
+          .where(eq(pageTombstones.pageId, requested));
+        if (tombstone) throw new NoteRejected(410, 'That note was deleted', 'NOTE_DELETED');
       }
       const page = await createRow(tx, home.notes, {
         ...(requested && { id: requested }),
@@ -301,7 +385,7 @@ export async function reorderNotes(
   const order = sql.identifier(sqlColumnName(pages.order));
   const updatedAt = sql.identifier(sqlColumnName(pages.updatedAt));
   await db.execute(sql`
-    update ${pages} set ${order} = ordering.position, ${updatedAt} = ${new Date()}
+    update ${pages} set ${order} = ordering.position, ${updatedAt} = ${transactionTime}
     from (values ${positions}) as ordering(id, position)
     where ${pages.id} = ordering.id and ${pages.databaseId} = ${home.notes.id}
   `);
@@ -316,11 +400,7 @@ async function withNotesSchema<T>(
   change: (schema: DatabaseSchema, tx: PgHandle) => Promise<T>,
 ): Promise<T> {
   return db.transaction(async (tx) => {
-    await tx
-      .select({ id: databases.id })
-      .from(databases)
-      .where(eq(databases.id, home.notes.id))
-      .for('update');
+    await lockDatabase(tx, home.notes.id, 'update');
     const fresh = await findDatabaseById(tx, home.notes.id);
     if (!fresh) throw new Error(`notes database ${home.notes.id} vanished`);
     const result = await change(fresh.propertiesSchema, tx);
@@ -348,13 +428,18 @@ export async function createLabel(
   db: NiloDatabase,
   home: NotesHome,
   input: NoteLabelWrite,
-): Promise<{ id: string; name: string; color: ReturnType<typeof labelColor> }> {
+): Promise<SelectOption> {
   return withNotesSchema(db, home, async (schema) => {
     const config = labelsProperty(schema);
     if (config.options.some((option) => sameName(option.name, input.name))) {
       throw new NoteRejected(409, 'A label with that name exists', 'LABEL_EXISTS');
     }
-    const option = { id: randomUUID(), name: input.name.trim(), color: labelColor(input.color) };
+    const option: SelectOption = {
+      id: randomUUID(),
+      name: input.name.trim(),
+      color: labelColor(input.color),
+      ...(input.color && { noteColor: input.color }),
+    };
     config.options.push(option);
     return option;
   });
@@ -365,7 +450,7 @@ export async function updateLabel(
   home: NotesHome,
   id: string,
   input: NoteLabelWrite,
-): Promise<{ id: string; name: string; color: ReturnType<typeof labelColor> } | null> {
+): Promise<SelectOption | null> {
   return withNotesSchema(db, home, async (schema) => {
     const config = labelsProperty(schema);
     const option = config.options.find((o) => o.id === id);
@@ -374,7 +459,11 @@ export async function updateLabel(
       throw new NoteRejected(409, 'A label with that name exists', 'LABEL_EXISTS');
     }
     option.name = input.name.trim();
-    if (input.color !== undefined) option.color = labelColor(input.color);
+    if (input.color !== undefined) {
+      option.color = labelColor(input.color);
+      if (input.color) option.noteColor = input.color;
+      else delete option.noteColor;
+    }
     return { ...option };
   });
 }
@@ -453,6 +542,9 @@ export async function createFolder(
   input: NoteFolderWrite,
 ): Promise<string> {
   return db.transaction(async (tx) => {
+    // Folder changes run one at a time: two moves checked at once could each
+    // pass the cycle check and make a loop together.
+    await lockDatabase(tx, home.folders.id, 'update');
     if (input.parentId) await checkParent(tx, home, null, input.parentId);
     const row = await createRow(tx, home.folders, {
       workspaceId: home.workspaceId,
@@ -474,6 +566,7 @@ export async function updateFolder(
   input: NoteFolderWrite,
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
+    await lockDatabase(tx, home.folders.id, 'update');
     const row = await findFolderRow(tx, home, id);
     if (!row) return false;
     await tx
@@ -501,6 +594,7 @@ export async function deleteFolder(
   id: string,
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
+    await lockDatabase(tx, home.folders.id, 'update');
     const row = await findFolderRow(tx, home, id);
     if (!row) return false;
     const parentId = folderParent(row);

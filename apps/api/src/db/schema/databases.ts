@@ -88,6 +88,12 @@ export interface SelectOption {
   id: string;
   name: string;
   color: SelectColor;
+  /**
+   * A note label's own colour (`@nilo/contracts` `NOTE_COLORS`), which Nilo's
+   * smaller palette shows as `color`. Read only while `color` still shows it:
+   * a colour changed in Nilo wins.
+   */
+  noteColor?: string;
 }
 
 export type NumberFormat =

@@ -14,7 +14,7 @@ import {
   type NoteKind,
   type NoteLabel,
 } from '@nilo/contracts';
-import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { PgHandle } from '../db/client.js';
 import { reminders } from '../db/schema/collab.js';
 import type { SelectColor, SelectOption } from '../db/schema/databases.js';
@@ -219,7 +219,29 @@ export async function listNoteRows(
 }
 
 /**
- * The notes changed after `since` (all of them when null), keyset-paged on
+ * Where a sync pass may end: the start of the oldest transaction still
+ * writing to this database, or now when none is. Every row stamped before it
+ * (`pages.updatedAt` is transaction time) has committed, so the next pass,
+ * starting there, cannot miss a row a slow transaction stamps earlier than a
+ * pass that already ran. Read from the database, whose clock stamped the rows.
+ */
+export async function syncWatermark(db: PgHandle): Promise<Date> {
+  const rows = await db.execute<{ watermark: Date | string }>(sql`
+    select date_trunc('milliseconds', least(
+      clock_timestamp(),
+      (select min(xact_start) from pg_stat_activity
+        where datname = current_database()
+          and backend_xid is not null
+          and pid <> pg_backend_pid())
+    )) as watermark
+  `);
+  const watermark = rows[0]?.watermark;
+  if (watermark === undefined) throw new Error('syncWatermark read no row');
+  return new Date(watermark);
+}
+
+/**
+ * The notes changed at or after `since` (all of them when null), keyset-paged on
  * `(updatedAt, id)` past `after`. One more than `limit` is read, only to know
  * whether another page follows.
  */
@@ -229,7 +251,7 @@ export async function noteRowsChangedSince(
   input: { since: Date | null; after: { updatedAt: Date; id: string } | null; limit: number },
 ): Promise<PageRow[]> {
   const conditions = [eq(pages.databaseId, home.notes.id), eq(pages.template, false)];
-  if (input.since) conditions.push(gt(pages.updatedAt, input.since));
+  if (input.since) conditions.push(gte(pages.updatedAt, input.since));
   if (input.after) {
     const after = or(
       gt(pages.updatedAt, input.after.updatedAt),
@@ -245,7 +267,7 @@ export async function noteRowsChangedSince(
     .limit(input.limit + 1);
 }
 
-/** Notes deleted for good after `since`. */
+/** Notes deleted for good at or after `since`. */
 export async function noteTombstonesSince(
   db: PgHandle,
   home: NotesHome,
@@ -280,11 +302,14 @@ export function labelOptions(home: NotesHome): SelectOption[] {
   return property?.config?.options ?? [];
 }
 
-export const toLabel = (option: SelectOption): NoteLabel => ({
-  id: option.id,
-  name: option.name,
-  color: SELECT_TO_NOTE[option.color] ?? null,
-});
+export function toLabel(option: SelectOption): NoteLabel {
+  const own = option.noteColor;
+  const color =
+    own !== undefined && isNoteColor(own) && noteColorInNilo(own) === option.color
+      ? own
+      : (SELECT_TO_NOTE[option.color] ?? null);
+  return { id: option.id, name: option.name, color };
+}
 
 export const labelColor = (color: NoteColor | null | undefined): SelectColor =>
   noteColorInNilo(color ?? null);
