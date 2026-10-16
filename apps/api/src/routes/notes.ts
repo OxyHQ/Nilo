@@ -6,6 +6,7 @@
  * A note's history is the page's (`/pages/:id/versions`), and the routes for
  * it are not repeated here.
  */
+import { randomUUID } from 'node:crypto';
 import {
   type Note,
   noteCreateSchema,
@@ -13,13 +14,15 @@ import {
   noteLabelWriteSchema,
   type NotesExport,
   type NotesSyncPage,
+  type NoteWrite,
   noteWriteSchema,
 } from '@oxy.so/nilo-contracts';
 import { isLiveEntityId } from '@oxy.so/db';
 import { type Request, type Response, Router } from 'express';
 import { z } from 'zod';
+import { enqueueNoteChanged, type NoteChange } from '../capabilities/notes.events.js';
 import { announceChange } from '../collab/live-rooms.js';
-import { getDb } from '../db/client.js';
+import { getDb, type PgHandle } from '../db/client.js';
 import { and, asc, eq } from 'drizzle-orm';
 import { PAGE_TOMBSTONE_RETENTION_MS, pages } from '../db/schema/pages.js';
 import { log } from '../lib/logger.js';
@@ -92,6 +95,23 @@ async function refused(error: unknown, res: Response, home?: NotesHome, id?: str
 
 const changed = (home: NotesHome, databaseId = home.notes.id) =>
   announceChange({ workspaceId: home.workspaceId, databaseId });
+
+/** Tell Alia, in the transaction of the change, as Noted's own server did. */
+const noteChanged = (tx: PgHandle, home: NotesHome, noteId: string, change: NoteChange) =>
+  enqueueNoteChanged(tx, {
+    accountId: home.ownerId,
+    noteId,
+    change,
+    key: randomUUID(),
+    occurredAt: new Date().toISOString(),
+  });
+
+function patchChange(write: NoteWrite): NoteChange {
+  if (write.trashed === true) return 'trashed';
+  if (write.archived === true) return 'archived';
+  if (write.trashed === false || write.archived === false) return 'restored';
+  return 'updated';
+}
 
 // ── Notes ────────────────────────────────────────────────────────────
 
@@ -237,7 +257,12 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const body = noteCreateSchema.parse(req.body);
     home = await homeOf(req);
-    const { id, existed } = await createNote(getDb(), home, body, req.user?.id as string);
+    const notesHome = home;
+    const { id, existed } = await getDb().transaction(async (tx) => {
+      const created = await createNote(tx, notesHome, body, req.user?.id as string);
+      if (!created.existed) await noteChanged(tx, notesHome, created.id, 'created');
+      return created;
+    });
     if (!existed) changed(home);
     res.status(existed ? 200 : 201).json({ note: await readNote(home, id) });
   } catch (error: unknown) {
@@ -467,7 +492,13 @@ router.patch('/:id', async (req: Request, res: Response) => {
     id = z.object({ id: idSchema }).parse(req.params).id;
     const body = noteWriteSchema.parse(req.body);
     home = await homeOf(req);
-    if (!(await updateNote(getDb(), home, id, body, req.user?.id as string))) {
+    const [notesHome, noteId] = [home, id];
+    const updated = await getDb().transaction(async (tx) => {
+      const found = await updateNote(tx, notesHome, noteId, body, req.user?.id as string);
+      if (found) await noteChanged(tx, notesHome, noteId, patchChange(body));
+      return found;
+    });
+    if (!updated) {
       res.status(404).json({ error: 'Note not found' });
       return;
     }
@@ -485,7 +516,12 @@ router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = z.object({ id: idSchema }).parse(req.params);
     const home = await homeOf(req);
-    if (!(await deleteNote(getDb(), home, id))) {
+    const deleted = await getDb().transaction(async (tx) => {
+      const found = await deleteNote(tx, home, id);
+      if (found) await noteChanged(tx, home, id, 'deleted');
+      return found;
+    });
+    if (!deleted) {
       res.status(404).json({ error: 'Note not found' });
       return;
     }

@@ -25,6 +25,9 @@ import publishRouter from './routes/publish.js';
 import pageHistoryRouter from './routes/page-history.js';
 import remindersRouter from './routes/reminders.js';
 import notesRouter from './routes/notes.js';
+import capabilitiesRouter from './routes/capabilities.js';
+import { createNotesMcpService } from './capabilities/notes-mcp.js';
+import { startEventOutboxWorker, stopEventOutboxWorker } from './capabilities/event-outbox.js';
 import importRouter from './routes/import.js';
 import backlinksRouter from './routes/backlinks.js';
 import formsRouter from './routes/forms.js';
@@ -79,6 +82,17 @@ server.on('connection', (socket) => {
 startEcosystemActivity(() => server.listening);
 initSocket(server);
 
+// The notes MCP server owns its raw body, its exact host, its OAuth challenge
+// and its origins: mounted before CORS and the body parser, so neither can
+// weaken or consume a protocol request.
+const notesMcp = createNotesMcpService();
+app.all(notesMcp.protectedResourceMetadataPath, (req, res) => {
+  notesMcp.handleProtectedResourceMetadata(req, res);
+});
+app.all(notesMcp.mcpPath, (req, res) => {
+  void notesMcp.handleMcp(req, res);
+});
+
 // Internal routes - restricted to known origins
 const corsOrigins = allowedOrigins();
 
@@ -128,6 +142,11 @@ app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
 const jsonBody = express.json({ limit: '10mb' });
 app.use((req, res, next) => (req.path === '/pages/import' ? next() : jsonBody(req, res, next)));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Alia's calls carry a capability ticket each, verified and audited per call;
+// they come from Alia's servers, whose address the general limit would count
+// as one caller's.
+app.use('/_oxy/capabilities', capabilitiesRouter);
 
 // Every route but the health probes (the SDK exempts them) counts against the
 // caller's general budget, as in every Oxy backend; public routes add their own.
@@ -251,6 +270,7 @@ getDb()
     server.listen(PORT, '0.0.0.0', () => {
       log.general.info({ port: PORT }, 'API server listening');
       startReminderSweep();
+      startEventOutboxWorker();
       // Verify Redis connectivity (non-blocking)
       import('./lib/redis.js')
         .then(({ getRedisClient }) => {
@@ -293,6 +313,7 @@ getDb()
       process.exitCode = 1;
 
       stopReminderSweep();
+      stopEventOutboxWorker();
       // Stop accepting new connections
       server.close(() => {
         log.general.info('HTTP server closed (no new connections)');
