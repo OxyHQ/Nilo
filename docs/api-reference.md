@@ -75,7 +75,9 @@ model, credential, conversation or chat-completion route.
 `docs/databases.md` for the model. `GET/POST /databases`,
 `GET/PATCH/DELETE /databases/:id`, properties (`POST /databases/:id/properties`,
 `PATCH/DELETE …/properties/:propertyId`), rows (`GET/POST /databases/:id/rows`,
-`GET …/rows/:rowId`; a row is a page, edited with `PATCH /pages/:id`), views
+`GET …/rows/:rowId`; a row is a page, edited with `PATCH /pages/:id`; the
+list takes `viewId`, `search`, `pageSize` and the previous page's opaque
+`cursor`, and returns `rows`, `total`, `cursor` and `view`), views
 (`GET/POST /databases/:id/views[?blockId]`, `PATCH/DELETE …/views/:viewId`),
 `GET /databases/:id/templates`, `GET /databases/:id/export?format=csv`,
 `POST /databases/import/csv`, forms (`GET/PUT/DELETE

@@ -113,9 +113,10 @@ export function useDatabaseRows(
 }
 
 /**
- * The loaded pages' rows, each once. The cursor is an offset, so a row
- * inserted between two page requests moves another across the boundary and
- * both pages can carry it.
+ * The loaded pages' rows, each once. A row edited between two page requests
+ * can move past the cursor and come again on a later page, and a view sorted
+ * on a formula or rollup pages by offset, where a row inserted moves another
+ * across the boundary.
  */
 function uniqueRows(pages: readonly DatabaseRowsResponse[]): DatabaseRow[] {
   const seen = new Set<string>();

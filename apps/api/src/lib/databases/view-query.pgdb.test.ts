@@ -1,0 +1,546 @@
+/**
+ * The SQL view engine against its JS reference, on a real PostgreSQL.
+ *
+ * One database with every stored property type and a few hundred rows of
+ * seeded random values — empty and absent ones, values of another type's
+ * shape (a property's type can change under its values), ties, case, accents,
+ * canonically equivalent spellings, digits as text — then systematic and
+ * random filter trees, sorts and searches. For each, every page is walked
+ * through the cursor, and the ids in order must be exactly what
+ * `evaluateFilter` and a stable `compareBySorts` give over the same rows, with
+ * `total` on every page.
+ */
+import { eq } from 'drizzle-orm';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import {
+  closeTestDb,
+  getTestDb,
+  seedWorkspace,
+  type TestDatabase,
+} from '../../db/__tests__/testDatabase.js';
+import {
+  databases,
+  type DatabaseProperty,
+  type Filter,
+  type FilterGroup,
+  type ViewSort,
+} from '../../db/schema/databases.js';
+import { pages } from '../../db/schema/pages.js';
+import { listDatabaseRows, type PageRow } from '../../repositories/pages.js';
+import { evaluateFilter, OPERATORS_BY_TYPE, valueType } from './filters.js';
+import { compareBySorts } from './sorts.js';
+import { compileView, decodeRowsCursor, listViewRows } from './view-query.js';
+
+/** mulberry32: a small seeded generator, so a failure replays. */
+function generator(seed: number) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const random = generator(0x5eed_2026);
+const chance = (p: number) => random() < p;
+const pick = <T>(items: readonly T[]): T => items[Math.floor(random() * items.length)] as T;
+const between = (lo: number, hi: number) => lo + Math.floor(random() * (hi - lo + 1));
+const some = <T>(items: readonly T[], max: number): T[] =>
+  Array.from({ length: between(0, max) }, () => pick(items));
+
+const NOW = Date.UTC(2026, 9, 16, 12, 34, 56, 789);
+const DAY = 86_400_000;
+
+const WORDS = [
+  'apple',
+  'Apple',
+  'APPLE',
+  'äpple',
+  'Äpple',
+  'apple pie',
+  'apple-pie',
+  'applepie',
+  'banana',
+  'Banana',
+  'résumé',
+  'resume',
+  'Résumé',
+  'RESUME',
+  'cafe',
+  'café',
+  'café',
+  'CAFÉ',
+  'zebra',
+  'Zebra',
+  'ñandú',
+  'Ñandu',
+  'naïve',
+  'naive',
+  '10',
+  '9',
+  '2',
+  '100',
+  '1.5',
+  '-3',
+  ' leading',
+  'trailing ',
+  '_under',
+  '(paren)',
+  'İstanbul',
+  'istanbul',
+  'ΟΔΟΣ',
+  'οδος',
+  'straße',
+  'STRASSE',
+  'ẞig',
+  'emoji 🎉',
+  '日本',
+  'x',
+  'X',
+  '',
+  'a b',
+  'ab',
+  'Ǆemal',
+  'ǅemal',
+  'ﬁne',
+  'fine',
+];
+const text = () => (chance(0.3) ? `${pick(WORDS)} ${pick(WORDS)}` : pick(WORDS));
+const USERS = ['u-ana', 'u-Bob', 'u-çé', 'u-10', 'u-9'];
+const PAGE_IDS = ['p-1', 'p-2', 'p-10', 'P-3', 'p-é'];
+
+const instant = (spreadDays: number) =>
+  new Date(NOW + Math.round((random() * 2 - 1) * spreadDays * DAY)).toISOString();
+function dateString(): string {
+  const iso = instant(chance(0.7) ? 60 : 4000);
+  if (chance(0.15)) return iso.slice(0, 10);
+  if (chance(0.1)) return `${iso.slice(0, 19)}+02:00`;
+  if (chance(0.1)) return `${iso.slice(0, 16)}Z`;
+  return iso;
+}
+
+const SELECT_OPTIONS = ['listed-first', 'opt-a', 'it\'s "quoted"', 'opt-b'];
+const STATUS_OPTIONS = ['done', 'doing', 'todo'];
+const LABELS = ['l-red', 'l-Blue', 'l-é', 'l-10', 'l-9'];
+
+const PROPERTIES: DatabaseProperty[] = [
+  { id: 'name', name: 'Name', type: 'text' },
+  { id: `t'1 "x"`, name: 'Text', type: 'text' },
+  { id: 't2', name: 'Text 2', type: 'text' },
+  { id: 'n1', name: 'Number', type: 'number' },
+  { id: 'n2', name: 'Number 2', type: 'number' },
+  {
+    id: 's1',
+    name: 'Select',
+    type: 'select',
+    config: { options: SELECT_OPTIONS.map((id) => ({ id, name: id, color: 'default' })) },
+  },
+  {
+    id: 'st',
+    name: 'Status',
+    type: 'status',
+    config: { options: STATUS_OPTIONS.map((id) => ({ id, name: id, color: 'default' })) },
+  },
+  {
+    id: 'ms',
+    name: 'Labels',
+    type: 'multi_select',
+    config: { options: LABELS.map((id) => ({ id, name: id, color: 'default' })) },
+  },
+  { id: 'd1', name: 'Date', type: 'date' },
+  { id: 'd2', name: 'Messy date', type: 'date' },
+  { id: 'p1', name: 'People', type: 'person' },
+  { id: 'f1', name: 'Files', type: 'files' },
+  { id: 'c1', name: 'Done', type: 'checkbox' },
+  { id: 'u1', name: 'URL', type: 'url' },
+  { id: 'e1', name: 'Email', type: 'email' },
+  { id: 'ph', name: 'Phone', type: 'phone' },
+  { id: 'r1', name: 'Related', type: 'relation' },
+  { id: 'ct', name: 'Created', type: 'created_time' },
+  { id: 'et', name: 'Edited', type: 'last_edited_time' },
+  { id: 'cb', name: 'Created by', type: 'created_by' },
+  { id: 'eb', name: 'Edited by', type: 'last_edited_by' },
+  { id: 'id', name: 'ID', type: 'unique_id' },
+];
+const propertyById = new Map(PROPERTIES.map((p) => [p.id, p]));
+/** `d2` holds dates JavaScript reads as NaN, which its comparator cannot order. */
+const SORTABLE = PROPERTIES.filter((p) => p.id !== 'd2');
+
+/** A value of another type's shape, as a retyped property keeps. */
+const foreign = (): unknown =>
+  pick([
+    { text: pick(WORDS) },
+    { value: pick(WORDS) },
+    { number: 4 },
+    { optionId: pick(SELECT_OPTIONS) },
+    { optionIds: [pick(LABELS)] },
+    { start: instant(30), end: null, includeTime: true },
+    { userIds: [pick(USERS)] },
+    { pageIds: [pick(PAGE_IDS)] },
+    { checked: true },
+    { files: [{ name: pick(WORDS), url: 'https://example.test/f' }] },
+    'a bare string',
+    7,
+    false,
+    [],
+    ['l-red'],
+  ]);
+
+/** One stored value for a property: absent (`undefined`), JSON null, empty, foreign or proper. */
+function value(property: DatabaseProperty, row: number): unknown {
+  if (property.type === 'unique_id') return chance(0.1) ? undefined : { number: row + 1 };
+  const roll = random();
+  if (roll < 0.1) return undefined;
+  if (roll < 0.14) return null;
+  if (roll < 0.22) return foreign();
+  switch (property.type) {
+    case 'text':
+      return pick([
+        { text: text() },
+        { text: text() },
+        { text: '' },
+        { value: text() },
+        { text: '', value: 'hidden' },
+      ]);
+    case 'url':
+    case 'email':
+    case 'phone':
+      return pick([{ value: text() }, { value: text() }, { value: '' }, { text: text() }]);
+    case 'number':
+      return {
+        number: pick([0, 1, -1, 2.5, 10, 9, 100, -0.5, 1e-7, 1e20, 3, 3, 3, 0.1 + 0.2, null]),
+      };
+    case 'select':
+      return { optionId: pick([...SELECT_OPTIONS, 'ghost', null, '']) };
+    case 'status':
+      return { optionId: pick([...STATUS_OPTIONS, null]) };
+    case 'multi_select':
+      return { optionIds: some([...LABELS, 'ghost'], 3) };
+    case 'person':
+      return { userIds: some(USERS, 3) };
+    case 'relation':
+      return { pageIds: some(PAGE_IDS, 3) };
+    case 'files':
+      return {
+        files: some(['a.pdf', 'B.png', 'é.txt', '10.doc', '9.doc'], 2).map((name) => ({
+          name,
+          url: 'https://example.test/file',
+        })),
+      };
+    case 'checkbox':
+      return { checked: chance(0.5) };
+    case 'date': {
+      if (property.id === 'd2' && chance(0.3)) {
+        return {
+          start: pick(['garbage', '2024-13-01T00:00:00Z', '2024-01-01T25:00:00Z', '', null]),
+        };
+      }
+      return { start: dateString(), end: null, includeTime: chance(0.5) };
+    }
+    default:
+      return undefined;
+  }
+}
+
+function filterValue(property: DatabaseProperty | undefined, operator: string): unknown {
+  if (!property) return pick([text(), undefined]);
+  if (operator === 'in_last' || operator === 'in_next') {
+    return pick([7, 30, 0, 1.5, -3, '10', 'abc', undefined, 365]);
+  }
+  switch (valueType(property, null)) {
+    case 'text':
+    case 'url':
+    case 'email':
+    case 'phone': {
+      const word = pick(WORDS);
+      const start = between(0, word.length);
+      return pick([
+        word,
+        word.toUpperCase(),
+        word.slice(start, start + between(0, 4)),
+        '',
+        undefined,
+        null,
+        5,
+      ]);
+    }
+    case 'number':
+      return pick([
+        0,
+        1,
+        2.5,
+        -1,
+        3,
+        10,
+        '3',
+        '',
+        null,
+        undefined,
+        'abc',
+        1e20,
+        'Infinity',
+        '1e-7',
+      ]);
+    case 'select':
+      return pick([...SELECT_OPTIONS, 'ghost', undefined, null]);
+    case 'status':
+      return pick([...STATUS_OPTIONS, 'ghost']);
+    case 'multi_select':
+      return pick([...LABELS, 'ghost', '', undefined]);
+    case 'person':
+    case 'created_by':
+    case 'last_edited_by':
+      return pick([...USERS, '', undefined]);
+    case 'relation':
+      return pick([...PAGE_IDS, undefined]);
+    case 'date':
+    case 'created_time':
+    case 'last_edited_time':
+      return pick([instant(60), instant(60).slice(0, 10), '', 'garbage', undefined, instant(5)]);
+    case 'checkbox':
+      return pick([true, false, 'false', 0, 1, null, undefined, '']);
+    default:
+      return undefined;
+  }
+}
+
+const ALL_OPERATORS = [...new Set(Object.values(OPERATORS_BY_TYPE).flat())];
+
+function condition(): Filter {
+  const property = chance(0.05) ? undefined : pick(PROPERTIES);
+  const operators = property ? OPERATORS_BY_TYPE[property.type] : ALL_OPERATORS;
+  const roll = random();
+  const operator =
+    roll < 0.75
+      ? pick(operators)
+      : roll < 0.9
+        ? pick(['is_empty', 'is_not_empty'])
+        : pick(ALL_OPERATORS);
+  return {
+    kind: 'condition',
+    propertyId: property?.id ?? 'ghost-property',
+    operator,
+    value: filterValue(property, operator),
+  };
+}
+
+function group(depth: number): FilterGroup {
+  return {
+    kind: 'group',
+    combinator: chance(0.5) ? 'and' : 'or',
+    filters: Array.from({ length: between(0, depth === 0 ? 4 : 3) }, () =>
+      depth < 2 && chance(0.3) ? group(depth + 1) : condition(),
+    ),
+  };
+}
+
+function sorts(): ViewSort[] {
+  return Array.from({ length: between(0, 3) }, () => ({
+    propertyId: chance(0.05) ? 'ghost-property' : pick(SORTABLE).id,
+    direction: chance(0.5) ? ('asc' as const) : ('desc' as const),
+  }));
+}
+
+function search(): string | undefined {
+  if (chance(0.7)) return undefined;
+  const word = pick(WORDS);
+  return pick([word, word.toUpperCase(), word.slice(0, 2), 'é', 'i̇', 'ς']);
+}
+
+interface ViewCase {
+  filters: FilterGroup;
+  sorts: ViewSort[];
+  search?: string;
+  pageSize: number;
+}
+
+let db: TestDatabase;
+let databaseId: string;
+let reference: PageRow[];
+
+beforeAll(async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(NOW);
+  db = await getTestDb();
+  const workspaceId = await seedWorkspace(db, 'view-query');
+  const [database] = await db
+    .insert(databases)
+    .values({
+      workspaceId,
+      name: 'Oracle',
+      ownerId: 'u-ana',
+      propertiesSchema: { properties: PROPERTIES },
+    })
+    .returning({ id: databases.id });
+  databaseId = database.id;
+
+  // Creation times from a small set, so many rows tie on them and the id decides.
+  const createdTimes = Array.from({ length: 90 }, () => new Date(instant(60)));
+  const rows = Array.from({ length: 320 }, (_, row) => {
+    const properties: Record<string, unknown> = {};
+    for (const property of PROPERTIES) {
+      if (
+        property.id === 'name' ||
+        property.type.endsWith('_time') ||
+        property.type.endsWith('_by')
+      ) {
+        continue;
+      }
+      const v = value(property, row);
+      if (v !== undefined) properties[property.id] = v;
+    }
+    return {
+      workspaceId,
+      databaseId,
+      title: chance(0.1) ? '' : text(),
+      ownerId: chance(0.05) ? '' : pick(USERS),
+      lastEditedBy: chance(0.3) ? null : chance(0.05) ? '' : pick(USERS),
+      properties,
+      createdAt: pick(createdTimes),
+      updatedAt: new Date(instant(60)),
+      // Never listed: archived rows and templates.
+      archived: chance(0.05),
+      template: chance(0.03),
+      order: row,
+    };
+  });
+  await db.insert(pages).values(rows);
+  reference = await listDatabaseRows(db, databaseId, { archived: false, template: false });
+  expect(reference.length).toBeGreaterThan(250);
+});
+
+afterAll(async () => {
+  vi.restoreAllMocks();
+  await closeTestDb();
+});
+
+/** The ids the JS path gives, in its order. */
+function expected(view: ViewCase): string[] {
+  let rows = reference;
+  if (view.search) {
+    const needle = view.search.toLowerCase();
+    rows = rows.filter((r) => r.title.toLowerCase().includes(needle));
+  }
+  if (view.filters.filters.length > 0) {
+    rows = rows.filter((r) => evaluateFilter(view.filters, r, propertyById));
+  }
+  if (view.sorts.length > 0) rows = [...rows].sort(compareBySorts(view.sorts, propertyById));
+  return rows.map((r) => r.id);
+}
+
+/** The ids the SQL path gives, every page walked through its cursor. */
+async function actual(view: ViewCase): Promise<{ ids: string[]; totals: Set<number> }> {
+  const compiled = compileView(databaseId, view, propertyById);
+  const ids: string[] = [];
+  const totals = new Set<number>();
+  let cursor: string | null = null;
+  for (let pageNo = 0; pageNo < 1000; pageNo += 1) {
+    const page = await listViewRows(db, databaseId, compiled, {
+      size: view.pageSize,
+      cursor: cursor === null ? null : decodeRowsCursor(cursor),
+    });
+    if (!page) throw new Error('A cursor the API issued was refused');
+    ids.push(...page.rows.map((r) => r.id));
+    totals.add(page.total);
+    expect(page.rows.length).toBeLessThanOrEqual(view.pageSize);
+    cursor = page.cursor;
+    if (!cursor) break;
+    expect(page.rows.length).toBe(view.pageSize);
+  }
+  return { ids, totals };
+}
+
+async function check(view: ViewCase) {
+  const want = expected(view);
+  const got = await actual(view);
+  if (JSON.stringify(got.ids) !== JSON.stringify(want)) {
+    const at = got.ids.findIndex((id, i) => id !== want[i]);
+    const show = (id: string | undefined) => {
+      const row = reference.find((r) => r.id === id);
+      return row && { title: row.title, properties: row.properties, createdAt: row.createdAt };
+    };
+    throw new Error(
+      `SQL and JS disagree at ${at} (${got.ids.length} vs ${want.length} rows) for ${JSON.stringify(view)}: ` +
+        `SQL ${JSON.stringify(show(got.ids[at]))}, JS ${JSON.stringify(show(want[at]))}`,
+    );
+  }
+  expect([...got.totals]).toEqual([want.length]);
+  return want.length;
+}
+
+const only = (filter: Filter): FilterGroup => ({
+  kind: 'group',
+  combinator: 'and',
+  filters: [filter],
+});
+
+describe('a view in SQL', () => {
+  it('matches the JS path for every property type and operator', async () => {
+    let cases = 0;
+    let matched = 0;
+    for (const property of [...PROPERTIES, undefined]) {
+      const operators = property ? OPERATORS_BY_TYPE[property.type] : ALL_OPERATORS;
+      for (const operator of [...operators, 'is_empty', 'is_not_empty', 'no_such_operator']) {
+        for (let i = 0; i < 4; i += 1) {
+          const filters = only({
+            kind: 'condition',
+            propertyId: property?.id ?? 'ghost-property',
+            operator,
+            value: filterValue(property, operator),
+          });
+          matched += await check({ filters, sorts: [], pageSize: 500 });
+          cases += 1;
+        }
+      }
+    }
+    // Most conditions select some rows and leave others: the oracle is not vacuous.
+    expect(cases).toBeGreaterThan(400);
+    expect(matched).toBeGreaterThan(cases * 20);
+  });
+
+  it('sorts every property type in both directions as the JS path does', async () => {
+    for (const property of [...SORTABLE, undefined]) {
+      for (const direction of ['asc', 'desc'] as const) {
+        const sort = { propertyId: property?.id ?? 'ghost-property', direction };
+        await check({ filters: only(group(1)), sorts: [sort], pageSize: 23 });
+        await check({ filters: group(2), sorts: [sort], pageSize: between(1, 9) });
+      }
+    }
+  });
+
+  it('matches the JS path on random filter trees, sorts, searches and page sizes', async () => {
+    let nonEmpty = 0;
+    for (let i = 0; i < 400; i += 1) {
+      const view: ViewCase = {
+        filters: group(0),
+        sorts: sorts(),
+        search: search(),
+        pageSize: pick([1, 3, 7, 16, 41, 97, 500]),
+      };
+      if (view.pageSize === 1 && expected(view).length > 60) view.pageSize = 16;
+      if ((await check(view)) > 0) nonEmpty += 1;
+    }
+    expect(nonEmpty).toBeGreaterThan(200);
+  });
+
+  it('names its row in the cursor when the sort values are too long to carry', async () => {
+    const long = 'z'.repeat(3000);
+    const target = reference[0] as PageRow;
+    await db
+      .update(pages)
+      .set({ properties: { ...target.properties, t2: { text: long } } })
+      .where(eq(pages.id, target.id));
+    const view: ViewCase = {
+      filters: only({ kind: 'condition', propertyId: 't2', operator: 'starts_with', value: 'z' }),
+      sorts: [{ propertyId: 't2', direction: 'desc' }],
+      pageSize: 1,
+    };
+    const compiled = compileView(databaseId, view, propertyById);
+    const first = await listViewRows(db, databaseId, compiled, { size: 1, cursor: null });
+    expect(first?.rows[0]?.id).toBe(target.id);
+    const cursor = decodeRowsCursor(first?.cursor ?? '');
+    expect(cursor).toEqual({ row: target.id });
+    reference = await listDatabaseRows(db, databaseId, { archived: false, template: false });
+    await check(view);
+  });
+});

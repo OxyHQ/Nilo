@@ -1,7 +1,8 @@
 /**
  * What the database needs that the Drizzle schema cannot say: extensions,
- * text search configurations and functions the schema's indexes and queries
- * name. Migrations create them (`0018_unaccent_search`, `0036_fuzzy_titles`);
+ * text search configurations, functions and collations the schema's indexes
+ * and queries name. Migrations create them (`0018_unaccent_search`,
+ * `0036_fuzzy_titles`, `0038_view_rows_keyset`);
  * the test database runs these before the schema's DDL.
  * `prerequisites.test.ts` holds the two to the same statements.
  */
@@ -33,4 +34,9 @@ BEGIN
     format('SELECT lower(%I.unaccent(%L::regdictionary, $1))', schema_name, schema_name || '.unaccent')
   );
 END $$`,
+  // The order a view sorts text in (`lib/databases/view-query.ts`): ICU's
+  // root collation with canonically equivalent strings equal, as
+  // `compareText` sorts in JS. Nondeterministic, so strings it cannot tell
+  // apart tie and the next sort key decides, as they do in JS.
+  "CREATE COLLATION IF NOT EXISTS nilo_sort (provider = icu, locale = 'en-u-kk', deterministic = false)",
 ];

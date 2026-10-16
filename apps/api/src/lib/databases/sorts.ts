@@ -6,6 +6,21 @@ import type {
 import { readPropertyValue, valueType } from './filters.js';
 
 /**
+ * The one order text sorts in: ICU's root collation (English tailors none of
+ * it), case and accents told apart, canonically equivalent strings equal.
+ * PostgreSQL orders the same values with the `nilo_sort` collation
+ * (`db/prerequisites.ts`), so a view sorted in SQL (`view-query.ts`) and one
+ * sorted here agree. Named explicitly rather than left to the process's
+ * default locale, which differs from host to host.
+ */
+const textOrder = new Intl.Collator('en', { usage: 'sort', sensitivity: 'variant' });
+
+/** Two texts in the order a view sorts them. */
+export function compareText(a: string, b: string): number {
+  return textOrder.compare(a, b);
+}
+
+/**
  * Returns a stable comparator that orders rows according to `sorts`.
  *
  * Ties resolve to the next sort key, and finally to row insertion order
@@ -48,9 +63,7 @@ function compareScalar(
     if (av === bv) return 0;
     return av < bv ? -1 : 1;
   }
-  const as = String(av);
-  const bs = String(bv);
-  return as.localeCompare(bs);
+  return compareText(String(av), String(bv));
 }
 
 function scalarFor(

@@ -36,13 +36,12 @@ import {
  * must switch together. Every function here takes a {@link NiloHandle}
  * precisely so the caller can pass that transaction in.
  *
- * ## Filtering and sorting of rows stays in JS
+ * ## Filtering and sorting of rows
  *
- * `routes/databases.ts:955-983` loads every row of a database and then applies
- * `evaluateFilter` and `compareBySorts` in memory. That is unchanged by this
- * port: `src/lib/databases/*` are pure functions over already-parsed values.
- * Pushing the filter engine into SQL is a different change with a different
- * risk profile, and preserving today's behaviour is the goal here.
+ * A view's rows are filtered, sorted and paged in SQL by
+ * `lib/databases/view-query.ts`, which mirrors the pure JS evaluators in
+ * `lib/databases/filters.ts` and `sorts.ts`; those still serve a view that
+ * reads a formula or rollup, computed in JS.
  */
 
 /**

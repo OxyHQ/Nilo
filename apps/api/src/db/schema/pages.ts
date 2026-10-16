@@ -222,6 +222,14 @@ export const pages = pgTable(
      */
     index('pages_database_archived_created_idx').on(t.databaseId, t.archived, t.createdAt),
     /**
+     * A view's rows, in the order they start in and with the keyset a page
+     * resumes from (`lib/databases/view-query.ts`): an unsorted view reads a
+     * page as one range of this index, and its count scans only live rows.
+     */
+    index('pages_database_rows_idx')
+      .on(t.databaseId, t.createdAt, t.id)
+      .where(sql`${t.archived} = false and ${t.template} = false`),
+    /**
      * A database's rows changed since a point (`GET /notes/sync`): the cursor
      * is `(updatedAt, id)`, so both are in the index after the database.
      */
@@ -245,11 +253,10 @@ export const pages = pgTable(
      */
     index('pages_workspace_favorited_idx').on(t.workspaceId).where(sql`${t.favorited}`),
     /**
-     * No query performs jsonb containment today — `GET /api/databases/:id/rows`
-     * loads a database's rows and filters them in JS
-     * (`routes/databases.ts:955-980`). This index exists for the property
-     * filtering that replaces that scan, and is the one entry here that is
-     * ahead of its reader.
+     * No query performs jsonb containment on `properties` today — a view's
+     * filters compile to per-property expressions
+     * (`lib/databases/view-query.ts`) that it cannot serve. It is the one
+     * entry here that is ahead of its reader.
      */
     index('pages_properties_gin_idx').using('gin', t.properties),
     index('pages_teamspace_idx').on(t.teamspaceId),

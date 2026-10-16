@@ -20,7 +20,7 @@ import {
   type ViewConfig,
   type ViewSort,
 } from '../db/schema/databases.js';
-import type { DatabaseRowKey, PageRow } from '../repositories/pages.js';
+import type { PageRow } from '../repositories/pages.js';
 import {
   countViews,
   deleteDatabase,
@@ -47,8 +47,6 @@ import {
   createPage,
   deleteDatabaseRows,
   findPageById,
-  findPagesByIds,
-  listDatabaseRowKeys,
   listDatabaseRows,
   listPages,
   nextDatabaseRowOrder,
@@ -87,6 +85,12 @@ import {
   readsComputed,
 } from '../lib/databases/filters.js';
 import { compareBySorts } from '../lib/databases/sorts.js';
+import {
+  compileView,
+  decodeRowsCursor,
+  encodeRowsCursor,
+  listViewRows,
+} from '../lib/databases/view-query.js';
 import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js';
 import { rowFormulaContext } from '../lib/databases/row-values.js';
 import { linkTwoWay, syncRelations, unlinkTwoWay } from '../lib/databases/relations.js';
@@ -297,7 +301,8 @@ const listDatabasesQuerySchema = z.object({
 
 const listRowsQuerySchema = z.object({
   viewId: entityIdSchema.optional(),
-  cursor: z.string().regex(/^\d+$/u).optional(),
+  /** Opaque: the `cursor` of the previous page (`lib/databases/view-query.ts`). */
+  cursor: z.string().max(2048).optional(),
   pageSize: z.string().regex(/^\d+$/u).optional(),
   search: z.string().max(200).optional(),
 });
@@ -964,62 +969,76 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     const propertyById = new Map<string, DatabaseProperty>();
     for (const p of db.propertiesSchema.properties) propertyById.set(p.id, p);
 
-    // A view is filtered and sorted on what it reads, then only the rows of
-    // the page it returns are loaded whole. Formulas and rollups are computed,
-    // not stored: a view that reads one computes them for every row first.
-    const viewReads = [
-      ...(view?.filters ? filterPropertyIds(view.filters as Filter) : []),
-      ...(view?.sorts ?? []).map((s) => s.propertyId),
-    ];
-    const computed = readsComputed(viewReads, propertyById);
-    let candidates: Array<DatabaseRowKey | PageRow>;
-    let derivedAll: Awaited<ReturnType<typeof resolveDerivedForRows>> | null = null;
-    if (computed) {
-      const rowDocs = await listDatabaseRows(handle, db.id, { archived: false, template: false });
-      derivedAll = await resolveDerivedForRows(handle, rowDocs, db.propertiesSchema);
-      candidates = rowDocs.map((row) => ({
-        ...row,
-        properties: { ...row.properties, ...derivedAll?.get(row.id) },
-      }));
-    } else {
-      candidates = await listDatabaseRowKeys(handle, db.id, viewReads);
-    }
-
-    let filtered = candidates;
-    if (query.search) {
-      const needle = query.search.toLowerCase();
-      filtered = filtered.filter((r) => r.title.toLowerCase().includes(needle));
-    }
-    const viewFilter = view?.filters as Filter | undefined;
-    if (viewFilter && viewFilter.kind === 'group' && viewFilter.filters.length > 0) {
-      filtered = filtered.filter((r) => evaluateFilter(viewFilter, r, propertyById));
-    }
-    // Rows arrive oldest first; a stable sort keeps that order among the rows
-    // the view's sorts do not tell apart, so paging is deterministic.
-    if (view?.sorts && view.sorts.length > 0) {
-      filtered = [...filtered].sort(compareBySorts(view.sorts, propertyById));
-    }
-
     const pageSize = Math.min(
       500,
       Math.max(1, Number(query.pageSize ?? view?.pageSize ?? DEFAULT_VIEW_PAGE_SIZE)),
     );
-    const cursorOffset = Number(query.cursor ?? '0');
-    const pageIds = filtered.slice(cursorOffset, cursorOffset + pageSize).map((r) => r.id);
-    const nextCursor =
-      cursorOffset + pageSize < filtered.length ? String(cursorOffset + pageSize) : null;
+    const cursor = query.cursor === undefined ? null : decodeRowsCursor(query.cursor);
+    if (query.cursor !== undefined && !cursor) {
+      res.status(400).json({ error: 'Invalid cursor' });
+      return;
+    }
 
-    const byId = new Map(
-      (computed
-        ? (candidates as PageRow[])
-        : await findPagesByIds(handle, pageIds, { archived: false })
-      ).map((row) => [row.id, row] as const),
-    );
-    // A row archived between the two reads is left out of the page.
-    const slice = pageIds.flatMap((id) => {
-      const row = byId.get(id);
-      return row ? [row] : [];
-    });
+    // A view is filtered, sorted and paged in SQL, and only the rows of the
+    // page it returns are read. Formulas and rollups are computed, not
+    // stored: a view that reads one computes them for every row first, then
+    // filters and sorts in JS.
+    const viewFilter = view?.filters as Filter | undefined;
+    const viewReads = [
+      ...(viewFilter ? filterPropertyIds(viewFilter) : []),
+      ...(view?.sorts ?? []).map((s) => s.propertyId),
+    ];
+    let slice: PageRow[];
+    let total: number;
+    let nextCursor: string | null;
+    let derivedAll: Awaited<ReturnType<typeof resolveDerivedForRows>> | null = null;
+    if (readsComputed(viewReads, propertyById)) {
+      if (cursor && !('offset' in cursor)) {
+        res.status(400).json({ error: 'Invalid cursor' });
+        return;
+      }
+      const rowDocs = await listDatabaseRows(handle, db.id, { archived: false, template: false });
+      derivedAll = await resolveDerivedForRows(handle, rowDocs, db.propertiesSchema);
+      let filtered = rowDocs.map((row) => ({
+        ...row,
+        properties: { ...row.properties, ...derivedAll?.get(row.id) },
+      }));
+      if (query.search) {
+        const needle = query.search.toLowerCase();
+        filtered = filtered.filter((r) => r.title.toLowerCase().includes(needle));
+      }
+      if (viewFilter && viewFilter.kind === 'group' && viewFilter.filters.length > 0) {
+        filtered = filtered.filter((r) => evaluateFilter(viewFilter, r, propertyById));
+      }
+      // Rows arrive oldest first; a stable sort keeps that order among the
+      // rows the view's sorts do not tell apart, so paging is deterministic.
+      if (view?.sorts && view.sorts.length > 0) {
+        filtered = [...filtered].sort(compareBySorts(view.sorts, propertyById));
+      }
+      const offset = cursor && 'offset' in cursor ? cursor.offset : 0;
+      const byId = new Map(rowDocs.map((row) => [row.id, row] as const));
+      slice = filtered.slice(offset, offset + pageSize).flatMap((r) => byId.get(r.id) ?? []);
+      total = filtered.length;
+      nextCursor =
+        offset + pageSize < filtered.length
+          ? encodeRowsCursor({ offset: offset + pageSize })
+          : null;
+    } else {
+      const compiled = compileView(
+        db.id,
+        { filters: viewFilter, sorts: view?.sorts, search: query.search },
+        propertyById,
+      );
+      const page = await listViewRows(handle, db.id, compiled, { size: pageSize, cursor });
+      if (!page) {
+        res.status(400).json({ error: 'Invalid cursor' });
+        return;
+      }
+      slice = page.rows;
+      total = page.total;
+      nextCursor = page.cursor;
+    }
+
     const derivedSlice =
       derivedAll ?? (await resolveDerivedForRows(handle, slice, db.propertiesSchema));
     const serializedRows = slice.map((row) =>
@@ -1028,7 +1047,7 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
 
     res.json({
       rows: serializedRows,
-      total: filtered.length,
+      total,
       cursor: nextCursor,
       view: view ? serializeView(view) : null,
     });
