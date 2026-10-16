@@ -1,9 +1,10 @@
 /**
  * The browser origins the API and its socket accept: the web app
- * (`WEB_URL`), production, and local development servers. One list, so HTTP
+ * (`WEB_URL`), production — Nilo, and Noted, whose notes Nilo keeps
+ * (`routes/notes.ts`) — and local development servers. One list, so HTTP
  * and the socket cannot disagree.
  */
-const PRODUCTION_ORIGINS = ['https://nilo.so'];
+const PRODUCTION_ORIGINS = ['https://nilo.so', 'https://noted.oxy.so'];
 
 const DEV_ORIGINS = [
   'http://localhost:3000',

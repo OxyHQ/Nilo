@@ -21,9 +21,9 @@
       "dependencies": {
         "@expo-google-fonts/inter": "0.4.2",
         "@expo-google-fonts/jetbrains-mono": "0.4.1",
-        "@nilo/contracts": "workspace:*",
         "@oxy.so/core": "4.10.0",
         "@oxy.so/db": "1.0.0",
+        "@oxy.so/nilo-contracts": "workspace:*",
         "@socket.io/redis-adapter": "^8.3.0",
         "cors": "^2.8.5",
         "drizzle-orm": "^0.45.2",
@@ -64,12 +64,12 @@
       "dependencies": {
         "@alia.onl/sdk": "^15.6.0",
         "@expo/html-elements": "^0.13.8",
-        "@nilo/contracts": "workspace:*",
         "@oxy.so/bloom": "^10.12.1",
         "@oxy.so/bloom-editor": "0.2.0",
         "@oxy.so/bloom-text": "0.1.0",
         "@oxy.so/contracts": "4.16.0",
         "@oxy.so/core": "4.10.0",
+        "@oxy.so/nilo-contracts": "workspace:*",
         "@oxy.so/services": "11.5.0",
         "@react-native-async-storage/async-storage": "2.2.0",
         "@react-native-community/hooks": "^100.1.0",
@@ -170,8 +170,8 @@
       },
     },
     "packages/contracts": {
-      "name": "@nilo/contracts",
-      "version": "0.0.0",
+      "name": "@oxy.so/nilo-contracts",
+      "version": "0.1.0",
       "dependencies": {
         "zod": "^3.24.1",
       },
@@ -716,8 +716,6 @@
 
     "@nilo/app": ["@nilo/app@workspace:apps/app"],
 
-    "@nilo/contracts": ["@nilo/contracts@workspace:packages/contracts"],
-
     "@noble/ciphers": ["@noble/ciphers@1.3.0", "", {}, "sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw=="],
 
     "@noble/curves": ["@noble/curves@1.9.7", "", { "dependencies": { "@noble/hashes": "1.8.0" } }, "sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw=="],
@@ -749,6 +747,8 @@
     "@oxy.so/core": ["@oxy.so/core@4.10.0", "", { "dependencies": { "@noble/ciphers": "^1.3.0", "@noble/hashes": "^1.8.0", "@oxy.so/contracts": "4.16.0", "@oxy.so/protocol": "^1.2.2", "@oxy.so/telemetry": "^1.2.0", "@scure/bip39": "^1.6.0", "buffer": "^6.0.3", "express-rate-limit": "^8.6.0", "helmet": "^8.0.0", "invariant": "^2.2.4", "jwt-decode": "^4.0.0", "socket.io-client": "^4.8.1", "tldts": "^7.4.10", "zod": "^3.25.64" }, "peerDependencies": { "@react-native-async-storage/async-storage": "<3.0.0", "expo-crypto": "<58.0.0", "expo-secure-store": "<58.0.0", "express": "^4.0.0" }, "optionalPeers": ["@react-native-async-storage/async-storage", "expo-crypto", "expo-secure-store", "express"] }, "sha512-sTBDMGI+ajJc40CQzT/Fks6/wWD1WhsXgzFgOgcBsaq+Aq3GDBLUyoXg+j6KszyKZD5D/piDkWKyEmT4tv93wA=="],
 
     "@oxy.so/db": ["@oxy.so/db@1.0.0", "", { "peerDependencies": { "drizzle-orm": "^0.45.2", "postgres": "^3.4.9" } }, "sha512-5tnH+84QR7cnTRYF7FWIN1rGF7YoE0M+sfUBC2Bdclzp1Hfb7+Msr7cEvFklluZxXMP2Mv8HzPB6/gz3Kndk4Q=="],
+
+    "@oxy.so/nilo-contracts": ["@oxy.so/nilo-contracts@workspace:packages/contracts"],
 
     "@oxy.so/protocol": ["@oxy.so/protocol@1.2.2", "", { "dependencies": { "@noble/curves": "^1.9.7", "@oxy.so/contracts": "^4.9.0", "zod": "^3.25.64" }, "peerDependencies": { "@react-native-async-storage/async-storage": "<3.0.0", "expo-crypto": "<58.0.0", "expo-modules-core": "<58.0.0", "expo-secure-store": "<58.0.0", "express": "^4.18.0 || ^5.0.0" }, "optionalPeers": ["@react-native-async-storage/async-storage", "expo-crypto", "expo-secure-store", "express"] }, "sha512-6PlaD/GwG0CKvA1kZ0HVB5xM8JMKBms0dYmgAngGIk5lkPRz8x6hu7JkpvGGFef1yAvcxv8F19wW2pf3+YrEoQ=="],
 

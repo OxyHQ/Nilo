@@ -13,11 +13,11 @@ import {
   normalizeContent,
   placeAfter,
   type segmentSchema,
-} from '@nilo/contracts';
+} from '@oxy.so/nilo-contracts';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { broadcastPageTransaction } from '../collab/page-rooms.js';
-import type { NiloDatabase, PgHandle } from '../db/client.js';
+import type { PgHandle } from '../db/client.js';
 import {
   type BlockRow,
   createBlock,
@@ -164,7 +164,7 @@ export interface AppliedTransaction {
  * room hears the applied operations.
  */
 export async function applyBlockTransaction(
-  db: NiloDatabase,
+  db: PgHandle,
   input: ApplyBlockTransactionInput,
 ): Promise<AppliedTransaction> {
   // The operations as applied, content normalized, for collaborators.

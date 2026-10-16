@@ -89,6 +89,11 @@ import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js
 import { rowFormulaContext } from '../lib/databases/row-values.js';
 import { linkTwoWay, syncRelations, unlinkTwoWay } from '../lib/databases/relations.js';
 import { resolveRollups } from '../lib/databases/rollups.js';
+import {
+  keepNoteColors,
+  systemDatabaseDeleteError,
+  systemPropertyChangeError,
+} from '../lib/databases/system.js';
 import { placeOrRefuse } from '../lib/placement.js';
 import { findBlockById } from '../repositories/blocks.js';
 import { findMembership } from '../repositories/workspaces.js';
@@ -329,6 +334,7 @@ function serializeDatabase(db: DatabaseRecord) {
     parentPageId: db.parentPageId,
     teamspaceId: db.teamspaceId,
     archived: db.archived,
+    systemKey: db.systemKey,
     createdAt: db.createdAt,
     updatedAt: db.updatedAt,
   };
@@ -476,6 +482,7 @@ function normalizeSchema(schema: DatabaseSchema): DatabaseSchema {
         id: opt.id ?? randomUUID(),
         name: opt.name,
         color: opt.color ?? 'default',
+        ...(typeof opt.noteColor === 'string' && { noteColor: opt.noteColor }),
       }));
     }
   }
@@ -660,6 +667,11 @@ router.patch('/:id', async (req: Request, res: Response) => {
     }
     const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
+    const systemError = body.archived ? systemDatabaseDeleteError(db) : null;
+    if (systemError) {
+      res.status(409).json({ error: systemError, code: 'SYSTEM_DATABASE' });
+      return;
+    }
 
     // `undefined` and `null` are different instructions here: `icon` and
     // `cover` are nullable and an explicit `null` must be written.
@@ -701,6 +713,11 @@ router.delete('/:id', async (req: Request, res: Response) => {
     }
     const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
+    const systemError = systemDatabaseDeleteError(db);
+    if (systemError) {
+      res.status(409).json({ error: systemError, code: 'SYSTEM_DATABASE' });
+      return;
+    }
 
     if (hard) {
       const membership = await findMembership(handle, db.workspaceId, req.user?.id ?? '');
@@ -821,6 +838,12 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
       type: body.type ?? current.type,
       config: body.config !== undefined ? (body.config as PropertyConfig) : current.config,
     };
+    const systemError = systemPropertyChangeError(db, current, next);
+    if (systemError) {
+      res.status(409).json({ error: systemError, code: 'SYSTEM_PROPERTY' });
+      return;
+    }
+    keepNoteColors(current, next);
     // Two-way links are the server's: kept, made or undone as the property changes.
     const wasTwoWay = current.type === 'relation' && current.config?.twoWay === true;
     const isTwoWay = next.type === 'relation' && next.config?.twoWay === true;
@@ -869,6 +892,11 @@ router.delete('/:id/properties/:propertyId', async (req: Request, res: Response)
       return;
     }
     const removed = db.propertiesSchema.properties.find((p) => p.id === params.propertyId);
+    const systemError = removed ? systemPropertyChangeError(db, removed, null) : null;
+    if (systemError) {
+      res.status(409).json({ error: systemError, code: 'SYSTEM_PROPERTY' });
+      return;
+    }
 
     // Dropping the property from the schema and from every row is one
     // logical write: the schema is what tells a reader the key exists, so a

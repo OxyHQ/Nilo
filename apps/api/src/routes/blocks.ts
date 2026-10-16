@@ -9,6 +9,8 @@ import { findAppliedTransactionKeys, findPageById } from '../repositories/pages.
 import { snapshotPage } from '../repositories/pageVersions.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { log } from '../lib/logger.js';
+import { announceChange } from '../collab/live-rooms.js';
+import { isSystemDatabase } from '../lib/databases/system.js';
 import { sendNotification } from '../lib/notification-service.js';
 import { recentlyNotified } from '../repositories/notifications.js';
 import { listFollowers } from '../repositories/pageFollows.js';
@@ -33,7 +35,7 @@ router.use(authenticateToken);
  */
 const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 
-// Block content schemas and normalizeContent live in @nilo/contracts.
+// Block content schemas and normalizeContent live in @oxy.so/nilo-contracts.
 
 function handleZodError(err: unknown, res: Response): boolean {
   if (err instanceof z.ZodError) {
@@ -249,6 +251,16 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
     });
     // The sender gets the operations as applied too: the orders the server chose.
     res.json({ ok: true, version: result.version, ops: result.ops });
+    // An app syncing a system database (Noted's notes) hears a body edit as a
+    // row change. After the answer, so a failure here cannot answer twice.
+    if (!result.replayed && page.databaseId) {
+      void isSystemDatabase(db, page.databaseId)
+        .then((system) => {
+          if (system)
+            announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
+        })
+        .catch((err: unknown) => log.general.warn({ err }, 'Failed to announce a row edit'));
+    }
     void notifyMentioned(result.mentioned, { id: page.id, title: page.title }, req.user?.id ?? '');
     if (!result.replayed)
       void notifyFollowersOfEdit({ id: page.id, title: page.title }, req.user?.id ?? '');

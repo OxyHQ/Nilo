@@ -91,6 +91,8 @@ const EXPECTED_COLUMNS: Record<(typeof TABLES)[number], string[]> = {
     'token',
     'device_id',
     'platform',
+    // The app the token was registered by (Nilo or Noted).
+    'app',
     'active',
     'last_used_at',
     'created_at',
@@ -102,6 +104,7 @@ const EXPECTED_COLUMNS: Record<(typeof TABLES)[number], string[]> = {
     'endpoint',
     'key_p_256dh',
     'key_auth',
+    'app',
     'active',
     'created_at',
     'updated_at',

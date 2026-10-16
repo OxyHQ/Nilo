@@ -5,7 +5,7 @@
  * they are saved; read to open a page without a connection, and to send what
  * a closed app had not.
  */
-import { TRANSACTION_KEY_RETENTION_MS } from '@nilo/contracts';
+import { TRANSACTION_KEY_RETENTION_MS } from '@oxy.so/nilo-contracts';
 import type { BlockId, EditorDocument, PendingTransaction } from '@oxy.so/bloom-editor/model';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

@@ -1,4 +1,4 @@
-import { TRANSACTION_KEY_RETENTION_MS } from '@nilo/contracts';
+import { TRANSACTION_KEY_RETENTION_MS } from '@oxy.so/nilo-contracts';
 import type { PendingTransaction } from '@oxy.so/bloom-editor/model';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PendingClock, readSavedPage, type SavedPage, writeSavedPage } from '../offline';

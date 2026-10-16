@@ -7,7 +7,9 @@ await esbuild.build({
   // option because drizzle-kit is a devDependency and the production image
   // installs with --production. Without this line `dist/` has no migrator at
   // all, which a passing build says nothing about.
-  entryPoints: ['src/index.ts', 'src/db/migrate.ts'],
+  // The Noted import (`src/scripts/import-noted.ts`) is a third: a one-shot
+  // run with this image, so it has to be in it.
+  entryPoints: ['src/index.ts', 'src/db/migrate.ts', 'src/scripts/import-noted.ts'],
   bundle: true,
   platform: 'node',
   target: 'node20',

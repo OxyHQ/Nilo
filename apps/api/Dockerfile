@@ -52,7 +52,7 @@ FROM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbb
 
 WORKDIR /app
 
-# Copy root workspace files. The API bundles @nilo/contracts; its manifest is
+# Copy root workspace files. The API bundles @oxy.so/nilo-contracts; its manifest is
 # here only so the workspace dependency resolves.
 COPY package.json bun.lock ./
 COPY apps/api/package.json ./apps/api/

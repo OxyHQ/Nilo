@@ -1,5 +1,5 @@
 import { BlockText, blockTextSegments, PublicMentionContext } from './block-text';
-import { blockFileId, type FileUrlScope } from '@nilo/contracts';
+import { blockFileId, type FileUrlScope } from '@oxy.so/nilo-contracts';
 import { Divider } from '@oxy.so/bloom/divider';
 import { Text } from '@oxy.so/bloom/typography';
 import { useQueryClient } from '@tanstack/react-query';

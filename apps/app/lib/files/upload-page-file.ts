@@ -1,14 +1,14 @@
 /**
  * Attach a file to a page: upload it to Oxy's file manager under the
  * member's own session (they own it there), link it to Nilo so Oxy will
- * serve it to Nilo, and record it on the page (`@nilo/contracts` `files.ts`).
+ * serve it to Nilo, and record it on the page (`@oxy.so/nilo-contracts` `files.ts`).
  */
 import {
   type FileUrl,
   MAX_FILE_BYTES,
   NILO_FILE_ENTITY_TYPE,
   NILO_OXY_APPLICATION_ID,
-} from '@nilo/contracts';
+} from '@oxy.so/nilo-contracts';
 import type { OxyServices } from '@oxy.so/core';
 import type { QueryClient } from '@tanstack/react-query';
 import apiClient from '../api/client';

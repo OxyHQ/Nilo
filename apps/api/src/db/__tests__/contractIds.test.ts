@@ -1,9 +1,9 @@
-import { isEntityId } from '@nilo/contracts';
+import { isEntityId } from '@oxy.so/nilo-contracts';
 import { isLiveEntityId } from '@oxy.so/db';
 import { describe, expect, it } from 'vitest';
 
 /**
- * `@nilo/contracts` restates the database's id rule so the app need not import
+ * `@oxy.so/nilo-contracts` restates the database's id rule so the app need not import
  * `@oxy.so/db`; this keeps the two from drifting apart.
  */
 describe('isEntityId', () => {

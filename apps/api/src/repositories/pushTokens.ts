@@ -7,7 +7,7 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { sqlColumnName } from '@oxy.so/db';
 import type { NiloDatabase } from '../db/client.js';
-import { type PushPlatform, pushTokens } from '../db/schema/collab.js';
+import { type PushApp, type PushPlatform, pushTokens } from '../db/schema/collab.js';
 
 export interface PushTokenRow {
   id: string;
@@ -15,6 +15,7 @@ export interface PushTokenRow {
   token: string;
   deviceId: string | null;
   platform: PushPlatform | null;
+  app: PushApp;
   active: boolean;
   lastUsedAt: Date | null;
   createdAt: Date;
@@ -28,6 +29,8 @@ export interface UpsertPushTokenInput {
   deviceId?: string;
   /** Omitted or empty leaves any existing value alone — see below. */
   platform?: PushPlatform;
+  /** The app registering the token; Nilo when omitted. */
+  app?: PushApp;
 }
 
 function toPushTokenRow(row: typeof pushTokens.$inferSelect): PushTokenRow {
@@ -63,11 +66,13 @@ export async function upsertPushToken(
       token: input.token,
       deviceId: input.deviceId || null,
       platform: input.platform || null,
+      app: input.app ?? 'nilo',
     })
     .onConflictDoUpdate({
       target: [pushTokens.oxyUserId, pushTokens.token],
       set: {
         active: true,
+        app: input.app ?? 'nilo',
         deviceId: sql`coalesce(excluded.${excludedDeviceId}, ${pushTokens.deviceId})`,
         platform: sql`coalesce(excluded.${excludedPlatform}, ${pushTokens.platform})`,
       },

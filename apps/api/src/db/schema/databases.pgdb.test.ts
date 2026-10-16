@@ -306,6 +306,8 @@ describe('columns', () => {
         'is_inline',
         'parent_page_id',
         'next_row_number',
+        // The app that keeps it (`lib/databases/system.ts`).
+        'system_key',
         'archived',
         'created_at',
         'updated_at',

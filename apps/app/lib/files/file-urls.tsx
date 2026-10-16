@@ -1,11 +1,11 @@
 /**
- * URLs for attachments in Oxy's file manager (`@nilo/contracts` `files.ts`).
+ * URLs for attachments in Oxy's file manager (`@oxy.so/nilo-contracts` `files.ts`).
  * A block holds a file id; the API, after checking the reader may see the
  * page, answers with a URL that works for a few minutes. Each reader asks
  * through what gave them the page: membership, a share link or a published
  * page (`FileScopeProvider`).
  */
-import type { FileUrl, FileUrlScope } from '@nilo/contracts';
+import type { FileUrl, FileUrlScope } from '@oxy.so/nilo-contracts';
 import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query';
 import { Image as ExpoImage } from 'expo-image';
 import * as React from 'react';

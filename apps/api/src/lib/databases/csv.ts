@@ -251,9 +251,15 @@ export function databaseToCsv(
       case 'person':
         return (Array.isArray(value.userIds) ? value.userIds : []).join(', ');
       case 'files':
-        return (Array.isArray(value.files) ? value.files : [])
-          .map((f) => (f as { url?: string }).url ?? '')
-          .join(', ');
+        return (
+          (Array.isArray(value.files) ? value.files : [])
+            // A file in Oxy storage has no lasting link to export: its name stands in.
+            .map((f) => {
+              const file = f as { url?: string; name?: string };
+              return file.url ?? file.name ?? '';
+            })
+            .join(', ')
+        );
       case 'relation':
         return (Array.isArray(value.pageIds) ? value.pageIds : []).join(', ');
       case 'created_time':

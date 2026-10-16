@@ -21,7 +21,7 @@ import {
   blocksToMarkdown,
   blocksToTree,
   inReadingOrder,
-} from '@nilo/contracts';
+} from '@oxy.so/nilo-contracts';
 import { copyPageTree } from '../repositories/pageCopies.js';
 import { follow } from '../repositories/pageFollows.js';
 import { findDatabaseById } from '../repositories/databases.js';
@@ -36,6 +36,7 @@ import { loadMemberProfiles } from '../lib/member-profiles.js';
 import { rateLimit } from '../lib/rate-limit.js';
 import { placeOrRefuse } from '../lib/placement.js';
 import { syncRelations } from '../lib/databases/relations.js';
+import { isSystemDatabase } from '../lib/databases/system.js';
 import type { DatabaseRecord } from '../repositories/databases.js';
 import {
   accessibleAncestry,
@@ -525,6 +526,20 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return;
     }
 
+    // A system database's row stays a row: an app syncing the database would
+    // lose sight of it as a template.
+    if (
+      body.template !== undefined &&
+      body.template !== page.template &&
+      (await isSystemDatabase(db, page.databaseId))
+    ) {
+      res.status(409).json({
+        error: 'A row of an app database cannot become a template',
+        code: 'SYSTEM_ROW',
+      });
+      return;
+    }
+
     let rowDatabase: DatabaseRecord | null = null;
 
     // Built by assignment rather than by spreading `body`, because `title` is
@@ -839,7 +854,7 @@ async function loadExportImage(url: string): Promise<Buffer | null> {
  * GET /api/pages/:id/export?format=md|html|pdf
  *
  * The page as Markdown, a standalone HTML document or a PDF: title, blocks
- * with their formatting and nesting (`@nilo/contracts` markdown/HTML,
+ * with their formatting and nesting (`@oxy.so/nilo-contracts` markdown/HTML,
  * `lib/pdf-export.ts`), every piece of text escaped in HTML.
  */
 /**

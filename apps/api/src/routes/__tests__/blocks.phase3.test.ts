@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { uuidv7 } from '@oxy.so/db';
-import { normalizeContent } from '@nilo/contracts';
+import { normalizeContent } from '@oxy.so/nilo-contracts';
 
 describe('block content normalization', () => {
   it('keeps a toggle heading toggleable, and adds nothing to a plain heading', () => {

@@ -10,7 +10,7 @@ The member's app does three things (`apps/app/lib/files/upload-page-file.ts`):
 1. It uploads the file to Oxy with the member's own session, as `private`.
    The member owns the file in Oxy, and it counts against their Oxy storage.
 2. It links the file to Nilo: `app` is Nilo's application id
-   (`NILO_OXY_APPLICATION_ID` in `@nilo/contracts`), with the page as the entity.
+   (`NILO_OXY_APPLICATION_ID` in `@oxy.so/nilo-contracts`), with the page as the entity.
 3. It records the file on the page: `POST /pages/:id/files { fileId, name }`
    (an editor of the page). The API asks Oxy for a URL. That is how it learns
    the file is linked to Nilo by its owner, and its type and size as Oxy

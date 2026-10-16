@@ -372,6 +372,14 @@ export const notifications = pgTable(
 /* ───────────────────────── push_tokens ───────────────────────── */
 
 export const PUSH_PLATFORMS = ['ios', 'android', 'web'] as const;
+
+/**
+ * The apps a device subscribes to push from. Nilo's API also serves Noted, and
+ * a token belongs to one app install: a reminder about a note goes to Noted
+ * when the user has it, and to Nilo otherwise (`lib/notification-service.ts`).
+ */
+export const PUSH_APPS = ['nilo', 'noted'] as const;
+export type PushApp = (typeof PUSH_APPS)[number];
 export type PushPlatform = (typeof PUSH_PLATFORMS)[number];
 
 export const pushTokens = pgTable(
@@ -395,6 +403,8 @@ export const pushTokens = pgTable(
      * — `platform` is optional and rows without one are legitimate.
      */
     platform: text(),
+    /** The app the token was registered by (`PUSH_APPS`). */
+    app: text().$type<PushApp>().notNull().default('nilo'),
     active: boolean().notNull().default(true),
     lastUsedAt: timestamptz(),
     createdAt: createdAt(),
@@ -411,6 +421,7 @@ export const pushTokens = pgTable(
      * "active tokens for this user" read.
      */
     check('push_tokens_platform', sql`${t.platform} in (${sql.raw(inList(PUSH_PLATFORMS))})`),
+    check('push_tokens_app', sql`${t.app} in (${sql.raw(inList(PUSH_APPS))})`),
   ],
 );
 
@@ -438,6 +449,8 @@ export const webPushSubscriptions = pgTable(
      */
     keyP256dh: text().notNull(),
     keyAuth: text().notNull(),
+    /** The app the browser subscribed in (`PUSH_APPS`). */
+    app: text().$type<PushApp>().notNull().default('nilo'),
     active: boolean().notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -449,6 +462,7 @@ export const webPushSubscriptions = pgTable(
      * The standalone `{ oxyUserId: 1 }` from `index: true` is NOT ported — a
      * strict prefix of the unique above.
      */
+    check('web_push_subscriptions_app', sql`${t.app} in (${sql.raw(inList(PUSH_APPS))})`),
   ],
 );
 

@@ -1,6 +1,6 @@
 /**
  * A page as a PDF, drawn from the same block tree the Markdown and HTML
- * exports read (`@nilo/contracts`), on the server for every platform alike.
+ * exports read (`@oxy.so/nilo-contracts`), on the server for every platform alike.
  *
  * Text is set in embedded Inter and JetBrains Mono (subset, with a Unicode
  * map, so it can be searched and copied): Latin, Greek and Cyrillic. Images
@@ -14,7 +14,7 @@ import {
   mergeSegments,
   type Segment,
   segmentsOf,
-} from '@nilo/contracts';
+} from '@oxy.so/nilo-contracts';
 import PDFDocument from 'pdfkit';
 
 declare global {

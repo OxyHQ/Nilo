@@ -67,6 +67,29 @@ model, credential, conversation or chat-completion route.
 `POST /databases/import/csv`, forms (`GET/PUT/DELETE
 /databases/:id/views/:viewId/form`, public `GET/POST /forms/:token`).
 
+## Notes (Noted)
+
+Noted's API, over the personal workspace's `notes` and `note_folders` system
+databases (`docs/databases.md`). Contract: `packages/contracts/src/notes.ts`.
+
+- `GET /notes?view=active|archived|trashed&label&folder&pinned`,
+  `POST /notes` (optional client UUIDv7 `id`; a retry answers 200),
+  `GET/PATCH/DELETE /notes/:id`, `POST /notes/reorder { ids }`. A PATCH with
+  `baseUpdatedAt` on an older version gets 409 `STALE_NOTE` and the note;
+  `appData` is written on `baseRevision` (409 `STALE_APP_DATA`). A note's body
+  is its blocks, written whole and applied as block operations.
+- `GET /notes/sync?cursor&limit` — paged changes and deletions since the
+  cursor; `full` when the pass is the whole set; `reset` when the cursor was
+  for notes a workspace reset removed (the client drops everything it holds,
+  unsent edits included); labels and folders on a pass's last page.
+- `GET /notes/export` — every note (trash included), label and folder as JSON;
+  `POST /notes/erase { confirm: 'DELETE' }` — every note, folder and label for
+  good (the rest of the workspace stays).
+- `GET/POST /notes/labels`, `PATCH/DELETE /notes/labels/:id`;
+  `GET/POST /notes/folders`, `PATCH/DELETE /notes/folders/:id` (deleting a
+  folder moves its notes and subfolders up).
+- History is the page's: `/pages/:id/versions`.
+
 ## Search, files, embeds, feedback
 
 - `GET /search?workspaceId&q` — titles and text, accent-insensitive.
@@ -83,7 +106,9 @@ model, credential, conversation or chat-completion route.
 
 `GET /notifications`, `GET /notifications/unread-count`,
 `PATCH /notifications/:id/read|dismiss`, `POST /notifications/read-all`, Expo
-push tokens and browser push subscriptions, `GET /notifications/vapid-public-key`.
+push tokens and browser push subscriptions (each with its `app`, `nilo` or
+`noted`), `GET /notifications/vapid-public-key`. A note's reminder rings in Noted
+when the user has it registered, otherwise in Nilo; everything else in Nilo.
 Types: `mention` (in comments and in page text), `comment_reply`,
 `page_comment` and `page_edited` (pages followed), `page_shared`, `reminder`.
 

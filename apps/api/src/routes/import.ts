@@ -10,7 +10,7 @@
  * Blocks are written through `applyBlockTransaction`, like any edit.
  */
 import express, { Router, type Request, type Response } from 'express';
-import { markdownTitle, markdownToBlocks, type BlockNode } from '@nilo/contracts';
+import { markdownTitle, markdownToBlocks, type BlockNode } from '@oxy.so/nilo-contracts';
 import { isLiveEntityId, uuidv7 } from '@oxy.so/db';
 import { strFromU8, unzipSync } from 'fflate';
 import { z } from 'zod';

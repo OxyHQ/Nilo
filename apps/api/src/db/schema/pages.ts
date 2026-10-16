@@ -12,7 +12,7 @@ import {
   uniqueIndex,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
-import { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
+import { BLOCK_TYPES, type BlockContent, type BlockType } from '@oxy.so/nilo-contracts';
 import { createdAt, generatedId, inList, timestamptz, updatedAt } from '@oxy.so/db';
 import { databases } from './databases.js';
 import { teamspaces } from './teamspaces.js';
@@ -25,7 +25,7 @@ export const PAGE_MODES = ['document', 'canvas'] as const;
 export type PageMode = (typeof PAGE_MODES)[number];
 
 /** Every block type the editor persists, and each one's content: the contract shared with the app. */
-export { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
+export { BLOCK_TYPES, type BlockContent, type BlockType } from '@oxy.so/nilo-contracts';
 
 /**
  * Pages and blocks — the document primitive and its content units.
@@ -44,6 +44,20 @@ export { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts'
  * `lib/databases/property-values.ts`, never by the storage layer.
  */
 export type PageProperties = Record<string, unknown>;
+
+/**
+ * `pages.updatedAt` is the database's transaction time, on insert and on every
+ * update, not the API's clock like other tables' (`@oxy.so/db` `updatedAt`).
+ *
+ * Clients sync database rows by it (`GET /notes/sync`), and a sync pass ends
+ * at the start of the oldest transaction still writing, read from the same
+ * database: every row stamped before that has committed. A JS clock read when
+ * the statement is built gives no such bound — a long write commits with a
+ * stamp older than passes that already ran — and API instances' clocks differ
+ * from each other and from the database's. Same expression and precision as
+ * the insert default, so the column's DDL is unchanged.
+ */
+export const transactionTime = sql`date_trunc('milliseconds', now())`;
 
 /** Bounds of `pages.coverPosition`, as a percentage offset. */
 export const COVER_POSITION_MIN = 0;
@@ -185,7 +199,10 @@ export const pages = pgTable(
      */
     properties: jsonb().$type<PageProperties>().notNull().default({}),
     createdAt: createdAt(),
-    updatedAt: updatedAt(),
+    updatedAt: timestamptz()
+      .notNull()
+      .default(transactionTime)
+      .$onUpdate(() => transactionTime),
   },
   (t) => [
     /**
@@ -202,6 +219,11 @@ export const pages = pgTable(
      * Its prefix subsumes the standalone `databaseId` index, as above.
      */
     index('pages_database_archived_created_idx').on(t.databaseId, t.archived, t.createdAt),
+    /**
+     * A database's rows changed since a point (`GET /notes/sync`): the cursor
+     * is `(updatedAt, id)`, so both are in the index after the database.
+     */
+    index('pages_database_updated_idx').on(t.databaseId, t.updatedAt, t.id),
     /**
      * `parentId` is both a foreign key and the recursion column of every
      * tree walk (`deletePageTree`, `findPageAncestry`). An unindexed FK
@@ -410,7 +432,7 @@ export const pageVersions = pgTable(
 
 /**
  * An attachment of a page: a file in Oxy's file manager that a member
- * uploaded, owns there and linked to Nilo (`@nilo/contracts` `files.ts`).
+ * uploaded, owns there and linked to Nilo (`@oxy.so/nilo-contracts` `files.ts`).
  * The row is what lets Nilo serve it: a URL is minted only for a file of the
  * reader's workspace that the page was given or one of its blocks holds, so
  * knowing a file's id is not enough to read it from somewhere else.
@@ -433,4 +455,55 @@ export const pageFiles = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index('page_files_page_idx').on(t.pageId), check('page_files_size', sql`${t.size} >= 0`)],
+);
+
+/** The apps that keep data of their own on Nilo pages (`page_app_data.app`). */
+export const PAGE_DATA_APPS = ['noted'] as const;
+export type PageDataApp = (typeof PAGE_DATA_APPS)[number];
+
+/**
+ * What an app built on Nilo keeps about a page that is not the page's content:
+ * Noted's recording artifacts and the user's overrides of them. The app owns
+ * the shape; Nilo stores it whole, goes with the page, and compares
+ * `revision` so a write made on an older one is refused rather than lost.
+ */
+export const pageAppData = pgTable(
+  'page_app_data',
+  {
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    app: text().$type<PageDataApp>().notNull(),
+    data: jsonb().$type<Record<string, unknown>>().notNull().default({}),
+    revision: integer().notNull().default(0),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pageId, t.app] }),
+    check('page_app_data_app', sql`${t.app} in (${sql.raw(inList(PAGE_DATA_APPS))})`),
+  ],
+);
+
+/** How long a deleted row is remembered for clients catching up (`page_tombstones`). */
+export const PAGE_TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Database rows deleted for good, so a client that syncs a database's rows
+ * (`GET /notes/sync`) learns the row is gone rather than keeping it forever.
+ * Written by every path that deletes rows on purpose, and kept for
+ * `PAGE_TOMBSTONE_RETENTION_MS`; a client whose cursor is older starts over.
+ * Not written when a whole database goes: its rows have nowhere to be synced
+ * from, and a reset tells its clients so (`workspace:reset`).
+ */
+export const pageTombstones = pgTable(
+  'page_tombstones',
+  {
+    /** The deleted page's id: no foreign key, the page is gone. */
+    pageId: text().primaryKey(),
+    databaseId: text()
+      .notNull()
+      .references(() => databases.id, { onDelete: 'cascade' }),
+    deletedAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [index('page_tombstones_database_deleted_idx').on(t.databaseId, t.deletedAt)],
 );

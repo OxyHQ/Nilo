@@ -1,4 +1,4 @@
-import { normalizeContent, placeAfter, type BlockType } from '@nilo/contracts';
+import { normalizeContent, placeAfter, type BlockType } from '@oxy.so/nilo-contracts';
 import type { Block } from '@/lib/types/pages';
 import type { AppliedOperation, WireOperation } from '../wire';
 

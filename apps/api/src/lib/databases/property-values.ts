@@ -22,14 +22,23 @@ const dateValueSchema = z.object({
   includeTime: z.boolean().optional(),
 });
 const personValueSchema = z.object({ userIds: z.array(z.string()) });
-const filesValueSchema = z.object({
-  files: z.array(
-    z.object({
-      name: z.string(),
-      url: z.string().url(),
-    }),
-  ),
-});
+/**
+ * A file is a link (`url`), or a file in the user's Oxy storage (`fileId`),
+ * which the app resolves to a link when it shows it: Noted's attachments live
+ * there, and a stored link to one would expire.
+ */
+const fileValueSchema = z
+  .object({
+    name: z.string(),
+    url: z.string().url().optional(),
+    fileId: z.string().min(1).max(200).optional(),
+  })
+  .refine(
+    (file) => file.url !== undefined || file.fileId !== undefined,
+    'A file needs a url or a fileId',
+  );
+export type FileValue = z.infer<typeof fileValueSchema>;
+const filesValueSchema = z.object({ files: z.array(fileValueSchema) });
 const checkboxValueSchema = z.object({ checked: z.boolean() });
 const urlValueSchema = z.object({ value: z.string().max(2000) });
 const emailValueSchema = z.object({ value: z.string().max(320) });
@@ -61,7 +70,7 @@ export type ParsedPropertyValue =
       includeTime: boolean;
     }
   | { kind: 'person'; userIds: string[] }
-  | { kind: 'files'; files: Array<{ name: string; url: string }> }
+  | { kind: 'files'; files: FileValue[] }
   | { kind: 'checkbox'; checked: boolean }
   | { kind: 'url'; value: string }
   | { kind: 'email'; value: string }
@@ -113,7 +122,11 @@ export function parsePropertyValue(
     }
     case 'files': {
       const parsed = filesValueSchema.parse(raw);
-      const files = parsed.files.map((f) => ({ name: f.name, url: f.url }));
+      const files = parsed.files.map((f) => ({
+        name: f.name,
+        ...(f.url !== undefined && { url: f.url }),
+        ...(f.fileId !== undefined && { fileId: f.fileId }),
+      }));
       return { kind: 'files', files };
     }
     case 'checkbox': {
