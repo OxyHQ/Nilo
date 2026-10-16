@@ -78,6 +78,18 @@ lost: a signed-out boot changes no account, so the pages and unsent changes
 are there when the session comes back. Opening offline from a cold start needs
 the SDK to remember the last classification of its `clientId`, an Oxy change.
 
+## Importing Noted
+
+Noted's accounts are copied into Nilo by a one-shot with the API's image
+(`apps/api/src/scripts/import-noted.ts`):
+`bun apps/api/dist/scripts/import-noted.js [--dry-run] [--user <oxyUserId>]`,
+with `DATABASE_URL` (Nilo) and `NOTED_DATABASE_URL` (Noted, read in a
+read-only transaction; SSM `/oxy/noted/DATABASE_URL`) as secrets, and the
+service's network configuration. It prints one JSON report per account and is
+safe to run again: notes keep their ids, and what is already in Nilo is left
+alone. Run `--dry-run` first, then the copy, then the cut-over of Noted's
+client.
+
 ## Before a new API release
 
 1. Provision or identify the intended PostgreSQL database and secret binding.
