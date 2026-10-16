@@ -6,7 +6,7 @@
  */
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { Note, NoteBlock, NotesSyncPage } from '@nilo/contracts';
+import type { Note, NoteBlock, NotesSyncPage } from '@oxy.so/nilo-contracts';
 import { uuidv7 } from '@oxy.so/db';
 import express from 'express';
 import { and, eq, isNull, like, sql } from 'drizzle-orm';

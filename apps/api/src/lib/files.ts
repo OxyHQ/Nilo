@@ -1,5 +1,5 @@
 /**
- * URLs for attachments in Oxy's file manager (`@nilo/contracts` `files.ts`).
+ * URLs for attachments in Oxy's file manager (`@oxy.so/nilo-contracts` `files.ts`).
  *
  * Oxy mints a short-lived URL only for a file whose owner linked it to Nilo,
  * through Nilo's service token (`files:linked:read`, Oxy ADR 0021); deciding
@@ -10,7 +10,7 @@
  * Redis, shared by every task, and handed out again until a minute before it
  * expires. A URL is a credential for those minutes: it is never logged.
  */
-import type { FileUrl } from '@nilo/contracts';
+import type { FileUrl } from '@oxy.so/nilo-contracts';
 import { oxyClient } from '../middleware/auth.js';
 import { log } from './logger.js';
 import { getRedisClient, withRedisTimeout } from './redis.js';

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Platform, Pressable, View } from 'react-native';
-import { blockFileId } from '@nilo/contracts';
+import { blockFileId } from '@oxy.so/nilo-contracts';
 import { Button } from '@oxy.so/bloom/button';
 import { RiFileLine } from '@oxy.so/bloom/icons/RiFileLine';
 import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';

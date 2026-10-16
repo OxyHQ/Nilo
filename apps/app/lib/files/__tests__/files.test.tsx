@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NILO_OXY_APPLICATION_ID } from '@nilo/contracts';
+import { NILO_OXY_APPLICATION_ID } from '@oxy.so/nilo-contracts';
 import type { OxyServices } from '@oxy.so/core';
 import apiClient from '@/lib/api/client';
 import { FileScopeProvider, freshFileUrl, useFileImageSource, useFileScope } from '../file-urls';

@@ -30,7 +30,7 @@ import {
   type Transaction,
 } from '@oxy.so/bloom-editor/model';
 import { type Segment, segmentsToPlainText } from '@oxy.so/bloom-text/model';
-import { compareOrder } from '@nilo/contracts';
+import { compareOrder } from '@oxy.so/nilo-contracts';
 import type { Block, BlockContent } from '@/lib/types/pages';
 import { NILO_SCHEMA } from './schema';
 

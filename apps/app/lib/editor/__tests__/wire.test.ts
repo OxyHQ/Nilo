@@ -15,7 +15,7 @@ import {
   turnInto,
   validateDocument,
 } from '@oxy.so/bloom-editor/model';
-import { BLOCK_TYPES, normalizeContent } from '@nilo/contracts';
+import { BLOCK_TYPES, normalizeContent } from '@oxy.so/nilo-contracts';
 import type { Block } from '@/lib/types/pages';
 import { NILO_SCHEMA } from '../schema';
 import {

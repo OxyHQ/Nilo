@@ -1,4 +1,4 @@
-import { BLOCK_TYPES, contentFields, defaultContent } from '@nilo/contracts';
+import { BLOCK_TYPES, contentFields, defaultContent } from '@oxy.so/nilo-contracts';
 import {
   type BlockSpec,
   DEFAULT_SCHEMA,
@@ -51,7 +51,7 @@ function fromContract(spec: BlockSpec, type: (typeof BLOCK_TYPES)[number]): Bloc
   };
 }
 
-/** Every block type the API stores (`@nilo/contracts` `BLOCK_TYPES`), and nothing else. */
+/** Every block type the API stores (`@oxy.so/nilo-contracts` `BLOCK_TYPES`), and nothing else. */
 export const NILO_SCHEMA = defineSchema(
   BLOCK_TYPES.map((type) => fromContract(specOf(BEHAVIOUR, type), type)),
 );

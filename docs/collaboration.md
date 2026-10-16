@@ -14,14 +14,14 @@ all go through it. There are no REST routes that write single blocks.
 Operations: `insert { id, parentBlockId, afterId, type, content }`,
 `update { id, type?, content? }`, `move { id, parentBlockId, afterId }`,
 `remove { id }`. Ids are client-minted UUIDv7s. Content is normalized by the
-shared contract (`@nilo/contracts` `normalizeContent`), which also defines
+shared contract (`@oxy.so/nilo-contracts` `normalizeContent`), which also defines
 each block type's fields and defaults.
 
 ## The server owns order
 
 Positions are anchors ("after this block"), never numbers. The server turns
 an anchor into an `order` against its own state (`placeAfter` in
-`@nilo/contracts`), renumbering siblings when two orders leave no room, and
+`@oxy.so/nilo-contracts`), renumbering siblings when two orders leave no room, and
 answers with the operations **as applied** — every order it wrote, including
 renumberings as `reorder` operations. Siblings sort by `(order, id)`.
 
@@ -102,7 +102,7 @@ While changes are pending, the session's snapshot is kept on the device
 Opening the page without a connection uses it; with a connection, its changes
 are resumed as above. Saved work is used only while the server still
 remembers the keys of what it applied (`TRANSACTION_KEY_RETENTION_MS` in
-`@nilo/contracts`, one day, less an hour), dated by its oldest change: past
+`@oxy.so/nilo-contracts`, one day, less an hour), dated by its oldest change: past
 that, resending could apply a change twice over later edits.
 
 ## Mentions

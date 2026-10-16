@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Platform, TextInput, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { blockFileId } from '@nilo/contracts';
+import { blockFileId } from '@oxy.so/nilo-contracts';
 import { Button } from '@oxy.so/bloom/button';
 import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
 import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';

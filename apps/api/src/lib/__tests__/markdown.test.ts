@@ -12,7 +12,7 @@ import {
   parseInline,
   renderInline,
   type Segment,
-} from '@nilo/contracts';
+} from '@oxy.so/nilo-contracts';
 import { describe, expect, it } from 'vitest';
 
 /** Each non-space character with the marks it carries. */

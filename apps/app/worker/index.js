@@ -25,7 +25,7 @@ import {
   escapeHtml,
   inReadingOrder,
   isEntityId,
-} from '@nilo/contracts';
+} from '@oxy.so/nilo-contracts';
 
 /** `/pub/<slug>` and `/pub/<slug>/<pageId>`: a published page and its subpages. */
 const PUBLISHED = /^\/pub\/([a-z0-9-]{1,120})(?:\/([^/]+))?\/?$/;

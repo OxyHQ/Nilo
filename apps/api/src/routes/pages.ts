@@ -21,7 +21,7 @@ import {
   blocksToMarkdown,
   blocksToTree,
   inReadingOrder,
-} from '@nilo/contracts';
+} from '@oxy.so/nilo-contracts';
 import { copyPageTree } from '../repositories/pageCopies.js';
 import { follow } from '../repositories/pageFollows.js';
 import { findDatabaseById } from '../repositories/databases.js';
@@ -854,7 +854,7 @@ async function loadExportImage(url: string): Promise<Buffer | null> {
  * GET /api/pages/:id/export?format=md|html|pdf
  *
  * The page as Markdown, a standalone HTML document or a PDF: title, blocks
- * with their formatting and nesting (`@nilo/contracts` markdown/HTML,
+ * with their formatting and nesting (`@oxy.so/nilo-contracts` markdown/HTML,
  * `lib/pdf-export.ts`), every piece of text escaped in HTML.
  */
 /**

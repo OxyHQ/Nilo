@@ -10,7 +10,7 @@
  * property the app reads (`systemPropertyChangeError`), because the app would
  * lose the field without being told.
  */
-import { NOTE_COLORS, type NoteColor } from '@nilo/contracts';
+import { NOTE_COLORS, type NoteColor } from '@oxy.so/nilo-contracts';
 import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { PgHandle } from '../../db/client.js';
 import {

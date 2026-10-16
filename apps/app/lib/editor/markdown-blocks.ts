@@ -1,10 +1,10 @@
 /**
  * Markdown in and out of the editor: what a page's blocks say as Markdown,
  * and Markdown (an import, an answer to an AI action) as blocks, parsed by the
- * same `@nilo/contracts` reader the API imports with. Each edit is one
+ * same `@oxy.so/nilo-contracts` reader the API imports with. Each edit is one
  * transaction, so one undo step.
  */
-import { type BlockNode, markdownToBlocks, renderInline } from '@nilo/contracts';
+import { type BlockNode, markdownToBlocks, renderInline } from '@oxy.so/nilo-contracts';
 import {
   type BlockId,
   type BlockSnapshot,

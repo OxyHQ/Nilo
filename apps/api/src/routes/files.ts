@@ -1,12 +1,12 @@
 /**
- * Attachments of a page, stored in Oxy's file manager (`@nilo/contracts`
+ * Attachments of a page, stored in Oxy's file manager (`@oxy.so/nilo-contracts`
  * `files.ts`). The member's app uploads the file to Oxy under their own
  * session and links it to Nilo; it then records it here, on the page it went
  * into. Readers ask for URLs by file id, here or through a share link or a
  * published page (`share-links.ts`, `publish.ts`), all answered by
  * `respondWithFileUrls`.
  */
-import { MAX_FILE_BYTES, MAX_FILE_URL_IDS } from '@nilo/contracts';
+import { MAX_FILE_BYTES, MAX_FILE_URL_IDS } from '@oxy.so/nilo-contracts';
 import { type Request, type Response, Router } from 'express';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
