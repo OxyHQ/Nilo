@@ -3,9 +3,9 @@
 @import "tailwindcss/utilities.css";
 @import "nativewind/theme";
 
-/* Bloom's design tokens: the SDK's sign-in screens and Bloom 4 controls are
-   NativeWind className, and their utilities resolve from these. Nilo's own
-   @theme below runs after, so its aliases win on any overlap. */
+/* Bloom's design tokens: Bloom's components and the SDK's screens are
+   NativeWind className, and their utilities resolve from these. Nilo restates
+   none of them: a restated token re-skins Bloom's own components. */
 @import "@oxy.so/bloom/design-tokens/theme.css";
 
 @source "./app/**/*.{js,jsx,ts,tsx}";
@@ -17,50 +17,4 @@
 
 @theme {
   --font-sans: Inter, sans-serif;
-
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
-
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: hsl(0 0% 100%);
-
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-
-  --color-surface: var(--surface);
-  --color-surface-foreground: var(--surface-foreground);
-}
-
-@layer base {
-  :root {
-    --radius: 1rem;
-  }
-}
-
-@layer utilities {
-  .squircle {
-    border-radius: 20%;
-  }
 }

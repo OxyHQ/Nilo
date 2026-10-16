@@ -22,7 +22,7 @@
     "@expo/html-elements": "^0.13.8",
     "@hugeicons/react-native": "^1.0.11",
     "@nilo/contracts": "workspace:*",
-    "@oxy.so/bloom": "^10.7.0",
+    "@oxy.so/bloom": "^10.10.0",
     "@oxy.so/bloom-editor": "0.2.0",
     "@oxy.so/bloom-text": "0.1.0",
     "@oxy.so/contracts": "4.12.0",
