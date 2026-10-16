@@ -486,16 +486,19 @@ export async function updateLabel(
   db: NiloDatabase,
   home: NotesHome,
   id: string,
-  input: NoteLabelWrite,
+  input: Partial<NoteLabelWrite>,
 ): Promise<SelectOption | null> {
   return withNotesSchema(db, home, async (schema) => {
     const config = labelsProperty(schema);
     const option = config.options.find((o) => o.id === id);
     if (!option) return null;
-    if (config.options.some((o) => o.id !== id && sameName(o.name, input.name))) {
-      throw new NoteRejected(409, 'A label with that name exists', 'LABEL_EXISTS');
+    if (input.name !== undefined) {
+      const name = input.name;
+      if (config.options.some((o) => o.id !== id && sameName(o.name, name))) {
+        throw new NoteRejected(409, 'A label with that name exists', 'LABEL_EXISTS');
+      }
+      option.name = name.trim();
     }
-    option.name = input.name.trim();
     if (input.color !== undefined) {
       option.color = labelColor(input.color);
       if (input.color) option.noteColor = input.color;
@@ -600,19 +603,21 @@ export async function updateFolder(
   db: NiloDatabase,
   home: NotesHome,
   id: string,
-  input: NoteFolderWrite,
+  input: Partial<NoteFolderWrite>,
 ): Promise<boolean> {
   return db.transaction(async (tx) => {
     await lockDatabase(tx, home.folders.id, 'update');
     const row = await findFolderRow(tx, home, id);
     if (!row) return false;
-    await tx
-      .update(pages)
-      .set({
-        title: input.name,
-        properties: sql`${pages.properties} || ${JSON.stringify({ [FOLDER_PROPERTY.name]: { text: input.name } })}::jsonb`,
-      })
-      .where(eq(pages.id, id));
+    if (input.name !== undefined) {
+      await tx
+        .update(pages)
+        .set({
+          title: input.name,
+          properties: sql`${pages.properties} || ${JSON.stringify({ [FOLDER_PROPERTY.name]: { text: input.name } })}::jsonb`,
+        })
+        .where(eq(pages.id, id));
+    }
     if (input.parentId !== undefined && input.parentId !== folderParent(row)) {
       if (input.parentId) await checkParent(tx, home, id, input.parentId);
       await setFolderParent(tx, home, row, input.parentId);
