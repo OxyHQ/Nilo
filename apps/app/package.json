@@ -23,7 +23,7 @@
     "@oxy.so/app-preset": "3.2.1",
     "@oxy.so/bloom": "^10.13.0",
     "@oxy.so/bloom-editor": "0.4.0",
-    "@oxy.so/bloom-text": "0.1.1",
+    "@oxy.so/bloom-text": "0.1.2",
     "@oxy.so/contracts": "4.16.0",
     "@oxy.so/core": "4.10.0",
     "@oxy.so/nilo-contracts": "workspace:*",
