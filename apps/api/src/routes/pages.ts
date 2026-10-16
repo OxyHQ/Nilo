@@ -27,6 +27,7 @@ import { log } from '../lib/logger.js';
 import { rateLimit } from '../lib/rate-limit.js';
 import { placeOrRefuse } from '../lib/placement.js';
 import { syncRelations } from '../lib/databases/relations.js';
+import { isSystemDatabase } from '../lib/databases/system.js';
 import type { DatabaseRecord } from '../repositories/databases.js';
 import {
   accessibleAncestry,
@@ -498,6 +499,20 @@ router.patch('/:id', async (req: Request, res: Response) => {
       body.mode !== undefined;
     if (page.locked && body.locked !== false && editsContent) {
       res.status(423).json({ error: 'The page is locked', code: 'PAGE_LOCKED' });
+      return;
+    }
+
+    // A system database's row stays a row: an app syncing the database would
+    // lose sight of it as a template.
+    if (
+      body.template !== undefined &&
+      body.template !== page.template &&
+      (await isSystemDatabase(db, page.databaseId))
+    ) {
+      res.status(409).json({
+        error: 'A row of an app database cannot become a template',
+        code: 'SYSTEM_ROW',
+      });
       return;
     }
 

@@ -45,6 +45,20 @@ export { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts'
  */
 export type PageProperties = Record<string, unknown>;
 
+/**
+ * `pages.updatedAt` is the database's transaction time, on insert and on every
+ * update, not the API's clock like other tables' (`@oxy.so/db` `updatedAt`).
+ *
+ * Clients sync database rows by it (`GET /notes/sync`), and a sync pass ends
+ * at the start of the oldest transaction still writing, read from the same
+ * database: every row stamped before that has committed. A JS clock read when
+ * the statement is built gives no such bound — a long write commits with a
+ * stamp older than passes that already ran — and API instances' clocks differ
+ * from each other and from the database's. Same expression and precision as
+ * the insert default, so the column's DDL is unchanged.
+ */
+export const transactionTime = sql`date_trunc('milliseconds', now())`;
+
 /** Bounds of `pages.coverPosition`, as a percentage offset. */
 export const COVER_POSITION_MIN = 0;
 export const COVER_POSITION_MAX = 100;
@@ -185,7 +199,10 @@ export const pages = pgTable(
      */
     properties: jsonb().$type<PageProperties>().notNull().default({}),
     createdAt: createdAt(),
-    updatedAt: updatedAt(),
+    updatedAt: timestamptz()
+      .notNull()
+      .default(transactionTime)
+      .$onUpdate(() => transactionTime),
   },
   (t) => [
     /**

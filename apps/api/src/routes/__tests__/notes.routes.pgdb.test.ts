@@ -9,9 +9,11 @@ import type { AddressInfo } from 'node:net';
 import type { Note, NoteBlock, NotesSyncPage } from '@nilo/contracts';
 import { uuidv7 } from '@oxy.so/db';
 import express from 'express';
-import { like } from 'drizzle-orm';
+import { and, eq, isNull, like, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { closeDb } from '../../db/client.js';
+import { reminders } from '../../db/schema/collab.js';
+import { pages } from '../../db/schema/pages.js';
 import { workspaces } from '../../db/schema/workspaces.js';
 import {
   closeTestDb,
@@ -47,6 +49,7 @@ const { default: notesRouter } = await import('../notes.js');
 const { default: workspacesRouter } = await import('../workspaces.js');
 const { default: databasesRouter } = await import('../databases.js');
 const { default: remindersRouter } = await import('../reminders.js');
+const { default: pagesRouter } = await import('../pages.js');
 
 let db: TestDatabase;
 let server: Server;
@@ -98,6 +101,7 @@ beforeAll(async () => {
   app.use('/workspaces', workspacesRouter);
   app.use('/databases', databasesRouter);
   app.use(remindersRouter);
+  app.use('/pages', pagesRouter);
   server = app.listen(0);
   await new Promise<void>((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -304,6 +308,125 @@ describe('folders', () => {
     expect(folders.find((f) => f.id === middle)).toBeUndefined();
     expect(folders.find((f) => f.id === bottom)?.parentId).toBe(top);
     expect(((await api('GET', `/notes/${note.id}`)).json.note as Note).folderId).toBe(top);
+  });
+});
+
+describe('what a review found', () => {
+  it('a sync from before a reset starts over', async () => {
+    await create({ title: 'Old' });
+    let page = await sync();
+    while (page.hasMore) page = await sync(page.cursor);
+    const ws = (await api('GET', '/workspaces/personal')).json.workspace as Json;
+    await api('POST', `/workspaces/${ws.id}/reset`, { confirm: ws.name });
+    const after = await sync(page.cursor);
+    expect(after).toMatchObject({ full: true, notes: [] });
+  });
+
+  it('a row a slow transaction stamps early is in the next pass', async () => {
+    const note = await create({ title: 'Slow' });
+    let page = await sync();
+    while (page.hasMore) page = await sync(page.cursor);
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let started: () => void = () => {};
+    const begun = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const writer = db.transaction(async (tx) => {
+      await tx.update(pages).set({ title: 'Slow, edited' }).where(eq(pages.id, note.id));
+      started();
+      await held;
+    });
+    await begun;
+    // A pass that runs while the write is open, and ends after it began.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    let during = await sync(page.cursor);
+    while (during.hasMore) during = await sync(during.cursor);
+    release();
+    await writer;
+    const next = await sync(during.cursor);
+    expect(next.notes.find((n) => n.id === note.id)?.title).toBe('Slow, edited');
+  });
+
+  it('a note deleted for good stays deleted, whoever replays its create', async () => {
+    const id = uuidv7();
+    expect((await api('POST', '/notes', { id, title: 'Once' })).status).toBe(201);
+    expect((await api('DELETE', `/notes/${id}`)).status).toBe(200);
+    const again = await api('POST', '/notes', { id, title: 'Twice' });
+    expect(again.status).toBe(410);
+    expect(again.json).toMatchObject({ code: 'NOTE_DELETED' });
+  });
+
+  it('concurrent creates of one id make one note', async () => {
+    const id = uuidv7();
+    const answers = await Promise.all(
+      [1, 2, 3, 4].map(() => api('POST', '/notes', { id, title: 'Raced' })),
+    );
+    expect(answers.map((a) => a.status).sort()).toEqual([200, 200, 200, 201]);
+  });
+
+  it('resending a reminder that went off does not set it off again', async () => {
+    const remindAt = new Date(Date.now() + 60_000).toISOString();
+    const note = await create({ reminderAt: remindAt });
+    const mine = and(eq(reminders.pageId, note.id), isNull(reminders.blockId));
+    await db.update(reminders).set({ sentAt: new Date() }).where(mine);
+    await api('PATCH', `/notes/${note.id}`, { reminderAt: remindAt, title: 'Same reminder' });
+    const [row] = await db.select().from(reminders).where(mine);
+    expect(row?.sentAt).not.toBeNull();
+  });
+
+  it('a label keeps its own colour, and none stays none', async () => {
+    const teal = (await api('POST', '/notes/labels', { name: 'Teal one', color: 'teal' })).json
+      .label as Json;
+    const plain = (await api('POST', '/notes/labels', { name: 'Plain one' })).json.label as Json;
+    const colourless = (
+      await api('POST', '/notes/labels', { name: 'Default one', color: 'default' })
+    ).json.label as Json;
+    expect(teal.color).toBe('teal');
+    expect(plain.color).toBeNull();
+    expect(colourless.color).toBe('default');
+  });
+
+  it('a note cannot become a template', async () => {
+    const note = await create();
+    const res = await api('PATCH', `/pages/${note.id}`, { template: true });
+    expect(res.json).toMatchObject({ code: 'SYSTEM_ROW' });
+  });
+
+  it('writing attachments keeps files added by link in Nilo', async () => {
+    const note = await create({ attachments: ['oxy-a'] });
+    const files = sql`jsonb_build_object('files', jsonb_build_array(
+      jsonb_build_object('name', 'Spec', 'url', 'https://example.test/spec.pdf'),
+      jsonb_build_object('name', 'A.png', 'fileId', 'oxy-a')))`;
+    await db
+      .update(pages)
+      .set({
+        properties: sql`jsonb_set(${pages.properties}, ARRAY[${NOTE_PROPERTY.attachments}]::text[], ${files})`,
+      })
+      .where(eq(pages.id, note.id));
+    await api('PATCH', `/notes/${note.id}`, { attachments: ['oxy-a', 'oxy-b'] });
+    const [row] = await db.select().from(pages).where(eq(pages.id, note.id));
+    expect(row).toBeDefined();
+    const properties = (row as typeof pages.$inferSelect).properties;
+    expect((properties[NOTE_PROPERTY.attachments] as { files: Json[] }).files).toEqual([
+      { name: 'Spec', url: 'https://example.test/spec.pdf' },
+      { name: 'A.png', fileId: 'oxy-a' },
+      { name: '', fileId: 'oxy-b' },
+    ]);
+  });
+
+  it('refuses blocks that do not form a tree', async () => {
+    const a = uuidv7();
+    const b = uuidv7();
+    const res = await api('POST', '/notes', {
+      blocks: [
+        { id: a, parentBlockId: b, type: 'paragraph', content: { text: 'a' }, order: 0 },
+        { id: b, parentBlockId: a, type: 'paragraph', content: { text: 'b' }, order: 1 },
+      ],
+    });
+    expect(res.json).toMatchObject({ code: 'INVALID_BLOCKS' });
   });
 });
 

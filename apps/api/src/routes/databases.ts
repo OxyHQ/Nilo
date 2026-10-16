@@ -89,7 +89,11 @@ import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js
 import { rowFormulaContext } from '../lib/databases/row-values.js';
 import { linkTwoWay, syncRelations, unlinkTwoWay } from '../lib/databases/relations.js';
 import { resolveRollups } from '../lib/databases/rollups.js';
-import { systemDatabaseDeleteError, systemPropertyChangeError } from '../lib/databases/system.js';
+import {
+  keepNoteColors,
+  systemDatabaseDeleteError,
+  systemPropertyChangeError,
+} from '../lib/databases/system.js';
 import { placeOrRefuse } from '../lib/placement.js';
 import { findBlockById } from '../repositories/blocks.js';
 import { findMembership } from '../repositories/workspaces.js';
@@ -478,6 +482,7 @@ function normalizeSchema(schema: DatabaseSchema): DatabaseSchema {
         id: opt.id ?? randomUUID(),
         name: opt.name,
         color: opt.color ?? 'default',
+        ...(typeof opt.noteColor === 'string' && { noteColor: opt.noteColor }),
       }));
     }
   }
@@ -838,6 +843,7 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
       res.status(409).json({ error: systemError, code: 'SYSTEM_PROPERTY' });
       return;
     }
+    keepNoteColors(current, next);
     // Two-way links are the server's: kept, made or undone as the property changes.
     const wasTwoWay = current.type === 'relation' && current.config?.twoWay === true;
     const isTwoWay = next.type === 'relation' && next.config?.twoWay === true;

@@ -453,12 +453,16 @@ export async function deleteDatabaseRows(db: PgHandle, databaseId: string): Prom
  * exists. Under CASCADE it would be destroyed — see the schema.
  */
 export async function deleteArchivedPages(db: PgHandle, workspaceId: string): Promise<number> {
-  const deleted = await db
-    .delete(pages)
-    .where(and(eq(pages.workspaceId, workspaceId), eq(pages.archived, true)))
-    .returning({ id: pages.id, databaseId: pages.databaseId });
-  await recordTombstones(db, deleted);
-  return deleted.length;
+  // The rows and their tombstones commit together, or a syncing client could
+  // keep a row that is gone.
+  return db.transaction(async (tx) => {
+    const deleted = await tx
+      .delete(pages)
+      .where(and(eq(pages.workspaceId, workspaceId), eq(pages.archived, true)))
+      .returning({ id: pages.id, databaseId: pages.databaseId });
+    await recordTombstones(tx, deleted);
+    return deleted.length;
+  });
 }
 
 /**
@@ -476,7 +480,11 @@ export async function recordTombstones(
     page.databaseId ? [{ pageId: page.id, databaseId: page.databaseId }] : [],
   );
   if (rows.length === 0) return;
-  await db.insert(pageTombstones).values(rows).onConflictDoNothing();
+  // A row deleted again (its id reused) is deleted now, for cursors past the first time.
+  await db
+    .insert(pageTombstones)
+    .values(rows)
+    .onConflictDoUpdate({ target: pageTombstones.pageId, set: { deletedAt: sql`now()` } });
   await db
     .delete(pageTombstones)
     .where(
@@ -510,7 +518,8 @@ export async function recordTombstones(
  */
 export async function deletePageTree(db: PgHandle, rootId: string): Promise<number> {
   const id = sql.identifier(sqlColumnName(pages.id));
-  const rows = await db.execute(sql`
+  return db.transaction(async (tx) => {
+    const rows = await tx.execute(sql`
     with recursive tree as (
       select ${pages.id} from ${pages} where ${pages.id} = ${rootId}
       union all
@@ -522,12 +531,15 @@ export async function deletePageTree(db: PgHandle, rootId: string): Promise<numb
     where ${pages.id} in (select ${id} from tree)
     returning ${pages.id} as id, ${pages.databaseId} as database_id
   `);
-  const deleted = rows.map((row) => ({
-    id: String(row.id),
-    databaseId: typeof row.database_id === 'string' ? row.database_id : null,
-  }));
-  await recordTombstones(db, deleted);
-  return deleted.length;
+    const deleted = rows.map((row) => ({
+      id: String(row.id),
+      databaseId: typeof row.database_id === 'string' ? row.database_id : null,
+    }));
+    // In the same transaction as the delete: a row gone without its tombstone
+    // would stay on every syncing client.
+    await recordTombstones(tx, deleted);
+    return deleted.length;
+  });
 }
 
 /**

@@ -20,7 +20,7 @@ import {
   type SelectColor,
   type SystemDatabaseKey,
 } from '../../db/schema/databases.js';
-import { pages } from '../../db/schema/pages.js';
+import { pages, transactionTime } from '../../db/schema/pages.js';
 import {
   type DatabaseRecord,
   findDatabaseById,
@@ -190,6 +190,20 @@ export function systemPropertyChangeError(
   return null;
 }
 
+/**
+ * A label's own note colour survives an edit of the property from Nilo, whose
+ * app does not send it, while the option's Nilo colour is unchanged.
+ */
+export function keepNoteColors(current: DatabaseProperty, next: DatabaseProperty): void {
+  const before = new Map((current.config?.options ?? []).map((o) => [o.id, o]));
+  for (const option of next.config?.options ?? []) {
+    const was = before.get(option.id);
+    if (option.noteColor === undefined && was?.noteColor && was.color === option.color) {
+      option.noteColor = was.noteColor;
+    }
+  }
+}
+
 /** Why a system database cannot be deleted or archived, or null for any other database. */
 export function systemDatabaseDeleteError(database: {
   systemKey: SystemDatabaseKey | null;
@@ -340,7 +354,7 @@ export async function isSystemDatabase(db: PgHandle, databaseId: string | null):
 export async function touchSystemRow(db: PgHandle, pageId: string): Promise<void> {
   await db
     .update(pages)
-    .set({ updatedAt: new Date() })
+    .set({ updatedAt: transactionTime })
     .where(
       and(
         eq(pages.id, pageId),

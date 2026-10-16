@@ -45,6 +45,7 @@ import {
   noteRowsChangedSince,
   noteTombstonesSince,
   readNotes,
+  syncWatermark,
   toLabel,
 } from '../repositories/notes.js';
 
@@ -53,8 +54,6 @@ router.use(authenticateToken);
 
 const idSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 
-/** How far back a sync pass starts from the clock it read: rows written in the same instant are not lost. */
-const SYNC_OVERLAP_MS = 1000;
 const SYNC_DEFAULT_LIMIT = 200;
 const SYNC_MAX_LIMIT = 500;
 
@@ -121,12 +120,14 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 interface SyncCursor {
-  /** Changes after this instant; absent for the whole set. */
+  /** The notes database the cursor is for: a reset makes a new one, and its cursors start over. */
+  d?: string;
+  /** Changes at or after this instant; absent for the whole set. */
   s?: string;
   /** Within a pass: the last row returned, to continue after. */
   u?: string;
   i?: string;
-  /** Within a pass: the clock read when it began, where the next pass starts. */
+  /** Within a pass: where it ends, and the next pass starts (`syncWatermark`). */
   t?: string;
   /** Within a pass: it is the whole set. */
   f?: boolean;
@@ -137,9 +138,12 @@ function parseCursor(raw: unknown): SyncCursor | null {
   if (typeof raw !== 'string') return null;
   try {
     const cursor = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as SyncCursor;
+    if (typeof cursor !== 'object' || cursor === null) return null;
     const dates = [cursor.s, cursor.u, cursor.t].filter((d) => d !== undefined);
     if (dates.some((d) => typeof d !== 'string' || Number.isNaN(Date.parse(d)))) return null;
     if ((cursor.u === undefined) !== (cursor.i === undefined)) return null;
+    if (cursor.i !== undefined && typeof cursor.i !== 'string') return null;
+    if (cursor.d !== undefined && typeof cursor.d !== 'string') return null;
     return cursor;
   } catch {
     return null;
@@ -152,11 +156,12 @@ const encodeCursor = (cursor: SyncCursor) =>
 /**
  * GET /notes/sync?cursor&limit — what changed since the cursor, in pages.
  *
- * A pass reads the clock first and ends with a cursor starting a little before
- * it, so a note written while the pass ran arrives in the next one (perhaps
- * twice, which the client's upsert absorbs) instead of falling between two.
- * Without a cursor, or with one older than deletions are remembered, the pass
- * is the whole set (`full`).
+ * A pass ends where `syncWatermark` says, read when it begins, and the next
+ * pass starts there, inclusively: a row a slow transaction stamps early is in
+ * one pass or the next, never between them (a row may come twice, which the
+ * client's upsert absorbs). Without a cursor, with one for a notes database
+ * that a reset replaced, or with one older than deletions are remembered, the
+ * pass is the whole set (`full`).
  */
 router.get('/sync', async (req: Request, res: Response) => {
   try {
@@ -172,20 +177,19 @@ router.get('/sync', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Invalid cursor or limit' });
       return;
     }
-    const startedAt = cursor.t ? new Date(cursor.t) : new Date();
-    let since = cursor.s ? new Date(cursor.s) : null;
-    let full = cursor.f === true || since === null;
-    if (since && startedAt.getTime() - since.getTime() > PAGE_TOMBSTONE_RETENTION_MS) {
-      since = null;
-      full = true;
-    }
-    const after =
-      cursor.u && cursor.i && !(full && !cursor.f)
-        ? { updatedAt: new Date(cursor.u), id: cursor.i }
-        : null;
-
     const home = await homeOf(req);
     const db = getDb();
+
+    const sameDatabase = cursor.d === undefined || cursor.d === home.notes.id;
+    const continuing = sameDatabase && cursor.u !== undefined && cursor.t !== undefined;
+    const end = continuing ? new Date(cursor.t as string) : await syncWatermark(db);
+    let since = sameDatabase && cursor.s ? new Date(cursor.s) : null;
+    if (since && end.getTime() - since.getTime() > PAGE_TOMBSTONE_RETENTION_MS) since = null;
+    const full = since === null;
+    const after = continuing
+      ? { updatedAt: new Date(cursor.u as string), id: cursor.i as string }
+      : null;
+
     const fetched = await noteRowsChangedSince(db, home, { since, after, limit: limit.data });
     const hasMore = fetched.length > limit.data;
     const rows = hasMore ? fetched.slice(0, limit.data) : fetched;
@@ -195,13 +199,13 @@ router.get('/sync', async (req: Request, res: Response) => {
     const next: SyncCursor =
       hasMore && last
         ? {
+            d: home.notes.id,
             ...(since && { s: since.toISOString() }),
             u: last.updatedAt.toISOString(),
             i: last.id,
-            t: startedAt.toISOString(),
-            ...(full && { f: true }),
+            t: end.toISOString(),
           }
-        : { s: new Date(startedAt.getTime() - SYNC_OVERLAP_MS).toISOString() };
+        : { d: home.notes.id, s: end.toISOString() };
 
     const page: NotesSyncPage = {
       notes: await readNotes(db, home, rows),
