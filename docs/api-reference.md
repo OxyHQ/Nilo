@@ -95,6 +95,25 @@ databases (`docs/databases.md`). Contract: `packages/contracts/src/notes.ts`.
   folder moves its notes and subfolders up).
 - History is the page's: `/pages/:id/versions`.
 
+### Notes capabilities (Alia, MCP)
+
+Nilo serves Noted's capability catalog (`apps/api/src/capabilities/`): app id
+`noted`, audience `oxy-noted-api`, so grants made on Noted carry over; Nilo's
+Oxy application owns the `catalog:noted` namespace and the deploy registers
+the catalog after each healthy rollout.
+
+- `/_oxy/capabilities/<tool>` — the twelve tools (`searchNotes`, `readNote`,
+  `createNote`, `updateNote`, `archiveNote`, `restoreNote`, `listLabels`,
+  `createLabel`, `updateLabel`, `deleteLabel`, `listReminders`,
+  `setReminder`) with an Oxy capability ticket (`Authorization: Capability
+  <ticket>`), verified, re-authorised live and audited. A note's `body` is
+  Markdown in and out. Effectful tools take an `idempotencyKey` and apply
+  once per key (`capability_executions`).
+- `https://mcp.noted.oxy.so/mcp` and its protected-resource metadata — the
+  same tools as a remote MCP server; the host is checked exactly.
+- Events for Alia (`note_changed`, `reminder`) are queued with the change in
+  `app_event_outbox` and delivered at least once to Alia's `/webhooks/oxy`.
+
 ## Search, files, embeds, feedback
 
 - `GET /search?workspaceId&q` — titles and text, accent-insensitive.

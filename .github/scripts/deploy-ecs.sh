@@ -31,16 +31,13 @@ RELEASE_TASK_DEFINITION=$(aws ecs register-task-definition \
 
 NETWORK=$(jq -c '.services[0].networkConfiguration.awsvpcConfiguration' <<<"$SERVICE")
 
-run_migration() {
-  local phase="$1"
+# One task with the release image and the service's network, on the given
+# command; a non-zero exit fails the deploy.
+run_oneshot() {
+  local label="$1" command="$2"
   local overrides task_arn exit_code
-  # `bun`: the runtime apps/api/Dockerfile ships. Reverting to a Node image
-  # means reverting this line with it.
-  overrides=$(jq -nc --arg container "$APP" --arg phase "$phase" '{
-    containerOverrides: [{
-      name: $container,
-      command: ["bun", "apps/api/dist/db/migrate.js", "--target-database=nilo", ("--phase=" + $phase)]
-    }]
+  overrides=$(jq -nc --arg container "$APP" --argjson command "$command" '{
+    containerOverrides: [{ name: $container, command: $command }]
   }')
   task_arn=$(aws ecs run-task --cluster "$CLUSTER" --launch-type FARGATE \
     --task-definition "$RELEASE_TASK_DEFINITION" \
@@ -50,9 +47,16 @@ run_migration() {
   exit_code=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$task_arn" \
     --query 'tasks[0].containers[0].exitCode' --output text)
   if [ "$exit_code" != 0 ]; then
-    echo "::error::$phase migration failed with exit code $exit_code"
+    echo "::error::$label failed with exit code $exit_code"
     exit 1
   fi
+}
+
+# `bun`: the runtime apps/api/Dockerfile ships. Reverting to a Node image
+# means reverting these commands with it.
+run_migration() {
+  run_oneshot "$1 migration" \
+    "$(jq -nc --arg phase "$1" '["bun", "apps/api/dist/db/migrate.js", "--target-database=nilo", ("--phase=" + $phase)]')"
 }
 
 run_migration pre
@@ -90,4 +94,10 @@ curl --fail --silent --show-error --retry 5 --retry-delay 3 \
   https://api.nilo.so/health/ready >/dev/null
 
 run_migration post
+
+# The notes capability catalog Alia and MCP clients see is the one this
+# release serves; registering an unchanged catalog again is a no-op in Oxy.
+run_oneshot "capability catalog registration" \
+  '["bun", "apps/api/dist/scripts/register-capability-catalog.js"]'
+
 echo "Deployed $RELEASE_TASK_DEFINITION ($IMAGE_URI)"

@@ -23,3 +23,4 @@ export * from './pages.js';
 export * from './databases.js';
 export * from './collab.js';
 export * from './feedback.js';
+export * from './capabilities.js';

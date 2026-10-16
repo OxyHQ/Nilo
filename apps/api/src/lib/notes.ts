@@ -287,7 +287,7 @@ function rejected(error: unknown): never {
  * note's `updatedAt` any more.
  */
 export async function updateNote(
-  db: NiloDatabase,
+  db: PgHandle,
   home: NotesHome,
   id: string,
   write: NoteWrite,
@@ -322,7 +322,7 @@ export async function updateNote(
  * id taken by any other page is refused without saying what it is.
  */
 export async function createNote(
-  db: NiloDatabase,
+  db: PgHandle,
   home: NotesHome,
   input: NoteCreate,
   actorId: string,
@@ -438,7 +438,7 @@ export async function reorderNotes(
 
 /** Change the notes database's schema with its row locked, so two label edits cannot lose one. */
 async function withNotesSchema<T>(
-  db: NiloDatabase,
+  db: PgHandle,
   home: NotesHome,
   change: (schema: DatabaseSchema, tx: PgHandle) => Promise<T>,
 ): Promise<T> {
@@ -468,7 +468,7 @@ function labelsProperty(schema: DatabaseSchema) {
 const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 export async function createLabel(
-  db: NiloDatabase,
+  db: PgHandle,
   home: NotesHome,
   input: NoteLabelWrite,
 ): Promise<SelectOption> {
@@ -489,7 +489,7 @@ export async function createLabel(
 }
 
 export async function updateLabel(
-  db: NiloDatabase,
+  db: PgHandle,
   home: NotesHome,
   id: string,
   input: Partial<NoteLabelWrite>,
@@ -515,7 +515,7 @@ export async function updateLabel(
 }
 
 /** Remove a label, and from every note that has it. */
-export async function deleteLabel(db: NiloDatabase, home: NotesHome, id: string): Promise<boolean> {
+export async function deleteLabel(db: PgHandle, home: NotesHome, id: string): Promise<boolean> {
   return withNotesSchema(db, home, async (schema, tx) => {
     const config = labelsProperty(schema);
     const before = config.options.length;

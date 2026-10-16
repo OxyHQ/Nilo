@@ -92,6 +92,19 @@ safe to run again: notes keep their ids, and what is already in Nilo is left
 alone. Run `--dry-run` first, then the copy, then the cut-over of Noted's
 client.
 
+## Notes capability catalog
+
+`.github/scripts/deploy-ecs.sh` registers the notes catalog with Oxy after the
+rollout is healthy and the post migrations ran, as a one-shot with the
+release image (`bun apps/api/dist/scripts/register-capability-catalog.js`).
+It runs as Nilo's service (the `oxy-nilo-task` workload binding), which needs
+the Nilo application's `catalog:noted` capability and the scopes
+`catalogs:write`, `capabilities:read`, `capability-audit:write` and
+`capability-events:publish` on both the application and the binding. A
+failed registration fails the deploy. The event outbox worker runs in every
+API task that has that identity; `APP_EVENT_OUTBOX_WORKER_ENABLED=false`
+stops it, and events then wait in `app_event_outbox`.
+
 ## Before a new API release
 
 1. Provision or identify the intended PostgreSQL database and secret binding.

@@ -6,7 +6,10 @@
  */
 import { and, asc, eq, inArray, isNull, lte } from 'drizzle-orm';
 import { getDb, type PgHandle } from '../db/client.js';
+import { enqueueReminder } from '../capabilities/notes.events.js';
 import { reminders } from '../db/schema/collab.js';
+import { databases } from '../db/schema/databases.js';
+import { pages as pagesTable } from '../db/schema/pages.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { findPagesByIds } from '../repositories/pages.js';
 import { log } from './logger.js';
@@ -38,6 +41,31 @@ export async function deliverDueReminders(db: PgHandle, now: Date = new Date()):
             due.map((r) => r.id),
           ),
         );
+      // A note's own reminder is an event for Alia too, queued with the claim.
+      const notes = await tx
+        .select({ id: pagesTable.id })
+        .from(pagesTable)
+        .innerJoin(databases, eq(databases.id, pagesTable.databaseId))
+        .where(
+          and(
+            inArray(
+              pagesTable.id,
+              due.map((r) => r.pageId),
+            ),
+            eq(databases.systemKey, 'notes'),
+            eq(pagesTable.archived, false),
+          ),
+        );
+      const noteIds = new Set(notes.map((note) => note.id));
+      for (const reminder of due) {
+        if (reminder.blockId === null && noteIds.has(reminder.pageId)) {
+          await enqueueReminder(tx, {
+            accountId: reminder.userId,
+            noteId: reminder.pageId,
+            reminderAt: reminder.remindAt,
+          });
+        }
+      }
     }
     return due;
   });
