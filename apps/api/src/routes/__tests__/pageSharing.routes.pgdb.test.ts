@@ -6,6 +6,7 @@
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { uuidv7 } from '@oxy.so/db';
+import { eq } from 'drizzle-orm';
 import express from 'express';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { closeDb } from '../../db/client.js';
@@ -33,6 +34,10 @@ vi.mock('../../middleware/auth.js', () => ({
     next();
   },
   oxyClient: {
+    // Oxy profiles: every user's avatar is a file id derived from their id.
+    users: {
+      getMany: async (ids: string[]) => ids.map((id) => ({ id, avatar: `avatar-of-${id}` })),
+    },
     // The real limiters resolve an optional session through this; anonymous here.
     middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
   },
@@ -241,6 +246,35 @@ describe('sharing with a guest', () => {
     expect(listed).toEqual(expect.arrayContaining([shared, child]));
     expect(listed).not.toContain(parent);
     expect(listed).not.toContain(sibling);
+  });
+
+  it("shows a shared personal workspace with its owner's avatar until it has its own", async () => {
+    const owner = 'share-personal-owner';
+    const [personal] = await db
+      .insert(workspaces)
+      .values({ name: testScope('personal'), ownerId: owner, isPersonal: true })
+      .returning({ id: workspaces.id });
+    await db
+      .insert(workspaceMembers)
+      .values({ workspaceId: personal.id, userId: owner, role: 'owner' });
+    const created = await api(owner, 'POST', '/pages', { workspaceId: personal.id, title: 'mine' });
+    expect(created.status).toBe(201);
+    const pageId = (created.json.page as { id: string }).id;
+    expect((await share(owner, pageId, GUEST, 'viewer')).status).toBe(200);
+
+    const avatarOf = async () =>
+      (
+        (await api(GUEST, 'GET', '/pages/shared')).json.shared as {
+          workspace: { id: string; avatar: string | null };
+        }[]
+      ).find((s) => s.workspace.id === personal.id)?.workspace.avatar;
+
+    expect(await avatarOf()).toBe(`avatar-of-${owner}`);
+    await db
+      .update(workspaces)
+      .set({ avatar: 'own-picture' })
+      .where(eq(workspaces.id, personal.id));
+    expect(await avatarOf()).toBe('own-picture');
   });
 
   it('lets an editor guest write and add subpages, but not top-level pages', async () => {
