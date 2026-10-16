@@ -310,6 +310,7 @@ describe('the personal workspace', () => {
       ownerId: user,
       isInline: false,
       parentPageId: parent.id,
+      teamspaceId: null,
       archived: false,
       propertiesSchema: { properties: [{ id: 'name', name: 'Name', type: 'text' }] } as never,
     });
