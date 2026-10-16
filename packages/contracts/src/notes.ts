@@ -100,6 +100,21 @@ export interface NotesSyncPage {
    * the server remembers deletions for).
    */
   full: boolean;
+  /**
+   * The cursor was for notes that no longer exist: the workspace was reset
+   * since. The client drops everything it holds of them first — unsent edits
+   * included, or uploading them would bring back what was reset — and then
+   * takes this pass, which is the whole (new) set.
+   */
+  reset: boolean;
+}
+
+/** `GET /notes/export`: everything Noted keeps, to take away. */
+export interface NotesExport {
+  exportedAt: string;
+  notes: Note[];
+  labels: NoteLabel[];
+  folders: NoteFolder[];
 }
 
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

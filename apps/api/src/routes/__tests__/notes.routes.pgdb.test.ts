@@ -319,7 +319,9 @@ describe('what a review found', () => {
     const ws = (await api('GET', '/workspaces/personal')).json.workspace as Json;
     await api('POST', `/workspaces/${ws.id}/reset`, { confirm: ws.name });
     const after = await sync(page.cursor);
-    expect(after).toMatchObject({ full: true, notes: [] });
+    expect(after).toMatchObject({ full: true, reset: true, notes: [] });
+    // Starting over from that pass, there is nothing to reset any more.
+    expect((await sync(after.cursor)).reset).toBe(false);
   });
 
   it('a row a slow transaction stamps early is in the next pass', async () => {
@@ -427,6 +429,37 @@ describe('what a review found', () => {
       ],
     });
     expect(res.json).toMatchObject({ code: 'INVALID_BLOCKS' });
+  });
+});
+
+describe('the whole account', () => {
+  it('exports every note, trash included, with labels and folders', async () => {
+    const kept = await create({ title: 'Export me' });
+    const binned = await create({ title: 'Binned', trashed: true });
+    const res = await api('GET', '/notes/export');
+    expect(res.status).toBe(200);
+    const ids = (res.json.notes as Note[]).map((n) => n.id);
+    expect(ids).toEqual(expect.arrayContaining([kept.id, binned.id]));
+    expect(res.json).toHaveProperty('labels');
+    expect(res.json).toHaveProperty('folders');
+  });
+
+  it('erases every note, folder and label when asked plainly, and syncing devices hear it', async () => {
+    let page = await sync();
+    while (page.hasMore) page = await sync(page.cursor);
+    await api('POST', '/notes/labels', { name: 'Doomed' });
+    await api('POST', '/notes/folders', { name: 'Doomed folder' });
+    const note = await create({ title: 'Doomed note' });
+
+    expect((await api('POST', '/notes/erase', {})).status).toBe(400);
+    const erased = await api('POST', '/notes/erase', { confirm: 'DELETE' });
+    expect(erased.status, JSON.stringify(erased.json)).toBe(200);
+
+    expect(((await api('GET', '/notes?view=active')).json.notes as Note[]).length).toBe(0);
+    expect((await api('GET', '/notes/labels')).json.labels).toEqual([]);
+    expect((await api('GET', '/notes/folders')).json.folders).toEqual([]);
+    const after = await sync(page.cursor);
+    expect(after.deleted).toContain(note.id);
   });
 });
 
