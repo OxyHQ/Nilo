@@ -30,8 +30,10 @@ describe('export filenames', () => {
 });
 
 describe('import selection', () => {
-  it('accepts multiple Markdown files or a single ZIP, case-insensitively', () => {
-    expect(importSelection([{ name: 'Notes.MD' }, { name: 'Other.md' }])).toBe('md');
+  it('accepts Markdown and HTML files or a single ZIP, case-insensitively', () => {
+    expect(importSelection([{ name: 'Notes.MD' }, { name: 'Other.md' }])).toBe('files');
+    expect(importSelection([{ name: 'Page.html' }, { name: 'Old.HTM' }])).toBe('files');
+    expect(importSelection([{ name: 'Notes.md' }, { name: 'Page.html' }])).toBe('files');
     expect(importSelection([{ name: 'Notion.ZIP' }])).toBe('zip');
     expect(importSelection([{ name: 'Table.CSV' }])).toBe('csv');
   });
@@ -41,6 +43,8 @@ describe('import selection', () => {
     [{ name: 'one.zip' }, { name: 'two.zip' }],
     [{ name: 'table.csv' }, { name: 'note.md' }],
     [{ name: 'one.csv' }, { name: 'two.csv' }],
+    [{ name: 'page.html' }, { name: 'export.zip' }],
+    [{ name: 'page.xhtml' }],
   ])('rejects unsupported and mixed selections: %j', (...assets) => {
     expect(() => importSelection(assets)).toThrow('invalidFiles');
   });

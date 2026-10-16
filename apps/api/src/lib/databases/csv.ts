@@ -134,7 +134,15 @@ export interface CsvDatabase {
  * rows' typed property values.
  */
 export function csvToDatabase(csv: string): CsvDatabase {
-  const [header = [], ...body] = parseCsv(csv);
+  return tableToDatabase(parseCsv(csv));
+}
+
+/**
+ * Cells with a header row (a parsed CSV, or the table of a Notion HTML
+ * export) → a schema and typed rows, as `csvToDatabase`.
+ */
+export function tableToDatabase(table: readonly (readonly string[])[]): CsvDatabase {
+  const [header = [], ...body] = table;
   if (header.length === 0)
     return {
       schema: { properties: [{ id: NAME_PROPERTY_ID, name: 'Name', type: 'text' }] },

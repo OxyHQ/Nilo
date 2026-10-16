@@ -271,7 +271,7 @@
   "import": {
     "title": "Importar",
     "intoPage": "Importar en esta página",
-    "description": "Elige archivos Markdown (.md), un CSV o un ZIP de Markdown exportado de Notion (hasta 20 MB).",
+    "description": "Elige archivos Markdown (.md) o HTML (.html), un CSV o un ZIP exportado de Notion, en Markdown o HTML (hasta 20 MB).",
     "chooseFiles": "Elegir archivos",
     "reading": "Eligiendo y leyendo archivos…",
     "uploading": "Subiendo… %{percent}%",
@@ -279,8 +279,8 @@
     "openFirst": "Abrir la primera página",
     "tooLarge": "Esta importación supera el límite de 20 MB. Elige archivos o un ZIP más pequeños.",
     "noAccess": "No tienes permiso para importar en este destino.",
-    "noMarkdown": "No se encontró Markdown que se pueda importar. Elige archivos .md o una exportación ZIP de Markdown.",
-    "invalidFiles": "Elige archivos .md, un .csv o un .zip. No mezcles formatos.",
+    "noMarkdown": "No se encontraron páginas que se puedan importar. Elige archivos .md o .html, o un ZIP exportado de Notion.",
+    "invalidFiles": "Elige archivos .md o .html, un .csv o un .zip. No mezcles formatos.",
     "failed": "No se pudo importar. Inténtalo de nuevo.",
     "result": {
       "one": "%{count} página creada",
@@ -290,7 +290,7 @@
       "one": "%{count} archivo omitido",
       "other": "%{count} archivos omitidos"
     },
-    "csvHint": "Un CSV crea una base de datos de página completa. Los CSV dentro de un ZIP se omiten; impórtalos por separado.",
+    "csvHint": "Un CSV crea una base de datos de página completa, solo o dentro de un ZIP (así llegan las bases de datos de una exportación de Notion).",
     "invalidContent": "No se pudo importar el archivo. Revisa su formato y contenido."
   },
   "info": {
