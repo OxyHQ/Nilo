@@ -1,10 +1,10 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NILO_OXY_APPLICATION_ID } from '@nilo/contracts';
 import type { OxyServices } from '@oxy.so/core';
 import apiClient from '@/lib/api/client';
-import { FileScopeProvider, freshFileUrl, useFileScope } from '../file-urls';
+import { FileScopeProvider, freshFileUrl, useFileImageSource, useFileScope } from '../file-urls';
 import { FileTooLargeError, uploadPageFile } from '../upload-page-file';
 
 jest.mock('@/lib/api/client', () => ({
@@ -12,6 +12,10 @@ jest.mock('@/lib/api/client', () => ({
   default: { post: jest.fn() },
 }));
 const post = apiClient.post as jest.Mock;
+const mockGetCachePathAsync = jest.fn<Promise<string | null>, [string]>();
+jest.mock('expo-image', () => ({
+  Image: { getCachePathAsync: (key: string) => mockGetCachePathAsync(key) },
+}));
 
 let client: QueryClient;
 beforeEach(() => {
@@ -134,5 +138,42 @@ describe('file URLs', () => {
       { kind: 'share', token: 'tok' },
     ]);
     act(() => renderer?.unmount());
+  });
+});
+
+describe('attached images', () => {
+  async function sourceFor(fileId: string) {
+    let source: unknown;
+    function Probe() {
+      source = useFileImageSource({ kind: 'page', pageId: 'p' }, fileId);
+      return null;
+    }
+    let renderer: ReactTestRenderer | undefined;
+    await act(async () => {
+      renderer = create(
+        <QueryClientProvider client={client}>
+          <Probe />
+        </QueryClientProvider>,
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    act(() => renderer?.unmount());
+    return source;
+  }
+
+  it('show the minted URL, cached under the file id', async () => {
+    post.mockResolvedValue({
+      data: { files: [{ id: 'img', url: 'https://u/img', expiresIn: 300 }] },
+    });
+    expect(await sourceFor('img')).toEqual({ uri: 'https://u/img', cacheKey: 'img' });
+  });
+
+  it('fall back to the copy kept on disk when no URL can be had', async () => {
+    post.mockRejectedValue(new Error('offline'));
+    mockGetCachePathAsync.mockResolvedValue('/data/cache/img');
+    expect(await sourceFor('img')).toEqual({ uri: 'file:///data/cache/img' });
+    expect(mockGetCachePathAsync).toHaveBeenCalledWith('img');
   });
 });
