@@ -1,8 +1,11 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { authenticateToken, oxyClient } from '../middleware/auth.js';
+import { announceReset } from '../collab/live-rooms.js';
 import {
   ensurePersonalWorkspace,
+  ensurePersonalWorkspaceFor,
+  personalWorkspaceName,
   requireRole,
   requireWorkspaceMember,
 } from '../middleware/workspace.js';
@@ -18,6 +21,7 @@ import {
   listMembers,
   listMembershipsForUser,
   removeMember,
+  resetPersonalWorkspace,
   updateMemberRole,
   updateWorkspace,
 } from '../repositories/workspaces.js';
@@ -35,6 +39,9 @@ const inviteMemberSchema = z.object({
   email: z.string().email(),
   role: z.enum(INVITABLE_ROLES as unknown as [WorkspaceRole, ...WorkspaceRole[]]),
 });
+
+/** The reset is confirmed by typing the workspace's current name. */
+const resetWorkspaceSchema = z.object({ confirm: z.string() });
 
 const updateMemberSchema = z.object({
   role: z.enum(INVITABLE_ROLES as unknown as [WorkspaceRole, ...WorkspaceRole[]]),
@@ -125,6 +132,27 @@ router.get('/', authenticateToken, ensurePersonalWorkspace, async (req: Request,
   } catch (error: unknown) {
     log.general.error({ err: error }, 'Failed to list workspaces');
     res.status(500).json({ error: 'Failed to list workspaces' });
+  }
+});
+
+/**
+ * GET /api/workspaces/personal
+ *
+ * The caller's personal workspace, provisioned on the spot when it is missing.
+ * The direct way in for a client that works in it alone, without listing
+ * every workspace first.
+ */
+router.get('/personal', authenticateToken, async (req: Request, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const ws = await ensurePersonalWorkspaceFor(req.user.id);
+    res.json({ workspace: serializeWorkspace(ws, 'owner') });
+  } catch (error: unknown) {
+    log.general.error({ err: error }, 'Failed to load personal workspace');
+    res.status(500).json({ error: 'Failed to load personal workspace' });
   }
 });
 
@@ -314,6 +342,48 @@ router.delete(
     } catch (error: unknown) {
       log.general.error({ err: error }, 'Failed to archive workspace');
       res.status(500).json({ error: 'Failed to archive workspace' });
+    }
+  },
+);
+
+/**
+ * POST /api/workspaces/:workspaceId/reset
+ *
+ * Permanently empty the caller's personal workspace: every page, database,
+ * comment and extra teamspace, with the name back to its default and no picture.
+ * The id stays, so the workspace is the same one, empty. Owner only, personal
+ * only (any other workspace is deleted instead), and confirmed by sending the
+ * workspace's current name.
+ */
+router.post(
+  '/:workspaceId/reset',
+  authenticateToken,
+  requireWorkspaceMember,
+  requireRole('owner'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.workspaceDoc) {
+        res.status(500).json({ error: 'Workspace context not loaded' });
+        return;
+      }
+      const ws = req.workspaceDoc;
+      if (!ws.isPersonal) {
+        res.status(400).json({ error: 'Only a personal workspace can be reset' });
+        return;
+      }
+      const parsed = resetWorkspaceSchema.safeParse(req.body);
+      if (!parsed.success || parsed.data.confirm !== ws.name) {
+        res.status(400).json({ error: 'Type the workspace name to confirm the reset' });
+        return;
+      }
+
+      const name = await personalWorkspaceName(ws.ownerId);
+      const removed = await resetPersonalWorkspace(getDb(), ws, name);
+      announceReset(ws.id);
+      res.json({ success: true, removed });
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to reset workspace');
+      res.status(500).json({ error: 'Failed to reset workspace' });
     }
   },
 );

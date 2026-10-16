@@ -2,11 +2,11 @@ import type { Request, Response, NextFunction } from 'express';
 import { getDb } from '../db/client.js';
 import { hasRole, type WorkspaceRole } from '../db/schema/workspaces.js';
 import {
-  addMemberIfAbsent,
-  createPersonalWorkspaceIfAbsent,
   findLiveWorkspaceById,
   findMembership,
-  findPersonalWorkspace,
+  findProvisionedPersonalWorkspace,
+  provisionPersonalWorkspace,
+  type WorkspaceRow,
 } from '../repositories/workspaces.js';
 import { oxyClient } from './auth.js';
 import { log } from '../lib/logger.js';
@@ -184,14 +184,47 @@ function defaultPersonalWorkspaceName(
 }
 
 /**
- * Idempotently ensures the authenticated caller has a personal workspace
- * with themselves as the `owner` member. Safe to invoke on every
- * authenticated request.
+ * The name a personal workspace is given when it is provisioned or reset:
+ * built from the Oxy profile, or "My Workspace" when Oxy cannot say.
+ */
+export async function personalWorkspaceName(userId: string): Promise<string> {
+  try {
+    const oxyUser = await oxyClient.users.get(userId);
+    if (oxyUser) {
+      return defaultPersonalWorkspaceName({
+        username: oxyUser.username,
+        email: oxyUser.email,
+        name: oxyUser.name ? { full: oxyUser.name.full, first: oxyUser.name.first } : null,
+      });
+    }
+  } catch (lookupErr: unknown) {
+    log.general.warn(
+      { err: lookupErr, userId },
+      'personalWorkspaceName: failed to fetch user from Oxy (continuing with default name)',
+    );
+  }
+  return defaultPersonalWorkspaceName(null);
+}
+
+/**
+ * The user's personal workspace, provisioned when it is missing or broken.
  *
- * If creation races (two parallel requests for the same new user), the
- * partial unique index on `Workspace { ownerId, isPersonal }` forces a
- * single winner; the loser swallows the duplicate-key error and reads
- * the existing row.
+ * The common case is one indexed read. Only a user without a complete
+ * personal workspace pays for the Oxy profile lookup and the provisioning
+ * transaction (`provisionPersonalWorkspace`), which also repairs one left
+ * without its owner membership.
+ */
+export async function ensurePersonalWorkspaceFor(userId: string): Promise<WorkspaceRow> {
+  const db = getDb();
+  const existing = await findProvisionedPersonalWorkspace(db, userId);
+  if (existing) return existing;
+  const name = await personalWorkspaceName(userId);
+  return provisionPersonalWorkspace(db, { ownerId: userId, name });
+}
+
+/**
+ * Ensures the authenticated caller has a complete personal workspace before
+ * the route runs. Safe to invoke on every authenticated request.
  */
 export async function ensurePersonalWorkspace(
   req: Request,
@@ -203,62 +236,7 @@ export async function ensurePersonalWorkspace(
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-
-    const userId = req.user.id;
-    const db = getDb();
-    const existing = await findPersonalWorkspace(db, userId);
-    if (existing) {
-      next();
-      return;
-    }
-
-    // Fetch user info for a friendlier default name. Failure is non-fatal —
-    // we fall back to "My Workspace".
-    let displayUser: {
-      username?: string;
-      email?: string;
-      name?: { full?: string; first?: string } | null;
-    } | null = null;
-    try {
-      const oxyUser = await oxyClient.users.get(userId);
-      if (oxyUser) {
-        displayUser = {
-          username: oxyUser.username,
-          email: oxyUser.email,
-          name: oxyUser.name ? { full: oxyUser.name.full, first: oxyUser.name.first } : null,
-        };
-      }
-    } catch (lookupErr: unknown) {
-      log.general.warn(
-        { err: lookupErr, userId },
-        'ensurePersonalWorkspace: failed to fetch user from Oxy (continuing with default name)',
-      );
-    }
-
-    const name = defaultPersonalWorkspaceName(displayUser);
-
-    // Two parallel requests for a brand-new user race here. Catching a
-    // unique-violation on each insert would be wrong twice over -- a failed
-    // statement aborts the surrounding transaction, and an exception cannot
-    // tell a duplicate from a dropped connection, so the catch would report
-    // "already provisioned" for an infrastructure failure.
-    // `ON CONFLICT ... DO NOTHING RETURNING` makes the EMPTY RESULT the answer
-    // instead, and a real failure still propagates.
-    const created = await createPersonalWorkspaceIfAbsent(db, { name, ownerId: userId });
-    if (!created) {
-      // Lost the race. The winner also creates the owner membership, so there
-      // is nothing left to do.
-      next();
-      return;
-    }
-
-    await addMemberIfAbsent(db, {
-      workspaceId: created.id,
-      userId,
-      role: 'owner',
-      invitedBy: null,
-    });
-
+    await ensurePersonalWorkspaceFor(req.user.id);
     next();
   } catch (error: unknown) {
     log.general.error({ err: error }, 'ensurePersonalWorkspace failed');

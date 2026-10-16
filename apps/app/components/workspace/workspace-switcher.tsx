@@ -148,7 +148,12 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
           <DropdownMenuLabel>{t('workspace.switcher.yourWorkspaces')}</DropdownMenuLabel>
           {(workspaces ?? []).map((workspace) => {
             const isActive = workspace.id === activeWorkspace?.id;
-            const role = workspace.role;
+            // The personal workspace is always one's own: say which it is, not the role.
+            const subtitle = workspace.isPersonal
+              ? t('workspace.switcher.personal')
+              : workspace.role
+                ? roleLabel(workspace.role)
+                : null;
             return (
               <DropdownMenuItem
                 key={workspace.id}
@@ -165,8 +170,8 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
                   <Text variant="body-medium" numberOfLines={1}>
                     {workspace.name}
                   </Text>
-                  {role ? (
-                    <Text className="text-[11px] text-muted-foreground">{roleLabel(role)}</Text>
+                  {subtitle ? (
+                    <Text className="text-[11px] text-muted-foreground">{subtitle}</Text>
                   ) : null}
                 </View>
               </DropdownMenuItem>

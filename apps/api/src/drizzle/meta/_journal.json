@@ -211,6 +211,13 @@
       "when": 1792128454315,
       "tag": "0029_page_files",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792134986706,
+      "tag": "0030_personal_workspace_not_archived",
+      "breakpoints": true
     }
   ]
 }
