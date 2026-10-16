@@ -7,6 +7,7 @@
 import { and, asc, eq, inArray, isNull, lte } from 'drizzle-orm';
 import { getDb, type PgHandle } from '../db/client.js';
 import { reminders } from '../db/schema/collab.js';
+import { findDatabaseById } from '../repositories/databases.js';
 import { findPagesByIds } from '../repositories/pages.js';
 import { log } from './logger.js';
 import { sendNotification } from './notification-service.js';
@@ -50,6 +51,14 @@ export async function deliverDueReminders(db: PgHandle, now: Date = new Date()):
       )
     ).map((p) => [p.id, p]),
   );
+  // A note's reminder is Noted's to deliver when the user has Noted.
+  const noteDatabases = new Set<string>();
+  for (const page of pages.values()) {
+    if (page.databaseId && !noteDatabases.has(page.databaseId)) {
+      const database = await findDatabaseById(db, page.databaseId);
+      if (database?.systemKey === 'notes') noteDatabases.add(page.databaseId);
+    }
+  }
   let delivered = 0;
   for (const reminder of claimed) {
     const page = pages.get(reminder.pageId);
@@ -68,6 +77,7 @@ export async function deliverDueReminders(db: PgHandle, now: Date = new Date()):
           pageId: page.id,
           blockId: reminder.blockId,
           workspaceId: page.workspaceId,
+          ...(page.databaseId && noteDatabases.has(page.databaseId) && { app: 'noted' }),
         },
       });
       delivered += 1;

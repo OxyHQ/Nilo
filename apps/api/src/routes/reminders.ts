@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { getDb } from '../db/client.js';
 import { reminders } from '../db/schema/collab.js';
 import { blocks, pages } from '../db/schema/pages.js';
+import { touchSystemRow } from '../lib/databases/system.js';
 import { log } from '../lib/logger.js';
 import { checkPageAccess } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -75,6 +76,7 @@ router.post('/pages/:id/reminders', authenticateToken, async (req: Request, res:
         note: body.note ?? null,
       })
       .returning();
+    await touchSystemRow(db, id);
     res.status(201).json({ reminder: serialize(row as typeof reminders.$inferSelect) });
   } catch (error: unknown) {
     if (badInput(error, res)) return;
@@ -134,14 +136,16 @@ router.get('/pages/:id/reminders', authenticateToken, async (req: Request, res: 
 router.delete('/reminders/:id', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = z.object({ id: entityIdSchema }).parse(req.params);
-    const deleted = await getDb()
+    const db = getDb();
+    const deleted = await db
       .delete(reminders)
       .where(and(eq(reminders.id, id), eq(reminders.userId, req.user?.id as string)))
-      .returning({ id: reminders.id });
+      .returning({ id: reminders.id, pageId: reminders.pageId });
     if (deleted.length === 0) {
       res.status(404).json({ error: 'Reminder not found' });
       return;
     }
+    await touchSystemRow(db, deleted[0]?.pageId as string);
     res.json({ success: true });
   } catch (error: unknown) {
     if (badInput(error, res)) return;
