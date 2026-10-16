@@ -35,7 +35,7 @@ router.use(authenticateToken);
  */
 const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 
-// Block content schemas and normalizeContent live in @nilo/contracts.
+// Block content schemas and normalizeContent live in @oxy.so/nilo-contracts.
 
 function handleZodError(err: unknown, res: Response): boolean {
   if (err instanceof z.ZodError) {

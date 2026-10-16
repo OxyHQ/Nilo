@@ -12,7 +12,7 @@ import {
   uniqueIndex,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
-import { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
+import { BLOCK_TYPES, type BlockContent, type BlockType } from '@oxy.so/nilo-contracts';
 import { createdAt, generatedId, inList, timestamptz, updatedAt } from '@oxy.so/db';
 import { databases } from './databases.js';
 import { teamspaces } from './teamspaces.js';
@@ -25,7 +25,7 @@ export const PAGE_MODES = ['document', 'canvas'] as const;
 export type PageMode = (typeof PAGE_MODES)[number];
 
 /** Every block type the editor persists, and each one's content: the contract shared with the app. */
-export { BLOCK_TYPES, type BlockContent, type BlockType } from '@nilo/contracts';
+export { BLOCK_TYPES, type BlockContent, type BlockType } from '@oxy.so/nilo-contracts';
 
 /**
  * Pages and blocks — the document primitive and its content units.

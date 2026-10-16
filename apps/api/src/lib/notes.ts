@@ -16,7 +16,7 @@ import type {
   NoteFolderWrite,
   NoteLabelWrite,
   NoteWrite,
-} from '@nilo/contracts';
+} from '@oxy.so/nilo-contracts';
 import { sqlColumnName } from '@oxy.so/db';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { NiloDatabase, PgHandle } from '../db/client.js';

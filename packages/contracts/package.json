@@ -1,11 +1,25 @@
 {
-  "name": "@nilo/contracts",
-  "version": "0.0.0",
-  "private": true,
-  "description": "The block content contract shared by Nilo's API and app: block types, colours, per-type content schemas and their normalization.",
+  "name": "@oxy.so/nilo-contracts",
+  "version": "0.1.0",
+  "description": "The contract shared by Nilo's API and its clients (the Nilo app, Noted): block types and content, Markdown conversion, and the /notes API's shapes.",
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OxyHQ/Nilo.git",
+    "directory": "packages/contracts"
+  },
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/__tests__",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "zod": "^3.24.1"
   }

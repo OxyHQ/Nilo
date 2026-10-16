@@ -1,5 +1,5 @@
 import { deflateSync } from 'node:zlib';
-import type { BlockNode } from '@nilo/contracts';
+import type { BlockNode } from '@oxy.so/nilo-contracts';
 import { describe, expect, it } from 'vitest';
 import { blocksToPdf, IMAGE_LIMITS, imageSize } from '../pdf-export.js';
 

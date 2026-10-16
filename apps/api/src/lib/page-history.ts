@@ -3,7 +3,7 @@
  * current blocks into the version's, keeping the ids of blocks both have (so
  * comments anchored to them stay anchored).
  */
-import { compareOrder, normalizeContent } from '@nilo/contracts';
+import { compareOrder, normalizeContent } from '@oxy.so/nilo-contracts';
 import type { VersionBlock } from '../db/schema/pages.js';
 import type { BlockOperation } from './block-transactions.js';
 

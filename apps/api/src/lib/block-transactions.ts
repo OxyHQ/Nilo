@@ -13,7 +13,7 @@ import {
   normalizeContent,
   placeAfter,
   type segmentSchema,
-} from '@nilo/contracts';
+} from '@oxy.so/nilo-contracts';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { broadcastPageTransaction } from '../collab/page-rooms.js';

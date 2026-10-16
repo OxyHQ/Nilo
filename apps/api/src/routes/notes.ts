@@ -1,7 +1,7 @@
 /**
  * `/notes`: Noted's API. Every route works in the caller's personal workspace,
  * on its `notes` and `note_folders` system databases (`lib/databases/system.ts`),
- * which it provisions on first use. Contract: `@nilo/contracts` `notes.ts`.
+ * which it provisions on first use. Contract: `@oxy.so/nilo-contracts` `notes.ts`.
  *
  * A note's history is the page's (`/pages/:id/versions`), and the routes for
  * it are not repeated here.
@@ -13,7 +13,7 @@ import {
   noteLabelWriteSchema,
   type NotesSyncPage,
   noteWriteSchema,
-} from '@nilo/contracts';
+} from '@oxy.so/nilo-contracts';
 import { isLiveEntityId } from '@oxy.so/db';
 import { type Request, type Response, Router } from 'express';
 import { z } from 'zod';

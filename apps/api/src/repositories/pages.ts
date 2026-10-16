@@ -11,7 +11,7 @@
  */
 
 import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
-import { TRANSACTION_KEY_RETENTION_MS } from '@nilo/contracts';
+import { TRANSACTION_KEY_RETENTION_MS } from '@oxy.so/nilo-contracts';
 import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
 import {

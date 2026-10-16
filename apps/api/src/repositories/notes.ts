@@ -1,6 +1,6 @@
 /**
  * Notes: the rows of a personal workspace's `notes` system database, read and
- * written as Noted sees them (`@nilo/contracts` `Note`). The mapping between a
+ * written as Noted sees them (`@oxy.so/nilo-contracts` `Note`). The mapping between a
  * note's fields and the row's properties is here and nowhere else; the ids it
  * relies on are `NOTE_PROPERTY` and `FOLDER_PROPERTY` (`lib/databases/system.ts`).
  */
@@ -13,7 +13,7 @@ import {
   type NoteFolder,
   type NoteKind,
   type NoteLabel,
-} from '@nilo/contracts';
+} from '@oxy.so/nilo-contracts';
 import { and, asc, desc, eq, gt, gte, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { PgHandle } from '../db/client.js';
 import { reminders } from '../db/schema/collab.js';
