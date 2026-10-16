@@ -85,6 +85,15 @@
     "deleteTitle": "Delete %{name}?",
     "deleteDescription": "Every member loses access to this workspace and its pages and databases.",
     "deleted": "Deleted %{name}",
-    "deleteFailed": "Could not delete the workspace."
+    "deleteFailed": "Could not delete the workspace.",
+    "reset": "Reset workspace",
+    "resetAction": "Reset",
+    "resetDescription": "Deletes every page, database and note in your personal workspace for good. The workspace stays, empty.",
+    "resetTitle": "Reset your personal workspace?",
+    "resetPrompt": "Everything in it is deleted for good and cannot be recovered. Type %{name} to confirm.",
+    "resetInputLabel": "Workspace name",
+    "resetMismatch": "The name you typed does not match. Nothing was deleted.",
+    "resetDone": "Your personal workspace is empty",
+    "resetFailed": "Could not reset the workspace."
   }
 }

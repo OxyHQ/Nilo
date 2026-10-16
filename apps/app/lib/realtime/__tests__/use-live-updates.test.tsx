@@ -165,3 +165,20 @@ it('waits for connect when initially offline and ignores late acknowledgements a
   });
   expect(invalidate).not.toHaveBeenCalled();
 });
+it('drops everything cached when its workspace is reset, and only its own', async () => {
+  const keys = [
+    ['pages', 'w'],
+    ['page', 'p'],
+    ['blocks', 'p'],
+    ['database', 'd', 'rows', null],
+  ];
+  for (const key of keys) client.setQueryData(key, {});
+  await mount();
+  act(() => jest.runOnlyPendingTimers());
+  for (const key of keys) client.setQueryData(key, {});
+  act(() => fire('workspace:reset', { workspaceId: 'other' }));
+  for (const key of keys) expect(client.getQueryState(key)?.isInvalidated).toBe(false);
+  // Unlike a change, a reset leaves no page standing: the editor's data goes too.
+  act(() => fire('workspace:reset', { workspaceId: 'w' }));
+  for (const key of keys) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+});

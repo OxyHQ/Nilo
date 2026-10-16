@@ -70,7 +70,8 @@
   "switcher": {
     "createFirst": "Create your first workspace",
     "switchLabel": "Switch workspace, current %{name}",
-    "yourWorkspaces": "Your workspaces"
+    "yourWorkspaces": "Your workspaces",
+    "personal": "Personal"
   },
   "teamspaces": {
     "title": "Teamspaces",

@@ -10,7 +10,7 @@ import {
   useSettingsSavedToast,
 } from '@oxy.so/bloom/settings-modal/modal';
 import { SettingsTextField } from '@oxy.so/bloom/settings-modal/fields';
-import { confirm } from '@oxy.so/bloom/surfaces';
+import { confirm, prompt } from '@oxy.so/bloom/surfaces';
 import { toast } from '@oxy.so/bloom/toast';
 import { WorkspaceAvatarPicker } from '@/components/workspace/workspace-avatar-picker';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -18,6 +18,7 @@ import { apiErrorMessage } from '@/lib/api/error-message';
 import {
   useCurrentWorkspace,
   useDeleteWorkspace,
+  useResetWorkspace,
   useUpdateWorkspace,
   useWorkspaces,
   WORKSPACE_NAME_MAX,
@@ -108,7 +109,10 @@ function WorkspaceDangerZone({ workspace }: { workspace: Workspace }) {
   const { t } = useTranslation();
   const isOwner = workspace.role === 'owner';
   const rows = [
-    // A personal workspace is the member's own and cannot be deleted.
+    // A personal workspace is the member's own and cannot be deleted, only reset.
+    isOwner && workspace.isPersonal ? (
+      <ResetWorkspaceRow key="reset" workspace={workspace} />
+    ) : null,
     isOwner && !workspace.isPersonal ? (
       <DeleteWorkspaceRow key="delete" workspace={workspace} />
     ) : null,
@@ -118,6 +122,64 @@ function WorkspaceDangerZone({ workspace }: { workspace: Workspace }) {
     <SettingsSection label={t('settings.workspace.dangerZone')}>
       <SettingsCard>{rows}</SettingsCard>
     </SettingsSection>
+  );
+}
+
+/**
+ * Empty the personal workspace for good, keeping it. Confirmed by typing its
+ * name, as the API requires: a slip of the finger cannot erase everything.
+ */
+function ResetWorkspaceRow({ workspace }: { workspace: Workspace }) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { afterClose } = useNiloSettings();
+  const reset = useResetWorkspace();
+
+  const handleReset = async () => {
+    const typed = await prompt({
+      title: t('settings.workspace.resetTitle'),
+      description: t('settings.workspace.resetPrompt', { name: workspace.name }),
+      placeholder: workspace.name,
+      inputLabel: t('settings.workspace.resetInputLabel'),
+      confirmLabel: t('settings.workspace.reset'),
+    });
+    if (typed === null) return;
+    if (typed.trim() !== workspace.name) {
+      toast.error(t('settings.workspace.resetMismatch'));
+      return;
+    }
+    reset.mutate(
+      { workspaceId: workspace.id, confirm: workspace.name },
+      {
+        onSuccess: () => {
+          toast.success(t('settings.workspace.resetDone'));
+          // The open page was in the workspace that was just emptied.
+          afterClose(() => router.replace('/(app)'));
+        },
+        onError: (error) => {
+          toast.error(apiErrorMessage(error, t('settings.workspace.resetFailed')));
+        },
+      },
+    );
+  };
+
+  return (
+    <SettingsRow
+      label={t('settings.workspace.reset')}
+      description={t('settings.workspace.resetDescription')}
+    >
+      <Button
+        appearance="outline"
+        tone="danger"
+        size="sm"
+        loading={reset.isPending}
+        onPress={() => {
+          void handleReset();
+        }}
+      >
+        {t('settings.workspace.resetAction')}
+      </Button>
+    </SettingsRow>
   );
 }
 
