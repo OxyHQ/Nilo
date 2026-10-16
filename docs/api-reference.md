@@ -44,8 +44,17 @@ model, credential, conversation or chat-completion route.
   history (`GET /pages/:id/versions[/:versionId]`,
   `POST …/versions/:versionId/restore`), reminders
   (`GET/POST /pages/:id/reminders`, `GET /reminders`, `DELETE /reminders/:id`).
-- Import: `POST /pages/import` (Markdown/HTML/JSON files),
-  `POST /pages/import/zip` (a Notion export).
+- Import: `POST /pages/import` (Markdown and HTML files with their folder
+  paths), `POST /pages/import/zip` (a Notion export, Markdown or HTML, or any
+  ZIP of `.md`, `.html` and `.csv` files). Each file is a page and a
+  same-named folder holds its subpages; titles come from `# Title`, else
+  `<title>`, else a leading `<h1>`, else the file name without Notion's id.
+  HTML is converted to the blocks Markdown gives (`lib/html-import.ts`):
+  scripts, styles and unsafe links dropped, documents nested deeper than 256
+  elements skipped. A CSV, or a Notion database exported as an HTML table,
+  becomes a database whose rows take their content from the same-named
+  folder; Notion's links between exported pages become `link_to_page`
+  blocks. Files of other types are returned as `skipped`.
 
 ## Blocks and comments
 

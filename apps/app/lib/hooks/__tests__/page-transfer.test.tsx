@@ -72,6 +72,32 @@ it('reads Markdown URIs, sends the destination, and refreshes page lists', async
   expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.pages.shared });
 });
 
+it('sends HTML pages beside Markdown ones as files', async () => {
+  fetchFile.mockImplementation(
+    async (uri) =>
+      ({
+        text: async () => (String(uri).endsWith('.html') ? '<title>Page</title>' : '# Note'),
+      }) as Response,
+  );
+  await act(async () => {
+    await imports.mutateAsync({
+      workspaceId: 'workspace',
+      assets: [
+        { lastModified: 0, uri: 'file:///page.html', name: 'page.html' },
+        { lastModified: 0, uri: 'file:///note.md', name: 'note.md' },
+      ],
+      onProgress,
+    });
+  });
+  const [route, body] = jest.mocked(apiClient.post).mock.calls[0];
+  expect(route).toBe('/pages/import');
+  if (typeof body !== 'string') throw new Error('Expected a JSON body');
+  expect(JSON.parse(body).files).toEqual([
+    { path: 'page.html', content: '<title>Page</title>' },
+    { path: 'note.md', content: '# Note' },
+  ]);
+});
+
 it('sends ZIP bytes unchanged with the ZIP content type and query destination', async () => {
   const bytes = new Uint8Array([80, 75, 3, 4]).buffer;
   fetchFile.mockResolvedValue({ arrayBuffer: async () => bytes } as Response);

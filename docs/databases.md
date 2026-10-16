@@ -61,7 +61,9 @@ the block's page as long as they may open the database.
   responses become rows, without exposing the database; rate limited;
   optionally sign-in only.
 - **CSV**: export one (stored properties as people read them), import one as
-  a new database (each column typed by what all its values fit).
+  a new database (each column typed by what all its values fit). A Notion
+  export's databases (CSV, or HTML tables) import the same way, with their
+  rows' pages (`POST /pages/import/zip`).
 
 ## System databases
 
