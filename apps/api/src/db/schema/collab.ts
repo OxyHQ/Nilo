@@ -260,6 +260,8 @@ export const NOTIFICATION_TYPES = [
   'page_comment',
   /** Someone edited a page the user follows (at most one unread an hour, per page). */
   'page_edited',
+  /** Someone added the user to a person property of a database row. */
+  'assigned',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

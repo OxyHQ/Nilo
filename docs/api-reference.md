@@ -135,7 +135,9 @@ push tokens and browser push subscriptions (each with its `app`, `nilo` or
 `noted`), `GET /notifications/vapid-public-key`. A note's reminder rings in Noted
 when the user has it registered, otherwise in Nilo; everything else in Nilo.
 Types: `mention` (in comments and in page text), `comment_reply`,
-`page_comment` and `page_edited` (pages followed), `page_shared`, `reminder`.
+`page_comment` and `page_edited` (pages followed), `page_shared`, `reminder`,
+`assigned` (someone added the user to a person property of a row they can
+open; never on a template, never to whoever did it).
 
 ## Real time (Socket.IO)
 

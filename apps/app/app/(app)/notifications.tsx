@@ -1,3 +1,4 @@
+import { PageAssignedNotification } from '@/components/sharing/page-assigned-notification';
 import { PageEditedNotification } from '@/components/sharing/page-edited-notification';
 import { ReminderList } from '@/components/reminders/reminder-list';
 import { PageSharedNotification } from '@/components/sharing/page-shared-notification';
@@ -39,6 +40,7 @@ const TYPE_ICONS: Record<Notification['type'], typeof RiMessage2Line> = {
   mention: RiMessage2Line,
   comment_reply: RiMessage2Line,
   page_comment: RiMessage2Line,
+  assigned: RiUserAddLine,
 };
 
 const PRIORITY_COLORS: Record<Notification['priority'], string> = {
@@ -251,6 +253,8 @@ export default function NotificationsScreen() {
                           <PageEditedNotification notification={notification} />
                         ) : notification.type === 'page_shared' ? (
                           <PageSharedNotification notification={notification} />
+                        ) : notification.type === 'assigned' ? (
+                          <PageAssignedNotification notification={notification} />
                         ) : (
                           <Text
                             className={`text-sm ${isUnread ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'}`}

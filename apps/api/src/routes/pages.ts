@@ -28,6 +28,7 @@ import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { mintFileUrls } from '../lib/files.js';
+import { notifyAssigned } from '../lib/databases/assignments.js';
 import { projectNow } from '../lib/page-projection.js';
 import { blocksToPdf, type ImageLoader, imageSources } from '../lib/pdf-export.js';
 import { servableFileIds } from '../repositories/pageFiles.js';
@@ -625,6 +626,15 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return;
     }
 
+    if (rowDatabase && patch.mergeProperties) {
+      void notifyAssigned({
+        properties: rowDatabase.propertiesSchema.properties,
+        row: updated,
+        before: page.properties,
+        after: updated.properties,
+        actorId: userId,
+      });
+    }
     announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
     res.json({ page: serializePage(updated) });
   } catch (error: unknown) {

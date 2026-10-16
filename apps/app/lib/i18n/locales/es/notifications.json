@@ -19,5 +19,6 @@
   "open": "Abrir notificación",
   "dismiss": "Descartar notificación",
   "reminder": "Recordatorio",
-  "pageEdited": "Se editó %{page}"
+  "pageEdited": "Se editó %{page}",
+  "assigned": "%{name} te ha añadido a %{page}"
 }
