@@ -1,10 +1,18 @@
+import type { ReactNode } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Button } from '@/components/ui/button';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { Button } from '@oxy.so/bloom/button';
 import type { OfflineEntry } from '@/lib/editor/offline-pages';
 import { formatSize, OfflineSection } from '../offline-section';
 
 const mockPush = jest.fn();
+const mockClose = jest.fn();
+const mockConfirm = jest.fn(async (_options: { title: string }) => true);
+type MockBlockProps = {
+  label?: string;
+  description?: string;
+  action?: ReactNode;
+  children?: ReactNode;
+};
 const mockStore = {
   setPinned: jest.fn(async (_id: string, _pinned: boolean) => undefined),
   clear: jest.fn(async () => undefined),
@@ -18,7 +26,30 @@ jest.mock('@/lib/editor/offline-pages', () => ({
   },
 }));
 jest.mock('@/lib/editor/use-offline-pages', () => ({ useOfflinePageList: () => mockList }));
-jest.mock('@/components/ui/confirmation-dialog', () => ({ ConfirmationDialog: () => null }));
+jest.mock('@oxy.so/bloom/surfaces', () => ({
+  confirm: (options: { title: string }) => mockConfirm(options),
+}));
+// Bloom's controls read a theme this test does not mount; plain stand-ins keep
+// what the section renders and the props it passes.
+jest.mock('@oxy.so/bloom/button', () => {
+  const { Text } = jest.requireActual('react-native');
+  return {
+    Button: ({ children }: MockBlockProps) => <Text>{children}</Text>,
+  };
+});
+jest.mock('@oxy.so/bloom/settings-modal/modal', () => {
+  const { Text, View } = jest.requireActual('react-native');
+  const Block = ({ label, description, action, children }: MockBlockProps) => (
+    <View>
+      {label ? <Text>{label}</Text> : null}
+      {description ? <Text>{description}</Text> : null}
+      {action}
+      {children}
+    </View>
+  );
+  return { SettingsCard: Block, SettingsRow: Block, SettingsSection: Block };
+});
+jest.mock('../settings-provider', () => ({ useNiloSettings: () => ({ close: mockClose }) }));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({
     locale: 'en-US',
@@ -83,25 +114,24 @@ it('lists the pages kept, why, their size and the total', () => {
   expect(mockStore.setPinned).toHaveBeenCalledWith('Plan', false);
 });
 
-it('opens a kept page', () => {
+it('opens a kept page, leaving settings', () => {
   mockList.pages = [entry('Plan')];
   mount();
-  const link = root().findAll(
-    (node) => node.props.accessibilityLabel === 'settings.offline.open:Plan' && node.props.onPress,
-  )[0];
-  act(() => link?.props.onPress());
+  act(() => button('settings.offline.open:Plan').props.onPress());
+  expect(mockClose).toHaveBeenCalled();
   expect(mockPush).toHaveBeenCalledWith('/p/Plan');
 });
 
-it('removes every page only after confirming', () => {
+it('removes every page only after confirming', async () => {
   mockList.pages = [entry('Plan')];
   mount();
-  const dialog = () => root().findByType(ConfirmationDialog);
-  expect(dialog().props.open).toBe(false);
-  act(() => button('settings.offline.removeAll').props.onPress());
-  expect(dialog().props.open).toBe(true);
+  mockConfirm.mockResolvedValueOnce(false);
+  await act(async () => button('settings.offline.removeAll').props.onPress());
+  expect(mockConfirm).toHaveBeenCalledWith(
+    expect.objectContaining({ title: 'settings.offline.removeAllTitle' }),
+  );
   expect(mockStore.clear).not.toHaveBeenCalled();
-  act(() => void dialog().props.onConfirm());
+  await act(async () => button('settings.offline.removeAll').props.onPress());
   expect(mockStore.clear).toHaveBeenCalled();
 });
 

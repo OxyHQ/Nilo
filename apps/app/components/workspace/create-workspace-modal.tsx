@@ -1,43 +1,13 @@
 import React from 'react';
-import { View, Pressable } from 'react-native';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
-import { useCreateWorkspace, type Workspace } from '@/lib/hooks/use-workspaces';
+import { View } from 'react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog } from '@oxy.so/bloom/dialog';
+import { TextFieldInput, TextFieldLabel } from '@oxy.so/bloom/text-field';
 import { toast } from '@oxy.so/bloom/toast';
+import { apiErrorMessage } from '@/lib/api/error-message';
+import { useCreateWorkspace, WORKSPACE_NAME_MAX, type Workspace } from '@/lib/hooks/use-workspaces';
 import { useTranslation } from '@/hooks/useTranslation';
-
-/**
- * Curated set of safe, cross-platform emoji glyphs for the icon picker.
- * Kept small intentionally — the field accepts any emoji typed manually,
- * the grid is just convenience.
- */
-const EMOJI_OPTIONS = [
-  '🚀',
-  '📚',
-  '💡',
-  '🎯',
-  '🌱',
-  '🎨',
-  '🧠',
-  '💼',
-  '📦',
-  '🛠️',
-  '🪐',
-  '✨',
-  '🔥',
-  '🌊',
-  '🌍',
-  '📝',
-];
+import { WorkspaceAvatarPicker } from './workspace-avatar-picker';
 
 interface CreateWorkspaceModalProps {
   open: boolean;
@@ -46,17 +16,19 @@ interface CreateWorkspaceModalProps {
   onCreated?: (workspace: Workspace) => void;
 }
 
+// A Bloom dialog, not a React Native `Modal`: the file picker opens as a Bloom
+// surface, which stacks above a Bloom dialog but under a native modal window.
 export function CreateWorkspaceModal({ open, onOpenChange, onCreated }: CreateWorkspaceModalProps) {
   const { t } = useTranslation();
   const [name, setName] = React.useState('');
-  const [icon, setIcon] = React.useState<string>(EMOJI_OPTIONS[0] ?? '');
+  const [avatar, setAvatar] = React.useState<string | null>(null);
   const { mutate, isPending } = useCreateWorkspace();
 
   // Reset form whenever the modal is dismissed.
   React.useEffect(() => {
     if (!open) {
       setName('');
-      setIcon(EMOJI_OPTIONS[0] ?? '');
+      setAvatar(null);
     }
   }, [open]);
 
@@ -66,82 +38,66 @@ export function CreateWorkspaceModal({ open, onOpenChange, onCreated }: CreateWo
   const handleSubmit = React.useCallback(() => {
     if (!canSubmit) return;
     mutate(
-      { name: trimmed, icon: icon || null },
+      { name: trimmed, avatar },
       {
         onSuccess: (workspace) => {
           toast.success(t('workspace.create.created', { name: workspace.name }));
           onCreated?.(workspace);
         },
         onError: (error) => {
-          const message =
-            error instanceof Error && error.message ? error.message : t('workspace.create.failed');
-          toast.error(message);
+          toast.error(apiErrorMessage(error, t('workspace.create.failed')));
         },
       },
     );
-  }, [canSubmit, mutate, trimmed, icon, onCreated, t]);
+  }, [canSubmit, mutate, trimmed, avatar, onCreated, t]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('workspace.create.title')}</DialogTitle>
-          <DialogDescription>{t('workspace.create.description')}</DialogDescription>
-        </DialogHeader>
-
-        <View className="gap-3">
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-foreground">{t('common.name')}</Text>
-            <Input
-              value={name}
-              onChangeText={setName}
-              placeholder={t('workspace.create.namePlaceholder')}
-              autoCapitalize="words"
-              autoFocus
-              maxLength={80}
-              onSubmitEditing={handleSubmit}
-              returnKeyType="done"
-            />
-          </View>
-
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-foreground">
-              {t('workspace.create.icon')}
-            </Text>
-            <View className="flex-row flex-wrap gap-1.5">
-              {EMOJI_OPTIONS.map((emoji) => {
-                const selected = emoji === icon;
-                return (
-                  <Pressable
-                    key={emoji}
-                    onPress={() => setIcon(emoji)}
-                    className={`h-9 w-9 items-center justify-center rounded-lg border ${
-                      selected
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border bg-background hover:bg-muted'
-                    }`}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('workspace.create.useIcon', { emoji })}
-                  >
-                    <Text className="text-lg" style={{ lineHeight: 22 }}>
-                      {emoji}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
+    <Dialog
+      open={open}
+      onClose={() => onOpenChange(false)}
+      title={t('workspace.create.title')}
+      description={t('workspace.create.description')}
+    >
+      <View className="gap-4">
+        <View>
+          <TextFieldLabel>{t('common.name')}</TextFieldLabel>
+          <TextFieldInput
+            label={t('common.name')}
+            value={name}
+            onChangeText={setName}
+            placeholder={t('workspace.create.namePlaceholder')}
+            autoCapitalize="words"
+            autoFocus
+            maxLength={WORKSPACE_NAME_MAX}
+            onSubmitEditing={handleSubmit}
+            returnKeyType="done"
+          />
         </View>
 
-        <DialogFooter>
-          <Button variant="outline" onPress={() => onOpenChange(false)} disabled={isPending}>
-            <Text>{t('common.cancel')}</Text>
+        <View>
+          <TextFieldLabel>{t('workspace.avatar.label')}</TextFieldLabel>
+          <WorkspaceAvatarPicker
+            name={trimmed || t('workspace.fallbackName')}
+            value={avatar}
+            onChange={setAvatar}
+            disabled={isPending}
+          />
+        </View>
+
+        <View className="flex-row justify-end gap-2">
+          <Button
+            appearance="subtle"
+            tone="neutral"
+            onPress={() => onOpenChange(false)}
+            disabled={isPending}
+          >
+            {t('common.cancel')}
           </Button>
-          <Button onPress={handleSubmit} disabled={!canSubmit} isLoading={isPending}>
-            <Text>{t('workspace.create.submit')}</Text>
+          <Button tone="action" onPress={handleSubmit} disabled={!canSubmit} loading={isPending}>
+            {t('workspace.create.submit')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </View>
+      </View>
     </Dialog>
   );
 }

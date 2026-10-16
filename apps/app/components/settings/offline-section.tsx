@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button } from '@/components/ui/button';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
-import { Text } from '@/components/ui/text';
+import { Button } from '@oxy.so/bloom/button';
+import { SettingsCard, SettingsRow, SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
+import { confirm } from '@oxy.so/bloom/surfaces';
 import { useTranslation } from '@/hooks/useTranslation';
 import { type OfflineEntry, offlinePages } from '@/lib/editor/offline-pages';
 import { useOfflinePageList } from '@/lib/editor/use-offline-pages';
+import { useNiloSettings } from './settings-provider';
 
 /** A size in bytes the way people read one: 820 KB, 3.4 MB. */
 export function formatSize(bytes: number, locale: string): string {
@@ -25,56 +25,58 @@ export function formatSize(bytes: number, locale: string): string {
 export function OfflineSection() {
   const { t, locale } = useTranslation();
   const { supported, pages } = useOfflinePageList();
-  const [confirmClear, setConfirmClear] = useState(false);
   const total = pages.reduce((sum, page) => sum + page.bytes, 0);
 
-  if (!supported) {
-    return <Text className="text-sm text-muted-foreground">{t('settings.offline.webOnly')}</Text>;
-  }
+  if (!supported) return <SettingsSection description={t('settings.offline.webOnly')} />;
+
+  const removeAll = async () => {
+    const confirmed = await confirm({
+      title: t('settings.offline.removeAllTitle'),
+      description: t('settings.offline.removeAllDescription'),
+      confirmLabel: t('settings.offline.removeAll'),
+      destructive: true,
+    });
+    if (confirmed) await offlinePages.clear();
+  };
 
   return (
-    <View className="gap-4">
-      <Text className="text-sm text-muted-foreground">{t('settings.offline.description')}</Text>
-      {pages.length === 0 ? (
-        <Text className="text-sm text-muted-foreground">{t('settings.offline.empty')}</Text>
-      ) : (
-        <>
-          <Text className="text-sm font-medium">
-            {t('settings.offline.total', {
-              count: pages.length,
-              size: formatSize(total, locale),
-            })}
-          </Text>
-          <View className="rounded-lg border border-border">
-            {pages.map((page, i) => (
-              <OfflineRow key={page.pageId} page={page} last={i === pages.length - 1} />
-            ))}
-          </View>
+    <SettingsSection
+      label={
+        pages.length > 0
+          ? t('settings.offline.total', { count: pages.length, size: formatSize(total, locale) })
+          : undefined
+      }
+      description={t('settings.offline.description')}
+      action={
+        pages.length > 0 ? (
           <Button
-            variant="outline"
-            className="self-start"
-            onPress={() => setConfirmClear(true)}
+            appearance="outline"
+            tone="danger"
+            size="sm"
             accessibilityLabel={t('settings.offline.removeAll')}
+            onPress={() => {
+              void removeAll();
+            }}
           >
-            <Text className="text-sm text-destructive">{t('settings.offline.removeAll')}</Text>
+            {t('settings.offline.removeAllShort')}
           </Button>
-        </>
-      )}
-      <ConfirmationDialog
-        open={confirmClear}
-        onOpenChange={setConfirmClear}
-        title={t('settings.offline.removeAllTitle')}
-        description={t('settings.offline.removeAllDescription')}
-        confirmText={t('settings.offline.removeAll')}
-        confirmVariant="destructive"
-        onConfirm={() => offlinePages.clear()}
-      />
-    </View>
+        ) : undefined
+      }
+    >
+      <SettingsCard>
+        {pages.length === 0 ? (
+          <SettingsRow label={t('settings.offline.empty')} />
+        ) : (
+          pages.map((page) => <OfflineRow key={page.pageId} page={page} />)
+        )}
+      </SettingsCard>
+    </SettingsSection>
   );
 }
 
-function OfflineRow({ page, last }: { page: OfflineEntry; last: boolean }) {
+function OfflineRow({ page }: { page: OfflineEntry }) {
   const { t, locale } = useTranslation();
+  const { close } = useNiloSettings();
   const router = useRouter();
   const title = page.title?.trim() || t('pages.untitled');
   const pinned = page.reasons.includes('pinned');
@@ -88,34 +90,38 @@ function OfflineRow({ page, last }: { page: OfflineEntry; last: boolean }) {
       })
     : t('settings.offline.notSaved');
   return (
-    <View
-      className={`flex-row items-center gap-3 px-3 py-2.5 ${last ? '' : 'border-b border-border'}`}
+    <SettingsRow
+      label={title}
+      description={[why, formatSize(page.bytes, locale), saved].join(' · ')}
     >
-      <Pressable
-        className="flex-1 gap-0.5"
-        accessibilityRole="link"
-        accessibilityLabel={t('settings.offline.open', { title })}
-        onPress={() => router.push(`/p/${page.pageId}`)}
-      >
-        <Text className="text-sm font-medium" numberOfLines={1}>
-          {title}
-        </Text>
-        <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-          {[why, formatSize(page.bytes, locale), saved].join(' · ')}
-        </Text>
-      </Pressable>
-      {pinned ? (
+      <View className="flex-row items-center gap-1">
         <Button
-          variant="ghost"
+          appearance="plain"
+          tone="neutral"
           size="sm"
-          accessibilityLabel={t('settings.offline.remove', { title })}
+          accessibilityRole="link"
+          accessibilityLabel={t('settings.offline.open', { title })}
           onPress={() => {
-            void offlinePages.setPinned(page.pageId, false);
+            close();
+            router.push(`/p/${page.pageId}`);
           }}
         >
-          <Text className="text-sm">{t('settings.offline.removeOne')}</Text>
+          {t('settings.offline.openOne')}
         </Button>
-      ) : null}
-    </View>
+        {pinned ? (
+          <Button
+            appearance="outline"
+            tone="neutral"
+            size="sm"
+            accessibilityLabel={t('settings.offline.remove', { title })}
+            onPress={() => {
+              void offlinePages.setPinned(page.pageId, false);
+            }}
+          >
+            {t('settings.offline.removeOne')}
+          </Button>
+        ) : null}
+      </View>
+    </SettingsRow>
   );
 }

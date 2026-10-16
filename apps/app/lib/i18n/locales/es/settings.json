@@ -5,7 +5,9 @@
   "preferences": "PREFERENCIAS",
   "account": {
     "title": "Ajustes de la cuenta",
-    "description": "Gestiona tu cuenta"
+    "description": "Gestiona tu cuenta",
+    "manage": "Gestionar",
+    "signedOut": "Inicia sesión para gestionar tu cuenta y tus espacios de trabajo."
   },
   "appLanguage": {
     "title": "Idioma de la app",
@@ -27,7 +29,8 @@
     "members": "Miembros",
     "general": "General",
     "feedback": "Comentarios",
-    "offline": "Sin conexión"
+    "offline": "Sin conexión",
+    "workspace": "Espacio de trabajo"
   },
   "accentColor": {
     "title": "Color de la app",
@@ -44,7 +47,6 @@
     "mint": "Menta"
   },
   "members": {
-    "title": "Miembros del espacio de trabajo",
     "description": "Invita a personas a tu espacio de trabajo y gestiona sus roles. Solo los administradores y propietarios del espacio de trabajo pueden cambiar roles o quitar miembros."
   },
   "offline": {
@@ -64,6 +66,25 @@
     "removeOne": "Quitar",
     "removeAll": "Quitar todas las páginas sin conexión",
     "removeAllTitle": "¿Quitar todas las páginas sin conexión?",
-    "removeAllDescription": "Se quitan todas las páginas guardadas en este dispositivo. Los cambios que aún no se enviaron se conservan y se envían cuando vuelva la conexión."
+    "removeAllDescription": "Se quitan todas las páginas guardadas en este dispositivo. Los cambios que aún no se enviaron se conservan y se envían cuando vuelva la conexión.",
+    "removeAllShort": "Quitar todas",
+    "openOne": "Abrir"
+  },
+  "groups": {
+    "account": "Cuenta",
+    "workspace": "Espacio de trabajo",
+    "support": "Ayuda"
+  },
+  "workspace": {
+    "avatarDescription": "Aparece junto al nombre del espacio de trabajo para todos los miembros.",
+    "adminOnly": "Solo los administradores y propietarios del espacio de trabajo pueden cambiar estos ajustes.",
+    "nameInvalid": "El nombre de un espacio de trabajo debe tener entre 1 y %{max} caracteres.",
+    "saveFailed": "No se pudo guardar el espacio de trabajo.",
+    "dangerZone": "Zona de peligro",
+    "delete": "Eliminar espacio de trabajo",
+    "deleteTitle": "¿Eliminar %{name}?",
+    "deleteDescription": "Todos los miembros pierden el acceso a este espacio de trabajo y a sus páginas y bases de datos.",
+    "deleted": "Se eliminó %{name}",
+    "deleteFailed": "No se pudo eliminar el espacio de trabajo."
   }
 }

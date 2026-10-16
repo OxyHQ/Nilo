@@ -1,14 +1,19 @@
 import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
 import { useOxy } from '@oxy.so/services';
 import apiClient from '../api/client';
+import { useWorkspaceStore } from '../stores/workspace-store';
 import { workspaceKeys } from './workspace-keys';
 
 export type WorkspaceRole = 'viewer' | 'commenter' | 'editor' | 'admin' | 'owner';
 
+/** Mirrors the API's cap (`apps/api/src/db/schema/workspaces.ts`). */
+export const WORKSPACE_NAME_MAX = 200;
+
 export interface Workspace {
   id: string;
   name: string;
-  icon: string | null;
+  /** A bare Oxy file id, resolved through the app's `ImageResolverProvider`. */
+  avatar: string | null;
   ownerId: string;
   isPersonal: boolean;
   archivedAt: string | null;
@@ -23,12 +28,12 @@ export interface Workspace {
 
 export interface CreateWorkspaceInput {
   name: string;
-  icon?: string | null;
+  avatar?: string | null;
 }
 
 export interface UpdateWorkspaceInput {
   name?: string;
-  icon?: string | null;
+  avatar?: string | null;
 }
 
 const WORKSPACES_BASE = '/workspaces';
@@ -127,4 +132,11 @@ export function useWorkspaceRole(
 ): WorkspaceRole | undefined {
   const { data } = useWorkspaces();
   return data?.find((workspace) => workspace.id === workspaceId)?.role;
+}
+
+/** The workspace the app is showing, once the workspace list has loaded. */
+export function useCurrentWorkspace(): Workspace | null {
+  const { data } = useWorkspaces();
+  const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  return data?.find((workspace) => workspace.id === currentWorkspaceId) ?? null;
 }

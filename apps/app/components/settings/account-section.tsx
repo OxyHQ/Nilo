@@ -1,44 +1,74 @@
 import { View } from 'react-native';
+import { Avatar } from '@oxy.so/bloom/avatar';
+import { Button } from '@oxy.so/bloom/button';
+import { RiExternalLinkLine } from '@oxy.so/bloom/icons/RiExternalLinkLine';
+import { SettingsCard, SettingsRow } from '@oxy.so/bloom/settings-modal/modal';
+import { getAccountDisplayName } from '@oxy.so/core';
+import { openAccountDialog, useOxy } from '@oxy.so/services';
 import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import { useOxy } from '@oxy.so/services';
 import { useTranslation } from '@/hooks/useTranslation';
-import { ChevronRight } from 'lucide-react-native';
+import { useNiloSettings } from './settings-provider';
 
+/**
+ * The Oxy account behind Nilo. The identity is Oxy's, so it is shown here and
+ * edited in Oxy's own account surface.
+ */
 export function AccountSection() {
-  const { user, showBottomSheet } = useOxy();
-  const { t } = useTranslation();
+  const { user, isAuthenticated, showBottomSheet } = useOxy();
+  const { t, locale } = useTranslation();
+  const { afterClose } = useNiloSettings();
 
-  const displayName = user?.name?.first
-    ? user.name.last
-      ? `${user.name.first} ${user.name.last}`
-      : user.name.first
-    : user?.username || t('common.user');
+  if (!isAuthenticated || !user) {
+    return (
+      <SettingsCard>
+        <SettingsRow label={t('settings.account.signedOut')}>
+          <Button tone="action" size="sm" onPress={() => afterClose(() => openAccountDialog())}>
+            {t('login.signInButton')}
+          </Button>
+        </SettingsRow>
+      </SettingsCard>
+    );
+  }
 
-  const initial = (user?.name?.first?.[0] || user?.username?.[0] || 'U').toUpperCase();
+  const displayName = getAccountDisplayName(user, locale);
 
   return (
     <View className="gap-6">
-      {/* Profile Card */}
       <View className="flex-row items-center gap-4">
-        <View className="w-14 h-14 rounded-full bg-muted items-center justify-center">
-          <Text className="text-xl font-bold text-muted-foreground">{initial}</Text>
-        </View>
-        <View className="flex-1">
-          <Text className="text-lg font-semibold">{displayName}</Text>
-          {user?.email && <Text className="text-sm text-muted-foreground">{user.email}</Text>}
+        <Avatar source={user.avatar ?? undefined} name={displayName} size={56} />
+        <View className="flex-1 min-w-0">
+          <Text className="text-lg font-semibold" numberOfLines={1}>
+            {displayName}
+          </Text>
+          {user.username ? (
+            <Text className="text-sm text-muted-foreground" numberOfLines={1}>
+              @{user.username}
+            </Text>
+          ) : null}
+          {user.email ? (
+            <Text className="text-sm text-muted-foreground" numberOfLines={1}>
+              {user.email}
+            </Text>
+          ) : null}
         </View>
       </View>
 
-      {/* Manage Account */}
-      <Button
-        variant="outline"
-        onPress={() => showBottomSheet?.('ManageAccount')}
-        className="flex-row items-center justify-between"
-      >
-        <Text className="text-sm font-medium">{t('settings.account.title')}</Text>
-        <ChevronRight size={16} className="text-muted-foreground" />
-      </Button>
+      <SettingsCard>
+        <SettingsRow
+          label={t('settings.account.title')}
+          description={t('settings.account.description')}
+        >
+          <Button
+            appearance="outline"
+            tone="neutral"
+            size="sm"
+            leadingIcon={RiExternalLinkLine}
+            onPress={() => afterClose(() => showBottomSheet?.('ManageAccount'))}
+          >
+            {t('settings.account.manage')}
+          </Button>
+        </SettingsRow>
+      </SettingsCard>
     </View>
   );
 }

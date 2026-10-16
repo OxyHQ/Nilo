@@ -4,9 +4,11 @@ import { ChevronDown, Plus, Check } from 'lucide-react-native';
 import { Text } from '@/components/ui/text';
 import * as DropdownMenu from '@/components/ui/dropdown-menu';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useImageResolver } from '@oxy.so/bloom/image-resolver';
 import { useWorkspaces, type Workspace } from '@/lib/hooks/use-workspaces';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { CreateWorkspaceModal } from './create-workspace-modal';
+import { WorkspaceAvatar } from './workspace-avatar';
 import { roleLabel } from './role-labels';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -18,40 +20,12 @@ interface WorkspaceSwitcherProps {
   collapsed?: boolean;
 }
 
-function getWorkspaceInitial(workspace: Pick<Workspace, 'name'>): string {
-  return (workspace.name?.[0] ?? 'W').toUpperCase();
-}
-
-function WorkspaceIcon({
-  workspace,
-  size = 24,
-}: {
-  workspace: Pick<Workspace, 'name' | 'icon'>;
-  size?: number;
-}) {
-  return (
-    <View
-      className="rounded-md bg-primary/10 items-center justify-center shrink-0 overflow-hidden"
-      style={{ width: size, height: size }}
-    >
-      {workspace.icon ? (
-        <Text className="text-foreground" style={{ fontSize: size * 0.65, lineHeight: size }}>
-          {workspace.icon}
-        </Text>
-      ) : (
-        <Text className="font-semibold text-primary" style={{ fontSize: size * 0.5 }}>
-          {getWorkspaceInitial(workspace)}
-        </Text>
-      )}
-    </View>
-  );
-}
-
 export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
   collapsed = false,
 }: WorkspaceSwitcherProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
+  const resolveImage = useImageResolver();
   const [createOpen, setCreateOpen] = React.useState(false);
 
   const { data: workspaces, isLoading } = useWorkspaces();
@@ -138,7 +112,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
             accessibilityRole="button"
           >
             {activeWorkspace ? (
-              <WorkspaceIcon workspace={activeWorkspace} size={collapsed ? 28 : 24} />
+              <WorkspaceAvatar workspace={activeWorkspace} size={collapsed ? 28 : 24} />
             ) : (
               <View
                 className="rounded-md bg-muted"
@@ -175,11 +149,14 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
           {(workspaces ?? []).map((workspace) => {
             const isActive = workspace.id === activeWorkspace?.id;
             const role = workspace.role;
+            const imageUri = workspace.avatar
+              ? resolveImage?.(workspace.avatar, 'thumb')
+              : undefined;
             return (
               <DropdownMenu.Item key={workspace.id} onSelect={() => handleSelect(workspace.id)}>
                 {Platform.OS === 'web' ? (
                   <View className="flex-row items-center gap-2 w-full">
-                    <WorkspaceIcon workspace={workspace} size={24} />
+                    <WorkspaceAvatar workspace={workspace} size={24} />
                     <View className="flex-1 min-w-0">
                       <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
                         {workspace.name}
@@ -194,6 +171,14 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
                   </View>
                 ) : (
                   <>
+                    {/* A system menu draws no React views, so the row shows the
+                        picture itself and nothing when there is none. */}
+                    {imageUri ? (
+                      <DropdownMenu.ItemImage
+                        source={{ uri: imageUri }}
+                        ios={{ style: { cornerRadius: 6 } }}
+                      />
+                    ) : null}
                     <DropdownMenu.ItemTitle>{workspace.name}</DropdownMenu.ItemTitle>
                     {role ? (
                       <DropdownMenu.ItemSubtitle>{roleLabel(role)}</DropdownMenu.ItemSubtitle>

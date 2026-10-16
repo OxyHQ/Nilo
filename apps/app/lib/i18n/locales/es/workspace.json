@@ -26,11 +26,15 @@
     "title": "Nuevo espacio de trabajo",
     "description": "Los espacios de trabajo agrupan páginas, bases de datos y miembros del equipo.",
     "namePlaceholder": "p. ej., Acme S.A.",
-    "icon": "Icono",
-    "useIcon": "Usar %{emoji} como icono",
     "submit": "Crear espacio de trabajo",
     "created": "Espacio de trabajo \"%{name}\" creado",
     "failed": "No se pudo crear el espacio de trabajo"
+  },
+  "avatar": {
+    "label": "Imagen",
+    "upload": "Subir",
+    "change": "Cambiar",
+    "remove": "Quitar"
   },
   "invite": {
     "title": "Invitar a un miembro",
@@ -39,7 +43,6 @@
     "emailPlaceholder": "companero@ejemplo.com",
     "invalidEmail": "Introduce un correo electrónico válido.",
     "role": "Rol",
-    "selectedRole": "Rol seleccionado: %{role}",
     "submit": "Enviar invitación",
     "invited": "Has invitado a %{email} como %{role}",
     "failed": "No se pudo invitar al miembro",

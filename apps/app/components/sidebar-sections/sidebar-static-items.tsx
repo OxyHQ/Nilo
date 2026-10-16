@@ -6,6 +6,7 @@ import { Text } from '@/components/ui/text';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useAskAlia } from '@/components/ask-alia';
+import { useNiloSettings } from '@/components/settings/settings-provider';
 import { useTranslation } from '@/hooks/useTranslation';
 import { SidebarItem } from './sidebar-item';
 
@@ -99,16 +100,13 @@ export function SidebarInboxButton({ unreadCount }: InboxButtonProps) {
 }
 
 export function SidebarSettingsButton() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const isActive = pathname.startsWith('/(app)/settings');
+  const { open } = useNiloSettings();
   const { t } = useTranslation();
   return (
     <SidebarItem
       icon={Settings}
       label={t('sidebar.settingsAndMembers')}
-      isActive={isActive}
-      onPress={() => router.push('/(app)/settings')}
+      onPress={() => open('members')}
     />
   );
 }
