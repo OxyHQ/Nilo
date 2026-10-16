@@ -819,12 +819,7 @@ async function loadExportImage(url: string): Promise<Buffer | null> {
  * `lib/pdf-export.ts`), every piece of text escaped in HTML.
  */
 /** A PDF is drawn on the server: a member gets a few a minute. */
-const pdfExports = rateLimit({
-  name: 'page-export-pdf',
-  limit: 10,
-  windowMs: 60_000,
-  scope: (req) => req.user?.id ?? '',
-});
+const pdfExports = rateLimit('page-export-pdf', { max: 10, windowMs: 60_000 });
 
 router.get(
   '/:id/export',

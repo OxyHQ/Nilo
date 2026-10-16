@@ -29,7 +29,7 @@ import {
 
 const router = Router();
 /** Published pages are read without signing in: bounded per client address. */
-const publicReads = rateLimit({ name: 'public-page', limit: 240, windowMs: 60_000 });
+const publicReads = rateLimit('public-page', { max: 240, windowMs: 60_000 });
 
 const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 const slugSchema = z.string().regex(/^[a-z0-9-]{1,120}$/);

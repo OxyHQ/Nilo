@@ -1,68 +1,65 @@
 /**
- * Fixed-window rate limits for unauthenticated endpoints (public forms,
- * published pages). Counted in Redis when it is configured, so every API
- * instance shares the window; otherwise in this process, bounded in size.
- * A Redis failure lets the request through: a limiter must not take the
- * endpoint down with it.
+ * Rate limits, as every Oxy backend does them: the SDK's `createOxyRateLimit`
+ * (per signed-in user, else per hashed client address — never a raw IP), with
+ * a Redis store on the shared Valkey when `REDIS_URL` is set, so every task
+ * counts the same window. Without Redis each task counts on its own.
+ *
+ * Each limiter has its own `rl:<scope>:` prefix: limiters sharing one prefix
+ * would increment the same keys and halve each other's budget.
  */
-import type { NextFunction, Request, Response } from 'express';
-import { log } from './logger.js';
+import { createOxyRateLimit } from '@oxy.so/core/server';
+import type { RequestHandler } from 'express';
+import { MemoryStore, type Store } from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
+import { oxyClient } from '../middleware/auth.js';
 import { getRedisClient } from './redis.js';
 
-const local = new Map<string, { count: number; resetAt: number }>();
-const LOCAL_MAX_KEYS = 10_000;
+export type RateLimitScope =
+  | 'general'
+  | 'public-page'
+  | 'form-read'
+  | 'form-submit'
+  | 'share-read'
+  | 'share-join'
+  | 'page-export-pdf';
 
-async function hit(key: string, windowMs: number): Promise<number> {
+/** In-process stores, for tests to clear between cases. */
+const memoryStores = new Set<MemoryStore>();
+
+function storeFor(scope: RateLimitScope): Store {
   const redis = getRedisClient();
   if (redis) {
-    try {
-      const count = await redis.incr(key);
-      if (count === 1) await redis.pexpire(key, windowMs);
-      return count;
-    } catch (err: unknown) {
-      log.general.warn({ err }, 'Rate limit check failed; letting the request through');
-      return 0;
-    }
+    return new RedisStore({
+      prefix: `rl:${scope}:`,
+      sendCommand: (command: string, ...args: string[]) =>
+        redis.call(command, ...args) as Promise<number | string>,
+    });
   }
-  const now = Date.now();
-  const entry = local.get(key);
-  if (!entry || entry.resetAt <= now) {
-    if (local.size >= LOCAL_MAX_KEYS) {
-      for (const [k, v] of local) if (v.resetAt <= now) local.delete(k);
-      if (local.size >= LOCAL_MAX_KEYS) local.clear();
-    }
-    local.set(key, { count: 1, resetAt: now + windowMs });
-    return 1;
-  }
-  entry.count += 1;
-  return entry.count;
+  const memory = new MemoryStore();
+  memoryStores.add(memory);
+  return memory;
 }
 
 /**
- * At most `limit` requests per `windowMs` per client address (and per the
- * key `scope` derives from the request, e.g. one form). Answers 429 with
- * `Retry-After` beyond it.
+ * At most `max` requests per `windowMs` for each caller of a scope. Signed-in
+ * members and anonymous callers get the same budget unless `anonymousMax`
+ * says otherwise. Answers 429 with the standard `RateLimit` headers.
  */
-export function rateLimit(options: {
-  name: string;
-  limit: number;
-  windowMs: number;
-  scope?: (req: Request) => string;
-}) {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const window = Math.floor(Date.now() / options.windowMs);
-    const key = `nilo:rl:${options.name}:${options.scope?.(req) ?? ''}:${req.ip ?? 'unknown'}:${window}`;
-    const count = await hit(key, options.windowMs);
-    if (count > options.limit) {
-      res.setHeader('Retry-After', String(Math.ceil(options.windowMs / 1000)));
-      res.status(429).json({ error: 'Too many requests, try again shortly' });
-      return;
-    }
-    next();
-  };
+export function rateLimit(
+  scope: RateLimitScope,
+  options: { max?: number; anonymousMax?: number; windowMs?: number } = {},
+): RequestHandler {
+  return createOxyRateLimit(oxyClient, {
+    ...(options.windowMs !== undefined && { windowMs: options.windowMs }),
+    ...(options.max !== undefined && {
+      authenticatedMax: options.max,
+      anonymousMax: options.anonymousMax ?? options.max,
+    }),
+    store: storeFor(scope),
+  });
 }
 
 /** For tests: forget the in-process windows. */
-export function resetLocalRateLimits(): void {
-  local.clear();
+export async function resetLocalRateLimits(): Promise<void> {
+  await Promise.all([...memoryStores].map((store) => store.resetAll()));
 }

@@ -40,6 +40,18 @@ Last verified: 2026-09-13.
   title, summary, link-preview tags and text for readers without script,
   `noindex` unless its owner allowed search engines. Without it, or when the
   API does not answer within 3 s, it serves the app's page unchanged.
+- `REDIS_URL` is the shared Oxy Valkey (`/oxy/_shared/REDIS_URL`, read only,
+  as every multi-task Oxy backend does). The API runs two tasks: Redis is what
+  makes a page's room reach members on both and what makes rate limits count
+  one window for both. Without it each task does both on its own, and the API
+  says so at boot.
+- `IP_HASH_SALT` (`/oxy/nilo/IP_HASH_SALT`) keys anonymous rate limits by a
+  salted hash of the client address; no raw address is stored.
+- `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` (`/oxy/nilo/`, SecureString) and
+  `VAPID_SUBJECT` sign browser push. Without them
+  `GET /notifications/vapid-public-key` answers 503.
+- The live task definition is the source of truth: `deploy-ecs.sh` copies it,
+  so a secret added to it stays across deploys.
 - Nilo deployment configuration contains no provider credentials, provider
   runtime, or inference route.
 - The API image runs on Bun: `apps/api/Dockerfile`'s runtime stage is

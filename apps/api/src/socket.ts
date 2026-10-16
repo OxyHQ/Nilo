@@ -25,17 +25,18 @@ export function initSocket(server: http.Server): Server {
 
   io.use(oxyClient.middleware.socket());
 
+  // The adapter is what makes a page's room reach members on every task.
+  // Attached at once: the ioredis clients are already connecting (no
+  // `lazyConnect`), so calling `.connect()` on them would reject and leave each
+  // task with its own rooms — the bug Alia measured in production — and ioredis
+  // queues the adapter's subscribe until the connection is up.
   const pubClient = getRedisClient();
   const subClient = getRedisSubClient();
   if (pubClient && subClient) {
-    Promise.all([pubClient.connect(), subClient.connect()])
-      .then(() => {
-        io?.adapter(createAdapter(pubClient, subClient));
-        log.general.info('Socket.IO Redis adapter attached');
-      })
-      .catch((error: unknown) => {
-        log.general.warn({ err: error }, 'Socket.IO Redis adapter failed; using in-memory');
-      });
+    io.adapter(createAdapter(pubClient, subClient));
+    log.general.info('Socket.IO Redis adapter attached');
+  } else {
+    log.general.warn('Socket.IO has no Redis adapter: rooms reach only this task');
   }
 
   io.on('connection', (socket) => {

@@ -31,7 +31,10 @@ vi.mock('../../middleware/auth.js', () => ({
     req.user = { id };
     next();
   },
-  oxyClient: {},
+  oxyClient: {
+    // The real limiters resolve an optional session through this; anonymous here.
+    middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
+  },
 }));
 vi.mock('../../lib/logger.js', () => ({
   log: { general: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
@@ -60,7 +63,12 @@ async function api(user: string | null, method: string, path: string, body?: unk
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  return { status: res.status, json: (await res.json()) as Record<string, unknown> };
+  // A 429 comes from the SDK's limiter, whose body is not JSON.
+  const text = await res.text();
+  const json = (
+    res.headers.get('content-type')?.includes('json') ? JSON.parse(text) : {}
+  ) as Record<string, unknown>;
+  return { status: res.status, json };
 }
 
 /** A database with Name, a select and a hidden note, and a form view with its link. */

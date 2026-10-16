@@ -61,6 +61,10 @@ const ctx = vi.hoisted(() => ({
 }));
 
 vi.mock('../../middleware/auth.js', () => ({
+  oxyClient: {
+    // The real limiters resolve an optional session through this; anonymous here.
+    middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
+  },
   authenticateToken: (req: express.Request, _res: express.Response, next: express.NextFunction) => {
     req.user = { id: ctx.userId };
     next();

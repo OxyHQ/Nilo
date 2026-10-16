@@ -32,12 +32,14 @@
         "esbuild": "^0.28.1",
         "expo-server-sdk": "^6.0.0",
         "express": "^4.21.2",
+        "express-rate-limit": "^8.6.0",
         "fflate": "0.8.3",
         "ioredis": "^5.10.0",
         "jsdom": "^28.1.0",
         "pdfkit": "0.20.2",
         "pino": "^10.3.1",
         "postgres": "^3.4.9",
+        "rate-limit-redis": "^5",
         "socket.io": "^4.8.3",
         "web-push": "^3.6.7",
         "zod": "^3.24.1",
@@ -2768,6 +2770,8 @@
     "quick-lru": ["quick-lru@5.1.1", "", {}, "sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA=="],
 
     "range-parser": ["range-parser@1.2.1", "", {}, "sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg=="],
+
+    "rate-limit-redis": ["rate-limit-redis@5.0.0", "", { "peerDependencies": { "express-rate-limit": ">= 8.5.0" } }, "sha512-+M9el8KZjZ2HXM6/E38jFGmozBbN4C200iLE8+80TgS+8PzSfAAvD1zkx2oWu6YEgSrdiJJNrd4LCFm5vjVJkg=="],
 
     "raw-body": ["raw-body@2.5.3", "", { "dependencies": { "bytes": "~3.1.2", "http-errors": "~2.0.1", "iconv-lite": "~0.4.24", "unpipe": "~1.0.0" } }, "sha512-s4VSOf6yN0rvbRZGxs8Om5CWj6seneMwK3oDb4lWDH0UPhWcxwOWw5+qk24bxq87szX1ydrwylIOp2uG1ojUpA=="],
 
