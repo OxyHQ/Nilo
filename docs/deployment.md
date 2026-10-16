@@ -50,6 +50,10 @@ Last verified: 2026-09-13.
 - `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` (`/oxy/nilo/`, SecureString) and
   `VAPID_SUBJECT` sign browser push. Without them
   `GET /notifications/vapid-public-key` answers 503.
+- Attachments live in Oxy's file manager (`docs/files.md`): no bucket, no
+  storage credential, and the image is read-only. The API mints file URLs
+  with its workload-identity service token, which needs the
+  `files:linked:read` scope on Nilo's Oxy application (granted 2026-10-16).
 - The live task definition is the source of truth: `deploy-ecs.sh` copies it,
   so a secret added to it stays across deploys.
 - Nilo deployment configuration contains no provider credentials, provider

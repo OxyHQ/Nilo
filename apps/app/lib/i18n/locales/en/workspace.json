@@ -26,11 +26,15 @@
     "title": "New workspace",
     "description": "Workspaces are containers for pages, databases, and team members.",
     "namePlaceholder": "e.g. Acme Co.",
-    "icon": "Icon",
-    "useIcon": "Use %{emoji} as icon",
     "submit": "Create workspace",
     "created": "Workspace \"%{name}\" created",
     "failed": "Failed to create workspace"
+  },
+  "avatar": {
+    "label": "Picture",
+    "upload": "Upload",
+    "change": "Change",
+    "remove": "Remove"
   },
   "invite": {
     "title": "Invite a member",
@@ -39,7 +43,6 @@
     "emailPlaceholder": "teammate@example.com",
     "invalidEmail": "Enter a valid email address.",
     "role": "Role",
-    "selectedRole": "Selected role %{role}",
     "submit": "Send invite",
     "invited": "Invited %{email} as %{role}",
     "failed": "Failed to invite member",

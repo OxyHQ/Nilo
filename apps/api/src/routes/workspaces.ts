@@ -23,25 +23,9 @@ import {
 } from '../repositories/workspaces.js';
 import { log } from '../lib/logger.js';
 import { findUserByEmail, loadMemberProfiles } from '../lib/member-profiles.js';
+import { createWorkspaceSchema, updateWorkspaceSchema } from '../lib/workspace-input.js';
 
 const router = Router();
-
-const ICON_MAX_LENGTH = 64;
-const WORKSPACE_NAME_MAX = 200;
-
-const createWorkspaceSchema = z.object({
-  name: z.string().trim().min(1).max(WORKSPACE_NAME_MAX),
-  icon: z.string().max(ICON_MAX_LENGTH).nullable().optional(),
-});
-
-const updateWorkspaceSchema = z
-  .object({
-    name: z.string().trim().min(1).max(WORKSPACE_NAME_MAX).optional(),
-    icon: z.string().max(ICON_MAX_LENGTH).nullable().optional(),
-  })
-  .refine((val) => val.name !== undefined || val.icon !== undefined, {
-    message: 'Provide at least one of: name, icon',
-  });
 
 // Members can be invited as any role except `owner`. Owner is reserved
 // for the creator and is not transferable in MVP.
@@ -60,7 +44,7 @@ function serializeWorkspace(
   ws: {
     id: string;
     name: string;
-    icon: string | null;
+    avatar: string | null;
     ownerId: string;
     isPersonal: boolean;
     archivedAt: Date | null;
@@ -72,7 +56,7 @@ function serializeWorkspace(
   return {
     id: ws.id,
     name: ws.name,
-    icon: ws.icon,
+    avatar: ws.avatar,
     ownerId: ws.ownerId,
     isPersonal: ws.isPersonal,
     archivedAt: ws.archivedAt,
@@ -121,7 +105,7 @@ router.get('/', authenticateToken, ensurePersonalWorkspace, async (req: Request,
           {
             id: ws.id,
             name: ws.name,
-            icon: ws.icon,
+            avatar: ws.avatar,
             ownerId: ws.ownerId,
             isPersonal: ws.isPersonal,
             archivedAt: ws.archivedAt,
@@ -164,7 +148,7 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
     }
 
     const userId = req.user.id;
-    const { name, icon } = parsed.data;
+    const { name, avatar } = parsed.data;
 
     // ONE transaction: if the process died between the two writes, the
     // workspace would exist with no owner and nobody could reach it or delete
@@ -173,7 +157,7 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
     const workspace = await db.transaction(async (tx) => {
       const created = await createWorkspace(tx, {
         name,
-        icon: icon ?? null,
+        avatar: avatar ?? null,
         ownerId: userId,
         isPersonal: false,
       });
@@ -198,7 +182,7 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
         {
           id: workspace.id,
           name: workspace.name,
-          icon: workspace.icon,
+          avatar: workspace.avatar,
           ownerId: workspace.ownerId,
           isPersonal: workspace.isPersonal,
           archivedAt: workspace.archivedAt,
@@ -235,7 +219,7 @@ router.get(
         {
           id: ws.id,
           name: ws.name,
-          icon: ws.icon,
+          avatar: ws.avatar,
           ownerId: ws.ownerId,
           isPersonal: ws.isPersonal,
           archivedAt: ws.archivedAt,
@@ -251,7 +235,7 @@ router.get(
 /**
  * PATCH /api/workspaces/:workspaceId
  *
- * Update workspace metadata (name, icon). Admin role or higher.
+ * Update workspace metadata (name, avatar). Admin role or higher.
  */
 router.patch(
   '/:workspaceId',
@@ -274,7 +258,7 @@ router.patch(
       const ws = req.workspaceDoc;
       const updated = await updateWorkspace(getDb(), ws.id, {
         name: parsed.data.name,
-        icon: parsed.data.icon,
+        avatar: parsed.data.avatar,
       });
       if (!updated) {
         res.status(404).json({ error: 'Workspace not found' });

@@ -7,8 +7,8 @@ apps/app  -> HTTPS and Socket.IO -> apps/api -> PostgreSQL
 ```
 
 Redis/Valkey is optional in development; in production it carries Socket.IO
-across tasks and shared rate limits. S3-compatible
-storage is optional for uploads. Neither service replaces PostgreSQL.
+across tasks and shared rate limits. Attachments live in Oxy's file manager
+(`docs/files.md`). Neither replaces PostgreSQL.
 
 ## Boundaries
 

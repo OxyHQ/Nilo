@@ -1,13 +1,23 @@
 import { BlockText, blockTextSegments, PublicMentionContext } from './block-text';
-import { Pressable, type TextStyle, View } from 'react-native';
+import { blockFileId, type FileUrlScope } from '@nilo/contracts';
 import { Divider } from '@oxy.so/bloom/divider';
 import { Text } from '@oxy.so/bloom/typography';
+import { useQueryClient } from '@tanstack/react-query';
+import { Image as ExpoImage } from 'expo-image';
+import { Platform, Pressable, type TextStyle, View } from 'react-native';
+import {
+  FileScopeProvider,
+  freshFileUrl,
+  useFileImageSource,
+  useFileScope,
+} from '@/lib/files/file-urls';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
 import type { PageFont } from '@/lib/types/pages';
 import { MONO_FONT_FAMILY, PAGE_FONT_FAMILIES } from '@/lib/fonts';
 import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
 import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
+import { RiFileLine } from '@oxy.so/bloom/icons/RiFileLine';
 import { useColorScheme } from '@/lib/useColorScheme';
 import {
   buildBlockTree,
@@ -175,6 +185,68 @@ function CalloutBlock({ content, textStyle }: BlockProps) {
   );
 }
 
+const stringOf = (value: unknown) => (typeof value === 'string' ? value : '');
+
+/** An image: a pasted URL, or an attachment through a URL minted for this reader. */
+function SharedImage({ content }: { content: Record<string, unknown> }) {
+  const fileId = blockFileId(content);
+  const fileSource = useFileImageSource(useFileScope(undefined), fileId);
+  const url = fileId ? (fileSource?.uri ?? null) : stringOf(content.url);
+  const caption = stringOf(content.caption);
+  if (!url) {
+    return fileId ? (
+      <View className="rounded-lg bg-muted/40" style={{ width: '100%', aspectRatio: 16 / 9 }} />
+    ) : null;
+  }
+  return (
+    <View className="gap-1">
+      <ExpoImage
+        source={fileSource ?? { uri: url }}
+        style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 8 }}
+        contentFit="contain"
+        accessibilityLabel={stringOf(content.alt) || caption || undefined}
+      />
+      {caption ? <Text className="text-xs text-muted-foreground">{caption}</Text> : null}
+    </View>
+  );
+}
+
+/** A file: opened through a URL that works now. */
+function SharedFile({ content }: { content: Record<string, unknown> }) {
+  const { colors } = useColorScheme();
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const scope = useFileScope(undefined);
+  const fileId = blockFileId(content);
+  const url = stringOf(content.url);
+  const [failed, setFailed] = useState(false);
+  if (!fileId && !url) return null;
+  const name = stringOf(content.name) || url.split('/').pop() || 'file';
+  const open = async () => {
+    setFailed(false);
+    const target = fileId && scope ? await freshFileUrl(queryClient, scope, fileId) : url;
+    if (!target) return setFailed(true);
+    if (Platform.OS === 'web') window.open(target, '_blank', 'noopener,noreferrer');
+    else await (await import('expo-web-browser')).openBrowserAsync(target);
+  };
+  return (
+    <View className="gap-1">
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={name}
+        onPress={() => void open().catch(() => setFailed(true))}
+        className="flex-row items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
+      >
+        <RiFileLine width={18} height={18} fill={colors.foreground} />
+        <Text className="flex-1 text-sm text-foreground">{name}</Text>
+      </Pressable>
+      {failed ? (
+        <Text className="text-xs text-destructive">{t('sharing.blocks.fileUnavailable')}</Text>
+      ) : null}
+    </View>
+  );
+}
+
 export function SharedBlockRenderer({ block, listIndex = 1, textStyle }: SharedBlockRendererProps) {
   const { t } = useTranslation();
   const { content } = block;
@@ -208,6 +280,10 @@ export function SharedBlockRenderer({ block, listIndex = 1, textStyle }: SharedB
       return <CodeBlock content={content} textStyle={textStyle} />;
     case 'callout':
       return <CalloutBlock content={content} textStyle={textStyle} />;
+    case 'image':
+      return <SharedImage content={content} />;
+    case 'file':
+      return <SharedFile content={content} />;
     default:
       return (
         <Text className="text-sm text-muted-foreground italic" style={textStyle}>
@@ -222,10 +298,13 @@ export function SharedBlockTree({
   blocks,
   publicSlug,
   font = 'default',
+  fileScope,
 }: {
   blocks: readonly ReadOnlyBlock[];
   publicSlug?: string;
   font?: PageFont;
+  /** How the reader reached these blocks, which is how their files are asked for. */
+  fileScope?: FileUrlScope;
 }) {
   const { t } = useTranslation();
   const textStyle = useMemo(() => ({ fontFamily: PAGE_FONT_FAMILIES[font] }), [font]);
@@ -236,11 +315,12 @@ export function SharedBlockTree({
         {t('pages.share.empty')}
       </Text>
     );
-  return (
+  const branch = (
     <PublicMentionContext.Provider value={publicSlug}>
       <BlockBranch nodes={tree} textStyle={textStyle} />
     </PublicMentionContext.Provider>
   );
+  return fileScope ? <FileScopeProvider scope={fileScope}>{branch}</FileScopeProvider> : branch;
 }
 function BlockBranch({ nodes, textStyle }: { nodes: BlockTreeNode[]; textStyle: TextStyle }) {
   let listIndex = 0;

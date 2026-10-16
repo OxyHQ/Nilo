@@ -1,19 +1,25 @@
 import * as React from 'react';
 import { Platform, TextInput, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
+import { blockFileId } from '@nilo/contracts';
+import { Button } from '@oxy.so/bloom/button';
 import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
 import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';
-import { Button } from '@oxy.so/bloom/button';
 import { TextField, TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
+import { useOxy } from '@oxy.so/services';
+import { useQueryClient } from '@tanstack/react-query';
+import { useFileImageSource, useFileScope } from '@/lib/files/file-urls';
+import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { uploadFile } from '@/lib/uploads/upload-file';
 import type { BlockComponentProps } from './types';
 
 /**
  * Image block — renders a captioned image. Empty state offers two paths:
- *   1) Paste a URL into the URL field.
- *   2) Upload via the file picker → presigned PUT → assign `content.url`.
+ *   1) Paste a URL into the URL field (`content.url`).
+ *   2) Upload a picture: it goes to Oxy's file manager as the member's own
+ *      file, attached to this page (`lib/files`), and the block keeps its id
+ *      (`content.fileId`); the URL it is shown with is minted per reader.
  *
  * Cross-platform note: web uses a `<input type=file>` (hidden) since RN doesn't
  * expose one. Native picks via `expo-image-picker` (dynamic import so the web
@@ -21,16 +27,21 @@ import type { BlockComponentProps } from './types';
  */
 export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const url = typeof block.content.url === 'string' ? block.content.url : '';
+  const { oxyServices } = useOxy();
+  const queryClient = useQueryClient();
+  const fileId = blockFileId(block.content);
+  const fileSource = useFileImageSource(useFileScope(block.pageId), fileId);
+  const pastedUrl = typeof block.content.url === 'string' ? block.content.url : '';
+  const url = fileId ? (fileSource?.uri ?? null) : pastedUrl;
   const caption = typeof block.content.caption === 'string' ? block.content.caption : '';
-  const [urlDraft, setUrlDraft] = React.useState(url);
+  const [urlDraft, setUrlDraft] = React.useState(pastedUrl);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   // Reset the input when the block changes identity (e.g. fresh remount).
   const lastBlockId = React.useRef(block.id);
   if (lastBlockId.current !== block.id) {
     lastBlockId.current = block.id;
-    setUrlDraft(url);
+    setUrlDraft(pastedUrl);
   }
 
   const commitUrl = (next: string) => {
@@ -41,18 +52,12 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
   };
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const handleWebUpload = async (file: File) => {
+  const attach = async (file: PickedFile) => {
     setBusy(true);
     setError(null);
     try {
-      const buf = await file.arrayBuffer();
-      const result = await uploadFile({
-        filename: file.name,
-        mimeType: file.type || 'application/octet-stream',
-        body: buf,
-        size: file.size,
-      });
-      onChangeContent({ ...block.content, url: result.fileUrl });
+      const attached = await uploadPageFile(oxyServices, queryClient, block.pageId, file);
+      onChangeContent({ ...block.content, url: '', fileId: attached.fileId });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -61,34 +66,31 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
   };
 
   const handleNativeUpload = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const picker = await import('expo-image-picker');
-      const result = await picker.launchImageLibraryAsync({
-        mediaTypes: picker.MediaTypeOptions.Images,
-        quality: 0.9,
-      });
-      if (result.canceled || result.assets.length === 0) return;
-      const asset = result.assets[0];
-      const { File } = await import('expo-file-system');
-      const file = new File(asset.uri);
-      const bytes = await file.bytes();
-      const mimeType = asset.mimeType ?? 'image/jpeg';
-      const filename = asset.fileName ?? `image-${Date.now()}.jpg`;
-      const uploaded = await uploadFile({
-        filename,
-        mimeType,
-        body: bytes,
-        size: bytes.byteLength,
-      });
-      onChangeContent({ ...block.content, url: uploaded.fileUrl });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
-    } finally {
-      setBusy(false);
-    }
+    const picker = await import('expo-image-picker');
+    const result = await picker.launchImageLibraryAsync({
+      mediaTypes: picker.MediaTypeOptions.Images,
+      quality: 0.9,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+    await attach({
+      uri: asset.uri,
+      name: asset.fileName ?? `image-${Date.now()}.jpg`,
+      type: asset.mimeType ?? 'image/jpeg',
+      ...(asset.fileSize !== undefined && { size: asset.fileSize }),
+    });
   };
+
+  // An attachment whose URL has not arrived yet: its place, not the picker.
+  if (fileId && !url) {
+    return (
+      <View
+        className="rounded-lg bg-muted/40"
+        style={{ width: '100%', aspectRatio: 16 / 9 }}
+        accessibilityLabel={typeof block.content.alt === 'string' ? block.content.alt : undefined}
+      />
+    );
+  }
 
   if (!url) {
     return (
@@ -132,7 +134,7 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
             style={{ display: 'none' }}
             onChange={(ev) => {
               const file = ev.target.files?.[0];
-              if (file) void handleWebUpload(file);
+              if (file) void attach(file);
               ev.target.value = '';
             }}
           />
@@ -145,7 +147,8 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
   return (
     <View className="gap-1">
       <ExpoImage
-        source={{ uri: url }}
+        // An attachment's URL changes every few minutes; its id names it in the cache.
+        source={fileSource ?? { uri: url }}
         style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 8 }}
         contentFit="contain"
         transition={150}

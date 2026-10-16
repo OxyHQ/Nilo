@@ -10,6 +10,7 @@
  * images, tables and equations. HTML output escapes every piece of text.
  */
 import { type BlockContent, type BlockType, SAFE_LINK } from './blocks';
+import { blockFileId } from './files';
 
 /** A run of text with its marks, as block content stores it (`content.segments`). */
 export interface Segment {
@@ -478,6 +479,19 @@ export const segmentsOf = (content: BlockContent): Segment[] => {
 };
 const stringOf = (value: unknown) => (typeof value === 'string' ? value : '');
 
+/**
+ * What an export shows for an attachment stored in Nilo: a file's URL lasts
+ * minutes, so an export names the file instead of linking a dead address.
+ */
+function attachmentLabel(content: BlockContent, fallback: string): string {
+  return (
+    stringOf(content.name) ||
+    stringOf(content.alt) ||
+    stringOf(content.caption) ||
+    fallback
+  ).trim();
+}
+
 // ───────────────────────────── blocks → Markdown ─────────────────────────────
 
 const LISTISH = new Set(['bulleted_list_item', 'numbered_list_item', 'todo', 'toggle']);
@@ -538,7 +552,10 @@ function renderNodeMarkdown(block: BlockNode, depth: number, index: number): str
       line = `$$\n${stringOf(block.content.latex)}\n$$`;
       break;
     case 'image':
-      line = `![${escapeInline(stringOf(block.content.alt))}](${stringOf(block.content.url)})`;
+      // An attachment in Nilo has no lasting URL to link to: its description stands in.
+      line = blockFileId(block.content)
+        ? `*${escapeInline(attachmentLabel(block.content, 'Image'))}*`
+        : `![${escapeInline(stringOf(block.content.alt))}](${stringOf(block.content.url)})`;
       break;
     case 'video':
     case 'audio':
@@ -548,7 +565,8 @@ function renderNodeMarkdown(block: BlockNode, depth: number, index: number): str
     case 'embed': {
       const url = stringOf(block.content.url);
       const label = stringOf(block.content.title) || stringOf(block.content.name) || url;
-      line = url ? `[${escapeInline(label)}](${url})` : '';
+      if (blockFileId(block.content)) line = escapeInline(attachmentLabel(block.content, 'File'));
+      else line = url ? `[${escapeInline(label)}](${url})` : '';
       break;
     }
     case 'table': {
@@ -712,7 +730,9 @@ function renderNodesHtml(blocks: readonly BlockNode[]): string {
         break;
       case 'image': {
         const url = stringOf(block.content.url);
-        if (url)
+        if (blockFileId(block.content))
+          out.push(`<p><em>${escapeHtml(attachmentLabel(block.content, 'Image'))}</em></p>`);
+        else if (url)
           out.push(
             `<figure><img src="${safeUrl(url)}" alt="${escapeHtml(stringOf(block.content.alt))}"></figure>`,
           );
@@ -726,7 +746,9 @@ function renderNodesHtml(blocks: readonly BlockNode[]): string {
       case 'embed': {
         const url = stringOf(block.content.url);
         const label = stringOf(block.content.title) || stringOf(block.content.name) || url;
-        if (url)
+        if (blockFileId(block.content))
+          out.push(`<p>${escapeHtml(attachmentLabel(block.content, 'File'))}</p>`);
+        else if (url)
           out.push(
             `<p><a href="${safeUrl(url)}" rel="noopener noreferrer">${escapeHtml(label)}</a></p>`,
           );

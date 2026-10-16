@@ -22,6 +22,7 @@ import {
 } from '../repositories/pagePermissions.js';
 import { log } from '../lib/logger.js';
 import { rateLimit } from '../lib/rate-limit.js';
+import { respondWithFileUrls } from './files.js';
 
 const router = Router();
 
@@ -282,6 +283,32 @@ router.delete('/share-links/:id', authenticateToken, async (req: Request, res: R
 });
 
 /**
+ * The page a share link opens, or why it opens nothing: 404 for a link that
+ * never was, 410 for one revoked or expired (the reader is told it is gone,
+ * so they ask for a new one instead of doubting the URL).
+ */
+async function findSharedPage(
+  token: string | null,
+): Promise<
+  | { link: NonNullable<Awaited<ReturnType<typeof findShareLinkByToken>>>; page: PageRow }
+  | { status: 404 | 410; error: string }
+> {
+  if (!token || token.length < 8 || token.length > 128) {
+    return { status: 404, error: 'Share link not found' };
+  }
+  const db = getDb();
+  const link = await findShareLinkByToken(db, token);
+  if (!link) return { status: 404, error: 'Share link not found' };
+  if (link.revokedAt) return { status: 410, error: 'Share link has been revoked' };
+  if (link.expiresAt && link.expiresAt.getTime() <= Date.now()) {
+    return { status: 410, error: 'Share link has expired' };
+  }
+  const page = await findPageById(db, link.pageId);
+  if (!page || page.archived) return { status: 404, error: 'Shared page is no longer available' };
+  return { link, page };
+}
+
+/**
  * GET /api/share/:token
  *
  * Public, unauthenticated read of a shared page. Returns the page metadata
@@ -292,34 +319,13 @@ router.get(
   rateLimit('share-read', { max: 240, windowMs: 60_000 }),
   async (req: Request, res: Response) => {
     try {
-      const token = paramString(req.params.token);
-      if (!token || token.length < 8 || token.length > 128) {
-        res.status(404).json({ error: 'Share link not found' });
+      const shared = await findSharedPage(paramString(req.params.token));
+      if ('error' in shared) {
+        res.status(shared.status).json({ error: shared.error });
         return;
       }
-
+      const { link, page } = shared;
       const db = getDb();
-      const link = await findShareLinkByToken(db, token);
-      if (!link) {
-        res.status(404).json({ error: 'Share link not found' });
-        return;
-      }
-      // 410 rather than 404: the link existed and is gone, which the reader is
-      // told so they ask for a new one instead of doubting the URL.
-      if (link.revokedAt) {
-        res.status(410).json({ error: 'Share link has been revoked' });
-        return;
-      }
-      if (link.expiresAt && link.expiresAt.getTime() <= Date.now()) {
-        res.status(410).json({ error: 'Share link has expired' });
-        return;
-      }
-
-      const page = await findPageById(db, link.pageId);
-      if (!page || page.archived) {
-        res.status(404).json({ error: 'Shared page is no longer available' });
-        return;
-      }
 
       // Ordering lives in the repository (`...ByOrder`) rather than in a chained
       // `.sort()` here, so every reader of a page's blocks gets the same order.
@@ -351,6 +357,25 @@ router.get(
     } catch (error: unknown) {
       log.general.error({ err: error }, 'Failed to resolve share link');
       res.status(500).json({ error: 'Failed to load shared page' });
+    }
+  },
+);
+
+/** POST /share/:token/files/urls { ids } — URLs for the files of a shared page. */
+router.post(
+  '/share/:token/files/urls',
+  rateLimit('share-read', { max: 240, windowMs: 60_000 }),
+  async (req: Request, res: Response) => {
+    try {
+      const shared = await findSharedPage(paramString(req.params.token));
+      if ('error' in shared) {
+        res.status(shared.status).json({ error: shared.error });
+        return;
+      }
+      await respondWithFileUrls(req, res, shared.page);
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to read shared file URLs');
+      res.status(500).json({ error: 'Failed to load files' });
     }
   },
 );

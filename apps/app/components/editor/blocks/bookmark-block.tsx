@@ -6,7 +6,7 @@ import { RiLinkM } from '@oxy.so/bloom/icons/RiLinkM';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { fetchEmbedPreview } from '@/lib/uploads/upload-file';
+import { fetchEmbedPreview } from '@/lib/embed-preview';
 import type { BlockComponentProps } from './types';
 
 /**

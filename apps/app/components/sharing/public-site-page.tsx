@@ -94,7 +94,12 @@ export default function PublicSitePage() {
             >
               {title}
             </Text>
-            <SharedBlockTree blocks={data.blocks} publicSlug={slug} font={data.page.font} />
+            <SharedBlockTree
+              blocks={data.blocks}
+              publicSlug={slug}
+              font={data.page.font}
+              fileScope={{ kind: 'published', slug, pageId: data.page.id }}
+            />
             {data.children.length ? (
               <View className="border-t border-border pt-4 gap-3">
                 <Text accessibilityRole="header" variant="headline-semibold">

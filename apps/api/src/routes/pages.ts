@@ -15,15 +15,24 @@ import {
   updatePage,
 } from '../repositories/pages.js';
 import { listBlocksForPage } from '../repositories/blocks.js';
-import { blocksToHtml, blocksToMarkdown, blocksToTree, inReadingOrder } from '@nilo/contracts';
+import {
+  type BlockNode,
+  blocksToHtml,
+  blocksToMarkdown,
+  blocksToTree,
+  inReadingOrder,
+} from '@nilo/contracts';
 import { copyPageTree } from '../repositories/pageCopies.js';
 import { follow } from '../repositories/pageFollows.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
-import { blocksToPdf } from '../lib/pdf-export.js';
+import { mintFileUrls } from '../lib/files.js';
+import { blocksToPdf, type ImageLoader, imageSources } from '../lib/pdf-export.js';
+import { servableFileIds } from '../repositories/pageFiles.js';
 import { safeFetch } from '../lib/safe-fetch.js';
 import { log } from '../lib/logger.js';
+import { loadMemberProfiles } from '../lib/member-profiles.js';
 import { rateLimit } from '../lib/rate-limit.js';
 import { placeOrRefuse } from '../lib/placement.js';
 import { syncRelations } from '../lib/databases/relations.js';
@@ -297,15 +306,30 @@ router.get('/shared', async (req: Request, res: Response) => {
       (id) => !memberOf.has(id),
     );
 
-    const out = [];
+    const found = [];
     for (const workspaceId of workspaceIds) {
       const workspace = await findLiveWorkspaceById(db, workspaceId);
-      if (!workspace) continue;
+      if (workspace) found.push(workspace);
+    }
+    // A personal workspace with no picture of its own shows its owner's
+    // avatar, as it does for the owner. Oxy owns that avatar, so it is looked
+    // up here, once for every such owner, rather than by each client.
+    const owners = await loadMemberProfiles(
+      found.filter((w) => w.isPersonal && !w.avatar).map((w) => w.ownerId),
+    );
+
+    const out = [];
+    for (const workspace of found) {
+      const workspaceId = workspace.id;
       const all = await listPages(db, { workspaceId, archived: false });
       const guest = { userId, memberRole: null, teamspaces: new Map() };
       const roles = rolesForPages(all, guest, grants, await databaseHomes(db, workspaceId));
       out.push({
-        workspace: { id: workspace.id, name: workspace.name, icon: workspace.icon ?? null },
+        workspace: {
+          id: workspace.id,
+          name: workspace.name,
+          avatar: workspace.avatar ?? owners.get(workspace.ownerId)?.avatar ?? null,
+        },
         pages: all
           .filter((p) => roles.has(p.id))
           .map((p) => ({ ...serializePage(p), role: roles.get(p.id) })),
@@ -818,6 +842,26 @@ async function loadExportImage(url: string): Promise<Buffer | null> {
  * with their formatting and nesting (`@nilo/contracts` markdown/HTML,
  * `lib/pdf-export.ts`), every piece of text escaped in HTML.
  */
+/**
+ * The PDF's image loader: a URL as it is, an attachment (`file:<id>`) through
+ * a URL minted for it, when this page may show it.
+ */
+async function exportImageLoader(
+  page: { id: string; workspaceId: string },
+  tree: BlockNode[],
+): Promise<ImageLoader> {
+  const fileIds = imageSources(tree)
+    .filter((source) => source.startsWith('file:'))
+    .map((source) => source.slice('file:'.length));
+  const servable = await servableFileIds(getDb(), page, fileIds);
+  const minted = await mintFileUrls(servable);
+  return async (source) => {
+    if (!source.startsWith('file:')) return loadExportImage(source);
+    const file = minted.get(source.slice('file:'.length));
+    return file ? loadExportImage(file.url) : null;
+  };
+}
+
 /** A PDF is drawn on the server: a member gets a few a minute. */
 const pdfExports = rateLimit('page-export-pdf', { max: 10, windowMs: 60_000 });
 
@@ -853,7 +897,7 @@ router.get(
             : { extension: 'md', type: 'text/markdown; charset=utf-8' };
       const body =
         format === 'pdf'
-          ? await blocksToPdf(tree, title, loadExportImage)
+          ? await blocksToPdf(tree, title, await exportImageLoader(page, tree))
           : format === 'html'
             ? blocksToHtml(tree, title)
             : blocksToMarkdown(tree, title);

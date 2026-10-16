@@ -298,3 +298,26 @@ describe('a canvas read as a page', () => {
     expect(inReadingOrder(tree)).toEqual(tree);
   });
 });
+
+describe('attachments stored in Nilo', () => {
+  const node = (type: string, content: Record<string, unknown>) =>
+    ({ type, content, children: [] }) as unknown as BlockNode;
+  const tree = [
+    node('image', { fileId: 'f1', url: '', caption: 'Plano del piso' }),
+    node('file', { fileId: 'f2', url: '', name: 'informe.pdf' }),
+  ];
+
+  it('are named, not linked, in Markdown: their URLs expire', () => {
+    const md = blocksToMarkdown(tree, 'Adjuntos');
+    expect(md).toContain('*Plano del piso*');
+    expect(md).toContain('informe.pdf');
+    expect(md).not.toMatch(/\]\(/);
+  });
+
+  it('are named, not linked, in HTML', () => {
+    const html = blocksToHtml(tree, 'Adjuntos');
+    expect(html).toContain('<em>Plano del piso</em>');
+    expect(html).toContain('<p>informe.pdf</p>');
+    expect(html).not.toContain('<img');
+  });
+});

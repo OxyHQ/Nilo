@@ -152,7 +152,7 @@ export default function PublicSharePage() {
           ) : null}
           <SharedPageHeader page={data.page} />
           <View className="gap-1.5">
-            <SharedBlockTree blocks={data.blocks} />
+            <SharedBlockTree blocks={data.blocks} fileScope={{ kind: 'share', token }} />
           </View>
         </View>
       </ScrollView>

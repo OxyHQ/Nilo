@@ -177,17 +177,25 @@ describe('membership', () => {
 
 describe('patching', () => {
   it('leaves a field alone when the caller omits it', async () => {
-    const ws = await createWorkspace(db, { name: 'Before', icon: 'x', ownerId: `${scope}-patch` });
+    const ws = await createWorkspace(db, {
+      name: 'Before',
+      avatar: '65fdc8c8c8c8c8c8c8c8c8c8',
+      ownerId: `${scope}-patch`,
+    });
 
     const updated = await updateWorkspace(db, ws.id, { name: 'After' });
     // An `undefined` field must be skipped, not written as NULL. This is the
     // assertion that a patch does not quietly erase a sibling field.
-    expect(updated).toMatchObject({ name: 'After', icon: 'x' });
+    expect(updated).toMatchObject({ name: 'After', avatar: '65fdc8c8c8c8c8c8c8c8c8c8' });
   });
 
   it('accepts an explicit null as a real erasure', async () => {
-    const ws = await createWorkspace(db, { name: 'Icon', icon: 'y', ownerId: `${scope}-null` });
-    expect(await updateWorkspace(db, ws.id, { icon: null })).toMatchObject({ icon: null });
+    const ws = await createWorkspace(db, {
+      name: 'Avatar',
+      avatar: '65fdc8c8c8c8c8c8c8c8c8c8',
+      ownerId: `${scope}-null`,
+    });
+    expect(await updateWorkspace(db, ws.id, { avatar: null })).toMatchObject({ avatar: null });
   });
 
   it('returns the row unchanged for an empty patch', async () => {

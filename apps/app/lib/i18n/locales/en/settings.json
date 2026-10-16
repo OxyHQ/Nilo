@@ -5,7 +5,9 @@
   "preferences": "PREFERENCES",
   "account": {
     "title": "Account Settings",
-    "description": "Manage your account"
+    "description": "Manage your account",
+    "manage": "Manage",
+    "signedOut": "Sign in to manage your account and workspaces."
   },
   "appLanguage": {
     "title": "App Language",
@@ -27,7 +29,8 @@
     "members": "Members",
     "general": "General",
     "feedback": "Feedback",
-    "offline": "Offline"
+    "offline": "Offline",
+    "workspace": "Workspace"
   },
   "accentColor": {
     "title": "App Color",
@@ -44,7 +47,6 @@
     "mint": "Mint"
   },
   "members": {
-    "title": "Workspace members",
     "description": "Invite people to your workspace and manage their roles. Only workspace admins and owners can change roles or remove members."
   },
   "offline": {
@@ -64,6 +66,25 @@
     "removeOne": "Remove",
     "removeAll": "Remove all offline pages",
     "removeAllTitle": "Remove all offline pages?",
-    "removeAllDescription": "Every page kept on this device is removed. Changes not yet sent are kept and sent when the connection is back."
+    "removeAllDescription": "Every page kept on this device is removed. Changes not yet sent are kept and sent when the connection is back.",
+    "removeAllShort": "Remove all",
+    "openOne": "Open"
+  },
+  "groups": {
+    "account": "Account",
+    "workspace": "Workspace",
+    "support": "Support"
+  },
+  "workspace": {
+    "avatarDescription": "Shown beside the workspace name to every member.",
+    "adminOnly": "Only workspace admins and owners can change these settings.",
+    "nameInvalid": "A workspace name needs 1 to %{max} characters.",
+    "saveFailed": "Could not save the workspace.",
+    "dangerZone": "Danger zone",
+    "delete": "Delete workspace",
+    "deleteTitle": "Delete %{name}?",
+    "deleteDescription": "Every member loses access to this workspace and its pages and databases.",
+    "deleted": "Deleted %{name}",
+    "deleteFailed": "Could not delete the workspace."
   }
 }

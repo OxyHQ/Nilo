@@ -28,8 +28,8 @@ import { RiUserLine } from '@oxy.so/bloom/icons/RiUserLine';
 import { RiUserAddLine } from '@oxy.so/bloom/icons/RiUserAddLine';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUIStore } from '@/lib/stores/ui-store';
-import { useRouter, usePathname } from 'expo-router';
-import { SettingsSidebar } from '@/components/settings/settings-sidebar';
+import { useRouter } from 'expo-router';
+import { useNiloSettings } from '@/components/settings/settings-provider';
 import { UserAvatar } from '@/components/user-avatar';
 import { useOxy, openAccountDialog } from '@oxy.so/services';
 import { NiloWordmark } from '@/components/nilo-wordmark';
@@ -50,21 +50,10 @@ import {
 } from '@/components/sidebar-sections';
 
 /* ================================================================
-   Root Sidebar — routes to settings sidebar when on /settings
-   ================================================================ */
-
-export function Sidebar() {
-  const pathname = usePathname();
-  const isSettingsRoute = pathname.startsWith('/settings');
-  if (isSettingsRoute) return <SettingsSidebar />;
-  return <WorkspaceSidebar />;
-}
-
-/* ================================================================
    Workspace sidebar — Notion-style sections
    ================================================================ */
 
-const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
+export const Sidebar = React.memo(function Sidebar() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors } = useColorScheme();
@@ -86,7 +75,8 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
   const isCollapsed = isLargeScreen && sidebarCollapsed;
 
   const handleHome = React.useCallback(() => router.replace('/(app)'), [router]);
-  const handleSettings = React.useCallback(() => router.push('/(app)/settings'), [router]);
+  const { open: openSettings } = useNiloSettings();
+  const handleSettings = React.useCallback(() => openSettings(), [openSettings]);
   const handleAccount = React.useCallback(
     () => showBottomSheet?.('ManageAccount'),
     [showBottomSheet],

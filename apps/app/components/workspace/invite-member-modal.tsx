@@ -5,13 +5,14 @@ import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
 import {
   Select,
   SelectContent,
+  SelectIcon,
   SelectItem,
+  SelectItemIndicator,
   SelectItemText,
   SelectTrigger,
   SelectValue,
 } from '@oxy.so/bloom/select';
-import { TextFieldHint, TextFieldInput, TextFieldLabel } from '@oxy.so/bloom/text-field';
-import { Text } from '@oxy.so/bloom/typography';
+import { TextField, TextFieldHint, TextFieldInput, TextFieldLabel } from '@oxy.so/bloom/text-field';
 import axios from 'axios';
 import { toast } from '@oxy.so/bloom/toast';
 import { useInviteMember } from '@/lib/hooks/use-workspace-members';
@@ -47,6 +48,8 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+// A Bloom dialog: it opens from the settings dialog, and only a Bloom overlay
+// stacks above that one.
 export function InviteMemberModal({ control, workspaceId }: InviteMemberModalProps) {
   const { t } = useTranslation();
   const [email, setEmail] = React.useState('');
@@ -62,6 +65,7 @@ export function InviteMemberModal({ control, workspaceId }: InviteMemberModalPro
   const trimmedEmail = email.trim();
   const emailValid = EMAIL_REGEX.test(trimmedEmail);
   const canSubmit = emailValid && !isPending;
+  const roles = ASSIGNABLE_ROLES.map((option) => ({ value: option, label: roleLabel(option) }));
 
   const handleSubmit = React.useCallback(() => {
     if (!canSubmit) return;
@@ -81,12 +85,6 @@ export function InviteMemberModal({ control, workspaceId }: InviteMemberModalPro
     );
   }, [canSubmit, mutate, trimmedEmail, role, control, t]);
 
-  const roleItems = ASSIGNABLE_ROLES.map((option) => ({
-    value: option,
-    label: roleLabel(option),
-    description: roleDescription(option),
-  }));
-
   return (
     <Dialog
       control={control}
@@ -95,22 +93,23 @@ export function InviteMemberModal({ control, workspaceId }: InviteMemberModalPro
       title={t('workspace.invite.title')}
       description={t('workspace.invite.description')}
     >
-      <View className="gap-3">
+      <View className="gap-4">
         <View>
           <TextFieldLabel>{t('workspace.invite.email')}</TextFieldLabel>
-          <TextFieldInput
-            label={t('workspace.invite.email')}
-            value={email}
-            onChangeText={setEmail}
-            placeholder={t('workspace.invite.emailPlaceholder')}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoFocus
-            onSubmitEditing={handleSubmit}
-            returnKeyType="send"
-            invalid={email.length > 0 && !emailValid}
-          />
+          <TextField invalid={email.length > 0 && !emailValid}>
+            <TextFieldInput
+              label={t('workspace.invite.email')}
+              value={email}
+              onChangeText={setEmail}
+              placeholder={t('workspace.invite.emailPlaceholder')}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              onSubmitEditing={handleSubmit}
+              returnKeyType="send"
+            />
+          </TextField>
           {email.length > 0 && !emailValid ? (
             <TextFieldHint invalid>{t('workspace.invite.invalidEmail')}</TextFieldHint>
           ) : null}
@@ -120,46 +119,45 @@ export function InviteMemberModal({ control, workspaceId }: InviteMemberModalPro
           <TextFieldLabel>{t('workspace.invite.role')}</TextFieldLabel>
           <Select
             value={role}
-            onValueChange={(next) => setRole(next as WorkspaceRole)}
             disabled={isPending}
+            onValueChange={(value) => {
+              const next = ASSIGNABLE_ROLES.find((option) => option === value);
+              if (next) setRole(next);
+            }}
           >
-            <SelectTrigger
-              label={t('workspace.invite.selectedRole', { role: roleLabel(role) })}
-              disabled={isPending}
-            >
+            <SelectTrigger label={t('workspace.invite.role')}>
               <SelectValue />
+              <SelectIcon />
             </SelectTrigger>
             <SelectContent
               label={t('workspace.invite.role')}
-              items={roleItems}
+              items={roles}
               renderItem={(item) => (
                 <SelectItem value={item.value} label={item.label}>
-                  <View className="gap-0.5">
-                    <SelectItemText>{item.label}</SelectItemText>
-                    <Text className="text-xs text-muted-foreground">{item.description}</Text>
-                  </View>
+                  <SelectItemIndicator />
+                  <SelectItemText>{item.label}</SelectItemText>
                 </SelectItem>
               )}
             />
           </Select>
           <TextFieldHint>{roleDescription(role)}</TextFieldHint>
         </View>
-      </View>
 
-      {/* Not Dialog `actions`: a declarative action cannot show the submit's spinner. */}
-      <View className="mt-5 flex-row justify-end gap-2">
-        <Button appearance="outline" onPress={() => control.close()} disabled={isPending}>
-          {t('common.cancel')}
-        </Button>
-        <Button
-          appearance="solid"
-          tone="accent"
-          onPress={handleSubmit}
-          disabled={!canSubmit}
-          loading={isPending}
-        >
-          {t('workspace.invite.submit')}
-        </Button>
+        {/* Not Dialog `actions`: a declarative action cannot show the submit's spinner. */}
+        <View className="flex-row justify-end gap-2">
+          <Button appearance="outline" onPress={() => control.close()} disabled={isPending}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            appearance="solid"
+            tone="accent"
+            onPress={handleSubmit}
+            disabled={!canSubmit}
+            loading={isPending}
+          >
+            {t('workspace.invite.submit')}
+          </Button>
+        </View>
       </View>
     </Dialog>
   );

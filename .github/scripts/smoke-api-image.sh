@@ -7,9 +7,8 @@
 #   3. turn SIGTERM (`docker stop`, as ECS does on a rollout) into the graceful
 #      shutdown and exit 0,
 # and unless the image itself holds what apps/api/Dockerfile promises:
-#   4. it runs as `bun` (uid 1000), every file under /app is root-owned and
-#      not writable by that user, and only /app/uploads (the local upload
-#      fallback) is,
+#   4. it runs as `bun` (uid 1000), and every file under /app is root-owned and
+#      not writable by that user (the API writes nothing to disk),
 #   5. no curl or wget ships, none of the API's devDependencies do, nor the
 #      Expo app's tree, and every bare import of the bundle resolves,
 #   6. its own HEALTHCHECK command passes against the booted API, fails with
@@ -34,19 +33,19 @@ if [ "$user" != bun:1000 ]; then
   exit 1
 fi
 
-# Ownership: anything under /app not owned by root:root, outside uploads/.
-foreign=$(in_image 'find /app -path /app/uploads -prune -o \( ! -user root -o ! -group root \) -print')
+# Ownership: anything under /app not owned by root:root.
+foreign=$(in_image 'find /app \( ! -user root -o ! -group root \) -print')
 if [ -n "$foreign" ]; then
   head -n 20 <<<"$foreign"
   echo "::error::files under /app are not root-owned; the app user could rewrite its own code"
   exit 1
 fi
-# Permissions as the app user sees them: nothing writable outside uploads/,
-# and a real write into the bundle, the dependencies and /app itself fails.
-writable=$(in_image 'find /app -path /app/uploads -prune -o -writable -print')
+# Permissions as the app user sees them: nothing writable, and a real write
+# into the bundle, the dependencies and /app itself fails.
+writable=$(in_image 'find /app -writable -print')
 if [ -n "$writable" ]; then
   head -n 20 <<<"$writable"
-  echo "::error::the app user can write under /app outside /app/uploads"
+  echo "::error::the app user can write under /app"
   exit 1
 fi
 for target in /app/apps/api/dist/index.js /app/node_modules/express/package.json /app/smoke-probe; do
@@ -55,10 +54,6 @@ for target in /app/apps/api/dist/index.js /app/node_modules/express/package.json
     exit 1
   fi
 done
-if ! in_image 'printf x > /app/uploads/smoke-probe && rm /app/uploads/smoke-probe'; then
-  echo "::error::the app user cannot write /app/uploads, where the local upload fallback writes"
-  exit 1
-fi
 
 shipped=$(in_image 'for tool in curl wget; do command -v "$tool"; done
   for dev in vitest drizzle-kit @swc/core @swc/cli pino-pretty @biomejs/biome \
@@ -173,4 +168,4 @@ if [ "$exit_code" != 0 ] || ! grep -q 'Graceful shutdown complete' <<<"$logs"; t
   exit 1
 fi
 
-echo "API image smoke passed: root-owned read-only code, writable uploads/ only, no curl, devDependencies or Expo, every import resolves, migrations, /health/ready, PID 1 = Bun, HEALTHCHECK healthy, graceful SIGTERM"
+echo "API image smoke passed: root-owned read-only code, nothing writable, no curl, devDependencies or Expo, every import resolves, migrations, /health/ready, PID 1 = Bun, HEALTHCHECK healthy, graceful SIGTERM"

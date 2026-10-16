@@ -1,21 +1,17 @@
 import React from 'react';
-import { Text as RNText, View, Platform } from 'react-native';
+import { Text as RNText, View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
-import { RiUserAddLine } from '@oxy.so/bloom/icons/RiUserAddLine';
-import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
-import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { Avatar } from '@oxy.so/bloom/avatar';
 import { Button } from '@oxy.so/bloom/button';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
-import { Divider } from '@oxy.so/bloom/divider';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@oxy.so/bloom/dropdown-menu';
-import { EmptyState } from '@oxy.so/bloom/empty-state';
-import { Item } from '@oxy.so/bloom/item';
+import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
+import { RiUserAddLine } from '@oxy.so/bloom/icons/RiUserAddLine';
 import { Loading } from '@oxy.so/bloom/loading';
 import {
   Select,
@@ -25,10 +21,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@oxy.so/bloom/select';
+import { SettingsCard, SettingsRow, SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
 import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
-import { useColorScheme } from '@/lib/useColorScheme';
-import { useWorkspaces } from '@/lib/hooks/use-workspaces';
+import { cn } from '@/lib/utils';
+import { useCurrentWorkspace } from '@/lib/hooks/use-workspaces';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import {
   memberProfileName,
@@ -49,18 +46,6 @@ function memberDisplayName(member: WorkspaceMember): string {
   return memberProfileName(member) ?? member.userId;
 }
 
-function memberInitial(member: WorkspaceMember): string {
-  const profile = member.user;
-  const source = profile?.name?.first?.[0] ?? profile?.username?.[0] ?? profile?.email?.[0] ?? '?';
-  return source.toUpperCase();
-}
-
-function MemberAvatar({ member }: { member: WorkspaceMember }) {
-  // `source` is the bare Oxy file id: the resolver mounted in the root layout
-  // turns it into the thumb rendition's URL.
-  return <Avatar source={member.user?.avatar ?? null} initials={memberInitial(member)} size="lg" />;
-}
-
 interface MemberRowProps {
   member: WorkspaceMember;
   workspaceId: string;
@@ -68,10 +53,11 @@ interface MemberRowProps {
   callerRole: WorkspaceRole | undefined;
   /** Oxy user id of the viewer. Disables self-removal. */
   callerUserId: string | undefined;
+  /** The last row of the card draws no separator under it. */
+  last: boolean;
 }
 
-function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowProps) {
-  const { colors } = useColorScheme();
+function MemberRow({ member, workspaceId, callerRole, callerUserId, last }: MemberRowProps) {
   const { t } = useTranslation();
   const { mutate: updateRole, isPending: isUpdating } = useUpdateMemberRole(workspaceId);
   const { mutate: removeMember, isPending: isRemoving } = useRemoveMember(workspaceId);
@@ -80,6 +66,8 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
   const isSelf = callerUserId === member.userId;
   // Only admin+ can manage members. Owners can't be demoted via this UI.
   const canManage = hasRole(callerRole, 'admin') && !isOwner && !isSelf;
+  const name = memberDisplayName(member);
+  const roles = ASSIGNABLE_ROLES.map((role) => ({ value: role, label: roleLabel(role) }));
 
   const handleChangeRole = React.useCallback(
     (role: WorkspaceRole) => {
@@ -88,12 +76,7 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
         { userId: member.userId, role },
         {
           onSuccess: () => {
-            toast.success(
-              t('workspace.members.roleUpdated', {
-                role: roleLabel(role),
-                name: memberDisplayName(member),
-              }),
-            );
+            toast.success(t('workspace.members.roleUpdated', { role: roleLabel(role), name }));
           },
           onError: (error) => {
             const message =
@@ -105,13 +88,13 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
         },
       );
     },
-    [updateRole, member, t],
+    [updateRole, member, name, t],
   );
 
   const handleRemove = React.useCallback(() => {
     removeMember(member.userId, {
       onSuccess: () => {
-        toast.success(t('workspace.members.removed', { name: memberDisplayName(member) }));
+        toast.success(t('workspace.members.removed', { name }));
       },
       onError: (error) => {
         const message =
@@ -121,80 +104,83 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
         toast.error(message);
       },
     });
-  }, [removeMember, member, t]);
+  }, [removeMember, member, name, t]);
 
-  const roleItems = ASSIGNABLE_ROLES.map((role) => ({ value: role, label: roleLabel(role) }));
-
+  // A member row carries an avatar, which `SettingsRow` has no slot for, so it
+  // draws the row's geometry itself.
   return (
-    <Item
-      leading={<MemberAvatar member={member} />}
-      title={
+    <View
+      className={cn(
+        'min-h-[52px] flex-row items-center gap-3 py-2.5 pr-2.5',
+        last ? '' : 'border-b border-border',
+      )}
+    >
+      <Avatar source={member.user?.avatar ?? undefined} name={name} size={32} />
+      <View className="flex-1 min-w-0">
         <Text variant="body-medium" numberOfLines={1}>
-          {memberDisplayName(member)}
+          {name}
           {isSelf ? (
             <RNText className="text-xs text-muted-foreground"> {t('workspace.members.you')}</RNText>
           ) : null}
         </Text>
-      }
-      subtitle={member.user?.email || undefined}
-      trailing={
-        canManage ? (
-          <View className="flex-row items-center gap-1 shrink-0">
-            <Select
-              size="sm"
-              value={member.role}
-              onValueChange={(role) => handleChangeRole(role as WorkspaceRole)}
+        {member.user?.email ? (
+          <Text className="text-xs text-muted-foreground" numberOfLines={1} ellipsizeMode="tail">
+            {member.user.email}
+          </Text>
+        ) : null}
+      </View>
+
+      {canManage ? (
+        <View className="flex-row items-center gap-1 shrink-0">
+          <Select
+            size="sm"
+            value={member.role}
+            disabled={isUpdating || isRemoving}
+            onValueChange={(value) => {
+              const next = ASSIGNABLE_ROLES.find((role) => role === value);
+              if (next) handleChangeRole(next);
+            }}
+          >
+            <SelectTrigger label={t('workspace.members.changeRole', { name })}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent
+              items={roles}
+              renderItem={(item) => (
+                <SelectItem value={item.value} label={item.label}>
+                  <SelectItemText>{item.label}</SelectItemText>
+                </SelectItem>
+              )}
+            />
+          </Select>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              asChild
+              label={t('workspace.members.moreActions', { name })}
               disabled={isUpdating || isRemoving}
             >
-              <SelectTrigger
-                label={t('workspace.members.changeRole', { name: memberDisplayName(member) })}
-                disabled={isUpdating || isRemoving}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent
-                items={roleItems}
-                renderItem={(item) => (
-                  <SelectItem value={item.value} label={item.label}>
-                    <SelectItemText>{item.label}</SelectItemText>
-                  </SelectItem>
-                )}
+              <Button
+                appearance="plain"
+                tone="neutral"
+                size="sm"
+                icon={RiMoreLine}
+                accessibilityLabel={t('workspace.members.moreActions', { name })}
               />
-            </Select>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  appearance="subtle"
-                  size="sm"
-                  iconOnly
-                  accessibilityLabel={t('workspace.members.moreActions', {
-                    name: memberDisplayName(member),
-                  })}
-                  disabled={isUpdating || isRemoving}
-                  leadingIcon={RiMoreLine}
-                />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem
-                  variant="destructive"
-                  onPress={handleRemove}
-                  leading={<RiDeleteBin6Line size="sm" fill={colors.mutedForeground} />}
-                >
-                  {t('workspace.members.remove')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </View>
-        ) : (
-          <View className="h-8 px-2 items-center justify-center shrink-0">
-            <Text className="text-xs font-medium text-muted-foreground">
-              {roleLabel(member.role)}
-            </Text>
-          </View>
-        )
-      }
-    />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem tone="danger" onPress={handleRemove}>
+                {t('workspace.members.remove')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </View>
+      ) : (
+        <Text className="text-xs font-medium text-muted-foreground shrink-0">
+          {roleLabel(member.role)}
+        </Text>
+      )}
+    </View>
   );
 }
 
@@ -203,12 +189,7 @@ export function MembersSection() {
   const { t } = useTranslation();
   const inviteDialog = useDialogControl();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-
-  const { data: workspaces } = useWorkspaces();
-  const currentWorkspace = React.useMemo(
-    () => workspaces?.find((w) => w.id === currentWorkspaceId) ?? null,
-    [workspaces, currentWorkspaceId],
-  );
+  const currentWorkspace = useCurrentWorkspace();
 
   const { data: members, isLoading, isError, error } = useWorkspaceMembers(currentWorkspaceId);
 
@@ -226,76 +207,54 @@ export function MembersSection() {
   }, [members]);
 
   return (
-    <View className="gap-3">
-      <View className="flex-row items-center justify-between">
-        <View className="flex-1 min-w-0">
-          <Text variant="body-medium">{currentWorkspace?.name ?? t('workspace.fallbackName')}</Text>
-          <Text className="text-xs text-muted-foreground">
-            {t('workspace.members.count', { count: members?.length ?? 0 })}
-          </Text>
-        </View>
-        {canInvite && currentWorkspaceId ? (
-          <Button
-            appearance="solid"
-            tone="accent"
-            size="sm"
-            onPress={() => inviteDialog.open()}
-            leadingIcon={RiUserAddLine}
-          >
-            {t('workspace.members.invite')}
-          </Button>
-        ) : null}
-      </View>
-
-      <View className="rounded-xl border border-border bg-card overflow-hidden">
-        {isLoading ? (
-          <View className="py-10 items-center justify-center">
-            <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
-          </View>
-        ) : isError ? (
-          <View className="py-6 px-4">
-            <Text className="text-sm text-destructive">
-              {error instanceof Error ? error.message : t('workspace.members.loadFailed')}
-            </Text>
-          </View>
-        ) : sortedMembers.length === 0 ? (
-          <EmptyState variant="compact" description={t('workspace.members.empty')} />
-        ) : (
-          <View className="px-1 py-1">
-            {sortedMembers.map((member, idx) => (
-              <View key={member.userId}>
-                {idx > 0 ? (
-                  <View className="mx-2">
-                    <Divider />
-                  </View>
-                ) : null}
-                <MemberRow
-                  member={member}
-                  workspaceId={currentWorkspaceId ?? ''}
-                  callerRole={callerRole}
-                  callerUserId={user?.id}
-                />
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
+    <>
+      <SettingsSection
+        label={t('workspace.members.count', { count: members?.length ?? 0 })}
+        description={
+          canInvite ? t('settings.members.description') : t('workspace.members.adminOnly')
+        }
+        action={
+          canInvite && currentWorkspaceId ? (
+            <Button
+              tone="action"
+              size="sm"
+              leadingIcon={RiUserAddLine}
+              onPress={() => inviteDialog.open()}
+            >
+              {t('workspace.members.invite')}
+            </Button>
+          ) : undefined
+        }
+      >
+        <SettingsCard>
+          {isLoading ? (
+            <View className="py-10 items-center justify-center">
+              <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
+            </View>
+          ) : isError ? (
+            <SettingsRow
+              label={error instanceof Error ? error.message : t('workspace.members.loadFailed')}
+            />
+          ) : sortedMembers.length === 0 ? (
+            <SettingsRow label={t('workspace.members.empty')} />
+          ) : (
+            sortedMembers.map((member, idx) => (
+              <MemberRow
+                key={member.userId}
+                member={member}
+                workspaceId={currentWorkspaceId ?? ''}
+                callerRole={callerRole}
+                callerUserId={user?.id}
+                last={idx === sortedMembers.length - 1}
+              />
+            ))
+          )}
+        </SettingsCard>
+      </SettingsSection>
 
       {currentWorkspaceId ? (
         <InviteMemberModal control={inviteDialog} workspaceId={currentWorkspaceId} />
       ) : null}
-
-      {!canInvite && currentWorkspace ? (
-        <View
-          className={
-            Platform.OS === 'web'
-              ? 'rounded-lg bg-muted/40 px-3 py-2'
-              : 'rounded-lg bg-muted px-3 py-2'
-          }
-        >
-          <Text className="text-xs text-muted-foreground">{t('workspace.members.adminOnly')}</Text>
-        </View>
-      ) : null}
-    </View>
+    </>
   );
 }

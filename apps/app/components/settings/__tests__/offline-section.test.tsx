@@ -4,7 +4,8 @@ import type { OfflineEntry } from '@/lib/editor/offline-pages';
 import { formatSize, OfflineSection } from '../offline-section';
 
 const mockPush = jest.fn();
-const mockConfirm = jest.fn(async (_options: unknown) => false);
+const mockClose = jest.fn();
+const mockConfirm = jest.fn(async (_options: unknown) => true);
 const mockStore = {
   setPinned: jest.fn(async (_id: string, _pinned: boolean) => undefined),
   clear: jest.fn(async () => undefined),
@@ -21,6 +22,7 @@ jest.mock('@/lib/editor/use-offline-pages', () => ({ useOfflinePageList: () => m
 jest.mock('@oxy.so/bloom/surfaces', () => ({
   confirm: (options: unknown) => mockConfirm(options),
 }));
+jest.mock('../settings-provider', () => ({ useNiloSettings: () => ({ close: mockClose }) }));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({
     locale: 'en-US',
@@ -90,13 +92,11 @@ it('lists the pages kept, why, their size and the total', () => {
   expect(mockStore.setPinned).toHaveBeenCalledWith('Plan', false);
 });
 
-it('opens a kept page', () => {
+it('opens a kept page, leaving settings', () => {
   mockList.pages = [entry('Plan')];
   mount();
-  const link = root().findAll(
-    (node) => node.props.accessibilityLabel === 'settings.offline.open:Plan' && node.props.onPress,
-  )[0];
-  act(() => link?.props.onPress());
+  act(() => button('settings.offline.open:Plan').props.onPress());
+  expect(mockClose).toHaveBeenCalled();
   expect(mockPush).toHaveBeenCalledWith('/p/Plan');
 });
 
@@ -109,7 +109,6 @@ it('removes every page only after confirming', async () => {
     expect.objectContaining({ title: 'settings.offline.removeAllTitle', destructive: true }),
   );
   expect(mockStore.clear).not.toHaveBeenCalled();
-  mockConfirm.mockResolvedValueOnce(true);
   await act(async () => button('settings.offline.removeAll').props.onPress());
   expect(mockStore.clear).toHaveBeenCalled();
 });

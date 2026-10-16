@@ -21,6 +21,7 @@ import {
   type WorkspaceMember,
 } from '@/lib/hooks/use-workspace-members';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useNiloSettings } from '@/components/settings/settings-provider';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Page } from '@/lib/types/pages';
 import type { PageItem, MemberItem, CommandItem } from './types';
@@ -65,6 +66,7 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
   const setShortcutsDialogOpen = useUIStore((s) => s.setShortcutsDialogOpen);
   const { setColorScheme, colorScheme } = useColorScheme();
   const openNewPage = useNewPageStore((s) => s.open);
+  const { open: openSettings } = useNiloSettings();
   const { t } = useTranslation();
 
   const search = useSearch(currentWorkspaceId, query, enabled);
@@ -176,7 +178,7 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
         icon: RiSettings3Line,
         onSelect: () => {
           close();
-          router.push('/(app)/settings');
+          openSettings();
         },
       },
       {
@@ -250,6 +252,7 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
     colorScheme,
     openNewPage,
     currentWorkspaceId,
+    openSettings,
     router,
     setColorScheme,
     setCommandPaletteOpen,

@@ -35,6 +35,11 @@ export const queryKeys = {
   blocks: {
     list: (pageId: string) => ['blocks', pageId] as const,
   },
+  // Never persisted offline (`lib/offline-cache.ts`): a file URL is a credential that expires.
+  files: {
+    url: (scope: string, fileId: string) => ['file-url', scope, fileId] as const,
+    cachedImage: (fileId: string) => ['file-cached-image', fileId] as const,
+  },
   comments: {
     page: (pageId: string, includeResolved: boolean) =>
       ['comments', 'page', pageId, includeResolved] as const,

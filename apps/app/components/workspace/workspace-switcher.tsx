@@ -3,7 +3,6 @@ import { View, Pressable } from 'react-native';
 import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
-import { Avatar } from '@oxy.so/bloom/avatar';
 import { Button } from '@oxy.so/bloom/button';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
 import {
@@ -19,6 +18,7 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { useWorkspaces, type Workspace } from '@/lib/hooks/use-workspaces';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { CreateWorkspaceModal } from './create-workspace-modal';
+import { WorkspaceAvatar } from './workspace-avatar';
 import { roleLabel } from './role-labels';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -28,28 +28,6 @@ interface WorkspaceSwitcherProps {
    * collapsed sidebar (`width: 48`). Defaults to the full trigger.
    */
   collapsed?: boolean;
-}
-
-function getWorkspaceInitial(workspace: Pick<Workspace, 'name'>): string {
-  return (workspace.name?.[0] ?? 'W').toUpperCase();
-}
-
-function WorkspaceIcon({
-  workspace,
-  size = 24,
-}: {
-  workspace: Pick<Workspace, 'name' | 'icon'>;
-  size?: number;
-}) {
-  // The workspace's emoji when it has one, else its initial, on the accent tint.
-  return (
-    <Avatar
-      shape="squircle"
-      size={size}
-      color="blue"
-      initials={workspace.icon || getWorkspaceInitial(workspace)}
-    />
-  );
 }
 
 export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
@@ -137,7 +115,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
             accessibilityRole="button"
           >
             {activeWorkspace ? (
-              <WorkspaceIcon workspace={activeWorkspace} size={collapsed ? 28 : 24} />
+              <WorkspaceAvatar workspace={activeWorkspace} size={collapsed ? 28 : 24} />
             ) : (
               <View
                 className="rounded-md bg-muted"
@@ -176,7 +154,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
                 key={workspace.id}
                 onPress={() => handleSelect(workspace.id)}
                 accessibilityLabel={workspace.name}
-                leading={<WorkspaceIcon workspace={workspace} size={24} />}
+                leading={<WorkspaceAvatar workspace={workspace} size={24} />}
                 trailing={
                   isActive ? (
                     <RiCheckLine size="sm" fill={colors.foreground} style={{ flexShrink: 0 }} />

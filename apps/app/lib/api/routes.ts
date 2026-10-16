@@ -46,8 +46,11 @@ export const API_ROUTES = {
     unresolve: (id: string) => `/comments/${id}/unresolve`,
     delete: (id: string) => `/comments/${id}`,
   },
-  uploads: {
-    presign: '/uploads/presign',
+  files: {
+    record: (pageId: string) => `/pages/${pageId}/files`,
+    pageUrls: (pageId: string) => `/pages/${pageId}/files/urls`,
+    shareUrls: (token: string) => `/share/${encodeURIComponent(token)}/files/urls`,
+    publishedUrls: (slug: string) => `/public/pages/${encodeURIComponent(slug)}/files/urls`,
   },
   embed: {
     preview: '/embed/preview',
