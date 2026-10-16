@@ -10,6 +10,17 @@ Members get a workspace role. A page can also be shared with a person
 directly (`page_permissions`) with any role but `owner`, member or **guest**
 (not a member of the workspace). A grant covers the page and its subtree.
 
+## The personal workspace
+
+Every user has exactly one personal workspace (`workspaces.is_personal`,
+unique per owner). It is provisioned whole (workspace, owner membership,
+default teamspace, in one transaction) on the first `GET /workspaces` or
+`GET /workspaces/personal`, and that same path repairs one missing its owner
+row. It takes no invitations and can never be archived: the delete route
+refuses it and the `workspaces_personal_not_archived` CHECK backs the route.
+Its owner can **reset** it instead, which deletes everything in it for good
+and keeps the same id. Any other workspace a user needs, they create.
+
 ## Where a page lives
 
 Every page tree starts somewhere, as in Notion's sidebar:

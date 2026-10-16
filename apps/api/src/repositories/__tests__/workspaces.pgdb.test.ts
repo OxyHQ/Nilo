@@ -1,7 +1,15 @@
-import { eq, like } from 'drizzle-orm';
+import { and, eq, inArray, like } from 'drizzle-orm';
 import { constraintNameOf, isCheckViolation } from '@oxy.so/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { comments, notifications, reminders } from '../../db/schema/collab.js';
+import { databases } from '../../db/schema/databases.js';
+import { pages } from '../../db/schema/pages.js';
+import { teamspaceMembers, teamspaces } from '../../db/schema/teamspaces.js';
 import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
+import { createComment } from '../comments.js';
+import { insertDatabase } from '../databases.js';
+import { createPage } from '../pages.js';
+import { createTeamspace } from '../teamspaces.js';
 import {
   closeTestDb,
   getTestDb,
@@ -17,9 +25,12 @@ import {
   findLiveWorkspaceById,
   findMembership,
   findPersonalWorkspace,
+  findProvisionedPersonalWorkspace,
   listLiveWorkspacesByIds,
   listMembershipsForUsers,
+  provisionPersonalWorkspace,
   removeMember,
+  resetPersonalWorkspace,
   updateMemberRole,
   updateWorkspace,
 } from '../workspaces.js';
@@ -36,6 +47,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // Scoped to the rows this file owns. Members go with the workspace cascade.
+  await db.delete(notifications).where(like(notifications.oxyUserId, `${scope}%`));
   await db.delete(workspaces).where(like(workspaces.ownerId, `${scope}%`));
   await closeTestDb();
 });
@@ -211,3 +223,168 @@ describe('patching', () => {
     expect(await updateMemberRole(db, 'no-such-id', 'nobody', 'viewer')).toBeNull();
   });
 });
+
+describe('the personal workspace', () => {
+  const ownerRows = (workspaceId: string) =>
+    db.select().from(workspaceMembers).where(eq(workspaceMembers.workspaceId, workspaceId));
+
+  it('is provisioned whole: workspace, owner member and default teamspace', async () => {
+    const user = `${scope}-whole`;
+    const ws = await provisionPersonalWorkspace(db, { ownerId: user, name: 'Mine' });
+
+    expect(ws).toMatchObject({ isPersonal: true, ownerId: user, name: 'Mine' });
+    expect(await ownerRows(ws.id)).toEqual([
+      expect.objectContaining({ userId: user, role: 'owner' }),
+    ]);
+    const [general] = await db
+      .select()
+      .from(teamspaces)
+      .where(and(eq(teamspaces.workspaceId, ws.id), eq(teamspaces.isDefault, true)));
+    expect(general).toBeDefined();
+    expect(await findProvisionedPersonalWorkspace(db, user)).toMatchObject({ id: ws.id });
+
+    // Idempotent: the second call answers with the same workspace.
+    const again = await provisionPersonalWorkspace(db, { ownerId: user, name: 'Other' });
+    expect(again).toMatchObject({ id: ws.id, name: 'Mine' });
+  });
+
+  it('repairs one left without its owner membership', async () => {
+    // The state the old two-statement provisioning left behind when the
+    // process died between the inserts: invisible in the list, for good.
+    const user = `${scope}-orphan`;
+    const orphan = await createPersonalWorkspaceIfAbsent(db, { ownerId: user, name: 'Orphan' });
+    expect(orphan).not.toBeNull();
+    expect(await findProvisionedPersonalWorkspace(db, user)).toBeNull();
+
+    const repaired = await provisionPersonalWorkspace(db, { ownerId: user, name: 'Orphan' });
+
+    expect(repaired.id).toBe(orphan?.id);
+    expect(await ownerRows(repaired.id)).toEqual([
+      expect.objectContaining({ userId: user, role: 'owner' }),
+    ]);
+  });
+
+  it('settles a concurrent first provisioning on one workspace', async () => {
+    const user = `${scope}-concurrent`;
+    const [a, b] = await Promise.all([
+      provisionPersonalWorkspace(db, { ownerId: user, name: 'A' }),
+      provisionPersonalWorkspace(db, { ownerId: user, name: 'B' }),
+    ]);
+    expect(a.id).toBe(b.id);
+    expect(await ownerRows(a.id)).toHaveLength(1);
+  });
+
+  it('cannot be archived, whoever writes', async () => {
+    const ws = await provisionPersonalWorkspace(db, { ownerId: `${scope}-keep`, name: 'Keep' });
+    const error = await archiveWorkspace(db, ws.id).then(
+      () => null,
+      (err: unknown) => err,
+    );
+    expect(isCheckViolation(error)).toBe(true);
+    expect(constraintNameOf(error)).toBe('workspaces_personal_not_archived');
+  });
+
+  it('resets to empty, keeping its id, and touches nothing else', async () => {
+    const user = `${scope}-reset`;
+    const ws = await provisionPersonalWorkspace(db, { ownerId: user, name: 'Full' });
+    await updateWorkspace(db, ws.id, { name: 'Renamed', avatar: 'oxy-file-avatar' });
+
+    const parent = await createPage(db, {
+      workspaceId: ws.id,
+      ownerId: user,
+      title: 'P',
+      order: 0,
+    });
+    const child = await createPage(db, {
+      workspaceId: ws.id,
+      ownerId: user,
+      parentId: parent.id,
+      title: 'C',
+      order: 0,
+    });
+    const database = await insertDatabase(db, {
+      workspaceId: ws.id,
+      name: 'Tasks',
+      icon: null,
+      cover: null,
+      ownerId: user,
+      isInline: false,
+      parentPageId: parent.id,
+      archived: false,
+      propertiesSchema: { properties: [{ id: 'name', name: 'Name', type: 'text' }] } as never,
+    });
+    await createPage(db, {
+      workspaceId: ws.id,
+      ownerId: user,
+      databaseId: database.id,
+      title: 'Row',
+      order: 0,
+    });
+    await createComment(db, {
+      workspaceId: ws.id,
+      pageId: child.id,
+      authorId: user,
+      content: { segments: [{ type: 'text', text: 'hi' }], plainText: 'hi' } as never,
+    });
+    await db.insert(reminders).values({ userId: user, pageId: child.id, remindAt: new Date() });
+    await createTeamspace(db, {
+      workspaceId: ws.id,
+      name: 'Side',
+      privacy: 'open',
+      createdBy: user,
+    });
+    await db.insert(notifications).values([
+      { oxyUserId: user, type: 'reminder', title: 't', body: 'b', data: { workspaceId: ws.id } },
+      { oxyUserId: user, type: 'mention', title: 't', body: 'b', data: { pageId: child.id } },
+    ]);
+
+    // A neighbour the reset must not reach: another workspace of the same user.
+    const team = await createWorkspace(db, { name: 'Team', ownerId: user });
+    const kept = await createPage(db, {
+      workspaceId: team.id,
+      ownerId: user,
+      title: 'K',
+      order: 0,
+    });
+    await db.insert(notifications).values({
+      oxyUserId: user,
+      type: 'mention',
+      title: 't',
+      body: 'b',
+      data: { pageId: kept.id, workspaceId: team.id },
+    });
+
+    const removed = await resetPersonalWorkspace(db, ws, 'Fresh');
+
+    expect(removed).toEqual({ pages: 3, databases: 1 });
+    expect(await findWorkspaceRow(ws.id)).toMatchObject({ name: 'Fresh', avatar: null });
+    expect(await db.select().from(pages).where(eq(pages.workspaceId, ws.id))).toEqual([]);
+    expect(await db.select().from(databases).where(eq(databases.workspaceId, ws.id))).toEqual([]);
+    expect(await db.select().from(comments).where(eq(comments.workspaceId, ws.id))).toEqual([]);
+    expect(await db.select().from(reminders).where(eq(reminders.userId, user))).toEqual([]);
+    const spaces = await db.select().from(teamspaces).where(eq(teamspaces.workspaceId, ws.id));
+    expect(spaces).toEqual([expect.objectContaining({ isDefault: true, name: 'General' })]);
+    const spaceMembers = await db
+      .select()
+      .from(teamspaceMembers)
+      .where(
+        inArray(
+          teamspaceMembers.teamspaceId,
+          spaces.map((t) => t.id),
+        ),
+      );
+    expect(spaceMembers).toEqual([expect.objectContaining({ userId: user, role: 'owner' })]);
+    expect(await ownerRows(ws.id)).toEqual([
+      expect.objectContaining({ userId: user, role: 'owner' }),
+    ]);
+    const left = await db.select().from(notifications).where(eq(notifications.oxyUserId, user));
+    expect(left.map((n) => (n.data as { pageId?: string }).pageId)).toEqual([kept.id]);
+
+    expect(await db.select().from(pages).where(eq(pages.id, kept.id))).toHaveLength(1);
+  });
+});
+
+async function findWorkspaceRow(id: string) {
+  const [row] = await db.select().from(workspaces).where(eq(workspaces.id, id));
+  return row;
+}

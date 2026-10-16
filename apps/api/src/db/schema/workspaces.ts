@@ -81,6 +81,15 @@ export const workspaces = pgTable(
      */
     uniqueIndex('unique_personal_workspace_per_owner').on(t.ownerId).where(sql`${t.isPersonal}`),
     /**
+     * A personal workspace is never archived. It can be reset, but the user
+     * always has it: the route refuses to archive one, and this makes a bug in
+     * any other writer fail loudly instead of hiding the workspace.
+     */
+    check(
+      'workspaces_personal_not_archived',
+      sql`not (${t.isPersonal} and ${t.archivedAt} is not null)`,
+    ),
+    /**
      * Workspace names are capped at `WORKSPACE_NAME_MAX` characters as a live
      * constraint.
      */
