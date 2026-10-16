@@ -10,6 +10,14 @@
  * last, following it, telling people newly mentioned and the page's
  * followers.
  *
+ * What still needs projecting is in the database, not in a process: the first
+ * update after a projection marks the page (`page_docs.dirty_since`), the
+ * projection records the newest update it showed and clears the mark, and who
+ * made the changes is read from the updates themselves. The timer here is
+ * only the quick path; the sweep (`startProjectionSweep`) projects every page
+ * left marked, by a task that stopped or a projection that failed, and at
+ * start and now and then marks any page an update reached unmarked.
+ *
  * The document is read inside the page's row lock, so two projections can
  * never commit an older state over a newer one.
  */
@@ -36,6 +44,13 @@ import {
   updateBlock,
 } from '../repositories/blocks.js';
 import { recentlyNotified } from '../repositories/notifications.js';
+import {
+  findPageDoc,
+  listDirtyPages,
+  listUpdateActors,
+  markProjected,
+  markUnprojectedPages,
+} from '../repositories/pageDocs.js';
 import { follow, listFollowers } from '../repositories/pageFollows.js';
 import { bumpBlocksVersion, findPageById, lockPage } from '../repositories/pages.js';
 import { snapshotPage } from '../repositories/pageVersions.js';
@@ -131,23 +146,26 @@ function differs(existing: BlockRow, target: TargetRow): boolean {
 }
 
 /**
- * Bring a page's rows to what its document holds. `actorIds`: who made the
- * changes being projected ('' for the server); the last one is recorded as
- * the page's last editor.
+ * Bring a page's rows to what its document holds. Who made the changes is
+ * read from the updates the rows did not show yet ('' for the server's own);
+ * the last person is recorded as the page's last editor.
  */
-export async function projectPage(
-  db: PgHandle,
-  pageId: string,
-  actorIds: readonly string[] = [],
-): Promise<void> {
+export async function projectPage(db: PgHandle, pageId: string): Promise<void> {
   await ensurePageDoc(db, pageId);
-  const people = actorIds.filter((id) => id !== '');
+  let people: string[] = [];
   let mentioned: NewMention[] = [];
   let changed = false;
   await db.transaction(async (tx) => {
     if (!(await lockPage(tx, pageId))) return;
+    const snapshot = await findPageDoc(tx, pageId);
+    if (!snapshot) return;
+    const { state, lastId } = await readPageState(tx, pageId);
+    people = (await listUpdateActors(tx, pageId, snapshot.projectedThroughId, lastId)).filter(
+      (id) => id !== '',
+    );
+    await markProjected(tx, pageId, lastId);
     const doc = new Y.Doc();
-    Y.applyUpdate(doc, (await readPageState(tx, pageId)).state, SERVER_ORIGIN);
+    Y.applyUpdate(doc, state, SERVER_ORIGIN);
     const target = await targetRows(tx, pageId, doc);
     const existing = await listBlocksForPage(tx, pageId);
     const byId = new Map(existing.map((row) => [row.id, row]));
@@ -207,13 +225,14 @@ export async function projectPage(
 
 /** How long a page's changes settle before it is projected. */
 const SETTLE_MS = 800;
-const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; actors: Set<string> }>();
+const pending = new Map<string, ReturnType<typeof setTimeout>>();
 const running = new Map<string, Promise<void>>();
 
-function run(pageId: string, actors: readonly string[]): Promise<void> {
+function run(pageId: string): Promise<void> {
   const previous = running.get(pageId) ?? Promise.resolve();
   const next = previous
-    .then(() => projectPage(getDb(), pageId, actors))
+    // Failing leaves the page marked: the sweep tries again.
+    .then(() => projectPage(getDb(), pageId))
     .catch((err: unknown) => log.general.error({ err, pageId }, 'Page projection failed'))
     .finally(() => {
       if (running.get(pageId) === next) running.delete(pageId);
@@ -223,37 +242,93 @@ function run(pageId: string, actors: readonly string[]): Promise<void> {
 }
 
 /** Project a page once its changes settle. */
-export function scheduleProjection(pageId: string, actorId: string): void {
-  const entry = pending.get(pageId);
-  if (entry) {
-    clearTimeout(entry.timer);
-    entry.actors.add(actorId);
-  }
-  const actors = entry?.actors ?? new Set([actorId]);
+export function scheduleProjection(pageId: string): void {
+  const waiting = pending.get(pageId);
+  if (waiting) clearTimeout(waiting);
   const timer = setTimeout(() => {
     pending.delete(pageId);
-    void run(pageId, [...actors]);
+    void run(pageId);
   }, SETTLE_MS);
   timer.unref?.();
-  pending.set(pageId, { timer, actors });
+  pending.set(pageId, timer);
 }
 
-/** Project a page now, folding in a projection this process had waiting for it. */
-export function projectNow(pageId: string, actorId?: string): Promise<void> {
-  const entry = pending.get(pageId);
-  const actors = new Set(entry?.actors ?? []);
-  if (entry) {
-    clearTimeout(entry.timer);
+/** Project a page now, in place of a projection this process had waiting for it. */
+export function projectNow(pageId: string): Promise<void> {
+  const waiting = pending.get(pageId);
+  if (waiting) {
+    clearTimeout(waiting);
     pending.delete(pageId);
   }
-  if (actorId !== undefined) actors.add(actorId);
-  return run(pageId, [...actors]);
+  return run(pageId);
 }
 
 /** For tests and shutdown: run every projection waiting in this process. */
 export async function flushProjections(): Promise<void> {
   await Promise.all([...pending.keys()].map((pageId) => projectNow(pageId)));
   await Promise.all([...running.values()]);
+}
+
+/**
+ * A page marked this long ago is the sweep's: longer than any settling here,
+ * so the task the changes reached projects them first.
+ */
+export const SWEEP_AFTER_MS = 10_000;
+/** How often each task sweeps. */
+export const SWEEP_INTERVAL_MS = 5_000;
+/** How often each task looks for pages an update reached without marking them. */
+const RECONCILE_INTERVAL_MS = 15 * 60_000;
+const SWEEP_BATCH = 50;
+
+/**
+ * Project the pages left marked; answers how many. Two tasks sweeping the same
+ * page take turns on its row lock, and the second finds nothing to do.
+ */
+export async function sweepProjections(db: PgHandle, now = new Date()): Promise<number> {
+  const due = await listDirtyPages(db, new Date(now.getTime() - SWEEP_AFTER_MS), SWEEP_BATCH);
+  for (const pageId of due) await run(pageId);
+  return due.length;
+}
+
+/** Mark the pages an update reached unmarked (an image from before the mark). */
+export async function reconcileProjections(db: PgHandle): Promise<number> {
+  const marked = await markUnprojectedPages(db);
+  if (marked > 0)
+    log.general.warn({ marked }, 'Pages with unprojected updates marked for the sweep');
+  return marked;
+}
+
+let sweepTimer: ReturnType<typeof setInterval> | null = null;
+let reconcileTimer: ReturnType<typeof setInterval> | null = null;
+let sweeping = false;
+
+/** Start sweeping in this process; idempotent. Reconciles once at start. */
+export function startProjectionSweep(): void {
+  if (sweepTimer) return;
+  const reconcile = () =>
+    reconcileProjections(getDb()).catch((err: unknown) =>
+      log.general.error({ err }, 'Projection reconcile failed'),
+    );
+  void reconcile();
+  sweepTimer = setInterval(() => {
+    if (sweeping) return;
+    sweeping = true;
+    sweepProjections(getDb())
+      .catch((err: unknown) => log.general.error({ err }, 'Projection sweep failed'))
+      .finally(() => {
+        sweeping = false;
+      });
+  }, SWEEP_INTERVAL_MS);
+  sweepTimer.unref?.();
+  reconcileTimer = setInterval(reconcile, RECONCILE_INTERVAL_MS);
+  reconcileTimer.unref?.();
+}
+
+export function stopProjectionSweep(): void {
+  if (sweepTimer) clearInterval(sweepTimer);
+  if (reconcileTimer) clearInterval(reconcileTimer);
+  sweepTimer = null;
+  reconcileTimer = null;
 }
 
 /**

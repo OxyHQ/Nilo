@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import { io as connect, type Socket as ClientSocket } from 'socket.io-client';
 import { EditorStore, emptyDocument, insertBlockAfter } from '@oxy.so/bloom-editor/model';
 import { YjsBinding } from '@oxy.so/bloom-editor/yjs';
+import { MAX_DOC_UPDATE_BYTES } from '@oxy.so/nilo-contracts';
 import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 import * as Y from 'yjs';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -19,7 +20,7 @@ import { pages } from '../db/schema/pages.js';
 import { workspaceMembers } from '../db/schema/workspaces.js';
 import { blocks, pages as pagesTable } from '../db/schema/pages.js';
 import { flushProjections } from '../lib/page-projection.js';
-import { registerPageDocs } from './page-docs.js';
+import { registerPageDocs, SOCKET_MAX_MESSAGE_BYTES } from './page-docs.js';
 import { registerPageRooms } from './page-rooms.js';
 import { eq } from 'drizzle-orm';
 import { uuidv7 } from '@oxy.so/db';
@@ -95,7 +96,7 @@ beforeAll(async () => {
   pageId = page?.id as string;
 
   httpServer = http.createServer();
-  io = new Server(httpServer);
+  io = new Server(httpServer, { maxHttpBufferSize: SOCKET_MAX_MESSAGE_BYTES });
   io.use((socket, nextMiddleware) => {
     socket.data.userId = socket.handshake.auth.userId;
     nextMiddleware();
@@ -244,6 +245,34 @@ describe('page documents', () => {
     expect(rows.map((r) => (r.content as { text?: string }).text)).toEqual(['Hola']);
     const [page] = await db.select().from(pagesTable).where(eq(pagesTable.id, pageId));
     expect(page?.lastEditedBy).toBe('alice');
+  });
+
+  it("answers a change over Socket.IO's 1 MB default, and refuses one over the limit", async () => {
+    const aliceSocket = await client('alice');
+    await join(aliceSocket, pageId);
+    const big = (text: string) => {
+      const doc = new Y.Doc();
+      const block = new Y.Map<unknown>();
+      doc.getMap<Y.Map<unknown>>('blocks').set(uuidv7(), block);
+      block.set('type', 'paragraph');
+      block.set('parent', null);
+      block.set('index', 'zz');
+      block.set('props', new Y.Map());
+      const ytext = new Y.Text();
+      block.set('text', ytext);
+      ytext.insert(0, text);
+      return Y.encodeStateAsUpdate(doc);
+    };
+    const accepted = big('a'.repeat(1_500_000));
+    expect(await emit(aliceSocket, 'doc:update', { pageId, update: accepted })).toEqual({
+      ok: true,
+    });
+    const refused = big('b'.repeat(MAX_DOC_UPDATE_BYTES));
+    expect(await emit(aliceSocket, 'doc:update', { pageId, update: refused })).toMatchObject({
+      ok: false,
+      code: 'UPDATE_TOO_LARGE',
+    });
+    expect(aliceSocket.connected).toBe(true);
   });
 
   it('merges work done offline when its editor comes back', async () => {

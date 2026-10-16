@@ -24,8 +24,10 @@ import {
   loadPageState,
   PageDocRejected,
 } from './page-docs.js';
+import { projectPage } from './page-projection.js';
 
 vi.mock('../socket.js', () => ({ getIO: () => null }));
+vi.mock('./notification-service.js', () => ({ sendNotification: vi.fn() }));
 
 let db: TestDatabase;
 let workspaceId: string;
@@ -114,7 +116,7 @@ describe('a page that predates its document', () => {
 });
 
 describe('appending and compacting', () => {
-  it('keeps every update through a compaction', async () => {
+  it('keeps every update through a compaction, and folds only what the rows show', async () => {
     const pageId = await page();
     let state = (await loadPageState(getDb(), pageId)).state;
     for (const word of ['alfa', 'beta', 'gamma']) {
@@ -122,10 +124,13 @@ describe('appending and compacting', () => {
       await appendUpdate(getDb(), { pageId, update, actorId: 'owner' });
       state = Y.mergeUpdates([state, update]);
     }
+    const waiting = () => db.select().from(pageUpdates).where(eq(pageUpdates.pageId, pageId));
+    // Not projected yet: who made them is still needed.
     await compactPage(getDb(), pageId, true);
-    expect(await db.select().from(pageUpdates).where(eq(pageUpdates.pageId, pageId))).toHaveLength(
-      0,
-    );
+    expect(await waiting()).toHaveLength(3);
+    await projectPage(getDb(), pageId);
+    await compactPage(getDb(), pageId, true);
+    expect(await waiting()).toHaveLength(0);
     await appendUpdate(getDb(), {
       pageId,
       update: paragraphAfter(state, 'delta'),

@@ -7,7 +7,7 @@ import { getRedisClient, getRedisSubClient } from './lib/redis.js';
 import { log } from './lib/logger.js';
 import { oxyClient } from './middleware/auth.js';
 import { registerLiveRooms } from './collab/live-rooms.js';
-import { registerPageDocs } from './collab/page-docs.js';
+import { registerPageDocs, SOCKET_MAX_MESSAGE_BYTES } from './collab/page-docs.js';
 import { registerPageRooms } from './collab/page-rooms.js';
 
 const ALLOWED_ORIGINS = allowedOrigins();
@@ -22,6 +22,7 @@ export function initSocket(server: http.Server): Server {
       credentials: true,
     },
     transports: ['websocket', 'polling'],
+    maxHttpBufferSize: SOCKET_MAX_MESSAGE_BYTES,
   });
 
   io.use(oxyClient.middleware.socket());

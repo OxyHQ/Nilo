@@ -48,7 +48,8 @@ put on top of them, a property changed only where it changed.
 `apps/api/src/lib/page-docs.ts`:
 
 - `page_updates`: every update anyone sends, appended in arrival order;
-  `page_docs`: the compacted snapshot (updates folded in once 200 wait).
+  `page_docs`: the compacted snapshot (updates folded in once 200 wait, and
+  only those the rows already show: the rest still say who made them).
   The document is the merge of both, the same whatever order updates
   arrived in.
 - Appending holds the page row FOR SHARE and compaction FOR UPDATE, so an
@@ -57,8 +58,11 @@ put on top of them, a property changed only where it changed.
   transaction.
 - A page that predates its document is stored from its block rows once, under
   the page's row lock (two first readers cannot both seed it).
-- An empty, oversized (2 MB), malformed update, or one to a gone or locked
-  page is refused. A page in the trash is not open to editors (its room
+- An empty, oversized (`MAX_DOC_UPDATE_BYTES`, 8 MB, in
+  `@oxy.so/nilo-contracts`), malformed update, or one to a gone or locked page
+  is refused. The socket's message limit is set from the same number
+  (`SOCKET_MAX_MESSAGE_BYTES`), so an oversized change is answered
+  (`UPDATE_TOO_LARGE`), never a dropped connection. A page in the trash is not open to editors (its room
   refuses them) but keeps content a server write may change.
 
 ## The room
@@ -90,7 +94,9 @@ The Redis adapter carries the room across the API's tasks.
 - Status: `saving` while changes are on their way, `saved` once the server
   confirmed them all, `offline` without a connection, `error` when the
   server refused one (a read-only or locked page; the change stays on the
-  device, sent by the next handshake).
+  device, sent by the next handshake). A change over the size limit is not
+  sent at all: the person is told, and undoing it leaves little to send (Yjs
+  keeps only the length of deleted text).
 
 ## On the device
 
@@ -118,7 +124,16 @@ not edit reads (search, exports, share links, published pages, backlinks,
 file access) are projected from the document: shortly after changes settle,
 and at once when a reader needs them now (an export, a copy, a server-side
 change). The document is read inside the page's row lock, so an older state
-never lands over a newer one. A block whose id belongs to another page, or of
+never lands over a newer one.
+
+What is left to project is in the database, never only in a process: the
+first update after a projection marks the page (`page_docs.dirty_since`), a
+projection records the newest update it showed (`projected_through_id`) and
+clears the mark, and who edited is read from the updates themselves. Every
+task sweeps every five seconds for pages marked over ten seconds ago (their
+task stopped, or their projection failed), and at start and every fifteen
+minutes marks any page with an update its rows do not show. Shutdown projects
+what the task had waiting. A block whose id belongs to another page, or of
 an unknown type, is left out with its subtree.
 
 Projecting does what an edit means for a page: history (below), who edited

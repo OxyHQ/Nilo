@@ -237,6 +237,7 @@
     "offlineCopy": "Sin conexión: es la copia de este dispositivo",
     "error": "No se pudo guardar un cambio",
     "rejected": "Tu cambio no se guardó: ahora esta página solo se puede leer.",
+    "tooLarge": "Este cambio es demasiado grande para guardarlo. Deshazlo y añádelo en partes más pequeñas.",
     "collaborators": {
       "one": "%{count} persona más aquí",
       "other": "%{count} personas más aquí"

@@ -241,7 +241,7 @@ async function writeAndProject(
   if (!update) return null;
   // In the same handle: a projection on another connection would wait for the
   // page lock the caller's transaction may hold.
-  await projectPage(db, input.pageId, [input.actorId]);
+  await projectPage(db, input.pageId);
   if (input.broadcast !== false) broadcastDocUpdate(getIO(), input.pageId, update);
   return update;
 }

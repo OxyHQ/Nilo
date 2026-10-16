@@ -246,6 +246,13 @@
       "when": 1792153499348,
       "tag": "0034_notes_capabilities",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792159041266,
+      "tag": "0035_page_docs_projection",
+      "breakpoints": true
     }
   ]
 }

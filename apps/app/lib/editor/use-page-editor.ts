@@ -22,8 +22,11 @@ export interface Collaborator {
 export interface PageEditorState {
   store: EditorStore | null;
   status: SyncStatus;
-  /** How many of this person's changes the server has refused (read-only, locked). */
-  rejected: number;
+  /**
+   * The server's last refusal of this person's change and why (read-only,
+   * locked, too large); `count` tells one refusal from the next.
+   */
+  rejected: { count: number; code: string } | null;
   collaborators: Collaborator[];
   error: Error | null;
 }
@@ -43,7 +46,7 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
   const queryClient = useQueryClient();
   const [store, setStore] = useState<EditorStore | null>(null);
   const [status, setStatus] = useState<SyncStatus>('saved');
-  const [rejected, setRejected] = useState(0);
+  const [rejected, setRejected] = useState<{ count: number; code: string } | null>(null);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [error, setError] = useState<Error | null>(null);
 
@@ -97,7 +100,7 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
       },
       onStatus: setStatus,
       onRejected: (code) => {
-        setRejected((n) => n + 1);
+        setRejected((last) => ({ count: (last?.count ?? 0) + 1, code }));
         // Someone locked the page: read it again so it shows as locked.
         if (code === 'PAGE_LOCKED') refreshPageInfo();
       },

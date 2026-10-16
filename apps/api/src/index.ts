@@ -33,6 +33,11 @@ import backlinksRouter from './routes/backlinks.js';
 import formsRouter from './routes/forms.js';
 import pageFollowsRouter from './routes/page-follows.js';
 import { startReminderSweep, stopReminderSweep } from './lib/reminders.js';
+import {
+  flushProjections,
+  startProjectionSweep,
+  stopProjectionSweep,
+} from './lib/page-projection.js';
 import pagesRouter from './routes/pages.js';
 import blocksRouter from './routes/blocks.js';
 import databasesRouter from './routes/databases.js';
@@ -270,6 +275,7 @@ getDb()
     server.listen(PORT, '0.0.0.0', () => {
       log.general.info({ port: PORT }, 'API server listening');
       startReminderSweep();
+      startProjectionSweep();
       startEventOutboxWorker();
       // Verify Redis connectivity (non-blocking)
       import('./lib/redis.js')
@@ -313,6 +319,7 @@ getDb()
       process.exitCode = 1;
 
       stopReminderSweep();
+      stopProjectionSweep();
       stopEventOutboxWorker();
       // Stop accepting new connections
       server.close(() => {
@@ -334,6 +341,10 @@ getDb()
           await new Promise<void>((resolve) => io.close(() => resolve()));
           log.general.info('Socket.IO closed');
         }
+
+        // The edits this task took in its last moments, projected now rather
+        // than by another task's sweep a few seconds on.
+        await flushProjections();
 
         // Close Redis connections
         const { closeRedis } = await import('./lib/redis.js');

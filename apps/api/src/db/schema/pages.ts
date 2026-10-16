@@ -395,15 +395,27 @@ export const pageUpdates = pgTable(
   (t) => [index('page_updates_page_idx').on(t.pageId, t.id)],
 );
 
-/** A page's compacted Yjs state: every update up to `throughId` merged into one. */
-export const pageDocs = pgTable('page_docs', {
-  pageId: text()
-    .primaryKey()
-    .references(() => pages.id, { onDelete: 'cascade' }),
-  state: bytea().notNull(),
-  throughId: bigint({ mode: 'number' }).notNull().default(0),
-  updatedAt: updatedAt(),
-});
+/**
+ * A page's compacted Yjs state: every update up to `throughId` merged into
+ * one. `projectedThroughId`: the newest update the `blocks` rows show;
+ * compaction never folds past it, so who made each change not yet projected
+ * is still there to read. `dirtySince`: set by the first update after a
+ * projection, cleared by the next one; what the projection sweep looks for.
+ */
+export const pageDocs = pgTable(
+  'page_docs',
+  {
+    pageId: text()
+      .primaryKey()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    state: bytea().notNull(),
+    throughId: bigint({ mode: 'number' }).notNull().default(0),
+    projectedThroughId: bigint({ mode: 'number' }).notNull().default(0),
+    dirtySince: timestamptz(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('page_docs_dirty_idx').on(t.dirtySince).where(sql`${t.dirtySince} is not null`)],
+);
 
 /** A block as a version keeps it. */
 export interface VersionBlock {

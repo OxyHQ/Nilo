@@ -20,6 +20,7 @@ export {
   NILO_FILE_ENTITY_TYPE,
   NILO_OXY_APPLICATION_ID,
 } from './files';
+export { MAX_DOC_UPDATE_BYTES } from './collab';
 export { isEntityId } from './ids';
 export { compareOrder, MIN_ORDER_GAP, placeAfter, type Sibling } from './order';
 export {

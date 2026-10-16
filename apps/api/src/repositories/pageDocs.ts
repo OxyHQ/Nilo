@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gt, lte, max } from 'drizzle-orm';
+import { and, asc, count, eq, gt, isNotNull, isNull, lte, max, sql } from 'drizzle-orm';
 import type { PgHandle } from '../db/client.js';
 import { pageDocs, pageUpdates } from '../db/schema/pages.js';
 
@@ -10,9 +10,13 @@ const asBuffer = (bytes: Uint8Array) =>
 export async function findPageDoc(
   db: PgHandle,
   pageId: string,
-): Promise<{ state: Uint8Array; throughId: number } | undefined> {
+): Promise<{ state: Uint8Array; throughId: number; projectedThroughId: number } | undefined> {
   const [row] = await db
-    .select({ state: pageDocs.state, throughId: pageDocs.throughId })
+    .select({
+      state: pageDocs.state,
+      throughId: pageDocs.throughId,
+      projectedThroughId: pageDocs.projectedThroughId,
+    })
     .from(pageDocs)
     .where(eq(pageDocs.pageId, pageId));
   return row;
@@ -40,7 +44,80 @@ export async function appendPageUpdate(
     .values({ ...input, update: asBuffer(input.update) })
     .returning({ id: pageUpdates.id });
   if (!row) throw new Error('page_updates insert returned nothing');
+  // The first update after a projection marks the page for the next one. Only
+  // that first one writes: the row is left alone while it is already marked.
+  await db
+    .update(pageDocs)
+    .set({ dirtySince: sql`now()` })
+    .where(and(eq(pageDocs.pageId, input.pageId), isNull(pageDocs.dirtySince)));
   return row.id;
+}
+
+/** Who sent each update after `afterId` up to `throughId`, in arrival order. */
+export async function listUpdateActors(
+  db: PgHandle,
+  pageId: string,
+  afterId: number,
+  throughId: number,
+): Promise<string[]> {
+  const rows = await db
+    .select({ actorId: pageUpdates.actorId })
+    .from(pageUpdates)
+    .where(
+      and(
+        eq(pageUpdates.pageId, pageId),
+        gt(pageUpdates.id, afterId),
+        lte(pageUpdates.id, throughId),
+      ),
+    )
+    .orderBy(asc(pageUpdates.id));
+  return rows.map((row) => row.actorId);
+}
+
+/**
+ * Record that the rows show every update through `throughId`. Called holding
+ * the page's row lock, which keeps updates out until it commits: none can
+ * arrive between the read and this.
+ */
+export async function markProjected(
+  db: PgHandle,
+  pageId: string,
+  throughId: number,
+): Promise<void> {
+  await db
+    .update(pageDocs)
+    .set({ projectedThroughId: throughId, dirtySince: null })
+    .where(eq(pageDocs.pageId, pageId));
+}
+
+/** Pages with updates their rows do not show yet, marked before `before`, oldest first. */
+export async function listDirtyPages(db: PgHandle, before: Date, limit: number): Promise<string[]> {
+  const rows = await db
+    .select({ pageId: pageDocs.pageId })
+    .from(pageDocs)
+    .where(and(isNotNull(pageDocs.dirtySince), lte(pageDocs.dirtySince, before)))
+    .orderBy(asc(pageDocs.dirtySince))
+    .limit(limit);
+  return rows.map((row) => row.pageId);
+}
+
+/**
+ * Mark every page with an update its rows do not show, whatever wrote it
+ * (an image from before the mark existed): one still waiting, or one already
+ * folded into the snapshot past what was projected. Answers how many.
+ */
+export async function markUnprojectedPages(db: PgHandle): Promise<number> {
+  const marked = await db
+    .update(pageDocs)
+    .set({ dirtySince: sql`now()` })
+    .where(
+      and(
+        isNull(pageDocs.dirtySince),
+        sql`(${pageDocs.throughId} > ${pageDocs.projectedThroughId} or exists (select 1 from ${pageUpdates} where ${pageUpdates.pageId} = ${pageDocs.pageId} and ${pageUpdates.id} > ${pageDocs.projectedThroughId}))`,
+      ),
+    )
+    .returning({ pageId: pageDocs.pageId });
+  return marked.length;
 }
 
 /** How many updates wait after the snapshot, and the newest one's id. */

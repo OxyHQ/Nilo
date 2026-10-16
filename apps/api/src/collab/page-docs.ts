@@ -14,6 +14,7 @@
  * A member's role is checked again at most every few seconds per page, so
  * losing edit access takes effect without a database read per keystroke.
  */
+import { MAX_DOC_UPDATE_BYTES } from '@oxy.so/nilo-contracts';
 import type { Server, Socket } from 'socket.io';
 import * as Y from 'yjs';
 import { getDb } from '../db/client.js';
@@ -33,6 +34,15 @@ interface SocketData {
 }
 
 const ROLE_TTL_MS = 10_000;
+
+/**
+ * The Socket.IO server's message limit (`maxHttpBufferSize`): the largest
+ * page change the server takes, with room for the event around it. Below it,
+ * at Socket.IO's 1 MB default, a larger change would drop the connection
+ * instead of being answered, and its device would send it again on every
+ * reconnect.
+ */
+export const SOCKET_MAX_MESSAGE_BYTES = MAX_DOC_UPDATE_BYTES + 64 * 1024;
 
 function bytes(value: unknown): Uint8Array | null {
   if (value instanceof Uint8Array) return value;
@@ -110,7 +120,7 @@ export function registerPageDocs(io: Server, socket: Socket): void {
       }
       await appendUpdate(getDb(), { pageId, update: change, actorId: data.userId });
       broadcastDocUpdate(io, pageId, change, socket.id);
-      scheduleProjection(pageId, data.userId);
+      scheduleProjection(pageId);
       reply({ ok: true });
     } catch (err: unknown) {
       if (err instanceof PageDocRejected) {

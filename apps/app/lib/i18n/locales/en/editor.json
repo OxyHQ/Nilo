@@ -237,6 +237,7 @@
     "offlineCopy": "Offline — the copy on this device",
     "error": "A change could not be saved",
     "rejected": "Your change was not saved: this page can only be read now.",
+    "tooLarge": "This change is too large to save. Undo it, then add it in smaller parts.",
     "collaborators": {
       "one": "%{count} other person here",
       "other": "%{count} other people here"

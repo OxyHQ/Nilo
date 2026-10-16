@@ -22,6 +22,7 @@
  */
 import { applyOperation, type EditorDocument, type Transaction } from '@oxy.so/bloom-editor/model';
 import { materialize, writeDocument, writeTransaction } from '@oxy.so/bloom-editor/yjs';
+import { MAX_DOC_UPDATE_BYTES } from '@oxy.so/nilo-contracts';
 import { rowsToDocument } from '@oxy.so/nilo-contracts/editor';
 import * as Y from 'yjs';
 import { getDb, type PgHandle } from '../db/client.js';
@@ -38,8 +39,6 @@ import { log } from './logger.js';
 
 /** The origin of changes the server writes itself. */
 export const SERVER_ORIGIN = 'nilo:server';
-/** The largest single update accepted from an editor. */
-export const MAX_UPDATE_BYTES = 2 * 1024 * 1024;
 /** Fold updates into the snapshot once this many wait. */
 const COMPACT_AFTER = 200;
 /** Appends a process lets pass between two looks at whether to compact. */
@@ -130,8 +129,8 @@ export async function appendUpdate(
   input: { pageId: string; update: Uint8Array; actorId: string },
 ): Promise<number> {
   if (input.update.byteLength === 0) throw new PageDocRejected(400, 'Empty update');
-  if (input.update.byteLength > MAX_UPDATE_BYTES) {
-    throw new PageDocRejected(413, 'Update too large');
+  if (input.update.byteLength > MAX_DOC_UPDATE_BYTES) {
+    throw new PageDocRejected(413, 'Update too large', 'UPDATE_TOO_LARGE');
   }
   try {
     Y.decodeUpdate(input.update);
@@ -163,7 +162,10 @@ export async function appendUpdate(
   return id;
 }
 
-/** Fold the updates into the snapshot once enough wait. */
+/**
+ * Fold the updates into the snapshot once enough wait: those the rows already
+ * show, so the ones still to project keep who made them.
+ */
 export async function compactPage(db: PgHandle, pageId: string, force = false): Promise<void> {
   const snapshot = await findPageDoc(db, pageId);
   if (!snapshot) return;
@@ -173,7 +175,9 @@ export async function compactPage(db: PgHandle, pageId: string, force = false): 
     if (!(await lockPage(tx, pageId))) return;
     const current = await findPageDoc(tx, pageId);
     if (!current) return;
-    const updates = await listPageUpdates(tx, pageId, current.throughId);
+    const updates = (await listPageUpdates(tx, pageId, current.throughId)).filter(
+      (u) => u.id <= current.projectedThroughId,
+    );
     const last = updates[updates.length - 1];
     if (!last) return;
     const state = Y.mergeUpdates([current.state, ...updates.map((u) => u.update)]);

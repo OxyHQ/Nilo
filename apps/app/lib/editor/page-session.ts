@@ -14,6 +14,7 @@
  * Every update, from anywhere, is also written to the device (`PageDocStore`);
  * the page is marked synced once the server confirmed all of this device's.
  */
+import { MAX_DOC_UPDATE_BYTES } from '@oxy.so/nilo-contracts';
 import * as Y from 'yjs';
 import type { PageDocStore } from './doc-store-types';
 
@@ -44,7 +45,7 @@ export interface PageSessionOptions {
   /** The document has something to show: the device's copy, or the server's state. */
   onReady: (doc: Y.Doc) => void;
   onStatus: (status: SyncStatus) => void;
-  /** The server refused this device's change (read-only, a locked page). */
+  /** The server refused this device's change (read-only, a locked page, too large). */
   onRejected: (code: string) => void;
   /** The page cannot be opened: no access, gone, or offline with nothing kept. */
   onUnavailable: (reason: 'forbidden' | 'not_found' | 'offline') => void;
@@ -163,13 +164,23 @@ export class PageSession {
 
   private send(update: Uint8Array): void {
     const { socket, pageId, store } = this.options;
+    if (update.byteLength > MAX_DOC_UPDATE_BYTES) {
+      // The server would refuse it: kept on the device, and said.
+      this.options.onRejected('UPDATE_TOO_LARGE');
+      this.setStatus('error');
+      return;
+    }
     this.inflight += 1;
     this.setStatus('saving');
     socket.emit('doc:update', { pageId, update }, ((reply: Reply) => {
       this.inflight -= 1;
       if (this.disposed) return;
       if (!reply?.ok) {
-        if (reply?.code === 'READ_ONLY' || reply?.code === 'PAGE_LOCKED') {
+        if (
+          reply?.code === 'READ_ONLY' ||
+          reply?.code === 'PAGE_LOCKED' ||
+          reply?.code === 'UPDATE_TOO_LARGE'
+        ) {
           this.options.onRejected(reply.code);
         }
         // Kept on the device: the next handshake sends it again.
