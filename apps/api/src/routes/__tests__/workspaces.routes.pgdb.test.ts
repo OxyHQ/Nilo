@@ -8,6 +8,7 @@ import express from 'express';
 import { eq, like } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { closeDb } from '../../db/client.js';
+import { databases } from '../../db/schema/databases.js';
 import { pages } from '../../db/schema/pages.js';
 import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
 import {
@@ -146,8 +147,14 @@ describe('POST /workspaces/:id/reset', () => {
     const res = await api(OWNER, 'POST', `/workspaces/${ws.id}/reset`, { confirm: 'Scratch' });
 
     expect(res.status, JSON.stringify(res.json)).toBe(200);
-    expect(res.json.removed).toEqual({ pages: 1, databases: 0 });
+    // The page, and the notes and folders databases, which come back empty.
+    expect(res.json.removed).toEqual({ pages: 1, databases: 2 });
     expect(await db.select().from(pages).where(eq(pages.workspaceId, ws.id))).toEqual([]);
+    const systems = await db
+      .select({ key: databases.systemKey })
+      .from(databases)
+      .where(eq(databases.workspaceId, ws.id));
+    expect(systems.map((d) => d.key).sort()).toEqual(['note_folders', 'notes']);
     expect(await personal(OWNER)).toMatchObject({
       id: ws.id,
       name: "Ada Lovelace's Workspace",

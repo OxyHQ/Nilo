@@ -160,6 +160,8 @@ describe('pages repository (real database)', () => {
           'pages_workspace_parent_order_idx',
           'pages_workspace_archived_idx',
           'pages_database_archived_created_idx',
+          // A database's rows changed since a cursor (`GET /notes/sync`).
+          'pages_database_updated_idx',
           'pages_parent_idx',
           'pages_workspace_favorited_idx',
           'pages_properties_gin_idx',

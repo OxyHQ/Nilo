@@ -7,6 +7,7 @@ import {
   type DatabaseSchema,
   type DatabaseViewType,
   type FilterGroup,
+  type SystemDatabaseKey,
   type ViewConfig,
   type ViewGroupBy,
   type ViewSort,
@@ -69,6 +70,8 @@ export interface DatabaseRecord {
   /** Where it lives when it sits in no page (`docs/access.md`). */
   teamspaceId: string | null;
   archived: boolean;
+  /** The app that keeps this database (`lib/databases/system.ts`); null for every other one. */
+  systemKey: SystemDatabaseKey | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -109,6 +112,7 @@ function toDatabaseRecord(row: DatabaseRow): DatabaseRecord {
     parentPageId: row.parentPageId,
     teamspaceId: row.teamspaceId,
     archived: row.archived,
+    systemKey: row.systemKey,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

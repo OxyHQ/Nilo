@@ -203,6 +203,11 @@ export const pages = pgTable(
      */
     index('pages_database_archived_created_idx').on(t.databaseId, t.archived, t.createdAt),
     /**
+     * A database's rows changed since a point (`GET /notes/sync`): the cursor
+     * is `(updatedAt, id)`, so both are in the index after the database.
+     */
+    index('pages_database_updated_idx').on(t.databaseId, t.updatedAt, t.id),
+    /**
      * `parentId` is both a foreign key and the recursion column of every
      * tree walk (`deletePageTree`, `findPageAncestry`). An unindexed FK
      * referencing column makes each parent DELETE a sequential scan to run the
@@ -433,4 +438,55 @@ export const pageFiles = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index('page_files_page_idx').on(t.pageId), check('page_files_size', sql`${t.size} >= 0`)],
+);
+
+/** The apps that keep data of their own on Nilo pages (`page_app_data.app`). */
+export const PAGE_DATA_APPS = ['noted'] as const;
+export type PageDataApp = (typeof PAGE_DATA_APPS)[number];
+
+/**
+ * What an app built on Nilo keeps about a page that is not the page's content:
+ * Noted's recording artifacts and the user's overrides of them. The app owns
+ * the shape; Nilo stores it whole, goes with the page, and compares
+ * `revision` so a write made on an older one is refused rather than lost.
+ */
+export const pageAppData = pgTable(
+  'page_app_data',
+  {
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    app: text().$type<PageDataApp>().notNull(),
+    data: jsonb().$type<Record<string, unknown>>().notNull().default({}),
+    revision: integer().notNull().default(0),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pageId, t.app] }),
+    check('page_app_data_app', sql`${t.app} in (${sql.raw(inList(PAGE_DATA_APPS))})`),
+  ],
+);
+
+/** How long a deleted row is remembered for clients catching up (`page_tombstones`). */
+export const PAGE_TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Database rows deleted for good, so a client that syncs a database's rows
+ * (`GET /notes/sync`) learns the row is gone rather than keeping it forever.
+ * Written by every path that deletes rows on purpose, and kept for
+ * `PAGE_TOMBSTONE_RETENTION_MS`; a client whose cursor is older starts over.
+ * Not written when a whole database goes: its rows have nowhere to be synced
+ * from, and a reset tells its clients so (`workspace:reset`).
+ */
+export const pageTombstones = pgTable(
+  'page_tombstones',
+  {
+    /** The deleted page's id: no foreign key, the page is gone. */
+    pageId: text().primaryKey(),
+    databaseId: text()
+      .notNull()
+      .references(() => databases.id, { onDelete: 'cascade' }),
+    deletedAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [index('page_tombstones_database_deleted_idx').on(t.databaseId, t.deletedAt)],
 );

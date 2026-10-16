@@ -262,6 +262,20 @@ function jsonPathAnyOf(values: readonly string[]): string {
  */
 
 // ---------------------------------------------------------------------------
+// System databases
+// ---------------------------------------------------------------------------
+
+/**
+ * Databases Nilo keeps in a personal workspace for an app built on it
+ * (`lib/databases/system.ts`): `notes` holds Noted's notes, one row per note,
+ * and `note_folders` the folders they are filed in. A workspace has at most
+ * one of each. Their own properties cannot be removed or retyped, and the
+ * databases cannot be deleted, because the app reads them by those ids.
+ */
+export const SYSTEM_DATABASE_KEYS = ['notes', 'note_folders'] as const;
+export type SystemDatabaseKey = (typeof SYSTEM_DATABASE_KEYS)[number];
+
+// ---------------------------------------------------------------------------
 // Tables
 // ---------------------------------------------------------------------------
 
@@ -337,6 +351,8 @@ export const databases = pgTable(
      * advanced in one statement, so rows created at once never share one.
      */
     nextRowNumber: integer().notNull().default(1),
+    /** Which system database this is (`SYSTEM_DATABASE_KEYS`); null for every other one. */
+    systemKey: text().$type<SystemDatabaseKey>(),
     /**
      * Soft delete — a boolean.
      *
@@ -386,6 +402,14 @@ export const databases = pgTable(
      * reader is the constraint, not a query.
      */
     index('databases_parent_page_idx').on(t.parentPageId),
+    // One of each system database per workspace: provisioning races settle on it.
+    uniqueIndex('databases_workspace_system_key')
+      .on(t.workspaceId, t.systemKey)
+      .where(sql`${t.systemKey} is not null`),
+    check(
+      'databases_system_key',
+      sql`${t.systemKey} in (${sql.raw(inList(SYSTEM_DATABASE_KEYS))})`,
+    ),
     /**
      * The property-type enum, derived from `DATABASE_PROPERTY_TYPES` rather
      * than retyped, exactly as `inList` does for a plain text column. Ports

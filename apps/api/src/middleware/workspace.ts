@@ -8,6 +8,7 @@ import {
   provisionPersonalWorkspace,
   type WorkspaceRow,
 } from '../repositories/workspaces.js';
+import { ensureNoteDatabases } from '../lib/databases/system.js';
 import { oxyClient } from './auth.js';
 import { log } from '../lib/logger.js';
 
@@ -207,19 +208,24 @@ export async function personalWorkspaceName(userId: string): Promise<string> {
 }
 
 /**
- * The user's personal workspace, provisioned when it is missing or broken.
+ * The user's personal workspace, provisioned when it is missing or broken,
+ * with the system databases it always has (`lib/databases/system.ts`).
  *
- * The common case is one indexed read. Only a user without a complete
+ * The common case is three indexed reads. Only a user without a complete
  * personal workspace pays for the Oxy profile lookup and the provisioning
  * transaction (`provisionPersonalWorkspace`), which also repairs one left
  * without its owner membership.
  */
 export async function ensurePersonalWorkspaceFor(userId: string): Promise<WorkspaceRow> {
   const db = getDb();
-  const existing = await findProvisionedPersonalWorkspace(db, userId);
-  if (existing) return existing;
-  const name = await personalWorkspaceName(userId);
-  return provisionPersonalWorkspace(db, { ownerId: userId, name });
+  const workspace =
+    (await findProvisionedPersonalWorkspace(db, userId)) ??
+    (await provisionPersonalWorkspace(db, {
+      ownerId: userId,
+      name: await personalWorkspaceName(userId),
+    }));
+  await ensureNoteDatabases(db, workspace);
+  return workspace;
 }
 
 /**
