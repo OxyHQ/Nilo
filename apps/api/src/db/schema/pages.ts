@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
+  bigserial,
   boolean,
   check,
   doublePrecision,
@@ -13,7 +15,7 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { BLOCK_TYPES, type BlockContent, type BlockType } from '@oxy.so/nilo-contracts';
-import { createdAt, generatedId, inList, timestamptz, updatedAt } from '@oxy.so/db';
+import { bytea, createdAt, generatedId, inList, timestamptz, updatedAt } from '@oxy.so/db';
 import { databases } from './databases.js';
 import { teamspaces } from './teamspaces.js';
 import { workspaces } from './workspaces.js';
@@ -372,32 +374,36 @@ export const blocks = pgTable(
 );
 
 /**
- * Block transactions already applied, by the key the editor gave them, so a
- * retry of one whose response was lost gets the original answer instead of
- * being applied twice or refused (a re-sent insert would collide with the
- * block it already created, and the editor would undo a change the page
- * has). Rows only need to outlive a client's retries; the endpoint prunes
- * rows older than a day for the page it writes.
+ * A page's content as Yjs updates (`@oxy.so/bloom-editor/yjs`): every change
+ * anyone makes, appended as it arrives, in arrival order. The page's truth is
+ * the merge of its snapshot (`pageDocs`) and these; the `blocks` rows are
+ * read from it (`lib/page-projection.ts`). Compaction folds them into the
+ * snapshot.
  */
-export const pageTransactions = pgTable(
-  'page_transactions',
+export const pageUpdates = pgTable(
+  'page_updates',
   {
+    id: bigserial({ mode: 'number' }).primaryKey(),
     pageId: text()
       .notNull()
       .references(() => pages.id, { onDelete: 'cascade' }),
-    /** The editor's key for the transaction, stable across its retries. */
-    key: text().notNull(),
-    /** The page's blocks version the transaction produced. */
-    version: integer().notNull(),
-    /** The operations as applied, returned again to a retry. */
-    ops: jsonb().$type<unknown[]>().notNull(),
+    update: bytea().notNull(),
+    /** Who sent it; '' for the server's own writes. */
+    actorId: text().notNull(),
     createdAt: createdAt(),
   },
-  (t) => [
-    primaryKey({ columns: [t.pageId, t.key] }),
-    index('page_transactions_page_created_idx').on(t.pageId, t.createdAt),
-  ],
+  (t) => [index('page_updates_page_idx').on(t.pageId, t.id)],
 );
+
+/** A page's compacted Yjs state: every update up to `throughId` merged into one. */
+export const pageDocs = pgTable('page_docs', {
+  pageId: text()
+    .primaryKey()
+    .references(() => pages.id, { onDelete: 'cascade' }),
+  state: bytea().notNull(),
+  throughId: bigint({ mode: 'number' }).notNull().default(0),
+  updatedAt: updatedAt(),
+});
 
 /** A block as a version keeps it. */
 export interface VersionBlock {

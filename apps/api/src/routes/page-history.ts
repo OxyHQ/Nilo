@@ -1,18 +1,20 @@
 /**
  * Page history: the versions kept of a page's blocks, one version's blocks,
- * and restoring a version (`lib/page-history.ts`). Restoring goes through the
- * same transaction path as editing, so open editors receive it live, and it
- * keeps the state it replaces as a version first.
+ * and restoring a version. Restoring is one change to the page's document
+ * (`lib/page-docs.ts`), so open editors receive it live, and it keeps the
+ * state it replaces as a version first.
  */
 import { Router, type Request, type Response } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
-import { applyBlockTransaction, TransactionRejected } from '../lib/block-transactions.js';
 import { log } from '../lib/logger.js';
-import { restoreOperations } from '../lib/page-history.js';
 import { checkPageAccess } from '../lib/page-access.js';
+import { replacePageBlocks, TransactionRejected } from '../lib/block-transactions.js';
+import { PageDocRejected } from '../lib/page-docs.js';
+import { projectNow } from '../lib/page-projection.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { listBlocksForPage } from '../repositories/blocks.js';
 import { findPageVersion, listPageVersions, snapshotPage } from '../repositories/pageVersions.js';
 
 const router = Router();
@@ -85,21 +87,20 @@ router.post(
         return;
       }
       const actorId = req.user?.id ?? '';
-      // The operations are computed from the blocks as they are once the page
-      // is locked, inside the transaction that applies them.
-      let ops: ReturnType<typeof restoreOperations> = [];
-      const result = await applyBlockTransaction(db, {
+      // The page as it is now, kept as a version, so the restore can be undone.
+      await projectNow(id);
+      await snapshotPage(db, {
         pageId: id,
-        ops: () => ops,
+        rows: await listBlocksForPage(db, id),
         actorId,
-        beforeChange: async (tx, rows) => {
-          await snapshotPage(tx, { pageId: id, rows, actorId, force: true });
-          ops = restoreOperations(rows, version.blocks);
-        },
+        force: true,
       });
-      res.json({ ok: true, version: result.version, ops: result.ops });
+      // One change from the document as it is to the version: blocks both have
+      // keep their ids (comments anchored to them stay anchored).
+      await replacePageBlocks(db, { pageId: id, target: version.blocks, actorId });
+      res.json({ ok: true });
     } catch (error: unknown) {
-      if (error instanceof TransactionRejected) {
+      if (error instanceof PageDocRejected || error instanceof TransactionRejected) {
         res.status(error.status).json({ error: error.message });
         return;
       }

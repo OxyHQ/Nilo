@@ -236,7 +236,7 @@
     "offline": "Sin conexión: es la copia de este dispositivo; los cambios se sincronizarán al reconectar",
     "offlineCopy": "Sin conexión: es la copia de este dispositivo",
     "error": "No se pudo guardar un cambio",
-    "rejected": "Otra persona cambió este bloque; tu edición se deshizo.",
+    "rejected": "Tu cambio no se guardó: ahora esta página solo se puede leer.",
     "collaborators": {
       "one": "%{count} persona más aquí",
       "other": "%{count} personas más aquí"
@@ -285,5 +285,10 @@
     "moveRight": "Mover a la derecha",
     "moveUp": "Mover arriba",
     "moveDown": "Mover abajo"
+  },
+  "unavailable": {
+    "forbidden": "No tienes acceso a esta página.",
+    "notFound": "Esta página ya no existe.",
+    "offline": "Estás sin conexión y esta página no está guardada en este dispositivo."
   }
 }

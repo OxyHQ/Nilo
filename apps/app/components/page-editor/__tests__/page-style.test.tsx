@@ -1,7 +1,7 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { EditorStore } from '@oxy.so/bloom-editor/model';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
-import { NILO_SCHEMA } from '@/lib/editor/schema';
+import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 import { DatabasePicker } from '../database-picker';
 import { BlockEditor } from '@oxy.so/bloom-editor';
 import { PageEditorProvider } from '../page-editor-context';

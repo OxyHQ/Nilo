@@ -21,7 +21,6 @@ export {
   NILO_OXY_APPLICATION_ID,
 } from './files';
 export { isEntityId } from './ids';
-export { TRANSACTION_KEY_RETENTION_MS } from './transactions';
 export { compareOrder, MIN_ORDER_GAP, placeAfter, type Sibling } from './order';
 export {
   type BlockNode,

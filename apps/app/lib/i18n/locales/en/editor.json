@@ -236,7 +236,7 @@
     "offline": "Offline — the copy on this device; changes sync when you reconnect",
     "offlineCopy": "Offline — the copy on this device",
     "error": "A change could not be saved",
-    "rejected": "Someone else changed this block; your edit was undone.",
+    "rejected": "Your change was not saved: this page can only be read now.",
     "collaborators": {
       "one": "%{count} other person here",
       "other": "%{count} other people here"
@@ -285,5 +285,10 @@
     "moveRight": "Move right",
     "moveUp": "Move up",
     "moveDown": "Move down"
+  },
+  "unavailable": {
+    "forbidden": "You do not have access to this page.",
+    "notFound": "This page does not exist anymore.",
+    "offline": "You are offline, and this page is not kept on this device."
   }
 }

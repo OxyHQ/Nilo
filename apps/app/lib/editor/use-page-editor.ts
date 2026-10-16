@@ -1,34 +1,17 @@
-import {
-  type EditorDocument,
-  EditorStore,
-  type PendingTransaction,
-  type SendResult,
-  SyncSession,
-  type SyncSnapshot,
-  type SyncStatus,
-  type Transaction,
-} from '@oxy.so/bloom-editor/model';
+import { EditorStore, emptyDocument } from '@oxy.so/bloom-editor/model';
+import { YjsBinding } from '@oxy.so/bloom-editor/yjs';
+import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 import { useQueryClient } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
 import { useEffect, useRef, useState } from 'react';
-import apiClient from '@/lib/api/client';
+import { useTranslation } from '@/hooks/useTranslation';
 import { queryKeys } from '@/lib/hooks/query-keys';
-import { API_ROUTES } from '@/lib/api/routes';
 import { uuidv7 } from '@/lib/ids';
 import { acquireSocket, releaseSocket } from '@/lib/realtime/socket';
-import type { Block } from '@/lib/types/pages';
-import { RemoteFollower } from './follower';
-import { clearSavedPage, PendingClock, readSavedPage, writeSavedPage } from './offline';
+import { pageDocStore } from './doc-store';
 import { offlinePages } from './offline-pages';
-import { NILO_SCHEMA } from './schema';
-import {
-  type AppliedOperation,
-  blocksToDocument,
-  OrderBook,
-  reconcileOrder,
-  transactionToWire,
-  wireToOperations,
-} from './wire';
+import { PageSession, type SessionSocket, type SyncStatus } from './page-session';
+
+export type { SyncStatus };
 
 /** Someone else on the page, and the block their caret is in. */
 export interface Collaborator {
@@ -39,49 +22,44 @@ export interface Collaborator {
 export interface PageEditorState {
   store: EditorStore | null;
   status: SyncStatus;
-  /** The server refused a change (it has been undone); the latest one. */
-  rejected: Transaction | null;
+  /** How many of this person's changes the server has refused (read-only, locked). */
+  rejected: number;
   collaborators: Collaborator[];
   error: Error | null;
 }
 
-export interface BlocksResponse {
-  blocks: Block[];
-  version: number;
-  /** From `resume`: which of the keys sent the blocks already include. */
-  applied?: string[];
-}
-
-interface TransactionEvent {
-  pageId: string;
-  version: number;
-  actorId: string;
-  ops: AppliedOperation[];
-}
-
 /**
- * A page's live editing session: loads its blocks into an `EditorStore`,
- * saves every local edit as a block transaction, and applies the
- * transactions other members make, arriving over the page's room. Reloads
- * the document whenever it cannot be reconciled (a missed change after a
- * reconnect, a change that no longer applies).
+ * A page's live editing session: its document (`page-session.ts`), shown in
+ * an `EditorStore` bound to it (`@oxy.so/bloom-editor/yjs`), so every edit
+ * goes into the document and every change to the document reaches the
+ * editor. Who else is on the page, and which block they are in, comes from
+ * the page's room.
  */
 export function usePageEditor(pageId: string, readOnly: boolean): PageEditorState {
+  const { t } = useTranslation();
+  // Read when a message is needed: a new `t` must not reopen the page.
+  const translate = useRef(t);
+  translate.current = t;
   const queryClient = useQueryClient();
   const [store, setStore] = useState<EditorStore | null>(null);
   const [status, setStatus] = useState<SyncStatus>('saved');
-  const [rejected, setRejected] = useState<Transaction | null>(null);
+  const [rejected, setRejected] = useState(0);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [error, setError] = useState<Error | null>(null);
-  const generation = useRef(0);
 
   useEffect(() => {
-    let disposed = false;
+    setStore(null);
+    setError(null);
+    setStatus('saved');
     setCollaborators([]);
+    const socket = acquireSocket();
+    let binding: YjsBinding | null = null;
+    let stopFocus: (() => void) | null = null;
+
+    // This page's own record ("edited … by …"), once changes pause.
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     const refreshPageInfo = () => {
       clearTimeout(refreshTimer);
-      // Only this page's own record ("edited … by …"), once edits pause.
       refreshTimer = setTimeout(() => {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.pages.detail(pageId),
@@ -89,291 +67,80 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
         });
       }, 1000);
     };
-    const clearPresence = () => setCollaborators([]);
-    const socket = acquireSocket();
-    let session: SyncSession | null = null;
-    let orders = new OrderBook();
-    let stopFocus: (() => void) | null = null;
 
-    // Keep unconfirmed work on the device while there is some (see offline.ts).
-    let saveTimer: ReturnType<typeof setTimeout> | undefined;
-    const clock = new PendingClock();
-    const persist = () => {
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => {
-        const snapshot = session?.snapshot();
-        if (!snapshot) return;
-        if (snapshot.pending.length === 0) void clearSavedPage(pageId);
-        else {
-          void writeSavedPage(pageId, {
-            ...snapshot,
-            orders: orders.toJSON(),
-            oldestAt: clock.oldest(snapshot.pending),
+    const session = new PageSession({
+      pageId,
+      socket: socket as unknown as SessionSocket,
+      store: pageDocStore,
+      readOnly,
+      onReady: (doc) => {
+        const next = new EditorStore({
+          document: emptyDocument(),
+          schema: NILO_SCHEMA,
+          newId: uuidv7,
+        });
+        binding = new YjsBinding(next, doc, { readOnly });
+        if (!readOnly) {
+          // Tell the room which block this member is in.
+          let lastFocus: string | null = null;
+          stopFocus = next.subscribe(() => {
+            const selection = next.selection;
+            const blockId = selection?.kind === 'text' ? selection.blockId : null;
+            if (blockId === lastFocus) return;
+            lastFocus = blockId;
+            socket.emit('page:focus', { pageId, blockId });
           });
         }
-      }, 400);
-    };
-
-    // The page as the server last confirmed it, for opening it offline
-    // (offline-pages.ts): once everything sent is saved, not mid-change.
-    let copyTimer: ReturnType<typeof setTimeout> | undefined;
-    const keepCopy = () => {
-      clearTimeout(copyTimer);
-      copyTimer = setTimeout(() => {
-        const snapshot = session?.snapshot();
-        if (!snapshot || snapshot.pending.length > 0) return;
-        void offlinePages.save(pageId, {
-          version: snapshot.version,
-          base: snapshot.base,
-          orders: orders.toJSON(),
-        });
-      }, 1500);
-    };
-
-    /** A store and session over `doc`, resuming `pending`; null for a read-only page. */
-    const open = (doc: EditorDocument, version: number, pending: readonly PendingTransaction[]) => {
-      session?.dispose();
-      stopFocus?.();
-      const nextStore = new EditorStore({ document: doc, schema: NILO_SCHEMA, newId: uuidv7 });
-      if (!readOnly) {
-        session = new SyncSession(
-          nextStore,
-          {
-            send: async (tx, before, key): Promise<SendResult> => {
-              const ops = transactionToWire(tx, before, orders);
-              try {
-                const result = await apiClient.post<{ version: number; ops: AppliedOperation[] }>(
-                  API_ROUTES.blocks.transactions(pageId),
-                  { ops, key, socketId: socket.id },
-                );
-                refreshPageInfo();
-                // The orders the server chose for this change.
-                orders.recordApplied(result.data.ops, result.data.version);
-                return { ok: true, version: result.data.version };
-              } catch (err: unknown) {
-                const response = isAxiosError(err) ? err.response : undefined;
-                // Someone wrote a block this changes since: merged and sent
-                // again once their change arrives.
-                if (response?.status === 409 && response.data?.code === 'STALE_BLOCK') {
-                  return { ok: false, stale: true };
-                }
-                // Someone locked the page: the change is undone, and the page
-                // read again so it shows as locked.
-                if (response?.status === 423) {
-                  void queryClient.invalidateQueries({
-                    queryKey: queryKeys.pages.detail(pageId),
-                    exact: true,
-                  });
-                  return { ok: false, retry: false };
-                }
-                const code = response?.status;
-                // No answer, a server fault or rate limiting: try again.
-                return { ok: false, retry: code === undefined || code >= 500 || code === 429 };
-              }
-            },
-          },
-          {
-            version,
-            onStatus: (next) => {
-              setStatus(next);
-              persist();
-              if (next === 'saved') keepCopy();
-            },
-            onRejected: setRejected,
-            onDesync: () => void load(),
-            reconcile: (current) => reconcileOrder(current, orders),
-            resume: pending,
-          },
-        );
-        nextStore.onTransaction((_tx, origin) => {
-          if (origin !== 'remote') persist();
-        });
-        // Tell the room which block this member is in.
-        let lastFocus: string | null = null;
-        stopFocus = nextStore.subscribe(() => {
-          const selection = nextStore.selection;
-          const blockId = selection?.kind === 'text' ? selection.blockId : null;
-          if (blockId === lastFocus) return;
-          lastFocus = blockId;
-          socket.emit('page:focus', { pageId, blockId });
-        });
-      }
-      shown = nextStore;
-      follower = readOnly ? new RemoteFollower(nextStore, () => orders, version) : null;
-      setStore(nextStore);
-    };
-
-    // A reload hands over what the replaced session had not had confirmed
-    // (`carry`, kept across a load a newer one supersedes) and anything typed
-    // while it loads (`late`); remote changes arriving meanwhile wait in
-    // `buffered` and are applied on top of what was loaded.
-    let carry: SyncSnapshot | null = null;
-    let late: PendingTransaction[] = [];
-    let stopLate: (() => void) | null = null;
-    let buffered: TransactionEvent[] | null = null;
-    let shown: EditorStore | null = null;
-    /** Keeps a read-only page live (an editable one has its session). */
-    let follower: RemoteFollower | null = null;
-
-    const settle = () => {
-      carry = null;
-      late = [];
-      stopLate?.();
-      stopLate = null;
-    };
-
-    /** Apply what arrived while loading, newer than `version`, then go live. */
-    const drain = (version: number) => {
-      const events = (buffered ?? [])
-        .filter((e) => e.version > version)
-        .sort((x, y) => x.version - y.version);
-      buffered = null;
-      for (const event of events) applyRemote(event);
-    };
-
-    const load = async () => {
-      const run = ++generation.current;
-      buffered = buffered ?? [];
-      if (session) {
-        carry = session.snapshot();
-        session.dispose();
-        session = null;
-      }
-      if (shown && !readOnly && !stopLate) {
-        stopLate = shown.onTransaction((tx, origin) => {
-          if (origin !== 'remote' && tx.ops.length > 0) late.push({ tx, key: uuidv7() });
-        });
-      }
-      const saved = carry || readOnly ? null : await readSavedPage(pageId);
-      if (saved) clock.seed(saved.pending, saved.oldestAt);
-      // What the server may have applied already: the keys it was sent under.
-      const sent = carry?.pending ?? saved?.pending ?? [];
-      try {
-        // The server also says which of those the blocks already include
-        // (applied, the answer lost): those are not applied a second time.
-        const res =
-          sent.length > 0
-            ? await apiClient.post<BlocksResponse>(API_ROUTES.pages.resumeBlocks(pageId), {
-                keys: sent.map((p) => p.key),
-              })
-            : await apiClient.get<BlocksResponse>(API_ROUTES.pages.blocks(pageId));
-        if (disposed || run !== generation.current) return;
-        const applied = new Set(res.data.applied);
-        const loaded = blocksToDocument(res.data.blocks, res.data.version);
-        orders = loaded.orders;
-        const pending = [...sent.filter((p) => !applied.has(p.key)), ...late];
-        settle();
-        open(loaded.doc, res.data.version, pending);
-        drain(res.data.version);
-        setError(null);
-        // Opened: kept as a recent page, with the blocks just read.
+        setStore(next);
+        // Opened: kept as a recent page on devices that keep pages offline.
         void offlinePages.opened(pageId);
-        void offlinePages.save(pageId, {
-          version: res.data.version,
-          base: loaded.doc,
-          orders: orders.toJSON(),
-        });
-      } catch (err: unknown) {
-        if (disposed || run !== generation.current) return;
-        // No connection: keep editing what this client has, and sync when it is back.
-        const local: SyncSnapshot | null = carry ?? saved;
-        if (local && isAxiosError(err) && !err.response) {
-          if (!carry && saved) orders = OrderBook.from(saved.orders);
-          const pending = [...local.pending, ...late];
-          settle();
-          open(local.base, local.version, pending);
-          drain(local.version);
-          setStatus('offline');
-          setError(null);
-          return;
-        }
-        // No connection and no work of its own: the copy kept on the device.
-        if (!local && isAxiosError(err) && !err.response) {
-          const copy = await offlinePages.read(pageId);
-          if (disposed || run !== generation.current) return;
-          if (copy) {
-            orders = OrderBook.from(copy.orders);
-            const pending = [...late];
-            settle();
-            open(copy.base, copy.version, pending);
-            drain(copy.version);
-            setStatus('offline');
-            setError(null);
-            return;
-          }
-        }
-        // Deleted, or no longer this member's to read: not kept offline either.
-        const status = isAxiosError(err) ? err.response?.status : undefined;
-        if (status === 403 || status === 404) void offlinePages.forget(pageId);
-        buffered = null;
-        settle();
-        setError(err instanceof Error ? err : new Error(String(err)));
-      }
+      },
+      onStatus: setStatus,
+      onRejected: (code) => {
+        setRejected((n) => n + 1);
+        // Someone locked the page: read it again so it shows as locked.
+        if (code === 'PAGE_LOCKED') refreshPageInfo();
+      },
+      onUnavailable: (reason) => {
+        if (reason !== 'offline') void offlinePages.forget(pageId);
+        setError(
+          new Error(
+            translate.current(
+              reason === 'forbidden'
+                ? 'editor.unavailable.forbidden'
+                : reason === 'not_found'
+                  ? 'editor.unavailable.notFound'
+                  : 'editor.unavailable.offline',
+            ),
+          ),
+        );
+      },
+    });
+    void session.start();
+
+    const onRemote = (event: { pageId: string }) => {
+      if (event.pageId === pageId) refreshPageInfo();
     };
-
-    const join = () => {
-      socket.emit('page:join', pageId, (ack: { ok: boolean; version?: number }) => {
-        // Changes made while this client was away are not replayed: reload.
-        // Unsent changes carry over the reload.
-        const current = session?.currentVersion ?? follower?.version;
-        if (ack.ok && current !== undefined && (ack.version ?? 0) > current) void load();
-      });
-    };
-
-    function applyRemote(event: TransactionEvent) {
-      if (session) {
-        session.receiveRemote({
-          version: event.version,
-          toOperations: (doc) => wireToOperations(doc, event.ops, orders, event.version),
-        });
-        return;
-      }
-      if (follower?.receive(event) === 'reload') void load();
-    }
-
-    const onTransaction = (event: TransactionEvent) => {
-      if (event.pageId !== pageId) return;
-      refreshPageInfo();
-      if (buffered) buffered.push(event);
-      else applyRemote(event);
-    };
-
     const onPresence = (event: { pageId: string; users: Collaborator[] }) => {
       if (event.pageId === pageId) setCollaborators(event.users);
     };
-
-    socket.on('page:transaction', onTransaction);
+    const clearPresence = () => setCollaborators([]);
+    socket.on('doc:update', onRemote);
     socket.on('page:presence', onPresence);
-    socket.on('connect', join);
     socket.on('disconnect', clearPresence);
-    if (socket.connected) join();
-    void load();
 
     return () => {
-      disposed = true;
-      socket.emit('page:leave', pageId);
-      socket.off('page:transaction', onTransaction);
-      socket.off('page:presence', onPresence);
-      socket.off('connect', join);
-      socket.off('disconnect', clearPresence);
       clearTimeout(refreshTimer);
-      clearTimeout(copyTimer);
-      // Whatever is still unconfirmed is written now, not after the delay.
-      clearTimeout(saveTimer);
-      // Mid-reload, the work is what the reload was handing over.
-      const last = session
-        ? session.snapshot()
-        : carry && { ...carry, pending: [...carry.pending, ...late] };
-      if (last && last.pending.length > 0) {
-        void writeSavedPage(pageId, {
-          ...last,
-          orders: orders.toJSON(),
-          oldestAt: clock.oldest(last.pending),
-        });
-      }
+      socket.off('doc:update', onRemote);
+      socket.off('page:presence', onPresence);
+      socket.off('disconnect', clearPresence);
       stopFocus?.();
-      stopLate?.();
-      session?.dispose();
+      binding?.dispose();
+      void session.dispose().then(async (bytes) => {
+        // Kept for reading offline, or holding unsent work: stays. Otherwise not.
+        if (await offlinePages.keeps(pageId)) await offlinePages.saved(pageId, bytes);
+        else await pageDocStore?.remove(pageId);
+      });
       releaseSocket();
     };
   }, [pageId, readOnly, queryClient]);

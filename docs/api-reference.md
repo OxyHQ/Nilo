@@ -49,9 +49,14 @@ model, credential, conversation or chat-completion route.
 
 ## Blocks and comments
 
-- Blocks are written only by transactions (`docs/collaboration.md`):
-  `GET /pages/:id/blocks`, `POST /pages/:id/blocks/transactions`,
-  `POST /pages/:id/blocks/resume`.
+- A page's truth is its Yjs document (`docs/collaboration.md`): editors
+  keep it in step over the page's Socket.IO room (`page:join`, `doc:sync`,
+  `doc:update`); `POST /pages/:id/doc { stateVector? }` is the same
+  handshake over HTTP (base64), for a device refreshing a page it keeps.
+- `GET /pages/:id/blocks` — the rows projected from the document.
+- `POST /pages/:id/blocks/transactions { ops }` — change blocks without an
+  editor (insert / update / move / remove, all or none), as one change to
+  the document.
 - Comments: `GET/POST /pages/:id/comments`, `GET /blocks/:id/comments`,
   `PATCH/DELETE /comments/:id`, `POST /comments/:id/resolve|unresolve`,
   `PUT/DELETE /comments/:id/reactions/:emoji`.

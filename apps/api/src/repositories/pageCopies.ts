@@ -37,14 +37,17 @@ export interface CopyPageTreeInput {
  * are not subpages (they belong to their database) and are not copied.
  * Returns the copy of the source page. Run inside a transaction.
  */
-export async function copyPageTree(db: PgHandle, input: CopyPageTreeInput): Promise<PageRow> {
+/**
+ * The pages a copy of `rootId` takes: it and its live subpages (not database
+ * rows), parents before children; bounded and cycle-safe like the breadcrumb.
+ */
+export async function listCopyableSubtree(db: PgHandle, rootId: string): Promise<string[]> {
   const col = (c: Parameters<typeof sqlColumnName>[0]) => sql.identifier(sqlColumnName(c));
-  // The subtree, parents before children; bounded and cycle-safe like the breadcrumb.
   const rows = await db.execute(sql`
     with recursive tree as (
       select ${pages.id}, ${pages.parentId}, 0 as depth
       from ${pages}
-      where ${pages.id} = ${input.sourceId}
+      where ${pages.id} = ${rootId}
       union all
       select child.${col(pages.id)}, child.${col(pages.parentId)}, tree.depth + 1
       from ${pages} child
@@ -55,7 +58,11 @@ export async function copyPageTree(db: PgHandle, input: CopyPageTreeInput): Prom
     ) cycle ${col(pages.id)} set is_cycle using cycle_path
     select ${col(pages.id)} as id from tree where not is_cycle order by depth asc
   `);
-  const ids = rows.map((row) => String(row.id));
+  return rows.map((row) => String(row.id));
+}
+
+export async function copyPageTree(db: PgHandle, input: CopyPageTreeInput): Promise<PageRow> {
+  const ids = await listCopyableSubtree(db, input.sourceId);
 
   const copied = new Map<string, string>();
   const keptFor = new Set<string>();

@@ -22,12 +22,13 @@ import {
   blocksToTree,
   inReadingOrder,
 } from '@oxy.so/nilo-contracts';
-import { copyPageTree } from '../repositories/pageCopies.js';
+import { copyPageTree, listCopyableSubtree } from '../repositories/pageCopies.js';
 import { follow } from '../repositories/pageFollows.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { mintFileUrls } from '../lib/files.js';
+import { projectNow } from '../lib/page-projection.js';
 import { blocksToPdf, type ImageLoader, imageSources } from '../lib/pdf-export.js';
 import { servableFileIds } from '../repositories/pageFiles.js';
 import { safeFetch } from '../lib/safe-fetch.js';
@@ -772,6 +773,10 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
         );
     if (!place) return;
 
+    // The copy takes the pages' rows, read from their documents: bring them up
+    // to the latest edits first.
+    for (const pageId of await listCopyableSubtree(db, source.id)) await projectNow(pageId);
+
     // One logical write: the pages, their blocks and their grants commit
     // together. The transaction does not close the sibling-order race —
     // `nextSiblingOrder` takes no lock under READ COMMITTED.
@@ -896,6 +901,8 @@ router.get(
       }
       if (!(await checkPageAccess(req, res, db, page.id, 'viewer'))) return;
 
+      // The rows, brought up to the latest edits.
+      await projectNow(page.id);
       const tree = inReadingOrder(blocksToTree(await listBlocksForPage(db, page.id)));
       const title = page.title?.trim() ? page.title : 'Untitled';
       // A filename every OS accepts, plus the exact name for clients that read RFC 5987.

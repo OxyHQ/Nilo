@@ -3,7 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Switch } from '@oxy.so/bloom/switch';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { NOTE } from '@/lib/editor/canvas';
-import { NILO_SCHEMA } from '@/lib/editor/schema';
+import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 import type { Page } from '@/lib/types/pages';
 import { CanvasSwitch } from '../canvas-switch';
 

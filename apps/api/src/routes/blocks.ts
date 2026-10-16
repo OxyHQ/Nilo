@@ -5,22 +5,17 @@ import { z } from 'zod';
 import { getDb } from '../db/client.js';
 import type { BlockRow } from '../repositories/blocks.js';
 import { listBlocksForPage } from '../repositories/blocks.js';
-import { findAppliedTransactionKeys, findPageById } from '../repositories/pages.js';
-import { snapshotPage } from '../repositories/pageVersions.js';
+import { findPageById } from '../repositories/pages.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { log } from '../lib/logger.js';
-import { announceChange } from '../collab/live-rooms.js';
-import { isSystemDatabase } from '../lib/databases/system.js';
-import { sendNotification } from '../lib/notification-service.js';
-import { recentlyNotified } from '../repositories/notifications.js';
-import { listFollowers } from '../repositories/pageFollows.js';
-import { checkPageAccess, resolvePageAccess } from '../lib/page-access.js';
+import { checkPageAccess } from '../lib/page-access.js';
 import {
   applyBlockTransaction,
   blockTransactionSchema,
-  type NewMention,
   TransactionRejected,
 } from '../lib/block-transactions.js';
+import { loadPageState, PageDocRejected } from '../lib/page-docs.js';
+import * as Y from 'yjs';
 
 const router = Router();
 
@@ -48,8 +43,7 @@ function handleZodError(err: unknown, res: Response): boolean {
 /**
  * The wire shape of a block. Unchanged by the port: this serializer has always
  * emitted `id` and never `_id`, so unlike `serializePage` there is nothing to
- * remove here. Every field already arrives from drizzle as the right type, so
- * the `String(...)` coercions that undid `ObjectId` are gone.
+ * remove here.
  */
 function serializeBlock(block: BlockRow) {
   return {
@@ -65,45 +59,24 @@ function serializeBlock(block: BlockRow) {
 }
 
 /**
- * A page's blocks and the version they are at, read in one snapshot: a
- * transaction committing between two separate reads would hand out blocks one
- * version ahead of the version they are labelled with. With `keys`, also which
- * of those transaction keys the blocks already include.
- */
-async function readBlocks(pageId: string, keys: readonly string[] = []) {
-  return getDb().transaction(
-    async (tx) => {
-      const current = await findPageById(tx, pageId);
-      return {
-        blocks: (await listBlocksForPage(tx, pageId)).map((b) => serializeBlock(b)),
-        version: current?.blocksVersion ?? 0,
-        applied: await findAppliedTransactionKeys(tx, pageId, keys),
-      };
-    },
-    { isolationLevel: 'repeatable read' },
-  );
-}
-
-/**
  * GET /api/pages/:pageId/blocks
- * Returns a flat list of blocks for the page. Frontend nests by parentBlockId.
+ *
+ * A page's blocks as rows, flat (nest them by `parentBlockId`), read from its
+ * document (`lib/page-projection.ts`): a second or so behind the latest edit
+ * while someone types. The editor reads the document itself.
  */
 router.get('/pages/:pageId/blocks', async (req: Request, res: Response) => {
   try {
     const params = z.object({ pageId: entityIdSchema }).parse(req.params);
-
     const db = getDb();
     const page = await findPageById(db, params.pageId);
     if (!page) {
       res.status(404).json({ error: 'Page not found' });
       return;
     }
-
-    const ok = await checkPageAccess(req, res, db, page.id, 'viewer');
-    if (!ok) return;
-
-    const { blocks, version } = await readBlocks(page.id);
-    res.json({ blocks, version });
+    if (!(await checkPageAccess(req, res, db, page.id, 'viewer'))) return;
+    const blocks = await listBlocksForPage(db, page.id);
+    res.json({ blocks: blocks.map(serializeBlock) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to list blocks');
@@ -112,160 +85,73 @@ router.get('/pages/:pageId/blocks', async (req: Request, res: Response) => {
 });
 
 /**
- * POST /api/pages/:pageId/blocks/resume { keys }
+ * POST /pages/:pageId/doc { stateVector? } → { update, stateVector }
  *
- * Opening a page with changes that were never confirmed (a reload, or work
- * kept offline): the blocks, their version and which of the changes' keys the
- * blocks already include — applied by the server though the answer was lost —
- * so the editor drops those instead of applying them a second time. One
- * snapshot, so "applied" means exactly "in these blocks".
+ * The page's document over HTTP, for a device bringing a page it keeps up to
+ * date without opening it (the room's `doc:sync` does the same live): what
+ * the server has beyond `stateVector`, and the server's own state vector, all
+ * base64.
  */
-router.post('/pages/:pageId/blocks/resume', async (req: Request, res: Response) => {
+router.post('/pages/:pageId/doc', async (req: Request, res: Response) => {
   try {
     const params = z.object({ pageId: entityIdSchema }).parse(req.params);
-    const body = z.object({ keys: z.array(z.string().min(1).max(64)).max(2000) }).parse(req.body);
-
+    const body = z
+      .object({ stateVector: z.string().max(100_000).optional() })
+      .parse(req.body ?? {});
     const db = getDb();
     const page = await findPageById(db, params.pageId);
-    if (!page) {
+    if (!page || page.archived) {
       res.status(404).json({ error: 'Page not found' });
       return;
     }
-    const ok = await checkPageAccess(req, res, db, page.id, 'editor');
-    if (!ok) return;
-
-    res.json(await readBlocks(page.id, body.keys));
+    if (!(await checkPageAccess(req, res, db, page.id, 'viewer'))) return;
+    const { state } = await loadPageState(db, page.id);
+    const vector = body.stateVector ? Buffer.from(body.stateVector, 'base64') : null;
+    const update = vector ? Y.diffUpdate(state, vector) : state;
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      update: Buffer.from(update).toString('base64'),
+      stateVector: Buffer.from(Y.encodeStateVectorFromUpdate(state)).toString('base64'),
+    });
   } catch (error: unknown) {
+    if (error instanceof PageDocRejected) {
+      res.status(error.status).json({ error: error.message });
+      return;
+    }
     if (handleZodError(error, res)) return;
-    log.general.error({ err: error }, 'Failed to resume blocks');
-    res.status(500).json({ error: 'Failed to resume blocks' });
+    log.general.error({ err: error }, 'Failed to read a page document');
+    res.status(500).json({ error: 'Failed to read the page' });
   }
 });
 
 /**
- * Tell the people newly mentioned in a page's text, as Notion does — those
- * who can open the page, never the writer. Best effort: the edit is saved.
- */
-async function notifyMentioned(
-  mentioned: readonly NewMention[],
-  page: { id: string; title: string },
-  authorId: string,
-): Promise<void> {
-  for (const { userId, blockId, text } of mentioned) {
-    if (userId === authorId) continue;
-    try {
-      if (!(await resolvePageAccess(getDb(), userId, page.id))) continue;
-      await sendNotification({
-        userId,
-        type: 'mention',
-        title: `You were mentioned in ${page.title || 'Untitled'}`,
-        body: text.slice(0, 280),
-        priority: 'normal',
-        data: { pageId: page.id, blockId, authorId },
-      });
-    } catch (err: unknown) {
-      log.general.warn({ err, userId, pageId: page.id }, 'Failed to send mention notification');
-    }
-  }
-}
-
-/** How often one process looks at a page's followers while it is being edited. */
-const EDIT_CHECK_MS = 60_000;
-/** One unread "edited" notification per follower and page in this window. */
-const EDIT_NOTICE_WINDOW = '1 hour';
-const lastEditCheck = new Map<string, number>();
-
-/**
- * Tell the people following a page that someone edited it, as Notion's
- * updates do — never the editor, only those who can still open it, in the app
- * only, and grouped: nothing more while an earlier one is unread and recent.
- * The editor saves as you type, so a page is looked at once a minute at most.
- */
-async function notifyFollowersOfEdit(page: { id: string; title: string }, authorId: string) {
-  const now = Date.now();
-  if (now - (lastEditCheck.get(page.id) ?? 0) < EDIT_CHECK_MS) return;
-  lastEditCheck.set(page.id, now);
-  if (lastEditCheck.size > 10_000) lastEditCheck.clear();
-  try {
-    const db = getDb();
-    const followers = (await listFollowers(db, page.id)).filter((id) => id !== authorId);
-    if (followers.length === 0) return;
-    const told = new Set(
-      await recentlyNotified(db, {
-        type: 'page_edited',
-        pageId: page.id,
-        userIds: followers,
-        within: EDIT_NOTICE_WINDOW,
-      }),
-    );
-    for (const userId of followers) {
-      if (told.has(userId) || !(await resolvePageAccess(db, userId, page.id))) continue;
-      await sendNotification({
-        userId,
-        type: 'page_edited',
-        title: `${page.title || 'Untitled'} was edited`,
-        body: '',
-        priority: 'low',
-        channels: ['in_app'],
-        data: { pageId: page.id, authorId },
-      });
-    }
-  } catch (err: unknown) {
-    log.general.warn({ err, pageId: page.id }, 'Failed to tell followers of an edit');
-  }
-}
-
-/**
- * POST /pages/:pageId/blocks/transactions
+ * POST /pages/:pageId/blocks/transactions { ops }
  *
- * Applies one editor transaction — an ordered list of insert / update / move
- * / remove operations — atomically: every operation is validated against the
- * page's blocks as the earlier operations left them, and any failure rolls
- * the whole list back. This is how the editor saves: one request per user
- * action, in order, with the ids it minted.
+ * Change a page's blocks without an editor (integrations, scripts): an
+ * ordered list of insert / update / move / remove operations, validated one
+ * after another, all or none, written into the page's document as one change
+ * (`lib/block-transactions.ts`). Anyone with the page open sees it at once,
+ * and the rows are up to date when this answers.
  */
 router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Response) => {
   try {
     const params = z.object({ pageId: entityIdSchema }).parse(req.params);
     const body = blockTransactionSchema.parse(req.body);
-
     const db = getDb();
     const page = await findPageById(db, params.pageId);
     if (!page) {
       res.status(404).json({ error: 'Page not found' });
       return;
     }
-    const ok = await checkPageAccess(req, res, db, page.id, 'editor');
-    if (!ok) return;
-
-    const result = await applyBlockTransaction(db, {
+    if (!(await checkPageAccess(req, res, db, page.id, 'editor'))) return;
+    await applyBlockTransaction(db, {
       pageId: page.id,
       ops: body.ops,
-      key: body.key,
       actorId: req.user?.id ?? '',
-      socketId: body.socketId,
-      // Page history: the state before the first change after a quiet spell.
-      beforeChange: async (tx, rows) => {
-        await snapshotPage(tx, { pageId: page.id, rows, actorId: req.user?.id ?? '' });
-      },
     });
-    // The sender gets the operations as applied too: the orders the server chose.
-    res.json({ ok: true, version: result.version, ops: result.ops });
-    // An app syncing a system database (Noted's notes) hears a body edit as a
-    // row change. After the answer, so a failure here cannot answer twice.
-    if (!result.replayed && page.databaseId) {
-      void isSystemDatabase(db, page.databaseId)
-        .then((system) => {
-          if (system)
-            announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
-        })
-        .catch((err: unknown) => log.general.warn({ err }, 'Failed to announce a row edit'));
-    }
-    void notifyMentioned(result.mentioned, { id: page.id, title: page.title }, req.user?.id ?? '');
-    if (!result.replayed)
-      void notifyFollowersOfEdit({ id: page.id, title: page.title }, req.user?.id ?? '');
+    res.json({ ok: true });
   } catch (error: unknown) {
-    if (error instanceof TransactionRejected) {
+    if (error instanceof TransactionRejected || error instanceof PageDocRejected) {
       res
         .status(error.status)
         .json({ error: error.message, ...(error.code && { code: error.code }) });

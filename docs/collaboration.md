@@ -1,117 +1,138 @@
 # Editing and real-time collaboration
 
-How a page's blocks are edited, saved and kept the same for everyone who has
-the page open. The editor is `@oxy.so/bloom-editor` (Bloom repo); Nilo's side
-is `apps/app/lib/editor/` and `apps/api/src/lib/block-transactions.ts`.
+How a page's blocks are edited, kept the same for everyone who has the page
+open, and kept on the device. The editor is `@oxy.so/bloom-editor` (Bloom
+repo); its Yjs layer is `@oxy.so/bloom-editor/yjs`. Nilo's side is
+`apps/app/lib/editor/` and `apps/api/src/lib/page-docs.ts`.
 
-## One way to write blocks
+## A page is a Yjs document
 
-Blocks are written only by **block transactions**:
-`POST /pages/:pageId/blocks/transactions { ops, key?, socketId? }`, applied by
-`applyBlockTransaction`. Restoring a page version, importing and the editor
-all go through it. There are no REST routes that write single blocks.
+A page's truth is a `Y.Doc` in the layout `@oxy.so/bloom-editor/yjs`
+defines: one `blocks` map from block id to the block's own map, holding
+`type`, `parent`, `index` (a fractional key among its siblings), `props` (a
+map, so two people changing different properties both win) and `text` (a
+`Y.Text`, marks as attributes).
 
-Operations: `insert { id, parentBlockId, afterId, type, content }`,
-`update { id, type?, content? }`, `move { id, parentBlockId, afterId }`,
-`remove { id }`. Ids are client-minted UUIDv7s. Content is normalized by the
-shared contract (`@oxy.so/nilo-contracts` `normalizeContent`), which also defines
-each block type's fields and defaults.
+There are no children arrays. A block's place is written on the block alone
+(`parent` and `index` together), so a block moved by two people at once lands
+in one place, never two. What a tree needs and a CRDT cannot promise is
+settled when the document is read (`materialize`), the same way on every
+device:
 
-## The server owns order
+- siblings sort by key, then by id (two blocks given the same key at once
+  still have one order);
+- a block whose parent was removed goes with it (the removal wins over a
+  child added at the same time);
+- a cycle made by two moves is broken at its smallest id, which goes to the
+  top level.
 
-Positions are anchors ("after this block"), never numbers. The server turns
-an anchor into an `order` against its own state (`placeAfter` in
-`@oxy.so/nilo-contracts`), renumbering siblings when two orders leave no room, and
-answers with the operations **as applied** — every order it wrote, including
-renumberings as `reorder` operations. Siblings sort by `(order, id)`.
+Two people typing in one block both keep their words: text edits are minimal
+(`updateSegments`), and a mark change reformats instead of rewriting, so text
+typed into a stretch being bolded is kept.
 
-Clients never invent orders. Each keeps an `OrderBook` of the server's
-orders, each tagged with the version that wrote it (an older version never
-overwrites a newer one), uses it to place remote changes, and runs
-`reconcileOrder` after every remote change so every list is in the server's
-order. A two-editor soak against PostgreSQL showed why: client-chosen orders
-diverged under concurrency (a renumbering pulled back a block someone had
-moved, an order chosen against a stale neighbour survived).
+## The editor and the document
 
-## Serialized per page
+`YjsBinding` keeps an `EditorStore` and the `Y.Doc` the same. Every edit,
+undo and redo the person makes is written into the document; every change
+the document takes from elsewhere (a collaborator, the device's copy, the
+server) is applied to the store as a remote transaction, outside the undo
+history. Undo takes back only the person's own change, whatever others did
+since.
 
-A transaction locks its page row first (`lockPage`), so transactions on one
-page run one after another and each validates against what the previous one
-committed. The page's `blocksVersion` goes up by one per transaction; the
-page room broadcasts `{ version, ops }` to everyone but the sender
-(`socketId`).
+A reader (viewer, commenter) writes nothing into the document. Their own
+changes (a toggle they closed) stay theirs: each change from the document is
+put on top of them, a property changed only where it changed.
 
-## Two people in one block
+## Storage and the server
 
-A text change replaces a block's content whole, so on its own the last one
-saved would win. Two things keep both people's words:
+`apps/api/src/lib/page-docs.ts`:
 
-- The client merges. Rebasing a pending change over a remote one, resuming
-  saved work, undo and redo all apply a text change to the block's text as
-  it is now, three-way (`mergeText` in `@oxy.so/bloom-text`): only that
-  person's own change goes in or comes out.
-- The server refuses what it would overwrite. Each block keeps the version
-  that last wrote its content (`blocks.content_version`); an update carries
-  the version it was made on (`baseVersion`, from the `OrderBook`). Made on
-  an older one, it is refused with 409 `STALE_BLOCK`; the session sends it
-  again as soon as the newer version arrives, merged into it.
+- `page_updates`: every update anyone sends, appended in arrival order;
+  `page_docs`: the compacted snapshot (updates folded in once 200 wait).
+  The document is the merge of both, the same whatever order updates
+  arrived in.
+- Appending holds the page row FOR SHARE and compaction FOR UPDATE, so an
+  update can never get an id at or below a snapshot that did not include it.
+  Reading takes the snapshot and the updates in one repeatable-read
+  transaction.
+- A page that predates its document is stored from its block rows once, under
+  the page's row lock (two first readers cannot both seed it).
+- An empty, oversized (2 MB), malformed update, or one to a gone or locked
+  page is refused. A page in the trash is not open to editors (its room
+  refuses them) but keeps content a server write may change.
 
-`e2e/live-editing.test.ts` types in one block from two editors at once
-against PostgreSQL and checks both texts are kept.
+## The room
 
-## Idempotent retries
+`apps/api/src/collab/page-docs.ts`, over the page's room (`page:<id>`; joining
+checks the person may read the page):
 
-The editor sends a `key` per transaction, the same on every retry. The
-server records `(page, key) → { version, ops }` in `page_transactions` (one
-day) and answers a repeated key from the record without applying it again —
-a lost response no longer leads to a double apply or a refused retry that
-undoes a saved change.
+- `doc:sync { pageId, stateVector }` → `{ update, stateVector }`: the Yjs
+  handshake. The server sends what the device lacks; the device then sends
+  what the server lacks.
+- `doc:update { pageId, update }` → `{ ok }`: one change, from someone who
+  may edit the page (checked again every ten seconds per page). Stored, sent
+  to everyone else in the room, projected once the burst settles.
 
-## The client session
+The Redis adapter carries the room across the API's tasks.
 
-`SyncSession` (Bloom) holds local transactions until the server confirms
-them, rebases them over remote ones by anchors, folds confirmations and
-remote versions in version order (holding early arrivals), retries with
-backoff and undoes what the server refuses. `snapshot()` / `resume` hand the
-unconfirmed work to a new session, resent under the same keys.
+## The session on the device
 
-## Read-only pages
+`apps/app/lib/editor/page-session.ts`, wired by `usePageEditor`:
 
-Viewers and commenters have no session: `RemoteFollower`
-(`lib/editor/follower.ts`) applies the room's transactions to their store in
-version order and asks for a reload on a skipped version. Their own changes
-(a closed toggle) stay on the device.
+- Opening: the device's copy first, so the page shows without a connection;
+  then the server's state.
+- Each time the socket connects: join the room, then the handshake both
+  ways. Work done offline arrives this way, merged, however long ago it was
+  done.
+- While connected: the person's changes go out in batches of 60 ms; everyone
+  else's come in from the room, taken whenever they arrive (one broadcast
+  between joining and the handshake's answer is in neither otherwise).
+- Status: `saving` while changes are on their way, `saved` once the server
+  confirmed them all, `offline` without a connection, `error` when the
+  server refused one (a read-only or locked page; the change stays on the
+  device, sent by the next handshake).
 
-## Reloads and offline work
+## On the device
 
-`usePageEditor` reloads the page when the session cannot reconcile (a
-skipped version, a change that no longer applies) or when a reconnect finds
-the page ahead. A reload hands over everything not yet confirmed: the old
-session's pending changes and anything typed while the page loads. Remote
-changes that arrive during the load wait and are applied on top of what was
-loaded (those newer than its version), so none is missed.
+`apps/app/lib/editor/doc-store*.ts`: every update the page takes is written
+to the device — SQLite on iOS and Android, IndexedDB in a browser. A page is
+`dirty` while it holds a change of the device's the server has not
+confirmed; nothing removes a dirty page but signing out.
 
-With pending changes the page loads through
-`POST /pages/:pageId/blocks/resume { keys }`, which answers the blocks, their
-version and which of those keys the blocks already include (applied, the
-answer lost) in one snapshot. Those are dropped, not applied twice; without
-this, re-applying an insert the blocks already have reads as a refused change.
+What stays once a page is closed: on iOS and Android, the pages kept for
+reading offline (`offline-pages.ts`: pinned, or among the last 20 opened) and
+dirty ones; in a browser, dirty ones only. Pinned pages are brought up to date
+in the background through `POST /pages/:id/doc` (the handshake over HTTP).
+Signing out, or another account signing in, removes every document stored.
 
-While changes are pending, the session's snapshot is kept on the device
-(`lib/editor/offline.ts`, AsyncStorage) and removed once they are saved.
-Opening the page without a connection uses it; with a connection, its changes
-are resumed as above. Saved work is used only while the server still
-remembers the keys of what it applied (`TRANSACTION_KEY_RETENTION_MS` in
-`@oxy.so/nilo-contracts`, one day, less an hour), dated by its oldest change: past
-that, resending could apply a change twice over later edits.
+Yjs reads `crypto.getRandomValues` the moment it loads: the app installs it
+from `expo-crypto` (`expo-standard-web-crypto`) first thing at its entry, and
+Metro resolves lib0's Web Crypto to its standard build on iOS and Android
+(`metro.config.js`; lib0's React Native build needs `expo-random`, gone from
+Expo).
 
-## Mentions
+## The rows
 
-A person mentioned in a page's text (`mention.attributes.kind === 'user'`)
-who was not mentioned anywhere on it before gets a `mention` notification
-when the editor saves — if they can open the page, and never the writer.
-`applyBlockTransaction` reports them (`mentioned`); only the editor's route
-notifies, so imports and restores do not.
+`apps/api/src/lib/page-projection.ts`. The `blocks` rows everything that does
+not edit reads (search, exports, share links, published pages, backlinks,
+file access) are projected from the document: shortly after changes settle,
+and at once when a reader needs them now (an export, a copy, a server-side
+change). The document is read inside the page's row lock, so an older state
+never lands over a newer one. A block whose id belongs to another page, or of
+an unknown type, is left out with its subtree.
+
+Projecting does what an edit means for a page: history (below), who edited
+it last, following it, a `mention` notification to each person newly
+mentioned who can open the page (never the writer), and a grouped
+`page_edited` notification to its followers.
+
+## Writing without an editor
+
+`POST /pages/:pageId/blocks/transactions { ops }` (and imports, restores):
+an ordered list of insert / update / move / remove operations, positions as
+anchors ("after this block"), validated one after another, all or none, then
+written into the document as one change (`lib/block-transactions.ts`). Open
+editors receive it live; the rows are projected before the request answers.
 
 ## Live outside the editor
 
@@ -124,29 +145,38 @@ The routes announce a change once their write is done (`announceChange`).
 
 ## Page history
 
-Before the first change after ten quiet minutes, and before every restore,
-`applyBlockTransaction`'s `beforeChange` hook keeps the page's blocks as a
-version (`page_versions`, newest 200). A restore is computed against the
-locked page and applied as one transaction (block ids kept, so comment
-anchors stay), so open editors receive it live.
+Before the first change after ten quiet minutes the projection keeps the
+page's blocks as a version (`page_versions`, newest 200), and a restore keeps
+the page as it is first. A restore is one change to the document, from the
+document as it is to the version (block ids kept, so comment anchors stay),
+so open editors receive it live.
 
 ## Tests
 
-- `apps/app/lib/editor/__tests__/wire.test.ts` — the wire conversion against
-  an in-memory server with the API's semantics.
-- `e2e/live-editing.test.ts` — two editors wired as the app wires them,
-  against the real endpoint, room and PostgreSQL, with seeded random
-  concurrent edits and lost responses. `LIVE_SEEDS=1,2,3 LIVE_STEPS=200` runs a
-  longer soak; `LIVE_TRACE=<dir>` keeps a failing run's exchange.
+- `@oxy.so/bloom-editor` `src/yjs/__tests__` — the layout and the binding:
+  two people in one block, bolding while another types, concurrent moves, a
+  cycle, a removal against an added child, tied keys, undo after a remote
+  edit, a reader's own changes, and 25 seeds of 300 random edits on three
+  devices.
+- `apps/api/src/lib/page-docs.pgdb.test.ts`, `collab/page-rooms.pgdb.test.ts`
+  — seeding, compaction, refusals; the room carrying edits, refusing a
+  viewer's, merging offline work.
+- `apps/app/lib/editor/__tests__/page-session.test.ts` — the session against
+  a fake room.
+- `e2e/live-editing.test.ts` — editors wired as the app wires them, against
+  the real room and PostgreSQL: the editors, the server's document and the
+  projected rows must be the same page, with seeded random concurrent edits
+  and dropped connections. `LIVE_SEEDS=1,2,3 LIVE_STEPS=200` runs a longer
+  soak; `LIVE_DEBUG=1` prints the gap of a failing run.
 
 ## Canvas pages
 
 A page whose `mode` is `canvas` lays its top-level blocks out as notes
 (`canvas_note`, with `x`, `y` and `width` in its content) on an infinite
 surface; each note holds its own blocks. Notes are blocks like any other, so
-moving, resizing, writing in and deleting them are transactions: they sync,
-undo, work offline and respect the lock as everything else does. Turning a
-page into a canvas wraps its blocks in one note; turning it back puts each
-note's blocks in place, notes read top to bottom then left to right
+moving, resizing, writing in and deleting them are changes to the document:
+they sync, undo, work offline and respect the lock as everything else does.
+Turning a page into a canvas wraps its blocks in one note; turning it back
+puts each note's blocks in place, notes read top to bottom then left to right
 (`apps/app/lib/editor/canvas.ts`). Exports and published pages read a canvas
 in that order.

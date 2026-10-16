@@ -11,7 +11,6 @@
  */
 
 import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
-import { TRANSACTION_KEY_RETENTION_MS } from '@oxy.so/nilo-contracts';
 import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
 import {
@@ -21,7 +20,6 @@ import {
   pages,
   type PageProperties,
   pageTombstones,
-  pageTransactions,
 } from '../db/schema/pages.js';
 
 export type PageRow = typeof pages.$inferSelect;
@@ -617,6 +615,23 @@ export async function bumpBlocksVersion(
  * Answers whether the page is locked against edits (`pages.locked`), read
  * under that same row lock.
  */
+/**
+ * Share-lock a page's row until the end of the transaction: appending a Yjs
+ * update takes it, so appends run side by side while compaction, which takes
+ * `lockPage`, waits for them (and they for it). Answers the page's state.
+ */
+export async function lockPageShared(
+  db: PgHandle,
+  pageId: string,
+): Promise<{ locked: boolean; archived: boolean } | null> {
+  const [row] = await db
+    .select({ locked: pages.locked, archived: pages.archived })
+    .from(pages)
+    .where(eq(pages.id, pageId))
+    .for('share');
+  return row ?? null;
+}
+
 export async function lockPage(db: PgHandle, pageId: string): Promise<{ locked: boolean } | null> {
   const [row] = await db
     .select({ locked: pages.locked })
@@ -624,55 +639,6 @@ export async function lockPage(db: PgHandle, pageId: string): Promise<{ locked: 
     .where(eq(pages.id, pageId))
     .for('update');
   return row ?? null;
-}
-
-/** Which of `keys` name block transactions this page has applied (and still remembers). */
-export async function findAppliedTransactionKeys(
-  db: PgHandle,
-  pageId: string,
-  keys: readonly string[],
-): Promise<string[]> {
-  if (keys.length === 0) return [];
-  const rows = await db
-    .select({ key: pageTransactions.key })
-    .from(pageTransactions)
-    .where(and(eq(pageTransactions.pageId, pageId), inArray(pageTransactions.key, [...keys])));
-  return rows.map((row) => row.key);
-}
-
-/** The record of a block transaction already applied under `key`, if any. */
-export async function findPageTransaction(
-  db: PgHandle,
-  pageId: string,
-  key: string,
-): Promise<{ version: number; ops: unknown[] } | undefined> {
-  const [row] = await db
-    .select({ version: pageTransactions.version, ops: pageTransactions.ops })
-    .from(pageTransactions)
-    .where(and(eq(pageTransactions.pageId, pageId), eq(pageTransactions.key, key)));
-  return row;
-}
-
-/**
- * Record an applied block transaction under its key, and drop the page's
- * records old enough that no client is still retrying them.
- */
-export async function recordPageTransaction(
-  db: PgHandle,
-  record: { pageId: string; key: string; version: number; ops: unknown[] },
-): Promise<void> {
-  await db
-    .delete(pageTransactions)
-    .where(
-      and(
-        eq(pageTransactions.pageId, record.pageId),
-        lt(
-          pageTransactions.createdAt,
-          sql`now() - make_interval(secs => ${TRANSACTION_KEY_RETENTION_MS / 1000})`,
-        ),
-      ),
-    );
-  await db.insert(pageTransactions).values(record);
 }
 
 /** The page published (or once published) at `slug`. */

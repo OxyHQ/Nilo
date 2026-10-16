@@ -16,6 +16,11 @@ module.exports = {
   resolver: require.resolve('react-native-worklets/jest/resolver'),
   // Bloom's sheets and swipeable surfaces are gesture-handler views.
   setupFiles: ['react-native-gesture-handler/jestSetup'],
+  // As in Metro (metro.config.js): lib0 takes its standard Web Crypto build,
+  // which Node provides, not the React Native one that needs expo-random.
+  moduleNameMapper: {
+    '^lib0/webcrypto$': '<rootDir>/../../node_modules/lib0/dist/webcrypto.cjs',
+  },
   transformIgnorePatterns: [
     '/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|standard-navigation|@oxy\\.so))',
     '/node_modules/react-native-reanimated/plugin/',

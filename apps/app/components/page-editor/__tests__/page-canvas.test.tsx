@@ -2,7 +2,7 @@ import { documentFromSnapshot, EditorStore, getBlock } from '@oxy.so/bloom-edito
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { NOTE } from '@/lib/editor/canvas';
-import { NILO_SCHEMA } from '@/lib/editor/schema';
+import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 import { fitView, MAX_ZOOM, MIN_ZOOM, PageCanvas, toCanvasPoint, zoomAround } from '../page-canvas';
 
 jest.mock('react-native-worklets', () => require('react-native-worklets/lib/module/mock'));

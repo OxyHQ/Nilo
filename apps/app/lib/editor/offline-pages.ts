@@ -3,11 +3,13 @@
  * each one for a reason — the member chose it (`pinned`), or opened it lately
  * (`recent`, the last {@link MAX_RECENT}) — and dropped once it has none left.
  *
- * A copy is a whole page the server confirmed (its blocks at one version,
- * never part of one), replaced as the page changes. Work not yet confirmed is
- * kept apart, in `offline.ts`, and sent when the connection is back.
+ * What is kept of a page is its document, in the device's document store
+ * (`doc-store.ts`), which the editing session keeps current as the page
+ * changes. This index says which pages are kept and why; a page holding work
+ * the server has not confirmed stays in the store whatever the index says.
  */
-import type { BlockId, EditorDocument } from '@oxy.so/bloom-editor/model';
+import { pageDocStore } from './doc-store';
+import type { PageDocStore } from './doc-store-types';
 import { type OfflineFiles, offlineFiles } from './offline-files';
 
 export type OfflineReason = 'pinned' | 'recent';
@@ -15,20 +17,14 @@ export type OfflineReason = 'pinned' | 'recent';
 /** How many recently opened pages stay on the device. */
 export const MAX_RECENT = 20;
 
-export interface OfflineCopy {
-  version: number;
-  base: EditorDocument;
-  orders: [BlockId, number, number, number?][];
-}
-
 export interface OfflineEntry {
   pageId: string;
   reasons: OfflineReason[];
   /** When it was last opened (ms since the epoch). */
   openedAt: number;
-  /** When its copy was last written; null while there is none. */
+  /** When its document was last stored; null while there is none. */
   savedAt: number | null;
-  /** The copy's size in bytes. */
+  /** The stored document's size in bytes. */
   bytes: number;
   title: string | null;
   workspaceId: string | null;
@@ -39,7 +35,6 @@ interface Index {
 }
 
 const INDEX = 'index.json';
-const copyName = (pageId: string) => `${pageId}.json`;
 
 export class OfflinePages {
   private queue: Promise<unknown> = Promise.resolve();
@@ -47,6 +42,7 @@ export class OfflinePages {
 
   constructor(
     private readonly files: OfflineFiles | null,
+    private readonly docs: PageDocStore | null,
     private readonly now: () => number = Date.now,
   ) {}
 
@@ -96,7 +92,7 @@ export class OfflinePages {
     for (const entry of Object.values(index.pages)) {
       if (entry.reasons.length > 0) continue;
       delete index.pages[entry.pageId];
-      await files.remove(copyName(entry.pageId));
+      await this.docs?.remove(entry.pageId);
     }
   }
 
@@ -151,35 +147,22 @@ export class OfflinePages {
     });
   }
 
-  /** Replace the page's copy, if the page is kept; an older version never replaces a newer. */
-  async save(pageId: string, copy: OfflineCopy): Promise<void> {
+  /** The page's document was stored: when, and its size. Only for a page kept. */
+  async saved(pageId: string, bytes: number): Promise<void> {
     await this.serial(async (files) => {
       const index = await this.readIndex(files);
       const entry = index.pages[pageId];
       if (!entry) return;
-      const current = await this.readCopyFrom(files, pageId);
-      if (current && current.version > copy.version) return;
-      const text = JSON.stringify(copy);
-      await files.write(copyName(pageId), text);
       entry.savedAt = this.now();
-      entry.bytes = new TextEncoder().encode(text).length;
+      entry.bytes = bytes;
       await this.writeIndex(files, index);
     });
   }
 
-  private async readCopyFrom(files: OfflineFiles, pageId: string): Promise<OfflineCopy | null> {
-    try {
-      const raw = await files.read(copyName(pageId));
-      return raw ? (JSON.parse(raw) as OfflineCopy) : null;
-    } catch {
-      // An unreadable copy is no copy: the page opens online or not at all.
-      return null;
-    }
-  }
-
-  /** The page's copy, or null. */
-  async read(pageId: string): Promise<OfflineCopy | null> {
-    return this.serial((files) => this.readCopyFrom(files, pageId));
+  /** Whether the page is kept for some reason. */
+  async keeps(pageId: string): Promise<boolean> {
+    const index = await this.serial((files) => this.readIndex(files));
+    return (index?.pages[pageId]?.reasons.length ?? 0) > 0;
   }
 
   /** Every page kept, most recently opened first. */
@@ -188,19 +171,23 @@ export class OfflinePages {
     return Object.values(index?.pages ?? {}).sort((a, b) => b.openedAt - a.openedAt);
   }
 
-  /** Drop the page and its copy whatever the reasons: it is gone, or no longer the member's to read. */
+  /**
+   * Drop the page and its document whatever the reasons, unsent work
+   * included: it is gone, or no longer the member's to read or write.
+   */
   async forget(pageId: string): Promise<void> {
+    await this.docs?.remove(pageId, { force: true });
     await this.serial(async (files) => {
       const index = await this.readIndex(files);
       if (!index.pages[pageId]) return;
       delete index.pages[pageId];
-      await files.remove(copyName(pageId));
       await this.writeIndex(files, index);
     });
   }
 
-  /** Forget every page kept on this device. */
+  /** Forget every page kept on this device, and every document stored. */
   async clear(): Promise<void> {
+    await this.docs?.clear();
     await this.serial(async (files) => {
       await files.clear();
       for (const listener of this.listeners) listener();
@@ -209,4 +196,4 @@ export class OfflinePages {
 }
 
 /** This device's offline pages. */
-export const offlinePages = new OfflinePages(offlineFiles);
+export const offlinePages = new OfflinePages(offlineFiles, offlineFiles ? pageDocStore : null);

@@ -24,7 +24,7 @@ import { VideoBlock } from '@/components/editor/blocks/video-block';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
-import { contentOf, fieldsFromContent } from '@/lib/editor/wire';
+import { contentOf, fieldsFromContent } from '@oxy.so/nilo-contracts/editor';
 import type { Block, BlockType } from '@/lib/types/pages';
 import { useColorScheme } from '@/lib/useColorScheme';
 
