@@ -1,11 +1,14 @@
 import * as React from 'react';
-import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Platform, TextInput, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
-import { Image as ImageIcon, Upload } from 'lucide-react-native';
 import { blockFileId } from '@nilo/contracts';
+import { Button } from '@oxy.so/bloom/button';
+import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
+import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';
+import { TextField, TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useOxy } from '@oxy.so/services';
 import { useQueryClient } from '@tanstack/react-query';
-import { Text } from '@/components/ui/text';
 import { useFileImageSource, useFileScope } from '@/lib/files/file-urls';
 import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -93,19 +96,23 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
-          <ImageIcon size={16} color={colors.mutedForeground} />
+          <RiImageLine size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">Image</Text>
         </View>
         <View className="flex-row items-center gap-2">
-          <TextInput
-            value={urlDraft}
-            onChangeText={setUrlDraft}
-            onBlur={() => commitUrl(urlDraft)}
-            placeholder="Paste image URL"
-            placeholderTextColor={colors.mutedForeground}
-            className="flex-1 rounded-md bg-background px-2 py-1.5 text-sm text-foreground border border-input"
-          />
-          <Pressable
+          <TextField className="flex-1">
+            <TextFieldInput
+              label="Paste image URL"
+              value={urlDraft}
+              onChangeText={setUrlDraft}
+              onBlur={() => commitUrl(urlDraft)}
+              placeholder="Paste image URL"
+            />
+          </TextField>
+          <Button
+            appearance="solid"
+            tone="accent"
+            size="md"
             onPress={() => {
               if (Platform.OS === 'web') {
                 fileInputRef.current?.click();
@@ -113,14 +120,11 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
                 void handleNativeUpload();
               }
             }}
-            className="flex-row items-center gap-1 rounded-md bg-primary px-3 py-1.5"
             disabled={busy}
+            leadingIcon={RiUpload2Line}
           >
-            <Upload size={14} color={colors.primaryForeground} />
-            <Text className="text-sm font-medium" style={{ color: colors.primaryForeground }}>
-              {busy ? 'Uploading…' : 'Upload'}
-            </Text>
-          </Pressable>
+            {busy ? 'Uploading…' : 'Upload'}
+          </Button>
         </View>
         {Platform.OS === 'web' ? (
           <input

@@ -1,5 +1,6 @@
 import { documentFromSnapshot, EditorStore, getBlock } from '@oxy.so/bloom-editor/model';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { NOTE } from '@/lib/editor/canvas';
 import { NILO_SCHEMA } from '@/lib/editor/schema';
 import { fitView, MAX_ZOOM, MIN_ZOOM, PageCanvas, toCanvasPoint, zoomAround } from '../page-canvas';
@@ -80,7 +81,11 @@ const storeOf = (snapshot: Parameters<typeof documentFromSnapshot>[0]) =>
 let renderer: ReactTestRenderer | undefined;
 const mount = (store: EditorStore, readOnly = false) =>
   act(() => {
-    renderer = create(<PageCanvas store={store} readOnly={readOnly} slashItems={[]} />);
+    renderer = create(
+      <BloomTestProviders>
+        <PageCanvas store={store} readOnly={readOnly} slashItems={[]} />
+      </BloomTestProviders>,
+    );
   });
 /** The buttons labelled `label`, once each (not their host views too). */
 const buttons = (label: string) =>

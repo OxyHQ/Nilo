@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { openAccountDialog, useOxy } from '@oxy.so/services';
 import axios from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
+import { Button } from '@oxy.so/bloom/button';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { FormFields } from '@/components/forms/form-fields';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePublicForm, useSubmitForm } from '@/lib/hooks/use-forms';
@@ -65,10 +66,12 @@ function PublicFormPage({ token }: { token: string }) {
       <View className="w-full max-w-xl mx-auto gap-5">
         {submit.isSuccess ? (
           <>
-            <Text accessibilityRole="header" className="text-2xl font-semibold">
+            <Text accessibilityRole="header" variant="title-1-semibold">
               {t('databases.form.thanks')}
             </Text>
             <Button
+              appearance="solid"
+              tone="accent"
               accessibilityLabel={t('databases.form.another')}
               onPress={() => {
                 setDraft({});
@@ -76,34 +79,36 @@ function PublicFormPage({ token }: { token: string }) {
                 submit.reset();
               }}
             >
-              <Text>{t('databases.form.another')}</Text>
+              {t('databases.form.another')}
             </Button>
           </>
         ) : unavailable ? (
-          <Text accessibilityRole="header" className="text-xl font-semibold">
+          <Text accessibilityRole="header" variant="title-2-semibold">
             {t('databases.form.unavailable')}
           </Text>
         ) : signIn ? (
           <>
-            <Text>{t('databases.form.signInRequired')}</Text>
+            <Text variant="headline-regular">{t('databases.form.signInRequired')}</Text>
             <Button
+              appearance="solid"
+              tone="accent"
               accessibilityLabel={t('login.signInButton')}
               onPress={() => openAccountDialog()}
             >
-              <Text>{t('login.signInButton')}</Text>
+              {t('login.signInButton')}
             </Button>
           </>
         ) : query.isPending ? (
-          <ActivityIndicator />
+          <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
         ) : (
           <>
             {query.data ? (
               <>
-                <Text accessibilityRole="header" className="text-3xl font-bold">
+                <Text accessibilityRole="header" variant="display-4-bold">
                   {query.data.title}
                 </Text>
                 {query.data.description ? (
-                  <Text className="text-muted-foreground">{query.data.description}</Text>
+                  <Text className="text-base text-muted-foreground">{query.data.description}</Text>
                 ) : null}
                 <FormFields
                   fields={query.data.fields}
@@ -113,18 +118,18 @@ function PublicFormPage({ token }: { token: string }) {
                   disabled={submit.isPending}
                 />
                 <Button
+                  appearance="solid"
+                  tone="accent"
                   accessibilityLabel={t('databases.form.submit')}
                   disabled={submit.isPending || remaining > 0}
                   onPress={send}
                 >
-                  <Text>
-                    {t(submit.isPending ? 'databases.form.submitting' : 'databases.form.submit')}
-                  </Text>
+                  {t(submit.isPending ? 'databases.form.submitting' : 'databases.form.submit')}
                 </Button>
               </>
             ) : null}
             {error ? (
-              <Text accessibilityRole="alert" className="text-destructive">
+              <Text accessibilityRole="alert" className="text-base text-destructive">
                 {status === 429
                   ? t('databases.form.rateLimited', { seconds: remaining })
                   : t(
@@ -136,12 +141,12 @@ function PublicFormPage({ token }: { token: string }) {
             ) : null}
             {!query.data ? (
               <Button
-                variant="outline"
+                appearance="outline"
                 disabled={remaining > 0 || query.isFetching}
                 accessibilityLabel={t('databases.form.retry')}
                 onPress={() => void query.refetch()}
               >
-                <Text>{t('databases.form.retry')}</Text>
+                {t('databases.form.retry')}
               </Button>
             ) : null}
           </>

@@ -1,6 +1,6 @@
 import { View } from 'react-native';
-import { Switch } from '@/components/ui/switch';
-import { Text } from '@/components/ui/text';
+import { Switch } from '@oxy.so/bloom/switch';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useOfflinePage } from '@/lib/editor/use-offline-pages';
 import type { Page } from '@/lib/types/pages';
@@ -13,11 +13,11 @@ export function OfflineSwitch({ page }: { page: Page }) {
   return (
     <View className="gap-0.5 px-3 py-1.5">
       <View className="flex-row items-center justify-between gap-3">
-        <Text className="text-sm">{t('pages.offline.available')}</Text>
+        <Text variant="body-regular">{t('pages.offline.available')}</Text>
         <Switch
-          value={offline.pinned}
+          checked={offline.pinned}
           accessibilityLabel={t('pages.offline.available')}
-          onValueChange={(value) => {
+          onCheckedChange={(value) => {
             void offline.setPinned(value);
           }}
         />

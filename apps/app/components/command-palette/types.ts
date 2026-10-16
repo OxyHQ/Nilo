@@ -1,5 +1,5 @@
 import type { SearchSnippetPart } from '@/lib/types/search';
-import type { ComponentType } from 'react';
+import type { BloomIconComponent } from '@oxy.so/bloom/icons';
 
 export type CommandPaletteItemKind = 'page' | 'member' | 'command';
 
@@ -38,7 +38,7 @@ export interface CommandAction {
   title: string;
   subtitle?: string;
   /** Lucide icon component. */
-  icon?: ComponentType<{ size?: number; color?: string; className?: string }>;
+  icon?: BloomIconComponent;
   /** Display shortcut hint (e.g., `Cmd N`). */
   shortcut?: string;
   /** Synchronous handler invoked on selection. */

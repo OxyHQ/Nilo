@@ -34,6 +34,7 @@ export function OfflineSection() {
       title: t('settings.offline.removeAllTitle'),
       description: t('settings.offline.removeAllDescription'),
       confirmLabel: t('settings.offline.removeAll'),
+      cancelLabel: t('common.cancel'),
       destructive: true,
     });
     if (confirmed) await offlinePages.clear();

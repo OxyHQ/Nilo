@@ -1,10 +1,20 @@
 import React from 'react';
-import { View, Pressable, Platform } from 'react-native';
-import { ChevronDown, Plus, Check } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
+import { View, Pressable } from 'react-native';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
+import { Button } from '@oxy.so/bloom/button';
+import { useDialogControl } from '@oxy.so/bloom/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { useImageResolver } from '@oxy.so/bloom/image-resolver';
 import { useWorkspaces, type Workspace } from '@/lib/hooks/use-workspaces';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { CreateWorkspaceModal } from './create-workspace-modal';
@@ -25,8 +35,7 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
 }: WorkspaceSwitcherProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const resolveImage = useImageResolver();
-  const [createOpen, setCreateOpen] = React.useState(false);
+  const createDialog = useDialogControl();
 
   const { data: workspaces, isLoading } = useWorkspaces();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
@@ -61,13 +70,12 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
   );
 
   const handleCreate = React.useCallback(() => {
-    setCreateOpen(true);
-  }, []);
+    createDialog.open();
+  }, [createDialog]);
 
   const handleCreated = React.useCallback(
     (workspace: Workspace) => {
       setCurrentWorkspaceId(workspace.id);
-      setCreateOpen(false);
     },
     [setCurrentWorkspaceId],
   );
@@ -76,22 +84,16 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
   if (!isLoading && (!workspaces || workspaces.length === 0)) {
     return (
       <View className={collapsed ? '' : 'flex-1'}>
-        <Pressable
+        <Button
+          appearance="subtle"
+          iconOnly={collapsed}
           onPress={handleCreate}
-          className="h-9 flex-row items-center gap-2 px-2 rounded-lg hover:bg-muted"
           accessibilityLabel={t('workspace.switcher.createFirst')}
-          accessibilityRole="button"
+          leadingIcon={RiAddLine}
         >
-          <Plus size={16} color={colors.mutedForeground} />
-          {!collapsed && (
-            <Text className="text-sm text-muted-foreground">{t('workspace.create.submit')}</Text>
-          )}
-        </Pressable>
-        <CreateWorkspaceModal
-          open={createOpen}
-          onOpenChange={setCreateOpen}
-          onCreated={handleCreated}
-        />
+          {collapsed ? undefined : t('workspace.create.submit')}
+        </Button>
+        <CreateWorkspaceModal control={createDialog} onCreated={handleCreated} />
       </View>
     );
   }
@@ -100,8 +102,9 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
 
   return (
     <View className={collapsed ? '' : 'flex-1 min-w-0'}>
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
+      <DropdownMenu>
+        {/* Bloom wraps a trigger in a box that hugs its content; the row spans the sidebar. */}
+        <DropdownMenuTrigger asChild style={{ alignSelf: 'stretch' }}>
           <Pressable
             className={
               collapsed
@@ -131,86 +134,54 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
                 >
                   {triggerLabel}
                 </Text>
-                <ChevronDown size={14} color={colors.mutedForeground} style={{ flexShrink: 0 }} />
+                <RiArrowDownSLine
+                  width={14}
+                  height={14}
+                  fill={colors.mutedForeground}
+                  style={{ flexShrink: 0 }}
+                />
               </>
             )}
           </Pressable>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content>
-          {Platform.OS === 'web' ? (
-            <View className="px-2 pt-2 pb-1">
-              <Text className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                {t('workspace.switcher.yourWorkspaces')}
-              </Text>
-            </View>
-          ) : (
-            <DropdownMenu.Label>{t('workspace.switcher.yourWorkspaces')}</DropdownMenu.Label>
-          )}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuLabel>{t('workspace.switcher.yourWorkspaces')}</DropdownMenuLabel>
           {(workspaces ?? []).map((workspace) => {
             const isActive = workspace.id === activeWorkspace?.id;
             const role = workspace.role;
-            const imageUri = workspace.avatar
-              ? resolveImage?.(workspace.avatar, 'thumb')
-              : undefined;
             return (
-              <DropdownMenu.Item key={workspace.id} onSelect={() => handleSelect(workspace.id)}>
-                {Platform.OS === 'web' ? (
-                  <View className="flex-row items-center gap-2 w-full">
-                    <WorkspaceAvatar workspace={workspace} size={24} />
-                    <View className="flex-1 min-w-0">
-                      <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
-                        {workspace.name}
-                      </Text>
-                      {role ? (
-                        <Text className="text-[11px] text-muted-foreground">{roleLabel(role)}</Text>
-                      ) : null}
-                    </View>
-                    {isActive ? (
-                      <Check size={16} color={colors.foreground} style={{ flexShrink: 0 }} />
-                    ) : null}
-                  </View>
-                ) : (
-                  <>
-                    {/* A system menu draws no React views, so the row shows the
-                        picture itself and nothing when there is none. */}
-                    {imageUri ? (
-                      <DropdownMenu.ItemImage
-                        source={{ uri: imageUri }}
-                        ios={{ style: { cornerRadius: 6 } }}
-                      />
-                    ) : null}
-                    <DropdownMenu.ItemTitle>{workspace.name}</DropdownMenu.ItemTitle>
-                    {role ? (
-                      <DropdownMenu.ItemSubtitle>{roleLabel(role)}</DropdownMenu.ItemSubtitle>
-                    ) : null}
-                  </>
-                )}
-              </DropdownMenu.Item>
+              <DropdownMenuItem
+                key={workspace.id}
+                onPress={() => handleSelect(workspace.id)}
+                accessibilityLabel={workspace.name}
+                leading={<WorkspaceAvatar workspace={workspace} size={24} />}
+                trailing={
+                  isActive ? (
+                    <RiCheckLine size="sm" fill={colors.foreground} style={{ flexShrink: 0 }} />
+                  ) : undefined
+                }
+              >
+                <View className="flex-1 min-w-0">
+                  <Text variant="body-medium" numberOfLines={1}>
+                    {workspace.name}
+                  </Text>
+                  {role ? (
+                    <Text className="text-[11px] text-muted-foreground">{roleLabel(role)}</Text>
+                  ) : null}
+                </View>
+              </DropdownMenuItem>
             );
           })}
-          <DropdownMenu.Separator />
-          <DropdownMenu.Item key="create" onSelect={handleCreate}>
-            {Platform.OS === 'web' ? (
-              <View className="flex-row items-center gap-2">
-                <Plus size={14} color={colors.foreground} />
-                <Text className="text-sm font-medium text-foreground">
-                  {t('workspace.create.title')}
-                </Text>
-              </View>
-            ) : (
-              <>
-                <DropdownMenu.ItemIcon ios={{ name: 'plus' }} />
-                <DropdownMenu.ItemTitle>{t('workspace.create.title')}</DropdownMenu.ItemTitle>
-              </>
-            )}
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-      <CreateWorkspaceModal
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onCreated={handleCreated}
-      />
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onPress={handleCreate}
+            leading={<RiAddLine width={14} height={14} fill={colors.foreground} />}
+          >
+            {t('workspace.create.title')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <CreateWorkspaceModal control={createDialog} onCreated={handleCreated} />
     </View>
   );
 });

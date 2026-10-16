@@ -1,5 +1,8 @@
-import { Pressable, View } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { View } from 'react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 
 export function SearchStatus({
@@ -17,25 +20,27 @@ export function SearchStatus({
   if (!loading && !error && !empty) return null;
   return (
     <View className="px-3 py-2" accessibilityLiveRegion="polite">
-      <Text className="text-xs text-muted-foreground">
-        {t(
-          loading
-            ? 'commandPalette.search.loading'
-            : error
-              ? 'commandPalette.search.error'
-              : 'commandPalette.search.empty',
-        )}
-      </Text>
-      {error && !loading ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('commandPalette.search.retry')}
-          onPress={retry}
-          className="self-start rounded-md py-2 hover:bg-muted"
-        >
-          <Text className="text-sm text-primary">{t('commandPalette.search.retry')}</Text>
-        </Pressable>
-      ) : null}
+      {loading ? (
+        <Loading variant="inline" size="xs" text={t('commandPalette.search.loading')} />
+      ) : error ? (
+        <View className="items-start gap-1">
+          <Text className="text-xs text-muted-foreground">{t('commandPalette.search.error')}</Text>
+          <Button
+            appearance="plain"
+            size="sm"
+            accessibilityLabel={t('commandPalette.search.retry')}
+            onPress={retry}
+          >
+            {t('commandPalette.search.retry')}
+          </Button>
+        </View>
+      ) : (
+        <EmptyState
+          variant="compact"
+          // icon: SearchX
+          title={t('commandPalette.search.empty')}
+        />
+      )}
     </View>
   );
 }

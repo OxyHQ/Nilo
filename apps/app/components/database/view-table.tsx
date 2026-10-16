@@ -1,10 +1,13 @@
 import { nestSubItems, subItemProperties, useExpandedRows } from '@/lib/sub-items';
 import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Plus } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { useDialogControl } from '@oxy.so/bloom/dialog';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type {
@@ -89,7 +92,7 @@ export function ViewTable({ database, view, rows, isLoading, readOnly = false }:
   if (isLoading) {
     return (
       <View className="py-10 items-center">
-        <ActivityIndicator color={colors.mutedForeground} />
+        <Loading variant="spinner" />
       </View>
     );
   }
@@ -121,9 +124,11 @@ export function ViewTable({ database, view, rows, isLoading, readOnly = false }:
 
         {/* rows */}
         {rows.length === 0 ? (
-          <View className="py-10 items-center w-full">
-            <Text className="text-sm text-muted-foreground">{t('databases.table.empty')}</Text>
-          </View>
+          <EmptyState
+            // icon: Table
+            variant="compact"
+            title={t('databases.table.empty')}
+          />
         ) : (
           nestedRows.map((entry) => {
             if (entry.kind === 'new')
@@ -193,7 +198,7 @@ export function ViewTable({ database, view, rows, isLoading, readOnly = false }:
             onPress={handleNewRow}
             className="flex-row items-center gap-2 px-3 py-2 border-b border-border/60 hover:bg-muted/40"
           >
-            <Plus size={14} color={colors.mutedForeground} />
+            <RiAddLine width={14} height={14} fill={colors.mutedForeground} />
             <Text className="text-sm text-muted-foreground">
               {createRow.isPending ? t('databases.actions.adding') : t('databases.actions.new')}
             </Text>
@@ -212,7 +217,7 @@ interface ColumnHeaderProps {
 }
 
 function ColumnHeader({ database, view, property, readOnly }: ColumnHeaderProps) {
-  const [menuOpen, setMenuOpen] = React.useState(false);
+  const menu = useDialogControl();
   return (
     <View
       className="px-3 py-2 border-r border-border flex-row items-center justify-between"
@@ -222,7 +227,7 @@ function ColumnHeader({ database, view, property, readOnly }: ColumnHeaderProps)
         disabled={readOnly}
         accessibilityRole="button"
         accessibilityLabel={property.name}
-        onPress={() => setMenuOpen(true)}
+        onPress={() => menu.open()}
         className="flex-1"
       >
         <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -230,13 +235,7 @@ function ColumnHeader({ database, view, property, readOnly }: ColumnHeaderProps)
         </Text>
       </Pressable>
       {!readOnly ? (
-        <PropertyHeaderMenu
-          open={menuOpen}
-          onClose={() => setMenuOpen(false)}
-          database={database}
-          view={view}
-          property={property}
-        />
+        <PropertyHeaderMenu control={menu} database={database} view={view} property={property} />
       ) : null}
     </View>
   );
@@ -288,7 +287,7 @@ function TitleCell({ initial, onChange, readOnly }: TitleCellProps) {
   }
   // Native: simple read-only label that opens the row on tap.
   return (
-    <Text className="text-sm text-foreground" numberOfLines={1}>
+    <Text variant="body-regular" numberOfLines={1}>
       {draft || t('databases.untitled')}
     </Text>
   );

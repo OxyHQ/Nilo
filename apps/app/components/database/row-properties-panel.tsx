@@ -1,8 +1,9 @@
 import { useTranslation } from '@/hooks/useTranslation';
-import { Button } from '@/components/ui/button';
 import * as React from 'react';
-import { ActivityIndicator, View } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { View } from 'react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import type { Database, DatabaseRow, PropertyValue } from '@/lib/types/databases';
 import { useDatabaseRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { PropertyCell } from './property-cell';
@@ -49,15 +50,16 @@ export function RowPropertiesPanel({ database, row, readOnly = false }: RowPrope
           <View className="flex-1">
             {property.type === 'formula' && !computedRow ? (
               computed.isPending ? (
-                <ActivityIndicator accessibilityLabel={t('common.loading')} />
+                <Loading variant="inline" accessibilityLabel={t('common.loading')} />
               ) : computed.isError ? (
                 <Button
-                  variant="ghost"
+                  appearance="plain"
+                  className="self-start"
                   onPress={() => {
                     void computed.refetch();
                   }}
                 >
-                  <Text>{t('databases.formula.retry')}</Text>
+                  {t('databases.formula.retry')}
                 </Button>
               ) : null
             ) : (

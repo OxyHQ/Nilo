@@ -1,8 +1,10 @@
 import { BlockText, blockTextSegments, PublicMentionContext } from './block-text';
 import { blockFileId, type FileUrlScope } from '@nilo/contracts';
+import { Divider } from '@oxy.so/bloom/divider';
+import { Text } from '@oxy.so/bloom/typography';
 import { useQueryClient } from '@tanstack/react-query';
 import { Image as ExpoImage } from 'expo-image';
-import { Platform, Pressable, View } from 'react-native';
+import { Platform, Pressable, type TextStyle, View } from 'react-native';
 import {
   FileScopeProvider,
   freshFileUrl,
@@ -10,10 +12,12 @@ import {
   useFileScope,
 } from '@/lib/files/file-urls';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
-import { Text, TextStyleContext } from '@/components/ui/text';
 import type { PageFont } from '@/lib/types/pages';
 import { MONO_FONT_FAMILY, PAGE_FONT_FAMILIES } from '@/lib/fonts';
-import { Check, ChevronRight, ChevronDown, File as FileIcon } from 'lucide-react-native';
+import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
+import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
+import { RiFileLine } from '@oxy.so/bloom/icons/RiFileLine';
 import { useColorScheme } from '@/lib/useColorScheme';
 import {
   buildBlockTree,
@@ -27,6 +31,14 @@ import { useTranslation } from '@/hooks/useTranslation';
 interface SharedBlockRendererProps {
   block: ReadOnlyBlock;
   listIndex?: number;
+  /** The page's face, set on every block's text. */
+  textStyle?: TextStyle;
+}
+
+/** One block's content and the page face its text is set in. */
+interface BlockProps {
+  content: Record<string, unknown>;
+  textStyle?: TextStyle;
 }
 
 function getText(content: Record<string, unknown>): string {
@@ -34,6 +46,9 @@ function getText(content: Record<string, unknown>): string {
     .map((segment) => segment.text)
     .join('');
 }
+
+/** Bloom's `Text` sets its face inline, so code names its own. */
+const MONO_STYLE = { fontFamily: MONO_FONT_FAMILY };
 
 function getChecked(content: Record<string, unknown>): boolean {
   return content.checked === true;
@@ -43,21 +58,23 @@ function getLanguage(content: Record<string, unknown>): string {
   return typeof content.language === 'string' ? content.language : 'plain';
 }
 
-function ParagraphBlock({ content }: { content: Record<string, unknown> }) {
+function ParagraphBlock({ content, textStyle }: BlockProps) {
   const { t } = useTranslation();
   const text = getText(content);
   return (
-    <Text className="text-base leading-7 text-foreground">
+    <Text className="text-base leading-7 text-foreground" style={textStyle}>
       {text ? (
         <BlockText content={content} />
       ) : (
-        <Text className="text-muted-foreground italic">{t('sharing.blocks.emptyParagraph')}</Text>
+        <Text className="text-base leading-7 text-muted-foreground italic" style={textStyle}>
+          {t('sharing.blocks.emptyParagraph')}
+        </Text>
       )}
     </Text>
   );
 }
 
-function HeadingBlock({ content, level }: { content: Record<string, unknown>; level: 1 | 2 | 3 }) {
+function HeadingBlock({ content, level, textStyle }: BlockProps & { level: 1 | 2 | 3 }) {
   const { t } = useTranslation();
   const text = <BlockText content={content} fallback={t('sharing.blocks.untitledHeading')} />;
   const className =
@@ -67,41 +84,39 @@ function HeadingBlock({ content, level }: { content: Record<string, unknown>; le
         ? 'text-2xl font-bold text-foreground mt-3'
         : 'text-xl font-semibold text-foreground mt-2';
   return (
-    <Text accessibilityRole="header" className={className}>
+    <Text accessibilityRole="header" className={className} style={textStyle}>
       {text}
     </Text>
   );
 }
 
-function BulletedListBlock({ content }: { content: Record<string, unknown> }) {
+function BulletedListBlock({ content, textStyle }: BlockProps) {
   return (
     <View className="flex-row gap-2">
-      <Text className="text-base leading-7 text-foreground">{'•'}</Text>
-      <Text className="text-base leading-7 text-foreground flex-1">
+      <Text className="text-base leading-7 text-foreground" style={textStyle}>
+        {'•'}
+      </Text>
+      <Text className="text-base leading-7 text-foreground flex-1" style={textStyle}>
         <BlockText content={content} />
       </Text>
     </View>
   );
 }
 
-function NumberedListBlock({
-  content,
-  index,
-}: {
-  content: Record<string, unknown>;
-  index: number;
-}) {
+function NumberedListBlock({ content, index, textStyle }: BlockProps & { index: number }) {
   return (
     <View className="flex-row gap-2">
-      <Text className="text-base leading-7 text-foreground">{`${index}.`}</Text>
-      <Text className="text-base leading-7 text-foreground flex-1">
+      <Text className="text-base leading-7 text-foreground" style={textStyle}>
+        {`${index}.`}
+      </Text>
+      <Text className="text-base leading-7 text-foreground flex-1" style={textStyle}>
         <BlockText content={content} />
       </Text>
     </View>
   );
 }
 
-function TodoBlock({ content }: { content: Record<string, unknown> }) {
+function TodoBlock({ content, textStyle }: BlockProps) {
   const { colors } = useColorScheme();
   const checked = getChecked(content);
   return (
@@ -112,12 +127,13 @@ function TodoBlock({ content }: { content: Record<string, unknown> }) {
           backgroundColor: checked ? colors.foreground : 'transparent',
         }}
       >
-        {checked ? <Check size={12} color={colors.background} /> : null}
+        {checked ? <RiCheckLine size="xs" fill={colors.background} /> : null}
       </View>
       <Text
         className={`text-base leading-7 flex-1 ${
           checked ? 'text-muted-foreground line-through' : 'text-foreground'
         }`}
+        style={textStyle}
       >
         <BlockText content={content} />
       </Text>
@@ -125,10 +141,10 @@ function TodoBlock({ content }: { content: Record<string, unknown> }) {
   );
 }
 
-function QuoteBlock({ content }: { content: Record<string, unknown> }) {
+function QuoteBlock({ content, textStyle }: BlockProps) {
   return (
     <View className="border-l-2 border-border pl-4 py-1">
-      <Text className="text-base leading-7 text-muted-foreground italic">
+      <Text className="text-base leading-7 text-muted-foreground italic" style={textStyle}>
         <BlockText content={content} />
       </Text>
     </View>
@@ -136,24 +152,21 @@ function QuoteBlock({ content }: { content: Record<string, unknown> }) {
 }
 
 function DividerBlock() {
-  return <View className="h-px bg-border my-3" />;
+  return <Divider spacing={12} />;
 }
 
-function CodeBlock({ content }: { content: Record<string, unknown> }) {
+function CodeBlock({ content, textStyle }: BlockProps) {
   const text = getText(content);
   const language = getLanguage(content);
   return (
     <View className="rounded-lg border border-border bg-muted/40 overflow-hidden">
       <View className="flex-row items-center justify-between px-3 py-1.5 border-b border-border/60">
-        <Text className="text-[11px] font-mono text-muted-foreground">{language}</Text>
+        <Text className="text-[11px] text-muted-foreground" style={textStyle}>
+          {language}
+        </Text>
       </View>
       <View className="p-3">
-        <Text
-          className="text-sm text-foreground"
-          style={{
-            fontFamily: MONO_FONT_FAMILY,
-          }}
-        >
+        <Text className="text-sm text-foreground" style={MONO_STYLE}>
           {text}
         </Text>
       </View>
@@ -161,11 +174,11 @@ function CodeBlock({ content }: { content: Record<string, unknown> }) {
   );
 }
 
-function CalloutBlock({ content }: { content: Record<string, unknown> }) {
+function CalloutBlock({ content, textStyle }: BlockProps) {
   return (
     <View className="flex-row gap-3 rounded-xl bg-muted/40 px-4 py-3">
       <CalloutIcon value={content.icon} size={22} />
-      <Text className="text-base leading-7 text-foreground flex-1">
+      <Text className="text-base leading-7 text-foreground flex-1" style={textStyle}>
         <BlockText content={content} />
       </Text>
     </View>
@@ -224,7 +237,7 @@ function SharedFile({ content }: { content: Record<string, unknown> }) {
         onPress={() => void open().catch(() => setFailed(true))}
         className="flex-row items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
       >
-        <FileIcon size={18} color={colors.foreground} />
+        <RiFileLine width={18} height={18} fill={colors.foreground} />
         <Text className="flex-1 text-sm text-foreground">{name}</Text>
       </Pressable>
       {failed ? (
@@ -234,27 +247,28 @@ function SharedFile({ content }: { content: Record<string, unknown> }) {
   );
 }
 
-export function SharedBlockRenderer({ block, listIndex = 1 }: SharedBlockRendererProps) {
+export function SharedBlockRenderer({ block, listIndex = 1, textStyle }: SharedBlockRendererProps) {
   const { t } = useTranslation();
+  const { content } = block;
   switch (block.type) {
     case 'toggle':
     case 'table_cell':
     case 'paragraph':
-      return <ParagraphBlock content={block.content} />;
+      return <ParagraphBlock content={content} textStyle={textStyle} />;
     case 'heading_1':
-      return <HeadingBlock content={block.content} level={1} />;
+      return <HeadingBlock content={content} level={1} textStyle={textStyle} />;
     case 'heading_2':
-      return <HeadingBlock content={block.content} level={2} />;
+      return <HeadingBlock content={content} level={2} textStyle={textStyle} />;
     case 'heading_3':
-      return <HeadingBlock content={block.content} level={3} />;
+      return <HeadingBlock content={content} level={3} textStyle={textStyle} />;
     case 'bulleted_list_item':
-      return <BulletedListBlock content={block.content} />;
+      return <BulletedListBlock content={content} textStyle={textStyle} />;
     case 'numbered_list_item':
-      return <NumberedListBlock content={block.content} index={listIndex} />;
+      return <NumberedListBlock content={content} index={listIndex} textStyle={textStyle} />;
     case 'todo':
-      return <TodoBlock content={block.content} />;
+      return <TodoBlock content={content} textStyle={textStyle} />;
     case 'quote':
-      return <QuoteBlock content={block.content} />;
+      return <QuoteBlock content={content} textStyle={textStyle} />;
     case 'columns':
     case 'column':
     case 'table':
@@ -263,16 +277,16 @@ export function SharedBlockRenderer({ block, listIndex = 1 }: SharedBlockRendere
     case 'divider':
       return <DividerBlock />;
     case 'code':
-      return <CodeBlock content={block.content} />;
+      return <CodeBlock content={content} textStyle={textStyle} />;
     case 'callout':
-      return <CalloutBlock content={block.content} />;
+      return <CalloutBlock content={content} textStyle={textStyle} />;
     case 'image':
-      return <SharedImage content={block.content} />;
+      return <SharedImage content={content} />;
     case 'file':
-      return <SharedFile content={block.content} />;
+      return <SharedFile content={content} />;
     default:
       return (
-        <Text className="text-sm text-muted-foreground italic">
+        <Text className="text-sm text-muted-foreground italic" style={textStyle}>
           {t('sharing.blocks.unsupported', { type: block.type })}
         </Text>
       );
@@ -296,24 +310,32 @@ export function SharedBlockTree({
   const textStyle = useMemo(() => ({ fontFamily: PAGE_FONT_FAMILIES[font] }), [font]);
   const tree = useMemo(() => inReadingOrder(buildBlockTree(blocks)), [blocks]);
   if (!tree.length)
-    return <Text className="text-sm text-muted-foreground">{t('pages.share.empty')}</Text>;
+    return (
+      <Text className="text-sm text-muted-foreground" style={textStyle}>
+        {t('pages.share.empty')}
+      </Text>
+    );
   const branch = (
     <PublicMentionContext.Provider value={publicSlug}>
-      <TextStyleContext.Provider value={textStyle}>
-        <BlockBranch nodes={tree} />
-      </TextStyleContext.Provider>
+      <BlockBranch nodes={tree} textStyle={textStyle} />
     </PublicMentionContext.Provider>
   );
   return fileScope ? <FileScopeProvider scope={fileScope}>{branch}</FileScopeProvider> : branch;
 }
-function BlockBranch({ nodes }: { nodes: BlockTreeNode[] }) {
+function BlockBranch({ nodes, textStyle }: { nodes: BlockTreeNode[]; textStyle: TextStyle }) {
   let listIndex = 0;
   return (
     <View className="gap-1.5">
       {nodes.map(({ block, children }) => {
         listIndex = block.type === 'numbered_list_item' ? listIndex + 1 : 0;
         return (
-          <BlockNode key={block.id} block={block} listIndex={listIndex} childrenNodes={children} />
+          <BlockNode
+            key={block.id}
+            block={block}
+            listIndex={listIndex}
+            childrenNodes={children}
+            textStyle={textStyle}
+          />
         );
       })}
     </View>
@@ -324,10 +346,12 @@ function BlockNode({
   block,
   listIndex,
   childrenNodes,
+  textStyle,
 }: {
   block: ReadOnlyBlock;
   listIndex: number;
   childrenNodes: BlockTreeNode[];
+  textStyle: TextStyle;
 }) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
@@ -335,12 +359,12 @@ function BlockNode({
   const toggle =
     block.type === 'toggle' ||
     (/^heading_[123]$/.test(block.type) && block.content.toggleable === true);
-  const Chevron = expanded ? ChevronDown : ChevronRight;
+  const Chevron = expanded ? RiArrowDownSLine : RiArrowRightSLine;
   // A canvas note, read as a page: its blocks in a frame, not under a line.
   if (block.type === 'canvas_note') {
     return (
       <View className="gap-1.5 rounded-xl border border-border px-3 py-2">
-        <BlockBranch nodes={childrenNodes} />
+        <BlockBranch nodes={childrenNodes} textStyle={textStyle} />
       </View>
     );
   }
@@ -357,16 +381,16 @@ function BlockNode({
             onPress={() => setExpanded((value) => !value)}
             className="p-1"
           >
-            <Chevron size={18} color={colors.mutedForeground} />
+            <Chevron width={18} height={18} fill={colors.mutedForeground} />
           </Pressable>
         ) : null}
         <View className="flex-1">
-          <SharedBlockRenderer block={block} listIndex={listIndex} />
+          <SharedBlockRenderer block={block} listIndex={listIndex} textStyle={textStyle} />
         </View>
       </View>
       {childrenNodes.length && (!toggle || expanded) ? (
         <View className="pl-4 border-l border-border">
-          <BlockBranch nodes={childrenNodes} />
+          <BlockBranch nodes={childrenNodes} textStyle={textStyle} />
         </View>
       ) : null}
     </View>

@@ -1,12 +1,13 @@
-import { ActivityIndicator, Platform, ScrollView, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
 import { Link, useLocalSearchParams } from 'expo-router';
 import Head from 'expo-router/head';
 import axios from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
 import { cn } from '@/lib/utils';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
+import { Button } from '@oxy.so/bloom/button';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { CoverDisplay } from '@/components/page-chrome/cover-display';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -41,16 +42,18 @@ export default function PublicSitePage() {
         </Head>
       ) : null}
       {query.isLoading ? (
-        <ActivityIndicator accessibilityLabel={t('common.loading')} />
+        <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
       ) : !data ? (
         <View className="flex-1 items-center justify-center p-6 gap-3">
-          <Text accessibilityRole="header" className="text-xl font-semibold">
+          <Text accessibilityRole="header" variant="title-2-semibold">
             {t(missing ? 'pages.publish.notFound' : 'pages.publish.loadFailed')}
           </Text>
-          <Text>{t(missing ? 'pages.publish.notFoundBody' : 'pages.publish.tryAgain')}</Text>
+          <Text variant="body-regular">
+            {t(missing ? 'pages.publish.notFoundBody' : 'pages.publish.tryAgain')}
+          </Text>
           {!missing ? (
-            <Button variant="outline" onPress={() => query.refetch()}>
-              <Text>{t('pages.publish.retry')}</Text>
+            <Button appearance="outline" onPress={() => query.refetch()}>
+              {t('pages.publish.retry')}
             </Button>
           ) : null}
         </View>
@@ -86,7 +89,7 @@ export default function PublicSitePage() {
             <IconDisplay value={data.page.icon} size={48} />
             <Text
               accessibilityRole="header"
-              className="text-3xl font-bold"
+              className="text-3xl font-bold text-foreground"
               style={{ fontFamily: PAGE_FONT_FAMILIES[data.page.font ?? 'default'] }}
             >
               {title}
@@ -99,21 +102,20 @@ export default function PublicSitePage() {
             />
             {data.children.length ? (
               <View className="border-t border-border pt-4 gap-3">
-                <Text accessibilityRole="header" className="font-semibold">
+                <Text accessibilityRole="header" variant="headline-semibold">
                   {t('pages.publish.subpages')}
                 </Text>
                 {data.children.map((child) => (
                   <Link key={child.id} href={`/pub/${slug}/${child.id}`} asChild>
                     <Button
-                      variant="ghost"
-                      className="justify-start"
+                      appearance="subtle"
                       accessibilityRole="link"
                       accessibilityLabel={t('pages.openPage', {
                         title: child.title || t('pages.untitled'),
                       })}
+                      leading={<IconDisplay value={child.icon} size={18} showPlaceholder />}
                     >
-                      <IconDisplay value={child.icon} size={18} showPlaceholder />
-                      <Text>{child.title || t('pages.untitled')}</Text>
+                      {child.title || t('pages.untitled')}
                     </Button>
                   </Link>
                 ))}

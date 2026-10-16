@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
 import { useIsMutating } from '@tanstack/react-query';
-import { SmilePlus } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { RiEmotionLine } from '@oxy.so/bloom/icons/RiEmotionLine';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useCommentReaction } from '@/lib/hooks/use-comments';
 import { profileName, useMemberProfiles } from '@/lib/hooks/use-member-profiles';
@@ -33,7 +33,7 @@ export function CommentReactions({
       predicate: (m) =>
         (m.state.variables as { comment?: Comment } | undefined)?.comment?.id === comment.id,
     }) > 0;
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const picker = useDialogControl();
   const [peopleEmoji, setPeopleEmoji] = useState<string | null>(null);
   const profiles = useMemberProfiles(comment.reactions.flatMap((r) => r.userIds));
   const people = comment.reactions
@@ -50,7 +50,7 @@ export function CommentReactions({
       emoji,
       remove: comment.reactions.some((r) => r.emoji === emoji && r.userIds.includes(user.id)),
     });
-    setPickerOpen(false);
+    picker.close();
   };
   return (
     <View className="gap-1">
@@ -72,7 +72,7 @@ export function CommentReactions({
               onHoverOut={() => setPeopleEmoji(null)}
               className={`rounded-full border px-2 py-1 ${selected ? 'bg-accent border-primary' : 'bg-muted border-border'}`}
             >
-              <Text className="text-xs text-foreground">
+              <Text variant="caption-1-regular">
                 {reaction.emoji} {reaction.userIds.length}
               </Text>
             </Pressable>
@@ -80,14 +80,14 @@ export function CommentReactions({
         })}
         {canComment ? (
           <Button
-            variant="ghost"
+            appearance="subtle"
             size="sm"
+            iconOnly
             disabled={pending}
             accessibilityLabel={t('comments.reactions.add')}
-            onPress={() => setPickerOpen(true)}
-          >
-            <SmilePlus size={16} className="text-muted-foreground" />
-          </Button>
+            onPress={() => picker.open()}
+            leadingIcon={RiEmotionLine}
+          />
         ) : null}
       </View>
       {people ? (
@@ -104,22 +104,24 @@ export function CommentReactions({
           {t('comments.reactions.failed')}
         </Text>
       ) : null}
-      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogContent className="max-w-xs">
-          <DialogTitle>{t('comments.reactions.add')}</DialogTitle>
-          <View className="flex-row flex-wrap gap-2">
-            {emojiChoices.map(({ emoji }) => (
-              <Button
-                key={emoji}
-                variant="ghost"
-                accessibilityLabel={t('comments.reactions.choose', { emoji })}
-                onPress={() => toggle(emoji)}
-              >
-                <Text>{emoji}</Text>
-              </Button>
-            ))}
-          </View>
-        </DialogContent>
+      <Dialog
+        control={picker}
+        title={t('comments.reactions.add')}
+        placement={{ base: 'bottom', md: 'center' }}
+        maxWidth={320}
+      >
+        <View className="flex-row flex-wrap gap-2">
+          {emojiChoices.map(({ emoji }) => (
+            <Button
+              key={emoji}
+              appearance="subtle"
+              accessibilityLabel={t('comments.reactions.choose', { emoji })}
+              onPress={() => toggle(emoji)}
+            >
+              {emoji}
+            </Button>
+          ))}
+        </View>
       </Dialog>
     </View>
   );

@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { Pressable } from 'react-native';
-import { Star } from 'lucide-react-native';
-import { useColorScheme } from '@/lib/useColorScheme';
+import { RiStarLine } from '@oxy.so/bloom/icons/RiStarLine';
+import { Button } from '@oxy.so/bloom/button';
+import { useTheme } from '@oxy.so/bloom/theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
 
@@ -16,7 +16,7 @@ interface FavoriteButtonProps {
  * the actions menu (single source of truth: the page itself).
  */
 export function FavoriteButton({ pageId, favorited }: FavoriteButtonProps) {
-  const { colors } = useColorScheme();
+  const { colors } = useTheme();
   const { t } = useTranslation();
   const updatePage = useUpdatePage();
 
@@ -25,16 +25,13 @@ export function FavoriteButton({ pageId, favorited }: FavoriteButtonProps) {
   }, [updatePage, pageId, favorited]);
 
   return (
-    <Pressable
+    <Button
+      appearance="subtle"
+      tone="neutral"
+      iconOnly
       onPress={handleToggle}
       accessibilityLabel={favorited ? t('pages.favorite.remove') : t('pages.favorite.add')}
-      className="h-9 w-9 items-center justify-center rounded-lg hover:bg-muted"
-    >
-      <Star
-        size={16}
-        color={favorited ? '#f59e0b' : colors.foreground}
-        fill={favorited ? '#f59e0b' : 'transparent'}
-      />
-    </Pressable>
+      leadingIcon={RiStarLine}
+    />
   );
 }

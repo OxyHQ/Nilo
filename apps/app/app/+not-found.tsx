@@ -1,5 +1,6 @@
 import { Link, Stack } from 'expo-router';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '@oxy.so/bloom/typography';
 import Head from 'expo-router/head';
 import { useTranslation } from '@/hooks/useTranslation';
 

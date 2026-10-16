@@ -1,6 +1,10 @@
-import { Pressable } from 'react-native';
-import { Text } from '@/components/ui/text';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
+import { Button } from '@oxy.so/bloom/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
 import { useTranslation } from '@/hooks/useTranslation';
 import { PAGE_GRANT_ROLES, canAssignPageRole } from '@/lib/hooks/page-access';
 import type { PageGrantRole, PageRole } from '@/lib/hooks/use-page-permissions';
@@ -20,28 +24,23 @@ export function PageRolePicker({
 }) {
   const { t } = useTranslation();
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger>
-        <Pressable
-          disabled={disabled}
-          accessibilityRole="button"
-          accessibilityLabel={label}
-          className="h-8 px-2 justify-center rounded-lg border border-border hover:bg-muted"
-        >
-          <Text className="text-xs font-medium text-foreground">{t(`sharing.roles.${role}`)}</Text>
-        </Pressable>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Content>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild disabled={disabled}>
+        <Button appearance="outline" size="sm" disabled={disabled} accessibilityLabel={label}>
+          {t(`sharing.roles.${role}`)}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
         {PAGE_GRANT_ROLES.map((option) => (
-          <DropdownMenu.Item
+          <DropdownMenuItem
             key={option}
             disabled={!canAssignPageRole(callerRole, option)}
-            onSelect={() => onChange(option)}
+            onPress={() => onChange(option)}
           >
-            <DropdownMenu.ItemTitle>{t(`sharing.roles.${option}`)}</DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
+            {t(`sharing.roles.${option}`)}
+          </DropdownMenuItem>
         ))}
-      </DropdownMenu.Content>
-    </DropdownMenu.Root>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

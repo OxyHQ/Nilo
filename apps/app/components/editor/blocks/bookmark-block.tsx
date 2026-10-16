@@ -1,9 +1,10 @@
 import * as React from 'react';
-import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useQuery } from '@tanstack/react-query';
-import { Link2 } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { RiLinkM } from '@oxy.so/bloom/icons/RiLinkM';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { fetchEmbedPreview } from '@/lib/embed-preview';
 import type { BlockComponentProps } from './types';
@@ -74,16 +75,15 @@ export function BookmarkBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
-          <Link2 size={16} color={colors.mutedForeground} />
+          <RiLinkM size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">Bookmark</Text>
         </View>
-        <TextInput
+        <TextFieldInput
+          label="Paste any URL"
           value={urlDraft}
           onChangeText={setUrlDraft}
           onBlur={() => commitUrl(urlDraft)}
           placeholder="Paste any URL"
-          placeholderTextColor={colors.mutedForeground}
-          className="rounded-md bg-background px-2 py-1.5 text-sm text-foreground border border-input"
         />
       </View>
     );
@@ -94,7 +94,7 @@ export function BookmarkBlock({ block, onChangeContent }: BlockComponentProps) {
   const cardBody = (
     <View className="flex-row gap-3 rounded-lg border border-border bg-muted/30 overflow-hidden">
       <View className="flex-1 px-3 py-2 gap-1">
-        <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
+        <Text variant="body-medium" numberOfLines={2}>
           {loading ? 'Loading…' : title || url}
         </Text>
         {description ? (

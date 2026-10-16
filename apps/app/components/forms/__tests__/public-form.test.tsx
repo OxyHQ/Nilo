@@ -3,8 +3,9 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import PublicFormRoute from '@/app/form/[token]';
 import apiClient from '@/lib/api/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@oxy.so/bloom/button';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { openAccountDialog } from '@oxy.so/services';
 
 jest.mock('@oxy.so/services', () => ({
@@ -12,9 +13,6 @@ jest.mock('@oxy.so/services', () => ({
   openAccountDialog: jest.fn(),
 }));
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({ token: 'token' }) }));
-jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0 }),
-}));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -37,9 +35,11 @@ const settle = () =>
 async function mount() {
   await act(async () => {
     renderer = create(
-      <QueryClientProvider client={client}>
-        <PublicFormRoute />
-      </QueryClientProvider>,
+      <BloomTestProviders>
+        <QueryClientProvider client={client}>
+          <PublicFormRoute />
+        </QueryClientProvider>
+      </BloomTestProviders>,
     );
   });
   await settle();
@@ -70,7 +70,7 @@ it('validates the Name before posting and resets all answers after thanks', asyn
   act(() => button('databases.form.submit')?.props.onPress());
   expect(apiClient.post).not.toHaveBeenCalled();
   expect(JSON.stringify(renderer.toJSON())).toContain('databases.form.required');
-  act(() => renderer.root.findByType(Input).props.onChangeText('Alice'));
+  act(() => renderer.root.findByType(TextFieldInput).props.onChangeText('Alice'));
   await act(async () => button('databases.form.submit')?.props.onPress());
   await settle();
   expect(apiClient.post).toHaveBeenCalledWith('/forms/token', {
@@ -79,7 +79,7 @@ it('validates the Name before posting and resets all answers after thanks', asyn
   expect(JSON.stringify(renderer.toJSON())).toContain('databases.form.thanks');
   act(() => button('databases.form.another')?.props.onPress());
   await settle();
-  expect(renderer.root.findByType(Input).props.value).toBe('');
+  expect(renderer.root.findByType(TextFieldInput).props.value).toBe('');
 });
 it('shows a closed form without accepting a response', async () => {
   jest.mocked(apiClient.get).mockRejectedValue({ isAxiosError: true, response: { status: 404 } });
@@ -103,11 +103,11 @@ it('retains answers and disables submission during Retry-After', async () => {
     response: { status: 429, headers: { 'retry-after': '60' } },
   });
   await mount();
-  act(() => renderer.root.findByType(Input).props.onChangeText('Alice'));
+  act(() => renderer.root.findByType(TextFieldInput).props.onChangeText('Alice'));
   await act(async () => button('databases.form.submit')?.props.onPress());
   await settle();
   expect(button('databases.form.submit')?.props.disabled).toBe(true);
-  expect(renderer.root.findByType(Input).props.value).toBe('Alice');
+  expect(renderer.root.findByType(TextFieldInput).props.value).toBe('Alice');
   expect(JSON.stringify(renderer.toJSON())).toContain('databases.form.rateLimited');
   expect(apiClient.post).toHaveBeenCalledTimes(1);
 });

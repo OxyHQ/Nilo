@@ -1,11 +1,37 @@
 import { resultPropertyFromRows } from '@/lib/formula-results';
 import * as React from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { ChevronDown, Plus, Trash2 } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { ScrollView, View } from 'react-native';
+import { RiFilter3Line } from '@oxy.so/bloom/icons/RiFilter3Line';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
+import { Button } from '@oxy.so/bloom/button';
+import { Chip } from '@oxy.so/bloom/chip';
+import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
+import {
+  SegmentedControl,
+  SegmentedControlItem,
+  SegmentedControlItemText,
+} from '@oxy.so/bloom/segmented-control';
+import {
+  Select,
+  SelectContent,
+  SelectIcon,
+  SelectItem,
+  SelectItemIndicator,
+  SelectItemText,
+  SelectTrigger,
+  SelectValue,
+} from '@oxy.so/bloom/select';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import i18n from '@/lib/i18n';
-import { useColorScheme } from '@/lib/useColorScheme';
 import type {
   Database,
   DatabaseProperty,
@@ -15,11 +41,8 @@ import type {
   FilterGroup,
 } from '@/lib/types/databases';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
-import { centeredModalStyle } from './centered-modal-style';
 
 interface FilterBuilderProps {
-  open: boolean;
-  onClose: () => void;
   database: Database;
   view: DatabaseView;
   rows: DatabaseRow[];
@@ -88,17 +111,11 @@ function operatorsFor(type: string): { value: string; label: string }[] {
 }
 
 /**
- * Filter builder modal — render the AND/OR tree as a flat list of
- * conditions (groups inside groups exist in the data model but aren't
- * exposed in the MVP UI to keep things simple).
+ * The toolbar's Filter button and the dialog it opens — render the AND/OR tree
+ * as a flat list of conditions (groups inside groups exist in the data model but
+ * aren't exposed in the MVP UI to keep things simple).
  */
-export function FilterBuilder({
-  open,
-  onClose,
-  database: sourceDatabase,
-  view,
-  rows,
-}: FilterBuilderProps) {
+export function FilterBuilder({ database: sourceDatabase, view, rows }: FilterBuilderProps) {
   const database = {
     ...sourceDatabase,
     schema: {
@@ -109,11 +126,14 @@ export function FilterBuilder({
   };
   const { t } = useTranslation();
   const updateView = useUpdateView();
+  const control = useDialogControl();
   const [draft, setDraft] = React.useState<FilterGroup>(() => cloneFilterGroup(view.filters));
+  const filterCount = countFilters(view.filters);
 
-  React.useEffect(() => {
-    if (open) setDraft(cloneFilterGroup(view.filters));
-  }, [open, view.filters]);
+  const open = () => {
+    setDraft(cloneFilterGroup(view.filters));
+    control.open();
+  };
 
   const apply = async () => {
     await updateView.mutateAsync({
@@ -121,7 +141,7 @@ export function FilterBuilder({
       viewId: view.id,
       filters: draft,
     });
-    onClose();
+    control.close();
   };
 
   const reset = async () => {
@@ -136,7 +156,7 @@ export function FilterBuilder({
       viewId: view.id,
       filters: empty,
     });
-    onClose();
+    control.close();
   };
 
   const addCondition = (property: DatabaseProperty) => {
@@ -172,99 +192,87 @@ export function FilterBuilder({
     }));
   };
 
-  const setCombinator = (combinator: 'and' | 'or') => {
-    setDraft((prev) => ({ ...prev, combinator }));
-  };
+  const label =
+    filterCount > 0
+      ? t('databases.toolbar.filterCount', { count: filterCount })
+      : t('databases.toolbar.filter');
 
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={StyleSheet.absoluteFill} className="bg-black/50" onPress={onClose} />
-      <View
-        className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2"
-        style={centeredModalStyle(520, 480)}
+    <>
+      <Button
+        appearance={filterCount > 0 ? 'subtle' : 'plain'}
+        tone={filterCount > 0 ? 'accent' : 'neutral'}
+        size="sm"
+        accessibilityLabel={label}
+        onPress={open}
+        leadingIcon={RiFilter3Line}
       >
-        <View className="bg-popover border border-border rounded-2xl shadow-xl p-4 m-3 web:m-0 gap-3">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-base font-semibold text-foreground">
-              {t('databases.filters.title')}
-            </Text>
-            <CombinatorPicker value={draft.combinator} onChange={setCombinator} />
-          </View>
-
-          <ScrollView style={{ maxHeight: 360 }} className="gap-2">
-            {draft.filters.length === 0 ? (
-              <View className="py-4">
-                <Text className="text-sm text-muted-foreground">
-                  {t('databases.filters.empty')}
-                </Text>
-              </View>
-            ) : (
-              draft.filters.map((filter, idx) =>
-                filter.kind === 'condition' ? (
-                  <ConditionRow
-                    // biome-ignore lint/suspicious/noArrayIndexKey: persisted conditions have no id, and a key derived from the condition would remount the row (closing its pickers) on every edit
-                    key={idx}
-                    database={database}
-                    filter={filter}
-                    onChange={(patch) => updateCondition(idx, patch)}
-                    onRemove={() => removeCondition(idx)}
-                  />
-                ) : null,
-              )
-            )}
-          </ScrollView>
-
-          <AddConditionButton database={database} onPick={addCondition} />
-
-          <View className="flex-row justify-end gap-2 mt-2">
-            <Pressable onPress={reset} className="px-3 py-1.5 rounded-md bg-muted">
-              <Text className="text-sm text-foreground">{t('databases.actions.clearAll')}</Text>
-            </Pressable>
-            <Pressable onPress={onClose} className="px-3 py-1.5 rounded-md bg-muted">
-              <Text className="text-sm text-foreground">{t('common.cancel')}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('databases.actions.apply')}
-              onPress={apply}
-              className="px-3 py-1.5 rounded-md bg-primary"
-            >
-              <Text className="text-sm text-primary-foreground">
-                {t('databases.actions.apply')}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-interface CombinatorPickerProps {
-  value: 'and' | 'or';
-  onChange: (next: 'and' | 'or') => void;
-}
-
-function CombinatorPicker({ value, onChange }: CombinatorPickerProps) {
-  const { t } = useTranslation();
-  return (
-    <View className="flex-row rounded-md border border-border overflow-hidden">
-      {(['and', 'or'] as const).map((option) => (
-        <Pressable
-          key={option}
-          onPress={() => onChange(option)}
-          className={`px-2 py-1 ${value === option ? 'bg-primary' : 'bg-muted'}`}
-        >
-          <Text
-            className={`text-xs uppercase ${
-              value === option ? 'text-primary-foreground' : 'text-foreground'
-            }`}
+        {label}
+      </Button>
+      <Dialog
+        control={control}
+        placement={{ base: 'bottom', md: 'center' }}
+        maxWidth={520}
+        title={t('databases.filters.title')}
+        actions={[
+          {
+            label: t('databases.actions.apply'),
+            shouldCloseOnPress: false,
+            onPress: () => void apply(),
+          },
+          {
+            label: t('databases.actions.clearAll'),
+            color: 'cancel',
+            shouldCloseOnPress: false,
+            onPress: () => void reset(),
+          },
+          { label: t('common.cancel'), color: 'cancel' },
+        ]}
+      >
+        <View className="gap-3 pb-4">
+          <SegmentedControl
+            type="radio"
+            size="sm"
+            className="self-start"
+            value={draft.combinator}
+            onValueChange={(combinator) => setDraft((prev) => ({ ...prev, combinator }))}
           >
-            {option === 'and' ? t('databases.filters.and') : t('databases.filters.or')}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
+            {(['and', 'or'] as const).map((option) => (
+              <SegmentedControlItem key={option} value={option}>
+                <SegmentedControlItemText>
+                  {option === 'and' ? t('databases.filters.and') : t('databases.filters.or')}
+                </SegmentedControlItemText>
+              </SegmentedControlItem>
+            ))}
+          </SegmentedControl>
+
+          {draft.filters.length === 0 ? (
+            <Text className="py-4 text-sm text-muted-foreground">
+              {t('databases.filters.empty')}
+            </Text>
+          ) : (
+            draft.filters.map((filter, idx) =>
+              filter.kind === 'condition' ? (
+                <ConditionRow
+                  // biome-ignore lint/suspicious/noArrayIndexKey: persisted conditions have no id, and a key derived from the condition would remount the row (closing its pickers) on every edit
+                  key={idx}
+                  database={database}
+                  filter={filter}
+                  onChange={(patch) => updateCondition(idx, patch)}
+                  onRemove={() => removeCondition(idx)}
+                />
+              ) : null,
+            )
+          )}
+
+          <PropertyMenu
+            label={t('databases.filters.add')}
+            properties={database.schema.properties}
+            onPick={addCondition}
+          />
+        </View>
+      </Dialog>
+    </>
   );
 }
 
@@ -276,25 +284,32 @@ interface ConditionRowProps {
 }
 
 function ConditionRow({ database, filter, onChange, onRemove }: ConditionRowProps) {
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const [propertyOpen, setPropertyOpen] = React.useState(false);
-  const [operatorOpen, setOperatorOpen] = React.useState(false);
-
   const property = database.schema.properties.find((p) => p.id === filter.propertyId);
   const operators = property ? operatorsFor(property.type) : [];
 
   return (
-    <View className="flex-row items-center gap-2 py-1">
-      <PickerButton
-        label={property?.name ?? t('databases.properties.property')}
-        onPress={() => setPropertyOpen((s) => !s)}
+    <View className="flex-row flex-wrap items-center gap-2 py-1">
+      <OptionSelect
+        label={t('databases.properties.property')}
+        value={filter.propertyId}
+        options={database.schema.properties.map((p) => ({ value: p.id, label: p.name }))}
+        onValueChange={(id) => {
+          const next = database.schema.properties.find((p) => p.id === id);
+          if (!next) return;
+          onChange({
+            propertyId: id,
+            operator: operatorsFor(next.type)[0]?.value ?? 'is_empty',
+            value: next.type === 'checkbox' ? true : '',
+          });
+        }}
       />
-      <PickerButton
-        label={operators.find((o) => o.value === filter.operator)?.label ?? filter.operator}
-        onPress={() => setOperatorOpen((s) => !s)}
+      <OptionSelect
+        value={filter.operator}
+        options={operators}
+        onValueChange={(operator) => onChange({ operator })}
       />
-      <View className="flex-1">
+      <View className="min-w-32 flex-1">
         <ConditionValueInput
           property={property ?? null}
           operator={filter.operator}
@@ -302,95 +317,72 @@ function ConditionRow({ database, filter, onChange, onRemove }: ConditionRowProp
           onChange={(value) => onChange({ value })}
         />
       </View>
-      <Pressable onPress={onRemove} className="p-1.5 rounded hover:bg-muted">
-        <Trash2 size={12} color={colors.mutedForeground} />
-      </Pressable>
-
-      {propertyOpen ? (
-        <ListPopover
-          onClose={() => setPropertyOpen(false)}
-          options={database.schema.properties.map((p) => ({
-            value: p.id,
-            label: p.name,
-          }))}
-          onSelect={(id) => {
-            const next = database.schema.properties.find((p) => p.id === id);
-            if (!next) return;
-            onChange({
-              propertyId: id,
-              operator: operatorsFor(next.type)[0]?.value ?? 'is_empty',
-              value: next.type === 'checkbox' ? true : '',
-            });
-            setPropertyOpen(false);
-          }}
-        />
-      ) : null}
-
-      {operatorOpen ? (
-        <ListPopover
-          onClose={() => setOperatorOpen(false)}
-          options={operators.map((o) => ({ value: o.value, label: o.label }))}
-          onSelect={(op) => {
-            onChange({ operator: op });
-            setOperatorOpen(false);
-          }}
-        />
-      ) : null}
+      <Button
+        iconOnly
+        appearance="plain"
+        size="xs"
+        accessibilityLabel={t('common.delete')}
+        onPress={onRemove}
+        leadingIcon={RiDeleteBin6Line}
+      />
     </View>
   );
 }
 
-interface PickerButtonProps {
-  label: string;
-  onPress: () => void;
+interface OptionSelectProps {
+  label?: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onValueChange: (value: string) => void;
 }
 
-function PickerButton({ label, onPress }: PickerButtonProps) {
-  const { colors } = useColorScheme();
+/** A compact picker for one of a condition's fixed choices. */
+function OptionSelect({ label, value, options, onValueChange }: OptionSelectProps) {
   return (
-    <Pressable
-      onPress={onPress}
-      className="flex-row items-center gap-1 px-2 py-1 rounded-md bg-muted/60"
-    >
-      <Text className="text-xs text-foreground">{label}</Text>
-      <ChevronDown size={10} color={colors.mutedForeground} />
-    </Pressable>
+    <Select size="sm" value={value} onValueChange={onValueChange}>
+      <SelectTrigger label={label}>
+        <SelectValue />
+        <SelectIcon />
+      </SelectTrigger>
+      <SelectContent
+        label={label}
+        items={options}
+        renderItem={(item) => (
+          <SelectItem value={item.value} label={item.label}>
+            <SelectItemIndicator />
+            <SelectItemText>{item.label}</SelectItemText>
+          </SelectItem>
+        )}
+      />
+    </Select>
   );
 }
 
-interface ListPopoverProps {
-  onClose: () => void;
-  options: { value: string; label: string }[];
-  onSelect: (value: string) => void;
+interface PropertyMenuProps {
+  label: string;
+  properties: DatabaseProperty[];
+  onPick: (property: DatabaseProperty) => void;
 }
 
-function ListPopover({ onClose, options, onSelect }: ListPopoverProps) {
-  // Renders inline below the trigger as an absolute box. Pressing
-  // outside dismisses.
+/** "+ Add" button opening the database's properties. */
+function PropertyMenu({ label, properties, onPick }: PropertyMenuProps) {
   return (
-    <View
-      style={{
-        position: 'absolute',
-        top: 32,
-        left: 0,
-        zIndex: 50,
-      }}
-    >
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} className="-inset-screen" />
-      <View className="bg-popover border border-border rounded-md shadow-xl p-1 min-w-[160px]">
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button appearance="plain" size="sm" className="self-start" leadingIcon={RiAddLine}>
+          {label}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" label={label}>
         <ScrollView style={{ maxHeight: 220 }}>
-          {options.map((o) => (
-            <Pressable
-              key={o.value}
-              onPress={() => onSelect(o.value)}
-              className="px-2 py-1.5 rounded hover:bg-muted"
-            >
-              <Text className="text-xs text-foreground">{o.label}</Text>
-            </Pressable>
+          {properties.map((p) => (
+            <DropdownMenuItem key={p.id} onPress={() => onPick(p)}>
+              {p.name}
+            </DropdownMenuItem>
           ))}
         </ScrollView>
-      </View>
-    </View>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -402,7 +394,6 @@ interface ConditionValueInputProps {
 }
 
 function ConditionValueInput({ property, operator, value, onChange }: ConditionValueInputProps) {
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   // Operators that don't take a value
   if (operator === 'is_empty' || operator === 'is_not_empty') {
@@ -411,49 +402,42 @@ function ConditionValueInput({ property, operator, value, onChange }: ConditionV
 
   if (property?.type === 'checkbox') {
     return (
-      <View className="flex-row items-center gap-2">
-        <Pressable
-          onPress={() => onChange(true)}
-          className={`px-2 py-1 rounded-md ${value === true ? 'bg-primary' : 'bg-muted'}`}
-        >
-          <Text
-            className={`text-xs ${value === true ? 'text-primary-foreground' : 'text-foreground'}`}
-          >
-            {t('databases.filters.checked')}
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => onChange(false)}
-          className={`px-2 py-1 rounded-md ${value === false ? 'bg-primary' : 'bg-muted'}`}
-        >
-          <Text
-            className={`text-xs ${value === false ? 'text-primary-foreground' : 'text-foreground'}`}
-          >
-            {t('databases.filters.unchecked')}
-          </Text>
-        </Pressable>
-      </View>
+      <SegmentedControl
+        type="radio"
+        size="sm"
+        className="self-start"
+        label={t('databases.filters.value')}
+        value={value === true ? 'checked' : value === false ? 'unchecked' : ''}
+        onValueChange={(next) => onChange(next === 'checked')}
+      >
+        <SegmentedControlItem value="checked">
+          <SegmentedControlItemText>{t('databases.filters.checked')}</SegmentedControlItemText>
+        </SegmentedControlItem>
+        <SegmentedControlItem value="unchecked">
+          <SegmentedControlItemText>{t('databases.filters.unchecked')}</SegmentedControlItemText>
+        </SegmentedControlItem>
+      </SegmentedControl>
     );
   }
 
   if (property?.type === 'select' || property?.type === 'status') {
     const opts = property.config?.options ?? [];
     return (
-      <View className="flex-row flex-wrap gap-1">
+      <View
+        accessibilityRole="radiogroup"
+        accessibilityLabel={t('databases.filters.value')}
+        className="flex-row flex-wrap gap-1"
+      >
         {opts.map((o) => (
-          <Pressable
+          <Chip
             key={o.id}
+            size="sm"
+            role="radio"
+            selected={value === o.id}
             onPress={() => onChange(o.id)}
-            className={`px-2 py-1 rounded-md ${value === o.id ? 'bg-primary' : 'bg-muted'}`}
           >
-            <Text
-              className={`text-xs ${
-                value === o.id ? 'text-primary-foreground' : 'text-foreground'
-              }`}
-            >
-              {o.name}
-            </Text>
-          </Pressable>
+            {o.name}
+          </Chip>
         ))}
       </View>
     );
@@ -461,7 +445,8 @@ function ConditionValueInput({ property, operator, value, onChange }: ConditionV
 
   const text = typeof value === 'string' ? value : String(value ?? '');
   return (
-    <TextInput
+    <TextFieldInput
+      size="sm"
       value={text}
       onChangeText={(text) =>
         onChange(
@@ -471,51 +456,18 @@ function ConditionValueInput({ property, operator, value, onChange }: ConditionV
         )
       }
       keyboardType={property?.type === 'number' ? 'numeric' : 'default'}
-      accessibilityLabel={t('databases.filters.value')}
-      placeholder={t('databases.filters.value')}
-      placeholderTextColor={colors.mutedForeground}
-      className="text-sm text-foreground border border-border rounded-md px-2 py-1"
-      style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
-      underlineColorAndroid="transparent"
+      label={t('databases.filters.value')}
     />
   );
 }
 
-interface AddConditionButtonProps {
-  database: Database;
-  onPick: (property: DatabaseProperty) => void;
-}
-
-function AddConditionButton({ database, onPick }: AddConditionButtonProps) {
-  const { colors } = useColorScheme();
-  const { t } = useTranslation();
-  const [open, setOpen] = React.useState(false);
-
-  return (
-    <View>
-      <Pressable
-        onPress={() => setOpen((s) => !s)}
-        className="flex-row items-center gap-1 self-start px-2 py-1 rounded hover:bg-muted"
-      >
-        <Plus size={12} color={colors.mutedForeground} />
-        <Text className="text-xs text-muted-foreground">{t('databases.filters.add')}</Text>
-      </Pressable>
-      {open ? (
-        <ListPopover
-          onClose={() => setOpen(false)}
-          options={database.schema.properties.map((p) => ({
-            value: p.id,
-            label: p.name,
-          }))}
-          onSelect={(id) => {
-            const target = database.schema.properties.find((p) => p.id === id);
-            if (target) onPick(target);
-            setOpen(false);
-          }}
-        />
-      ) : null}
-    </View>
-  );
+function countFilters(group: FilterGroup): number {
+  let count = 0;
+  for (const f of group.filters) {
+    if (f.kind === 'condition') count += 1;
+    else count += countFilters(f);
+  }
+  return count;
 }
 
 function cloneFilterGroup(group: FilterGroup): FilterGroup {

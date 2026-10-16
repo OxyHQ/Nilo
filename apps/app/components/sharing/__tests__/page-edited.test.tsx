@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Pencil } from 'lucide-react-native';
+import { RiPencilLine } from '@oxy.so/bloom/icons/RiPencilLine';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import NotificationsScreen from '@/app/(app)/notifications';
 import { usePage } from '@/lib/hooks/use-pages';
 
@@ -12,12 +13,6 @@ jest.mock('expo-router', () => ({
 jest.mock('@oxy.so/services', () => ({ useAuth: () => ({ isAuthenticated: true }) }));
 jest.mock('expo-notifications', () => ({
   getPermissionsAsync: async () => ({ status: 'granted' }),
-}));
-jest.mock('react-native-reanimated', () => ({
-  __esModule: true,
-  default: { View: require('react-native').View },
-  FadeIn: { duration: jest.fn() },
-  FadeOut: { duration: jest.fn() },
 }));
 jest.mock('@/components/reminders/reminder-list', () => ({ ReminderList: () => null }));
 jest.mock('@/components/sharing/page-shared-notification', () => ({
@@ -57,9 +52,13 @@ let renderer: ReactTestRenderer;
 afterEach(() => act(() => renderer?.unmount()));
 it('renders the edit icon and translated page title, opens the page, and marks the notice read', async () => {
   await act(async () => {
-    renderer = create(<NotificationsScreen />);
+    renderer = create(
+      <BloomTestProviders>
+        <NotificationsScreen />
+      </BloomTestProviders>,
+    );
   });
-  expect(renderer.root.findAllByType(Pencil)).toHaveLength(1);
+  expect(renderer.root.findAllByType(RiPencilLine)).toHaveLength(1);
   expect(JSON.stringify(renderer.toJSON())).toContain('Roadmap was edited');
   expect(usePage).toHaveBeenCalledWith('page');
   act(() =>

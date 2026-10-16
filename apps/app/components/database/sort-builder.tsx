@@ -1,28 +1,51 @@
 import * as React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { ArrowDownAZ, ArrowUpAZ, ChevronDown, Plus, Trash2 } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { ScrollView, View } from 'react-native';
+import { RiSortAlphabetAsc } from '@oxy.so/bloom/icons/RiSortAlphabetAsc';
+import { RiSortAlphabetDesc } from '@oxy.so/bloom/icons/RiSortAlphabetDesc';
+import { RiArrowUpDownLine } from '@oxy.so/bloom/icons/RiArrowUpDownLine';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
+import { Button } from '@oxy.so/bloom/button';
+import { ButtonGroup, ButtonGroupItem } from '@oxy.so/bloom/button-group';
+import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectIcon,
+  SelectItem,
+  SelectItemIndicator,
+  SelectItemText,
+  SelectTrigger,
+  SelectValue,
+} from '@oxy.so/bloom/select';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseView, ViewSort } from '@/lib/types/databases';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
-import { centeredModalStyle } from './centered-modal-style';
 
 interface SortBuilderProps {
-  open: boolean;
-  onClose: () => void;
   database: Database;
   view: DatabaseView;
 }
 
-export function SortBuilder({ open, onClose, database, view }: SortBuilderProps) {
+/** The toolbar's Sort button and the dialog it opens. */
+export function SortBuilder({ database, view }: SortBuilderProps) {
   const { t } = useTranslation();
   const updateView = useUpdateView();
+  const control = useDialogControl();
   const [draft, setDraft] = React.useState<ViewSort[]>(view.sorts);
+  const sortCount = view.sorts.length;
 
-  React.useEffect(() => {
-    if (open) setDraft(view.sorts);
-  }, [open, view.sorts]);
+  const open = () => {
+    setDraft(view.sorts);
+    control.open();
+  };
 
   const apply = async () => {
     await updateView.mutateAsync({
@@ -30,7 +53,7 @@ export function SortBuilder({ open, onClose, database, view }: SortBuilderProps)
       viewId: view.id,
       sorts: draft,
     });
-    onClose();
+    control.close();
   };
 
   const clearAll = async () => {
@@ -40,70 +63,101 @@ export function SortBuilder({ open, onClose, database, view }: SortBuilderProps)
       viewId: view.id,
       sorts: [],
     });
-    onClose();
+    control.close();
   };
 
+  const label =
+    sortCount > 0
+      ? t('databases.toolbar.sortCount', { count: sortCount })
+      : t('databases.toolbar.sort');
+  const existing = draft.map((s) => s.propertyId);
+  const available = database.schema.properties.filter((p) => !existing.includes(p.id));
+
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={StyleSheet.absoluteFill} className="bg-black/50" onPress={onClose} />
-      <View
-        className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2"
-        style={centeredModalStyle(460, 420)}
+    <>
+      <Button
+        appearance={sortCount > 0 ? 'subtle' : 'plain'}
+        tone={sortCount > 0 ? 'accent' : 'neutral'}
+        size="sm"
+        accessibilityLabel={label}
+        onPress={open}
+        leadingIcon={RiArrowUpDownLine}
       >
-        <View className="bg-popover border border-border rounded-2xl shadow-xl p-4 m-3 web:m-0 gap-3">
-          <Text className="text-base font-semibold text-foreground">
-            {t('databases.sorts.title')}
-          </Text>
+        {label}
+      </Button>
+      <Dialog
+        control={control}
+        placement={{ base: 'bottom', md: 'center' }}
+        maxWidth={460}
+        title={t('databases.sorts.title')}
+        actions={[
+          {
+            label: t('databases.actions.apply'),
+            shouldCloseOnPress: false,
+            onPress: () => void apply(),
+          },
+          {
+            label: t('databases.actions.clearAll'),
+            color: 'cancel',
+            shouldCloseOnPress: false,
+            onPress: () => void clearAll(),
+          },
+          { label: t('common.cancel'), color: 'cancel' },
+        ]}
+      >
+        <View className="gap-3 pb-4">
+          {draft.length === 0 ? (
+            <Text className="py-2 text-sm text-muted-foreground">{t('databases.sorts.empty')}</Text>
+          ) : (
+            draft.map((sort, idx) => (
+              <SortRow
+                // biome-ignore lint/suspicious/noArrayIndexKey: persisted sorts have no id and the same property may appear twice while editing; the row is controlled by this draft
+                key={`${sort.propertyId}-${idx}`}
+                database={database}
+                sort={sort}
+                onChange={(patch) =>
+                  setDraft((prev) => {
+                    const next = [...prev];
+                    next[idx] = { ...next[idx], ...patch };
+                    return next;
+                  })
+                }
+                onRemove={() => setDraft((prev) => prev.filter((_, i) => i !== idx))}
+              />
+            ))
+          )}
 
-          <ScrollView style={{ maxHeight: 300 }} className="gap-2">
-            {draft.length === 0 ? (
-              <Text className="text-sm text-muted-foreground py-2">
-                {t('databases.sorts.empty')}
-              </Text>
-            ) : (
-              draft.map((sort, idx) => (
-                <SortRow
-                  // biome-ignore lint/suspicious/noArrayIndexKey: persisted sorts have no id and the same property may appear twice while editing; the row is controlled by this draft
-                  key={`${sort.propertyId}-${idx}`}
-                  database={database}
-                  sort={sort}
-                  onChange={(patch) =>
-                    setDraft((prev) => {
-                      const next = [...prev];
-                      next[idx] = { ...next[idx], ...patch };
-                      return next;
-                    })
-                  }
-                  onRemove={() => setDraft((prev) => prev.filter((_, i) => i !== idx))}
-                />
-              ))
-            )}
-          </ScrollView>
-
-          <AddSortButton
-            database={database}
-            existing={draft.map((s) => s.propertyId)}
-            onPick={(propertyId) =>
-              setDraft((prev) => [...prev, { propertyId, direction: 'asc' } satisfies ViewSort])
-            }
-          />
-
-          <View className="flex-row justify-end gap-2 mt-2">
-            <Pressable onPress={clearAll} className="px-3 py-1.5 rounded-md bg-muted">
-              <Text className="text-sm text-foreground">{t('databases.actions.clearAll')}</Text>
-            </Pressable>
-            <Pressable onPress={onClose} className="px-3 py-1.5 rounded-md bg-muted">
-              <Text className="text-sm text-foreground">{t('common.cancel')}</Text>
-            </Pressable>
-            <Pressable onPress={apply} className="px-3 py-1.5 rounded-md bg-primary">
-              <Text className="text-sm text-primary-foreground">
-                {t('databases.actions.apply')}
-              </Text>
-            </Pressable>
-          </View>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button appearance="plain" size="sm" className="self-start" leadingIcon={RiAddLine}>
+                {t('databases.sorts.add')}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" label={t('databases.sorts.add')}>
+              <ScrollView style={{ maxHeight: 220 }}>
+                {available.length === 0 ? (
+                  <DropdownMenuItem disabled>{t('databases.sorts.allAdded')}</DropdownMenuItem>
+                ) : (
+                  available.map((p) => (
+                    <DropdownMenuItem
+                      key={p.id}
+                      onPress={() =>
+                        setDraft((prev) => [
+                          ...prev,
+                          { propertyId: p.id, direction: 'asc' } satisfies ViewSort,
+                        ])
+                      }
+                    >
+                      {p.name}
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </ScrollView>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </View>
-      </View>
-    </Modal>
+      </Dialog>
+    </>
   );
 }
 
@@ -115,130 +169,58 @@ interface SortRowProps {
 }
 
 function SortRow({ database, sort, onChange, onRemove }: SortRowProps) {
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const [open, setOpen] = React.useState(false);
-  const property = database.schema.properties.find((p) => p.id === sort.propertyId);
+  const properties = database.schema.properties.map((p) => ({ value: p.id, label: p.name }));
 
   return (
     <View className="flex-row items-center gap-2 py-1">
-      <Pressable
-        onPress={() => setOpen((s) => !s)}
-        className="flex-row items-center gap-1 px-2 py-1 rounded-md bg-muted/60"
+      <Select
+        size="sm"
+        value={sort.propertyId}
+        onValueChange={(propertyId) => onChange({ propertyId })}
       >
-        <Text className="text-xs text-foreground">
-          {property?.name ?? t('databases.properties.property')}
-        </Text>
-        <ChevronDown size={10} color={colors.mutedForeground} />
-      </Pressable>
+        <SelectTrigger label={t('databases.properties.property')}>
+          <SelectValue placeholder={t('databases.properties.property')} />
+          <SelectIcon />
+        </SelectTrigger>
+        <SelectContent
+          label={t('databases.properties.property')}
+          items={properties}
+          renderItem={(item) => (
+            <SelectItem value={item.value} label={item.label}>
+              <SelectItemIndicator />
+              <SelectItemText>{item.label}</SelectItemText>
+            </SelectItem>
+          )}
+        />
+      </Select>
 
-      <View className="flex-row rounded-md border border-border overflow-hidden">
-        {(['asc', 'desc'] as const).map((dir) => {
-          const Icon = dir === 'asc' ? ArrowUpAZ : ArrowDownAZ;
-          return (
-            <Pressable
-              key={dir}
-              onPress={() => onChange({ direction: dir })}
-              className={`px-2 py-1 ${sort.direction === dir ? 'bg-primary' : 'bg-muted'}`}
-            >
-              <Icon size={12} color={sort.direction === dir ? '#ffffff' : colors.foreground} />
-            </Pressable>
-          );
-        })}
-      </View>
+      <ButtonGroup size="xs">
+        <ButtonGroupItem
+          iconOnly
+          checked={sort.direction === 'asc'}
+          accessibilityLabel={t('databases.properties.sortAscending')}
+          onPress={() => onChange({ direction: 'asc' })}
+          leadingIcon={RiSortAlphabetDesc}
+        />
+        <ButtonGroupItem
+          iconOnly
+          checked={sort.direction === 'desc'}
+          accessibilityLabel={t('databases.properties.sortDescending')}
+          onPress={() => onChange({ direction: 'desc' })}
+          leadingIcon={RiSortAlphabetAsc}
+        />
+      </ButtonGroup>
 
       <View className="flex-1" />
-      <Pressable onPress={onRemove} className="p-1.5 rounded hover:bg-muted">
-        <Trash2 size={12} color={colors.mutedForeground} />
-      </Pressable>
-
-      {open ? (
-        <View
-          style={{
-            position: 'absolute',
-            top: 32,
-            left: 0,
-            zIndex: 50,
-          }}
-        >
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
-          <View className="bg-popover border border-border rounded-md shadow-xl p-1 min-w-[160px]">
-            <ScrollView style={{ maxHeight: 220 }}>
-              {database.schema.properties.map((p) => (
-                <Pressable
-                  key={p.id}
-                  onPress={() => {
-                    onChange({ propertyId: p.id });
-                    setOpen(false);
-                  }}
-                  className="px-2 py-1.5 rounded hover:bg-muted"
-                >
-                  <Text className="text-xs text-foreground">{p.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-interface AddSortButtonProps {
-  database: Database;
-  existing: string[];
-  onPick: (propertyId: string) => void;
-}
-
-function AddSortButton({ database, existing, onPick }: AddSortButtonProps) {
-  const { colors } = useColorScheme();
-  const { t } = useTranslation();
-  const [open, setOpen] = React.useState(false);
-  const available = database.schema.properties.filter((p) => !existing.includes(p.id));
-
-  return (
-    <View>
-      <Pressable
-        onPress={() => setOpen((s) => !s)}
-        className="flex-row items-center gap-1 self-start px-2 py-1 rounded hover:bg-muted"
-      >
-        <Plus size={12} color={colors.mutedForeground} />
-        <Text className="text-xs text-muted-foreground">{t('databases.sorts.add')}</Text>
-      </Pressable>
-      {open ? (
-        <View
-          style={{
-            position: 'absolute',
-            top: 32,
-            left: 0,
-            zIndex: 50,
-          }}
-        >
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
-          <View className="bg-popover border border-border rounded-md shadow-xl p-1 min-w-[180px]">
-            <ScrollView style={{ maxHeight: 220 }}>
-              {available.length === 0 ? (
-                <Text className="text-xs text-muted-foreground px-2 py-1.5">
-                  {t('databases.sorts.allAdded')}
-                </Text>
-              ) : (
-                available.map((p) => (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => {
-                      onPick(p.id);
-                      setOpen(false);
-                    }}
-                    className="px-2 py-1.5 rounded hover:bg-muted"
-                  >
-                    <Text className="text-xs text-foreground">{p.name}</Text>
-                  </Pressable>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      ) : null}
+      <Button
+        iconOnly
+        appearance="plain"
+        size="xs"
+        accessibilityLabel={t('common.delete')}
+        onPress={onRemove}
+        leadingIcon={RiDeleteBin6Line}
+      />
     </View>
   );
 }

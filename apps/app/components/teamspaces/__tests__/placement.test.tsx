@@ -4,7 +4,7 @@ jest.mock('@/lib/realtime/use-live-updates', () => ({
 }));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { NewPageDialog } from '@/components/templates/new-page-dialog';
 import { MoveToDialog } from '@/components/page-chrome/move-to-dialog';
 import { PlacementSections } from '@/components/sidebar-sections/placement-sections';
@@ -28,9 +28,34 @@ jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), post: jest.fn(), patch: jest.fn() },
 }));
-jest.mock('@/components/ui/dialog', () => {
+// The dialog's own surface needs native overlay modules. This one is always
+// shown, and closing it through its control reports the close as Bloom's does.
+jest.mock('@oxy.so/bloom/dialog', () => {
+  const { createElement, useImperativeHandle } = require('react');
   const { View } = require('react-native');
-  return { Dialog: View, DialogContent: View, DialogTitle: View };
+  function Dialog({
+    children,
+    control,
+    onClose,
+  }: {
+    children: React.ReactNode;
+    control?: { ref: React.Ref<unknown> };
+    onClose?: () => void;
+  }) {
+    useImperativeHandle(
+      control?.ref,
+      () => ({
+        open: () => {},
+        close: (callback?: () => void) => {
+          onClose?.();
+          callback?.();
+        },
+      }),
+      [onClose],
+    );
+    return createElement(View, null, children);
+  }
+  return { ...jest.requireActual('@oxy.so/bloom/dialog'), Dialog };
 });
 jest.mock('@/components/sidebar-sections/sidebar-section', () => ({
   SidebarSection: ({ children }: { children: React.ReactNode }) => children,
@@ -61,16 +86,28 @@ let client: QueryClient;
 let renderer: ReactTestRenderer;
 async function mount(element: React.ReactNode) {
   await act(async () => {
-    renderer = create(<QueryClientProvider client={client}>{element}</QueryClientProvider>);
+    renderer = create(
+      <BloomTestProviders>
+        <QueryClientProvider client={client}>{element}</QueryClientProvider>
+      </BloomTestProviders>,
+    );
   });
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 }
+/** The labels of everything pressable, by props: the outermost node is the Bloom control. */
+function pressables() {
+  return renderer.root.findAll(
+    (node) =>
+      typeof node.props.accessibilityLabel === 'string' && typeof node.props.onPress === 'function',
+  );
+}
+function labels() {
+  return pressables().map((node) => node.props.accessibilityLabel);
+}
 async function press(label: string) {
-  const button = renderer.root
-    .findAllByType(Button)
-    .find((b) => b.props.accessibilityLabel === label);
+  const button = pressables().find((b) => b.props.accessibilityLabel === label);
   if (!button) throw new Error(`Missing button: ${label}`);
   await act(async () => {
     button.props.onPress();
@@ -191,12 +228,8 @@ it.each([
       page={{ id: 'page', workspaceId: 'w', parentId: 'parent' } as Page}
     />,
   );
-  expect(renderer.root.findAllByType(Button).map((b) => b.props.accessibilityLabel)).not.toContain(
-    'Closed',
-  );
-  expect(renderer.root.findAllByType(Button).map((b) => b.props.accessibilityLabel)).toContain(
-    'Open',
-  );
+  expect(labels()).not.toContain('Closed');
+  expect(labels()).toContain('Open');
   await press(label);
   expect(apiClient.patch).toHaveBeenCalledWith('/pages/page', { parentId: null, teamspaceId });
   expect(closed).toHaveBeenCalledWith(false);

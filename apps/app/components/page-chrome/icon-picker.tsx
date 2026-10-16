@@ -1,19 +1,25 @@
 import * as React from 'react';
-import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
-import { Dice5, Trash2, X } from 'lucide-react-native';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Text } from '@/components/ui/text';
+import { Pressable, ScrollView, View } from 'react-native';
+import { RiDice5Line } from '@oxy.so/bloom/icons/RiDice5Line';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { RadioGroup } from '@oxy.so/bloom/radio';
+import { Tabs, TabsTrigger } from '@oxy.so/bloom/tabs';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { EMOJI_CATEGORIES, SKIN_TONES, applySkinTone, type EmojiEntry } from './emoji-data';
-import { LUCIDE_ICONS } from './lucide-icons';
+import { PAGE_ICONS } from './page-icons';
 import { encodeEmoji, encodeIcon, encodeImage } from './icon-value';
 
 type Tab = 'emoji' | 'icon' | 'upload';
 
 interface IconPickerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  /** Opened by the caller with `control.open()`; the picker closes itself. */
+  control: DialogControlProps;
   /**
    * Called with the new encoded icon string or `null` to clear it.
    * The caller (PageChrome) is responsible for persisting via useUpdatePage.
@@ -27,76 +33,86 @@ interface IconPickerProps {
 }
 
 /**
- * Page icon picker. Tabs: Emoji (default) | Icon (lucide) | Upload (web).
- * Layout-wise the picker fits a 480px-wide popover-style dialog.
+ * Page icon picker. Tabs: Emoji (default) | Icon | Upload (web).
+ * Layout-wise the picker fits a 672px-wide dialog.
  */
-export function IconPicker({ open, onOpenChange, onSelect, onUploadImage }: IconPickerProps) {
+export function IconPicker({ control, onSelect, onUploadImage }: IconPickerProps) {
   const [tab, setTab] = React.useState<Tab>('emoji');
   const [query, setQuery] = React.useState('');
   const [skinTone, setSkinTone] = React.useState<string>('');
   const { t } = useTranslation();
+  const header = React.useMemo(() => ({ title: t('pages.iconPicker.title') }), [t]);
 
   const handleSelect = React.useCallback(
     (next: string | null) => {
       onSelect(next);
-      onOpenChange(false);
+      control.close();
     },
-    [onSelect, onOpenChange],
+    [onSelect, control],
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl gap-3 p-4" showCloseButton={false}>
-        <View className="flex-row items-center justify-between">
-          <DialogTitle>{t('pages.iconPicker.title')}</DialogTitle>
-          <Pressable
-            onPress={() => onOpenChange(false)}
-            className="h-8 w-8 items-center justify-center rounded-md hover:bg-muted"
-            accessibilityLabel={t('common.close')}
-          >
-            <X size={16} className="text-muted-foreground" />
-          </Pressable>
-        </View>
-
+    <Dialog
+      control={control}
+      header={header}
+      label={t('pages.iconPicker.title')}
+      placement={{ base: 'bottom', md: 'center' }}
+      maxWidth={672}
+    >
+      <View className="gap-3">
         {/* Tab bar + action buttons */}
         <View className="flex-row items-center gap-2">
-          <PickerTabButton
-            label={t('pages.iconPicker.tabs.emoji')}
-            active={tab === 'emoji'}
-            onPress={() => setTab('emoji')}
-          />
-          <PickerTabButton
-            label={t('pages.iconPicker.tabs.icon')}
-            active={tab === 'icon'}
-            onPress={() => setTab('icon')}
-          />
-          <PickerTabButton
-            label={t('pages.iconPicker.tabs.upload')}
-            active={tab === 'upload'}
-            onPress={() => setTab('upload')}
-          />
-          <View className="flex-1" />
-          <RandomButton onPress={() => handleSelect(randomEmojiEncoded())} />
-          <RemoveButton onPress={() => handleSelect(null)} />
+          <View className="min-w-0 flex-1">
+            <Tabs
+              variant="pill"
+              value={tab}
+              onValueChange={(next) => setTab(next as Tab)}
+              label={t('pages.iconPicker.title')}
+            >
+              <TabsTrigger value="emoji" label={t('pages.iconPicker.tabs.emoji')} />
+              <TabsTrigger value="icon" label={t('pages.iconPicker.tabs.icon')} />
+              <TabsTrigger value="upload" label={t('pages.iconPicker.tabs.upload')} />
+            </Tabs>
+          </View>
+          <Button
+            appearance="outline"
+            tone="neutral"
+            size="sm"
+            onPress={() => handleSelect(randomEmojiEncoded())}
+            accessibilityLabel={t('pages.iconPicker.randomEmoji')}
+            leadingIcon={RiDice5Line}
+          >
+            {t('pages.iconPicker.random')}
+          </Button>
+          <Button
+            appearance="outline"
+            tone="danger"
+            size="sm"
+            onPress={() => handleSelect(null)}
+            accessibilityLabel={t('pages.iconPicker.removeIcon')}
+            leadingIcon={RiDeleteBin6Line}
+          >
+            {t('pages.iconPicker.remove')}
+          </Button>
         </View>
 
         {/* Search */}
         {tab !== 'upload' ? (
-          <View className="flex-row items-center gap-2 rounded-lg border border-border px-3 py-1.5">
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder={
-                tab === 'emoji'
-                  ? t('pages.iconPicker.searchEmojis')
-                  : t('pages.iconPicker.searchIcons')
-              }
-              className="flex-1 text-sm text-foreground"
-              style={
-                Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined
-              }
-            />
-          </View>
+          <TextFieldInput
+            size="sm"
+            value={query}
+            onChangeText={setQuery}
+            label={
+              tab === 'emoji'
+                ? t('pages.iconPicker.searchEmojis')
+                : t('pages.iconPicker.searchIcons')
+            }
+            placeholder={
+              tab === 'emoji'
+                ? t('pages.iconPicker.searchEmojis')
+                : t('pages.iconPicker.searchIcons')
+            }
+          />
         ) : null}
 
         {/* Tab body */}
@@ -117,65 +133,8 @@ export function IconPicker({ open, onOpenChange, onSelect, onUploadImage }: Icon
             }}
           />
         )}
-      </DialogContent>
+      </View>
     </Dialog>
-  );
-}
-
-/* ---------------------------------------------------------------- *
- * Tab bar pieces
- * ---------------------------------------------------------------- */
-
-interface PickerTabButtonProps {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}
-function PickerTabButton({ label, active, onPress }: PickerTabButtonProps) {
-  return (
-    <Pressable
-      onPress={onPress}
-      className={
-        active ? 'rounded-md bg-muted px-3 py-1.5' : 'rounded-md px-3 py-1.5 hover:bg-muted/60'
-      }
-    >
-      <Text
-        className={
-          active ? 'text-sm font-semibold text-foreground' : 'text-sm text-muted-foreground'
-        }
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-function RandomButton({ onPress }: { onPress: () => void }) {
-  const { colors } = useColorScheme();
-  const { t } = useTranslation();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityLabel={t('pages.iconPicker.randomEmoji')}
-      className="h-8 flex-row items-center gap-1 rounded-md border border-border px-2 hover:bg-muted"
-    >
-      <Dice5 size={14} color={colors.foreground} />
-      <Text className="text-xs font-medium text-foreground">{t('pages.iconPicker.random')}</Text>
-    </Pressable>
-  );
-}
-function RemoveButton({ onPress }: { onPress: () => void }) {
-  const { colors } = useColorScheme();
-  const { t } = useTranslation();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityLabel={t('pages.iconPicker.removeIcon')}
-      className="h-8 flex-row items-center gap-1 rounded-md border border-border px-2 hover:bg-destructive/10"
-    >
-      <Trash2 size={14} color={colors.foreground} />
-      <Text className="text-xs font-medium text-foreground">{t('pages.iconPicker.remove')}</Text>
-    </Pressable>
   );
 }
 
@@ -207,23 +166,21 @@ function EmojiTab({ query, skinTone, onChangeSkinTone, onPickEmoji }: EmojiTabPr
       {/* Skin tone row */}
       <View className="flex-row items-center gap-1">
         <Text className="text-xs text-muted-foreground">{t('pages.iconPicker.skinTone')}</Text>
-        {SKIN_TONES.map((tone) => {
-          const active = tone.id === skinTone || (!skinTone && tone.id === 'default');
-          return (
-            <Pressable
-              key={tone.id}
-              onPress={() => onChangeSkinTone(tone.id)}
-              accessibilityLabel={tone.label()}
-              className={
-                active
-                  ? 'h-6 w-6 items-center justify-center rounded-full border-2 border-primary'
-                  : 'h-6 w-6 items-center justify-center rounded-full border border-border'
-              }
-            >
+        <RadioGroup
+          variant="chip"
+          size="xs"
+          label={t('pages.iconPicker.skinTone')}
+          className="flex-row items-center gap-1"
+          value={skinTone || 'default'}
+          onValueChange={onChangeSkinTone}
+          options={SKIN_TONES.map((tone) => ({
+            value: tone.id,
+            accessibilityLabel: tone.label(),
+            labelContent: (
               <Text style={{ fontSize: 14 }}>{tone.modifier ? `👋${tone.modifier}` : '👋'}</Text>
-            </Pressable>
-          );
-        })}
+            ),
+          }))}
+        />
       </View>
 
       <ScrollView
@@ -232,9 +189,7 @@ function EmojiTab({ query, skinTone, onChangeSkinTone, onPickEmoji }: EmojiTabPr
         keyboardShouldPersistTaps="handled"
       >
         {filtered.length === 0 ? (
-          <Text className="px-2 py-6 text-center text-sm text-muted-foreground">
-            {t('pages.iconPicker.noEmojis', { query })}
-          </Text>
+          <EmptyState variant="compact" title={t('pages.iconPicker.noEmojis', { query })} />
         ) : (
           filtered.map((cat) => (
             <View key={cat.id} className="pb-2">
@@ -278,7 +233,7 @@ const EmojiCell = React.memo(function EmojiCell({ entry, modifier, onPress }: Em
 });
 
 /* ---------------------------------------------------------------- *
- * Icon tab (lucide)
+ * Icon tab (Bloom icons)
  * ---------------------------------------------------------------- */
 
 interface IconTabProps {
@@ -290,10 +245,8 @@ function IconTab({ query, onPickIcon }: IconTabProps) {
   const { t } = useTranslation();
   const normalized = query.trim().toLowerCase();
   const filtered = React.useMemo(() => {
-    if (!normalized) return LUCIDE_ICONS;
-    return LUCIDE_ICONS.filter(
-      (e) => e.name.includes(normalized) || e.keywords.includes(normalized),
-    );
+    if (!normalized) return PAGE_ICONS;
+    return PAGE_ICONS.filter((e) => e.name.includes(normalized) || e.keywords.includes(normalized));
   }, [normalized]);
 
   return (
@@ -303,9 +256,7 @@ function IconTab({ query, onPickIcon }: IconTabProps) {
       keyboardShouldPersistTaps="handled"
     >
       {filtered.length === 0 ? (
-        <Text className="px-2 py-6 text-center text-sm text-muted-foreground">
-          {t('pages.iconPicker.noIcons', { query })}
-        </Text>
+        <EmptyState variant="compact" title={t('pages.iconPicker.noIcons', { query })} />
       ) : (
         <View className="flex-row flex-wrap pb-2">
           {filtered.map((entry) => {
@@ -317,7 +268,7 @@ function IconTab({ query, onPickIcon }: IconTabProps) {
                 className="h-9 w-9 items-center justify-center rounded-md hover:bg-muted active:bg-muted"
                 accessibilityLabel={entry.name}
               >
-                <Icon size={18} color={colors.foreground} />
+                <Icon width={18} height={18} fill={colors.foreground} />
               </Pressable>
             );
           })}
@@ -342,33 +293,29 @@ function UploadTab({ onPickImage }: UploadTabProps) {
   // native so users at least have a path.
   return (
     <View className="gap-3 px-1 py-4">
-      <Text className="text-sm text-foreground">{t('pages.iconPicker.uploadHint')}</Text>
-      <View className="flex-row items-center gap-2 rounded-lg border border-border px-3 py-1.5">
-        <TextInput
-          value={url}
-          onChangeText={setUrl}
-          placeholder="https://example.com/icon.png"
-          className="flex-1 text-sm text-foreground"
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={
-            Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined
-          }
-        />
-      </View>
-      <Pressable
+      <Text variant="body-regular">{t('pages.iconPicker.uploadHint')}</Text>
+      <TextFieldInput
+        size="sm"
+        value={url}
+        onChangeText={setUrl}
+        label={t('pages.iconPicker.uploadHint')}
+        placeholder="https://example.com/icon.png"
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+      <Button
+        className="self-start"
+        appearance="solid"
+        tone="accent"
         onPress={() => {
           const trimmed = url.trim();
           if (!/^https?:\/\//u.test(trimmed)) return;
           onPickImage(trimmed);
         }}
-        className="self-start rounded-md bg-primary px-4 py-2"
         accessibilityLabel={t('pages.iconPicker.useImage')}
       >
-        <Text className="text-sm font-medium text-primary-foreground">
-          {t('pages.iconPicker.useImage')}
-        </Text>
-      </Pressable>
+        {t('pages.iconPicker.useImage')}
+      </Button>
     </View>
   );
 }

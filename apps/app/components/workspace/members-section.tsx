@@ -1,8 +1,9 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { Text as RNText, View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
 import { Avatar } from '@oxy.so/bloom/avatar';
 import { Button } from '@oxy.so/bloom/button';
+import { useDialogControl } from '@oxy.so/bloom/dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +12,7 @@ import {
 } from '@oxy.so/bloom/dropdown-menu';
 import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
 import { RiUserAddLine } from '@oxy.so/bloom/icons/RiUserAddLine';
+import { Loading } from '@oxy.so/bloom/loading';
 import {
   Select,
   SelectContent,
@@ -21,7 +23,7 @@ import {
 } from '@oxy.so/bloom/select';
 import { SettingsCard, SettingsRow, SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
 import { toast } from '@oxy.so/bloom/toast';
-import { Text } from '@/components/ui/text';
+import { Text } from '@oxy.so/bloom/typography';
 import { cn } from '@/lib/utils';
 import { useCurrentWorkspace } from '@/lib/hooks/use-workspaces';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
@@ -115,10 +117,10 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId, last }: Memb
     >
       <Avatar source={member.user?.avatar ?? undefined} name={name} size={32} />
       <View className="flex-1 min-w-0">
-        <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
+        <Text variant="body-medium" numberOfLines={1}>
           {name}
           {isSelf ? (
-            <Text className="text-xs text-muted-foreground"> {t('workspace.members.you')}</Text>
+            <RNText className="text-xs text-muted-foreground"> {t('workspace.members.you')}</RNText>
           ) : null}
         </Text>
         {member.user?.email ? (
@@ -185,7 +187,7 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId, last }: Memb
 export function MembersSection() {
   const { user } = useOxy();
   const { t } = useTranslation();
-  const [inviteOpen, setInviteOpen] = React.useState(false);
+  const inviteDialog = useDialogControl();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const currentWorkspace = useCurrentWorkspace();
 
@@ -217,7 +219,7 @@ export function MembersSection() {
               tone="action"
               size="sm"
               leadingIcon={RiUserAddLine}
-              onPress={() => setInviteOpen(true)}
+              onPress={() => inviteDialog.open()}
             >
               {t('workspace.members.invite')}
             </Button>
@@ -227,7 +229,7 @@ export function MembersSection() {
         <SettingsCard>
           {isLoading ? (
             <View className="py-10 items-center justify-center">
-              <ActivityIndicator />
+              <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
             </View>
           ) : isError ? (
             <SettingsRow
@@ -251,11 +253,7 @@ export function MembersSection() {
       </SettingsSection>
 
       {currentWorkspaceId ? (
-        <InviteMemberModal
-          open={inviteOpen}
-          onOpenChange={setInviteOpen}
-          workspaceId={currentWorkspaceId}
-        />
+        <InviteMemberModal control={inviteDialog} workspaceId={currentWorkspaceId} />
       ) : null}
     </>
   );

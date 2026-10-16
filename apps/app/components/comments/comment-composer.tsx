@@ -1,17 +1,16 @@
 import * as React from 'react';
 import {
-  ActivityIndicator,
   type NativeSyntheticEvent,
   Platform,
-  Pressable,
-  TextInput,
+  type TextInput,
   type TextInputKeyPressEventData,
   type TextInputSelectionChangeEventData,
   View,
 } from 'react-native';
-import { Send } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
-import { useColorScheme } from '@/lib/useColorScheme';
+import { RiSendPlaneLine } from '@oxy.so/bloom/icons/RiSendPlaneLine';
+import { Button } from '@oxy.so/bloom/button';
+import { Textarea } from '@oxy.so/bloom/textarea';
+import { Text } from '@oxy.so/bloom/typography';
 import { MentionPicker } from './mention-picker';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { CommentSegment, MentionSegment } from '@/lib/types/comments';
@@ -148,7 +147,6 @@ export function CommentComposer({
   onCancel,
   initialSegments,
 }: CommentComposerProps) {
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const inputRef = React.useRef<TextInput>(null);
   const initial = React.useMemo(
@@ -300,34 +298,26 @@ export function CommentComposer({
 
   return (
     <View className="gap-2">
-      <View className="rounded-xl border border-input bg-background px-3 py-2">
-        <TextInput
-          ref={inputRef}
+      <View>
+        <Textarea
+          inputRef={inputRef}
           value={text}
           onChangeText={handleChangeText}
           onKeyPress={handleKeyPress}
           onSelectionChange={handleSelectionChange}
           placeholder={placeholder ?? t('comments.composer.placeholder')}
-          placeholderTextColor={colors.mutedForeground}
-          multiline
+          rows={2}
+          autoResize
           autoFocus={autoFocus}
-          className="text-sm text-foreground"
-          style={
-            Platform.OS === 'web'
-              ? { outlineWidth: 0, borderWidth: 0, minHeight: 36 }
-              : { minHeight: 36 }
-          }
         />
         {mentionDraft ? (
-          <View className="relative">
-            <MentionPicker
-              open
-              workspaceId={workspaceId}
-              query={mentionDraft.query}
-              onSelect={handlePickMention}
-              onClose={() => setMentionDraft(null)}
-            />
-          </View>
+          <MentionPicker
+            open
+            workspaceId={workspaceId}
+            query={mentionDraft.query}
+            onSelect={handlePickMention}
+            onClose={() => setMentionDraft(null)}
+          />
         ) : null}
       </View>
       <View className="flex-row items-center justify-between">
@@ -336,40 +326,28 @@ export function CommentComposer({
         </Text>
         <View className="flex-row items-center gap-2">
           {onCancel ? (
-            <Pressable
+            <Button
+              appearance="subtle"
+              size="sm"
               onPress={onCancel}
-              className="rounded-md px-3 py-1.5 hover:bg-muted"
               disabled={submitting}
               accessibilityLabel={t('common.cancel')}
             >
-              <Text className="text-xs text-muted-foreground">{t('common.cancel')}</Text>
-            </Pressable>
+              {t('common.cancel')}
+            </Button>
           ) : null}
-          <Pressable
+          <Button
+            appearance="solid"
+            tone="accent"
+            size="sm"
             onPress={handleSubmit}
             disabled={isEmpty || submitting}
-            className={
-              isEmpty || submitting
-                ? 'flex-row items-center gap-1.5 rounded-md bg-muted px-3 py-1.5 opacity-60'
-                : 'flex-row items-center gap-1.5 rounded-md bg-primary px-3 py-1.5'
-            }
+            loading={submitting}
             accessibilityLabel={t('comments.composer.send')}
+            leadingIcon={RiSendPlaneLine}
           >
-            {submitting ? (
-              <ActivityIndicator size="small" color={colors.primaryForeground} />
-            ) : (
-              <Send size={12} color={isEmpty ? colors.mutedForeground : colors.primaryForeground} />
-            )}
-            <Text
-              className={
-                isEmpty || submitting
-                  ? 'text-xs font-medium text-muted-foreground'
-                  : 'text-xs font-medium text-primary-foreground'
-              }
-            >
-              {submitting ? t('comments.composer.posting') : t('comments.composer.submit')}
-            </Text>
-          </Pressable>
+            {submitting ? t('comments.composer.posting') : t('comments.composer.submit')}
+          </Button>
         </View>
       </View>
     </View>

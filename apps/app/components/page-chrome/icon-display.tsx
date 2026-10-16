@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { Image, View } from 'react-native';
-import { FileText } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
-import { getLucideIcon } from './lucide-icons';
+import { getPageIcon } from './page-icons';
 import { parseIcon, type IconValue } from './icon-value';
 
 interface IconDisplayProps {
@@ -30,7 +30,7 @@ export function IconDisplay({ value, size = 16, showPlaceholder = false }: IconD
     if (!showPlaceholder) return null;
     return (
       <View className="items-center justify-center" style={{ width: size, height: size }}>
-        <FileText size={size * 0.85} color={colors.mutedForeground} />
+        <RiFileTextLine width={size * 0.85} height={size * 0.85} fill={colors.mutedForeground} />
       </View>
     );
   }
@@ -48,15 +48,15 @@ export function IconDisplay({ value, size = 16, showPlaceholder = false }: IconD
   }
 
   if (parsed.kind === 'icon') {
-    const Icon = getLucideIcon(parsed.name);
+    const Icon = getPageIcon(parsed.name);
     if (!Icon) {
       return (
         <View className="items-center justify-center" style={{ width: size, height: size }}>
-          <FileText size={size * 0.85} color={colors.mutedForeground} />
+          <RiFileTextLine width={size * 0.85} height={size * 0.85} fill={colors.mutedForeground} />
         </View>
       );
     }
-    return <Icon size={size} color={colors.foreground} />;
+    return <Icon width={size} height={size} fill={colors.foreground} />;
   }
 
   // Image (uploaded or external URL).

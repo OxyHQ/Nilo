@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Button } from '@oxy.so/bloom/button';
-import { Dialog } from '@oxy.so/bloom/dialog';
+import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
 import {
   Select,
   SelectContent,
@@ -27,8 +27,8 @@ const ASSIGNABLE_ROLES: WorkspaceRole[] = ['viewer', 'commenter', 'editor', 'adm
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface InviteMemberModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  /** The caller opens the dialog; it closes itself on cancel and on success. */
+  control: DialogControlProps;
   workspaceId: string;
 }
 
@@ -50,18 +50,17 @@ function extractErrorMessage(err: unknown, fallback: string): string {
 
 // A Bloom dialog: it opens from the settings dialog, and only a Bloom overlay
 // stacks above that one.
-export function InviteMemberModal({ open, onOpenChange, workspaceId }: InviteMemberModalProps) {
+export function InviteMemberModal({ control, workspaceId }: InviteMemberModalProps) {
   const { t } = useTranslation();
   const [email, setEmail] = React.useState('');
   const [role, setRole] = React.useState<WorkspaceRole>('editor');
   const { mutate, isPending } = useInviteMember(workspaceId);
 
-  React.useEffect(() => {
-    if (!open) {
-      setEmail('');
-      setRole('editor');
-    }
-  }, [open]);
+  // Reset form whenever the modal is dismissed.
+  const handleClosed = React.useCallback(() => {
+    setEmail('');
+    setRole('editor');
+  }, []);
 
   const trimmedEmail = email.trim();
   const emailValid = EMAIL_REGEX.test(trimmedEmail);
@@ -77,19 +76,20 @@ export function InviteMemberModal({ open, onOpenChange, workspaceId }: InviteMem
           toast.success(
             t('workspace.invite.invited', { email: trimmedEmail, role: roleLabel(role) }),
           );
-          onOpenChange(false);
+          control.close();
         },
         onError: (err) => {
           toast.error(extractErrorMessage(err, t('workspace.invite.failed')));
         },
       },
     );
-  }, [canSubmit, mutate, trimmedEmail, role, onOpenChange, t]);
+  }, [canSubmit, mutate, trimmedEmail, role, control, t]);
 
   return (
     <Dialog
-      open={open}
-      onClose={() => onOpenChange(false)}
+      control={control}
+      onClose={handleClosed}
+      placement={{ base: 'bottom', md: 'center' }}
       title={t('workspace.invite.title')}
       description={t('workspace.invite.description')}
     >
@@ -143,16 +143,18 @@ export function InviteMemberModal({ open, onOpenChange, workspaceId }: InviteMem
           <TextFieldHint>{roleDescription(role)}</TextFieldHint>
         </View>
 
+        {/* Not Dialog `actions`: a declarative action cannot show the submit's spinner. */}
         <View className="flex-row justify-end gap-2">
-          <Button
-            appearance="subtle"
-            tone="neutral"
-            onPress={() => onOpenChange(false)}
-            disabled={isPending}
-          >
+          <Button appearance="outline" onPress={() => control.close()} disabled={isPending}>
             {t('common.cancel')}
           </Button>
-          <Button tone="action" onPress={handleSubmit} disabled={!canSubmit} loading={isPending}>
+          <Button
+            appearance="solid"
+            tone="accent"
+            onPress={handleSubmit}
+            disabled={!canSubmit}
+            loading={isPending}
+          >
             {t('workspace.invite.submit')}
           </Button>
         </View>

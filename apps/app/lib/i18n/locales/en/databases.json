@@ -117,7 +117,9 @@
   "calendar": {
     "needsDateProperty": "Add a date property to enable the calendar view.",
     "webOnly": "Calendar view is web-only in Phase 4. Open the table view on native to edit rows.",
-    "today": "Today"
+    "today": "Today",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month"
   },
   "timeline": {
     "needsDateProperty": "Add a date property to enable the timeline view.",

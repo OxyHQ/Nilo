@@ -1,39 +1,39 @@
 import { toast } from '@oxy.so/bloom/toast';
 import { DatabaseActionsMenu } from './database-actions-menu';
 import * as React from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import {
-  Calendar,
-  ClipboardList,
-  GalleryVertical,
-  Image as ImageIcon,
-  Kanban,
-  ListIcon,
-  Plus,
-  Settings2,
-  Table as TableIcon,
-  TimerReset,
-} from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { RiCalendarLine } from '@oxy.so/bloom/icons/RiCalendarLine';
+import { RiFileList3Line } from '@oxy.so/bloom/icons/RiFileList3Line';
+import { RiGalleryView } from '@oxy.so/bloom/icons/RiGalleryView';
+import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
+import { RiKanbanView2 } from '@oxy.so/bloom/icons/RiKanbanView2';
+import { RiListUnordered } from '@oxy.so/bloom/icons/RiListUnordered';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiEqualizerLine } from '@oxy.so/bloom/icons/RiEqualizerLine';
+import { RiTableLine } from '@oxy.so/bloom/icons/RiTableLine';
+import { RiHistoryLine } from '@oxy.so/bloom/icons/RiHistoryLine';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog } from '@oxy.so/bloom/dialog';
+import { Item } from '@oxy.so/bloom/item';
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@oxy.so/bloom/popover';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import i18n from '@/lib/i18n';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseView, DatabaseViewType } from '@/lib/types/databases';
 import { useUpdateDatabase } from '@/lib/hooks/use-databases';
 import { useCreateView, useDeleteView, useUpdateView } from '@/lib/hooks/use-database-views';
-import { centeredModalStyle } from './centered-modal-style';
+import type { BloomIconComponent } from '@oxy.so/bloom/icons';
 
-const VIEW_ICONS: Record<
-  DatabaseViewType,
-  React.ComponentType<{ size?: number; color?: string }>
-> = {
-  form: ClipboardList,
-  table: TableIcon,
-  board: Kanban,
-  gallery: GalleryVertical,
-  list: ListIcon,
-  calendar: Calendar,
-  timeline: TimerReset,
+const VIEW_ICONS: Record<DatabaseViewType, BloomIconComponent> = {
+  form: RiFileList3Line,
+  table: RiTableLine,
+  board: RiKanbanView2,
+  gallery: RiGalleryView,
+  list: RiListUnordered,
+  calendar: RiCalendarLine,
+  timeline: RiHistoryLine,
 };
 
 /** Translated at call time: the locale can change while the app runs. */
@@ -107,16 +107,16 @@ export function DatabaseHeader({
         <View className="h-32 bg-muted">
           {/* Cover image — Phase 4 keeps it visually simple. */}
           <View className="absolute inset-0 items-center justify-center">
-            <ImageIcon size={28} color="#9ca3af" />
+            <RiImageLine size="xl" fill={colors.mutedForeground} />
           </View>
         </View>
       ) : null}
       <View className="px-6 py-4 gap-3">
         <View className="flex-row items-center gap-2">
           {database.icon ? (
-            <Text className="text-4xl leading-none">{database.icon}</Text>
+            <Text className="text-4xl leading-none text-foreground">{database.icon}</Text>
           ) : (
-            <TableIcon size={28} color={colors.foreground} />
+            <RiTableLine size="xl" fill={colors.foreground} />
           )}
           <View className="flex-1">
             <TextInput
@@ -150,15 +150,14 @@ export function DatabaseHeader({
               database={database}
             />
           ))}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('databases.views.new')}
+          <Button
+            appearance="plain"
+            size="xs"
             onPress={() => setNewViewOpen(true)}
-            className="flex-row items-center gap-1 px-2 py-1 rounded hover:bg-muted"
+            leadingIcon={RiAddLine}
           >
-            <Plus size={12} color={colors.mutedForeground} />
-            <Text className="text-xs text-muted-foreground">{t('databases.views.new')}</Text>
-          </Pressable>
+            {t('databases.views.new')}
+          </Button>
         </ScrollView>
       </View>
       <NewViewPicker
@@ -182,7 +181,7 @@ interface ViewTabProps {
 export function ViewTab({ view, active, onPress, database, readOnly = false }: ViewTabProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const Icon = VIEW_ICONS[view.type] ?? TableIcon;
+  const Icon = VIEW_ICONS[view.type] ?? RiTableLine;
   const [menuOpen, setMenuOpen] = React.useState(false);
   const updateView = useUpdateView();
   const deleteView = useDeleteView();
@@ -208,64 +207,62 @@ export function ViewTab({ view, active, onPress, database, readOnly = false }: V
     }
   };
 
+  // The settings popover is the tab's sibling, not its child: on web a click
+  // inside the portalled popover still bubbles through React to its ancestors,
+  // and the tab would select its view under the rename field.
   return (
-    <View>
+    <View
+      className={`flex-row items-center gap-1.5 px-2 py-1 rounded ${
+        active ? 'bg-muted' : 'hover:bg-muted/60'
+      }`}
+    >
       <Pressable
         onPress={onPress}
         accessibilityRole="tab"
         accessibilityLabel={view.name}
         accessibilityState={{ selected: active }}
         onLongPress={readOnly ? undefined : () => setMenuOpen(true)}
-        className={`flex-row items-center gap-1.5 px-2 py-1 rounded ${
-          active ? 'bg-muted' : 'hover:bg-muted/60'
-        }`}
+        className="flex-row items-center gap-1.5"
       >
-        <Icon size={12} color={colors.foreground} />
+        <Icon width={12} height={12} fill={colors.foreground} />
         <Text
           className={`text-xs ${active ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
         >
           {view.name}
         </Text>
-        {!readOnly ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('databases.views.settings', { name: view.name })}
-            onPress={() => setMenuOpen(true)}
-            className="p-0.5 rounded hover:bg-muted-foreground/10"
-          >
-            <Settings2 size={10} color={colors.mutedForeground} />
-          </Pressable>
-        ) : null}
       </Pressable>
-
-      <Modal
-        visible={!readOnly && menuOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={close}
-      >
-        <Pressable style={StyleSheet.absoluteFill} className="bg-black/40" onPress={close} />
-        <View
-          className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2"
-          style={centeredModalStyle(260, 200)}
+      {!readOnly ? (
+        <Popover
+          open={menuOpen}
+          onOpenChange={(next) => {
+            if (next) setMenuOpen(true);
+            else close();
+          }}
         >
-          <View className="bg-popover border border-border rounded-2xl shadow-xl p-3 m-3 web:m-0 gap-2">
-            <Text className="text-xs uppercase tracking-wider text-muted-foreground">
-              {view.name}
-            </Text>
+          <PopoverTrigger asChild>
+            <Button
+              iconOnly
+              appearance="plain"
+              size="xs"
+              accessibilityLabel={t('databases.views.settings', { name: view.name })}
+              leadingIcon={RiEqualizerLine}
+            />
+          </PopoverTrigger>
+          <PopoverContent align="start" minWidth={240} label={view.name} className="gap-2">
+            <PopoverTitle tone="secondary">{view.name}</PopoverTitle>
             {renameDraft === null ? (
               <>
-                <Pressable
+                <Item
+                  density="compact"
                   accessibilityRole="button"
-                  accessibilityLabel={t('databases.views.rename')}
+                  title={t('databases.views.rename')}
                   onPress={() => setRenameDraft(view.name)}
-                  className="px-2 py-1.5 rounded hover:bg-muted"
-                >
-                  <Text className="text-sm text-foreground">{t('databases.views.rename')}</Text>
-                </Pressable>
-                <Pressable
+                />
+                <Item
+                  density="compact"
                   accessibilityRole="button"
-                  accessibilityLabel={t('databases.views.delete')}
+                  destructive
+                  title={t('databases.views.delete')}
                   disabled={deleteView.isPending}
                   onPress={async () => {
                     try {
@@ -279,49 +276,37 @@ export function ViewTab({ view, active, onPress, database, readOnly = false }: V
                       toast.error(t('databases.views.deleteFailed'));
                     }
                   }}
-                  className="px-2 py-1.5 rounded hover:bg-muted"
-                >
-                  <Text className="text-sm text-red-500">{t('databases.views.delete')}</Text>
-                </Pressable>
+                />
               </>
             ) : (
               <>
-                <TextInput
-                  accessibilityLabel={t('databases.views.namePlaceholder')}
+                <TextFieldInput
+                  size="sm"
+                  label={t('databases.views.namePlaceholder')}
                   value={renameDraft}
                   onChangeText={setRenameDraft}
-                  placeholder={t('databases.views.namePlaceholder')}
-                  placeholderTextColor={colors.mutedForeground}
-                  className="text-sm text-foreground border border-border rounded-md px-2 py-1"
-                  style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined}
-                  underlineColorAndroid="transparent"
                   autoFocus
                   onSubmitEditing={commitRename}
                 />
-                <View className="flex-row justify-end gap-2 mt-1">
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t('common.cancel')}
-                    onPress={close}
-                    className="px-3 py-1 rounded-md bg-muted"
-                  >
-                    <Text className="text-sm text-foreground">{t('common.cancel')}</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={t('common.save')}
+                <View className="mt-1 flex-row justify-end gap-2">
+                  <Button appearance="subtle" size="sm" onPress={close}>
+                    {t('common.cancel')}
+                  </Button>
+                  <Button
+                    appearance="solid"
+                    tone="accent"
+                    size="sm"
                     disabled={updateView.isPending || !renameDraft.trim()}
                     onPress={commitRename}
-                    className="px-3 py-1 rounded-md bg-primary"
                   >
-                    <Text className="text-sm text-primary-foreground">{t('common.save')}</Text>
-                  </Pressable>
+                    {t('common.save')}
+                  </Button>
                 </View>
               </>
             )}
-          </View>
-        </View>
-      </Modal>
+          </PopoverContent>
+        </Popover>
+      ) : null}
     </View>
   );
 }
@@ -333,6 +318,10 @@ interface NewViewPickerProps {
   pending: boolean;
 }
 
+/**
+ * The view-type picker. Its owner holds the open state, so the dialog runs in
+ * its controlled mode: `onClose` is the close request the owner answers.
+ */
 export function NewViewPicker({ open, onClose, onChoose, pending }: NewViewPickerProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -347,34 +336,27 @@ export function NewViewPicker({ open, onClose, onChoose, pending }: NewViewPicke
   ];
 
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={StyleSheet.absoluteFill} className="bg-black/40" onPress={onClose} />
-      <View
-        className="absolute left-0 right-0 bottom-0 web:bottom-auto web:top-1/2 web:left-1/2"
-        style={centeredModalStyle(280, 340)}
-      >
-        <View className="bg-popover border border-border rounded-2xl shadow-xl p-3 m-3 web:m-0">
-          <Text className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-            {t('databases.views.new')}
-          </Text>
-          {types.map((type) => {
-            const Icon = VIEW_ICONS[type];
-            return (
-              <Pressable
-                key={type}
-                accessibilityRole="button"
-                accessibilityLabel={viewTypeLabel(type)}
-                disabled={pending}
-                onPress={() => onChoose(type)}
-                className="flex-row items-center gap-2 px-2 py-2 rounded hover:bg-muted"
-              >
-                <Icon size={14} color={colors.foreground} />
-                <Text className="text-sm text-foreground">{viewTypeLabel(type)}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-    </Modal>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      placement={{ base: 'bottom', md: 'center' }}
+      maxWidth={320}
+      title={t('databases.views.new')}
+    >
+      {types.map((type) => {
+        const Icon = VIEW_ICONS[type];
+        return (
+          <Item
+            key={type}
+            density="compact"
+            accessibilityRole="button"
+            disabled={pending}
+            leading={<Icon width={14} height={14} fill={colors.foreground} />}
+            title={viewTypeLabel(type)}
+            onPress={() => onChoose(type)}
+          />
+        );
+      })}
+    </Dialog>
   );
 }

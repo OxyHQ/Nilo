@@ -4,15 +4,13 @@ import { useSearch } from '@/lib/hooks/use-search';
 import { mapSearchResults } from './search-results';
 import * as React from 'react';
 import { Linking, Platform } from 'react-native';
-import {
-  FileText,
-  Settings as SettingsIcon,
-  Trash2,
-  Moon,
-  Sun,
-  Plus,
-  HelpCircle,
-} from 'lucide-react-native';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
+import { RiSettings3Line } from '@oxy.so/bloom/icons/RiSettings3Line';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
+import { RiMoonLine } from '@oxy.so/bloom/icons/RiMoonLine';
+import { RiSunLine } from '@oxy.so/bloom/icons/RiSunLine';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiQuestionLine } from '@oxy.so/bloom/icons/RiQuestionLine';
 import { useRouter } from 'expo-router';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
@@ -161,7 +159,7 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
         title: t('commandPalette.commands.newPage.title'),
         subtitle: t('commandPalette.commands.newPage.subtitle'),
         searchValue: keywords('new page create', t('commandPalette.commands.newPage.keywords')),
-        icon: Plus,
+        icon: RiAddLine,
         shortcut: 'N',
         onSelect: () => {
           close();
@@ -177,7 +175,7 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
           'settings preferences',
           t('commandPalette.commands.settings.keywords'),
         ),
-        icon: SettingsIcon,
+        icon: RiSettings3Line,
         onSelect: () => {
           close();
           openSettings();
@@ -191,7 +189,7 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
           'trash deleted archived',
           t('commandPalette.commands.trash.keywords'),
         ),
-        icon: Trash2,
+        icon: RiDeleteBin6Line,
         onSelect: () => {
           close();
           router.push('/trash');
@@ -208,7 +206,7 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
           'theme dark light mode toggle',
           t('commandPalette.commands.theme.keywords'),
         ),
-        icon: colorScheme === 'dark' ? Sun : Moon,
+        icon: colorScheme === 'dark' ? RiSunLine : RiMoonLine,
         onSelect: () => {
           close();
           setColorScheme(colorScheme === 'dark' ? 'light' : 'dark');
@@ -222,7 +220,7 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
           'help keyboard shortcuts',
           t('commandPalette.commands.shortcuts.keywords'),
         ),
-        icon: HelpCircle,
+        icon: RiQuestionLine,
         shortcut: '/',
         onSelect: () => {
           close();
@@ -242,7 +240,7 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
           'docs help documentation',
           t('commandPalette.commands.docs.keywords'),
         ),
-        icon: FileText,
+        icon: RiFileTextLine,
         onSelect: () => {
           close();
           Linking.openURL('https://oxy.so/docs');

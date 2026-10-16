@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ScrollView } from 'react-native';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { ScrollView, View } from 'react-native';
+import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
+import { Item } from '@oxy.so/bloom/item';
+import { Loading } from '@oxy.so/bloom/loading';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
 import { canAddToTeamspace, useTeamspaces } from '@/lib/hooks/use-teamspaces';
@@ -22,6 +23,7 @@ export function MoveToDialog(props: MoveToDialogProps) {
 }
 function MoveDestinations({ onOpenChange, page }: MoveToDialogProps) {
   const { t } = useTranslation();
+  const control = useDialogControl();
   const [query, setQuery] = useState('');
   const spaces = useTeamspaces(page.workspaceId);
   const role = useWorkspaceRole(page.workspaceId);
@@ -29,40 +31,45 @@ function MoveDestinations({ onOpenChange, page }: MoveToDialogProps) {
   const move = (teamspaceId: string | null) =>
     update.mutate(
       { id: page.id, parentId: null, teamspaceId },
-      { onSuccess: () => onOpenChange(false) },
+      { onSuccess: () => control.close() },
     );
   const error = update.error ?? spaces.error;
   return (
     <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!update.isPending) onOpenChange(open);
-      }}
+      control={control}
+      startOpen
+      onClose={() => onOpenChange(false)}
+      dismissOnBackdrop={!update.isPending}
+      placement={{ base: 'bottom', md: 'center' }}
+      maxWidth={448}
+      label={t('pages.moveDialog.title')}
+      title={t('pages.moveDialog.title')}
+      actions={[
+        {
+          label: t('common.close'),
+          color: 'cancel',
+          disabled: update.isPending,
+        },
+      ]}
     >
-      <DialogContent
-        accessibilityLabel={t('pages.moveDialog.title')}
-        className="max-w-md gap-3 p-4"
-        showCloseButton={false}
-      >
-        <DialogTitle>{t('pages.moveDialog.title')}</DialogTitle>
-        <Input
-          accessibilityLabel={t('workspace.teamspaces.search')}
+      <View className="gap-3">
+        <TextFieldInput
+          label={t('workspace.teamspaces.search')}
           placeholder={t('workspace.teamspaces.search')}
           value={query}
           onChangeText={setQuery}
         />
         <ScrollView className="max-h-80">
           {role ? (
-            <Button
-              variant="ghost"
+            <Item
+              title={t('sidebar.sections.private')}
+              density="compact"
               disabled={update.isPending}
               accessibilityLabel={t('sidebar.sections.private')}
               onPress={() => move(null)}
-            >
-              <Text>{t('sidebar.sections.private')}</Text>
-            </Button>
+            />
           ) : null}
-          {spaces.isPending ? <Text>{t('common.loading')}</Text> : null}
+          {spaces.isPending ? <Loading variant="inline" text={t('common.loading')} /> : null}
           {spaces.data
             ?.filter(
               (space) =>
@@ -70,17 +77,14 @@ function MoveDestinations({ onOpenChange, page }: MoveToDialogProps) {
                 space.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
             )
             .map((space) => (
-              <Button
+              <Item
                 key={space.id}
-                variant="ghost"
+                title={space.icon ? `${space.icon} ${space.name}` : space.name}
+                density="compact"
                 disabled={update.isPending}
                 accessibilityLabel={space.name}
                 onPress={() => move(space.id)}
-              >
-                <Text>
-                  {space.icon} {space.name}
-                </Text>
-              </Button>
+              />
             ))}
         </ScrollView>
         {error ? (
@@ -88,15 +92,7 @@ function MoveDestinations({ onOpenChange, page }: MoveToDialogProps) {
             {apiErrorMessage(error, t('workspace.teamspaces.failed'))}
           </Text>
         ) : null}
-        <Button
-          variant="outline"
-          disabled={update.isPending}
-          accessibilityLabel={t('common.close')}
-          onPress={() => onOpenChange(false)}
-        >
-          <Text>{t('common.close')}</Text>
-        </Button>
-      </DialogContent>
+      </View>
     </Dialog>
   );
 }

@@ -1,8 +1,8 @@
 import { toast } from '@oxy.so/bloom/toast';
 import { View } from 'react-native';
 import { usePageEditorContext } from '@/components/page-editor/page-editor-context';
-import { Switch } from '@/components/ui/switch';
-import { Text } from '@/components/ui/text';
+import { Switch } from '@oxy.so/bloom/switch';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { toCanvas, toDocument } from '@/lib/editor/canvas';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
@@ -22,12 +22,12 @@ export function CanvasSwitch({ page }: { page: Page }) {
   return (
     <View className="gap-0.5 px-3 py-1.5">
       <View className="flex-row items-center justify-between gap-3">
-        <Text className="text-sm">{t('pages.canvas.mode')}</Text>
+        <Text variant="body-regular">{t('pages.canvas.mode')}</Text>
         <Switch
-          value={canvas}
+          checked={canvas}
           disabled={updatePage.isPending || page.locked}
           accessibilityLabel={t('pages.canvas.mode')}
-          onValueChange={(next) => {
+          onCheckedChange={(next) => {
             store.sealHistory();
             const changed = store.run(next ? toCanvas : toDocument);
             updatePage.mutate(

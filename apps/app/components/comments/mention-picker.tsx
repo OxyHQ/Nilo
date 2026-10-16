@@ -1,7 +1,11 @@
 import * as React from 'react';
-import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { Calendar, FileText, User } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Platform, ScrollView, View } from 'react-native';
+import { RiCalendarLine } from '@oxy.so/bloom/icons/RiCalendarLine';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
+import { RiUserLine } from '@oxy.so/bloom/icons/RiUserLine';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Item } from '@oxy.so/bloom/item';
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@oxy.so/bloom/popover';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { memberProfileName, useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
 import { usePages } from '@/lib/hooks/use-pages';
@@ -136,81 +140,59 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
   if (!open) return null;
 
   const renderIcon = (kind: MentionKind) => {
-    if (kind === 'user') return <User size={16} color={colors.foreground} />;
-    if (kind === 'page') return <FileText size={16} color={colors.foreground} />;
-    return <Calendar size={16} color={colors.foreground} />;
+    if (kind === 'user') return <RiUserLine size="sm" fill={colors.foreground} />;
+    if (kind === 'page') return <RiFileTextLine size="sm" fill={colors.foreground} />;
+    return <RiCalendarLine size="sm" fill={colors.foreground} />;
   };
 
-  const list = (
-    <View className="w-72 rounded-2xl border border-border bg-popover py-1 shadow-lg">
-      <View className="px-3 pt-2 pb-1">
-        <Text className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {t('comments.mentions.header')}
-        </Text>
-      </View>
-      <View className="max-h-72">
-        {items.length === 0 ? (
-          <View className="px-3 py-3">
-            <Text className="text-sm text-muted-foreground">
-              {t('comments.mentions.noMatches', { query })}
-            </Text>
-          </View>
-        ) : (
-          items.map((item) => (
-            <Pressable
-              key={item.key}
-              onPress={() => onSelect(item.build())}
-              className="flex-row items-center gap-3 px-3 py-2 hover:bg-muted active:bg-muted"
-            >
-              <View className="h-8 w-8 items-center justify-center rounded-md bg-muted">
-                {renderIcon(item.kind)}
-              </View>
-              <View className="flex-1">
-                <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
-                  {item.label}
-                </Text>
-                {item.detail ? (
-                  <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-                    {item.detail}
-                  </Text>
-                ) : null}
-              </View>
-            </Pressable>
-          ))
-        )}
-      </View>
-    </View>
-  );
-
-  if (Platform.OS === 'web') {
-    return (
-      <View style={styles.webPopover} pointerEvents="box-none">
-        <View style={styles.webPopoverInner} pointerEvents="auto">
-          {list}
-        </View>
-      </View>
-    );
-  }
-
   return (
-    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={StyleSheet.absoluteFill} className="bg-black/50" onPress={onClose} />
-      <View className="absolute bottom-0 left-0 right-0 p-3">{list}</View>
-    </Modal>
+    // Not modal: the user keeps typing and clicking in the composer while the
+    // picker is open, and a backdrop would swallow that first click.
+    <Popover
+      open
+      modal={false}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      {/* The picker opens from typing `@`, not from a press, so its trigger is
+          only the anchor the web panel measures: an empty box under the
+          composer's input, hidden from assistive technology. */}
+      <PopoverTrigger asChild>
+        <View aria-hidden importantForAccessibility="no-hide-descendants" />
+      </PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        label={t('comments.mentions.header')}
+        className={Platform.OS === 'web' ? 'w-72' : undefined}
+      >
+        <PopoverTitle tone="secondary">{t('comments.mentions.header')}</PopoverTitle>
+        <ScrollView className="max-h-72" keyboardShouldPersistTaps="handled">
+          {items.length === 0 ? (
+            <EmptyState
+              variant="compact"
+              description={t('comments.mentions.noMatches', { query })}
+            />
+          ) : (
+            items.map((item) => (
+              <Item
+                key={item.key}
+                role="option"
+                density="compact"
+                onPress={() => onSelect(item.build())}
+                leading={
+                  <View className="h-8 w-8 items-center justify-center rounded-md bg-muted">
+                    {renderIcon(item.kind)}
+                  </View>
+                }
+                title={item.label}
+                subtitle={item.detail}
+              />
+            ))
+          )}
+        </ScrollView>
+      </PopoverContent>
+    </Popover>
   );
 }
-
-const styles = StyleSheet.create({
-  webPopover: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 50,
-  },
-  webPopoverInner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-  },
-});

@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { Platform, Pressable, TextInput, View } from 'react-native';
-import { Code as CodeIcon } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Platform, Pressable, View } from 'react-native';
+import { RiCodeSSlashLine } from '@oxy.so/bloom/icons/RiCodeSSlashLine';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { BlockComponentProps } from './types';
 
@@ -134,16 +135,15 @@ export function EmbedBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
-          <CodeIcon size={16} color={colors.mutedForeground} />
+          <RiCodeSSlashLine size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">Embed</Text>
         </View>
-        <TextInput
+        <TextFieldInput
+          label="Paste a YouTube, Figma, Twitter, CodePen, GitHub Gist…"
           value={urlDraft}
           onChangeText={setUrlDraft}
           onBlur={() => commitUrl(urlDraft)}
           placeholder="Paste a YouTube, Figma, Twitter, CodePen, GitHub Gist…"
-          placeholderTextColor={colors.mutedForeground}
-          className="rounded-md bg-background px-2 py-1.5 text-sm text-foreground border border-input"
         />
       </View>
     );
@@ -159,7 +159,7 @@ export function EmbedBlock({ block, onChangeContent }: BlockComponentProps) {
           }
         }}
       >
-        <Text className="text-sm text-foreground" numberOfLines={2}>
+        <Text variant="body-regular" numberOfLines={2}>
           {url}
         </Text>
       </Pressable>

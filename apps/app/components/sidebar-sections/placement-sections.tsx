@@ -1,15 +1,18 @@
 import { useState } from 'react';
-import { View, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
 import { useRouter } from 'expo-router';
-import { Settings } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import { TeamspaceDialog } from '@/components/teamspaces/teamspace-dialog';
+import { RiSettings3Line } from '@oxy.so/bloom/icons/RiSettings3Line';
+import { Button } from '@oxy.so/bloom/button';
+import { useDialogControl } from '@oxy.so/bloom/dialog';
+import { Item } from '@oxy.so/bloom/item';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
+import { TeamspaceDialog, type TeamspaceSelection } from '@/components/teamspaces/teamspace-dialog';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePages } from '@/lib/hooks/use-pages';
 import { useDatabases } from '@/lib/hooks/use-databases';
-import { canAddToTeamspace, useTeamspaces, type Teamspace } from '@/lib/hooks/use-teamspaces';
+import { canAddToTeamspace, useTeamspaces } from '@/lib/hooks/use-teamspaces';
 import { useWorkspaceRole } from '@/lib/hooks/use-workspaces';
 import { hasRole } from '@/lib/hooks/workspace-roles';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
@@ -34,7 +37,12 @@ function WorkspacePlacements({ workspaceId }: { workspaceId: string }) {
   const teamspaces = useTeamspaces(workspaceId);
   const role = useWorkspaceRole(workspaceId);
   const open = useNewPageStore((s) => s.open);
-  const [dialog, setDialog] = useState<'browse' | 'create' | Teamspace | null>(null);
+  const teamspaceDialog = useDialogControl();
+  const [selection, setSelection] = useState<TeamspaceSelection>('browse');
+  const openDialog = (next: TeamspaceSelection) => {
+    setSelection(next);
+    teamspaceDialog.open();
+  };
   const grouped = groupSidebar(
     pages.data?.pages ?? [],
     databases.data?.databases ?? [],
@@ -46,7 +54,9 @@ function WorkspacePlacements({ workspaceId }: { workspaceId: string }) {
     <>
       <SidebarSection title={t('workspace.teamspaces.title')} collapsible={false}>
         {pages.isPending || databases.isPending || teamspaces.isPending ? (
-          <Text className="px-3 text-sm">{t('common.loading')}</Text>
+          <View className="px-3">
+            <Loading variant="inline" size="sm" text={t('common.loading')} />
+          </View>
         ) : null}
         {error ? (
           <Text accessibilityRole="alert" className="px-3 text-sm text-destructive">
@@ -64,14 +74,14 @@ function WorkspacePlacements({ workspaceId }: { workspaceId: string }) {
                 : undefined
             }
             trailing={
-              <Pressable
-                accessibilityRole="button"
+              <Button
+                appearance="plain"
+                size="xs"
+                iconOnly
                 accessibilityLabel={t('workspace.teamspaces.settingsFor', { name: teamspace.name })}
-                onPress={() => setDialog(teamspace)}
-                className="h-7 w-7 items-center justify-center rounded-md hover:bg-muted"
-              >
-                <Settings size={14} className="text-muted-foreground" />
-              </Pressable>
+                onPress={() => openDialog(teamspace)}
+                leadingIcon={RiSettings3Line}
+              />
             }
           >
             <SidebarPageTree
@@ -83,21 +93,21 @@ function WorkspacePlacements({ workspaceId }: { workspaceId: string }) {
           </SidebarSection>
         ))}
         <Button
-          variant="ghost"
+          appearance="plain"
+          size="sm"
           accessibilityLabel={t('workspace.teamspaces.browse')}
-          onPress={() => setDialog('browse')}
+          onPress={() => openDialog('browse')}
         >
-          <Text className="text-sm text-muted-foreground">{t('workspace.teamspaces.browse')}</Text>
+          {t('workspace.teamspaces.browse')}
         </Button>
         {hasRole(role, 'editor') ? (
           <Button
-            variant="ghost"
+            appearance="plain"
+            size="sm"
             accessibilityLabel={t('workspace.teamspaces.create')}
-            onPress={() => setDialog('create')}
+            onPress={() => openDialog('create')}
           >
-            <Text className="text-sm text-muted-foreground">
-              {t('workspace.teamspaces.create')}
-            </Text>
+            {t('workspace.teamspaces.create')}
           </Button>
         ) : null}
       </SidebarSection>
@@ -118,13 +128,12 @@ function WorkspacePlacements({ workspaceId }: { workspaceId: string }) {
           <SidebarPageTree pages={grouped.shared} workspaceId={workspaceId} enableDrag={false} />
         </SidebarSection>
       ) : null}
-      {dialog ? (
-        <TeamspaceDialog
-          workspaceId={workspaceId}
-          initial={dialog}
-          onClose={() => setDialog(null)}
-        />
-      ) : null}
+      <TeamspaceDialog
+        control={teamspaceDialog}
+        workspaceId={workspaceId}
+        selection={selection}
+        onSelect={setSelection}
+      />
     </>
   );
 }
@@ -135,17 +144,14 @@ function DatabaseRows({ databases }: { databases: Database[] }) {
   return (
     <View>
       {databases.map((database) => (
-        <Pressable
+        <Item
           key={database.id}
+          density="compact"
           accessibilityRole="link"
           accessibilityLabel={database.name || t('workspace.teamspaces.newDatabase')}
           onPress={() => router.push(`/db/${database.id}`)}
-          className="mx-2 rounded-md px-3 py-2 hover:bg-muted"
-        >
-          <Text className="text-sm" numberOfLines={1}>
-            {database.icon} {database.name || t('workspace.teamspaces.newDatabase')}
-          </Text>
-        </Pressable>
+          title={`${database.icon ?? ''} ${database.name || t('workspace.teamspaces.newDatabase')}`.trim()}
+        />
       ))}
     </View>
   );

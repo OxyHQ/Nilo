@@ -1,7 +1,9 @@
 import { formatMentionDate } from '@/components/page-editor/date-mentions';
 import { createContext, useContext } from 'react';
 import { Link } from 'expo-router';
-import { Text } from '@/components/ui/text';
+// React Native's nested Text inherits the surrounding block's typography; a
+// Bloom Text would reset each run to its own size, colour and face.
+import { Text } from 'react-native';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePublicPage } from '@/lib/hooks/use-page-extras';
 import type { Segment } from '@/lib/types/pages';
@@ -49,7 +51,6 @@ function TextSegment({ segment }: { segment: Segment }) {
   const { t, locale } = useTranslation();
   const text = (
     <Text
-      inherit
       style={{
         fontWeight: segment.bold ? 'bold' : undefined,
         fontStyle: segment.italic ? 'italic' : undefined,
@@ -84,7 +85,6 @@ function TextSegment({ segment }: { segment: Segment }) {
   if (!mention && href && isSafeLink(href)) {
     return (
       <Text
-        inherit
         accessibilityRole="link"
         accessibilityLabel={segment.text}
         className="text-primary underline"
@@ -102,7 +102,7 @@ function PublicPageMention({ slug, id, label }: { slug: string; id: string; labe
   // inherited publication and restrictions. Never consult authenticated data here.
   const target = usePublicPage(slug, id);
   const { t } = useTranslation();
-  if (target.isError || !target.data) return <Text inherit>{label}</Text>;
+  if (target.isError || !target.data) return <Text>{label}</Text>;
   return (
     <Link
       href={{ pathname: '/pub/[slug]/[pageId]', params: { slug, pageId: id } }}

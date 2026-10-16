@@ -1,8 +1,6 @@
 import * as React from 'react';
-import { Pressable, View } from 'react-native';
-import { MessageSquare } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
-import { useColorScheme } from '@/lib/useColorScheme';
+import { RiMessage2Line } from '@oxy.so/bloom/icons/RiMessage2Line';
+import { Button } from '@oxy.so/bloom/button';
 import { useBlockComments } from '@/lib/hooks/use-comments';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -23,7 +21,6 @@ interface CommentIndicatorProps {
  * present "+ Comment" hover affordance.
  */
 export function CommentIndicator({ blockId, onPress, alwaysVisible }: CommentIndicatorProps) {
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const { data } = useBlockComments(blockId);
 
@@ -36,24 +33,19 @@ export function CommentIndicator({ blockId, onPress, alwaysVisible }: CommentInd
   if (!alwaysVisible && openCount === 0) return null;
 
   return (
-    <Pressable
+    <Button
+      appearance="subtle"
+      tone={openCount > 0 ? 'accent' : 'neutral'}
+      size="xs"
       onPress={onPress}
-      className="flex-row items-center gap-1 rounded-md px-1.5 py-0.5 hover:bg-muted"
       accessibilityLabel={
         openCount > 0
           ? t('comments.indicator.count', { count: openCount })
           : t('comments.indicator.add')
       }
+      leadingIcon={RiMessage2Line}
     >
-      <MessageSquare size={12} color={openCount > 0 ? colors.primary : colors.mutedForeground} />
-      {openCount > 0 ? (
-        <Text className="text-[10px] font-medium text-primary">{openCount}</Text>
-      ) : null}
-      {openCount === 0 && alwaysVisible ? (
-        <Text className="text-[10px] text-muted-foreground">{t('comments.indicator.label')}</Text>
-      ) : (
-        <View />
-      )}
-    </Pressable>
+      {openCount > 0 ? String(openCount) : t('comments.indicator.label')}
+    </Button>
   );
 }

@@ -10,6 +10,12 @@
 module.exports = {
   preset: 'jest-expo',
   testTimeout: 30_000,
+  // Worklets' own resolver picks its JS (non-.native) runtime, so the real
+  // Reanimated that Bloom's components animate with loads without the native
+  // module.
+  resolver: require.resolve('react-native-worklets/jest/resolver'),
+  // Bloom's sheets and swipeable surfaces are gesture-handler views.
+  setupFiles: ['react-native-gesture-handler/jestSetup'],
   transformIgnorePatterns: [
     '/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|standard-navigation|@oxy\\.so))',
     '/node_modules/react-native-reanimated/plugin/',

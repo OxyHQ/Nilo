@@ -1,5 +1,6 @@
 import type React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { CommentReactions } from '../comment-reactions';
 import type { Comment } from '@/lib/types/comments';
 const mockMutate = jest.fn();
@@ -23,13 +24,17 @@ jest.mock('@/hooks/useTranslation', () => ({
       params?.emoji ? `${key} ${params.emoji}` : key,
   }),
 }));
-jest.mock('@/components/ui/dialog', () => {
-  const { View } = require('react-native');
+const mockPicker = { open: jest.fn(), close: jest.fn() };
+jest.mock('@oxy.so/bloom/dialog', () => {
+  const React = require('react');
+  // The picker renders its body only after `control.open()`, as Bloom's does.
   return {
-    Dialog: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-      open ? children : null,
-    DialogContent: View,
-    DialogTitle: View,
+    useDialogControl: () => mockPicker,
+    Dialog: ({ children }: { children: React.ReactNode }) => {
+      const [open, setOpen] = React.useState(false);
+      mockPicker.open.mockImplementation(() => setOpen(true));
+      return open ? children : null;
+    },
   };
 });
 const comment = {
@@ -41,9 +46,10 @@ const comment = {
 } as Comment;
 let renderer: ReactTestRenderer;
 function action(label: string) {
-  return renderer.root.find(
+  // The outermost match: a Bloom Button and the pressable inside it carry the same label.
+  return renderer.root.findAll(
     (node) => node.props.accessibilityLabel === label && node.props.onPress,
-  );
+  )[0];
 }
 afterEach(() => {
   act(() => renderer.unmount());
@@ -51,7 +57,11 @@ afterEach(() => {
 });
 it('highlights own reactions, toggles add/remove, and shows profile names on hover and long press', () => {
   act(() => {
-    renderer = create(<CommentReactions comment={comment} canComment />);
+    renderer = create(
+      <BloomTestProviders>
+        <CommentReactions comment={comment} canComment />
+      </BloomTestProviders>,
+    );
   });
   expect(action('comments.reactions.toggle 👍').props.accessibilityState.selected).toBe(true);
   act(() => action('comments.reactions.toggle 👍').props.onPress());
@@ -66,10 +76,15 @@ it('highlights own reactions, toggles add/remove, and shows profile names on hov
   act(() => action('comments.reactions.add').props.onPress());
   act(() => action('comments.reactions.choose ❤️').props.onPress());
   expect(mockMutate).toHaveBeenLastCalledWith({ comment, emoji: '❤️', remove: false });
+  expect(mockPicker.close).toHaveBeenCalled();
 });
 it('allows viewers to inspect names without mutating reactions', () => {
   act(() => {
-    renderer = create(<CommentReactions comment={comment} canComment={false} />);
+    renderer = create(
+      <BloomTestProviders>
+        <CommentReactions comment={comment} canComment={false} />
+      </BloomTestProviders>,
+    );
   });
   act(() => action('comments.reactions.toggle 👍').props.onPress());
   expect(mockMutate).not.toHaveBeenCalled();

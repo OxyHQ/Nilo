@@ -4,8 +4,15 @@ import { toast } from '@oxy.so/bloom/toast';
 import { PageInfo } from './page-info';
 import * as React from 'react';
 import { Platform, Pressable, TextInput, View, type GestureResponderEvent } from 'react-native';
-import { Globe, ImageIcon, Lock, Move, Smile } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { RiGlobalLine } from '@oxy.so/bloom/icons/RiGlobalLine';
+import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
+import { RiLockLine } from '@oxy.so/bloom/icons/RiLockLine';
+import { RiDragMove2Line } from '@oxy.so/bloom/icons/RiDragMove2Line';
+import { RiEmotionHappyLine } from '@oxy.so/bloom/icons/RiEmotionHappyLine';
+import { Badge } from '@oxy.so/bloom/badge';
+import { Button } from '@oxy.so/bloom/button';
+import { useDialogControl } from '@oxy.so/bloom/dialog';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
@@ -17,7 +24,6 @@ import { FavoriteButton } from './favorite-button';
 import { IconDisplay } from './icon-display';
 import { IconPicker } from './icon-picker';
 import { useRouter } from 'expo-router';
-import { Button } from '@/components/ui/button';
 import { PageActionsMenu } from './page-actions-menu';
 
 interface PageChromeProps {
@@ -30,8 +36,8 @@ interface PageChromeProps {
 }
 
 interface PageChromeState {
-  setIconOpen: (open: boolean) => void;
-  setCoverOpen: (open: boolean) => void;
+  openIconPicker: () => void;
+  openCoverPicker: () => void;
   setRepositioning: (next: boolean | ((prev: boolean) => boolean)) => void;
 }
 const StateContext = React.createContext<PageChromeState | null>(null);
@@ -53,8 +59,8 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
   const { t } = useTranslation();
   const { colors } = useColorScheme();
   const updatePage = useUpdatePage();
-  const [iconOpen, setIconOpen] = React.useState(false);
-  const [coverOpen, setCoverOpen] = React.useState(false);
+  const iconPicker = useDialogControl();
+  const coverPicker = useDialogControl();
   const [repositioning, setRepositioning] = React.useState(false);
 
   const handleIconSelect = React.useCallback(
@@ -73,8 +79,12 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
   );
 
   const stateValue = React.useMemo<PageChromeState>(
-    () => ({ setIconOpen, setCoverOpen, setRepositioning }),
-    [],
+    () => ({
+      openIconPicker: () => iconPicker.open(),
+      openCoverPicker: () => coverPicker.open(),
+      setRepositioning,
+    }),
+    [iconPicker, coverPicker],
   );
 
   return (
@@ -91,7 +101,7 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
             ) : null}
             {page.publishedAt ? (
               <View accessible accessibilityLabel={t('pages.publish.published')} className="px-1">
-                <Globe size={14} color={colors.mutedForeground} />
+                <RiGlobalLine width={14} height={14} fill={colors.mutedForeground} />
               </View>
             ) : null}
             {rightHeader}
@@ -105,12 +115,8 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
 
         {!readOnly && !page.locked ? (
           <>
-            <IconPicker open={iconOpen} onOpenChange={setIconOpen} onSelect={handleIconSelect} />
-            <CoverPicker
-              open={coverOpen}
-              onOpenChange={setCoverOpen}
-              onSelect={handleCoverSelect}
-            />
+            <IconPicker control={iconPicker} onSelect={handleIconSelect} />
+            <CoverPicker control={coverPicker} onSelect={handleCoverSelect} />
           </>
         ) : null}
       </View>
@@ -128,6 +134,7 @@ const RepositioningContext = React.createContext<boolean>(false);
 export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: boolean }) {
   const router = useRouter();
   const { t } = useTranslation();
+  const { colors } = useColorScheme();
   const state = React.useContext(StateContext);
   const repositioning = React.useContext(RepositioningContext);
   const updatePage = useUpdatePage();
@@ -175,7 +182,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
           <CoverArea
             cover={page.cover ?? null}
             position={page.coverPosition ?? 50}
-            onOpenPicker={() => state?.setCoverOpen(true)}
+            onOpenPicker={() => state?.openCoverPicker()}
             repositioning={repositioning}
             onToggleReposition={() => state?.setRepositioning((v) => !v)}
             onCommitPosition={handleCommitReposition}
@@ -191,20 +198,20 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
             <IconDisplay value={page.icon} size={64} />
           ) : null
         ) : (
-          <IconArea icon={page.icon ?? null} onOpenPicker={() => state?.setIconOpen(true)} />
+          <IconArea icon={page.icon ?? null} onOpenPicker={() => state?.openIconPicker()} />
         )}
         {!contentReadOnly ? (
           <AddChromeRow
             hasIcon={Boolean(page.icon)}
             hasCover={Boolean(page.cover)}
-            onAddIcon={() => state?.setIconOpen(true)}
-            onAddCover={() => state?.setCoverOpen(true)}
+            onAddIcon={() => state?.openIconPicker()}
+            onAddCover={() => state?.openCoverPicker()}
           />
         ) : null}
         {page.template && !page.databaseId ? (
-          <Text className="mb-2 self-start rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-            {t('pages.templates.badge')}
-          </Text>
+          <View className="mb-2 self-start">
+            <Badge appearance="subtle" tone="neutral" content={t('pages.templates.badge')} />
+          </View>
         ) : null}
         {page.template && page.databaseId ? (
           <View className="mb-3 flex-row items-center justify-between gap-2 rounded-md bg-muted px-3 py-2">
@@ -213,20 +220,25 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
             </Text>
             {!contentReadOnly ? (
               <Button
-                variant="ghost"
+                appearance="subtle"
+                tone="neutral"
                 accessibilityLabel={t('databases.templates.done')}
                 onPress={() => {
                   if (page.databaseId)
                     router.push({ pathname: '/db/[id]', params: { id: page.databaseId } });
                 }}
               >
-                <Text>{t('databases.templates.done')}</Text>
+                {t('databases.templates.done')}
               </Button>
             ) : null}
           </View>
         ) : null}
         {contentReadOnly ? (
-          <Text accessibilityRole="header" className="font-bold text-foreground" style={titleStyle}>
+          <Text
+            accessibilityRole="header"
+            className="text-base font-bold text-foreground"
+            style={titleStyle}
+          >
             {page.title || t('pages.untitled')}
           </Text>
         ) : (
@@ -239,13 +251,14 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
         )}
         {page.locked ? (
           <View className="mt-3 flex-row items-center gap-2 rounded-lg bg-muted px-3 py-2">
-            <Lock size={14} className="text-muted-foreground" />
+            <RiLockLine width={14} height={14} fill={colors.mutedForeground} />
             <Text className="flex-1 text-sm text-muted-foreground" accessibilityLiveRegion="polite">
               {t('pages.lock.banner')}
             </Text>
             {!readOnly ? (
               <Button
-                variant="ghost"
+                appearance="subtle"
+                tone="neutral"
                 size="sm"
                 disabled={updatePage.isPending}
                 accessibilityLabel={t('pages.lock.unlock')}
@@ -258,7 +271,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
                   )
                 }
               >
-                <Text>{t('pages.lock.unlock')}</Text>
+                {t('pages.lock.unlock')}
               </Button>
             ) : null}
           </View>
@@ -338,40 +351,26 @@ function CoverArea({
         <CoverDisplay value={cover} position={effectivePosition} height={192} />
       </View>
       <View className="absolute right-3 top-3 flex-row gap-2">
-        <Pressable
+        <Button
+          appearance={repositioning ? 'solid' : 'subtle'}
+          tone={repositioning ? 'accent' : 'neutral'}
+          size="sm"
           onPress={onToggleReposition}
-          className={
-            repositioning
-              ? 'h-8 flex-row items-center gap-1 rounded-md bg-primary px-3'
-              : 'h-8 flex-row items-center gap-1 rounded-md bg-card/90 px-3 hover:bg-card'
-          }
           accessibilityLabel={t('pages.header.repositionCover')}
+          leadingIcon={RiDragMove2Line}
         >
-          <Move
-            size={14}
-            color={repositioning ? 'white' : undefined}
-            className={repositioning ? undefined : 'text-foreground'}
-          />
-          <Text
-            className={
-              repositioning
-                ? 'text-xs font-medium text-primary-foreground'
-                : 'text-xs font-medium text-foreground'
-            }
-          >
-            {repositioning ? t('pages.header.savePosition') : t('pages.header.reposition')}
-          </Text>
-        </Pressable>
-        <Pressable
+          {repositioning ? t('pages.header.savePosition') : t('pages.header.reposition')}
+        </Button>
+        <Button
+          appearance="subtle"
+          tone="neutral"
+          size="sm"
           onPress={onOpenPicker}
-          className="h-8 flex-row items-center gap-1 rounded-md bg-card/90 px-3 hover:bg-card"
           accessibilityLabel={t('pages.header.changeCover')}
+          leadingIcon={RiImageLine}
         >
-          <ImageIcon size={14} className="text-foreground" />
-          <Text className="text-xs font-medium text-foreground">
-            {t('pages.header.changeCover')}
-          </Text>
-        </Pressable>
+          {t('pages.header.changeCover')}
+        </Button>
       </View>
     </View>
   );
@@ -430,20 +429,23 @@ interface AddChromeButtonProps {
   onPress: () => void;
 }
 function AddChromeButton({ icon, label, onPress }: AddChromeButtonProps) {
-  const { colors } = useColorScheme();
   return (
-    <Pressable
+    <Button
+      appearance="plain"
+      tone="neutral"
+      size="xs"
       onPress={onPress}
-      className="flex-row items-center gap-1.5 rounded-md px-2 py-1 hover:bg-muted"
       accessibilityLabel={label}
+      renderLeadingIcon={({ size, color }) =>
+        icon === 'emoji' ? (
+          <RiEmotionHappyLine width={size} height={size} fill={color} />
+        ) : (
+          <RiImageLine width={size} height={size} fill={color} />
+        )
+      }
     >
-      {icon === 'emoji' ? (
-        <Smile size={14} color={colors.mutedForeground} />
-      ) : (
-        <ImageIcon size={14} color={colors.mutedForeground} />
-      )}
-      <Text className="text-xs text-muted-foreground">{label}</Text>
-    </Pressable>
+      {label}
+    </Button>
   );
 }
 

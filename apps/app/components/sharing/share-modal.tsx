@@ -1,20 +1,26 @@
 import { PublishSection } from './publish-section';
 import React from 'react';
-import { View, Pressable, Platform, ActivityIndicator, ScrollView } from 'react-native';
+import { View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Copy, Link2, Trash2, ChevronDown } from 'lucide-react-native';
+import { RiFileCopyLine } from '@oxy.so/bloom/icons/RiFileCopyLine';
+import { RiLinkM } from '@oxy.so/bloom/icons/RiLinkM';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
+import { Divider } from '@oxy.so/bloom/divider';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Switch } from '@oxy.so/bloom/switch';
 import { toast } from '@oxy.so/bloom/toast';
+import { Text } from '@oxy.so/bloom/typography';
+import { MONO_FONT_FAMILY } from '@/lib/fonts';
 import { useColorScheme } from '@/lib/useColorScheme';
 import {
   useShareLinks,
@@ -100,10 +106,11 @@ function ExistingLinkRow({ link, pageId }: ExistingLinkRowProps) {
 
   return (
     <View className="flex-row items-center gap-2 px-2 py-2 rounded-lg">
-      <Link2 size={14} color={colors.mutedForeground} />
+      <RiLinkM width={14} height={14} fill={colors.mutedForeground} />
       <View className="flex-1 min-w-0">
         <Text
-          className="text-xs font-mono text-foreground"
+          className="text-xs text-foreground"
+          style={MONO_STYLE}
           numberOfLines={1}
           ellipsizeMode="middle"
         >
@@ -114,39 +121,53 @@ function ExistingLinkRow({ link, pageId }: ExistingLinkRowProps) {
           {expired ? ` · ${t('sharing.expiry.expired')}` : ''}
         </Text>
       </View>
-      <Pressable
+      <Button
+        appearance="subtle"
+        size="sm"
+        iconOnly
         onPress={handleCopy}
-        className="h-8 w-8 items-center justify-center rounded-lg hover:bg-muted"
         accessibilityLabel={t('sharing.links.copy')}
-        accessibilityRole="button"
-      >
-        <Copy size={14} color={colors.foreground} />
-      </Pressable>
-      <Pressable
+        leadingIcon={RiFileCopyLine}
+      />
+      <Button
+        appearance="subtle"
+        tone="danger"
+        size="sm"
+        iconOnly
         onPress={handleRevoke}
         disabled={isRevoking}
-        className="h-8 w-8 items-center justify-center rounded-lg hover:bg-destructive/10"
+        loading={isRevoking}
         accessibilityLabel={t('sharing.links.revoke')}
-        accessibilityRole="button"
-      >
-        {isRevoking ? (
-          <ActivityIndicator size="small" />
-        ) : (
-          <Trash2 size={14} className="text-destructive" />
-        )}
-      </Pressable>
+        leadingIcon={RiDeleteBin6Line}
+      />
     </View>
   );
 }
 
+/** Bloom's `Text` sets Inter inline, which outranks a `font-mono` class. */
+const MONO_STYLE = { fontFamily: MONO_FONT_FAMILY };
+
 interface ShareModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  control: DialogControlProps;
   pageId: string;
 }
 
-export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
-  const { colors } = useColorScheme();
+export function ShareModal({ control, pageId }: ShareModalProps) {
+  const { t } = useTranslation();
+  return (
+    <Dialog
+      control={control}
+      placement={{ base: 'bottom', md: 'center' }}
+      title={t('sharing.modal.title')}
+      description={t('sharing.modal.description')}
+    >
+      <ShareModalBody pageId={pageId} onNavigate={() => control.close()} />
+    </Dialog>
+  );
+}
+
+/** Mounted only while the dialog is open, so its queries run only then. */
+function ShareModalBody({ pageId, onNavigate }: { pageId: string; onNavigate: () => void }) {
   const { t } = useTranslation();
   const permissions = usePagePermissions(pageId);
   const canManage = !permissions.isError && hasRole(permissions.data?.role, 'editor');
@@ -156,7 +177,7 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
     isLoading: isListLoading,
     isError,
     error,
-  } = useShareLinks(pageId, { enabled: open && Boolean(pageId) && canManage });
+  } = useShareLinks(pageId, { enabled: Boolean(pageId) && canManage });
   const { mutate: createLink, isPending: isCreating } = useCreateShareLink(pageId);
 
   // The API lists active links only.
@@ -203,170 +224,141 @@ export function ShareModal({ open, onOpenChange, pageId }: ShareModalProps) {
   }, [matchingLink, t]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('sharing.modal.title')}</DialogTitle>
-          <DialogDescription>{t('sharing.modal.description')}</DialogDescription>
-        </DialogHeader>
-
-        <ScrollView
-          style={{ maxHeight: 560 }}
-          keyboardShouldPersistTaps="handled"
-          contentContainerClassName="gap-3"
-        >
-          <PublishSection pageId={pageId} />
-          {permissions.isLoading ? (
-            <ActivityIndicator />
-          ) : permissions.isError ? (
-            <View className="gap-2">
-              <Text accessibilityRole="alert" className="text-sm text-destructive">
-                {t('sharing.people.loadFailed')}
-              </Text>
-              <Button
-                variant="outline"
-                onPress={() => permissions.refetch()}
-                accessibilityLabel={t('sharing.people.retry')}
-              >
-                <Text>{t('sharing.people.retry')}</Text>
-              </Button>
-            </View>
-          ) : permissions.data ? (
-            <>
-              <PeopleSection
-                permissions={permissions.data}
-                onNavigate={() => onOpenChange(false)}
-              />
-              <GeneralAccess
-                permissions={permissions.data}
-                onNavigate={() => onOpenChange(false)}
-              />
-            </>
-          ) : null}
-          {canManage ? (
-            <>
-              <View className="rounded-xl border border-border p-3 gap-2">
-                <View className="flex-row items-center justify-between gap-3">
-                  <View className="flex-1 min-w-0">
-                    <Text className="text-sm font-semibold text-foreground">
-                      {t('sharing.modal.anyoneWithLink')}
-                    </Text>
-                    <Text className="text-xs text-muted-foreground">
-                      {isPublic
-                        ? t('sharing.modal.publicActive', { scope: scopeLabel(scope) })
-                        : t('sharing.modal.publicInactive')}
-                    </Text>
-                  </View>
-                  <Switch
-                    value={isPublic}
-                    onValueChange={handleTogglePublic}
-                    disabled={isCreating}
-                    accessibilityLabel={t('sharing.modal.anyoneWithLink')}
-                  />
-                </View>
-
+    <View className="gap-3">
+      <PublishSection pageId={pageId} />
+      {permissions.isLoading ? (
+        <Loading variant="spinner" size="sm" />
+      ) : permissions.isError ? (
+        <View className="gap-2">
+          <Text accessibilityRole="alert" className="text-sm text-destructive">
+            {t('sharing.people.loadFailed')}
+          </Text>
+          <Button
+            appearance="outline"
+            onPress={() => permissions.refetch()}
+            accessibilityLabel={t('sharing.people.retry')}
+          >
+            {t('sharing.people.retry')}
+          </Button>
+        </View>
+      ) : permissions.data ? (
+        <>
+          <PeopleSection permissions={permissions.data} onNavigate={onNavigate} />
+          <GeneralAccess permissions={permissions.data} onNavigate={onNavigate} />
+        </>
+      ) : null}
+      {canManage ? (
+        <>
+          <View className="rounded-xl border border-border p-3 gap-2">
+            <View className="flex-row items-center justify-between gap-3">
+              <View className="flex-1 min-w-0">
+                <Text variant="body-semibold">{t('sharing.modal.anyoneWithLink')}</Text>
                 <Text className="text-xs text-muted-foreground">
-                  {t('sharing.modal.guestExplanation')}
+                  {isPublic
+                    ? t('sharing.modal.publicActive', { scope: scopeLabel(scope) })
+                    : t('sharing.modal.publicInactive')}
                 </Text>
-                <View className="flex-row items-center gap-2">
-                  <Text className="text-xs text-muted-foreground">{t('sharing.modal.access')}</Text>
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger>
-                      <Pressable
-                        className="h-8 px-2 flex-row items-center gap-1 rounded-lg border border-border hover:bg-muted"
-                        accessibilityRole="button"
-                        accessibilityLabel={t('sharing.modal.selectedScope', {
-                          scope: scopeLabel(scope),
-                        })}
-                      >
-                        <Text className="text-xs font-medium text-foreground">
-                          {scopeLabel(scope)}
-                        </Text>
-                        <ChevronDown size={12} color={colors.mutedForeground} />
-                      </Pressable>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content>
-                      {SHARE_LINK_SCOPES.map((option) => (
-                        <DropdownMenu.Item key={option} onSelect={() => setScope(option)}>
-                          {Platform.OS === 'web' ? (
-                            <View className="gap-0.5">
-                              <Text className="text-sm font-medium text-foreground">
-                                {scopeLabel(option)}
-                              </Text>
-                              <Text className="text-xs text-muted-foreground">
-                                {scopeDescription(option)}
-                              </Text>
-                            </View>
-                          ) : (
-                            <>
-                              <DropdownMenu.ItemTitle>{scopeLabel(option)}</DropdownMenu.ItemTitle>
-                              <DropdownMenu.ItemSubtitle>
-                                {scopeDescription(option)}
-                              </DropdownMenu.ItemSubtitle>
-                            </>
-                          )}
-                        </DropdownMenu.Item>
-                      ))}
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Root>
-                </View>
+              </View>
+              <Switch
+                checked={isPublic}
+                onCheckedChange={handleTogglePublic}
+                disabled={isCreating}
+                accessibilityLabel={t('sharing.modal.anyoneWithLink')}
+              />
+            </View>
 
-                {isPublic && matchingLink ? (
-                  <View className="flex-row items-center gap-2 mt-1">
-                    <View className="flex-1 min-w-0 rounded-lg border border-border bg-muted/30 px-2 py-1.5">
-                      <Text
-                        className="text-xs font-mono text-foreground"
-                        numberOfLines={1}
-                        ellipsizeMode="middle"
-                      >
-                        {buildShareUrl(matchingLink.token)}
-                      </Text>
-                    </View>
-                    <Button
-                      size="sm"
-                      onPress={handleCopyActive}
-                      accessibilityLabel={t('sharing.modal.copy')}
-                    >
-                      <View className="flex-row items-center gap-1">
-                        <Copy size={12} className="text-primary-foreground" />
-                        <Text className="text-xs font-semibold text-primary-foreground">
-                          {t('sharing.modal.copy')}
+            <Text className="text-xs text-muted-foreground">
+              {t('sharing.modal.guestExplanation')}
+            </Text>
+            <View className="flex-row items-center gap-2">
+              <Text className="text-xs text-muted-foreground">{t('sharing.modal.access')}</Text>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    appearance="outline"
+                    size="sm"
+                    accessibilityLabel={t('sharing.modal.selectedScope', {
+                      scope: scopeLabel(scope),
+                    })}
+                    trailingIcon={RiArrowDownSLine}
+                  >
+                    {scopeLabel(scope)}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {SHARE_LINK_SCOPES.map((option) => (
+                    <DropdownMenuItem key={option} onPress={() => setScope(option)}>
+                      <View className="gap-0.5">
+                        <Text variant="body-medium">{scopeLabel(option)}</Text>
+                        <Text className="text-xs text-muted-foreground">
+                          {scopeDescription(option)}
                         </Text>
                       </View>
-                    </Button>
-                  </View>
-                ) : null}
-              </View>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </View>
 
-              <View className="gap-1">
-                <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  {t('sharing.modal.existingLinks')}
-                </Text>
-                {isListLoading ? (
-                  <View className="py-4 items-center">
-                    <ActivityIndicator />
-                  </View>
-                ) : isError ? (
-                  <Text className="text-sm text-destructive">
-                    {error instanceof Error ? error.message : t('sharing.modal.loadFailed')}
+            {isPublic && matchingLink ? (
+              <View className="flex-row items-center gap-2 mt-1">
+                <View className="flex-1 min-w-0 rounded-lg border border-border bg-muted/30 px-2 py-1.5">
+                  <Text
+                    className="text-xs text-foreground"
+                    style={MONO_STYLE}
+                    numberOfLines={1}
+                    ellipsizeMode="middle"
+                  >
+                    {buildShareUrl(matchingLink.token)}
                   </Text>
-                ) : activeLinks.length === 0 ? (
-                  <Text className="text-xs text-muted-foreground">{t('sharing.modal.empty')}</Text>
-                ) : (
-                  <View className="rounded-lg border border-border bg-card overflow-hidden">
-                    {activeLinks.map((link, idx) => (
-                      <View key={link.id}>
-                        {idx > 0 ? <View className="h-px bg-border/50 mx-2" /> : null}
-                        <ExistingLinkRow link={link} pageId={pageId} />
-                      </View>
-                    ))}
-                  </View>
-                )}
+                </View>
+                <Button
+                  size="sm"
+                  onPress={handleCopyActive}
+                  accessibilityLabel={t('sharing.modal.copy')}
+                  leadingIcon={RiFileCopyLine}
+                >
+                  {t('sharing.modal.copy')}
+                </Button>
               </View>
-            </>
-          ) : null}
-        </ScrollView>
-      </DialogContent>
-    </Dialog>
+            ) : null}
+          </View>
+
+          <View className="gap-1">
+            <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              {t('sharing.modal.existingLinks')}
+            </Text>
+            {isListLoading ? (
+              <View className="py-4 items-center">
+                <Loading variant="spinner" size="sm" />
+              </View>
+            ) : isError ? (
+              <Text className="text-sm text-destructive">
+                {error instanceof Error ? error.message : t('sharing.modal.loadFailed')}
+              </Text>
+            ) : activeLinks.length === 0 ? (
+              <EmptyState
+                variant="compact"
+                // icon: Link2
+                title={t('sharing.modal.empty')}
+              />
+            ) : (
+              <View className="rounded-lg border border-border bg-card overflow-hidden">
+                {activeLinks.map((link, idx) => (
+                  <View key={link.id}>
+                    {idx > 0 ? (
+                      <View className="mx-2">
+                        <Divider />
+                      </View>
+                    ) : null}
+                    <ExistingLinkRow link={link} pageId={pageId} />
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        </>
+      ) : null}
+    </View>
   );
 }

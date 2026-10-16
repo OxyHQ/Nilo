@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { Platform, Pressable, TextInput, View } from 'react-native';
-import { Video as VideoIcon } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { RiVideoLine } from '@oxy.so/bloom/icons/RiVideoLine';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { VideoSource } from '@/lib/types/pages';
 import type { BlockComponentProps } from './types';
@@ -81,16 +82,15 @@ export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
-          <VideoIcon size={16} color={colors.mutedForeground} />
+          <RiVideoLine size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">Video</Text>
         </View>
-        <TextInput
+        <TextFieldInput
+          label="Paste YouTube, Vimeo, Loom, or video URL"
           value={urlDraft}
           onChangeText={setUrlDraft}
           onBlur={() => commitUrl(urlDraft)}
           placeholder="Paste YouTube, Vimeo, Loom, or video URL"
-          placeholderTextColor={colors.mutedForeground}
-          className="rounded-md bg-background px-2 py-1.5 text-sm text-foreground border border-input"
         />
       </View>
     );
@@ -141,8 +141,8 @@ export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
           }}
         >
           <View className="flex-row items-center gap-2">
-            <VideoIcon size={16} color={colors.foreground} />
-            <Text className="text-sm text-foreground">{url}</Text>
+            <RiVideoLine size="sm" fill={colors.foreground} />
+            <Text variant="body-regular">{url}</Text>
           </View>
         </Pressable>
       )}

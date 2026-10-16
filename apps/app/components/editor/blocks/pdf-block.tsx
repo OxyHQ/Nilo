@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { Platform, Pressable, TextInput, View } from 'react-native';
-import { FileText } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { Platform, Pressable, View } from 'react-native';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { BlockComponentProps } from './types';
 
@@ -25,16 +26,15 @@ export function PdfBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
-          <FileText size={16} color={colors.mutedForeground} />
+          <RiFileTextLine size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">PDF</Text>
         </View>
-        <TextInput
+        <TextFieldInput
+          label="Paste PDF URL"
           value={urlDraft}
           onChangeText={setUrlDraft}
           onBlur={() => onChangeContent({ ...block.content, url: urlDraft.trim() })}
           placeholder="Paste PDF URL"
-          placeholderTextColor={colors.mutedForeground}
-          className="rounded-md bg-background px-2 py-1.5 text-sm text-foreground border border-input"
         />
       </View>
     );
@@ -73,8 +73,8 @@ export function PdfBlock({ block, onChangeContent }: BlockComponentProps) {
       onPress={() => import('expo-web-browser').then((mod) => mod.openBrowserAsync(url))}
       className="flex-row items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
     >
-      <FileText size={18} color={colors.foreground} />
-      <Text className="text-sm text-foreground">Open PDF</Text>
+      <RiFileTextLine width={18} height={18} fill={colors.foreground} />
+      <Text variant="body-regular">Open PDF</Text>
     </Pressable>
   );
 }

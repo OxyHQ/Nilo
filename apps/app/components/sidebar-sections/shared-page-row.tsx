@@ -5,11 +5,26 @@ import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
 import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronDown, ChevronRight, FileText, MoreHorizontal, Plus } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
+import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
+import { RiFileCopyLine } from '@oxy.so/bloom/icons/RiFileCopyLine';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
+import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiStarLine } from '@oxy.so/bloom/icons/RiStarLine';
+import { RiStarOffLine } from '@oxy.so/bloom/icons/RiStarOffLine';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
+import { Button } from '@oxy.so/bloom/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
 import { useDeletePage, useDuplicatePage, useUpdatePage } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import type { DropPosition } from './drag-context';
@@ -126,30 +141,31 @@ export function SharedPageRow({
           height: ROW_HEIGHT,
         }}
       >
-        <Pressable
-          onPress={(e) => {
-            e.stopPropagation();
-            if (hasChildren) onToggle();
-          }}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: isOpen }}
-          accessibilityLabel={isOpen ? t('pages.collapse') : t('pages.expand')}
-          className="h-5 w-5 items-center justify-center rounded"
-          disabled={!hasChildren}
-        >
-          {hasChildren ? (
-            isOpen ? (
-              <ChevronDown size={12} color={colors.mutedForeground} />
-            ) : (
-              <ChevronRight size={12} color={colors.mutedForeground} />
-            )
-          ) : null}
-        </Pressable>
+        {hasChildren ? (
+          <Button
+            appearance="plain"
+            size="xs"
+            iconOnly
+            stopPropagation
+            onPress={onToggle}
+            pressed={isOpen}
+            accessibilityLabel={isOpen ? t('pages.collapse') : t('pages.expand')}
+            renderLeadingIcon={({ size, color }) =>
+              isOpen ? (
+                <RiArrowDownSLine width={size} height={size} fill={color} />
+              ) : (
+                <RiArrowRightSLine width={size} height={size} fill={color} />
+              )
+            }
+          />
+        ) : (
+          <View className="h-5 w-5" />
+        )}
         <View className="h-5 w-5 items-center justify-center">
           {page.icon ? (
-            <Text className="text-sm leading-5">{page.icon}</Text>
+            <Text className="text-sm leading-5 text-foreground">{page.icon}</Text>
           ) : (
-            <FileText size={13} color={colors.mutedForeground} />
+            <RiFileTextLine width={13} height={13} fill={colors.mutedForeground} />
           )}
         </View>
         <Text
@@ -166,51 +182,60 @@ export function SharedPageRow({
         {/* Hover actions: three-dot menu + add child */}
         {!readOnly ? (
           <View className="flex-row items-center">
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger>
-                <Pressable
-                  onPress={(e) => e.stopPropagation()}
-                  accessibilityRole="button"
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  appearance="plain"
+                  size="xs"
+                  iconOnly
+                  stopPropagation
                   accessibilityLabel={t('pages.actions.actionsFor', { title })}
-                  className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
+                  leadingIcon={RiMoreLine}
+                />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  onPress={handleToggleFavorite}
+                  leading={
+                    isFavorite ? (
+                      <RiStarOffLine size="sm" fill={colors.mutedForeground} />
+                    ) : (
+                      <RiStarLine size="sm" fill={colors.mutedForeground} />
+                    )
+                  }
                 >
-                  <MoreHorizontal size={14} color={colors.mutedForeground} />
-                </Pressable>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content>
-                <DropdownMenu.Item key="favorite" onSelect={handleToggleFavorite}>
-                  <DropdownMenu.ItemIcon ios={{ name: isFavorite ? 'star.slash' : 'star' }} />
-                  <DropdownMenu.ItemTitle>
-                    {isFavorite
-                      ? t('pages.actions.removeFromFavorites')
-                      : t('pages.actions.addToFavorites')}
-                  </DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item key="duplicate" onSelect={handleDuplicate}>
-                  <DropdownMenu.ItemIcon ios={{ name: 'doc.on.doc' }} />
-                  <DropdownMenu.ItemTitle>{t('pages.actions.duplicate')}</DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item key="move" onSelect={() => setMoveOpen(true)}>
-                  <DropdownMenu.ItemTitle>{t('pages.actions.moveTo')}</DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-                <DropdownMenu.Separator />
-                <DropdownMenu.Item key="delete" destructive onSelect={handleDelete}>
-                  <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
-                  <DropdownMenu.ItemTitle>{t('pages.actions.moveToTrash')}</DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                handleAddChild();
-              }}
-              accessibilityRole="button"
+                  {isFavorite
+                    ? t('pages.actions.removeFromFavorites')
+                    : t('pages.actions.addToFavorites')}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onPress={handleDuplicate}
+                  leading={<RiFileCopyLine size="sm" fill={colors.mutedForeground} />}
+                >
+                  {t('pages.actions.duplicate')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onPress={() => setMoveOpen(true)}>
+                  {t('pages.actions.moveTo')}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onPress={handleDelete}
+                  leading={<RiDeleteBin6Line size="sm" fill={colors.mutedForeground} />}
+                >
+                  {t('pages.actions.moveToTrash')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              appearance="plain"
+              size="xs"
+              iconOnly
+              stopPropagation
+              onPress={handleAddChild}
               accessibilityLabel={t('pages.actions.addSubPageTo', { title })}
-              className="h-5 w-5 items-center justify-center rounded hover:bg-muted"
-            >
-              <Plus size={14} color={colors.mutedForeground} />
-            </Pressable>
+              leadingIcon={RiAddLine}
+            />
           </View>
         ) : null}
       </Pressable>

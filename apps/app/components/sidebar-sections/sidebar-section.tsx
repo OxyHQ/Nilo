@@ -1,7 +1,11 @@
 import * as React from 'react';
-import { View, Pressable, ActivityIndicator } from 'react-native';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { View, Pressable } from 'react-native';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
+import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
+import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { Button } from '@oxy.so/bloom/button';
+import { Collapsible } from '@oxy.so/bloom/collapsible';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUIStore, type SidebarSectionKey } from '@/lib/stores/ui-store';
@@ -59,14 +63,15 @@ export function SidebarSection({
             isOpen ? t('sidebar.collapseSection', { title }) : t('sidebar.expandSection', { title })
           }
           accessibilityRole="button"
+          aria-expanded={collapsible && sectionKey ? isOpen : undefined}
           disabled={!collapsible || !sectionKey}
           className="flex-1 flex-row items-center gap-1 rounded-md px-1 py-1 hover:bg-muted/50"
         >
           {collapsible && sectionKey ? (
             isOpen ? (
-              <ChevronDown size={10} color={colors.mutedForeground} />
+              <RiArrowDownSLine width={10} height={10} fill={colors.mutedForeground} />
             ) : (
-              <ChevronRight size={10} color={colors.mutedForeground} />
+              <RiArrowRightSLine width={10} height={10} fill={colors.mutedForeground} />
             )
           ) : (
             <View style={{ width: 10, height: 10 }} />
@@ -77,22 +82,21 @@ export function SidebarSection({
         </Pressable>
         {trailing ? <View className="mr-1">{trailing}</View> : null}
         {onAdd ? (
-          <Pressable
+          <Button
+            appearance="plain"
+            size="xs"
+            iconOnly
             onPress={onAdd}
             accessibilityLabel={t('sidebar.addToSection', { title })}
-            accessibilityRole="button"
             disabled={adding}
-            className="h-6 w-6 items-center justify-center rounded-md hover:bg-muted"
-          >
-            {adding ? (
-              <ActivityIndicator size="small" color={colors.mutedForeground} />
-            ) : (
-              <Plus size={12} color={colors.mutedForeground} />
-            )}
-          </Pressable>
+            loading={adding}
+            leadingIcon={RiAddLine}
+          />
         ) : null}
       </View>
-      {isOpen ? <View className="mt-0.5">{children}</View> : null}
+      <Collapsible open={isOpen} contentClassName="mt-0.5">
+        {children}
+      </Collapsible>
     </View>
   );
 }

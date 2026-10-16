@@ -1,9 +1,10 @@
 import * as React from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Platform, Pressable, ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Text } from '@/components/ui/text';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 
 interface ViewTimelineProps {
@@ -23,7 +24,6 @@ const DAYS_WINDOW = 60;
  */
 export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelineProps) {
   const router = useRouter();
-  const { colors } = useColorScheme();
   const { t, locale } = useTranslation();
 
   const startProperty = React.useMemo(() => {
@@ -45,26 +45,28 @@ export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelinePr
   if (isLoading) {
     return (
       <View className="py-10 items-center">
-        <ActivityIndicator color={colors.mutedForeground} />
+        <Loading variant="spinner" />
       </View>
     );
   }
 
   if (!startProperty) {
     return (
-      <View className="px-6 py-10">
-        <Text className="text-sm text-muted-foreground">
-          {t('databases.timeline.needsDateProperty')}
-        </Text>
-      </View>
+      <EmptyState
+        // icon: TimerReset
+        variant="compact"
+        title={t('databases.timeline.needsDateProperty')}
+      />
     );
   }
 
   if (Platform.OS !== 'web') {
     return (
-      <View className="p-3">
-        <Text className="text-sm text-muted-foreground">{t('databases.timeline.webOnly')}</Text>
-      </View>
+      <EmptyState
+        // icon: TimerReset
+        variant="compact"
+        title={t('databases.timeline.webOnly')}
+      />
     );
   }
 
@@ -133,7 +135,7 @@ export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelinePr
                 style={{ width: 240 }}
                 className="px-3 justify-center border-r border-border/60"
               >
-                <Text className="text-sm text-foreground" numberOfLines={1}>
+                <Text variant="body-regular" numberOfLines={1}>
                   {row.title || t('databases.untitled')}
                 </Text>
               </View>

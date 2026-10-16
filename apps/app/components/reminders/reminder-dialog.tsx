@@ -1,17 +1,11 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Textarea } from '@oxy.so/bloom/textarea';
 import { toast } from '@oxy.so/bloom/toast';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useCreateReminder } from '@/lib/hooks/use-page-extras';
 import {
@@ -28,6 +22,7 @@ export function ReminderDialog({ pageId, onClose }: { pageId: string; onClose: (
   const [note, setNote] = useState('');
   const [invalid, setInvalid] = useState(false);
   const create = useCreateReminder(pageId);
+  const control = useDialogControl();
   const choices: ReminderChoice[] = ['hour', 'tomorrow', 'week'];
   const save = () => {
     if (create.isPending) return;
@@ -49,80 +44,72 @@ export function ReminderDialog({ pageId, onClose }: { pageId: string; onClose: (
     );
   };
   return (
+    // The parent mounts this only while it is open; `onClose` fires after the exit.
     <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
+      control={control}
+      startOpen
+      onClose={onClose}
+      placement={{ base: 'bottom', md: 'center' }}
+      title={t('pages.reminders.title')}
+      description={t('pages.reminders.description')}
     >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('pages.reminders.title')}</DialogTitle>
-          <DialogDescription>{t('pages.reminders.description')}</DialogDescription>
-        </DialogHeader>
-        <ScrollView
-          style={{ maxHeight: 540, flexShrink: 1 }}
-          contentContainerClassName="gap-4"
-          keyboardShouldPersistTaps="handled"
+      <View className="gap-4">
+        <View className="flex-row flex-wrap gap-2">
+          {choices.map((choice) => (
+            <Button
+              key={choice}
+              appearance="outline"
+              size="sm"
+              onPress={() => {
+                setFields(reminderFields(reminderQuickChoice(choice)));
+                setInvalid(false);
+              }}
+              accessibilityLabel={t(`pages.reminders.choices.${choice}`)}
+            >
+              {t(`pages.reminders.choices.${choice}`)}
+            </Button>
+          ))}
+        </View>
+        <View className="gap-2">
+          <Text variant="body-medium">{t('pages.reminders.date')}</Text>
+          <TextFieldInput
+            label={t('pages.reminders.date')}
+            value={fields.date}
+            onChangeText={(date) => setFields((old) => ({ ...old, date }))}
+            placeholder={t('pages.reminders.dateFormat')}
+            autoCapitalize="none"
+          />
+          <Text variant="body-medium">{t('pages.reminders.time')}</Text>
+          <TextFieldInput
+            label={t('pages.reminders.time')}
+            value={fields.time}
+            onChangeText={(time) => setFields((old) => ({ ...old, time }))}
+            placeholder={t('pages.reminders.timeFormat')}
+            autoCapitalize="none"
+            onSubmitEditing={save}
+          />
+          <Text className="text-xs text-muted-foreground">{t('pages.reminders.localTime')}</Text>
+          {invalid ? (
+            <Text accessibilityRole="alert" className="text-sm text-destructive">
+              {t('pages.reminders.invalid')}
+            </Text>
+          ) : null}
+          <Textarea
+            label={t('pages.reminders.note')}
+            maxLength={500}
+            value={note}
+            onChangeText={setNote}
+          />
+        </View>
+        <Button
+          disabled={create.isPending}
+          onPress={save}
+          accessibilityLabel={t('pages.reminders.save')}
         >
-          <View className="flex-row flex-wrap gap-2">
-            {choices.map((choice) => (
-              <Button
-                key={choice}
-                variant="outline"
-                size="sm"
-                onPress={() => {
-                  setFields(reminderFields(reminderQuickChoice(choice)));
-                  setInvalid(false);
-                }}
-                accessibilityLabel={t(`pages.reminders.choices.${choice}`)}
-              >
-                <Text>{t(`pages.reminders.choices.${choice}`)}</Text>
-              </Button>
-            ))}
-          </View>
-          <View className="gap-2">
-            <Text>{t('pages.reminders.date')}</Text>
-            <Input
-              value={fields.date}
-              onChangeText={(date) => setFields((old) => ({ ...old, date }))}
-              placeholder={t('pages.reminders.dateFormat')}
-              accessibilityLabel={t('pages.reminders.date')}
-              autoCapitalize="none"
-            />
-            <Text>{t('pages.reminders.time')}</Text>
-            <Input
-              value={fields.time}
-              onChangeText={(time) => setFields((old) => ({ ...old, time }))}
-              placeholder={t('pages.reminders.timeFormat')}
-              accessibilityLabel={t('pages.reminders.time')}
-              autoCapitalize="none"
-              onSubmitEditing={save}
-            />
-            <Text className="text-xs text-muted-foreground">{t('pages.reminders.localTime')}</Text>
-            {invalid ? (
-              <Text accessibilityRole="alert" className="text-sm text-destructive">
-                {t('pages.reminders.invalid')}
-              </Text>
-            ) : null}
-            <Text>{t('pages.reminders.note')}</Text>
-            <Textarea
-              maxLength={500}
-              value={note}
-              onChangeText={setNote}
-              accessibilityLabel={t('pages.reminders.note')}
-            />
-          </View>
-          <Button
-            disabled={create.isPending}
-            onPress={save}
-            accessibilityLabel={t('pages.reminders.save')}
-          >
-            <Text>{t('pages.reminders.save')}</Text>
-          </Button>
-          <ReminderList pageId={pageId} />
-        </ScrollView>
-      </DialogContent>
+          {t('pages.reminders.save')}
+        </Button>
+        <ReminderList pageId={pageId} />
+      </View>
     </Dialog>
   );
 }

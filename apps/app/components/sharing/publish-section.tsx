@@ -1,10 +1,11 @@
-import { View, ActivityIndicator } from 'react-native';
+import { View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
 import * as Clipboard from 'expo-clipboard';
+import { Button } from '@oxy.so/bloom/button';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Switch } from '@oxy.so/bloom/switch';
 import { toast } from '@oxy.so/bloom/toast';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePage } from '@/lib/hooks/use-pages';
 import { usePublishPage } from '@/lib/hooks/use-page-extras';
@@ -28,20 +29,22 @@ export function PublishSection({ pageId }: { pageId: string }) {
     );
   return (
     <View className="rounded-xl border border-border p-3 gap-3">
-      <Text accessibilityRole="header" className="text-base font-semibold">
+      <Text accessibilityRole="header" variant="headline-semibold">
         {t('pages.publish.title')}
       </Text>
-      {query.isLoading ? <ActivityIndicator accessibilityLabel={t('common.loading')} /> : null}
+      {query.isLoading ? (
+        <Loading variant="spinner" size="sm" accessibilityLabel={t('common.loading')} />
+      ) : null}
       {query.isError ? (
-        <Button variant="outline" onPress={() => query.refetch()}>
-          <Text>{t('pages.publish.retry')}</Text>
+        <Button appearance="outline" onPress={() => query.refetch()}>
+          {t('pages.publish.retry')}
         </Button>
       ) : null}
       <View className="flex-row items-center justify-between gap-3">
-        <Text className="flex-1">{t('pages.publish.enabled')}</Text>
+        <Text className="flex-1 text-base text-foreground">{t('pages.publish.enabled')}</Text>
         <Switch
-          value={published}
-          onValueChange={(value) => update(value)}
+          checked={published}
+          onCheckedChange={(value) => update(value)}
           disabled={!allowed || publish.isPending}
           accessibilityLabel={t('pages.publish.enabled')}
         />
@@ -56,7 +59,7 @@ export function PublishSection({ pageId }: { pageId: string }) {
             {buildPublishUrl(page.publishSlug)}
           </Text>
           <Button
-            variant="outline"
+            appearance="outline"
             onPress={async () => {
               try {
                 await Clipboard.setStringAsync(buildPublishUrl(page.publishSlug!));
@@ -67,15 +70,15 @@ export function PublishSection({ pageId }: { pageId: string }) {
             }}
             accessibilityLabel={t('pages.publish.copy')}
           >
-            <Text>{t('pages.publish.copy')}</Text>
+            {t('pages.publish.copy')}
           </Button>
         </View>
       ) : null}
       <View className="flex-row items-center justify-between gap-3">
-        <Text className="flex-1">{t('pages.publish.indexing')}</Text>
+        <Text className="flex-1 text-base text-foreground">{t('pages.publish.indexing')}</Text>
         <Switch
-          value={page?.publishIndexing ?? false}
-          onValueChange={(value) => update(true, value)}
+          checked={page?.publishIndexing ?? false}
+          onCheckedChange={(value) => update(true, value)}
           disabled={!allowed || !published || publish.isPending}
           accessibilityLabel={t('pages.publish.indexing')}
         />

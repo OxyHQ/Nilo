@@ -1,10 +1,12 @@
 import * as React from 'react';
 import { Platform, Pressable, View } from 'react-native';
-import { File as FileIcon, Upload } from 'lucide-react-native';
 import { blockFileId } from '@nilo/contracts';
+import { Button } from '@oxy.so/bloom/button';
+import { RiFileLine } from '@oxy.so/bloom/icons/RiFileLine';
+import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';
+import { Text } from '@oxy.so/bloom/typography';
 import { useOxy } from '@oxy.so/services';
 import { useQueryClient } from '@tanstack/react-query';
-import { Text } from '@/components/ui/text';
 import { freshFileUrl, useFileScope } from '@/lib/files/file-urls';
 import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -94,10 +96,14 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
-          <FileIcon size={16} color={colors.mutedForeground} />
+          <RiFileLine size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">File</Text>
         </View>
-        <Pressable
+        <Button
+          appearance="solid"
+          tone="accent"
+          size="sm"
+          className="self-start"
           onPress={() => {
             if (Platform.OS === 'web') {
               fileInputRef.current?.click();
@@ -105,14 +111,11 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
               void handleNativeUpload();
             }
           }}
-          className="flex-row items-center gap-1 self-start rounded-md bg-primary px-3 py-1.5"
           disabled={busy}
+          leadingIcon={RiUpload2Line}
         >
-          <Upload size={14} color={colors.primaryForeground} />
-          <Text className="text-sm font-medium" style={{ color: colors.primaryForeground }}>
-            {busy ? 'Uploading…' : 'Choose file'}
-          </Text>
-        </Pressable>
+          {busy ? 'Uploading…' : 'Choose file'}
+        </Button>
         {Platform.OS === 'web' ? (
           <input
             ref={fileInputRef}
@@ -141,9 +144,9 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
         onPress={() => void open()}
         className="flex-row items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
       >
-        <FileIcon size={18} color={colors.foreground} />
+        <RiFileLine width={18} height={18} fill={colors.foreground} />
         <View className="flex-1">
-          <Text className="text-sm text-foreground">{displayName}</Text>
+          <Text variant="body-regular">{displayName}</Text>
           {sizeLabel ? <Text className="text-xs text-muted-foreground">{sizeLabel}</Text> : null}
         </View>
       </Pressable>

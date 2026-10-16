@@ -1,9 +1,9 @@
-import type React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { DropdownMenuItem } from '@oxy.so/bloom/dropdown-menu';
+import { confirm } from '@oxy.so/bloom/surfaces';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { DatabaseActionsMenu } from '../database-actions-menu';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import apiClient from '@/lib/api/client';
 import type { Database } from '@/lib/types/databases';
 let mockDatabase: Database;
@@ -22,18 +22,7 @@ jest.mock('@/hooks/useTranslation', () => ({
     t: (key: string) => (key === 'databases.subItems.name' ? 'Sub-items' : key),
   }),
 }));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
-jest.mock('@/components/ui/confirmation-dialog', () => ({ ConfirmationDialog: () => null }));
-jest.mock('@/components/ui/dropdown-menu', () => {
-  const { View } = require('react-native');
-  return {
-    Root: View,
-    Trigger: View,
-    Content: View,
-    Item: ({ children }: { children: React.ReactNode }) => children,
-    ItemTitle: View,
-  };
-});
+jest.mock('@oxy.so/bloom/surfaces', () => ({ confirm: jest.fn() }));
 let renderer: ReactTestRenderer;
 let client: QueryClient;
 beforeEach(() => {
@@ -51,15 +40,26 @@ async function mount() {
   client.setQueryData(['database', 'db'], { database: mockDatabase });
   await act(async () => {
     renderer = create(
-      <QueryClientProvider client={client}>
-        <DatabaseActionsMenu databaseId="db" />
-      </QueryClientProvider>,
+      <BloomTestProviders>
+        <QueryClientProvider client={client}>
+          <DatabaseActionsMenu databaseId="db" />
+        </QueryClientProvider>
+      </BloomTestProviders>,
     );
   });
+  // The items render once the menu is open.
+  act(() => {
+    renderer.root
+      .findAll(
+        (node) => node.props.accessibilityLabel === 'databases.csv.menu' && node.props.onPress,
+      )[0]
+      .props.onPress();
+  });
 }
+const subItemsItem = () => renderer.root.findAllByType(DropdownMenuItem)[0];
 it('enables sub-items with a self-relation in one request', async () => {
   await mount();
-  await act(async () => renderer.root.findAllByType(DropdownMenu.Item)[0].props.onSelect());
+  await act(async () => subItemsItem().props.onPress());
   expect(apiClient.post).toHaveBeenCalledWith('/databases/db/properties', {
     name: 'Sub-items',
     type: 'relation',
@@ -81,10 +81,21 @@ it('confirms before deleting the source property to turn sub-items off', async (
       config: { targetDatabaseId: 'db', twoWay: true, syncedPropertyId: 'children' },
     },
   ];
+  let answer: (confirmed: boolean) => void = () => {};
+  jest.mocked(confirm).mockReturnValue(
+    new Promise<boolean>((resolve) => {
+      answer = resolve;
+    }),
+  );
   await mount();
-  act(() => renderer.root.findAllByType(DropdownMenu.Item)[0].props.onSelect());
+  act(() => subItemsItem().props.onPress());
   expect(apiClient.delete).not.toHaveBeenCalled();
-  expect(renderer.root.findByType(ConfirmationDialog).props.open).toBe(true);
-  await act(async () => renderer.root.findByType(ConfirmationDialog).props.onConfirm());
+  expect(confirm).toHaveBeenCalledWith(
+    expect.objectContaining({ title: 'databases.subItems.disable', destructive: true }),
+  );
+  await act(async () => {
+    answer(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
   expect(apiClient.delete).toHaveBeenCalledWith('/databases/db/properties/children');
 });

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { View } from 'react-native';
 import { usePathname } from 'expo-router';
 import { buildPageTree, type TreeNode } from '@/lib/page-tree';
-import { Text } from '@/components/ui/text';
+import { Text } from '@oxy.so/bloom/typography';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import { SidebarPageRow } from './page-row';

@@ -1,5 +1,6 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { PropertyCell } from '../property-cell';
 import { RowPropertiesPanel } from '../row-properties-panel';
 import { useDatabaseRow } from '@/lib/hooks/use-database-rows';
@@ -30,7 +31,7 @@ it.each([false, true])(
       );
     act(() => {
       renderer = create(
-        <>
+        <BloomTestProviders>
           <PropertyCell
             property={{
               id: 'project',
@@ -53,7 +54,7 @@ it.each([false, true])(
             readOnly={readOnly}
             onChange={jest.fn()}
           />
-        </>,
+        </BloomTestProviders>,
       );
     });
     expect(useDatabaseRow).toHaveBeenCalledWith('projects', 'project');
@@ -91,7 +92,11 @@ it('the row page uses fresh row-query properties without reloading the editor pa
       }) as ReturnType<typeof useDatabaseRow>,
   );
   act(() => {
-    renderer = create(<RowPropertiesPanel database={database} row={row} readOnly />);
+    renderer = create(
+      <BloomTestProviders>
+        <RowPropertiesPanel database={database} row={row} readOnly />
+      </BloomTestProviders>,
+    );
   });
   expect(useDatabaseRow).toHaveBeenCalledWith('db', 'row');
   expect(useDatabaseRow).toHaveBeenCalledWith('target', 'new');

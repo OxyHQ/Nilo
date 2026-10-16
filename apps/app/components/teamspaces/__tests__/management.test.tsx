@@ -1,8 +1,9 @@
-import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { useMemo, useState } from 'react';
+import { act, create, type ReactTestRenderer, type ReactTestInstance } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { TeamspaceDialog } from '../teamspace-dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import type { DialogControlProps } from '@oxy.so/bloom/dialog';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
+import { TeamspaceDialog, type TeamspaceSelection } from '../teamspace-dialog';
 import apiClient from '@/lib/api/client';
 import type { Teamspace } from '@/lib/hooks/use-teamspaces';
 
@@ -25,9 +26,13 @@ jest.mock('@/lib/hooks/use-member-profiles', () => ({
   }),
   profileName: (profile?: { name: string }) => profile?.name,
 }));
-jest.mock('@/components/ui/dialog', () => {
+// The dialog's own surface needs native overlay modules; its content is what is tested.
+jest.mock('@oxy.so/bloom/dialog', () => {
+  const { createElement } = require('react');
   const { View } = require('react-native');
-  return { Dialog: View, DialogContent: View, DialogTitle: View };
+  return {
+    Dialog: ({ children }: { children: React.ReactNode }) => createElement(View, null, children),
+  };
 });
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
@@ -43,25 +48,65 @@ let client: QueryClient;
 let renderer: ReactTestRenderer;
 let teamspace: Teamspace;
 const close = jest.fn();
-async function mount(initial: Teamspace | 'create' = teamspace) {
+/** Holds what the caller holds: the dialog's control and its selection. */
+function Harness({ initial }: { initial: TeamspaceSelection }) {
+  const [selection, setSelection] = useState(initial);
+  const control = useMemo<DialogControlProps>(
+    () => ({ id: 'teamspace', ref: { current: null }, open: () => {}, close: () => close() }),
+    [],
+  );
+  return (
+    <TeamspaceDialog
+      control={control}
+      workspaceId="w"
+      selection={selection}
+      onSelect={setSelection}
+    />
+  );
+}
+async function mount(initial: TeamspaceSelection = teamspace) {
   await act(async () => {
     renderer = create(
-      <QueryClientProvider client={client}>
-        <TeamspaceDialog workspaceId="w" initial={initial} onClose={close} />
-      </QueryClientProvider>,
+      <BloomTestProviders>
+        <QueryClientProvider client={client}>
+          <Harness initial={initial} />
+        </QueryClientProvider>
+      </BloomTestProviders>,
     );
   });
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 }
+// Every pressable named by a label; the first node per label is the Bloom
+// component itself, the rest are the hosts it renders.
 function buttons() {
-  return renderer.root.findAllByType(Button);
+  const seen = new Set<string>();
+  return renderer.root.findAll((node) => {
+    const label = node.props.accessibilityLabel;
+    if (typeof label !== 'string' || typeof node.props.onPress !== 'function') return false;
+    if (seen.has(label)) return false;
+    seen.add(label);
+    return true;
+  });
 }
 function button(label: string) {
   const result = buttons().find((b) => b.props.accessibilityLabel === label);
   if (!result) throw new Error(`Missing button ${label}`);
   return result;
+}
+function inputs(): ReactTestInstance[] {
+  return renderer.root.findAll(
+    (node) => typeof node.props.label === 'string' && typeof node.props.onChangeText === 'function',
+  );
+}
+function privacy() {
+  const [group] = renderer.root.findAll(
+    (node) =>
+      node.props.label === 'workspace.teamspaces.privacyLabel' && Array.isArray(node.props.options),
+  );
+  if (!group) throw new Error('Missing privacy group');
+  return group;
 }
 async function press(label: string) {
   await act(async () => {
@@ -124,7 +169,7 @@ it('shows hydrated names and prevents removing or demoting the last owner', asyn
 it('lets a member read and leave without seeing management controls', async () => {
   teamspace.role = 'member';
   await mount();
-  expect(renderer.root.findAllByType(Input).every((i) => i.props.editable === false)).toBe(true);
+  expect(inputs().every((i) => i.props.editable === false)).toBe(true);
   expect(buttons().some((b) => b.props.accessibilityLabel === 'common.save')).toBe(false);
   expect(buttons().some((b) => b.props.accessibilityLabel === 'workspace.teamspaces.archive')).toBe(
     false,
@@ -141,11 +186,7 @@ it('locks default privacy and hides archive, remove and leave', async () => {
   teamspace.isDefault = true;
   teamspace.privacy = 'open';
   await mount();
-  expect(
-    buttons()
-      .filter((b) => b.props.accessibilityRole === 'radio')
-      .every((b) => b.props.disabled),
-  ).toBe(true);
+  expect(privacy().props.disabled).toBe(true);
   const labels = buttons().map((b) => b.props.accessibilityLabel);
   expect(labels).not.toContain('workspace.teamspaces.archive');
   expect(labels).not.toContain('workspace.teamspaces.leave');
@@ -166,13 +207,12 @@ it('creates with the entered name, icon, description and privacy', async () => {
     ['description', 'Notes'],
   ]) {
     await act(async () =>
-      renderer.root
-        .findAllByType(Input)
-        .find((input) => input.props.accessibilityLabel === `workspace.teamspaces.${field}`)
+      inputs()
+        .find((input) => input.props.label === `workspace.teamspaces.${field}`)
         ?.props.onChangeText(value),
     );
   }
-  await press('workspace.teamspaces.privacy.private');
+  await act(async () => privacy().props.onValueChange('private'));
   await press('workspace.teamspaces.create');
   expect(apiClient.post).toHaveBeenCalledWith('/workspaces/w/teamspaces', {
     name: 'Research',

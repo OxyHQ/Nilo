@@ -3,7 +3,6 @@ import { Link } from 'expo-router';
 import { BlockText, PublicMentionContext } from '../block-text';
 
 jest.mock('expo-router', () => ({ Link: 'Link' }));
-jest.mock('@/components/ui/text', () => ({ Text: 'Text' }));
 jest.mock('@/components/page-editor/open-target', () => ({ openEditorLink: jest.fn() }));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (_key: string, args: { title: string }) => `Open ${args.title}` }),

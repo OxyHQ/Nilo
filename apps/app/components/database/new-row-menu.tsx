@@ -1,10 +1,18 @@
-import { View, Pressable } from 'react-native';
-import { ChevronDown } from 'lucide-react-native';
+import { View } from 'react-native';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { useRouter } from 'expo-router';
+import { Button } from '@oxy.so/bloom/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
 import { toast } from '@oxy.so/bloom/toast';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useCreateRow } from '@/lib/hooks/use-database-rows';
 import { useCreateRowTemplate, useRowTemplates } from '@/lib/hooks/use-row-templates';
@@ -28,71 +36,68 @@ export function NewRowMenu({ databaseId }: { databaseId: string }) {
   return (
     <View className="flex-row items-center gap-1">
       <Button
+        appearance="solid"
+        tone="accent"
         size="sm"
         disabled={pending}
         onPress={() => add()}
         accessibilityLabel={t('databases.actions.new')}
       >
-        <Text>{t('databases.actions.new')}</Text>
+        {t('databases.actions.new')}
       </Button>
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
-          <Pressable
-            accessibilityRole="button"
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            iconOnly
+            appearance="solid"
+            tone="accent"
+            size="sm"
             accessibilityLabel={t('databases.templates.menu')}
-            className="rounded bg-primary p-2"
-          >
-            <ChevronDown size={16} className="text-primary-foreground" />
-          </Pressable>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content>
+            leadingIcon={RiArrowDownSLine}
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" label={t('databases.templates.menu')}>
           {templates.isPending ? (
-            <DropdownMenu.Item key="loading" disabled>
-              <DropdownMenu.ItemTitle>{t('common.loading')}</DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
+            <DropdownMenuItem disabled>{t('common.loading')}</DropdownMenuItem>
           ) : null}
           {templates.isError ? (
-            <DropdownMenu.Item
-              key="retry"
-              onSelect={() => {
+            <DropdownMenuItem
+              onPress={() => {
                 void templates.refetch();
               }}
             >
-              <DropdownMenu.ItemTitle>{t('databases.templates.retry')}</DropdownMenu.ItemTitle>
-            </DropdownMenu.Item>
+              {t('databases.templates.retry')}
+            </DropdownMenuItem>
           ) : null}
           {templates.data?.templates.map((template) => (
-            <DropdownMenu.Sub key={template.id}>
-              <DropdownMenu.SubTrigger key={template.id}>
-                <DropdownMenu.ItemTitle>
-                  {template.title || t('pages.untitled')}
-                </DropdownMenu.ItemTitle>
-              </DropdownMenu.SubTrigger>
-              <DropdownMenu.SubContent>
-                <DropdownMenu.Item key="use" disabled={pending} onSelect={() => add(template.id)}>
-                  <DropdownMenu.ItemTitle>{t('databases.templates.use')}</DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item key="edit" onSelect={() => open(template.id)}>
-                  <DropdownMenu.ItemTitle>{t('databases.templates.edit')}</DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-              </DropdownMenu.SubContent>
-            </DropdownMenu.Sub>
+            <DropdownMenuSub key={template.id}>
+              <DropdownMenuSubTrigger>
+                {template.title || t('pages.untitled')}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem disabled={pending} onPress={() => add(template.id)}>
+                  {t('databases.templates.use')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onPress={() => open(template.id)}>
+                  {t('databases.templates.edit')}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           ))}
-          <DropdownMenu.Separator />
-          <DropdownMenu.Item
-            key="new-template"
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
             disabled={pending}
-            onSelect={() =>
+            onPress={() =>
               createTemplate.mutate(t('databases.templates.new'), {
                 onSuccess: (page) => open(page.id),
                 onError: () => toast.error(t('databases.templates.createFailed')),
               })
             }
           >
-            <DropdownMenu.ItemTitle>{t('databases.templates.new')}</DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
+            {t('databases.templates.new')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </View>
   );
 }

@@ -5,13 +5,16 @@ import { ViewTab, NewViewPicker } from '@/components/database/database-header';
 import { toast } from '@oxy.so/bloom/toast';
 import { DatabaseActionsMenu } from '@/components/database/database-actions-menu';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import { Database as DatabaseIcon, ExternalLink } from 'lucide-react-native';
+import { RiDatabase2Line } from '@oxy.so/bloom/icons/RiDatabase2Line';
+import { RiExternalLinkLine } from '@oxy.so/bloom/icons/RiExternalLinkLine';
 import { DatabaseViewContainer } from '@/components/database/database-view';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
+import { Button } from '@oxy.so/bloom/button';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useDatabase, useCreateDatabase } from '@/lib/hooks/use-databases';
 import { useDatabaseRows } from '@/lib/hooks/use-database-rows';
@@ -72,59 +75,67 @@ export function InlineDatabaseBlock({
   if (status === 403) return <State message={t('editor.inlineDatabase.noAccess')} />;
   if (database.isLoading || viewState.isLoading)
     return (
-      <ActivityIndicator
+      <Loading
+        variant="spinner"
+        size="sm"
         accessibilityLabel={t('editor.inlineDatabase.loading')}
-        color={colors.mutedForeground}
       />
     );
   if (missing) {
     return (
-      <View className="my-2 gap-3 rounded-lg border border-dashed border-border p-4">
-        <Text className="text-sm text-muted-foreground">{t('editor.inlineDatabase.setup')}</Text>
-        {!readOnly ? (
-          <Button
-            variant="outline"
-            disabled={create.isPending || !page.data?.page.workspaceId}
-            accessibilityLabel={t('editor.inlineDatabase.create')}
-            onPress={() => {
-              const workspaceId = page.data?.page.workspaceId;
-              if (!workspaceId || create.isPending) return;
-              create.mutate(
-                {
-                  workspaceId,
-                  parentPageId: block.pageId,
-                  isInline: true,
-                  name: t('editor.inlineDatabase.defaultName'),
-                },
-                {
-                  onSuccess: ({ database: created }) => onChangeContent({ databaseId: created.id }),
-                },
-              );
-            }}
-          >
-            <Text>
-              {t(
-                create.isPending
-                  ? 'editor.inlineDatabase.creating'
-                  : 'editor.inlineDatabase.create',
-              )}
-            </Text>
-          </Button>
-        ) : null}
-        {create.isError ? (
-          <Text accessibilityRole="alert" className="text-sm text-destructive">
-            {t('editor.inlineDatabase.createFailed')}
-          </Text>
-        ) : null}
+      <View className="my-2 rounded-lg border border-dashed border-border px-4">
+        <EmptyState
+          variant="compact"
+          description={t('editor.inlineDatabase.setup')}
+          action={
+            readOnly
+              ? undefined
+              : {
+                  label: t(
+                    create.isPending
+                      ? 'editor.inlineDatabase.creating'
+                      : 'editor.inlineDatabase.create',
+                  ),
+                  accessibilityLabel: t('editor.inlineDatabase.create'),
+                  disabled: create.isPending || !page.data?.page.workspaceId,
+                  onPress: () => {
+                    const workspaceId = page.data?.page.workspaceId;
+                    if (!workspaceId || create.isPending) return;
+                    create.mutate(
+                      {
+                        workspaceId,
+                        parentPageId: block.pageId,
+                        isInline: true,
+                        name: t('editor.inlineDatabase.defaultName'),
+                      },
+                      {
+                        onSuccess: ({ database: created }) =>
+                          onChangeContent({ databaseId: created.id }),
+                      },
+                    );
+                  },
+                }
+          }
+          footer={
+            create.isError ? (
+              <Text accessibilityRole="alert" className="text-sm text-destructive">
+                {t('editor.inlineDatabase.createFailed')}
+              </Text>
+            ) : undefined
+          }
+        />
       </View>
     );
   }
   if (error || !database.data)
     return (
       <View className="my-2 gap-2 rounded-lg border border-border p-4">
-        <Text accessibilityRole="alert">{t('editor.inlineDatabase.loadFailed')}</Text>
+        <Text accessibilityRole="alert" variant="body-regular">
+          {t('editor.inlineDatabase.loadFailed')}
+        </Text>
         <Button
-          variant="outline"
+          appearance="outline"
+          className="self-start"
           accessibilityLabel={t('editor.inlineDatabase.retry')}
           onPress={() => {
             void database.refetch();
@@ -132,7 +143,7 @@ export function InlineDatabaseBlock({
             if (database.data && selectedView) void rows.refetch();
           }}
         >
-          <Text>{t('editor.inlineDatabase.retry')}</Text>
+          {t('editor.inlineDatabase.retry')}
         </Button>
       </View>
     );
@@ -141,25 +152,25 @@ export function InlineDatabaseBlock({
     <View className="my-2 overflow-hidden rounded-lg border border-border">
       <View className="flex-row flex-wrap items-center gap-2 border-b border-border px-3 py-2">
         {db.icon ? (
-          <Text>{db.icon}</Text>
+          <Text variant="headline-regular">{db.icon}</Text>
         ) : (
-          <DatabaseIcon size={16} color={colors.mutedForeground} />
+          <RiDatabase2Line size="sm" fill={colors.mutedForeground} />
         )}
-        <Text accessibilityRole="header" className="flex-1 text-sm font-semibold">
+        <Text accessibilityRole="header" className="flex-1 text-sm font-semibold text-foreground">
           {db.name || t('editor.inlineDatabase.defaultName')}
         </Text>
         {!readOnly && !viewState.linked ? <DatabaseActionsMenu databaseId={db.id} /> : null}
-        <Pressable
+        <Button
+          appearance="subtle"
+          tone="neutral"
+          size="xs"
           accessibilityRole="link"
           accessibilityLabel={t('editor.inlineDatabase.openFullPage')}
           onPress={() => router.push(`/db/${db.id}`)}
-          className="flex-row items-center gap-1 rounded px-2 py-1 hover:bg-muted"
+          leadingIcon={RiExternalLinkLine}
         >
-          <ExternalLink size={14} color={colors.mutedForeground} />
-          <Text className="text-xs text-muted-foreground">
-            {t('editor.inlineDatabase.openFullPage')}
-          </Text>
-        </Pressable>
+          {t('editor.inlineDatabase.openFullPage')}
+        </Button>
       </View>
       <ScrollView
         horizontal
@@ -179,11 +190,12 @@ export function InlineDatabaseBlock({
         ))}
         {!readOnly ? (
           <Button
-            variant="ghost"
+            appearance="subtle"
+            size="sm"
             accessibilityLabel={t('databases.views.new')}
             onPress={() => setNewViewOpen(true)}
           >
-            <Text>{t('databases.views.new')}</Text>
+            {t('databases.views.new')}
           </Button>
         ) : null}
       </ScrollView>
@@ -232,8 +244,8 @@ export function InlineDatabaseBlock({
 
 function State({ message }: { message: string }) {
   return (
-    <View className="my-2 rounded-lg border border-border p-4">
-      <Text className="text-sm text-muted-foreground">{message}</Text>
+    <View className="my-2 rounded-lg border border-border px-4">
+      <EmptyState variant="compact" description={message} />
     </View>
   );
 }

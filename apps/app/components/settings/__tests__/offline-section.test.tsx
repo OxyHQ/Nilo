@@ -1,18 +1,11 @@
-import type { ReactNode } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Button } from '@oxy.so/bloom/button';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
 import type { OfflineEntry } from '@/lib/editor/offline-pages';
 import { formatSize, OfflineSection } from '../offline-section';
 
 const mockPush = jest.fn();
 const mockClose = jest.fn();
-const mockConfirm = jest.fn(async (_options: { title: string }) => true);
-type MockBlockProps = {
-  label?: string;
-  description?: string;
-  action?: ReactNode;
-  children?: ReactNode;
-};
+const mockConfirm = jest.fn(async (_options: unknown) => true);
 const mockStore = {
   setPinned: jest.fn(async (_id: string, _pinned: boolean) => undefined),
   clear: jest.fn(async () => undefined),
@@ -27,28 +20,8 @@ jest.mock('@/lib/editor/offline-pages', () => ({
 }));
 jest.mock('@/lib/editor/use-offline-pages', () => ({ useOfflinePageList: () => mockList }));
 jest.mock('@oxy.so/bloom/surfaces', () => ({
-  confirm: (options: { title: string }) => mockConfirm(options),
+  confirm: (options: unknown) => mockConfirm(options),
 }));
-// Bloom's controls read a theme this test does not mount; plain stand-ins keep
-// what the section renders and the props it passes.
-jest.mock('@oxy.so/bloom/button', () => {
-  const { Text } = jest.requireActual('react-native');
-  return {
-    Button: ({ children }: MockBlockProps) => <Text>{children}</Text>,
-  };
-});
-jest.mock('@oxy.so/bloom/settings-modal/modal', () => {
-  const { Text, View } = jest.requireActual('react-native');
-  const Block = ({ label, description, action, children }: MockBlockProps) => (
-    <View>
-      {label ? <Text>{label}</Text> : null}
-      {description ? <Text>{description}</Text> : null}
-      {action}
-      {children}
-    </View>
-  );
-  return { SettingsCard: Block, SettingsRow: Block, SettingsSection: Block };
-});
 jest.mock('../settings-provider', () => ({ useNiloSettings: () => ({ close: mockClose }) }));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({
@@ -71,14 +44,19 @@ const entry = (pageId: string, over: Partial<OfflineEntry> = {}): OfflineEntry =
 let renderer: ReactTestRenderer | undefined;
 const mount = () =>
   act(() => {
-    renderer = create(<OfflineSection />);
+    renderer = create(
+      <BloomTestProviders>
+        <OfflineSection />
+      </BloomTestProviders>,
+    );
   });
 const root = () => (renderer as ReactTestRenderer).root;
 const text = () => JSON.stringify(renderer?.toJSON());
+// The outermost pressable node carrying the label is the Bloom `Button` itself.
 const button = (label: string) => {
-  const found = root()
-    .findAllByType(Button)
-    .find((b) => b.props.accessibilityLabel === label);
+  const found = root().findAll(
+    (node) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function',
+  )[0];
   if (!found) throw new Error(`no button ${label}`);
   return found;
 };
@@ -128,7 +106,7 @@ it('removes every page only after confirming', async () => {
   mockConfirm.mockResolvedValueOnce(false);
   await act(async () => button('settings.offline.removeAll').props.onPress());
   expect(mockConfirm).toHaveBeenCalledWith(
-    expect.objectContaining({ title: 'settings.offline.removeAllTitle' }),
+    expect.objectContaining({ title: 'settings.offline.removeAllTitle', destructive: true }),
   );
   expect(mockStore.clear).not.toHaveBeenCalled();
   await act(async () => button('settings.offline.removeAll').props.onPress());

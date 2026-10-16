@@ -1,9 +1,12 @@
 import { Platform, View } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { AliaAvatarIcon } from '@alia.onl/sdk/avatar';
-import { Search, Inbox, Settings, Trash2 } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
-import { Kbd, KbdGroup } from '@/components/ui/kbd';
+import { RiSearchLine } from '@oxy.so/bloom/icons/RiSearchLine';
+import { RiInbox2Line } from '@oxy.so/bloom/icons/RiInbox2Line';
+import { RiSettings3Line } from '@oxy.so/bloom/icons/RiSettings3Line';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
+import { Badge } from '@oxy.so/bloom/badge';
+import { Kbd } from '@oxy.so/bloom/kbd';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useAskAlia } from '@/components/ask-alia';
 import { useNiloSettings } from '@/components/settings/settings-provider';
@@ -35,16 +38,16 @@ export function SidebarSearchButton() {
   const mod = modifierKey();
   return (
     <SidebarItem
-      icon={Search}
+      icon={RiSearchLine}
       label={t('sidebar.search')}
       onPress={() => setOpen(true)}
       accessibilityLabel={t('sidebar.searchLabel')}
       trailing={
         showShortcut ? (
-          <KbdGroup>
-            <Kbd>{mod}</Kbd>
-            <Kbd>K</Kbd>
-          </KbdGroup>
+          <View className="flex-row items-center gap-1">
+            <Kbd size="sm">{mod}</Kbd>
+            <Kbd size="sm">K</Kbd>
+          </View>
         ) : undefined
       }
     />
@@ -52,8 +55,8 @@ export function SidebarSearchButton() {
 }
 
 /** `SidebarItem`'s icon slot hands over a size; the avatar takes it as its width. */
-function AliaGlyph({ size }: { size?: number }) {
-  return <AliaAvatarIcon width={size} height={size} />;
+function AliaGlyph({ width, height }: { width?: number; height?: number }) {
+  return <AliaAvatarIcon width={width} height={height} />;
 }
 
 /**
@@ -82,17 +85,13 @@ export function SidebarInboxButton({ unreadCount }: InboxButtonProps) {
 
   return (
     <SidebarItem
-      icon={Inbox}
+      icon={RiInbox2Line}
       label={t('sidebar.inbox')}
       isActive={isActive}
       onPress={() => router.push('/(app)/notifications')}
       trailing={
         typeof unreadCount === 'number' && unreadCount > 0 ? (
-          <View className="rounded-full bg-primary px-1.5">
-            <Text className="text-[10px] font-semibold text-primary-foreground">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Text>
-          </View>
+          <Badge content={unreadCount} max={99} appearance="solid" tone="accent" />
         ) : undefined
       }
     />
@@ -104,7 +103,7 @@ export function SidebarSettingsButton() {
   const { t } = useTranslation();
   return (
     <SidebarItem
-      icon={Settings}
+      icon={RiSettings3Line}
       label={t('sidebar.settingsAndMembers')}
       onPress={() => open('members')}
     />
@@ -118,7 +117,7 @@ export function SidebarTrashButton() {
   const { t } = useTranslation();
   return (
     <SidebarItem
-      icon={Trash2}
+      icon={RiDeleteBin6Line}
       label={t('sidebar.trash')}
       isActive={isActive}
       onPress={() => router.push('/trash')}

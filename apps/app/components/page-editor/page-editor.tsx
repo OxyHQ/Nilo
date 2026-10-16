@@ -15,10 +15,10 @@ import {
 } from '@oxy.so/bloom-editor';
 import { toast } from '@oxy.so/bloom/toast';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { View } from 'react-native';
+import { Loading } from '@oxy.so/bloom/loading';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useColorScheme } from '@/lib/useColorScheme';
 import { usePageEditorContext } from './page-editor-context';
 import { useEditorMentions } from './use-editor-mentions';
 import { useOpenEditorMention, openEditorLink } from './open-target';
@@ -99,7 +99,6 @@ export function PageEditor({
     setAiTarget,
   } = usePageEditorContext();
   const aiAvailable = useAiAvailable() && !readOnly;
-  const { colors } = useColorScheme();
   useSearchBlock(focusedBlockId, true);
   const page = usePage(pageId);
   const createDatabase = useCreateDatabase();
@@ -198,15 +197,14 @@ export function PageEditor({
   }, [rejected, t]);
 
   if (error) {
-    return <Text className="px-1 py-6 text-sm text-destructive">{error.message}</Text>;
+    return (
+      <Text className="px-1 py-6 text-sm text-destructive web:select-text">{error.message}</Text>
+    );
   }
   if (!store || !controller) {
     return (
       <View className="px-1 py-6">
-        <ActivityIndicator
-          color={colors.mutedForeground}
-          accessibilityLabel={t('common.loading')}
-        />
+        <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
       </View>
     );
   }

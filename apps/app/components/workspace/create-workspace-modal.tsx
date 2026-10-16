@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Button } from '@oxy.so/bloom/button';
-import { Dialog } from '@oxy.so/bloom/dialog';
+import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
 import { TextFieldInput, TextFieldLabel } from '@oxy.so/bloom/text-field';
 import { toast } from '@oxy.so/bloom/toast';
 import { apiErrorMessage } from '@/lib/api/error-message';
@@ -10,27 +10,25 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { WorkspaceAvatarPicker } from './workspace-avatar-picker';
 
 interface CreateWorkspaceModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  /** The caller opens the dialog; it closes itself on cancel and on success. */
+  control: DialogControlProps;
   /** Called with the freshly-created workspace on success. */
   onCreated?: (workspace: Workspace) => void;
 }
 
 // A Bloom dialog, not a React Native `Modal`: the file picker opens as a Bloom
 // surface, which stacks above a Bloom dialog but under a native modal window.
-export function CreateWorkspaceModal({ open, onOpenChange, onCreated }: CreateWorkspaceModalProps) {
+export function CreateWorkspaceModal({ control, onCreated }: CreateWorkspaceModalProps) {
   const { t } = useTranslation();
   const [name, setName] = React.useState('');
   const [avatar, setAvatar] = React.useState<string | null>(null);
   const { mutate, isPending } = useCreateWorkspace();
 
   // Reset form whenever the modal is dismissed.
-  React.useEffect(() => {
-    if (!open) {
-      setName('');
-      setAvatar(null);
-    }
-  }, [open]);
+  const handleClosed = React.useCallback(() => {
+    setName('');
+    setAvatar(null);
+  }, []);
 
   const trimmed = name.trim();
   const canSubmit = trimmed.length > 0 && !isPending;
@@ -42,6 +40,7 @@ export function CreateWorkspaceModal({ open, onOpenChange, onCreated }: CreateWo
       {
         onSuccess: (workspace) => {
           toast.success(t('workspace.create.created', { name: workspace.name }));
+          control.close();
           onCreated?.(workspace);
         },
         onError: (error) => {
@@ -49,12 +48,13 @@ export function CreateWorkspaceModal({ open, onOpenChange, onCreated }: CreateWo
         },
       },
     );
-  }, [canSubmit, mutate, trimmed, avatar, onCreated, t]);
+  }, [canSubmit, mutate, trimmed, avatar, control, onCreated, t]);
 
   return (
     <Dialog
-      open={open}
-      onClose={() => onOpenChange(false)}
+      control={control}
+      onClose={handleClosed}
+      placement={{ base: 'bottom', md: 'center' }}
       title={t('workspace.create.title')}
       description={t('workspace.create.description')}
     >
@@ -83,20 +83,22 @@ export function CreateWorkspaceModal({ open, onOpenChange, onCreated }: CreateWo
             disabled={isPending}
           />
         </View>
+      </View>
 
-        <View className="flex-row justify-end gap-2">
-          <Button
-            appearance="subtle"
-            tone="neutral"
-            onPress={() => onOpenChange(false)}
-            disabled={isPending}
-          >
-            {t('common.cancel')}
-          </Button>
-          <Button tone="action" onPress={handleSubmit} disabled={!canSubmit} loading={isPending}>
-            {t('workspace.create.submit')}
-          </Button>
-        </View>
+      {/* Not Dialog `actions`: a declarative action cannot show the submit's spinner. */}
+      <View className="mt-5 flex-row justify-end gap-2">
+        <Button appearance="outline" onPress={() => control.close()} disabled={isPending}>
+          {t('common.cancel')}
+        </Button>
+        <Button
+          appearance="solid"
+          tone="accent"
+          onPress={handleSubmit}
+          disabled={!canSubmit}
+          loading={isPending}
+        >
+          {t('workspace.create.submit')}
+        </Button>
       </View>
     </Dialog>
   );

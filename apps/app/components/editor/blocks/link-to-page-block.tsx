@@ -1,9 +1,10 @@
 import * as React from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { FileText } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import apiClient from '@/lib/api/client';
 import { API_ROUTES } from '@/lib/api/routes';
@@ -45,10 +46,11 @@ export function LinkToPageBlock({ block, onChangeContent }: BlockComponentProps)
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-3 gap-2">
         <View className="flex-row items-center gap-2">
-          <FileText size={16} color={colors.mutedForeground} />
+          <RiFileTextLine size="sm" fill={colors.mutedForeground} />
           <Text className="text-sm text-muted-foreground">Link to page</Text>
         </View>
-        <TextInput
+        <TextFieldInput
+          label="Paste page id (24 hex chars)"
           value={draft}
           onChangeText={setDraft}
           onBlur={() => {
@@ -58,8 +60,6 @@ export function LinkToPageBlock({ block, onChangeContent }: BlockComponentProps)
             }
           }}
           placeholder="Paste page id (24 hex chars)"
-          placeholderTextColor={colors.mutedForeground}
-          className="rounded bg-background px-2 py-1.5 text-sm text-foreground border border-input"
         />
       </View>
     );
@@ -74,9 +74,9 @@ export function LinkToPageBlock({ block, onChangeContent }: BlockComponentProps)
       className="flex-row items-center gap-2 rounded-md px-2 py-1 hover:bg-muted"
     >
       {icon ? (
-        <Text className="text-base">{icon}</Text>
+        <Text variant="headline-regular">{icon}</Text>
       ) : (
-        <FileText size={14} color={colors.foreground} />
+        <RiFileTextLine width={14} height={14} fill={colors.foreground} />
       )}
       <Text className="text-sm text-foreground underline" numberOfLines={1}>
         {title}

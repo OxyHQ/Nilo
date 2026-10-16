@@ -1,8 +1,10 @@
-import { View, ActivityIndicator } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Button, LinkButton } from '@oxy.so/bloom/button';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Loading } from '@oxy.so/bloom/loading';
 import { toast } from '@oxy.so/bloom/toast';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useReminders, useDeleteReminder } from '@/lib/hooks/use-page-extras';
 
@@ -13,28 +15,33 @@ export function ReminderList({ pageId }: { pageId?: string }) {
   const remove = useDeleteReminder();
   return (
     <View className="gap-3">
-      <Text accessibilityRole="header" className="font-semibold">
+      <Text accessibilityRole="header" variant="headline-semibold">
         {t('pages.reminders.upcoming')}
       </Text>
       {query.isLoading ? (
-        <ActivityIndicator accessibilityLabel={t('common.loading')} />
+        <Loading variant="spinner" size="sm" accessibilityLabel={t('common.loading')} />
       ) : query.isError ? (
         <View className="gap-2">
-          <Text accessibilityRole="alert">{t('pages.reminders.loadFailed')}</Text>
-          <Button variant="outline" onPress={() => query.refetch()}>
-            <Text>{t('pages.publish.retry')}</Text>
+          <Text accessibilityRole="alert" variant="body-regular">
+            {t('pages.reminders.loadFailed')}
+          </Text>
+          <Button appearance="outline" onPress={() => query.refetch()}>
+            {t('pages.publish.retry')}
           </Button>
         </View>
       ) : null}
       {query.data?.reminders.length === 0 ? (
-        <Text className="text-sm text-muted-foreground">{t('pages.reminders.empty')}</Text>
+        <EmptyState
+          variant="compact"
+          // icon: BellOff
+          title={t('pages.reminders.empty')}
+        />
       ) : null}
       {query.data?.reminders.map((reminder) => (
         <View key={reminder.id} className="rounded-xl border border-border p-3 gap-2">
           {!pageId ? (
-            <Button
-              variant="link"
-              className="justify-start"
+            <LinkButton
+              className="self-start"
               onPress={() =>
                 router.push({
                   pathname: '/p/[pageId]',
@@ -48,16 +55,16 @@ export function ReminderList({ pageId }: { pageId?: string }) {
                 title: reminder.page?.title || t('pages.untitled'),
               })}
             >
-              <Text>{reminder.page?.title || t('pages.untitled')}</Text>
-            </Button>
+              {reminder.page?.title || t('pages.untitled')}
+            </LinkButton>
           ) : null}
-          <Text>{new Date(reminder.remindAt).toLocaleString(locale)}</Text>
-          {reminder.note ? <Text>{reminder.note}</Text> : null}
+          <Text variant="body-regular">{new Date(reminder.remindAt).toLocaleString(locale)}</Text>
+          {reminder.note ? <Text variant="body-regular">{reminder.note}</Text> : null}
           {reminder.sentAt ? (
             <Text className="text-sm text-muted-foreground">{t('pages.reminders.sent')}</Text>
           ) : null}
           <Button
-            variant="ghost"
+            appearance="subtle"
             size="sm"
             disabled={remove.isPending}
             onPress={() =>
@@ -67,7 +74,7 @@ export function ReminderList({ pageId }: { pageId?: string }) {
             }
             accessibilityLabel={t('pages.reminders.delete')}
           >
-            <Text>{t('pages.reminders.delete')}</Text>
+            {t('pages.reminders.delete')}
           </Button>
         </View>
       ))}

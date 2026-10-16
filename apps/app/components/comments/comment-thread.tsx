@@ -1,15 +1,20 @@
 import { CommentReactions } from './comment-reactions';
 import * as React from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
+import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
+import { RiCornerDownRightLine } from '@oxy.so/bloom/icons/RiCornerDownRightLine';
+import { RiMessage2Line } from '@oxy.so/bloom/icons/RiMessage2Line';
+import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
+import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
+import { RiArrowGoBackLine } from '@oxy.so/bloom/icons/RiArrowGoBackLine';
+import { Button } from '@oxy.so/bloom/button';
 import {
-  Check,
-  CornerDownRight,
-  MessageSquare,
-  MoreHorizontal,
-  Trash2,
-  Undo2,
-} from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
+import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useOxy } from '@oxy.so/services';
 import {
@@ -58,7 +63,6 @@ export function CommentThread({
   canComment = true,
 }: CommentThreadProps) {
   const { user } = useOxy();
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const [replyOpen, setReplyOpen] = React.useState(false);
   const resolveMutation = useResolveComment();
@@ -102,23 +106,24 @@ export function CommentThread({
         }
         rightSlot={
           canComment ? (
-            <Pressable
+            <Button
+              appearance="subtle"
+              size="xs"
               onPress={handleToggleResolve}
               disabled={resolveMutation.isPending || unresolveMutation.isPending}
-              className="flex-row items-center gap-1 rounded-md px-2 py-1 hover:bg-muted"
               accessibilityLabel={
                 isResolved ? t('comments.thread.reopenThread') : t('comments.thread.resolveThread')
               }
+              renderLeadingIcon={({ size, color }) =>
+                isResolved ? (
+                  <RiArrowGoBackLine width={size} height={size} fill={color} />
+                ) : (
+                  <RiCheckLine width={size} height={size} fill={color} />
+                )
+              }
             >
-              {isResolved ? (
-                <Undo2 size={12} color={colors.mutedForeground} />
-              ) : (
-                <Check size={12} color={colors.mutedForeground} />
-              )}
-              <Text className="text-[10px] font-medium text-muted-foreground">
-                {isResolved ? t('comments.thread.reopen') : t('comments.thread.resolve')}
-              </Text>
-            </Pressable>
+              {isResolved ? t('comments.thread.reopen') : t('comments.thread.resolve')}
+            </Button>
           ) : null
         }
       />
@@ -158,16 +163,16 @@ export function CommentThread({
             />
           </View>
         ) : (
-          <Pressable
+          <Button
+            appearance="subtle"
+            size="xs"
+            className="self-start"
             onPress={() => setReplyOpen(true)}
-            className="flex-row items-center gap-1.5 self-start rounded-md px-2 py-1 hover:bg-muted"
             accessibilityLabel={t('comments.thread.replyToThread')}
+            leadingIcon={RiCornerDownRightLine}
           >
-            <CornerDownRight size={12} color={colors.mutedForeground} />
-            <Text className="text-xs font-medium text-muted-foreground">
-              {t('comments.thread.reply')}
-            </Text>
-          </Pressable>
+            {t('comments.thread.reply')}
+          </Button>
         )
       ) : null}
     </View>
@@ -187,7 +192,6 @@ interface CommentRowProps {
 function CommentRow({ comment, currentUserId, compact, onDelete, rightSlot }: CommentRowProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const [menuOpen, setMenuOpen] = React.useState(false);
   const isAuthor = currentUserId === comment.authorId;
 
   return (
@@ -200,9 +204,13 @@ function CommentRow({ comment, currentUserId, compact, onDelete, rightSlot }: Co
               : 'h-7 w-7 items-center justify-center rounded-full bg-muted'
           }
         >
-          <MessageSquare size={compact ? 10 : 12} color={colors.mutedForeground} />
+          <RiMessage2Line
+            width={compact ? 10 : 12}
+            height={compact ? 10 : 12}
+            fill={colors.mutedForeground}
+          />
         </View>
-        <Text className="text-xs font-medium text-foreground">
+        <Text variant="caption-1-medium">
           {/* Phase 2 backend returns authorId only; profile hydration arrives later. */}
           {isAuthor ? t('comments.thread.you') : shortAuthor(comment.authorId)}
         </Text>
@@ -213,29 +221,25 @@ function CommentRow({ comment, currentUserId, compact, onDelete, rightSlot }: Co
         <View className="flex-1" />
         {rightSlot}
         {isAuthor ? (
-          <View className="relative">
-            <Pressable
-              onPress={() => setMenuOpen((v) => !v)}
-              className="rounded-md p-1 hover:bg-muted"
-              accessibilityLabel={t('comments.thread.moreActions')}
-            >
-              <MoreHorizontal size={12} color={colors.mutedForeground} />
-            </Pressable>
-            {menuOpen ? (
-              <View className="absolute right-0 top-7 z-50 w-40 rounded-lg border border-border bg-popover py-1 shadow-md">
-                <Pressable
-                  onPress={() => {
-                    setMenuOpen(false);
-                    onDelete();
-                  }}
-                  className="flex-row items-center gap-2 px-3 py-2 hover:bg-muted"
-                >
-                  <Trash2 size={12} color={colors.foreground} />
-                  <Text className="text-xs text-foreground">{t('common.delete')}</Text>
-                </Pressable>
-              </View>
-            ) : null}
-          </View>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                appearance="subtle"
+                size="xs"
+                iconOnly
+                accessibilityLabel={t('comments.thread.moreActions')}
+                leadingIcon={RiMoreLine}
+              />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onPress={onDelete}
+                leading={<RiDeleteBin6Line size="xs" fill={colors.foreground} />}
+              >
+                {t('common.delete')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : null}
       </View>
       <View className="pl-7">

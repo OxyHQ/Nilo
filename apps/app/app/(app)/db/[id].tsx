@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { ActivityIndicator, Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Text } from '@/components/ui/text';
-import { useColorScheme } from '@/lib/useColorScheme';
+import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Loading } from '@oxy.so/bloom/loading';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useDatabase } from '@/lib/hooks/use-databases';
 import { useDatabaseRows } from '@/lib/hooks/use-database-rows';
@@ -21,7 +21,7 @@ export default function DatabaseRoute() {
   if (!id) {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-base text-muted-foreground">{t('pages.database.noneSelected')}</Text>
+        <EmptyState description={t('pages.database.noneSelected')} />
       </View>
     );
   }
@@ -30,7 +30,6 @@ export default function DatabaseRoute() {
 
 function DatabasePage({ id }: { id: string }) {
   const router = useRouter();
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const { data, isLoading, isError, error } = useDatabase(id);
 
@@ -54,7 +53,7 @@ function DatabasePage({ id }: { id: string }) {
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
-        <ActivityIndicator color={colors.mutedForeground} />
+        <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
       </View>
     );
   }
@@ -63,16 +62,14 @@ function DatabasePage({ id }: { id: string }) {
     const message = error instanceof Error ? error.message : t('pages.database.loadFailed');
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
-        <View className="max-w-md items-center gap-3">
-          <Text className="text-base text-foreground">{message}</Text>
-          <Pressable
-            onPress={() => router.replace('/(app)')}
-            className="rounded-md bg-primary px-4 py-2"
-          >
-            <Text className="text-sm font-medium text-primary-foreground">
-              {t('pages.backToWorkspace')}
-            </Text>
-          </Pressable>
+        <View className="w-full max-w-md">
+          <EmptyState
+            title={message}
+            action={{
+              label: t('pages.backToWorkspace'),
+              onPress: () => router.replace('/(app)'),
+            }}
+          />
         </View>
       </View>
     );
@@ -101,7 +98,7 @@ function DatabasePage({ id }: { id: string }) {
         />
       ) : (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-sm text-muted-foreground">{t('pages.database.noViews')}</Text>
+          <EmptyState description={t('pages.database.noViews')} />
         </View>
       )}
     </View>

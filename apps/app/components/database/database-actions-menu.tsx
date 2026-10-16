@@ -1,25 +1,26 @@
-import { useState } from 'react';
 import { useDatabase } from '@/lib/hooks/use-databases';
 import { useAddProperty, useDeleteProperty } from '@/lib/hooks/use-database-properties';
 import { subItemProperties } from '@/lib/sub-items';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
-import { Pressable } from 'react-native';
-import { MoreHorizontal } from 'lucide-react-native';
+import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
+import { Button } from '@oxy.so/bloom/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
+import { confirm } from '@oxy.so/bloom/surfaces';
 import { toast } from '@oxy.so/bloom/toast';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useColorScheme } from '@/lib/useColorScheme';
 import { useExportDatabase } from '@/lib/hooks/use-page-transfer';
 import { saveExport } from '@/lib/save-export';
 
 export function DatabaseActionsMenu({ databaseId }: { databaseId: string }) {
   const { t } = useTranslation();
-  const { colors } = useColorScheme();
   const exportCsv = useExportDatabase();
   const { data } = useDatabase(databaseId);
   const add = useAddProperty();
   const remove = useDeleteProperty();
-  const [confirm, setConfirm] = useState(false);
   const subItems = data ? subItemProperties(data.database) : null;
   const toggleSubItems = async () => {
     try {
@@ -35,6 +36,16 @@ export function DatabaseActionsMenu({ databaseId }: { databaseId: string }) {
       toast.error(t('databases.relations.failed'));
     }
   };
+  const disableSubItems = async () => {
+    const confirmed = await confirm({
+      title: t('databases.subItems.disable'),
+      description: t('databases.subItems.removeDescription'),
+      confirmLabel: t('common.confirm'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (confirmed) await toggleSubItems();
+  };
   const download = async () => {
     try {
       await saveExport(
@@ -46,45 +57,26 @@ export function DatabaseActionsMenu({ databaseId }: { databaseId: string }) {
     }
   };
   return (
-    <>
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger asChild>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('databases.csv.menu')}
-            className="p-2 rounded hover:bg-muted"
-          >
-            <MoreHorizontal size={20} color={colors.mutedForeground} />
-          </Pressable>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content>
-          <DropdownMenu.Item
-            key="sub-items"
-            disabled={!data || add.isPending || remove.isPending}
-            onSelect={() => (subItems ? setConfirm(true) : void toggleSubItems())}
-          >
-            <DropdownMenu.ItemTitle>
-              {t(subItems ? 'databases.subItems.disable' : 'databases.subItems.name')}
-            </DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            key="csv"
-            disabled={exportCsv.isPending}
-            onSelect={() => void download()}
-          >
-            <DropdownMenu.ItemTitle>{t('databases.csv.export')}</DropdownMenu.ItemTitle>
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-      <ConfirmationDialog
-        open={confirm}
-        onOpenChange={setConfirm}
-        title={t('databases.subItems.disable')}
-        description={t('databases.subItems.removeDescription')}
-        confirmVariant="destructive"
-        loading={remove.isPending}
-        onConfirm={toggleSubItems}
-      />
-    </>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          iconOnly
+          appearance="plain"
+          accessibilityLabel={t('databases.csv.menu')}
+          leadingIcon={RiMoreLine}
+        />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" label={t('databases.csv.menu')}>
+        <DropdownMenuItem
+          disabled={!data || add.isPending || remove.isPending}
+          onPress={() => void (subItems ? disableSubItems() : toggleSubItems())}
+        >
+          {t(subItems ? 'databases.subItems.disable' : 'databases.subItems.name')}
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled={exportCsv.isPending} onPress={() => void download()}>
+          {t('databases.csv.export')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

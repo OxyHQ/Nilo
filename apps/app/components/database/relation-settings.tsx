@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, Pressable, ScrollView } from 'react-native';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { ScrollView, View } from 'react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { RadioGroup } from '@oxy.so/bloom/radio';
+import { confirm } from '@oxy.so/bloom/surfaces';
+import { Switch } from '@oxy.so/bloom/switch';
+import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useDatabases } from '@/lib/hooks/use-databases';
 import { useAddProperty, useUpdateProperty } from '@/lib/hooks/use-database-properties';
@@ -24,7 +25,6 @@ export function RelationSettings({
   const update = useUpdateProperty();
   const [target, setTarget] = useState(property?.config?.targetDatabaseId ?? database.id);
   const [twoWay, setTwoWay] = useState(property?.config?.twoWay === true);
-  const [confirm, setConfirm] = useState<'disable' | 'retarget' | null>(null);
   const choices = [
     database,
     ...(databases.data?.databases ?? []).filter((d) => d.id !== database.id),
@@ -48,41 +48,42 @@ export function RelationSettings({
       /* Mutation state renders the error and preserves the draft. */
     }
   };
+  // Removing the reciprocal deletes the other database's property and links.
+  const confirmRemoval = () =>
+    confirm({
+      title: t('databases.relations.removeTitle'),
+      description: t('databases.relations.removeDescription'),
+      confirmLabel: t('common.confirm'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
   return (
     <View className="gap-3">
-      <Text className="text-sm font-semibold text-foreground">
-        {t('databases.relations.target')}
-      </Text>
+      <Text variant="body-semibold">{t('databases.relations.target')}</Text>
       <ScrollView style={{ maxHeight: 240 }}>
-        {choices.map((choice) => (
-          <Pressable
-            key={choice.id}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: target === choice.id, disabled: pending }}
-            accessibilityLabel={choice.name || t('databases.untitledDatabase')}
-            disabled={pending}
-            onPress={() => {
-              setTarget(choice.id);
-            }}
-            className={`rounded p-2 ${target === choice.id ? 'bg-accent' : 'bg-muted'}`}
-          >
-            <Text className="text-sm text-foreground">
-              {choice.name || t('databases.untitledDatabase')}
-            </Text>
-          </Pressable>
-        ))}
+        <RadioGroup
+          label={t('databases.relations.target')}
+          value={target}
+          disabled={pending}
+          onValueChange={setTarget}
+          options={choices.map((choice) => ({
+            value: choice.id,
+            label: choice.name || t('databases.untitledDatabase'),
+          }))}
+        />
       </ScrollView>
       <View className="flex-row items-center justify-between gap-2">
-        <Text className="text-sm text-foreground">
+        <Text variant="body-regular">
           {t('databases.relations.showOn', { database: targetName })}
         </Text>
         <Switch
-          value={twoWay}
+          checked={twoWay}
           disabled={pending}
           accessibilityLabel={t('databases.relations.showOn', { database: targetName })}
-          onValueChange={(next) => {
-            if (!next && property?.config?.twoWay) setConfirm('disable');
-            else setTwoWay(next);
+          onCheckedChange={async (next) => {
+            if (!next && property?.config?.twoWay) {
+              if (await confirmRemoval()) setTwoWay(false);
+            } else setTwoWay(next);
           }}
         />
       </View>
@@ -93,30 +94,18 @@ export function RelationSettings({
         </Text>
       ) : null}
       <Button
+        appearance="solid"
+        tone="accent"
         disabled={pending || !target}
         accessibilityLabel={t('common.save')}
-        onPress={() => {
-          if (property?.config?.twoWay && target !== property.config.targetDatabaseId)
-            setConfirm('retarget');
-          else void save();
+        onPress={async () => {
+          if (property?.config?.twoWay && target !== property.config.targetDatabaseId) {
+            if (await confirmRemoval()) await save();
+          } else void save();
         }}
       >
-        <Text>{t('common.save')}</Text>
+        {t('common.save')}
       </Button>
-      <ConfirmationDialog
-        open={confirm !== null}
-        onOpenChange={(open) => {
-          if (!open) setConfirm(null);
-        }}
-        title={t('databases.relations.removeTitle')}
-        description={t('databases.relations.removeDescription')}
-        confirmVariant="destructive"
-        onConfirm={async () => {
-          if (confirm === 'disable') setTwoWay(false);
-          else await save();
-          setConfirm(null);
-        }}
-      />
     </View>
   );
 }
