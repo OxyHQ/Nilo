@@ -211,23 +211,30 @@ export function ViewTab({ view, active, onPress, database, readOnly = false }: V
     }
   };
 
+  // The settings popover is the tab's sibling, not its child: on web a click
+  // inside the portalled popover still bubbles through React to its ancestors,
+  // and the tab would select its view under the rename field.
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="tab"
-      accessibilityLabel={view.name}
-      accessibilityState={{ selected: active }}
-      onLongPress={readOnly ? undefined : () => setMenuOpen(true)}
+    <View
       className={`flex-row items-center gap-1.5 px-2 py-1 rounded ${
         active ? 'bg-muted' : 'hover:bg-muted/60'
       }`}
     >
-      <Icon size={12} color={colors.foreground} />
-      <Text
-        className={`text-xs ${active ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="tab"
+        accessibilityLabel={view.name}
+        accessibilityState={{ selected: active }}
+        onLongPress={readOnly ? undefined : () => setMenuOpen(true)}
+        className="flex-row items-center gap-1.5"
       >
-        {view.name}
-      </Text>
+        <Icon size={12} color={colors.foreground} />
+        <Text
+          className={`text-xs ${active ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
+        >
+          {view.name}
+        </Text>
+      </Pressable>
       {!readOnly ? (
         <Popover
           open={menuOpen}
@@ -241,8 +248,6 @@ export function ViewTab({ view, active, onPress, database, readOnly = false }: V
               iconOnly
               appearance="plain"
               size="xs"
-              // The settings button sits inside the tab, which selects the view.
-              stopPropagation
               accessibilityLabel={t('databases.views.settings', { name: view.name })}
               renderLeadingIcon={({ size, color }) => <Settings2 size={size} color={color} />}
             />
@@ -306,7 +311,7 @@ export function ViewTab({ view, active, onPress, database, readOnly = false }: V
           </PopoverContent>
         </Popover>
       ) : null}
-    </Pressable>
+    </View>
   );
 }
 

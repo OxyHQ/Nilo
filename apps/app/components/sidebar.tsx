@@ -265,13 +265,16 @@ const WorkspaceSidebar = React.memo(function WorkspaceSidebar() {
         </View>
       ) : null}
 
-      <Divider style={{ marginHorizontal: 8, marginTop: 8 }} />
+      <View className="mx-2 mt-2">
+        <Divider />
+      </View>
 
       {/* Footer: user avatar / sign-in */}
       <View className="flex flex-col gap-2 mt-auto shrink-0 p-2 pt-1">
         {isAuthenticated ? (
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            {/* Bloom wraps a trigger in a box that hugs its content; the row spans the sidebar. */}
+            <DropdownMenuTrigger asChild style={{ alignSelf: 'stretch' }}>
               <Pressable
                 accessibilityLabel={t('sidebar.accountMenu')}
                 accessibilityRole="button"

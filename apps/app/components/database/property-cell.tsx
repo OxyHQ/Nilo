@@ -626,6 +626,9 @@ function SelectPicker({
             appearance="plain"
             size="sm"
             className="self-start"
+            // The picker portals out of a card that opens its row; on web the
+            // click still bubbles to it through React.
+            stopPropagation
             onPress={onClear}
             renderLeadingIcon={({ size, color }) => <X size={size} color={color} />}
           >

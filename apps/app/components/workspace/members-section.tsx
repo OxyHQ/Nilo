@@ -264,7 +264,11 @@ export function MembersSection() {
           <View className="px-1 py-1">
             {sortedMembers.map((member, idx) => (
               <View key={member.userId}>
-                {idx > 0 ? <Divider style={{ marginHorizontal: 8 }} /> : null}
+                {idx > 0 ? (
+                  <View className="mx-2">
+                    <Divider />
+                  </View>
+                ) : null}
                 <MemberRow
                   member={member}
                   workspaceId={currentWorkspaceId ?? ''}

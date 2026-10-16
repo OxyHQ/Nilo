@@ -1,6 +1,6 @@
 import { apiErrorMessage } from '@/lib/api/error-message';
 import { useCreateDatabase } from '@/lib/hooks/use-databases';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '@oxy.so/bloom/button';
@@ -35,11 +35,6 @@ function PageChoices({ destination }: { destination: NewPageDestination }) {
   const [csvOnly, setCsvOnly] = useState(false);
   const [templates, setTemplates] = useState(false);
   const pending = create.isPending || duplicate.isPending || database.isPending;
-  // Mounted only while the store holds a destination: open as it mounts, and
-  // clear the destination once the dialog has animated out.
-  useEffect(() => {
-    control.open();
-  }, [control]);
   const created = (page: { id: string }) => {
     control.close();
     router.push(`/p/${page.id}`);
@@ -47,8 +42,11 @@ function PageChoices({ destination }: { destination: NewPageDestination }) {
   if (importOpen) return <ImportPagesDialog {...destination} csvOnly={csvOnly} onClose={close} />;
   const title = t(templates ? 'pages.templates.choose' : 'pages.templates.newPage');
   return (
+    // Mounted only while the store holds a destination: open as it mounts, and
+    // clear the destination once the dialog has animated out.
     <Dialog
       control={control}
+      startOpen
       onClose={close}
       placement={{ base: 'bottom', md: 'center' }}
       dismissOnBackdrop={!pending}

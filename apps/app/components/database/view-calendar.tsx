@@ -80,6 +80,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
             iconOnly
             appearance="plain"
             size="xs"
+            accessibilityLabel={t('databases.calendar.previousMonth')}
             onPress={() => setCursor(addMonths(cursor, -1))}
             renderLeadingIcon={({ size, color }) => <ChevronLeft size={size} color={color} />}
           />
@@ -90,6 +91,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
             iconOnly
             appearance="plain"
             size="xs"
+            accessibilityLabel={t('databases.calendar.nextMonth')}
             onPress={() => setCursor(addMonths(cursor, 1))}
             renderLeadingIcon={({ size, color }) => <ChevronRight size={size} color={color} />}
           />

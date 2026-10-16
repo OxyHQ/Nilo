@@ -117,7 +117,9 @@
   "calendar": {
     "needsDateProperty": "Añade una propiedad de fecha para activar la vista de calendario.",
     "webOnly": "La vista de calendario solo está disponible en la web en la fase 4. Abre la vista de tabla en el móvil para editar las filas.",
-    "today": "Hoy"
+    "today": "Hoy",
+    "previousMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente"
   },
   "timeline": {
     "needsDateProperty": "Añade una propiedad de fecha para activar la vista de cronograma.",

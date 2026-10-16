@@ -345,7 +345,11 @@ function ShareModalBody({ pageId, onNavigate }: { pageId: string; onNavigate: ()
               <View className="rounded-lg border border-border bg-card overflow-hidden">
                 {activeLinks.map((link, idx) => (
                   <View key={link.id}>
-                    {idx > 0 ? <Divider style={{ marginHorizontal: 8 }} /> : null}
+                    {idx > 0 ? (
+                      <View className="mx-2">
+                        <Divider />
+                      </View>
+                    ) : null}
                     <ExistingLinkRow link={link} pageId={pageId} />
                   </View>
                 ))}

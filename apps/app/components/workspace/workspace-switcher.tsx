@@ -123,7 +123,8 @@ export const WorkspaceSwitcher = React.memo(function WorkspaceSwitcher({
   return (
     <View className={collapsed ? '' : 'flex-1 min-w-0'}>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+        {/* Bloom wraps a trigger in a box that hugs its content; the row spans the sidebar. */}
+        <DropdownMenuTrigger asChild style={{ alignSelf: 'stretch' }}>
           <Pressable
             className={
               collapsed

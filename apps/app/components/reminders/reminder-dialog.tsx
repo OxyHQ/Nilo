@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import { Button } from '@oxy.so/bloom/button';
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
@@ -23,10 +23,6 @@ export function ReminderDialog({ pageId, onClose }: { pageId: string; onClose: (
   const [invalid, setInvalid] = useState(false);
   const create = useCreateReminder(pageId);
   const control = useDialogControl();
-  // The parent mounts this only while it is open; `onClose` fires after the exit.
-  useEffect(() => {
-    control.open();
-  }, [control]);
   const choices: ReminderChoice[] = ['hour', 'tomorrow', 'week'];
   const save = () => {
     if (create.isPending) return;
@@ -48,8 +44,10 @@ export function ReminderDialog({ pageId, onClose }: { pageId: string; onClose: (
     );
   };
   return (
+    // The parent mounts this only while it is open; `onClose` fires after the exit.
     <Dialog
       control={control}
+      startOpen
       onClose={onClose}
       placement={{ base: 'bottom', md: 'center' }}
       title={t('pages.reminders.title')}

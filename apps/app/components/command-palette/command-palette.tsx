@@ -121,9 +121,12 @@ export function CommandPalette() {
         break;
     }
   };
-  // React Native's View types have no key events; react-native-web forwards them.
+  // The keys are typed in the search field, and react-native-web's TextInput
+  // stops its own keydowns from bubbling, so the field itself must handle them.
+  // On web `onKeyPress` receives the keydown event; preventing Enter's default
+  // also keeps the field from blurring.
   const keyProps: Record<string, unknown> =
-    Platform.OS === 'web' ? { onKeyDown: handleKeyDown } : {};
+    Platform.OS === 'web' ? { onKeyPress: handleKeyDown } : {};
 
   // Keep the highlighted row inside the results viewport (web).
   const listRef = React.useRef<ScrollView | null>(null);
@@ -153,7 +156,7 @@ export function CommandPalette() {
       scrollable={false}
       label={t('commandPalette.placeholder')}
     >
-      <View {...keyProps}>
+      <View>
         <View className="flex-row items-center gap-2 p-3">
           <View className="flex-1">
             <Search
@@ -163,6 +166,7 @@ export function CommandPalette() {
               onChangeText={changeQuery}
               onClearText={() => changeQuery('')}
               autoFocus
+              {...keyProps}
             />
           </View>
           <CloseButton size="sm" accessibilityLabel={t('commandPalette.close')} onPress={close} />

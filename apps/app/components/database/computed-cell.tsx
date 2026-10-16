@@ -25,6 +25,8 @@ export function ComputedCell({
           tone="danger"
           size="xs"
           className="self-start"
+          // Board, list and gallery cards are pressable rows that open the row.
+          stopPropagation
           accessibilityLabel={t('databases.formula.error', { message: value.error })}
           onHoverIn={() => setShowError(true)}
           onHoverOut={() => setShowError(false)}
