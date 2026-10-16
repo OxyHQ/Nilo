@@ -39,6 +39,8 @@
       "expo-web-browser",
       "expo-asset",
       "expo-notifications",
+      "@oxy.so/services/plugins/withOxySharedPermissions",
+      "@oxy.so/app-preset/plugin/withOxyAndroidRelease",
       [
         "react-native-audio-api",
         {
