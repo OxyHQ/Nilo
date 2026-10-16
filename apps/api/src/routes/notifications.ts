@@ -12,9 +12,11 @@ import {
   upsertWebPushSubscription,
 } from '../repositories/webPushSubscriptions.js';
 import {
+  PUSH_APPS,
   PUSH_PLATFORMS,
   type NotificationStatus,
   type NotificationType,
+  type PushApp,
   type PushPlatform,
 } from '../db/schema/collab.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -155,7 +157,7 @@ router.post('/push-token', async (req: Request, res: Response) => {
   try {
     if (!req.user?.id) return res.status(401).json({ error: 'Unauthorized' });
     const userId = req.user.id as string;
-    const { token, deviceId, platform } = req.body;
+    const { token, deviceId, platform, app } = req.body;
 
     if (!token || typeof token !== 'string') {
       return res.status(400).json({ error: 'Push token is required' });
@@ -168,6 +170,9 @@ router.post('/push-token', async (req: Request, res: Response) => {
     if (platform && !PUSH_PLATFORMS.includes(platform)) {
       return res.status(400).json({ error: 'Invalid platform (must be ios, android, or web)' });
     }
+    if (app !== undefined && !PUSH_APPS.includes(app)) {
+      return res.status(400).json({ error: 'Invalid app (must be nilo or noted)' });
+    }
 
     // Upsert: if user already registered this token, just reactivate it.
     // An omitted `deviceId` or `platform` leaves the stored value alone, which
@@ -177,6 +182,7 @@ router.post('/push-token', async (req: Request, res: Response) => {
       token,
       deviceId: typeof deviceId === 'string' && deviceId ? deviceId : undefined,
       platform: platform ? (platform as PushPlatform) : undefined,
+      app: app as PushApp | undefined,
     });
 
     log.general.info({ userId, tokenId: pushToken.id }, 'Push token registered');
@@ -220,10 +226,13 @@ router.post('/web-push-subscription', async (req: Request, res: Response) => {
   try {
     if (!req.user?.id) return res.status(401).json({ error: 'Unauthorized' });
     const userId = req.user.id as string;
-    const { endpoint, keys } = req.body;
+    const { endpoint, keys, app } = req.body;
 
     if (!endpoint || typeof endpoint !== 'string') {
       return res.status(400).json({ error: 'Subscription endpoint is required' });
+    }
+    if (app !== undefined && !PUSH_APPS.includes(app)) {
+      return res.status(400).json({ error: 'Invalid app (must be nilo or noted)' });
     }
     if (!keys?.p256dh || !keys?.auth) {
       return res.status(400).json({ error: 'Subscription keys (p256dh, auth) are required' });
@@ -240,6 +249,7 @@ router.post('/web-push-subscription', async (req: Request, res: Response) => {
       oxyUserId: userId,
       endpoint,
       keys: { p256dh: keys.p256dh, auth: keys.auth },
+      app: app as PushApp | undefined,
     });
 
     log.general.info(

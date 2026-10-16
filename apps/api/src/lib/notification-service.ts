@@ -43,6 +43,7 @@ import type {
   NotificationChannel,
   NotificationPriority,
   NotificationType,
+  PushApp,
 } from '../db/schema/collab.js';
 import { webPush, VAPID_PUBLIC_KEY } from './web-push.js';
 import { getIO } from '../socket.js';
@@ -127,6 +128,36 @@ async function deliverInApp(notification: NotificationRow): Promise<boolean> {
   return true;
 }
 
+// ── Which app a push goes to ────────────────────────────────────────
+
+/**
+ * The registrations among `rows` a notification goes to. One about a note
+ * (`data.app === 'noted'`) goes to Noted when the user has Noted anywhere
+ * (`notedAnywhere`, across Expo and web), and to Nilo otherwise; everything
+ * else goes to Nilo. Never both: a device with both apps would ring twice.
+ */
+export function pushAudience<T extends { app: PushApp }>(
+  rows: readonly T[],
+  notification: Pick<NotificationRow, 'data'>,
+  notedAnywhere: boolean,
+): T[] {
+  const target: PushApp =
+    (notification.data as { app?: unknown } | null)?.app === 'noted' && notedAnywhere
+      ? 'noted'
+      : 'nilo';
+  return rows.filter((row) => row.app === target);
+}
+
+/** Whether the user has Noted registered for push on any device or browser. */
+async function hasNotedRegistration(userId: string): Promise<boolean> {
+  const db = getDb();
+  const [tokens, subscriptions] = await Promise.all([
+    listActivePushTokens(db, userId),
+    listActiveWebPushSubscriptions(db, userId),
+  ]);
+  return [...tokens, ...subscriptions].some((row) => row.app === 'noted');
+}
+
 // ── Expo Push Notifications ─────────────────────────────────────────
 
 /**
@@ -135,7 +166,11 @@ async function deliverInApp(notification: NotificationRow): Promise<boolean> {
  */
 async function deliverPush(userId: string, notification: NotificationRow): Promise<boolean> {
   const db = getDb();
-  const tokens = await listActivePushTokens(db, userId);
+  const tokens = pushAudience(
+    await listActivePushTokens(db, userId),
+    notification,
+    await hasNotedRegistration(userId),
+  );
 
   if (tokens.length === 0) return false;
 
@@ -280,7 +315,11 @@ async function deliverWebPush(userId: string, notification: NotificationRow): Pr
   // `keys` is reassembled by the repository out of its two columns. A raw row
   // would carry `keys: undefined`, which `webPush.sendNotification` reports as
   // a malformed subscription rather than as a missing column.
-  const subscriptions = await listActiveWebPushSubscriptions(db, userId);
+  const subscriptions = pushAudience(
+    await listActiveWebPushSubscriptions(db, userId),
+    notification,
+    await hasNotedRegistration(userId),
+  );
 
   if (subscriptions.length === 0) return false;
 

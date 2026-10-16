@@ -181,6 +181,8 @@ export async function nextDatabaseRowOrder(db: PgHandle, databaseId: string): Pr
 }
 
 export interface CreatePageInput {
+  /** An id the client chose (a note made offline keeps its id); generated when absent. */
+  id?: string;
   workspaceId: string;
   parentId?: string | null;
   title?: string;
@@ -213,6 +215,7 @@ export async function createPage(db: PgHandle, input: CreatePageInput): Promise<
   const [row] = await db
     .insert(pages)
     .values({
+      ...(input.id !== undefined && { id: input.id }),
       workspaceId: input.workspaceId,
       parentId: input.parentId ?? null,
       title: input.title ?? '',

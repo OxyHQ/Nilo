@@ -63,6 +63,16 @@ the block's page as long as they may open the database.
 - **CSV**: export one (stored properties as people read them), import one as
   a new database (each column typed by what all its values fit).
 
+## System databases
+
+A personal workspace always has `notes` and `note_folders`
+(`databases.system_key`, `apps/api/src/lib/databases/system.ts`): Noted's
+notes, one row per note, and their folders. They are private to the owner and
+behave as any database in Nilo, but cannot be deleted (a reset empties them),
+and the properties Noted reads cannot be removed, retyped or reconfigured;
+renaming is fine, and labels stay editable. Rows deleted for good leave a
+tombstone (`page_tombstones`, 30 days) for clients that sync them.
+
 ## Live
 
 Rows, properties and views changing are announced to the database's room

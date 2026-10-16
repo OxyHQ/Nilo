@@ -10,7 +10,8 @@
  * property the app reads (`systemPropertyChangeError`), because the app would
  * lose the field without being told.
  */
-import { and, eq, isNotNull } from 'drizzle-orm';
+import { NOTE_COLORS, type NoteColor } from '@nilo/contracts';
+import { and, eq, inArray, isNotNull } from 'drizzle-orm';
 import type { PgHandle } from '../../db/client.js';
 import {
   type DatabaseProperty,
@@ -19,6 +20,7 @@ import {
   type SelectColor,
   type SystemDatabaseKey,
 } from '../../db/schema/databases.js';
+import { pages } from '../../db/schema/pages.js';
 import {
   type DatabaseRecord,
   findDatabaseById,
@@ -26,27 +28,6 @@ import {
 } from '../../repositories/databases.js';
 import { createDefaultViewForDatabase } from './create.js';
 import { NAME_PROPERTY_ID } from './schema-defaults.js';
-
-/** The note colours (`@noted/shared-types` `NOTE_COLORS`): each is a Color option's id. */
-export const NOTE_COLORS = [
-  'default',
-  'teal',
-  'blue',
-  'green',
-  'yellow',
-  'red',
-  'purple',
-  'pink',
-  'sky',
-  'orange',
-  'mint',
-  'pumpkin',
-  'brown',
-] as const;
-export type NoteColor = (typeof NOTE_COLORS)[number];
-
-export const NOTE_KINDS = ['note', 'voice'] as const;
-export type NoteKind = (typeof NOTE_KINDS)[number];
 
 /** How a note colour shows in Nilo, whose palette is smaller. */
 const NOTE_COLOR_IN_NILO: Record<NoteColor, SelectColor> = {
@@ -333,4 +314,40 @@ async function addNotesGalleryView(db: PgHandle, notesId: string): Promise<void>
     config: { coverSource: 'pageCover' },
     order: 1,
   });
+}
+
+/**
+ * Whether `databaseId` is a system database: an app syncs its rows, so a
+ * change it cannot see in the row's own fields (a body edited in the editor)
+ * still has to reach it as a change of the database.
+ */
+export async function isSystemDatabase(db: PgHandle, databaseId: string | null): Promise<boolean> {
+  if (!databaseId) return false;
+  const [row] = await db
+    .select({ id: databases.id })
+    .from(databases)
+    .where(and(eq(databases.id, databaseId), isNotNull(databases.systemKey)))
+    .limit(1);
+  return row !== undefined;
+}
+
+/**
+ * Move a system database row's `updatedAt` for a change kept outside the row
+ * (its owner's reminder), so the app's next sync picks the row up. Rows of
+ * other databases are left alone: for them `updatedAt` is when the content
+ * was last edited, and a reminder is not an edit.
+ */
+export async function touchSystemRow(db: PgHandle, pageId: string): Promise<void> {
+  await db
+    .update(pages)
+    .set({ updatedAt: new Date() })
+    .where(
+      and(
+        eq(pages.id, pageId),
+        inArray(
+          pages.databaseId,
+          db.select({ id: databases.id }).from(databases).where(isNotNull(databases.systemKey)),
+        ),
+      ),
+    );
 }

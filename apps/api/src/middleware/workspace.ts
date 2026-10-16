@@ -9,6 +9,7 @@ import {
   type WorkspaceRow,
 } from '../repositories/workspaces.js';
 import { ensureNoteDatabases } from '../lib/databases/system.js';
+import type { NotesHome } from '../repositories/notes.js';
 import { oxyClient } from './auth.js';
 import { log } from '../lib/logger.js';
 
@@ -217,6 +218,13 @@ export async function personalWorkspaceName(userId: string): Promise<string> {
  * without its owner membership.
  */
 export async function ensurePersonalWorkspaceFor(userId: string): Promise<WorkspaceRow> {
+  return (await ensurePersonalNotesHome(userId)).workspace;
+}
+
+/** The personal workspace with its notes and folders databases: where `/notes` works. */
+export async function ensurePersonalNotesHome(
+  userId: string,
+): Promise<NotesHome & { workspace: WorkspaceRow }> {
   const db = getDb();
   const workspace =
     (await findProvisionedPersonalWorkspace(db, userId)) ??
@@ -224,8 +232,8 @@ export async function ensurePersonalWorkspaceFor(userId: string): Promise<Worksp
       ownerId: userId,
       name: await personalWorkspaceName(userId),
     }));
-  await ensureNoteDatabases(db, workspace);
-  return workspace;
+  const { notes, folders } = await ensureNoteDatabases(db, workspace);
+  return { workspace, workspaceId: workspace.id, ownerId: workspace.ownerId, notes, folders };
 }
 
 /**

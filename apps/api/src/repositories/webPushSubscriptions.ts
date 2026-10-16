@@ -15,7 +15,7 @@
 
 import { and, eq, sql } from 'drizzle-orm';
 import type { NiloDatabase } from '../db/client.js';
-import { webPushSubscriptions } from '../db/schema/collab.js';
+import { type PushApp, webPushSubscriptions } from '../db/schema/collab.js';
 
 export interface WebPushKeys {
   p256dh: string;
@@ -27,6 +27,7 @@ export interface WebPushSubscriptionRow {
   oxyUserId: string;
   endpoint: string;
   keys: WebPushKeys;
+  app: PushApp;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -36,6 +37,8 @@ export interface UpsertWebPushSubscriptionInput {
   oxyUserId: string;
   endpoint: string;
   keys: WebPushKeys;
+  /** The app the browser subscribed in; Nilo when omitted. */
+  app?: PushApp;
 }
 
 function toWebPushSubscriptionRow(
@@ -46,6 +49,7 @@ function toWebPushSubscriptionRow(
     oxyUserId: row.oxyUserId,
     endpoint: row.endpoint,
     keys: { p256dh: row.keyP256dh, auth: row.keyAuth },
+    app: row.app,
     active: row.active,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -72,11 +76,13 @@ export async function upsertWebPushSubscription(
       endpoint: input.endpoint,
       keyP256dh: input.keys.p256dh,
       keyAuth: input.keys.auth,
+      app: input.app ?? 'nilo',
     })
     .onConflictDoUpdate({
       target: [webPushSubscriptions.oxyUserId, webPushSubscriptions.endpoint],
       set: {
         active: true,
+        app: input.app ?? 'nilo',
         keyP256dh: input.keys.p256dh,
         keyAuth: input.keys.auth,
       },

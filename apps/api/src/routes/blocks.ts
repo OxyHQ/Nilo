@@ -9,6 +9,8 @@ import { findAppliedTransactionKeys, findPageById } from '../repositories/pages.
 import { snapshotPage } from '../repositories/pageVersions.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { log } from '../lib/logger.js';
+import { announceChange } from '../collab/live-rooms.js';
+import { isSystemDatabase } from '../lib/databases/system.js';
 import { sendNotification } from '../lib/notification-service.js';
 import { recentlyNotified } from '../repositories/notifications.js';
 import { listFollowers } from '../repositories/pageFollows.js';
@@ -249,6 +251,10 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
     });
     // The sender gets the operations as applied too: the orders the server chose.
     res.json({ ok: true, version: result.version, ops: result.ops });
+    // An app syncing a system database (Noted's notes) hears a body edit as a row change.
+    if (!result.replayed && (await isSystemDatabase(db, page.databaseId))) {
+      announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
+    }
     void notifyMentioned(result.mentioned, { id: page.id, title: page.title }, req.user?.id ?? '');
     if (!result.replayed)
       void notifyFollowersOfEdit({ id: page.id, title: page.title }, req.user?.id ?? '');
