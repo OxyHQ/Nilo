@@ -13,7 +13,7 @@ import { and, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { isUniqueViolation } from '@oxy.so/db';
 import { comments, notifications } from '../db/schema/collab.js';
 import { databases } from '../db/schema/databases.js';
-import { pages } from '../db/schema/pages.js';
+import { pageFiles, pages } from '../db/schema/pages.js';
 import { teamspaceMembers, teamspaces } from '../db/schema/teamspaces.js';
 import { workspaceMembers, workspaces, type WorkspaceRole } from '../db/schema/workspaces.js';
 import type { PgHandle } from '../db/client.js';
@@ -264,6 +264,9 @@ export async function resetPersonalWorkspace(
       .where(eq(databases.workspaceId, id))
       .returning({ id: databases.id });
     await tx.delete(comments).where(eq(comments.workspaceId, id));
+    // The files its pages had: the workspace no longer serves them. They stay
+    // in the user's Oxy storage, which is theirs, not the workspace's.
+    await tx.delete(pageFiles).where(eq(pageFiles.workspaceId, id));
 
     const pageIds = removedPages.map((p) => p.id);
     const aboutWorkspace = sql`${notifications.data} ->> 'workspaceId' = ${id}`;
