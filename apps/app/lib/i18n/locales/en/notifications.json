@@ -19,5 +19,6 @@
   "open": "Open notification",
   "dismiss": "Dismiss notification",
   "reminder": "Reminder",
-  "pageEdited": "%{page} was edited"
+  "pageEdited": "%{page} was edited",
+  "assigned": "%{name} added you to %{page}"
 }

@@ -4,7 +4,14 @@ import apiClient from '../api/client';
 
 export interface Notification {
   id: string;
-  type: 'page_edited' | 'mention' | 'page_comment' | 'comment_reply' | 'page_shared' | 'reminder';
+  type:
+    | 'page_edited'
+    | 'mention'
+    | 'page_comment'
+    | 'comment_reply'
+    | 'page_shared'
+    | 'reminder'
+    | 'assigned';
   title: string;
   body: string;
   status: 'pending' | 'sent' | 'read' | 'dismissed';

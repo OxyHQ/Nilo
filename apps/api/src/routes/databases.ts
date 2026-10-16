@@ -59,6 +59,7 @@ import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
 import { checkWorkspaceAccess } from '../lib/workspace-access.js';
 import { duplicateBlocksToPage } from '../repositories/blocks.js';
+import { notifyAssigned } from '../lib/databases/assignments.js';
 import { projectNow } from '../lib/page-projection.js';
 import {
   createDatabaseWithRows,
@@ -1132,6 +1133,13 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
 
     const derived = await resolveDerivedProperties(handle, row, db.propertiesSchema);
 
+    void notifyAssigned({
+      properties: db.propertiesSchema.properties,
+      row,
+      before: {},
+      after: row.properties,
+      actorId: userId,
+    });
     announceChange({ databaseId: db.id });
     res.status(201).json({ row: serializeRow(row, { derived }) });
   } catch (error: unknown) {
