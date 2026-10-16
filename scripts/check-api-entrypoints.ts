@@ -232,12 +232,8 @@ async function main(): Promise<void> {
   );
 
   // 5. Positive control: a dry run reaches its report and exits 0, writing nothing.
-  //    `--phase=all`, not `pre`: on a fresh database (CI's), a release's pre-deploy
-  //    migration sits behind the previous release's post-deploy one, and `pre`
-  //    rightly refuses to skip it. Production never meets that order, because the
-  //    previous deploy ran its post phase; this control is about exiting 0.
   const dryRun = await start(
-    [MIGRATOR, `--target-database=${targetDatabase}`, '--phase=all', '--dry-run'],
+    [MIGRATOR, `--target-database=${targetDatabase}`, '--phase=pre', '--dry-run'],
     { DATABASE_URL: databaseUrl },
     60_000,
   ).done;
