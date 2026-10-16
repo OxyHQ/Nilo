@@ -16,6 +16,7 @@
     "sortCount": "Orden (%{count})"
   },
   "views": {
+    "title": "Vistas",
     "table": "Tabla",
     "board": "Tablero",
     "gallery": "Galería",

@@ -195,6 +195,7 @@ export function CommandPalette() {
                   key={item.id}
                   item={item}
                   active={activeIndex === index}
+                  onHighlight={() => setActive(index)}
                   onSelect={select}
                   icon={<RiTimeLine size="sm" fill={colors.mutedForeground} />}
                 />
@@ -217,6 +218,7 @@ export function CommandPalette() {
                   key={item.id}
                   item={item}
                   active={activeIndex === pagesStart + index}
+                  onHighlight={() => setActive(pagesStart + index)}
                   onSelect={select}
                   icon={<RiFileTextLine size="sm" fill={colors.mutedForeground} />}
                 />
@@ -231,6 +233,7 @@ export function CommandPalette() {
                   key={item.id}
                   item={item}
                   active={activeIndex === membersStart + index}
+                  onHighlight={() => setActive(membersStart + index)}
                   onSelect={select}
                 />
               ))}
@@ -244,6 +247,7 @@ export function CommandPalette() {
                   key={item.id}
                   item={item}
                   active={activeIndex === commandsStart + index}
+                  onHighlight={() => setActive(commandsStart + index)}
                   onSelect={select}
                 />
               ))}
@@ -272,10 +276,18 @@ interface RowProps<T extends AnyCommandItem> {
   item: T;
   /** The keyboard highlight. */
   active: boolean;
+  /** The pointer came to rest on the row: it takes the highlight, as cmdk's did. */
+  onHighlight: () => void;
   onSelect: (item: AnyCommandItem) => void;
 }
 
-function PageRow({ item, active, onSelect, icon }: RowProps<PageItem> & { icon: React.ReactNode }) {
+function PageRow({
+  item,
+  active,
+  onHighlight,
+  onSelect,
+  icon,
+}: RowProps<PageItem> & { icon: React.ReactNode }) {
   const details =
     item.subtitle || item.snippet?.length ? (
       <View>
@@ -294,6 +306,7 @@ function PageRow({ item, active, onSelect, icon }: RowProps<PageItem> & { icon: 
       density="compact"
       accessibilityLabel={item.title}
       onPress={() => onSelect(item)}
+      onHoverIn={onHighlight}
       leading={item.icon ? <IconDisplay value={item.icon} size={16} /> : icon}
       title={item.title}
       subtitle={details}
@@ -301,7 +314,7 @@ function PageRow({ item, active, onSelect, icon }: RowProps<PageItem> & { icon: 
   );
 }
 
-function MemberRow({ item, active, onSelect }: RowProps<MemberItem>) {
+function MemberRow({ item, active, onHighlight, onSelect }: RowProps<MemberItem>) {
   return (
     <Item
       role="option"
@@ -309,6 +322,7 @@ function MemberRow({ item, active, onSelect }: RowProps<MemberItem>) {
       density="compact"
       accessibilityLabel={item.title}
       onPress={() => onSelect(item)}
+      onHoverIn={onHighlight}
       leading={<Avatar source={item.avatar} variant="thumb" name={item.title} size={24} />}
       title={item.title}
       subtitle={item.subtitle}
@@ -316,7 +330,7 @@ function MemberRow({ item, active, onSelect }: RowProps<MemberItem>) {
   );
 }
 
-function CommandRow({ item, active, onSelect }: RowProps<CommandItem>) {
+function CommandRow({ item, active, onHighlight, onSelect }: RowProps<CommandItem>) {
   const { colors } = useColorScheme();
   const Icon = item.icon;
   return (
@@ -326,6 +340,7 @@ function CommandRow({ item, active, onSelect }: RowProps<CommandItem>) {
       density="compact"
       accessibilityLabel={item.title}
       onPress={() => onSelect(item)}
+      onHoverIn={onHighlight}
       leading={Icon ? <Icon width={16} height={16} fill={colors.mutedForeground} /> : undefined}
       title={item.title}
       subtitle={item.subtitle}

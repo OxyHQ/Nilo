@@ -5,13 +5,14 @@ import { ViewTab, NewViewPicker } from '@/components/database/database-header';
 import { toast } from '@oxy.so/bloom/toast';
 import { DatabaseActionsMenu } from '@/components/database/database-actions-menu';
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { RiDatabase2Line } from '@oxy.so/bloom/icons/RiDatabase2Line';
 import { RiExternalLinkLine } from '@oxy.so/bloom/icons/RiExternalLinkLine';
 import { DatabaseViewContainer } from '@/components/database/database-view';
 import { Button } from '@oxy.so/bloom/button';
+import { Tabs } from '@oxy.so/bloom/tabs';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
@@ -172,22 +173,19 @@ export function InlineDatabaseBlock({
           {t('editor.inlineDatabase.openFullPage')}
         </Button>
       </View>
-      <ScrollView
-        horizontal
-        accessibilityRole="tablist"
-        className="border-b border-border"
-        keyboardShouldPersistTaps="handled"
-      >
-        {views.map((view) => (
-          <ViewTab
-            key={view.id}
-            view={view}
-            database={db}
-            active={view.id === selectedView?.id}
-            readOnly={readOnly}
-            onPress={() => setActiveViewId(view.id)}
-          />
-        ))}
+      <View className="flex-row items-center gap-1 border-b border-border">
+        <View className="flex-shrink">
+          <Tabs
+            value={selectedView?.id}
+            onValueChange={setActiveViewId}
+            variant="pill"
+            label={t('databases.views.title')}
+          >
+            {views.map((view) => (
+              <ViewTab key={view.id} view={view} database={db} readOnly={readOnly} />
+            ))}
+          </Tabs>
+        </View>
         {!readOnly ? (
           <Button
             appearance="subtle"
@@ -198,7 +196,7 @@ export function InlineDatabaseBlock({
             {t('databases.views.new')}
           </Button>
         ) : null}
-      </ScrollView>
+      </View>
       <NewViewPicker
         open={!readOnly && newViewOpen}
         onClose={() => setNewViewOpen(false)}

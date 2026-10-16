@@ -16,6 +16,7 @@
     "sortCount": "Sort (%{count})"
   },
   "views": {
+    "title": "Views",
     "table": "Table",
     "board": "Board",
     "gallery": "Gallery",

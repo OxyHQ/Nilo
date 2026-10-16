@@ -4,6 +4,7 @@ import { useOxy } from '@oxy.so/services';
 import { useIsMutating } from '@tanstack/react-query';
 import { RiEmotionLine } from '@oxy.so/bloom/icons/RiEmotionLine';
 import { Button } from '@oxy.so/bloom/button';
+import { Chip } from '@oxy.so/bloom/chip';
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -58,24 +59,22 @@ export function CommentReactions({
         {comment.reactions.map((reaction) => {
           const selected = Boolean(user?.id && reaction.userIds.includes(user.id));
           return (
-            <Pressable
+            <Chip
               key={reaction.emoji}
-              accessibilityRole="button"
+              size="sm"
+              selected={selected}
+              disabled={!canComment || pending}
               accessibilityLabel={t('comments.reactions.toggle', {
                 emoji: reaction.emoji,
                 count: reaction.userIds.length,
               })}
-              accessibilityState={{ selected, disabled: !canComment || pending }}
               onPress={() => toggle(reaction.emoji)}
               onLongPress={() => setPeopleEmoji(reaction.emoji)}
               onHoverIn={() => setPeopleEmoji(reaction.emoji)}
               onHoverOut={() => setPeopleEmoji(null)}
-              className={`rounded-full border px-2 py-1 ${selected ? 'bg-accent border-primary' : 'bg-muted border-border'}`}
             >
-              <Text variant="caption-1-regular">
-                {reaction.emoji} {reaction.userIds.length}
-              </Text>
-            </Pressable>
+              {`${reaction.emoji} ${reaction.userIds.length}`}
+            </Chip>
           );
         })}
         {canComment ? (

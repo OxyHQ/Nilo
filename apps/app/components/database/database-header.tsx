@@ -1,7 +1,7 @@
 import { toast } from '@oxy.so/bloom/toast';
 import { DatabaseActionsMenu } from './database-actions-menu';
 import * as React from 'react';
-import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Platform, TextInput, View } from 'react-native';
 import { RiCalendarLine } from '@oxy.so/bloom/icons/RiCalendarLine';
 import { RiFileList3Line } from '@oxy.so/bloom/icons/RiFileList3Line';
 import { RiGalleryView } from '@oxy.so/bloom/icons/RiGalleryView';
@@ -16,6 +16,7 @@ import { Button } from '@oxy.so/bloom/button';
 import { Dialog } from '@oxy.so/bloom/dialog';
 import { Item } from '@oxy.so/bloom/item';
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@oxy.so/bloom/popover';
+import { Tabs, TabsTrigger } from '@oxy.so/bloom/tabs';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -136,20 +137,19 @@ export function DatabaseHeader({
         </View>
 
         {/* View tabs */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerClassName="flex-row items-center gap-1"
-        >
-          {views.map((v) => (
-            <ViewTab
-              key={v.id}
-              view={v}
-              active={v.id === activeViewId}
-              onPress={() => onSelectView(v.id)}
-              database={database}
-            />
-          ))}
+        <View className="flex-row items-center gap-1">
+          <View className="flex-shrink">
+            <Tabs
+              value={activeViewId ?? undefined}
+              onValueChange={onSelectView}
+              variant="pill"
+              label={t('databases.views.title')}
+            >
+              {views.map((v) => (
+                <ViewTab key={v.id} view={v} database={database} />
+              ))}
+            </Tabs>
+          </View>
           <Button
             appearance="plain"
             size="xs"
@@ -158,7 +158,7 @@ export function DatabaseHeader({
           >
             {t('databases.views.new')}
           </Button>
-        </ScrollView>
+        </View>
       </View>
       <NewViewPicker
         open={newViewOpen}
@@ -173,13 +173,11 @@ export function DatabaseHeader({
 interface ViewTabProps {
   readOnly?: boolean;
   view: DatabaseView;
-  active: boolean;
-  onPress: () => void;
   database: Database;
 }
 
-export function ViewTab({ view, active, onPress, database, readOnly = false }: ViewTabProps) {
-  const { colors } = useColorScheme();
+/** One view in a database's `Tabs` strip, with its settings menu beside the label. */
+export function ViewTab({ view, database, readOnly = false }: ViewTabProps) {
   const { t } = useTranslation();
   const Icon = VIEW_ICONS[view.type] ?? RiTableLine;
   const [menuOpen, setMenuOpen] = React.useState(false);
@@ -207,107 +205,93 @@ export function ViewTab({ view, active, onPress, database, readOnly = false }: V
     }
   };
 
-  // The settings popover is the tab's sibling, not its child: on web a click
-  // inside the portalled popover still bubbles through React to its ancestors,
-  // and the tab would select its view under the rename field.
-  return (
-    <View
-      className={`flex-row items-center gap-1.5 px-2 py-1 rounded ${
-        active ? 'bg-muted' : 'hover:bg-muted/60'
-      }`}
+  // The settings button is the trigger's `trailing` node: Bloom lays it beside
+  // the tab's press target, so opening the menu does not select the view.
+  const settings = readOnly ? undefined : (
+    <Popover
+      open={menuOpen}
+      onOpenChange={(next) => {
+        if (next) setMenuOpen(true);
+        else close();
+      }}
     >
-      <Pressable
-        onPress={onPress}
-        accessibilityRole="tab"
-        accessibilityLabel={view.name}
-        accessibilityState={{ selected: active }}
-        onLongPress={readOnly ? undefined : () => setMenuOpen(true)}
-        className="flex-row items-center gap-1.5"
-      >
-        <Icon width={12} height={12} fill={colors.foreground} />
-        <Text
-          className={`text-xs ${active ? 'text-foreground font-medium' : 'text-muted-foreground'}`}
-        >
-          {view.name}
-        </Text>
-      </Pressable>
-      {!readOnly ? (
-        <Popover
-          open={menuOpen}
-          onOpenChange={(next) => {
-            if (next) setMenuOpen(true);
-            else close();
-          }}
-        >
-          <PopoverTrigger asChild>
-            <Button
-              iconOnly
-              appearance="plain"
-              size="xs"
-              accessibilityLabel={t('databases.views.settings', { name: view.name })}
-              leadingIcon={RiEqualizerLine}
+      <PopoverTrigger asChild>
+        <Button
+          iconOnly
+          appearance="plain"
+          size="xs"
+          accessibilityLabel={t('databases.views.settings', { name: view.name })}
+          leadingIcon={RiEqualizerLine}
+        />
+      </PopoverTrigger>
+      <PopoverContent align="start" minWidth={240} label={view.name} className="gap-2">
+        <PopoverTitle tone="secondary">{view.name}</PopoverTitle>
+        {renameDraft === null ? (
+          <>
+            <Item
+              density="compact"
+              accessibilityRole="button"
+              title={t('databases.views.rename')}
+              onPress={() => setRenameDraft(view.name)}
             />
-          </PopoverTrigger>
-          <PopoverContent align="start" minWidth={240} label={view.name} className="gap-2">
-            <PopoverTitle tone="secondary">{view.name}</PopoverTitle>
-            {renameDraft === null ? (
-              <>
-                <Item
-                  density="compact"
-                  accessibilityRole="button"
-                  title={t('databases.views.rename')}
-                  onPress={() => setRenameDraft(view.name)}
-                />
-                <Item
-                  density="compact"
-                  accessibilityRole="button"
-                  destructive
-                  title={t('databases.views.delete')}
-                  disabled={deleteView.isPending}
-                  onPress={async () => {
-                    try {
-                      await deleteView.mutateAsync({
-                        databaseId: database.id,
-                        viewId: view.id,
-                        blockId: view.blockId,
-                      });
-                      close();
-                    } catch {
-                      toast.error(t('databases.views.deleteFailed'));
-                    }
-                  }}
-                />
-              </>
-            ) : (
-              <>
-                <TextFieldInput
-                  size="sm"
-                  label={t('databases.views.namePlaceholder')}
-                  value={renameDraft}
-                  onChangeText={setRenameDraft}
-                  autoFocus
-                  onSubmitEditing={commitRename}
-                />
-                <View className="mt-1 flex-row justify-end gap-2">
-                  <Button appearance="subtle" size="sm" onPress={close}>
-                    {t('common.cancel')}
-                  </Button>
-                  <Button
-                    appearance="solid"
-                    tone="accent"
-                    size="sm"
-                    disabled={updateView.isPending || !renameDraft.trim()}
-                    onPress={commitRename}
-                  >
-                    {t('common.save')}
-                  </Button>
-                </View>
-              </>
-            )}
-          </PopoverContent>
-        </Popover>
-      ) : null}
-    </View>
+            <Item
+              density="compact"
+              accessibilityRole="button"
+              destructive
+              title={t('databases.views.delete')}
+              disabled={deleteView.isPending}
+              onPress={async () => {
+                try {
+                  await deleteView.mutateAsync({
+                    databaseId: database.id,
+                    viewId: view.id,
+                    blockId: view.blockId,
+                  });
+                  close();
+                } catch {
+                  toast.error(t('databases.views.deleteFailed'));
+                }
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <TextFieldInput
+              size="sm"
+              label={t('databases.views.namePlaceholder')}
+              value={renameDraft}
+              onChangeText={setRenameDraft}
+              autoFocus
+              onSubmitEditing={commitRename}
+            />
+            <View className="mt-1 flex-row justify-end gap-2">
+              <Button appearance="subtle" size="sm" onPress={close}>
+                {t('common.cancel')}
+              </Button>
+              <Button
+                appearance="solid"
+                tone="accent"
+                size="sm"
+                disabled={updateView.isPending || !renameDraft.trim()}
+                onPress={commitRename}
+              >
+                {t('common.save')}
+              </Button>
+            </View>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+
+  return (
+    <TabsTrigger
+      value={view.id}
+      label={view.name}
+      leadingIcon={Icon}
+      trailing={settings}
+      onLongPress={readOnly ? undefined : () => setMenuOpen(true)}
+    />
   );
 }
 
