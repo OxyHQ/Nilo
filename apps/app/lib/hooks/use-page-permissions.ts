@@ -28,7 +28,7 @@ export interface PagePermissions {
 }
 export interface SharedPagesResponse {
   shared: Array<{
-    workspace: { id: string; name: string; icon: string | null };
+    workspace: { id: string; name: string; avatar: string | null };
     pages: Array<Page & { role: PageRole }>;
   }>;
 }

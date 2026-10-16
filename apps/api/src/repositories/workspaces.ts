@@ -131,7 +131,7 @@ export async function findPersonalWorkspace(
 
 export async function createWorkspace(
   db: PgHandle,
-  values: { name: string; icon?: string | null; ownerId: string; isPersonal?: boolean },
+  values: { name: string; avatar?: string | null; ownerId: string; isPersonal?: boolean },
 ): Promise<WorkspaceRow> {
   const [row] = await db.insert(workspaces).values(values).returning();
   await ensureDefaultTeamspace(db, row.id, row.ownerId);
@@ -161,7 +161,7 @@ export async function createPersonalWorkspaceIfAbsent(
 ): Promise<WorkspaceRow | null> {
   const [row] = await db
     .insert(workspaces)
-    .values({ ...values, icon: null, isPersonal: true })
+    .values({ ...values, avatar: null, isPersonal: true })
     .onConflictDoNothing({
       target: workspaces.ownerId,
       // drizzle's `where` on a conflict clause IS the arbiter's index
@@ -257,11 +257,11 @@ export async function addMember(
 export async function updateWorkspace(
   db: PgHandle,
   id: string,
-  patch: { name?: string; icon?: string | null },
+  patch: { name?: string; avatar?: string | null },
 ): Promise<WorkspaceRow | null> {
-  const values: { name?: string; icon?: string | null } = {};
+  const values: { name?: string; avatar?: string | null } = {};
   if (patch.name !== undefined) values.name = patch.name;
-  if (patch.icon !== undefined) values.icon = patch.icon;
+  if (patch.avatar !== undefined) values.avatar = patch.avatar;
   if (Object.keys(values).length === 0) return findWorkspaceById(db, id);
 
   const [row] = await db.update(workspaces).set(values).where(eq(workspaces.id, id)).returning();

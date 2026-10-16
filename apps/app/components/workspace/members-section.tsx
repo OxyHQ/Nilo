@@ -1,14 +1,29 @@
 import React from 'react';
-import { View, Pressable, Platform, ActivityIndicator } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useOxy } from '@oxy.so/services';
-import { Image } from 'expo-image';
-import { UserPlus, MoreHorizontal } from 'lucide-react-native';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
+import { Avatar } from '@oxy.so/bloom/avatar';
+import { Button } from '@oxy.so/bloom/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@oxy.so/bloom/dropdown-menu';
+import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
+import { RiUserAddLine } from '@oxy.so/bloom/icons/RiUserAddLine';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectItemText,
+  SelectTrigger,
+  SelectValue,
+} from '@oxy.so/bloom/select';
+import { SettingsCard, SettingsRow, SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
 import { toast } from '@oxy.so/bloom/toast';
-import { useColorScheme } from '@/lib/useColorScheme';
-import { useWorkspaces } from '@/lib/hooks/use-workspaces';
+import { Text } from '@/components/ui/text';
+import { cn } from '@/lib/utils';
+import { useCurrentWorkspace } from '@/lib/hooks/use-workspaces';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import {
   memberProfileName,
@@ -29,37 +44,6 @@ function memberDisplayName(member: WorkspaceMember): string {
   return memberProfileName(member) ?? member.userId;
 }
 
-function memberInitial(member: WorkspaceMember): string {
-  const profile = member.user;
-  const source = profile?.name?.first?.[0] ?? profile?.username?.[0] ?? profile?.email?.[0] ?? '?';
-  return source.toUpperCase();
-}
-
-function MemberAvatar({ member }: { member: WorkspaceMember }) {
-  const { oxyServices } = useOxy();
-  const avatarUrl = member.user?.avatar
-    ? oxyServices.assets.publicUrl(member.user.avatar, 'thumb')
-    : null;
-
-  return (
-    <View
-      className="rounded-full bg-muted items-center justify-center overflow-hidden"
-      style={{ width: 36, height: 36 }}
-    >
-      {avatarUrl ? (
-        <Image
-          source={{ uri: avatarUrl }}
-          style={{ width: 36, height: 36 }}
-          contentFit="cover"
-          transition={150}
-        />
-      ) : (
-        <Text className="text-sm font-bold text-foreground">{memberInitial(member)}</Text>
-      )}
-    </View>
-  );
-}
-
 interface MemberRowProps {
   member: WorkspaceMember;
   workspaceId: string;
@@ -67,10 +51,11 @@ interface MemberRowProps {
   callerRole: WorkspaceRole | undefined;
   /** Oxy user id of the viewer. Disables self-removal. */
   callerUserId: string | undefined;
+  /** The last row of the card draws no separator under it. */
+  last: boolean;
 }
 
-function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowProps) {
-  const { colors } = useColorScheme();
+function MemberRow({ member, workspaceId, callerRole, callerUserId, last }: MemberRowProps) {
   const { t } = useTranslation();
   const { mutate: updateRole, isPending: isUpdating } = useUpdateMemberRole(workspaceId);
   const { mutate: removeMember, isPending: isRemoving } = useRemoveMember(workspaceId);
@@ -79,6 +64,8 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
   const isSelf = callerUserId === member.userId;
   // Only admin+ can manage members. Owners can't be demoted via this UI.
   const canManage = hasRole(callerRole, 'admin') && !isOwner && !isSelf;
+  const name = memberDisplayName(member);
+  const roles = ASSIGNABLE_ROLES.map((role) => ({ value: role, label: roleLabel(role) }));
 
   const handleChangeRole = React.useCallback(
     (role: WorkspaceRole) => {
@@ -87,12 +74,7 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
         { userId: member.userId, role },
         {
           onSuccess: () => {
-            toast.success(
-              t('workspace.members.roleUpdated', {
-                role: roleLabel(role),
-                name: memberDisplayName(member),
-              }),
-            );
+            toast.success(t('workspace.members.roleUpdated', { role: roleLabel(role), name }));
           },
           onError: (error) => {
             const message =
@@ -104,13 +86,13 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
         },
       );
     },
-    [updateRole, member, t],
+    [updateRole, member, name, t],
   );
 
   const handleRemove = React.useCallback(() => {
     removeMember(member.userId, {
       onSuccess: () => {
-        toast.success(t('workspace.members.removed', { name: memberDisplayName(member) }));
+        toast.success(t('workspace.members.removed', { name }));
       },
       onError: (error) => {
         const message =
@@ -120,14 +102,21 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
         toast.error(message);
       },
     });
-  }, [removeMember, member, t]);
+  }, [removeMember, member, name, t]);
 
+  // A member row carries an avatar, which `SettingsRow` has no slot for, so it
+  // draws the row's geometry itself.
   return (
-    <View className="flex-row items-center gap-3 py-3 px-2 rounded-lg">
-      <MemberAvatar member={member} />
+    <View
+      className={cn(
+        'min-h-[52px] flex-row items-center gap-3 py-2.5 pr-2.5',
+        last ? '' : 'border-b border-border',
+      )}
+    >
+      <Avatar source={member.user?.avatar ?? undefined} name={name} size={32} />
       <View className="flex-1 min-w-0">
         <Text className="text-sm font-medium text-foreground" numberOfLines={1}>
-          {memberDisplayName(member)}
+          {name}
           {isSelf ? (
             <Text className="text-xs text-muted-foreground"> {t('workspace.members.you')}</Text>
           ) : null}
@@ -141,57 +130,53 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId }: MemberRowP
 
       {canManage ? (
         <View className="flex-row items-center gap-1 shrink-0">
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <Pressable
-                className="h-8 px-2 flex-row items-center gap-1 rounded-lg border border-border hover:bg-muted"
-                accessibilityRole="button"
-                accessibilityLabel={t('workspace.members.changeRole', {
-                  name: memberDisplayName(member),
-                })}
-                disabled={isUpdating || isRemoving}
-              >
-                <Text className="text-xs font-medium text-foreground">
-                  {roleLabel(member.role)}
-                </Text>
-              </Pressable>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content>
-              {ASSIGNABLE_ROLES.map((role) => (
-                <DropdownMenu.Item key={role} onSelect={() => handleChangeRole(role)}>
-                  <DropdownMenu.ItemTitle>{roleLabel(role)}</DropdownMenu.ItemTitle>
-                </DropdownMenu.Item>
-              ))}
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
+          <Select
+            size="sm"
+            value={member.role}
+            disabled={isUpdating || isRemoving}
+            onValueChange={(value) => {
+              const next = ASSIGNABLE_ROLES.find((role) => role === value);
+              if (next) handleChangeRole(next);
+            }}
+          >
+            <SelectTrigger label={t('workspace.members.changeRole', { name })}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent
+              items={roles}
+              renderItem={(item) => (
+                <SelectItem value={item.value} label={item.label}>
+                  <SelectItemText>{item.label}</SelectItemText>
+                </SelectItem>
+              )}
+            />
+          </Select>
 
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <Pressable
-                className="h-8 w-8 items-center justify-center rounded-lg hover:bg-muted"
-                accessibilityRole="button"
-                accessibilityLabel={t('workspace.members.moreActions', {
-                  name: memberDisplayName(member),
-                })}
-                disabled={isUpdating || isRemoving}
-              >
-                <MoreHorizontal size={16} color={colors.mutedForeground} />
-              </Pressable>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content>
-              <DropdownMenu.Item key="remove" destructive onSelect={handleRemove}>
-                <DropdownMenu.ItemIcon ios={{ name: 'trash' }} />
-                <DropdownMenu.ItemTitle>{t('workspace.members.remove')}</DropdownMenu.ItemTitle>
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              asChild
+              label={t('workspace.members.moreActions', { name })}
+              disabled={isUpdating || isRemoving}
+            >
+              <Button
+                appearance="plain"
+                tone="neutral"
+                size="sm"
+                icon={RiMoreLine}
+                accessibilityLabel={t('workspace.members.moreActions', { name })}
+              />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem tone="danger" onPress={handleRemove}>
+                {t('workspace.members.remove')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </View>
       ) : (
-        <View className="h-8 px-2 items-center justify-center shrink-0">
-          <Text className="text-xs font-medium text-muted-foreground">
-            {roleLabel(member.role)}
-          </Text>
-        </View>
+        <Text className="text-xs font-medium text-muted-foreground shrink-0">
+          {roleLabel(member.role)}
+        </Text>
       )}
     </View>
   );
@@ -202,12 +187,7 @@ export function MembersSection() {
   const { t } = useTranslation();
   const [inviteOpen, setInviteOpen] = React.useState(false);
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-
-  const { data: workspaces } = useWorkspaces();
-  const currentWorkspace = React.useMemo(
-    () => workspaces?.find((w) => w.id === currentWorkspaceId) ?? null,
-    [workspaces, currentWorkspaceId],
-  );
+  const currentWorkspace = useCurrentWorkspace();
 
   const { data: members, isLoading, isError, error } = useWorkspaceMembers(currentWorkspaceId);
 
@@ -225,61 +205,50 @@ export function MembersSection() {
   }, [members]);
 
   return (
-    <View className="gap-3">
-      <View className="flex-row items-center justify-between">
-        <View className="flex-1 min-w-0">
-          <Text className="text-sm font-medium text-foreground">
-            {currentWorkspace?.name ?? t('workspace.fallbackName')}
-          </Text>
-          <Text className="text-xs text-muted-foreground">
-            {t('workspace.members.count', { count: members?.length ?? 0 })}
-          </Text>
-        </View>
-        {canInvite && currentWorkspaceId ? (
-          <Button onPress={() => setInviteOpen(true)} size="sm">
-            <View className="flex-row items-center gap-1.5">
-              <UserPlus size={14} className="text-primary-foreground" />
-              <Text className="text-xs font-semibold text-primary-foreground">
-                {t('workspace.members.invite')}
-              </Text>
+    <>
+      <SettingsSection
+        label={t('workspace.members.count', { count: members?.length ?? 0 })}
+        description={
+          canInvite ? t('settings.members.description') : t('workspace.members.adminOnly')
+        }
+        action={
+          canInvite && currentWorkspaceId ? (
+            <Button
+              tone="action"
+              size="sm"
+              leadingIcon={RiUserAddLine}
+              onPress={() => setInviteOpen(true)}
+            >
+              {t('workspace.members.invite')}
+            </Button>
+          ) : undefined
+        }
+      >
+        <SettingsCard>
+          {isLoading ? (
+            <View className="py-10 items-center justify-center">
+              <ActivityIndicator />
             </View>
-          </Button>
-        ) : null}
-      </View>
-
-      <View className="rounded-xl border border-border bg-card overflow-hidden">
-        {isLoading ? (
-          <View className="py-10 items-center justify-center">
-            <ActivityIndicator />
-          </View>
-        ) : isError ? (
-          <View className="py-6 px-4">
-            <Text className="text-sm text-destructive">
-              {error instanceof Error ? error.message : t('workspace.members.loadFailed')}
-            </Text>
-          </View>
-        ) : sortedMembers.length === 0 ? (
-          <View className="py-10 items-center justify-center px-4">
-            <Text className="text-sm text-muted-foreground text-center">
-              {t('workspace.members.empty')}
-            </Text>
-          </View>
-        ) : (
-          <View className="px-1 py-1">
-            {sortedMembers.map((member, idx) => (
-              <View key={member.userId}>
-                {idx > 0 ? <View className="h-px bg-border/50 mx-2" /> : null}
-                <MemberRow
-                  member={member}
-                  workspaceId={currentWorkspaceId ?? ''}
-                  callerRole={callerRole}
-                  callerUserId={user?.id}
-                />
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
+          ) : isError ? (
+            <SettingsRow
+              label={error instanceof Error ? error.message : t('workspace.members.loadFailed')}
+            />
+          ) : sortedMembers.length === 0 ? (
+            <SettingsRow label={t('workspace.members.empty')} />
+          ) : (
+            sortedMembers.map((member, idx) => (
+              <MemberRow
+                key={member.userId}
+                member={member}
+                workspaceId={currentWorkspaceId ?? ''}
+                callerRole={callerRole}
+                callerUserId={user?.id}
+                last={idx === sortedMembers.length - 1}
+              />
+            ))
+          )}
+        </SettingsCard>
+      </SettingsSection>
 
       {currentWorkspaceId ? (
         <InviteMemberModal
@@ -288,18 +257,6 @@ export function MembersSection() {
           workspaceId={currentWorkspaceId}
         />
       ) : null}
-
-      {!canInvite && currentWorkspace ? (
-        <View
-          className={
-            Platform.OS === 'web'
-              ? 'rounded-lg bg-muted/40 px-3 py-2'
-              : 'rounded-lg bg-muted px-3 py-2'
-          }
-        >
-          <Text className="text-xs text-muted-foreground">{t('workspace.members.adminOnly')}</Text>
-        </View>
-      ) : null}
-    </View>
+    </>
   );
 }

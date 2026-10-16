@@ -305,7 +305,7 @@ router.get('/shared', async (req: Request, res: Response) => {
       const guest = { userId, memberRole: null, teamspaces: new Map() };
       const roles = rolesForPages(all, guest, grants, await databaseHomes(db, workspaceId));
       out.push({
-        workspace: { id: workspace.id, name: workspace.name, icon: workspace.icon ?? null },
+        workspace: { id: workspace.id, name: workspace.name, avatar: workspace.avatar ?? null },
         pages: all
           .filter((p) => roles.has(p.id))
           .map((p) => ({ ...serializePage(p), role: roles.get(p.id) })),

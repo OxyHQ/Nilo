@@ -68,7 +68,6 @@ async function main(): Promise<void> {
 
   const team = await createWorkspace(db, {
     name: 'Nilo Demo',
-    icon: '🛰️',
     ownerId: OWNER_ID,
     isPersonal: false,
   });

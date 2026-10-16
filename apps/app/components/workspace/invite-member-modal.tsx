@@ -1,21 +1,20 @@
 import React from 'react';
-import { View, Pressable, Platform } from 'react-native';
+import { View } from 'react-native';
+import { Button } from '@oxy.so/bloom/button';
+import { Dialog } from '@oxy.so/bloom/dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
-import * as DropdownMenu from '@/components/ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react-native';
+  Select,
+  SelectContent,
+  SelectIcon,
+  SelectItem,
+  SelectItemIndicator,
+  SelectItemText,
+  SelectTrigger,
+  SelectValue,
+} from '@oxy.so/bloom/select';
+import { TextField, TextFieldHint, TextFieldInput, TextFieldLabel } from '@oxy.so/bloom/text-field';
 import axios from 'axios';
 import { toast } from '@oxy.so/bloom/toast';
-import { useColorScheme } from '@/lib/useColorScheme';
 import { useInviteMember } from '@/lib/hooks/use-workspace-members';
 import { roleDescription, roleLabel } from './role-labels';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -49,8 +48,9 @@ function extractErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+// A Bloom dialog: it opens from the settings dialog, and only a Bloom overlay
+// stacks above that one.
 export function InviteMemberModal({ open, onOpenChange, workspaceId }: InviteMemberModalProps) {
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const [email, setEmail] = React.useState('');
   const [role, setRole] = React.useState<WorkspaceRole>('editor');
@@ -66,6 +66,7 @@ export function InviteMemberModal({ open, onOpenChange, workspaceId }: InviteMem
   const trimmedEmail = email.trim();
   const emailValid = EMAIL_REGEX.test(trimmedEmail);
   const canSubmit = emailValid && !isPending;
+  const roles = ASSIGNABLE_ROLES.map((option) => ({ value: option, label: roleLabel(option) }));
 
   const handleSubmit = React.useCallback(() => {
     if (!canSubmit) return;
@@ -86,19 +87,18 @@ export function InviteMemberModal({ open, onOpenChange, workspaceId }: InviteMem
   }, [canSubmit, mutate, trimmedEmail, role, onOpenChange, t]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('workspace.invite.title')}</DialogTitle>
-          <DialogDescription>{t('workspace.invite.description')}</DialogDescription>
-        </DialogHeader>
-
-        <View className="gap-3">
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-foreground">
-              {t('workspace.invite.email')}
-            </Text>
-            <Input
+    <Dialog
+      open={open}
+      onClose={() => onOpenChange(false)}
+      title={t('workspace.invite.title')}
+      description={t('workspace.invite.description')}
+    >
+      <View className="gap-4">
+        <View>
+          <TextFieldLabel>{t('workspace.invite.email')}</TextFieldLabel>
+          <TextField invalid={email.length > 0 && !emailValid}>
+            <TextFieldInput
+              label={t('workspace.invite.email')}
               value={email}
               onChangeText={setEmail}
               placeholder={t('workspace.invite.emailPlaceholder')}
@@ -109,68 +109,54 @@ export function InviteMemberModal({ open, onOpenChange, workspaceId }: InviteMem
               onSubmitEditing={handleSubmit}
               returnKeyType="send"
             />
-            {email.length > 0 && !emailValid ? (
-              <Text className="text-xs text-destructive">{t('workspace.invite.invalidEmail')}</Text>
-            ) : null}
-          </View>
-
-          <View className="gap-1.5">
-            <Text className="text-sm font-medium text-foreground">
-              {t('workspace.invite.role')}
-            </Text>
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger>
-                <Pressable
-                  className="h-9 flex-row items-center justify-between rounded-xl border border-input bg-background px-3"
-                  accessibilityRole="button"
-                  accessibilityLabel={t('workspace.invite.selectedRole', { role: roleLabel(role) })}
-                  disabled={isPending}
-                >
-                  <View className="flex-1 min-w-0">
-                    <Text className="text-sm text-foreground" numberOfLines={1}>
-                      {roleLabel(role)}
-                    </Text>
-                  </View>
-                  <ChevronDown size={14} color={colors.mutedForeground} />
-                </Pressable>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content>
-                {ASSIGNABLE_ROLES.map((option) => (
-                  <DropdownMenu.Item key={option} onSelect={() => setRole(option)}>
-                    {Platform.OS === 'web' ? (
-                      <View className="gap-0.5">
-                        <Text className="text-sm font-medium text-foreground">
-                          {roleLabel(option)}
-                        </Text>
-                        <Text className="text-xs text-muted-foreground">
-                          {roleDescription(option)}
-                        </Text>
-                      </View>
-                    ) : (
-                      <>
-                        <DropdownMenu.ItemTitle>{roleLabel(option)}</DropdownMenu.ItemTitle>
-                        <DropdownMenu.ItemSubtitle>
-                          {roleDescription(option)}
-                        </DropdownMenu.ItemSubtitle>
-                      </>
-                    )}
-                  </DropdownMenu.Item>
-                ))}
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-            <Text className="text-xs text-muted-foreground">{roleDescription(role)}</Text>
-          </View>
+          </TextField>
+          {email.length > 0 && !emailValid ? (
+            <TextFieldHint invalid>{t('workspace.invite.invalidEmail')}</TextFieldHint>
+          ) : null}
         </View>
 
-        <DialogFooter>
-          <Button variant="outline" onPress={() => onOpenChange(false)} disabled={isPending}>
-            <Text>{t('common.cancel')}</Text>
+        <View>
+          <TextFieldLabel>{t('workspace.invite.role')}</TextFieldLabel>
+          <Select
+            value={role}
+            disabled={isPending}
+            onValueChange={(value) => {
+              const next = ASSIGNABLE_ROLES.find((option) => option === value);
+              if (next) setRole(next);
+            }}
+          >
+            <SelectTrigger label={t('workspace.invite.role')}>
+              <SelectValue />
+              <SelectIcon />
+            </SelectTrigger>
+            <SelectContent
+              label={t('workspace.invite.role')}
+              items={roles}
+              renderItem={(item) => (
+                <SelectItem value={item.value} label={item.label}>
+                  <SelectItemIndicator />
+                  <SelectItemText>{item.label}</SelectItemText>
+                </SelectItem>
+              )}
+            />
+          </Select>
+          <TextFieldHint>{roleDescription(role)}</TextFieldHint>
+        </View>
+
+        <View className="flex-row justify-end gap-2">
+          <Button
+            appearance="subtle"
+            tone="neutral"
+            onPress={() => onOpenChange(false)}
+            disabled={isPending}
+          >
+            {t('common.cancel')}
           </Button>
-          <Button onPress={handleSubmit} disabled={!canSubmit} isLoading={isPending}>
-            <Text>{t('workspace.invite.submit')}</Text>
+          <Button tone="action" onPress={handleSubmit} disabled={!canSubmit} loading={isPending}>
+            {t('workspace.invite.submit')}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </View>
+      </View>
     </Dialog>
   );
 }

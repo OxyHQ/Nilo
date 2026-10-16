@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { compareRoles, hasRole, WORKSPACE_ROLES } from '../../db/schema/workspaces.js';
-import type { ZodType } from 'zod';
+import { createWorkspaceSchema, updateWorkspaceSchema } from '../../lib/workspace-input.js';
 
 describe('workspace role helpers', () => {
   it('orders roles viewer < commenter < editor < admin < owner', () => {
@@ -41,42 +41,44 @@ describe('workspace role helpers', () => {
   });
 });
 
-describe('workspace create input validation', () => {
-  let createWorkspaceSchema: ZodType;
-
-  beforeEach(async () => {
-    // Re-import inside beforeEach so the mocks above take effect even
-    // though we are only exercising the local schemas.
-    const mod = await import('zod');
-    createWorkspaceSchema = mod.z.object({
-      name: mod.z.string().trim().min(1).max(200),
-      icon: mod.z.string().max(64).nullable().optional(),
-    });
-  });
+describe('workspace input validation', () => {
+  const OBJECT_ID = '65fdc8c8c8c8c8c8c8c8c8c8';
+  const UUID = '01a0821e-d61a-7a78-b5d1-afb1850bd5a4';
 
   it('accepts a minimal valid body', () => {
-    const result = createWorkspaceSchema.safeParse({ name: 'Team' });
-    expect(result.success).toBe(true);
+    expect(createWorkspaceSchema.safeParse({ name: 'Team' }).success).toBe(true);
   });
 
   it('rejects empty names', () => {
-    const result = createWorkspaceSchema.safeParse({ name: '' });
-    expect(result.success).toBe(false);
+    expect(createWorkspaceSchema.safeParse({ name: '' }).success).toBe(false);
   });
 
   it('rejects overlong names', () => {
-    const result = createWorkspaceSchema.safeParse({ name: 'x'.repeat(201) });
-    expect(result.success).toBe(false);
+    expect(createWorkspaceSchema.safeParse({ name: 'x'.repeat(201) }).success).toBe(false);
   });
 
-  it('allows null icon', () => {
-    const result = createWorkspaceSchema.safeParse({ name: 'X', icon: null });
-    expect(result.success).toBe(true);
+  it('accepts an Oxy file id as the avatar, in either shape', () => {
+    expect(createWorkspaceSchema.safeParse({ name: 'X', avatar: OBJECT_ID }).success).toBe(true);
+    expect(createWorkspaceSchema.safeParse({ name: 'X', avatar: UUID }).success).toBe(true);
   });
 
-  it('allows omitted icon', () => {
-    const result = createWorkspaceSchema.safeParse({ name: 'X' });
-    expect(result.success).toBe(true);
+  it('allows a null or omitted avatar', () => {
+    expect(createWorkspaceSchema.safeParse({ name: 'X', avatar: null }).success).toBe(true);
+    expect(createWorkspaceSchema.safeParse({ name: 'X' }).success).toBe(true);
+  });
+
+  it('rejects an emoji or a URL as the avatar', () => {
+    expect(createWorkspaceSchema.safeParse({ name: 'X', avatar: '🚀' }).success).toBe(false);
+    expect(
+      createWorkspaceSchema.safeParse({ name: 'X', avatar: `https://cdn.example/${OBJECT_ID}` })
+        .success,
+    ).toBe(false);
+  });
+
+  it('requires a patch to change something', () => {
+    expect(updateWorkspaceSchema.safeParse({}).success).toBe(false);
+    expect(updateWorkspaceSchema.safeParse({ avatar: null }).success).toBe(true);
+    expect(updateWorkspaceSchema.safeParse({ name: 'Renamed' }).success).toBe(true);
   });
 });
 
