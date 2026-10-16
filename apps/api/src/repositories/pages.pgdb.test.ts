@@ -167,8 +167,9 @@ describe('pages repository (real database)', () => {
           'pages_properties_gin_idx',
           // Top-level pages per teamspace (the sidebar).
           'pages_teamspace_idx',
-          // Full-text search (`GET /search`).
+          // Full-text search (`GET /search`), and titles with a typo.
           'pages_title_fts_idx',
+          'pages_title_trgm_idx',
           // The public address of a published page.
           'pages_publish_slug_key',
         ]),

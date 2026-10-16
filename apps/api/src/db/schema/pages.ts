@@ -266,6 +266,12 @@ export const pages = pgTable(
       sql`to_tsvector('nilo_search'::regconfig, ${t.title})`,
     ),
     /**
+     * Titles by trigram (`pg_trgm`), over `nilo_fold` (lower case, no
+     * accents): found with a typo too. Written exactly as
+     * `repositories/search.ts` queries it.
+     */
+    index('pages_title_trgm_idx').using('gin', sql`nilo_fold(${t.title}) gin_trgm_ops`),
+    /**
      * `coverPosition` is bounded to 0..100 as a live constraint. `between`
      * also rejects `'NaN'::double precision`.
      */

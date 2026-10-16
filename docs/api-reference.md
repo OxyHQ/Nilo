@@ -116,7 +116,8 @@ the catalog after each healthy rollout.
 
 ## Search, files, embeds, feedback
 
-- `GET /search?workspaceId&q` — titles and text, accent-insensitive.
+- `GET /search?workspaceId&q` — titles and text, accent-insensitive, every word
+  as a prefix; in titles a word may also be close (a typo), by trigrams.
 - `POST /pages/:id/files { fileId, name }` (editor) — record a file uploaded
   to Oxy and linked to Nilo as an attachment of the page.
 - `POST /pages/:id/files/urls`, `POST /share/:token/files/urls`,

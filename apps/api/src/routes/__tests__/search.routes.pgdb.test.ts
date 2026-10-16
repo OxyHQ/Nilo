@@ -1,6 +1,7 @@
 /**
- * `GET /search` against PostgreSQL: titles and block text, prefixes, input
- * that looks like query syntax, access, and the GIN indexes being usable.
+ * `GET /search` against PostgreSQL: titles and block text, prefixes, titles
+ * with a typo, input that looks like query syntax, access, and the GIN indexes
+ * being usable.
  */
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -166,6 +167,18 @@ describe('GET /search', () => {
     expect((await search(OWNER, 'RÓADMAP'))[0]?.page.id).toBe(roadmap);
   });
 
+  it('finds a title with a typo, below one that matches as typed', async () => {
+    const weekly = await pageWith('Reunión semanal del equipo', []);
+    expect((await search(OWNER, 'reunon semnal'))[0]?.page.id).toBe(weekly);
+    expect((await search(OWNER, 'roadmpa')).map((r) => r.page.id)).toContain(roadmap);
+    // Typed right, the title matching every word comes before a near one.
+    const exact = await pageWith('Semana', []);
+    const near = (await search(OWNER, 'semana')).map((r) => r.page.id);
+    expect(near[0]).toBe(exact);
+    // Nothing close: nothing found.
+    expect(await search(OWNER, 'xylofón')).toEqual([]);
+  });
+
   it('treats query syntax as text', async () => {
     expect(
       (
@@ -202,7 +215,7 @@ describe('GET /search', () => {
     expect(stranger.status).toBe(403);
   });
 
-  it('can use the full-text indexes', async () => {
+  it('can use the full-text and trigram indexes', async () => {
     await db.execute(sql`set enable_seqscan = off`);
     try {
       const plan = async (query: ReturnType<typeof sql>) =>
@@ -219,6 +232,9 @@ describe('GET /search', () => {
           sql`select id from pages where to_tsvector('nilo_search'::regconfig, title) @@ to_tsquery('nilo_search'::regconfig, 'plan:*')`,
         ),
       ).toContain('pages_title_fts_idx');
+      expect(
+        await plan(sql`select id from pages where nilo_fold('semnal') <% nilo_fold(title)`),
+      ).toContain('pages_title_trgm_idx');
       expect(
         await plan(
           sql`select id from blocks b where b.content -> 'segments' @> '[{"mention":{"attributes":{"kind":"page","id":"x"}}}]'::jsonb`,

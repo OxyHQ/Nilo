@@ -25,18 +25,23 @@ export interface BlockHit {
 const MAX_QUERY_LENGTH = 200;
 const MAX_TERMS = 8;
 
+/** The words of what someone typed: runs of letters and digits, at most `MAX_TERMS`. */
+export function queryWords(input: string): string[] {
+  const words =
+    input
+      .slice(0, MAX_QUERY_LENGTH)
+      .toLowerCase()
+      .match(/[\p{L}\p{N}]+/gu) ?? [];
+  return [...new Set(words)].slice(0, MAX_TERMS);
+}
+
 /**
  * The tsquery for what someone typed: every word, as a prefix, all required
  * (`plan:* & semana:*`). Words are runs of letters and digits, so nothing
  * the user types reaches `to_tsquery` as syntax. Null when there is no word.
  */
 export function prefixQuery(input: string): string | null {
-  const words =
-    input
-      .slice(0, MAX_QUERY_LENGTH)
-      .toLowerCase()
-      .match(/[\p{L}\p{N}]+/gu) ?? [];
-  const terms = [...new Set(words)].slice(0, MAX_TERMS);
+  const terms = queryWords(input);
   return terms.length > 0 ? terms.map((term) => `${term}:*`).join(' & ') : null;
 }
 
@@ -62,26 +67,56 @@ function snippetParts(headline: string): SnippetPart[] {
 const col = (column: Parameters<typeof sqlColumnName>[0]) => sql.identifier(sqlColumnName(column));
 
 /**
- * Live pages of `workspaceId` whose title matches `query` (a `prefixQuery`),
- * best first. The tsvector expression is `pages_title_fts_idx`'s.
+ * How close a word must be to one in a title to count (`word_similarity`):
+ * one typo in a word of six letters is about 0.5.
+ */
+const NEAR_WORD = 0.45;
+
+/**
+ * Live pages of `workspaceId` whose title has every word typed, each as a
+ * prefix or close to a word of the title, typos included (by trigrams),
+ * best first: a title matching every word as typed ranks above any near one.
+ * The expressions are `pages_title_fts_idx`'s and `pages_title_trgm_idx`'s.
  */
 export async function searchPageTitles(
   db: PgHandle,
   workspaceId: string,
-  query: string,
+  words: readonly string[],
   limit: number,
 ): Promise<TitleHit[]> {
-  const rows = await db.execute(sql`
-    select ${col(pages.id)} as id,
-           ts_rank(to_tsvector('nilo_search'::regconfig, ${col(pages.title)}), to_tsquery('nilo_search'::regconfig, ${query})) as rank
-    from ${pages}
-    where ${col(pages.workspaceId)} = ${workspaceId}
-      and not ${col(pages.archived)}
-      and to_tsvector('nilo_search'::regconfig, ${col(pages.title)}) @@ to_tsquery('nilo_search'::regconfig, ${query})
-    order by rank desc, ${col(pages.updatedAt)} desc
-    limit ${limit}
-  `);
-  return rows.map((row) => ({ pageId: String(row.id), rank: Number(row.rank) }));
+  if (words.length === 0) return [];
+  const vector = sql`to_tsvector('nilo_search'::regconfig, ${col(pages.title)})`;
+  const prefix = (query: string) => sql`to_tsquery('nilo_search'::regconfig, ${query})`;
+  const title = sql`nilo_fold(${col(pages.title)})`;
+  const all = prefix(words.map((word) => `${word}:*`).join(' & '));
+  const everyWord = sql.join(
+    words.map(
+      (word) => sql`(${vector} @@ ${prefix(`${word}:*`)} or nilo_fold(${word}) <% ${title})`,
+    ),
+    sql` and `,
+  );
+  const closeness = sql.join(
+    words.map((word) => sql`word_similarity(nilo_fold(${word}), ${title})`),
+    sql` + `,
+  );
+  return db.transaction(async (tx) => {
+    // `<%` reads the threshold from the session; `set local` keeps it to this query.
+    await tx.execute(
+      sql`select set_config('pg_trgm.word_similarity_threshold', ${String(NEAR_WORD)}, true)`,
+    );
+    const rows = await tx.execute(sql`
+      select ${col(pages.id)} as id,
+             case when ${vector} @@ ${all} then 1 + ts_rank(${vector}, ${all}) else 0 end
+               + (${closeness}) / ${words.length} as rank
+      from ${pages}
+      where ${col(pages.workspaceId)} = ${workspaceId}
+        and not ${col(pages.archived)}
+        and ${everyWord}
+      order by rank desc, ${col(pages.updatedAt)} desc
+      limit ${limit}
+    `);
+    return rows.map((row) => ({ pageId: String(row.id), rank: Number(row.rank) }));
+  });
 }
 
 /**

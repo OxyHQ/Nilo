@@ -118,8 +118,9 @@ async function main(): Promise<void> {
   await runMigrations({
     databaseUrl,
     migrationsFolder: resolveMigrationsFolder(),
-    // No PostGIS, no pgvector, no pg_trgm. Adding one here is a privileged
-    // operation on RDS — see the note in docker-compose.postgres.yml.
+    // None here: the extensions Nilo uses (`unaccent`, `pg_trgm`) are trusted,
+    // so the migrations that need them create them as the database owner.
+    // An untrusted one (PostGIS, pgvector) is a privileged operation on RDS.
     extensions: [],
     run: readPhase(argv),
     expectedDatabase,
