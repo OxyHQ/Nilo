@@ -59,13 +59,12 @@ it.each([false, true])(
     });
     expect(useDatabaseRow).toHaveBeenCalledWith('projects', 'project');
     expect(useDatabaseRow).toHaveBeenCalledWith('tasks', 'task');
-    const event = { stopPropagation: jest.fn() };
-    act(() =>
-      renderer.root
-        .find((node) => node.props?.accessibilityLabel === 'Launch' && node.props.onPress)
-        .props.onPress(event),
+    const pill = renderer.root.find(
+      (node) => node.props?.accessibilityLabel === 'Launch' && node.props.onPress,
     );
-    expect(event.stopPropagation).toHaveBeenCalled();
+    // The pill sits in a pressable cell or card that opens the row.
+    expect(pill.props.stopPropagation).toBe(true);
+    act(() => pill.props.onPress());
     expect(mockPush).toHaveBeenCalledWith({
       pathname: '/p/[pageId]',
       params: { pageId: 'project' },

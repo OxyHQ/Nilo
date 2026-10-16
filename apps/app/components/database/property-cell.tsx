@@ -16,7 +16,7 @@ import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { DatabaseProperty, PropertyValue, SelectOption } from '@/lib/types/databases';
-import { SELECT_COLOR_CLASSES } from './select-color';
+import { SELECT_CHIP_HUE } from './select-color';
 
 export interface PropertyCellProps {
   readOnly?: boolean;
@@ -538,16 +538,12 @@ function MultiSelectCell({ property, value, onChange, variant }: MultiSelectCell
   );
 }
 
-/**
- * An option's colour pill. Bloom's `Chip` hues have no brown, orange or pink, and a
- * single rose for red, so the option colours stay on the select palette classes.
- */
+/** An option's colour pill. */
 function SelectChip({ option }: { option: SelectOption }) {
-  const palette = SELECT_COLOR_CLASSES[option.color] ?? SELECT_COLOR_CLASSES.default;
   return (
-    <View className={`px-2 py-0.5 rounded-md ${palette.bg}`}>
-      <Text className={`text-xs ${palette.fg}`}>{option.name}</Text>
-    </View>
+    <Chip size="xs" hue={SELECT_CHIP_HUE[option.color] ?? 'neutral'}>
+      {option.name}
+    </Chip>
   );
 }
 

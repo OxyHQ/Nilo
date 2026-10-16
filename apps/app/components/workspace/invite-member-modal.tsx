@@ -1,6 +1,5 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Button } from '@oxy.so/bloom/button';
 import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
 import {
   Select,
@@ -92,6 +91,17 @@ export function InviteMemberModal({ control, workspaceId }: InviteMemberModalPro
       placement={{ base: 'bottom', md: 'center' }}
       title={t('workspace.invite.title')}
       description={t('workspace.invite.description')}
+      actions={[
+        {
+          label: t('workspace.invite.submit'),
+          onPress: handleSubmit,
+          disabled: !canSubmit && !isPending,
+          loading: isPending,
+          // The dialog stays up until the request settles; success closes it.
+          shouldCloseOnPress: false,
+        },
+        { label: t('common.cancel'), color: 'cancel', disabled: isPending },
+      ]}
     >
       <View className="gap-4">
         <View>
@@ -141,22 +151,6 @@ export function InviteMemberModal({ control, workspaceId }: InviteMemberModalPro
             />
           </Select>
           <TextFieldHint>{roleDescription(role)}</TextFieldHint>
-        </View>
-
-        {/* Not Dialog `actions`: a declarative action cannot show the submit's spinner. */}
-        <View className="flex-row justify-end gap-2">
-          <Button appearance="outline" onPress={() => control.close()} disabled={isPending}>
-            {t('common.cancel')}
-          </Button>
-          <Button
-            appearance="solid"
-            tone="accent"
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-            loading={isPending}
-          >
-            {t('workspace.invite.submit')}
-          </Button>
         </View>
       </View>
     </Dialog>

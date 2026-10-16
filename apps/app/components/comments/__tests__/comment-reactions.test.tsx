@@ -46,7 +46,7 @@ const comment = {
 } as Comment;
 let renderer: ReactTestRenderer;
 function action(label: string) {
-  // The outermost match: a Bloom Button and the pressable inside it carry the same label.
+  // The outermost match: a Bloom Button or Chip and the pressable inside it carry the same label.
   return renderer.root.findAll(
     (node) => node.props.accessibilityLabel === label && node.props.onPress,
   )[0];
@@ -63,7 +63,8 @@ it('highlights own reactions, toggles add/remove, and shows profile names on hov
       </BloomTestProviders>,
     );
   });
-  expect(action('comments.reactions.toggle 👍').props.accessibilityState.selected).toBe(true);
+  expect(action('comments.reactions.toggle 👍').props.selected).toBe(true);
+  expect(action('comments.reactions.toggle 🎉').props.selected).toBe(false);
   act(() => action('comments.reactions.toggle 👍').props.onPress());
   expect(mockMutate).toHaveBeenLastCalledWith({ comment, emoji: '👍', remove: true });
   act(() => action('comments.reactions.toggle 🎉').props.onPress());

@@ -2,7 +2,7 @@ import { PageEditedNotification } from '@/components/sharing/page-edited-notific
 import { ReminderList } from '@/components/reminders/reminder-list';
 import { PageSharedNotification } from '@/components/sharing/page-shared-notification';
 import { View, ScrollView, Pressable, Platform } from 'react-native';
-import { Button } from '@oxy.so/bloom/button';
+import { Button, CloseButton } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
 import { PageHeader } from '@oxy.so/bloom/page-header';
@@ -16,7 +16,6 @@ import { RiNotificationOffLine } from '@oxy.so/bloom/icons/RiNotificationOffLine
 import { RiCheckDoubleLine } from '@oxy.so/bloom/icons/RiCheckDoubleLine';
 import { RiMessage2Line } from '@oxy.so/bloom/icons/RiMessage2Line';
 import { RiUserAddLine } from '@oxy.so/bloom/icons/RiUserAddLine';
-import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@oxy.so/services';
 import * as ExpoNotifications from 'expo-notifications';
@@ -266,16 +265,12 @@ export default function NotificationsScreen() {
                           <Text className="text-xs text-muted-foreground">
                             {timeAgo(notification.createdAt)}
                           </Text>
-                          {/* Not `CloseButton`: it cannot stop the press reaching the row. */}
-                          <Button
-                            appearance="plain"
+                          <CloseButton
                             size="xs"
-                            iconOnly
+                            // The row itself opens the notification.
                             stopPropagation
                             onPress={() => dismiss.mutate(notification.id)}
                             accessibilityLabel={t('notifications.dismiss')}
-                            hitSlop={8}
-                            leadingIcon={RiCloseLine}
                           />
                         </View>
                       </View>

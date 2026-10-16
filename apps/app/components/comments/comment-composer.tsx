@@ -265,8 +265,14 @@ export function CommentComposer({
     setMentionDraft(null);
   };
 
+  // The keydown listener below is attached once per mentionDraft/onCancel, so it
+  // calls the latest submit through a ref: a captured `handleSubmit` would see
+  // the text as it was when the listener was attached (empty), and Cmd/Ctrl+Enter
+  // would send nothing.
+  const submitRef = React.useRef(handleSubmit);
+  submitRef.current = handleSubmit;
+
   // Web: intercept Cmd/Ctrl+Enter to submit, Esc to cancel.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: handleSubmit is intentionally left out of the deps (see the note at the deps array).
   React.useEffect(() => {
     if (Platform.OS !== 'web') return;
     const node = inputRef.current as unknown as HTMLElement | null;
@@ -275,7 +281,7 @@ export function CommentComposer({
       const e = ev as KeyboardEvent;
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        void handleSubmit();
+        void submitRef.current();
       }
       if (e.key === 'Escape') {
         if (mentionDraft) {
@@ -291,9 +297,6 @@ export function CommentComposer({
     };
     node.addEventListener('keydown', handler);
     return () => node.removeEventListener('keydown', handler);
-    // We intentionally don't include handleSubmit in deps — it closes over
-    // refs and state via the React tree; rebuilding the handler on every
-    // keystroke is wasteful and not required for correctness.
   }, [mentionDraft, onCancel]);
 
   return (

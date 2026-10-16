@@ -1,6 +1,5 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Button } from '@oxy.so/bloom/button';
 import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
 import { TextFieldInput, TextFieldLabel } from '@oxy.so/bloom/text-field';
 import { toast } from '@oxy.so/bloom/toast';
@@ -57,6 +56,17 @@ export function CreateWorkspaceModal({ control, onCreated }: CreateWorkspaceModa
       placement={{ base: 'bottom', md: 'center' }}
       title={t('workspace.create.title')}
       description={t('workspace.create.description')}
+      actions={[
+        {
+          label: t('workspace.create.submit'),
+          onPress: handleSubmit,
+          disabled: !canSubmit && !isPending,
+          loading: isPending,
+          // The dialog stays up until the request settles; success closes it.
+          shouldCloseOnPress: false,
+        },
+        { label: t('common.cancel'), color: 'cancel', disabled: isPending },
+      ]}
     >
       <View className="gap-4">
         <View>
@@ -83,22 +93,6 @@ export function CreateWorkspaceModal({ control, onCreated }: CreateWorkspaceModa
             disabled={isPending}
           />
         </View>
-      </View>
-
-      {/* Not Dialog `actions`: a declarative action cannot show the submit's spinner. */}
-      <View className="mt-5 flex-row justify-end gap-2">
-        <Button appearance="outline" onPress={() => control.close()} disabled={isPending}>
-          {t('common.cancel')}
-        </Button>
-        <Button
-          appearance="solid"
-          tone="accent"
-          onPress={handleSubmit}
-          disabled={!canSubmit}
-          loading={isPending}
-        >
-          {t('workspace.create.submit')}
-        </Button>
       </View>
     </Dialog>
   );

@@ -1,6 +1,6 @@
-import { View, Pressable } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Text } from '@oxy.so/bloom/typography';
+import { Chip } from '@oxy.so/bloom/chip';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useDatabaseRow } from '@/lib/hooks/use-database-rows';
 
@@ -28,16 +28,14 @@ function RelatedRow({ id, databaseId }: { id: string; databaseId?: string }) {
     data?.title ||
     t(isError ? 'databases.relations.unavailable' : data ? 'databases.untitled' : 'common.loading');
   return (
-    <Pressable
-      accessibilityRole="link"
+    <Chip
+      size="sm"
+      // The cell or card around the pill opens the row.
+      stopPropagation
       accessibilityLabel={title}
-      onPress={(event) => {
-        event.stopPropagation();
-        router.push({ pathname: '/p/[pageId]', params: { pageId: id } });
-      }}
-      className="rounded bg-muted px-2 py-1"
+      onPress={() => router.push({ pathname: '/p/[pageId]', params: { pageId: id } })}
     >
-      <Text variant="body-regular">{title}</Text>
-    </Pressable>
+      {title}
+    </Chip>
   );
 }

@@ -23,6 +23,7 @@ import { RiFunctions } from '@oxy.so/bloom/icons/RiFunctions';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { Button } from '@oxy.so/bloom/button';
+import { Chip } from '@oxy.so/bloom/chip';
 import { Dialog, type DialogControlProps, useDialogControl } from '@oxy.so/bloom/dialog';
 import {
   DropdownMenu,
@@ -49,7 +50,7 @@ import type {
   SelectOption,
 } from '@/lib/types/databases';
 import { SELECT_COLORS } from '@/lib/types/databases';
-import { SELECT_COLOR_CLASSES } from './select-color';
+import { SELECT_CHIP_HUE } from './select-color';
 import {
   useAddProperty,
   useDeleteProperty,
@@ -438,38 +439,38 @@ function OptionRow({ option, onRemove, onRecolor }: OptionRowProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const [colorOpen, setColorOpen] = React.useState(false);
-  const palette = SELECT_COLOR_CLASSES[option.color] ?? SELECT_COLOR_CLASSES.default;
+  const hue = SELECT_CHIP_HUE[option.color] ?? 'neutral';
 
-  // The option pill and its swatches stay on the select palette classes: Bloom's
-  // `Chip` hues cannot express every option colour.
   return (
     <View className="flex-row items-center gap-2 py-1">
       <Popover open={colorOpen} onOpenChange={setColorOpen}>
         <PopoverTrigger asChild>
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel={option.name}
-            className={`px-2 py-0.5 rounded-md ${palette.bg} flex-row items-center gap-1`}
+            className="flex-row items-center gap-1"
           >
-            <Text className={`text-xs ${palette.fg}`}>{option.name}</Text>
+            <Chip size="xs" hue={hue}>
+              {option.name}
+            </Chip>
             <RiArrowRightSLine width={10} height={10} fill={colors.mutedForeground} />
           </Pressable>
         </PopoverTrigger>
         <PopoverContent align="start" label={option.name}>
-          <View className="flex-row gap-1">
-            {SELECT_COLORS.map((c) => {
-              const p = SELECT_COLOR_CLASSES[c];
-              return (
-                <Pressable
-                  key={c}
-                  accessibilityRole="button"
-                  onPress={() => {
-                    onRecolor(c);
-                    setColorOpen(false);
-                  }}
-                  className={`h-5 w-5 rounded-md ${p.bg}`}
-                />
-              );
-            })}
+          <View className="max-w-[240px] flex-row flex-wrap gap-1">
+            {SELECT_COLORS.map((c) => (
+              <Chip
+                key={c}
+                size="xs"
+                hue={SELECT_CHIP_HUE[c]}
+                onPress={() => {
+                  onRecolor(c);
+                  setColorOpen(false);
+                }}
+              >
+                {t(`editor.colors.${c}`)}
+              </Chip>
+            ))}
           </View>
         </PopoverContent>
       </Popover>

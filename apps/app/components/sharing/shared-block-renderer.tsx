@@ -1,5 +1,6 @@
 import { BlockText, blockTextSegments, PublicMentionContext } from './block-text';
 import { blockFileId, type FileUrlScope } from '@oxy.so/nilo-contracts';
+import { Checkbox } from '@oxy.so/bloom/checkbox';
 import { Divider } from '@oxy.so/bloom/divider';
 import { Text } from '@oxy.so/bloom/typography';
 import { useQueryClient } from '@tanstack/react-query';
@@ -14,7 +15,6 @@ import {
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
 import type { PageFont } from '@/lib/types/pages';
 import { MONO_FONT_FAMILY, PAGE_FONT_FAMILIES } from '@/lib/fonts';
-import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
 import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { RiFileLine } from '@oxy.so/bloom/icons/RiFileLine';
@@ -117,27 +117,23 @@ function NumberedListBlock({ content, index, textStyle }: BlockProps & { index: 
 }
 
 function TodoBlock({ content, textStyle }: BlockProps) {
-  const { colors } = useColorScheme();
   const checked = getChecked(content);
+  // A published page is read, not edited: the checkmark is a presentation.
   return (
-    <View className="flex-row gap-2 items-start">
-      <View
-        className="h-5 w-5 rounded border border-border items-center justify-center mt-0.5"
-        style={{
-          backgroundColor: checked ? colors.foreground : 'transparent',
-        }}
-      >
-        {checked ? <RiCheckLine size="xs" fill={colors.background} /> : null}
-      </View>
-      <Text
-        className={`text-base leading-7 flex-1 ${
-          checked ? 'text-muted-foreground line-through' : 'text-foreground'
-        }`}
-        style={textStyle}
-      >
-        <BlockText content={content} />
-      </Text>
-    </View>
+    <Checkbox
+      readOnly
+      checked={checked}
+      labelContent={
+        <Text
+          className={`text-base leading-7 ${
+            checked ? 'text-muted-foreground line-through' : 'text-foreground'
+          }`}
+          style={textStyle}
+        >
+          <BlockText content={content} />
+        </Text>
+      }
+    />
   );
 }
 

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { Badge } from '@oxy.so/bloom/badge';
 import { Button } from '@oxy.so/bloom/button';
+import { Chip } from '@oxy.so/bloom/chip';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
@@ -17,7 +18,7 @@ import type {
 } from '@/lib/types/databases';
 import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { PropertyCell } from './property-cell';
-import { SELECT_COLOR_CLASSES } from './select-color';
+import { SELECT_CHIP_HUE } from './select-color';
 
 interface ViewBoardProps {
   database: Database;
@@ -187,7 +188,6 @@ interface BoardColumnProps {
 
 function BoardColumn({ option, rows, onAddRow, onMoveTo, renderCard, readOnly }: BoardColumnProps) {
   const { t } = useTranslation();
-  const palette = SELECT_COLOR_CLASSES[option.color] ?? SELECT_COLOR_CLASSES.default;
 
   // Web-only drag target — accept a row id payload from the dragged card.
   const dropHandlers =
@@ -210,9 +210,9 @@ function BoardColumn({ option, rows, onAddRow, onMoveTo, renderCard, readOnly }:
     >
       <View className="flex-row items-center justify-between mb-2 px-1">
         <View className="flex-row items-center gap-2">
-          <View className={`px-2 py-0.5 rounded-md ${palette.bg}`}>
-            <Text className={`text-xs ${palette.fg}`}>{option.name}</Text>
-          </View>
+          <Chip size="xs" hue={SELECT_CHIP_HUE[option.color] ?? 'neutral'}>
+            {option.name}
+          </Chip>
           <Badge content={rows.length} variant="subtle" />
         </View>
         {!readOnly ? (
