@@ -59,6 +59,7 @@ import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
 import { checkWorkspaceAccess } from '../lib/workspace-access.js';
 import { duplicateBlocksToPage } from '../repositories/blocks.js';
+import { projectNow } from '../lib/page-projection.js';
 import {
   createDatabaseWithRows,
   createDefaultViewForDatabase,
@@ -1105,6 +1106,8 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
       return;
     }
 
+    // The template's rows, brought up to its latest edits.
+    if (template) await projectNow(template.id);
     const row = await handle.transaction(async (tx) => {
       const created = await createRow(tx, db, {
         workspaceId: db.workspaceId,

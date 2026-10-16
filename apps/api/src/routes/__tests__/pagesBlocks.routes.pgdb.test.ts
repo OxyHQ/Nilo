@@ -1034,152 +1034,22 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
     expect(res.status).toBe(200);
     const rows = await rowsOf(page.id as string);
     expect(rows.map((r) => r.id)).toEqual([a]);
-    expect(rows[0]).toMatchObject({ type: 'heading_1', order: 3 });
+    expect(rows[0]).toMatchObject({ type: 'heading_1', order: 1 });
   });
 
-  it('turns anchors into orders, renumbering when there is no room', async () => {
+  it('places each block after its anchor: first when none, last when it is gone', async () => {
     const page = await createPage();
     const [a, b, c, d, gone] = [uuidv7(), uuidv7(), uuidv7(), uuidv7(), uuidv7()];
-    const first = await tx(page.id, [
+    const res = await tx(page.id, [
       { kind: 'insert', id: a, parentBlockId: null, afterId: null, type: 'paragraph', content: {} },
       { kind: 'insert', id: b, parentBlockId: null, afterId: a, type: 'paragraph', content: {} },
-      // Before `a`: first.
       { kind: 'insert', id: c, parentBlockId: null, afterId: null, type: 'paragraph', content: {} },
-      // An anchor that is not there puts the block last.
       { kind: 'insert', id: d, parentBlockId: null, afterId: gone, type: 'paragraph', content: {} },
     ]);
-    expect(first.status).toBe(200);
-    // The sender is told every order the server chose.
-    expect(first.json.ops).toEqual([
-      expect.objectContaining({ kind: 'insert', id: a, order: 1 }),
-      expect.objectContaining({ kind: 'insert', id: b, order: 2 }),
-      expect.objectContaining({ kind: 'insert', id: c, order: 0 }),
-      expect.objectContaining({ kind: 'insert', id: d, order: 3 }),
-    ]);
-    const sorted = async () =>
-      (await rowsOf(page.id as string))
-        .sort((x, y) => x.order - y.order || (x.id < y.id ? -1 : 1))
-        .map((r) => r.id);
-    expect(await sorted()).toEqual([c, a, b, d]);
-
-    // Squeeze `a` and `b` together until there is no room between them.
-    await db
-      .update(blocks)
-      .set({ order: 1 + 1e-12 })
-      .where(eq(blocks.id, b));
-    const e = uuidv7();
-    const squeezed = await tx(page.id, [
-      { kind: 'insert', id: e, parentBlockId: null, afterId: a, type: 'paragraph', content: {} },
-    ]);
-    expect(squeezed.json.ops).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ kind: 'reorder', id: b, parentBlockId: null }),
-      ]),
-    );
-    expect(await sorted()).toEqual([c, a, e, b, d]);
-  });
-
-  it('answers a retry from the record instead of applying it again', async () => {
-    const page = await createPage();
-    const id = uuidv7();
-    const insert = {
-      kind: 'insert',
-      id,
-      parentBlockId: null,
-      afterId: null,
-      type: 'paragraph',
-      content: {},
-    };
-    const send = (key: string) =>
-      api(
-        'POST',
-        `/pages/${page.id}/blocks/transactions`,
-        { ops: [insert], key },
-        { 'x-workspace-id': workspaceId },
-      );
-    const first = await send('k-1');
-    expect(first.status).toBe(200);
-    // The response was lost; the editor sends the same transaction again.
-    const retry = await send('k-1');
-    expect(retry.status).toBe(200);
-    expect(retry.json).toEqual(first.json);
-    expect(await rowsOf(page.id as string)).toHaveLength(1);
-    const [row] = await db
-      .select()
-      .from(pages)
-      .where(eq(pages.id, page.id as string));
-    expect(row?.blocksVersion).toBe(first.json.version);
-    // A different transaction that repeats the insert is still refused.
-    expect((await send('k-2')).status).toBe(409);
-  });
-
-  it('refuses an update made on content someone has written since, as stale', async () => {
-    const page = await createPage();
-    const id = uuidv7();
-    const made = await tx(page.id, [
-      {
-        kind: 'insert',
-        id,
-        parentBlockId: null,
-        afterId: null,
-        type: 'paragraph',
-        content: { text: 'a' },
-      },
-    ]);
-    const v1 = made.json.version as number;
-    const first = await tx(page.id, [
-      { kind: 'update', id, content: { text: 'a b' }, baseVersion: v1 },
-    ]);
-    expect(first.status).toBe(200);
-    // Made on v1 too, but the content moved on at the first update.
-    const stale = await tx(page.id, [
-      { kind: 'update', id, content: { text: 'a c' }, baseVersion: v1 },
-    ]);
-    expect(stale.status).toBe(409);
-    expect(stale.json.code).toBe('STALE_BLOCK');
-    expect((await rowsOf(page.id as string))[0]?.content.text).toBe('a b');
-    // On the newer version it goes through; without one, as before.
-    expect(
-      (
-        await tx(page.id, [
-          { kind: 'update', id, content: { text: 'a b c' }, baseVersion: first.json.version },
-        ])
-      ).status,
-    ).toBe(200);
-    expect((await tx(page.id, [{ kind: 'update', id, content: { text: 'x' } }])).status).toBe(200);
-  });
-
-  it('tells a resuming editor which of its keys the blocks already include', async () => {
-    const page = await createPage();
-    const id = uuidv7();
-    await api(
-      'POST',
-      `/pages/${page.id}/blocks/transactions`,
-      {
-        ops: [
-          {
-            kind: 'insert',
-            id,
-            parentBlockId: null,
-            afterId: null,
-            type: 'paragraph',
-            content: {},
-          },
-        ],
-        key: 'applied-1',
-      },
-      { 'x-workspace-id': workspaceId },
-    );
-    const res = await api(
-      'POST',
-      `/pages/${page.id}/blocks/resume`,
-      { keys: ['applied-1', 'never-sent'] },
-      { 'x-workspace-id': workspaceId },
-    );
     expect(res.status).toBe(200);
-    expect(res.json.applied).toEqual(['applied-1']);
-    expect((res.json.blocks as { id: string }[]).map((b) => b.id)).toEqual([id]);
-    expect(res.json.version).toBeGreaterThan(0);
+    const rows = (await rowsOf(page.id as string)).sort((x, y) => x.order - y.order);
+    expect(rows.map((r) => r.id)).toEqual([c, a, b, d]);
+    expect(rows.map((r) => r.order)).toEqual([1, 2, 3, 4]);
   });
 
   it('rolls the whole batch back when one operation is invalid', async () => {
@@ -1257,50 +1127,5 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
     } finally {
       await setRole('owner');
     }
-  });
-});
-
-describe('blocks version', () => {
-  it('advances once per transaction and is returned with the blocks', async () => {
-    const page = await createPage();
-    const ws = { 'x-workspace-id': workspaceId };
-    const first = await api('GET', `/pages/${page.id}/blocks`, undefined, ws);
-    expect(first.json.version).toBe(0);
-    const a = await api(
-      'POST',
-      `/pages/${page.id}/blocks/transactions`,
-      {
-        ops: [
-          { kind: 'insert', id: uuidv7(), parentBlockId: null, afterId: null, type: 'paragraph' },
-        ],
-      },
-      ws,
-    );
-    expect(a.json).toMatchObject({ ok: true, version: 1 });
-    const b = await api(
-      'POST',
-      `/pages/${page.id}/blocks/transactions`,
-      {
-        ops: [
-          { kind: 'insert', id: uuidv7(), parentBlockId: null, afterId: null, type: 'paragraph' },
-        ],
-      },
-      ws,
-    );
-    expect(b.json.version).toBe(2);
-    expect((await api('GET', `/pages/${page.id}/blocks`, undefined, ws)).json.version).toBe(2);
-  });
-
-  it('does not advance when the transaction is rejected', async () => {
-    const page = await createPage();
-    const ws = { 'x-workspace-id': workspaceId };
-    const bad = await api(
-      'POST',
-      `/pages/${page.id}/blocks/transactions`,
-      { ops: [{ kind: 'remove', id: uuidv7() }] },
-      ws,
-    );
-    expect(bad.status).toBe(404);
-    expect((await api('GET', `/pages/${page.id}/blocks`, undefined, ws)).json.version).toBe(0);
   });
 });

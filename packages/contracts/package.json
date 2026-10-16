@@ -22,5 +22,25 @@
   },
   "dependencies": {
     "zod": "^3.24.1"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./editor": "./src/editor.ts"
+  },
+  "peerDependencies": {
+    "@oxy.so/bloom-editor": ">=0.4.0 <0.5.0",
+    "@oxy.so/bloom-text": ">=0.1.1 <0.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@oxy.so/bloom-editor": {
+      "optional": true
+    },
+    "@oxy.so/bloom-text": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@oxy.so/bloom-editor": "0.4.0",
+    "@oxy.so/bloom-text": "0.1.1"
   }
 }

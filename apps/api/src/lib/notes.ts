@@ -3,11 +3,11 @@
  *
  * A note write is one transaction on the note's row: the page is locked, the
  * caller's `baseUpdatedAt` is checked against it, then its fields, its
- * reminder and its app data are written, and its blocks last, through
- * `applyBlockTransaction` — the same path the editor's saves take, so an
- * editor open on the note in Nilo receives the change and the page keeps its
- * history. Blocks go last because the editor is told when they apply, and
- * nothing may fail after that but the commit.
+ * reminder and its app data are written, and its blocks last, as one change to
+ * the page's document (`replacePageBlocks`), its rows projected in the same
+ * transaction, so the page keeps its history. Once the transaction committed
+ * the change goes to the page's room, so an editor open on the note in Nilo
+ * receives it; never before, or a device could keep a change that rolled back.
  */
 import { randomUUID } from 'node:crypto';
 import type {
@@ -44,13 +44,13 @@ import {
   type PageRow,
   recordTombstones,
 } from '../repositories/pages.js';
-import { snapshotPage } from '../repositories/pageVersions.js';
-import { applyBlockTransaction, TransactionRejected } from './block-transactions.js';
+import { broadcastDocUpdate } from '../collab/page-docs.js';
+import { getIO } from '../socket.js';
+import { replacePageBlocks, TransactionRejected } from './block-transactions.js';
 import { syncRelations } from './databases/relations.js';
 import type { FileValue } from './databases/property-values.js';
 import { createRow } from './databases/rows.js';
 import { FOLDER_PROPERTY, NOTE_PROPERTY } from './databases/system.js';
-import { restoreOperations } from './page-history.js';
 
 /** A write the caller has to fix or rebase; `current` is the note as it stands, for a 409. */
 export class NoteRejected extends Error {
@@ -193,29 +193,28 @@ async function writeAppData(
     });
 }
 
-/** The note's blocks made `target`, through the editor's own path. */
+/**
+ * The note's blocks made `target`: one change to the page's document, its
+ * rows projected in this transaction. The change is returned, for the room
+ * once the transaction committed (`broadcastWritten`).
+ */
 async function writeBlocks(
   db: PgHandle,
   pageId: string,
   target: readonly NoteBlock[],
   actorId: string,
-): Promise<void> {
-  let ops: ReturnType<typeof restoreOperations> = [];
-  await applyBlockTransaction(db, {
-    pageId,
-    ops: () => ops,
-    actorId,
-    beforeChange: async (tx, rows) => {
-      ops = restoreOperations(rows, target);
-      if (ops.length > 0) await snapshotPage(tx, { pageId, rows, actorId });
-    },
-  });
+): Promise<Uint8Array | null> {
+  return replacePageBlocks(db, { pageId, target, actorId, broadcast: false });
+}
+
+/** Tell the note's room what changed, now that it committed. */
+function broadcastWritten(pageId: string, update: Uint8Array | null): void {
+  if (update) broadcastDocUpdate(getIO(), pageId, update);
 }
 
 /**
  * The blocks sent form a tree: unique ids, parents among them (or none), no
- * cycle. `restoreOperations` would otherwise drop what it cannot place,
- * silently.
+ * cycle: a forest that is not one could not be written as it was sent.
  */
 function checkBlockTree(blocks: readonly NoteBlock[]): void {
   const parentOf = new Map(blocks.map((block) => [block.id, block.parentBlockId]));
@@ -249,7 +248,7 @@ async function writeNoteParts(
   page: PageRow,
   write: NoteWrite,
   actorId: string,
-): Promise<void> {
+): Promise<Uint8Array | null> {
   if (hasFields(write)) {
     const properties = await propertiesOf(tx, home, page, write);
     await tx
@@ -269,8 +268,9 @@ async function writeNoteParts(
   if (write.blocks) {
     checkBlockTree(write.blocks as NoteBlock[]);
     // The schema requires every field; `strict: false` widens the inferred type.
-    await writeBlocks(tx, page.id, write.blocks as NoteBlock[], actorId);
+    return writeBlocks(tx, page.id, write.blocks as NoteBlock[], actorId);
   }
+  return null;
 }
 
 /** Turn a block transaction's refusal into the note API's. */
@@ -293,11 +293,11 @@ export async function updateNote(
   write: NoteWrite,
   actorId: string,
 ): Promise<boolean> {
-  return db
+  const written = await db
     .transaction(async (tx) => {
       const lock = await lockPage(tx, id);
       const page = lock ? await findNoteRow(tx, home, id) : null;
-      if (!page) return false;
+      if (!page) return null;
       if (page.locked) throw new NoteRejected(423, 'The note is locked', 'PAGE_LOCKED');
       if (
         write.baseUpdatedAt !== undefined &&
@@ -305,10 +305,12 @@ export async function updateNote(
       ) {
         throw new NoteRejected(409, 'The note changed since that version', 'STALE_NOTE');
       }
-      await writeNoteParts(tx, home, page, write, actorId);
-      return true;
+      return { update: await writeNoteParts(tx, home, page, write, actorId) };
     })
     .catch(rejected);
+  if (!written) return false;
+  broadcastWritten(id, written.update);
+  return true;
 }
 
 /**
@@ -326,7 +328,7 @@ export async function createNote(
   actorId: string,
 ): Promise<{ id: string; existed: boolean }> {
   const { id: requested, ...write } = input;
-  return db
+  const created = await db
     .transaction(async (tx) => {
       if (requested) {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${requested}, 0))`);
@@ -335,7 +337,9 @@ export async function createNote(
           .from(pages)
           .where(eq(pages.id, requested));
         if (taken) {
-          if (taken.databaseId === home.notes.id) return { id: requested, existed: true };
+          if (taken.databaseId === home.notes.id) {
+            return { id: requested, existed: true, update: null };
+          }
           throw new NoteRejected(409, 'That note id is already in use', 'ID_TAKEN');
         }
         const [tombstone] = await tx
@@ -356,10 +360,12 @@ export async function createNote(
           [NOTE_PROPERTY.kind]: { optionId: 'note' },
         },
       });
-      await writeNoteParts(tx, home, page, write, actorId);
-      return { id: page.id, existed: false };
+      const update = await writeNoteParts(tx, home, page, write, actorId);
+      return { id: page.id, existed: false, update };
     })
     .catch(rejected);
+  broadcastWritten(created.id, created.update);
+  return { id: created.id, existed: created.existed };
 }
 
 /**

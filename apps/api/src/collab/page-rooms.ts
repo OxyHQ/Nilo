@@ -1,8 +1,8 @@
 /**
  * Real-time page rooms over Socket.IO.
  *
- * A client joins `page:<id>` to receive the transactions other members apply
- * to that page and to see who else is there. Joining requires membership of
+ * A client joins `page:<id>` to take part in the page's document
+ * (`page-docs.ts`) and to see who else is there. Joining requires membership of
  * the page's workspace (any role can watch). The Redis adapter, when present,
  * carries room traffic across API instances.
  */
@@ -22,7 +22,7 @@ export interface PagePresence {
   blockId: string | null;
 }
 
-type Ack = (response: { ok: true; version: number } | { ok: false; error: string }) => void;
+type Ack = (response: { ok: true } | { ok: false; error: string }) => void;
 
 interface SocketData {
   userId?: string;
@@ -70,7 +70,7 @@ export function registerPageRooms(io: Server, socket: Socket): void {
       }
       await socket.join(pageRoom(pageId));
       data.focus = { ...data.focus, [pageId]: null };
-      reply({ ok: true, version: page.blocksVersion });
+      reply({ ok: true });
       await broadcastPresence(io, pageId);
     } catch (err: unknown) {
       log.general.error({ err, pageId }, 'page:join failed');
@@ -104,28 +104,4 @@ export function registerPageRooms(io: Server, socket: Socket): void {
       for (const pageId of pages) void broadcastPresence(io, pageId);
     });
   });
-}
-
-/** The payload every member of a page receives when a transaction is applied. */
-export interface PageTransactionEvent {
-  pageId: string;
-  /** The page's blocks version after this transaction. */
-  version: number;
-  /** Who applied it. */
-  actorId: string;
-  ops: unknown[];
-}
-
-/**
- * Send an applied transaction to the page's room, except the socket that
- * made it (it already has the change).
- */
-export function broadcastPageTransaction(
-  io: Server | null,
-  event: PageTransactionEvent,
-  exceptSocketId?: string,
-): void {
-  if (!io) return;
-  const room = io.to(pageRoom(event.pageId));
-  (exceptSocketId ? room.except(exceptSocketId) : room).emit('page:transaction', event);
 }

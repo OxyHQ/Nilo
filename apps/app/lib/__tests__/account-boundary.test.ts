@@ -1,13 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { QueryClient } from '@tanstack/react-query';
 import { enterAccount, sessionEnded, signOutOfDevice } from '../account-boundary';
-import { clearAllSavedPages } from '../editor/offline';
+import { pageDocStore } from '../editor/doc-store';
 import { offlinePages } from '../editor/offline-pages';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
-jest.mock('../editor/offline', () => ({ clearAllSavedPages: jest.fn(async () => undefined) }));
+jest.mock('../editor/doc-store', () => ({
+  pageDocStore: { clear: jest.fn(async () => undefined) },
+}));
 jest.mock('../editor/offline-pages', () => ({
   offlinePages: { clear: jest.fn(async () => undefined) },
 }));
@@ -23,11 +25,11 @@ beforeEach(async () => {
 const cleared = () => {
   expect(client.getQueryData(['pages', 'w'])).toBeUndefined();
   expect(offlinePages.clear).toHaveBeenCalled();
-  expect(clearAllSavedPages).toHaveBeenCalled();
+  expect(pageDocStore?.clear).toHaveBeenCalled();
 };
 const kept = () => {
   expect(offlinePages.clear).not.toHaveBeenCalled();
-  expect(clearAllSavedPages).not.toHaveBeenCalled();
+  expect(pageDocStore?.clear).not.toHaveBeenCalled();
 };
 
 it('takes the device for the first account without removing anything', async () => {

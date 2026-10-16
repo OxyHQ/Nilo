@@ -18,7 +18,7 @@ import {
   markdownToSnapshot,
   replaceBlockText,
 } from '../markdown-blocks';
-import { NILO_SCHEMA } from '../schema';
+import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 
 let n = 0;
 const newId = () => `id${++n}`;

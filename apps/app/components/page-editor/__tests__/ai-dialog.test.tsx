@@ -7,7 +7,7 @@ import {
 } from '@oxy.so/bloom-editor/model';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
-import { NILO_SCHEMA } from '@/lib/editor/schema';
+import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 import { AiDialog, type AiTarget } from '../ai-dialog';
 
 type Run = {

@@ -17,7 +17,7 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { QueryClient } from '@tanstack/react-query';
-import { clearAllSavedPages } from './editor/offline';
+import { pageDocStore } from './editor/doc-store';
 import { offlinePages } from './editor/offline-pages';
 
 const OWNER_KEY = 'nilo:account';
@@ -28,7 +28,10 @@ const writeOwner = (value: string) => AsyncStorage.setItem(OWNER_KEY, value).cat
 
 async function clearDevice(client: QueryClient): Promise<void> {
   client.clear();
-  await Promise.all([offlinePages.clear(), clearAllSavedPages()]);
+  // The pages kept offline, and every document stored, unsent work included:
+  // in a browser too, where no page is kept offline but unsent work is.
+  await offlinePages.clear();
+  await pageDocStore?.clear().catch(() => undefined);
 }
 
 /**

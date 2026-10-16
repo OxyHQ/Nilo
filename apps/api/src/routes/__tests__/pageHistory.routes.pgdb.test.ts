@@ -229,7 +229,8 @@ describe('page history', () => {
         content: { text: 'child' },
       },
     ]);
-    await tx(pageId, [{ kind: 'update', id: c, content: { text: 'child' } }]);
+    // A real edit: the page as it was before it is kept as a version.
+    await tx(pageId, [{ kind: 'update', id: c, content: { text: 'child, edited' } }]);
     const [kept] = await versionsOf(EDITOR, pageId);
     // Later, `c` was nested under a new toggle `p`.
     await tx(pageId, [

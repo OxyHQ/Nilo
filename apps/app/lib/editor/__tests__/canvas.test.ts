@@ -23,7 +23,7 @@ import {
   toCanvas,
   toDocument,
 } from '../canvas';
-import { NILO_SCHEMA } from '../schema';
+import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 
 let n = 0;
 const newId = () => `id${++n}`;

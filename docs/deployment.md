@@ -68,15 +68,17 @@ Last verified: 2026-09-13.
 
 ## Offline on iOS and Android
 
-Pages kept offline open without a connection while the app is running. A cold
-start without a connection ends signed out, so they cannot be reached then:
-`@oxy.so/services` 11.2 classifies the application against Oxy's registry
-(`apps.getPublic(clientId, { cache: false })`) before restoring any stored
-session, and fails closed when it cannot (`runProviderColdBoot`,
-`applicationSessionLane`; verified 2026-10-15). Nothing kept on the device is
-lost: a signed-out boot changes no account, so the pages and unsent changes
-are there when the session comes back. Opening offline from a cold start needs
-the SDK to remember the last classification of its `clientId`, an Oxy change.
+Pages kept offline (their Yjs documents, in SQLite: `docs/collaboration.md`)
+open without a connection while the app is running. A cold start without a
+connection ends signed out, so they cannot be reached then: `@oxy.so/services`
+(11.2 through 11.5) classifies the application against Oxy's registry
+(`apps.getPublic(clientId, { cache: false })`, a 5 s deadline) before
+restoring any stored session, and fails closed when it cannot
+(`resolveApplicationSessionLane`; verified 2026-10-16 on 11.5.0). Nothing kept
+on the device is lost: a signed-out boot changes no account, so the pages and
+unsent changes are there when the session comes back. Opening offline from a
+cold start needs the SDK to remember the last classification of its
+`clientId`, an Oxy change.
 
 ## Importing Noted
 

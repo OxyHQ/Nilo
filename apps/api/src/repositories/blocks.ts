@@ -232,3 +232,13 @@ export async function duplicateBlocksToPage(
   await db.insert(blocks).values(copies);
   return copies.length;
 }
+
+/** Delete these blocks of a page (a child left under one goes with it, by cascade). */
+export async function deleteBlocksOfPage(
+  db: PgHandle,
+  pageId: string,
+  ids: readonly string[],
+): Promise<void> {
+  if (ids.length === 0) return;
+  await db.delete(blocks).where(and(eq(blocks.pageId, pageId), inArray(blocks.id, [...ids])));
+}

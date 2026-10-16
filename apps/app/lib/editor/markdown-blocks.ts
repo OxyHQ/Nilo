@@ -20,7 +20,7 @@ import {
   specOf,
   type Transaction,
 } from '@oxy.so/bloom-editor/model';
-import { fieldsFromContent } from './wire';
+import { fieldsFromContent } from '@oxy.so/nilo-contracts/editor';
 
 /** Markdown as editor blocks, with the props and text the API would store. */
 export function markdownToSnapshot(markdown: string): BlockSnapshot[] {

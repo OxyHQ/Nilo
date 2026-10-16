@@ -1,8 +1,9 @@
-import type { EditorDocument } from '@oxy.so/bloom-editor/model';
 import type { OfflineFiles } from '../offline-files';
-import { MAX_RECENT, type OfflineCopy, OfflinePages } from '../offline-pages';
+import { MemoryPageDocStore } from '../doc-store-types';
+import { MAX_RECENT, OfflinePages } from '../offline-pages';
 
 jest.mock('expo-file-system', () => ({}));
+jest.mock('expo-sqlite', () => ({}));
 
 class MemoryFiles implements OfflineFiles {
   readonly files = new Map<string, string>();
@@ -25,74 +26,66 @@ class MemoryFiles implements OfflineFiles {
   }
 }
 
-const copy = (version: number): OfflineCopy => ({
-  version,
-  base: { version } as unknown as EditorDocument,
-  orders: [],
-});
+const update = new Uint8Array([1, 2, 3]);
 
 let files: MemoryFiles;
+let docs: MemoryPageDocStore;
 let clock: number;
 let pages: OfflinePages;
 beforeEach(() => {
   files = new MemoryFiles();
+  docs = new MemoryPageDocStore();
   clock = 1_000;
-  pages = new OfflinePages(files, () => clock);
+  pages = new OfflinePages(files, docs, () => clock);
 });
 
-it('keeps an opened page as a recent one, with its copy', async () => {
+it('keeps an opened page as a recent one, with when and how much was stored', async () => {
   await pages.opened('a');
-  await pages.save('a', copy(3));
-  expect(await pages.read('a')).toEqual(copy(3));
+  expect(await pages.keeps('a')).toBe(true);
+  await pages.saved('a', 640);
   const [entry] = await pages.list();
   expect(entry).toMatchObject({
     pageId: 'a',
     reasons: ['recent'],
     openedAt: 1_000,
     savedAt: 1_000,
+    bytes: 640,
   });
-  expect(entry?.bytes).toBe(JSON.stringify(copy(3)).length);
 });
 
-it('saves no copy of a page it does not keep', async () => {
-  await pages.save('stranger', copy(1));
-  expect(await pages.read('stranger')).toBeNull();
-  expect(files.files.has('stranger.json')).toBe(false);
+it('records nothing for a page it does not keep', async () => {
+  await pages.saved('stranger', 10);
+  expect(await pages.keeps('stranger')).toBe(false);
+  expect(await pages.list()).toEqual([]);
 });
 
-it('never replaces a copy with an older version', async () => {
-  await pages.opened('a');
-  await pages.save('a', copy(5));
-  await pages.save('a', copy(4));
-  expect((await pages.read('a'))?.version).toBe(5);
-});
-
-it(`keeps the last ${MAX_RECENT} pages opened, and every pinned one`, async () => {
+it(`keeps the last ${MAX_RECENT} pages opened and every pinned one, dropping the others' documents`, async () => {
   await pages.opened('pinned-and-old');
   await pages.setPinned('pinned-and-old', true);
+  await docs.append('p1', update, true); // unsent work: stays whatever the index says
   for (let i = 0; i < MAX_RECENT + 2; i += 1) {
     clock += 1;
+    await docs.append(`p${i}`, update, false);
     await pages.opened(`p${i}`);
-    await pages.save(`p${i}`, copy(1));
   }
   const kept = (await pages.list()).map((entry) => entry.pageId);
   expect(kept).toHaveLength(MAX_RECENT + 1);
   expect(kept).toContain('pinned-and-old');
   expect(kept).not.toContain('p0');
   expect(kept).not.toContain('p1');
-  // The dropped ones' copies go with them.
-  expect(files.files.has('p0.json')).toBe(false);
-  expect(files.files.has(`p${MAX_RECENT + 1}.json`)).toBe(true);
+  expect(await docs.load('p0')).toBeNull();
+  expect(await docs.load('p1')).not.toBeNull();
+  expect(await docs.load(`p${MAX_RECENT + 1}`)).not.toBeNull();
   const pinned = (await pages.list()).find((entry) => entry.pageId === 'pinned-and-old');
   expect(pinned?.reasons).toEqual(['pinned']);
 });
 
 it('drops a page unpinned with no other reason to keep it', async () => {
   await pages.setPinned('a', true);
-  await pages.save('a', copy(1));
+  await docs.append('a', update, false);
   await pages.setPinned('a', false);
   expect(await pages.list()).toEqual([]);
-  expect(await pages.read('a')).toBeNull();
+  expect(await docs.load('a')).toBeNull();
 });
 
 it('keeps an unpinned page that was opened lately', async () => {
@@ -102,13 +95,13 @@ it('keeps an unpinned page that was opened lately', async () => {
   expect((await pages.list())[0]?.reasons).toEqual(['recent']);
 });
 
-it('forgets a page whatever its reasons', async () => {
+it('forgets a page whatever its reasons, unsent work included', async () => {
   await pages.opened('a');
   await pages.setPinned('a', true);
-  await pages.save('a', copy(1));
+  await docs.append('a', update, true);
   await pages.forget('a');
   expect(await pages.list()).toEqual([]);
-  expect(files.files.size).toBe(1); // the index alone
+  expect(await docs.load('a')).toBeNull();
 });
 
 it('names a kept page for the list, and not one it does not keep', async () => {
@@ -120,12 +113,9 @@ it('names a kept page for the list, and not one it does not keep', async () => {
   ]);
 });
 
-it('reads an unreadable index or copy as nothing kept', async () => {
+it('reads an unreadable index as nothing kept', async () => {
   files.files.set('index.json', '{not json');
   expect(await pages.list()).toEqual([]);
-  await pages.opened('a');
-  files.files.set('a.json', '{');
-  expect(await pages.read('a')).toBeNull();
 });
 
 it('goes on after a write fails', async () => {
@@ -135,22 +125,23 @@ it('goes on after a write fails', async () => {
   expect((await pages.list()).map((entry) => entry.pageId)).toEqual(['b']);
 });
 
-it('tells listeners when what is kept changes', async () => {
+it('tells listeners when what is kept changes, and clears every document', async () => {
   const heard = jest.fn();
   const stop = pages.subscribe(heard);
+  await docs.append('a', update, true);
   await pages.opened('a');
   await pages.clear();
   stop();
   await pages.opened('b');
   expect(heard).toHaveBeenCalledTimes(2);
+  expect(await docs.load('a')).toBeNull();
 });
 
 it('keeps nothing where there is no storage for it (a browser)', async () => {
-  const web = new OfflinePages(null);
+  const web = new OfflinePages(null, null);
   expect(web.supported).toBe(false);
   await web.opened('a');
   await web.setPinned('a', true);
-  await web.save('a', copy(1));
-  expect(await web.read('a')).toBeNull();
+  expect(await web.keeps('a')).toBe(false);
   expect(await web.list()).toEqual([]);
 });
