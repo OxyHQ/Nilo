@@ -6,7 +6,7 @@
  * published page (`share-links.ts`, `publish.ts`), all answered by
  * `respondWithFileUrls`.
  */
-import { MAX_FILE_BYTES, MAX_FILE_URL_IDS } from '@oxy.so/nilo-contracts';
+import { type FileUrlsResponse, MAX_FILE_BYTES, MAX_FILE_URL_IDS } from '@oxy.so/nilo-contracts';
 import { type Request, type Response, Router } from 'express';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
@@ -14,6 +14,7 @@ import { mintFileUrls, toFileUrls } from '../lib/files.js';
 import { log } from '../lib/logger.js';
 import { checkPageAccess } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { removedFileIds, setOxyFileStatus } from '../repositories/fileReferences.js';
 import { recordPageFile, servableFileIds } from '../repositories/pageFiles.js';
 import { findPageById } from '../repositories/pages.js';
 
@@ -42,11 +43,19 @@ export async function respondWithFileUrls(
   }
   try {
     const ids = [...new Set(parsed.data.ids)];
-    const servable = await servableFileIds(getDb(), page, ids);
-    const minted = await mintFileUrls(servable);
+    const db = getDb();
+    const servable = await servableFileIds(db, page, ids);
+    // What Oxy has said it no longer serves is not asked for again.
+    const removed = await removedFileIds(db, servable);
+    const live = servable.filter((id) => !removed.has(id));
+    const minted = await mintFileUrls(live);
     // Each URL is a credential for a few minutes: nothing may keep it.
     res.setHeader('Cache-Control', 'no-store');
-    res.json({ files: toFileUrls(servable, minted) });
+    const answer: FileUrlsResponse = {
+      files: toFileUrls(live, minted),
+      removed: servable.filter((id) => removed.has(id)),
+    };
+    res.json(answer);
   } catch (error: unknown) {
     log.general.error({ err: error }, 'Failed to mint file URLs');
     res.status(503).json({ error: 'Files are unavailable right now' });
@@ -98,6 +107,10 @@ router.post('/pages/:pageId/files', authenticateToken, async (req: Request, res:
     if (row.workspaceId !== page.workspaceId) {
       res.status(409).json({ error: 'This file belongs to another workspace' });
       return;
+    }
+    // Oxy just served it to Nilo: whatever it said before, it is active now.
+    if ((await removedFileIds(db, [fileId])).size > 0) {
+      await setOxyFileStatus(db, fileId, 'active', new Date());
     }
     const [url] = toFileUrls([fileId], new Map([[fileId, minted]]));
     res.status(201).json({

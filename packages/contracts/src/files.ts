@@ -13,7 +13,11 @@
  */
 export const NILO_OXY_APPLICATION_ID = 'ed143b1b58d60eab417f7d5c';
 
-/** The entity a Nilo file is linked to in Oxy: the page it was uploaded to. */
+/**
+ * The entity a Nilo file is linked to in Oxy: the page it was uploaded to.
+ * The owner's link is Oxy's reference of Nilo's use of the file (Oxy ADR
+ * 0043); Nilo removes it with its service token once it stops using the file.
+ */
 export const NILO_FILE_ENTITY_TYPE = 'page';
 
 /** Largest file a member may attach, in bytes. */
@@ -34,6 +38,18 @@ export interface FileUrl {
   url: string;
   /** Seconds from now until `url` stops working. */
   expiresIn: number;
+}
+
+/**
+ * What a request for file URLs answers: a URL for each requested file the
+ * reader may have and Oxy serves, and the ids of those Oxy has said it no
+ * longer serves (deleted, moved to its owner's trash, or taken down) — shown
+ * as removed, never from a copy kept on the device. Any other id is left out
+ * of both, and its absence says nothing about whether it exists.
+ */
+export interface FileUrlsResponse {
+  files: FileUrl[];
+  removed: string[];
 }
 
 /** The id of the Oxy file a block holds, or null for a block that points at a URL. */

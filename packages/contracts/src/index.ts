@@ -15,6 +15,7 @@ export {
   blockFileId,
   type FileUrl,
   type FileUrlScope,
+  type FileUrlsResponse,
   MAX_FILE_BYTES,
   MAX_FILE_URL_IDS,
   NILO_FILE_ENTITY_TYPE,

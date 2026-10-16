@@ -38,6 +38,12 @@ import {
   startProjectionSweep,
   stopProjectionSweep,
 } from './lib/page-projection.js';
+import { startFileReferenceWork, stopFileReferenceWork } from './lib/file-references.js';
+import {
+  OXY_FILE_EVENTS_PATH,
+  oxyFileEventsHandler,
+  rawFileEventBody,
+} from './routes/oxy-file-events.js';
 import pagesRouter from './routes/pages.js';
 import blocksRouter from './routes/blocks.js';
 import databasesRouter from './routes/databases.js';
@@ -141,6 +147,12 @@ app.use((_req, res, next) => {
 // The API runs behind one load balancer: the client's address is the last hop
 // it adds to X-Forwarded-For. Rate limits key on it (`lib/rate-limit.ts`).
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
+
+// Oxy's file events are signed over their exact bytes, so they are read raw,
+// before any body parser and outside the per-client rate limit (`routes/oxy-file-events.ts`).
+app.post(OXY_FILE_EVENTS_PATH, rawFileEventBody, (req, res) => {
+  void oxyFileEventsHandler(req, res);
+});
 
 // Block payloads and database properties may contain structured document data.
 // Imports parse their own, larger bodies (`routes/import.ts`).
@@ -277,6 +289,7 @@ getDb()
       startReminderSweep();
       startProjectionSweep();
       startEventOutboxWorker();
+      startFileReferenceWork();
       // Verify Redis connectivity (non-blocking)
       import('./lib/redis.js')
         .then(({ getRedisClient }) => {
@@ -321,6 +334,7 @@ getDb()
       stopReminderSweep();
       stopProjectionSweep();
       stopEventOutboxWorker();
+      stopFileReferenceWork();
       // Stop accepting new connections
       server.close(() => {
         log.general.info('HTTP server closed (no new connections)');
