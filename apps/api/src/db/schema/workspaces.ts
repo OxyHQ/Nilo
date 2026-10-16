@@ -47,7 +47,11 @@ export const workspaces = pgTable(
   {
     id: generatedId(),
     name: text().notNull(),
-    icon: text(),
+    /**
+     * Oxy file id of the workspace's picture, rendered through Oxy's public
+     * asset URL. Null shows the name's initials.
+     */
+    avatar: text(),
     /**
      * Oxy user id. Text, not a uuid and not a foreign key: Oxy user ids are
      * opaque identifiers issued by the Oxy auth service and there is no users
