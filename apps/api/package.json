@@ -23,7 +23,7 @@
     "@expo-google-fonts/inter": "0.4.2",
     "@expo-google-fonts/jetbrains-mono": "0.4.1",
     "@nilo/contracts": "workspace:*",
-    "@oxy.so/core": "4.5.0",
+    "@oxy.so/core": "4.10.0",
     "@oxy.so/db": "1.0.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "cors": "^2.8.5",
