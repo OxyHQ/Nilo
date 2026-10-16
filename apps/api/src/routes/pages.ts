@@ -32,6 +32,7 @@ import { blocksToPdf, type ImageLoader, imageSources } from '../lib/pdf-export.j
 import { servableFileIds } from '../repositories/pageFiles.js';
 import { safeFetch } from '../lib/safe-fetch.js';
 import { log } from '../lib/logger.js';
+import { loadMemberProfiles } from '../lib/member-profiles.js';
 import { rateLimit } from '../lib/rate-limit.js';
 import { placeOrRefuse } from '../lib/placement.js';
 import { syncRelations } from '../lib/databases/relations.js';
@@ -305,15 +306,30 @@ router.get('/shared', async (req: Request, res: Response) => {
       (id) => !memberOf.has(id),
     );
 
-    const out = [];
+    const found = [];
     for (const workspaceId of workspaceIds) {
       const workspace = await findLiveWorkspaceById(db, workspaceId);
-      if (!workspace) continue;
+      if (workspace) found.push(workspace);
+    }
+    // A personal workspace with no picture of its own shows its owner's
+    // avatar, as it does for the owner. Oxy owns that avatar, so it is looked
+    // up here, once for every such owner, rather than by each client.
+    const owners = await loadMemberProfiles(
+      found.filter((w) => w.isPersonal && !w.avatar).map((w) => w.ownerId),
+    );
+
+    const out = [];
+    for (const workspace of found) {
+      const workspaceId = workspace.id;
       const all = await listPages(db, { workspaceId, archived: false });
       const guest = { userId, memberRole: null, teamspaces: new Map() };
       const roles = rolesForPages(all, guest, grants, await databaseHomes(db, workspaceId));
       out.push({
-        workspace: { id: workspace.id, name: workspace.name, avatar: workspace.avatar ?? null },
+        workspace: {
+          id: workspace.id,
+          name: workspace.name,
+          avatar: workspace.avatar ?? owners.get(workspace.ownerId)?.avatar ?? null,
+        },
         pages: all
           .filter((p) => roles.has(p.id))
           .map((p) => ({ ...serializePage(p), role: roles.get(p.id) })),

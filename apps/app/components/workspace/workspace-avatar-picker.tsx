@@ -11,6 +11,9 @@ interface WorkspaceAvatarPickerProps {
   name: string;
   /** The picture's Oxy file id. */
   value: string | null;
+  /** With `ownerId`, lets a personal workspace preview its owner's avatar. */
+  isPersonal?: boolean;
+  ownerId?: string;
   onChange: (id: string | null) => void;
   disabled?: boolean;
 }
@@ -19,6 +22,8 @@ interface WorkspaceAvatarPickerProps {
 export function WorkspaceAvatarPicker({
   name,
   value,
+  isPersonal,
+  ownerId,
   onChange,
   disabled = false,
 }: WorkspaceAvatarPickerProps) {
@@ -47,7 +52,7 @@ export function WorkspaceAvatarPicker({
 
   return (
     <View className="flex-row items-center gap-3">
-      <WorkspaceAvatar workspace={{ name, avatar: value }} size={48} />
+      <WorkspaceAvatar workspace={{ name, avatar: value, isPersonal, ownerId }} size={48} />
       <View className="flex-row flex-wrap gap-2">
         <Button appearance="outline" tone="neutral" size="sm" disabled={disabled} onPress={pick}>
           {value ? t('workspace.avatar.change') : t('workspace.avatar.upload')}

@@ -76,6 +76,8 @@ function WorkspaceSettings({ workspace }: { workspace: Workspace }) {
             <WorkspaceAvatarPicker
               name={workspace.name}
               value={workspace.avatar}
+              isPersonal={workspace.isPersonal}
+              ownerId={workspace.ownerId}
               onChange={(avatar) => save({ avatar })}
               disabled={!canEdit || update.isPending}
             />
