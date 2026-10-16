@@ -42,6 +42,7 @@ import {
   lockPage,
   nextDatabaseRowOrder,
   type PageRow,
+  recordTombstones,
 } from '../repositories/pages.js';
 import { snapshotPage } from '../repositories/pageVersions.js';
 import { applyBlockTransaction, TransactionRejected } from './block-transactions.js';
@@ -359,6 +360,42 @@ export async function createNote(
       return { id: page.id, existed: false };
     })
     .catch(rejected);
+}
+
+/**
+ * Every note and folder for good, and every label (`POST /notes/erase`), in
+ * one transaction. The rows leave tombstones, so other devices drop them.
+ */
+export async function eraseNotes(
+  db: NiloDatabase,
+  home: NotesHome,
+): Promise<{ notes: number; folders: number; labels: number }> {
+  return db.transaction(async (tx) => {
+    await lockDatabase(tx, home.notes.id, 'update');
+    await lockDatabase(tx, home.folders.id, 'update');
+    const notes = await tx
+      .delete(pages)
+      .where(eq(pages.databaseId, home.notes.id))
+      .returning({ id: pages.id, databaseId: pages.databaseId });
+    const folders = await tx
+      .delete(pages)
+      .where(eq(pages.databaseId, home.folders.id))
+      .returning({ id: pages.id, databaseId: pages.databaseId });
+    await recordTombstones(tx, [...notes, ...folders]);
+    const fresh = await findDatabaseById(tx, home.notes.id);
+    let labels = 0;
+    if (fresh) {
+      const config = labelsProperty(fresh.propertiesSchema);
+      labels = config.options.length;
+      config.options = [];
+      await tx
+        .update(databases)
+        .set({ propertiesSchema: fresh.propertiesSchema })
+        .where(eq(databases.id, home.notes.id));
+      home.notes = fresh;
+    }
+    return { notes: notes.length, folders: folders.length, labels };
+  });
 }
 
 /** Delete a note for good; its tombstone tells syncing clients. */

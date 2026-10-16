@@ -49,6 +49,7 @@ export {
   type NoteLabel,
   type NoteLabelWrite,
   noteLabelWriteSchema,
+  type NotesExport,
   type NotesSyncPage,
   type NoteWrite,
   noteWriteSchema,
