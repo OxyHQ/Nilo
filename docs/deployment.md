@@ -58,6 +58,18 @@ Last verified: 2026-09-13.
   storage credential, and the image is read-only. The API mints file URLs
   with its workload-identity service token, which needs the
   `files:linked:read` scope on Nilo's Oxy application (granted 2026-10-16).
+- Nilo tells Oxy when it stops using a file (Oxy ADR 0043, `docs/files.md`)
+  with the same token, which needs `files:references:write` on Nilo's Oxy
+  application as well; until it is granted, removals wait in
+  `file_reference_removals` and are sent once it is. The daily
+  reconciliation runs as `NILO_FILE_REFERENCES_RECONCILE` says: unset is
+  `dry-run`; set `commit` only after reading `file_reference_runs.report`.
+- File events: set Nilo's endpoint to `https://<api origin>/webhooks/oxy/files`
+  (Oxy console → Webhooks → File events, or `oxy.apps.setFilesWebhook`). Oxy
+  verifies it with a challenge the API answers without a secret, and shows the
+  secret once: store it as `OXY_FILES_WEBHOOK_SECRET` (`/oxy/nilo/`,
+  SecureString) in the task definition. Until it is set the API answers events
+  503 and Oxy keeps retrying them.
 - The live task definition is the source of truth: `deploy-ecs.sh` copies it,
   so a secret added to it stays across deploys.
 - Nilo deployment configuration contains no provider credentials, provider
