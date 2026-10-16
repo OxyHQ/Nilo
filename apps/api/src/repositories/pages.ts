@@ -15,10 +15,12 @@ import { TRANSACTION_KEY_RETENTION_MS } from '@nilo/contracts';
 import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
 import {
+  PAGE_TOMBSTONE_RETENTION_MS,
   type PageFont,
   type PageMode,
   pages,
   type PageProperties,
+  pageTombstones,
   pageTransactions,
 } from '../db/schema/pages.js';
 
@@ -451,8 +453,35 @@ export async function deleteArchivedPages(db: PgHandle, workspaceId: string): Pr
   const deleted = await db
     .delete(pages)
     .where(and(eq(pages.workspaceId, workspaceId), eq(pages.archived, true)))
-    .returning({ id: pages.id });
+    .returning({ id: pages.id, databaseId: pages.databaseId });
+  await recordTombstones(db, deleted);
   return deleted.length;
+}
+
+/**
+ * Remember the database rows among `deleted` (`page_tombstones`), so clients
+ * syncing those databases learn they are gone, and forget the ones older than
+ * the retention for the same databases. Pruned here, where tombstones are
+ * written, as `page_transactions` are: nothing else has to run for them to
+ * stay bounded.
+ */
+export async function recordTombstones(
+  db: PgHandle,
+  deleted: readonly { id: string; databaseId: string | null }[],
+): Promise<void> {
+  const rows = deleted.flatMap((page) =>
+    page.databaseId ? [{ pageId: page.id, databaseId: page.databaseId }] : [],
+  );
+  if (rows.length === 0) return;
+  await db.insert(pageTombstones).values(rows).onConflictDoNothing();
+  await db
+    .delete(pageTombstones)
+    .where(
+      and(
+        inArray(pageTombstones.databaseId, [...new Set(rows.map((row) => row.databaseId))]),
+        lt(pageTombstones.deletedAt, new Date(Date.now() - PAGE_TOMBSTONE_RETENTION_MS)),
+      ),
+    );
 }
 
 /**
@@ -473,31 +502,29 @@ export async function deleteArchivedPages(db: PgHandle, workspaceId: string): Pr
  * under B is reachable and produces a cycle; the breadcrumb route's `seen` set
  * (`routes/pages.ts:613`) is the existing acknowledgement of it. Without the
  * clause the recursion does not terminate.
+ *
+ * Database rows among the deleted pages leave a tombstone (`recordTombstones`).
  */
 export async function deletePageTree(db: PgHandle, rootId: string): Promise<number> {
+  const id = sql.identifier(sqlColumnName(pages.id));
   const rows = await db.execute(sql`
     with recursive tree as (
       select ${pages.id} from ${pages} where ${pages.id} = ${rootId}
       union all
-      select child.${sql.identifier(sqlColumnName(pages.id))}
+      select child.${id}
       from ${pages} child
-      join tree on child.${sql.identifier(sqlColumnName(pages.parentId))} = tree.${sql.identifier(sqlColumnName(pages.id))}
-    ) cycle ${sql.identifier(sqlColumnName(pages.id))} set is_cycle using cycle_path,
-    deleted as (
-      delete from ${pages}
-      where ${pages.id} in (select ${sql.identifier(sqlColumnName(pages.id))} from tree)
-      returning ${pages.id}
-    )
-    select count(*)::int as deleted_count from deleted
+      join tree on child.${sql.identifier(sqlColumnName(pages.parentId))} = tree.${id}
+    ) cycle ${id} set is_cycle using cycle_path
+    delete from ${pages}
+    where ${pages.id} in (select ${id} from tree)
+    returning ${pages.id} as id, ${pages.databaseId} as database_id
   `);
-  // Loud rather than 0: `count(*)` without the `::int` decodes as a string, and
-  // a silent fallback would report "deleted nothing" for a statement that
-  // deleted a subtree.
-  const deleted = rows[0]?.deleted_count;
-  if (typeof deleted !== 'number') {
-    throw new Error(`deletePageTree read a non-numeric count: ${typeof deleted}`);
-  }
-  return deleted;
+  const deleted = rows.map((row) => ({
+    id: String(row.id),
+    databaseId: typeof row.database_id === 'string' ? row.database_id : null,
+  }));
+  await recordTombstones(db, deleted);
+  return deleted.length;
 }
 
 /**

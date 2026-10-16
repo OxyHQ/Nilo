@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { authenticateToken, oxyClient } from '../middleware/auth.js';
 import { announceReset } from '../collab/live-rooms.js';
+import { ensureNoteDatabases } from '../lib/databases/system.js';
 import {
   ensurePersonalWorkspace,
   ensurePersonalWorkspaceFor,
@@ -378,7 +379,10 @@ router.post(
       }
 
       const name = await personalWorkspaceName(ws.ownerId);
-      const removed = await resetPersonalWorkspace(getDb(), ws, name);
+      const db = getDb();
+      const removed = await resetPersonalWorkspace(db, ws, name);
+      // Empty, not missing: the apps built on it find their databases again.
+      await ensureNoteDatabases(db, ws);
       announceReset(ws.id);
       res.json({ success: true, removed });
     } catch (error: unknown) {
