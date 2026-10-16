@@ -432,6 +432,24 @@ describe('what a review found', () => {
   });
 });
 
+describe('partial edits', () => {
+  it('moves a folder with its parent alone, and recolours a label with its colour alone', async () => {
+    const parent = ((await api('POST', '/notes/folders', { name: 'Parent' })).json.folder as Json)
+      .id as string;
+    const child = ((await api('POST', '/notes/folders', { name: 'Child' })).json.folder as Json)
+      .id as string;
+    const moved = await api('PATCH', `/notes/folders/${child}`, { parentId: parent });
+    expect(moved.status, JSON.stringify(moved.json)).toBe(200);
+    expect(moved.json.folder).toMatchObject({ name: 'Child', parentId: parent });
+
+    const label = ((await api('POST', '/notes/labels', { name: 'Tint' })).json.label as Json)
+      .id as string;
+    const recoloured = await api('PATCH', `/notes/labels/${label}`, { color: 'mint' });
+    expect(recoloured.status).toBe(200);
+    expect(recoloured.json.label).toMatchObject({ name: 'Tint', color: 'mint' });
+  });
+});
+
 describe('the whole account', () => {
   it('exports every note, trash included, with labels and folders', async () => {
     const kept = await create({ title: 'Export me' });

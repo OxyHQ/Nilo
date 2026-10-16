@@ -291,7 +291,8 @@ router.post('/labels', async (req: Request, res: Response) => {
 router.patch('/labels/:id', async (req: Request, res: Response) => {
   try {
     const { id } = z.object({ id: z.string().min(1).max(200) }).parse(req.params);
-    const body = noteLabelWriteSchema.parse(req.body);
+    // Either field alone: a rename, or a new colour.
+    const body = noteLabelWriteSchema.partial().parse(req.body);
     const home = await homeOf(req);
     const option = await updateLabel(getDb(), home, id, body);
     if (!option) {
@@ -354,7 +355,8 @@ router.post('/folders', async (req: Request, res: Response) => {
 router.patch('/folders/:id', async (req: Request, res: Response) => {
   try {
     const { id } = z.object({ id: idSchema }).parse(req.params);
-    const body = noteFolderWriteSchema.parse(req.body);
+    // Either field alone: a rename, or a move.
+    const body = noteFolderWriteSchema.partial().parse(req.body);
     const home = await homeOf(req);
     if (!(await updateFolder(getDb(), home, id, body))) {
       res.status(404).json({ error: 'Folder not found' });
