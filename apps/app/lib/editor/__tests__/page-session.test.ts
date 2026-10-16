@@ -1,5 +1,6 @@
 import { EditorStore, emptyDocument, insertBlockAfter } from '@oxy.so/bloom-editor/model';
 import { YjsBinding } from '@oxy.so/bloom-editor/yjs';
+import { MAX_DOC_UPDATE_BYTES } from '@oxy.so/nilo-contracts';
 import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 import * as Y from 'yjs';
 import { MemoryPageDocStore } from '../doc-store-types';
@@ -236,6 +237,26 @@ it('reports a change the server refuses', async () => {
   await settle();
   expect(a.rejected).toEqual(['PAGE_LOCKED']);
   expect(a.statuses.at(-1)).toBe('error');
+});
+
+it('says a change is too large to save rather than sending it, and saves once it is undone', async () => {
+  const server = new FakeServer();
+  const a = await device(server);
+  write(a.store(), 'x'.repeat(MAX_DOC_UPDATE_BYTES + 1));
+  await settle();
+  expect(a.rejected).toEqual(['UPDATE_TOO_LARGE']);
+  expect(a.statuses.at(-1)).toBe('error');
+  expect(server.doc.getMap('blocks').size).toBe(0);
+
+  // Undone, what is left to send is small: the next handshake saves it.
+  expect(a.store().undo()).toBe(true);
+  write(a.store(), 'pequeño');
+  a.socket.disconnect();
+  a.socket.connect();
+  await settle();
+  expect(a.statuses.at(-1)).toBe('saved');
+  const other = await device(server);
+  expect(texts(other.store())).toEqual(['pequeño']);
 });
 
 it('keeps a change broadcast while its handshake was still answering', async () => {

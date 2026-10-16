@@ -193,7 +193,10 @@ export function PageEditor({
   );
 
   useEffect(() => {
-    if (rejected) toast.error(t('editor.status.rejected'));
+    if (!rejected) return;
+    toast.error(
+      t(rejected.code === 'UPDATE_TOO_LARGE' ? 'editor.status.tooLarge' : 'editor.status.rejected'),
+    );
   }, [rejected, t]);
 
   if (error) {

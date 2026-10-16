@@ -9,7 +9,9 @@ import { uuidv7 } from '@oxy.so/db';
 import { eq, sql } from 'drizzle-orm';
 import express from 'express';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { closeDb } from '../../db/client.js';
+import { materialize } from '@oxy.so/bloom-editor/yjs';
+import { closeDb, getDb } from '../../db/client.js';
+import { loadPageDoc } from '../../lib/page-docs.js';
 import { comments } from '../../db/schema/collab.js';
 import { blocks, pageVersions } from '../../db/schema/pages.js';
 import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
@@ -178,6 +180,12 @@ describe('page history', () => {
       .map((x) => x.id)
       .sort();
     expect(ids).toEqual([a, b].sort());
+    // Restored in the document, which every editor and device syncs from, not
+    // only in the rows read from it.
+    const document = materialize(await loadPageDoc(getDb(), pageId));
+    expect(
+      document.root.map((id) => (document.blocks[id]?.text ?? []).map((x) => x.text).join('')),
+    ).toEqual(['one', 'two']);
     const [still] = await db
       .select()
       .from(comments)
