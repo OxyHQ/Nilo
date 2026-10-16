@@ -54,8 +54,18 @@ A PDF embeds attached images, which the API fetches through minted URLs.
 Markdown and HTML name an attachment rather than linking it, because the link
 would die within minutes.
 
-## Not yet
+## Offline
 
-- Attached images are not shown on a cold start offline: the app keeps no URL
-  across launches. `expo-image` caches them by file id while the app runs.
-- Removing a block does not delete the file in Oxy; its link to the page stays.
+A URL is never kept across launches. `expo-image` caches each attached image
+on disk under its file id (`cacheKey`); when no URL can be minted (offline,
+even after a cold start), the app shows that copy
+(`Image.getCachePathAsync`, `useFileImageSource`). An image never opened on
+this device has no copy and shows its placeholder. On web the browser's own
+cache applies.
+
+## Removing a block keeps the file
+
+Removing a block does not delete the file in Oxy, deliberately: page
+history keeps versions whose blocks hold it, and restoring one must find it.
+Oxy also lets only a file's owner unlink it, so Nilo could not do it for a
+member who removes someone else's block.

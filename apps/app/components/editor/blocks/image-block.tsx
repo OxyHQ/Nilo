@@ -6,7 +6,7 @@ import { blockFileId } from '@nilo/contracts';
 import { useOxy } from '@oxy.so/services';
 import { useQueryClient } from '@tanstack/react-query';
 import { Text } from '@/components/ui/text';
-import { useFileScope, useFileUrl } from '@/lib/files/file-urls';
+import { useFileImageSource, useFileScope } from '@/lib/files/file-urls';
 import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { BlockComponentProps } from './types';
@@ -27,9 +27,9 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
   const { oxyServices } = useOxy();
   const queryClient = useQueryClient();
   const fileId = blockFileId(block.content);
-  const fileUrl = useFileUrl(useFileScope(block.pageId), fileId);
+  const fileSource = useFileImageSource(useFileScope(block.pageId), fileId);
   const pastedUrl = typeof block.content.url === 'string' ? block.content.url : '';
-  const url = fileId ? fileUrl : pastedUrl;
+  const url = fileId ? (fileSource?.uri ?? null) : pastedUrl;
   const caption = typeof block.content.caption === 'string' ? block.content.caption : '';
   const [urlDraft, setUrlDraft] = React.useState(pastedUrl);
   const [busy, setBusy] = React.useState(false);
@@ -144,7 +144,7 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
     <View className="gap-1">
       <ExpoImage
         // An attachment's URL changes every few minutes; its id names it in the cache.
-        source={fileId ? { uri: url, cacheKey: fileId } : { uri: url }}
+        source={fileSource ?? { uri: url }}
         style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 8 }}
         contentFit="contain"
         transition={150}

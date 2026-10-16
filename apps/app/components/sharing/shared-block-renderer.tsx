@@ -3,7 +3,12 @@ import { blockFileId, type FileUrlScope } from '@nilo/contracts';
 import { useQueryClient } from '@tanstack/react-query';
 import { Image as ExpoImage } from 'expo-image';
 import { Platform, Pressable, View } from 'react-native';
-import { FileScopeProvider, freshFileUrl, useFileScope, useFileUrl } from '@/lib/files/file-urls';
+import {
+  FileScopeProvider,
+  freshFileUrl,
+  useFileImageSource,
+  useFileScope,
+} from '@/lib/files/file-urls';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
 import { Text, TextStyleContext } from '@/components/ui/text';
 import type { PageFont } from '@/lib/types/pages';
@@ -172,8 +177,8 @@ const stringOf = (value: unknown) => (typeof value === 'string' ? value : '');
 /** An image: a pasted URL, or an attachment through a URL minted for this reader. */
 function SharedImage({ content }: { content: Record<string, unknown> }) {
   const fileId = blockFileId(content);
-  const minted = useFileUrl(useFileScope(undefined), fileId);
-  const url = fileId ? minted : stringOf(content.url);
+  const fileSource = useFileImageSource(useFileScope(undefined), fileId);
+  const url = fileId ? (fileSource?.uri ?? null) : stringOf(content.url);
   const caption = stringOf(content.caption);
   if (!url) {
     return fileId ? (
@@ -183,7 +188,7 @@ function SharedImage({ content }: { content: Record<string, unknown> }) {
   return (
     <View className="gap-1">
       <ExpoImage
-        source={fileId ? { uri: url, cacheKey: fileId } : { uri: url }}
+        source={fileSource ?? { uri: url }}
         style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 8 }}
         contentFit="contain"
         accessibilityLabel={stringOf(content.alt) || caption || undefined}

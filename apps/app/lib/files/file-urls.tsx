@@ -7,6 +7,7 @@
  */
 import type { FileUrl, FileUrlScope } from '@nilo/contracts';
 import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query';
+import { Image as ExpoImage } from 'expo-image';
 import * as React from 'react';
 import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
@@ -88,6 +89,32 @@ export function useFileUrl(scope: FileUrlScope | null, fileId: string | null): s
     enabled: Boolean(scope && fileId),
   });
   return query.data?.url ?? null;
+}
+
+/**
+ * What to show an attached image with: a minted URL, cached under the file's
+ * id (the URL changes every few minutes, the id does not); or, when no URL can
+ * be had (offline, even after a cold start), the copy `expo-image` already
+ * keeps on disk under that id. Null when there is neither.
+ */
+export function useFileImageSource(
+  scope: FileUrlScope | null,
+  fileId: string | null,
+): { uri: string; cacheKey?: string } | null {
+  const url = useFileUrl(scope, fileId);
+  const cached = useQuery({
+    queryKey: queryKeys.files.cachedImage(fileId ?? ''),
+    // `getCachePathAsync` reads the device's disk: it needs no network.
+    queryFn: () => ExpoImage.getCachePathAsync(fileId as string),
+    enabled: Boolean(fileId) && !url,
+    networkMode: 'always',
+    staleTime: 0,
+  });
+  if (!fileId) return null;
+  if (url) return { uri: url, cacheKey: fileId };
+  const path = cached.data;
+  if (!path) return null;
+  return { uri: path.startsWith('file://') ? path : `file://${path}` };
 }
 
 /** A URL that works now, for opening or downloading a file on demand. */
