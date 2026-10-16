@@ -37,9 +37,10 @@ describe('the notes capability catalog', () => {
     for (const tool of NOTES_CAPABILITY_CATALOG.tools) {
       if (tool.effect === 'read') continue;
       expect(tool.idempotency).toBe('required');
-      expect(tool.inputSchema).toMatchObject({
-        required: expect.arrayContaining(['idempotencyKey']),
-      });
+      // Read, not matched: under bun, `toMatchObject` with an asymmetric
+      // matcher writes the matcher into the object it was given — the shared
+      // catalog every later test file imports.
+      expect((tool.inputSchema as { required?: string[] }).required).toContain('idempotencyKey');
     }
   });
 });
