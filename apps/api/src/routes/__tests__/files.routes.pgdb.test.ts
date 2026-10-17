@@ -517,8 +517,7 @@ describe('telling Oxy', () => {
     removedInOxy.length = 0;
 
     oxyDown = true;
-    // Ahead of the database's clock, which stamped the row.
-    const now = new Date(Date.now() + 5_000);
+    const now = new Date();
     expect(await drainReferenceRemovals(db, now)).toEqual({ sent: 0, deferred: 1 });
     const [waiting] = await db
       .select()
@@ -533,6 +532,22 @@ describe('telling Oxy', () => {
 
     const later = new Date(now.getTime() + 2 * 60_000);
     expect(await drainReferenceRemovals(db, later)).toEqual({ sent: 1, deferred: 0 });
+    expect(removedInOxy).toEqual([{ fileId, entityType: 'page', entityId: target }]);
+    expect(await queued([fileId])).toEqual([]);
+  });
+
+  // `next_attempt_at` defaults to the database's clock, in microseconds; the
+  // drain's clock is JavaScript's, in milliseconds, and may run behind it. A
+  // minute behind stands for both, deterministically.
+  it('sends a removal never tried at once, on a task whose clock is behind the database’s', async () => {
+    await db.delete(fileReferenceRemovals);
+    const target = await page('Fresh removal');
+    const fileId = await attach(target);
+    await db.delete(pageFiles).where(eq(pageFiles.fileId, fileId));
+    removedInOxy.length = 0;
+
+    const behind = new Date(Date.now() - 60_000);
+    expect(await drainReferenceRemovals(db, behind)).toEqual({ sent: 1, deferred: 0 });
     expect(removedInOxy).toEqual([{ fileId, entityType: 'page', entityId: target }]);
     expect(await queued([fileId])).toEqual([]);
   });

@@ -25,9 +25,14 @@ export const fileReferenceRemovals = pgTable(
     fileId: text().notNull(),
     entityType: text().notNull(),
     entityId: text().notNull(),
-    /** Failed attempts so far; the next waits longer. */
+    /** Attempts started, including one in flight; after each failure the next waits longer. */
     attempts: integer().notNull().default(0),
-    /** Not tried before this; also the lease of the drain that claimed it. */
+    /**
+     * Not tried before this, once an attempt has been: a failed attempt's
+     * backoff, or the lease of the drain that claimed it. Not read while
+     * `attempts` is 0: a removal never tried is due at once
+     * (`repositories/fileReferences.ts`).
+     */
     nextAttemptAt: timestamptz().notNull().defaultNow(),
     lastError: text(),
     createdAt: createdAt(),
