@@ -21,7 +21,7 @@
     "@alia.onl/sdk": "^15.6.0",
     "@expo/html-elements": "^0.13.8",
     "@oxy.so/app-preset": "3.2.1",
-    "@oxy.so/bloom": "^10.13.0",
+    "@oxy.so/bloom": "^10.16.0",
     "@oxy.so/bloom-editor": "0.4.0",
     "@oxy.so/bloom-text": "0.1.2",
     "@oxy.so/contracts": "4.22.0",
