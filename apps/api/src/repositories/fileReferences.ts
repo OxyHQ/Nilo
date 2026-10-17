@@ -33,9 +33,18 @@ export function removalBackoffMs(attempts: number): number {
 
 /**
  * Take up to `limit` due removals for this drain: each is leased (its next
- * attempt pushed {@link REMOVAL_LEASE_MS} ahead) in the transaction that
- * selects it, `SKIP LOCKED`, so two API tasks never send the same one, and one
- * that dies mid-send is retried when the lease runs out.
+ * attempt pushed {@link REMOVAL_LEASE_MS} ahead, its attempt counted) in the
+ * transaction that selects it, `SKIP LOCKED`, so two API tasks never send the
+ * same one, and one that dies mid-send is retried when the lease runs out.
+ *
+ * Due: never attempted (`attempts = 0`), or past its backoff or lease by
+ * `now`. A removal no drain has claimed yet is due at once, whatever its
+ * `nextAttemptAt` says: that column defaults to the DATABASE clock, in
+ * microseconds — the `page_files` trigger writes the row — and `now` is the
+ * task's, in milliseconds. A drain in the same millisecond as the delete, or
+ * on a task whose clock is a little behind the database's, would otherwise
+ * find the removal not yet due. Only a lease and a backoff, both written from
+ * the task's clock, are read against it.
  */
 export async function claimReferenceRemovals(
   db: PgHandle,
@@ -44,24 +53,30 @@ export async function claimReferenceRemovals(
 ): Promise<ReferenceRemovalRow[]> {
   return db.transaction(async (tx) => {
     const due = await tx
-      .select()
+      .select({ id: fileReferenceRemovals.id })
       .from(fileReferenceRemovals)
-      .where(lte(fileReferenceRemovals.nextAttemptAt, now))
+      .where(
+        or(eq(fileReferenceRemovals.attempts, 0), lte(fileReferenceRemovals.nextAttemptAt, now)),
+      )
       .orderBy(asc(fileReferenceRemovals.nextAttemptAt), asc(fileReferenceRemovals.id))
       .limit(limit)
       .for('update', { skipLocked: true });
-    if (due.length > 0) {
-      await tx
-        .update(fileReferenceRemovals)
-        .set({ nextAttemptAt: new Date(now.getTime() + REMOVAL_LEASE_MS) })
-        .where(
-          inArray(
-            fileReferenceRemovals.id,
-            due.map((row) => row.id),
-          ),
-        );
-    }
-    return due;
+    if (due.length === 0) return [];
+    const leased = await tx
+      .update(fileReferenceRemovals)
+      .set({
+        attempts: sql`${fileReferenceRemovals.attempts} + 1`,
+        nextAttemptAt: new Date(now.getTime() + REMOVAL_LEASE_MS),
+      })
+      .where(
+        inArray(
+          fileReferenceRemovals.id,
+          due.map((row) => row.id),
+        ),
+      )
+      .returning();
+    const byId = new Map(leased.map((row) => [row.id, row]));
+    return due.flatMap((row) => byId.get(row.id) ?? []);
   });
 }
 
@@ -71,7 +86,10 @@ export async function finishReferenceRemovals(db: PgHandle, ids: readonly number
   await db.delete(fileReferenceRemovals).where(inArray(fileReferenceRemovals.id, [...ids]));
 }
 
-/** Oxy could not be told: try each again after its backoff. */
+/**
+ * Oxy could not be told: try each again after its backoff. `rows` are as
+ * {@link claimReferenceRemovals} returned them, the failed attempt counted.
+ */
 export async function deferReferenceRemovals(
   db: PgHandle,
   rows: readonly Pick<ReferenceRemovalRow, 'id' | 'attempts'>[],
@@ -79,12 +97,10 @@ export async function deferReferenceRemovals(
   now: Date = new Date(),
 ): Promise<void> {
   for (const row of rows) {
-    const attempts = row.attempts + 1;
     await db
       .update(fileReferenceRemovals)
       .set({
-        attempts,
-        nextAttemptAt: new Date(now.getTime() + removalBackoffMs(attempts)),
+        nextAttemptAt: new Date(now.getTime() + removalBackoffMs(row.attempts)),
         lastError: error.slice(0, 500),
       })
       .where(eq(fileReferenceRemovals.id, row.id));
