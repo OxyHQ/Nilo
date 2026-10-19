@@ -4,6 +4,7 @@
  * (`block.tsx`) and the editor itself free of per-type plumbing.
  */
 import type * as React from 'react';
+import type { EditorStore } from '@oxy.so/bloom-editor';
 import { isSafeUrl } from '@oxy.so/nilo-contracts';
 import type { Block, BlockContent, BlockType } from '@/lib/types/pages';
 
@@ -24,6 +25,12 @@ export interface BlockComponentProps {
    * When omitted, containers render an inline placeholder.
    */
   renderChildren?: (parentId: string) => React.ReactNode;
+  /**
+   * The editor's store, for a container that lays out and changes its own
+   * structure (a table's rows and columns, a layout's columns). Absent where
+   * blocks are only read (a shared page).
+   */
+  store?: EditorStore;
 }
 
 /**
