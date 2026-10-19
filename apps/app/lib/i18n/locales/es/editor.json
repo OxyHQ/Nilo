@@ -293,5 +293,92 @@
     "forbidden": "No tienes acceso a esta página.",
     "notFound": "Esta página ya no existe.",
     "offline": "Estás sin conexión y esta página no está guardada en este dispositivo."
+  },
+  "blocks": {
+    "captionPlaceholder": "Escribe un pie…",
+    "loading": "Cargando…",
+    "uploading": "Subiendo…",
+    "upload": "Subir",
+    "uploadFailed": "No se pudo subir",
+    "bookmark": {
+      "label": "Marcador",
+      "paste": "Pega cualquier enlace"
+    },
+    "pdf": {
+      "label": "PDF",
+      "paste": "Pega un enlace a un PDF",
+      "open": "Abrir PDF",
+      "openInNewTab": "Abrir en una pestaña nueva",
+      "preview": "Vista previa del PDF"
+    },
+    "video": {
+      "label": "Vídeo",
+      "paste": "Pega un enlace de YouTube, Vimeo, Loom o de vídeo"
+    },
+    "audio": {
+      "label": "Audio",
+      "paste": "Pega un enlace de audio"
+    },
+    "image": {
+      "label": "Imagen",
+      "paste": "Pega un enlace a una imagen",
+      "removed": "Esta imagen se eliminó",
+      "alt": "Imagen"
+    },
+    "file": {
+      "label": "Archivo",
+      "choose": "Elegir archivo",
+      "removed": "Este archivo se eliminó",
+      "unavailable": "Este archivo no está disponible"
+    },
+    "embed": {
+      "label": "Insertar",
+      "paste": "Pega un enlace de YouTube, Figma, X, CodePen o GitHub Gist",
+      "open": "Abrir enlace"
+    },
+    "equation": {
+      "label": "Ecuación (LaTeX)"
+    },
+    "mermaid": {
+      "label": "Diagrama Mermaid",
+      "renderFailed": "No se pudo dibujar el diagrama: %{message}",
+      "unavailable": "Aquí no se pueden dibujar diagramas"
+    },
+    "linkToPage": {
+      "label": "Enlace a página",
+      "choose": "Elige una página",
+      "search": "Buscar páginas",
+      "noResults": "No se encontraron páginas",
+      "missing": "Esta página no está disponible"
+    },
+    "breadcrumb": {
+      "loading": "Cargando ruta…"
+    },
+    "syncBlock": {
+      "label": "Bloque sincronizado"
+    },
+    "button": {
+      "defaultLabel": "Botón",
+      "working": "Procesando…",
+      "edit": "Editar",
+      "done": "Hecho",
+      "labelField": "Texto del botón",
+      "link": "Enlace",
+      "webhook": "URL del webhook (POST)",
+      "template": "Página plantilla",
+      "chooseTemplate": "Elige una plantilla",
+      "setTemplate": "Elige primero una página plantilla.",
+      "setWebhook": "Configura primero una URL de webhook.",
+      "fired": "Webhook enviado.",
+      "configure": "Configura la acción abajo.",
+      "failed": "La acción falló.",
+      "webhookFailed": "El webhook no lo aceptó (%{status}).",
+      "actions": {
+        "navigate": "Abrir enlace",
+        "new-page": "Página nueva",
+        "duplicate-template": "Duplicar plantilla",
+        "webhook": "Webhook"
+      }
+    }
   }
 }

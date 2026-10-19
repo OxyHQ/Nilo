@@ -4,7 +4,9 @@ import { RiFlowChart } from '@oxy.so/bloom/icons/RiFlowChart';
 import { Pre } from '@oxy.so/bloom/code';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { BlockComponentProps } from './types';
+import { useDraft } from './use-draft';
 
 let mermaidLoader: Promise<typeof import('mermaid')> | null = null;
 function loadMermaid(): Promise<typeof import('mermaid')> {
@@ -28,62 +30,65 @@ function loadMermaid(): Promise<typeof import('mermaid')> {
  * via mermaid.js (lazy-loaded). On native we show the raw code; native
  * rendering would need WebView (Phase 4).
  */
-export function MermaidBlock({ block, onChangeContent }: BlockComponentProps) {
+export function MermaidBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
+  const { t } = useTranslation();
   const { colors } = useColorScheme();
   const code = typeof block.content.code === 'string' ? block.content.code : '';
-  const [draft, setDraft] = React.useState(code);
-  const lastBlockId = React.useRef(block.id);
-  if (lastBlockId.current !== block.id) {
-    lastBlockId.current = block.id;
-    setDraft(code);
-  }
+  const field = useDraft(code, (next) => onChangeContent({ ...block.content, code: next }));
 
   const [svg, setSvg] = React.useState<string>('');
   const [renderError, setRenderError] = React.useState<string>('');
-  const lastRendered = React.useRef<string | null>(null);
   const idRef = React.useRef(`mermaid-${Math.random().toString(36).slice(2)}`);
 
-  if (Platform.OS === 'web' && lastRendered.current !== code) {
-    lastRendered.current = code;
-    if (code.trim()) {
-      loadMermaid()
-        .then(async (mod) => {
-          try {
-            const { svg: rendered } = await mod.default.render(idRef.current, code);
-            setSvg(rendered);
-            setRenderError('');
-          } catch (err) {
-            setRenderError(err instanceof Error ? err.message : 'Render failed');
-            setSvg('');
-          }
-        })
-        .catch((err) => {
-          setRenderError(err instanceof Error ? err.message : 'Mermaid unavailable');
-        });
-    } else {
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || !code.trim()) {
       setSvg('');
       setRenderError('');
+      return;
     }
-  }
+    // Only the latest source is drawn: an earlier render finishing later is dropped.
+    let current = true;
+    loadMermaid()
+      .then(async (mod) => {
+        try {
+          const { svg: rendered } = await mod.default.render(idRef.current, code);
+          if (!current) return;
+          setSvg(rendered);
+          setRenderError('');
+        } catch (err) {
+          if (!current) return;
+          setRenderError(
+            t('editor.blocks.mermaid.renderFailed', {
+              message: err instanceof Error ? err.message : '',
+            }),
+          );
+          setSvg('');
+        }
+      })
+      .catch(() => {
+        if (current) setRenderError(t('editor.blocks.mermaid.unavailable'));
+      });
+    return () => {
+      current = false;
+    };
+  }, [code, t]);
 
   return (
     <View className="rounded-md border border-border bg-muted/30 px-3 py-2 my-1 gap-2">
       <View className="flex-row items-center gap-2">
         <RiFlowChart width={14} height={14} fill={colors.mutedForeground} />
-        <Text className="text-xs text-muted-foreground">Mermaid diagram</Text>
+        <Text className="text-xs text-muted-foreground">{t('editor.blocks.mermaid.label')}</Text>
       </View>
-      <TextInput
-        value={draft}
-        onChangeText={setDraft}
-        onBlur={() => {
-          if (draft !== code) onChangeContent({ ...block.content, code: draft });
-        }}
-        placeholder={'graph TD;\n  A-->B;'}
-        placeholderTextColor={colors.mutedForeground}
-        className="rounded bg-background px-2 py-1.5 text-sm text-foreground border border-input font-mono"
-        multiline
-        numberOfLines={4}
-      />
+      {readOnly ? null : (
+        <TextInput
+          {...field}
+          placeholder={'graph TD;\n  A-->B;'}
+          placeholderTextColor={colors.mutedForeground}
+          className="rounded bg-background px-2 py-1.5 text-sm text-foreground border border-input font-mono"
+          multiline
+          numberOfLines={4}
+        />
+      )}
       {Platform.OS === 'web' && svg ? (
         // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid's render output under securityLevel 'strict', which DOMPurify-sanitizes the SVG
         <div dangerouslySetInnerHTML={{ __html: svg }} style={{ overflowX: 'auto' }} />

@@ -121,3 +121,52 @@ it.each([undefined, 'site'])(
     expect(JSON.stringify(renderer.toJSON())).not.toContain('Folded content');
   },
 );
+it('lays out tables and columns and shows every kind of block, none as unsupported', () => {
+  const block = (
+    id: string,
+    type: string,
+    parentBlockId: string | null,
+    content = {},
+    order = 0,
+  ) => ({
+    id,
+    parentBlockId,
+    type,
+    content,
+    order,
+  });
+  const page = [
+    block('h', 'heading_1', null, { text: 'Top' }, 0),
+    block('toc', 'table_of_contents', null, {}, 1),
+    block('t', 'table', null, { withHeader: true }, 2),
+    block('r1', 'table_row', 't', {}, 0),
+    block('c11', 'table_cell', 'r1', { text: 'Head A' }, 0),
+    block('c12', 'table_cell', 'r1', { text: 'Head B' }, 1),
+    block('r2', 'table_row', 't', {}, 1),
+    block('c21', 'table_cell', 'r2', { text: 'Cell A' }, 0),
+    block('cols', 'columns', null, {}, 3),
+    block('col1', 'column', 'cols', {}, 0),
+    block('left', 'paragraph', 'col1', { text: 'Left side' }, 0),
+    block('col2', 'column', 'cols', {}, 1),
+    block('right', 'paragraph', 'col2', { text: 'Right side' }, 0),
+    block('eq', 'equation', null, { latex: 'x^2' }, 4),
+    block(
+      'btn',
+      'button',
+      null,
+      { label: 'Go', action: 'navigate', url: 'https://example.com' },
+      5,
+    ),
+    block('crumb', 'breadcrumb', null, {}, 6),
+  ];
+  act(() => {
+    renderer = create(themed(<SharedBlockTree blocks={page} />));
+  });
+  const json = JSON.stringify(renderer.toJSON());
+  for (const text of ['Head A', 'Head B', 'Cell A', 'Left side', 'Right side', 'Go', 'x^2']) {
+    expect(json).toContain(text);
+  }
+  expect(json).not.toContain('sharing.blocks.unsupported');
+  // The table of contents names the page's headings.
+  expect(json.split('Top').length).toBeGreaterThan(2);
+});

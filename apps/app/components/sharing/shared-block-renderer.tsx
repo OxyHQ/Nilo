@@ -1,5 +1,7 @@
 import { BlockText, blockTextSegments, PublicMentionContext } from './block-text';
-import { blockFileId, type FileUrlScope } from '@oxy.so/nilo-contracts';
+import { blockFileId, type FileUrlScope, isEntityId } from '@oxy.so/nilo-contracts';
+import { Button } from '@oxy.so/bloom/button';
+import { router } from 'expo-router';
 import { Checkbox } from '@oxy.so/bloom/checkbox';
 import { Divider } from '@oxy.so/bloom/divider';
 import { Text } from '@oxy.so/bloom/typography';
@@ -20,14 +22,53 @@ import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { RiFileLine } from '@oxy.so/bloom/icons/RiFileLine';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { cn } from '@/lib/utils';
 import {
   buildBlockTree,
   inReadingOrder,
   type ReadOnlyBlock,
   type BlockTreeNode,
 } from '@/lib/block-tree';
-import { useMemo, useState } from 'react';
+import { createContext, type ComponentType, useContext, useMemo, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
+import type { Block, BlockType } from '@/lib/types/pages';
+import { type BlockComponentProps, blockUrl } from '@/components/editor/blocks/types';
+import { AudioBlock } from '@/components/editor/blocks/audio-block';
+import { BookmarkBlock } from '@/components/editor/blocks/bookmark-block';
+import { EmbedBlock } from '@/components/editor/blocks/embed-block';
+import { EquationBlock } from '@/components/editor/blocks/equation-block';
+import { MermaidBlock } from '@/components/editor/blocks/mermaid-block';
+import { PdfBlock } from '@/components/editor/blocks/pdf-block';
+import { VideoBlock } from '@/components/editor/blocks/video-block';
+
+/**
+ * The editor's own blocks, read-only, for the kinds a shared page shows the
+ * same way it is edited: one rendering of each, not a second copy here.
+ */
+const EDITOR_BLOCKS: Partial<Record<string, ComponentType<BlockComponentProps>>> = {
+  video: VideoBlock,
+  audio: AudioBlock,
+  pdf: PdfBlock,
+  bookmark: BookmarkBlock,
+  embed: EmbedBlock,
+  equation: EquationBlock,
+  mermaid: MermaidBlock,
+};
+
+const ignoreChange = () => {};
+
+function asEditorBlock(block: ReadOnlyBlock): Block {
+  return {
+    ...block,
+    pageId: '',
+    type: block.type as BlockType,
+    createdAt: '',
+    updatedAt: '',
+  };
+}
+
+/** The page's headings, for a table of contents anywhere in it. */
+const HeadingsContext = createContext<readonly ReadOnlyBlock[]>([]);
 
 interface SharedBlockRendererProps {
   block: ReadOnlyBlock;
@@ -279,11 +320,30 @@ export function SharedBlockRenderer({ block, listIndex = 1, textStyle }: SharedB
       return <TodoBlock content={content} textStyle={textStyle} />;
     case 'quote':
       return <QuoteBlock content={content} textStyle={textStyle} />;
+    // Laid out by `BlockNode`, which holds their children.
     case 'columns':
     case 'column':
     case 'table':
     case 'table_row':
+    case 'sync_block':
       return null;
+    // Where the page sits is the app's to show, not a shared page's.
+    case 'breadcrumb':
+      return null;
+    case 'table_of_contents':
+      return <TableOfContents textStyle={textStyle} />;
+    // A button and a page link, as a reader who may not be signed in sees
+    // them: the editor's need the workspace and an account.
+    case 'button':
+      return <SharedButton content={content} />;
+    case 'link_to_page':
+      return <SharedPageLink content={content} textStyle={textStyle} />;
+    case 'inline_database':
+      return (
+        <Text className="text-sm text-muted-foreground italic" style={textStyle}>
+          {t('sharing.blocks.database')}
+        </Text>
+      );
     case 'divider':
       return <DividerBlock />;
     case 'code':
@@ -294,13 +354,85 @@ export function SharedBlockRenderer({ block, listIndex = 1, textStyle }: SharedB
       return <SharedImage content={content} />;
     case 'file':
       return <SharedFile content={content} />;
-    default:
+    default: {
+      const EditorBlock = EDITOR_BLOCKS[block.type];
+      if (EditorBlock) {
+        return <EditorBlock block={asEditorBlock(block)} onChangeContent={ignoreChange} readOnly />;
+      }
       return (
         <Text className="text-sm text-muted-foreground italic" style={textStyle}>
           {t('sharing.blocks.unsupported', { type: block.type })}
         </Text>
       );
+    }
   }
+}
+
+function openLink(url: string) {
+  if (Platform.OS === 'web') window.open(url, '_blank', 'noopener,noreferrer');
+  else void import('expo-web-browser').then((mod) => mod.openBrowserAsync(url));
+}
+
+/** A button that opens a link does so; one whose action needs an editor shows its label. */
+function SharedButton({ content }: { content: Record<string, unknown> }) {
+  const { t } = useTranslation();
+  const url = content.action === 'navigate' ? blockUrl(content.url) : '';
+  const label = stringOf(content.label) || t('editor.blocks.button.defaultLabel');
+  return (
+    <Button
+      appearance="solid"
+      tone="accent"
+      size="sm"
+      className="self-start"
+      disabled={!url}
+      onPress={() => openLink(url)}
+    >
+      {label}
+    </Button>
+  );
+}
+
+/** A link to another page: opened in the app, where its access decides. */
+function SharedPageLink({
+  content,
+  textStyle,
+}: {
+  content: Record<string, unknown>;
+  textStyle?: TextStyle;
+}) {
+  const { t } = useTranslation();
+  const { colors } = useColorScheme();
+  const pageId = stringOf(content.pageId);
+  if (!isEntityId(pageId) || /^0+$/.test(pageId)) return null;
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={() => router.push(`/p/${pageId}`)}
+      className="flex-row items-center gap-2"
+    >
+      <RiFileLine width={14} height={14} fill={colors.mutedForeground} />
+      <Text className="text-sm text-foreground underline" style={textStyle}>
+        {t('editor.blocks.linkToPage.label')}
+      </Text>
+    </Pressable>
+  );
+}
+
+function TableOfContents({ textStyle }: { textStyle?: TextStyle }) {
+  const headings = useContext(HeadingsContext);
+  return (
+    <View className="gap-1">
+      {headings.map((heading) => (
+        <Text
+          key={heading.id}
+          className="text-sm text-muted-foreground underline"
+          style={[textStyle, { marginLeft: (Number(heading.type.slice(-1)) - 1) * 16 }]}
+        >
+          {getText(heading.content)}
+        </Text>
+      ))}
+    </View>
+  );
 }
 
 /** Shared nesting and sibling ordering for published pages and version previews. */
@@ -319,6 +451,17 @@ export function SharedBlockTree({
   const { t } = useTranslation();
   const textStyle = useMemo(() => ({ fontFamily: PAGE_FONT_FAMILIES[font] }), [font]);
   const tree = useMemo(() => inReadingOrder(buildBlockTree(blocks)), [blocks]);
+  const headings = useMemo(() => {
+    const found: ReadOnlyBlock[] = [];
+    const walk = (nodes: readonly BlockTreeNode[]) => {
+      for (const node of nodes) {
+        if (/^heading_[123]$/.test(node.block.type)) found.push(node.block);
+        walk(node.children);
+      }
+    };
+    walk(tree);
+    return found;
+  }, [tree]);
   if (!tree.length)
     return (
       <Text className="text-sm text-muted-foreground" style={textStyle}>
@@ -327,7 +470,9 @@ export function SharedBlockTree({
     );
   const branch = (
     <PublicMentionContext.Provider value={publicSlug}>
-      <BlockBranch nodes={tree} textStyle={textStyle} />
+      <HeadingsContext.Provider value={headings}>
+        <BlockBranch nodes={tree} textStyle={textStyle} />
+      </HeadingsContext.Provider>
     </PublicMentionContext.Provider>
   );
   return fileScope ? <FileScopeProvider scope={fileScope}>{branch}</FileScopeProvider> : branch;
@@ -370,6 +515,53 @@ function BlockNode({
     block.type === 'toggle' ||
     (/^heading_[123]$/.test(block.type) && block.content.toggleable === true);
   const Chevron = expanded ? RiArrowDownSLine : RiArrowRightSLine;
+  // Columns side by side (stacked when there is no room), a table as a grid,
+  // and a synced block as its content: laid out here, where the children are.
+  if (block.type === 'columns') {
+    return (
+      <View className="flex-row flex-wrap gap-4">
+        {childrenNodes.map((column) => (
+          <View key={column.block.id} className="flex-1" style={{ minWidth: 220 }}>
+            <BlockBranch nodes={column.children} textStyle={textStyle} />
+          </View>
+        ))}
+      </View>
+    );
+  }
+  if (block.type === 'table') {
+    const header = block.content.withHeader === true;
+    return (
+      <View className="rounded-md border border-border">
+        {childrenNodes.map((row, r) => (
+          <View
+            key={row.block.id}
+            className={cn(
+              'flex-row',
+              r > 0 && 'border-t border-border',
+              header && r === 0 && 'bg-muted/40',
+            )}
+          >
+            {row.children.map((cell, c) => (
+              <View
+                key={cell.block.id}
+                className={cn('flex-1 px-2 py-1', c > 0 && 'border-l border-border')}
+              >
+                <Text
+                  className={cn('text-sm text-foreground', header && r === 0 && 'font-semibold')}
+                  style={textStyle}
+                >
+                  <BlockText content={cell.block.content} />
+                </Text>
+              </View>
+            ))}
+          </View>
+        ))}
+      </View>
+    );
+  }
+  if (block.type === 'sync_block' || block.type === 'column') {
+    return <BlockBranch nodes={childrenNodes} textStyle={textStyle} />;
+  }
   // A canvas note, read as a page: its blocks in a frame, not under a line.
   if (block.type === 'canvas_note') {
     return (

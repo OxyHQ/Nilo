@@ -56,7 +56,8 @@
     "fileUnavailable": "This file is unavailable right now",
     "fileRemoved": "This file was removed",
     "expand": "Expand %{title}",
-    "collapse": "Collapse %{title}"
+    "collapse": "Collapse %{title}",
+    "database": "A database"
   },
   "roles": {
     "viewer": "Can view",

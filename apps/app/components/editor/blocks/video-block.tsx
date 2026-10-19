@@ -1,11 +1,11 @@
-import * as React from 'react';
-import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { RiVideoLine } from '@oxy.so/bloom/icons/RiVideoLine';
-import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { VideoSource } from '@/lib/types/pages';
-import { type BlockComponentProps, blockUrl, typedUrl } from './types';
+import { useTranslation } from '@/hooks/useTranslation';
+import { BlockCaption, UrlPrompt } from './block-parts';
+import { type BlockComponentProps, blockUrl } from './types';
 
 function detectVideoSource(url: string): VideoSource {
   try {
@@ -61,38 +61,22 @@ function loomEmbed(url: string): string | null {
  * `<video>` element on web; on native we link out (RN doesn't ship a built-in
  * `<video>` widget — apps that need playback wire in `expo-av` separately).
  */
-export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
+export function VideoBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
+  const { t } = useTranslation();
   const { colors } = useColorScheme();
   const url = blockUrl(block.content.url);
-  const caption = typeof block.content.caption === 'string' ? block.content.caption : '';
-  const [urlDraft, setUrlDraft] = React.useState(url);
-  const lastBlockId = React.useRef(block.id);
-  if (lastBlockId.current !== block.id) {
-    lastBlockId.current = block.id;
-    setUrlDraft(url);
-  }
-
-  const commitUrl = (next: string) => {
-    const trimmed = typedUrl(next);
-    const source = detectVideoSource(trimmed);
-    onChangeContent({ ...block.content, url: trimmed, source });
-  };
 
   if (!url) {
     return (
-      <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
-        <View className="flex-row items-center gap-2">
-          <RiVideoLine size="sm" fill={colors.mutedForeground} />
-          <Text className="text-sm text-muted-foreground">Video</Text>
-        </View>
-        <TextFieldInput
-          label="Paste YouTube, Vimeo, Loom, or video URL"
-          value={urlDraft}
-          onChangeText={setUrlDraft}
-          onBlur={() => commitUrl(urlDraft)}
-          placeholder="Paste YouTube, Vimeo, Loom, or video URL"
-        />
-      </View>
+      <UrlPrompt
+        icon={RiVideoLine}
+        label={t('editor.blocks.video.label')}
+        paste={t('editor.blocks.video.paste')}
+        readOnly={readOnly}
+        onCommit={(next) =>
+          onChangeContent({ ...block.content, url: next, source: detectVideoSource(next) })
+        }
+      />
     );
   }
 
@@ -115,7 +99,7 @@ export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
           <View style={{ aspectRatio: 16 / 9, width: '100%' }}>
             <iframe
               src={embedUrl}
-              title="Embedded video"
+              title={t('editor.blocks.video.label')}
               allowFullScreen
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               style={{
@@ -132,7 +116,7 @@ export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
         )
       ) : (
         <Pressable
-          accessibilityLabel="Open video"
+          accessibilityLabel={t('editor.blocks.video.label')}
           className="rounded-lg bg-muted/60 px-3 py-3"
           onPress={() => {
             if (Platform.OS !== 'web') {
@@ -146,13 +130,7 @@ export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
           </View>
         </Pressable>
       )}
-      <TextInput
-        value={caption}
-        onChangeText={(t) => onChangeContent({ ...block.content, caption: t })}
-        placeholder="Write a caption…"
-        placeholderTextColor={colors.mutedForeground}
-        className="text-xs text-muted-foreground py-1"
-      />
+      <BlockCaption block={block} onChangeContent={onChangeContent} readOnly={readOnly} />
     </View>
   );
 }

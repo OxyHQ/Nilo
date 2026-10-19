@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkUrl, isPublicAddress, safeFetch, UnsafeUrlError } from '../safe-fetch.js';
+import { checkUrl, isPublicAddress, safeFetch, safePost, UnsafeUrlError } from '../safe-fetch.js';
 
 describe('isPublicAddress', () => {
   it('refuses private, loopback, link-local, metadata and reserved addresses', () => {
@@ -52,5 +52,17 @@ describe('checkUrl', () => {
 describe('safeFetch', () => {
   it('never connects to the server itself', async () => {
     await expect(safeFetch('http://127.0.0.1/')).rejects.toThrow(UnsafeUrlError);
+  });
+});
+
+describe('safePost', () => {
+  it('never posts to the server itself or its network', async () => {
+    for (const url of [
+      'http://127.0.0.1/hook',
+      'http://169.254.169.254/',
+      'http://localhost/hook',
+    ]) {
+      await expect(safePost(url, { ping: true })).rejects.toThrow(UnsafeUrlError);
+    }
   });
 });

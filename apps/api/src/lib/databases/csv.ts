@@ -215,8 +215,11 @@ export function tableToDatabase(table: readonly (readonly string[])[]): CsvDatab
 /** Types whose values are computed or point at other records: not written to CSV. */
 const NOT_EXPORTED = new Set<DatabasePropertyType>(['formula', 'rollup']);
 
-/** A database's rows → CSV, one column per stored property, values as people read them. */
-export function databaseToCsv(
+/**
+ * A database's rows as a table: a header of property names, then one line
+ * per row, one column per stored property, values as people read them.
+ */
+export function databaseToTable(
   schema: DatabaseSchema,
   rows: readonly {
     title: string;
@@ -224,7 +227,7 @@ export function databaseToCsv(
     createdAt: Date;
     updatedAt: Date;
   }[],
-): string {
+): string[][] {
   const columns = schema.properties.filter((p) => !NOT_EXPORTED.has(p.type));
   const optionName = (property: DatabaseProperty, id: unknown) =>
     property.config?.options?.find((o) => o.id === id)?.name ?? '';
@@ -278,8 +281,10 @@ export function databaseToCsv(
         return '';
     }
   };
-  return toCsv([
-    columns.map((p) => p.name),
-    ...rows.map((row) => columns.map((p) => cell(p, row))),
-  ]);
+  return [columns.map((p) => p.name), ...rows.map((row) => columns.map((p) => cell(p, row)))];
+}
+
+/** A database's rows → CSV (`databaseToTable`). */
+export function databaseToCsv(...args: Parameters<typeof databaseToTable>): string {
+  return toCsv(databaseToTable(...args));
 }

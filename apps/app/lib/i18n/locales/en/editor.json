@@ -293,5 +293,92 @@
     "forbidden": "You do not have access to this page.",
     "notFound": "This page does not exist anymore.",
     "offline": "You are offline, and this page is not kept on this device."
+  },
+  "blocks": {
+    "captionPlaceholder": "Write a caption…",
+    "loading": "Loading…",
+    "uploading": "Uploading…",
+    "upload": "Upload",
+    "uploadFailed": "The upload failed",
+    "bookmark": {
+      "label": "Bookmark",
+      "paste": "Paste any link"
+    },
+    "pdf": {
+      "label": "PDF",
+      "paste": "Paste a PDF link",
+      "open": "Open PDF",
+      "openInNewTab": "Open in a new tab",
+      "preview": "PDF preview"
+    },
+    "video": {
+      "label": "Video",
+      "paste": "Paste a YouTube, Vimeo, Loom or video link"
+    },
+    "audio": {
+      "label": "Audio",
+      "paste": "Paste an audio link"
+    },
+    "image": {
+      "label": "Image",
+      "paste": "Paste an image link",
+      "removed": "This image was removed",
+      "alt": "Image"
+    },
+    "file": {
+      "label": "File",
+      "choose": "Choose file",
+      "removed": "This file was removed",
+      "unavailable": "This file is unavailable"
+    },
+    "embed": {
+      "label": "Embed",
+      "paste": "Paste a YouTube, Figma, X, CodePen or GitHub Gist link",
+      "open": "Open link"
+    },
+    "equation": {
+      "label": "Equation (LaTeX)"
+    },
+    "mermaid": {
+      "label": "Mermaid diagram",
+      "renderFailed": "The diagram could not be drawn: %{message}",
+      "unavailable": "Diagrams cannot be drawn here"
+    },
+    "linkToPage": {
+      "label": "Link to page",
+      "choose": "Choose a page",
+      "search": "Search pages",
+      "noResults": "No pages found",
+      "missing": "This page is not available"
+    },
+    "breadcrumb": {
+      "loading": "Loading path…"
+    },
+    "syncBlock": {
+      "label": "Synced block"
+    },
+    "button": {
+      "defaultLabel": "Button",
+      "working": "Working…",
+      "edit": "Edit",
+      "done": "Done",
+      "labelField": "Button label",
+      "link": "Link",
+      "webhook": "Webhook URL (POST)",
+      "template": "Template page",
+      "chooseTemplate": "Choose a template",
+      "setTemplate": "Choose a template page first.",
+      "setWebhook": "Set a webhook URL first.",
+      "fired": "Webhook sent.",
+      "configure": "Set up the action below.",
+      "failed": "The action failed.",
+      "webhookFailed": "The webhook did not accept it (%{status}).",
+      "actions": {
+        "navigate": "Open link",
+        "new-page": "New page",
+        "duplicate-template": "Duplicate template",
+        "webhook": "Webhook"
+      }
+    }
   }
 }

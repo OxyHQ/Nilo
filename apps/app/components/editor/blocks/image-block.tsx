@@ -1,18 +1,19 @@
 import * as React from 'react';
-import { Platform, TextInput, View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { blockFileId } from '@oxy.so/nilo-contracts';
 import { Button } from '@oxy.so/bloom/button';
 import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
 import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';
-import { TextField, TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useOxy } from '@oxy.so/services/ui/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useFileImageSource, useFileRemoved, useFileScope } from '@/lib/files/file-urls';
 import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { type BlockComponentProps, blockUrl, typedUrl } from './types';
+import { useTranslation } from '@/hooks/useTranslation';
+import { BlockCaption, UrlPrompt } from './block-parts';
+import { type BlockComponentProps, blockUrl } from './types';
 
 /**
  * Image block — renders a captioned image. Empty state offers two paths:
@@ -25,7 +26,8 @@ import { type BlockComponentProps, blockUrl, typedUrl } from './types';
  * expose one. Native picks via `expo-image-picker` (dynamic import so the web
  * bundle doesn't include native-only deps).
  */
-export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
+export function ImageBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
+  const { t } = useTranslation();
   const { colors } = useColorScheme();
   const { oxyServices } = useOxy();
   const queryClient = useQueryClient();
@@ -35,23 +37,8 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
   const removed = useFileRemoved(scope, fileId);
   const pastedUrl = blockUrl(block.content.url);
   const url = fileId ? (fileSource?.uri ?? null) : pastedUrl;
-  const caption = typeof block.content.caption === 'string' ? block.content.caption : '';
-  const [urlDraft, setUrlDraft] = React.useState(pastedUrl);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  // Reset the input when the block changes identity (e.g. fresh remount).
-  const lastBlockId = React.useRef(block.id);
-  if (lastBlockId.current !== block.id) {
-    lastBlockId.current = block.id;
-    setUrlDraft(pastedUrl);
-  }
-
-  const commitUrl = (next: string) => {
-    onChangeContent({ ...block.content, url: typedUrl(next) });
-  };
-  const commitCaption = (next: string) => {
-    onChangeContent({ ...block.content, caption: next });
-  };
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const attach = async (file: PickedFile) => {
@@ -61,7 +48,7 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
       const attached = await uploadPageFile(oxyServices, queryClient, block.pageId, file);
       onChangeContent({ ...block.content, url: '', fileId: attached.fileId });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      setError(err instanceof Error ? err.message : t('editor.blocks.uploadFailed'));
     } finally {
       setBusy(false);
     }
@@ -95,7 +82,9 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
         {removed ? (
           <>
             <RiImageLine size="sm" fill={colors.mutedForeground} />
-            <Text className="text-sm text-muted-foreground">This image was removed</Text>
+            <Text className="text-sm text-muted-foreground">
+              {t('editor.blocks.image.removed')}
+            </Text>
           </>
         ) : null}
       </View>
@@ -104,21 +93,14 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
 
   if (!url) {
     return (
-      <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
-        <View className="flex-row items-center gap-2">
-          <RiImageLine size="sm" fill={colors.mutedForeground} />
-          <Text className="text-sm text-muted-foreground">Image</Text>
-        </View>
-        <View className="flex-row items-center gap-2">
-          <TextField className="flex-1">
-            <TextFieldInput
-              label="Paste image URL"
-              value={urlDraft}
-              onChangeText={setUrlDraft}
-              onBlur={() => commitUrl(urlDraft)}
-              placeholder="Paste image URL"
-            />
-          </TextField>
+      <View className="gap-2">
+        <UrlPrompt
+          icon={RiImageLine}
+          label={t('editor.blocks.image.label')}
+          paste={t('editor.blocks.image.paste')}
+          readOnly={readOnly}
+          onCommit={(next) => onChangeContent({ ...block.content, url: next })}
+        >
           <Button
             appearance="solid"
             tone="accent"
@@ -133,10 +115,10 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
             disabled={busy}
             leadingIcon={RiUpload2Line}
           >
-            {busy ? 'Uploading…' : 'Upload'}
+            {busy ? t('editor.blocks.uploading') : t('editor.blocks.upload')}
           </Button>
-        </View>
-        {Platform.OS === 'web' ? (
+        </UrlPrompt>
+        {Platform.OS === 'web' && !readOnly ? (
           <input
             ref={fileInputRef}
             type="file"
@@ -164,13 +146,7 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
         transition={150}
         accessibilityLabel={typeof block.content.alt === 'string' ? block.content.alt : undefined}
       />
-      <TextInput
-        value={caption}
-        onChangeText={commitCaption}
-        placeholder="Write a caption…"
-        placeholderTextColor={colors.mutedForeground}
-        className="text-xs text-muted-foreground py-1"
-      />
+      <BlockCaption block={block} onChangeContent={onChangeContent} readOnly={readOnly} />
     </View>
   );
 }

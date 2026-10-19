@@ -1053,6 +1053,46 @@ describe('role enforcement', () => {
   });
 });
 
+describe('POST /pages/:pageId/blocks/:blockId/webhook', () => {
+  const ws = { 'x-workspace-id': '' };
+  const button = async (content: Record<string, unknown>, type = 'button') => {
+    const page = await createPage();
+    const id = uuidv7();
+    ws['x-workspace-id'] = workspaceId;
+    const made = await api(
+      'POST',
+      `/pages/${page.id}/blocks/transactions`,
+      { ops: [{ kind: 'insert', id, parentBlockId: null, afterId: null, type, content }] },
+      ws,
+    );
+    expect(made.status).toBe(200);
+    return { pageId: page.id as string, blockId: id };
+  };
+  const press = (at: { pageId: string; blockId: string }) =>
+    api('POST', `/pages/${at.pageId}/blocks/${at.blockId}/webhook`, undefined, ws);
+
+  it('never aims the server at its own network, whatever the button holds', async () => {
+    const at = await button({ action: 'webhook', webhookUrl: 'http://127.0.0.1/hook' });
+    const res = await press(at);
+    expect(res.status).toBe(400);
+    expect(res.json.code).toBe('UNSAFE_URL');
+  });
+
+  it('refuses a button without a webhook, and a block that is not a button', async () => {
+    const navigate = await press(await button({ action: 'navigate', url: 'https://example.com' }));
+    expect(navigate.json.code).toBe('NO_WEBHOOK');
+    expect((await press(await button({ text: 'hi' }, 'paragraph'))).status).toBe(404);
+  });
+
+  it('takes an editor', async () => {
+    const at = await button({ action: 'webhook', webhookUrl: 'https://example.com/hook' });
+    await setRole('viewer');
+    const res = await press(at);
+    await setRole('owner');
+    expect(res.status).toBe(403);
+  });
+});
+
 describe('POST /pages/:pageId/blocks/transactions', () => {
   const ws = () => ({ 'x-workspace-id': workspaceId });
   const tx = (pageId: unknown, ops: unknown[]) =>

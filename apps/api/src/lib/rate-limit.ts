@@ -21,7 +21,8 @@ export type RateLimitScope =
   | 'form-submit'
   | 'share-read'
   | 'share-join'
-  | 'page-export-pdf';
+  | 'page-export-pdf'
+  | 'button-webhook';
 
 /** In-process stores, for tests to clear between cases. */
 const memoryStores = new Set<MemoryStore>();
