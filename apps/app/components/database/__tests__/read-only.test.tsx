@@ -164,6 +164,8 @@ it('keeps table editing and creation available to editors', () => {
       .findAll((node) => Boolean(node.props.onPress))
       .some((node) => node.props.accessibilityLabel === 'databases.actions.new'),
   ).toBe(true);
+  const { PropertyHeaderMenu } = jest.requireMock('../property-config-modal');
+  expect(renderer.root.findAllByType(PropertyHeaderMenu).length).toBeGreaterThan(0);
 });
 
 it('keeps the form builder and management requests unavailable in read-only mode', () => {
@@ -182,4 +184,38 @@ it('keeps the form builder and management requests unavailable in read-only mode
   });
   expect(JSON.stringify(renderer.toJSON())).toContain('databases.form.editorsOnly');
   expect(renderer.root.findAll((node) => Boolean(node.props.onPress))).toHaveLength(0);
+});
+
+it('keeps a locked database’s rows editable and its properties and views as they are', () => {
+  const { FilterBuilder } = jest.requireMock('../filter-builder');
+  const { AddPropertyButton, PropertyHeaderMenu } = jest.requireMock('../property-config-modal');
+  act(() => {
+    renderer = create(
+      <Bloom>
+        <DatabaseViewContainer
+          database={{ ...database, locked: true }}
+          view={view}
+          rows={rows}
+          isLoading={false}
+        />
+      </Bloom>,
+    );
+  });
+  // Rows: still created and edited.
+  expect(renderer.root.findAllByType('input').length).toBeGreaterThan(0);
+  expect(
+    renderer.root
+      .findAll((node) => Boolean(node.props.onPress))
+      .some((node) => node.props.accessibilityLabel === 'databases.actions.new'),
+  ).toBe(true);
+  // The view and the properties: no filter, sort, new property or column menu.
+  expect(renderer.root.findAllByType(FilterBuilder)).toHaveLength(0);
+  expect(renderer.root.findAllByType(AddPropertyButton)).toHaveLength(0);
+  expect(renderer.root.findAllByType(PropertyHeaderMenu)).toHaveLength(0);
+  // Searching it is the reader's own.
+  expect(
+    renderer.root.findAll(
+      (node) => node.props.accessibilityLabel === 'databases.search.open' && node.props.onPress,
+    ).length,
+  ).toBeGreaterThan(0);
 });

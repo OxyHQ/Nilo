@@ -9,6 +9,7 @@ import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Item } from '@oxy.so/bloom/item';
 import { Loading } from '@oxy.so/bloom/loading';
 import { PageHeader } from '@oxy.so/bloom/page-header';
+import { Text } from '@oxy.so/bloom/typography';
 import { confirm } from '@oxy.so/bloom/surfaces';
 import { toast } from '@oxy.so/bloom/toast';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -22,12 +23,19 @@ import {
   useUpdatePage,
 } from '@/lib/hooks/use-pages';
 import { IconDisplay } from '@/components/page-chrome';
+import {
+  useArchivedDatabases,
+  useDeleteDatabase,
+  useUpdateDatabase,
+} from '@/lib/hooks/use-databases';
+import type { Database } from '@/lib/types/databases';
 import type { Page } from '@/lib/types/pages';
 
 /**
- * Trash route. Lists every archived page in the active workspace and lets
- * the user restore or permanently delete each one. Owners additionally see
- * an "Empty trash" button at the top.
+ * Trash route. Lists every archived page in the active workspace, and every
+ * database moved to the trash, and lets the user restore or permanently
+ * delete each one. Owners additionally see an "Empty trash" button at the
+ * top (pages; a database is deleted on its own).
  */
 export default function TrashRoute() {
   const { t } = useTranslation();
@@ -38,6 +46,10 @@ export default function TrashRoute() {
   const updatePage = useUpdatePage();
   const deletePage = useDeletePage();
   const emptyTrash = useEmptyTrash();
+  const archivedDatabases = useArchivedDatabases(currentWorkspaceId);
+  const updateDatabase = useUpdateDatabase();
+  const deleteDatabase = useDeleteDatabase();
+  const databases = archivedDatabases.data ?? [];
 
   const pages = React.useMemo(() => {
     const list = data?.pages ?? [];
@@ -88,6 +100,35 @@ export default function TrashRoute() {
     },
     [currentWorkspaceId, deletePage, t],
   );
+
+  const restoreDatabase = (database: Database) =>
+    updateDatabase.mutate(
+      { id: database.id, archived: false },
+      {
+        onSuccess: () => toast.success(t('pages.toasts.restored')),
+        onError: () => toast.error(t('pages.toasts.restoreFailed')),
+      },
+    );
+
+  const hardDeleteDatabase = async (database: Database) => {
+    const confirmed = await confirm({
+      title: t('trash.deleteDialog.title'),
+      description: t('trash.deleteDialog.description', {
+        title: database.name.trim() || t('databases.untitledDatabase'),
+      }),
+      confirmLabel: t('common.delete'),
+      cancelLabel: t('common.cancel'),
+      destructive: true,
+    });
+    if (!confirmed) return;
+    deleteDatabase.mutate(
+      { id: database.id, workspaceId: database.workspaceId, hard: true },
+      {
+        onSuccess: () => toast.success(t('pages.toasts.deletedPermanently')),
+        onError: () => toast.error(t('databases.delete.failed')),
+      },
+    );
+  };
 
   const handleEmptyTrash = React.useCallback(async () => {
     if (!currentWorkspaceId) return;
@@ -149,7 +190,7 @@ export default function TrashRoute() {
         <View className="flex-1 items-center justify-center">
           <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
         </View>
-      ) : pages.length === 0 ? (
+      ) : pages.length === 0 && databases.length === 0 ? (
         <View className="flex-1 items-center justify-center px-6">
           <EmptyState
             // icon: Trash2
@@ -165,6 +206,21 @@ export default function TrashRoute() {
               onRestore={() => handleRestore(page)}
               onHardDelete={() => void handleHardDelete(page)}
               canHardDelete={isOwner || page.ownerId === user?.id}
+            />
+          ))}
+          {databases.length > 0 ? (
+            <Text className="mb-2 mt-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {t('trash.databases')}
+            </Text>
+          ) : null}
+          {databases.map((database) => (
+            <TrashedDatabaseRow
+              key={database.id}
+              database={database}
+              onRestore={() => restoreDatabase(database)}
+              onHardDelete={() => void hardDeleteDatabase(database)}
+              // Deleting a database for good is its workspace owner's (the API's rule).
+              canHardDelete={isOwner}
             />
           ))}
         </ScrollView>
@@ -213,6 +269,58 @@ function TrashRow({ page, onRestore, onHardDelete, canHardDelete }: TrashRowProp
                 stopPropagation
                 onPress={onHardDelete}
                 accessibilityLabel={t('trash.deletePagePermanently')}
+                leadingIcon={RiDeleteBin6Line}
+              >
+                {t('common.delete')}
+              </Button>
+            ) : null}
+          </View>
+        }
+      />
+    </View>
+  );
+}
+
+interface TrashedDatabaseRowProps {
+  database: Database;
+  onRestore: () => void;
+  onHardDelete: () => void;
+  canHardDelete: boolean;
+}
+
+function TrashedDatabaseRow({
+  database,
+  onRestore,
+  onHardDelete,
+  canHardDelete,
+}: TrashedDatabaseRowProps) {
+  const { t } = useTranslation();
+  const name = database.name.trim() || t('databases.untitledDatabase');
+  return (
+    <View className="mb-2 rounded-md border border-border/40">
+      <Item
+        density="compact"
+        leading={<IconDisplay value={database.icon} size={20} showPlaceholder />}
+        title={name}
+        subtitle={t('trash.archivedAt', { date: formatTime(database.updatedAt) })}
+        trailing={
+          <View className="flex-row items-center gap-2">
+            <Button
+              appearance="outline"
+              size="sm"
+              onPress={onRestore}
+              accessibilityLabel={t('trash.restoreDatabase', { name })}
+              leadingIcon={RiArrowGoBackLine}
+            >
+              {t('trash.restore')}
+            </Button>
+            {canHardDelete ? (
+              <Button
+                appearance="outline"
+                tone="danger"
+                size="sm"
+                onPress={onHardDelete}
+                accessibilityLabel={t('trash.deleteDatabasePermanently', { name })}
                 leadingIcon={RiDeleteBin6Line}
               >
                 {t('common.delete')}

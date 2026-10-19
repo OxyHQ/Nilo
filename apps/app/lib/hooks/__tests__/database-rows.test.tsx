@@ -5,6 +5,7 @@ import { useDatabaseRows, useUpdateRow } from '../use-database-rows';
 import { invalidateLiveQueries } from '@/lib/realtime/use-live-updates';
 import { queryKeys } from '../query-keys';
 import { useVisibleDatesStore } from '@/lib/stores/visible-dates-store';
+import { useViewSearchStore } from '@/lib/stores/view-search-store';
 import { visibleDatesFilter } from '@/lib/visible-dates';
 import type { DatabaseRowsResponse, DatabaseViewType } from '@/lib/types/databases';
 
@@ -42,6 +43,7 @@ async function mount() {
 beforeEach(() => {
   jest.clearAllMocks();
   useVisibleDatesStore.setState({ byView: {} });
+  useViewSearchStore.setState({ byView: {} });
   type = 'table';
   client = new QueryClient({
     defaultOptions: {
@@ -70,7 +72,7 @@ afterEach(() => {
 });
 
 it.each(['table', 'list', 'gallery', 'board'] as const)(
-  '%s fetches 100 initially and only fetches more on demand',
+  '%s fetches its load limit initially and only fetches more on demand',
   async (viewType) => {
     type = viewType;
     await mount();
@@ -79,7 +81,8 @@ it.each(['table', 'list', 'gallery', 'board'] as const)(
     expect(apiClient.get).toHaveBeenCalledTimes(1);
     expect(apiClient.get).toHaveBeenCalledWith(
       '/databases/db/rows',
-      expect.objectContaining({ params: { viewId: 'view', pageSize: '100' } }),
+      // No page size: the API reads the view's own (its load limit).
+      expect.objectContaining({ params: { viewId: 'view' } }),
     );
     await act(async () => {
       await rows.fetchNextPage();
@@ -88,7 +91,7 @@ it.each(['table', 'list', 'gallery', 'board'] as const)(
     expect(rows.data?.rows).toHaveLength(200);
     expect(apiClient.get).toHaveBeenLastCalledWith(
       '/databases/db/rows',
-      expect.objectContaining({ params: { viewId: 'view', pageSize: '100', cursor: '100' } }),
+      expect.objectContaining({ params: { viewId: 'view', cursor: '100' } }),
     );
     await act(async () => {
       await rows.fetchNextPage();
@@ -190,4 +193,32 @@ it('updates a row on a later cached page optimistically, preserving properties, 
     properties: { original: { text: 'kept' } },
   });
   expect(rows.data?.rows).toHaveLength(200);
+});
+
+it('reads the rows a view is searched for, showing the last ones until they come', async () => {
+  await mount();
+  let resolve!: (value: unknown) => void;
+  jest.mocked(apiClient.get).mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done;
+      }),
+  );
+  act(() => useViewSearchStore.getState().search('view', '  Row 7 '));
+  await tick();
+  expect(apiClient.get).toHaveBeenLastCalledWith(
+    '/databases/db/rows',
+    expect.objectContaining({ params: { viewId: 'view', search: 'Row 7' } }),
+  );
+  expect(rows.data?.rows).toHaveLength(100);
+  await act(async () =>
+    resolve({
+      data: { rows: [{ id: 'row-7', title: 'Row 7', properties: {} }], cursor: null, total: 1 },
+    }),
+  );
+  await tick();
+  expect(rows.data?.rows.map((r) => r.id)).toEqual(['row-7']);
+  act(() => useViewSearchStore.getState().search('view', ''));
+  await tick();
+  expect(rows.data?.rows).toHaveLength(100);
 });

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOxy } from '@oxy.so/services/ui/client';
 import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
@@ -104,15 +104,59 @@ export function useCreateView() {
   });
 }
 
+type ViewsCache = { views: DatabaseView[] } | undefined;
+
+/**
+ * `patch` applied to view `viewId` wherever it is cached (the database's
+ * detail, its views, a linked block's), so a setting shows as changed at
+ * once; the snapshots taken, to restore on failure. A view made the default
+ * demotes the others, as the API does.
+ */
+function patchCachedView(
+  client: QueryClient,
+  databaseId: string,
+  viewId: string,
+  patch: Partial<DatabaseView>,
+): Array<[readonly unknown[], unknown]> {
+  const entries = client.getQueriesData<ViewsCache>({ queryKey: ['database', databaseId] });
+  const snapshots: Array<[readonly unknown[], unknown]> = [];
+  for (const [key, data] of entries) {
+    if (!data || !Array.isArray((data as { views?: unknown }).views)) continue;
+    if (!data.views.some((v) => v.id === viewId)) continue;
+    snapshots.push([key, data]);
+    const views = data.views.map((v) =>
+      v.id === viewId
+        ? { ...v, ...patch }
+        : patch.isDefault && v.blockId === data.views.find((x) => x.id === viewId)?.blockId
+          ? { ...v, isDefault: false }
+          : v,
+    );
+    // Listed by order, as the API lists them: a moved view moves at once.
+    if (patch.order !== undefined) views.sort((a, b) => a.order - b.order);
+    client.setQueryData(key, { ...data, views });
+  }
+  return snapshots;
+}
+
 export function useUpdateView() {
   const queryClient = useQueryClient();
-  return useMutation<DatabaseView, Error, UpdateViewInput>({
+  return useMutation<DatabaseView, Error, UpdateViewInput, Array<[readonly unknown[], unknown]>>({
     mutationFn: async ({ databaseId, viewId, ...patch }) => {
       const res = await apiClient.patch<DatabaseViewResponse>(
         API_ROUTES.databases.updateView(databaseId, viewId),
         patch,
       );
       return res.data.view;
+    },
+    onMutate: async ({ databaseId, viewId, ...patch }) => {
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.databases.detail(databaseId),
+        exact: true,
+      });
+      return patchCachedView(queryClient, databaseId, viewId, patch);
+    },
+    onError: (_error, _input, snapshots) => {
+      for (const [key, data] of snapshots ?? []) queryClient.setQueryData(key, data);
     },
     onSuccess: (view, { databaseId, viewId }) => {
       const key = view.blockId

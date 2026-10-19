@@ -31,6 +31,7 @@ interface UpdateDatabaseInput {
   icon?: string | null;
   cover?: string | null;
   archived?: boolean;
+  locked?: boolean;
 }
 
 /**
@@ -51,6 +52,22 @@ export function useDatabases(workspaceId: string | null) {
       return res.data;
     },
     staleTime: 1000 * 30,
+    enabled: isAuthenticated && Boolean(workspaceId),
+  });
+}
+
+/** The workspace's databases in the trash (archived), for the trash to restore or delete. */
+export function useArchivedDatabases(workspaceId: string | null) {
+  const { isAuthenticated } = useOxy();
+  return useQuery<Database[]>({
+    // Under the list's key, so whatever refreshes the list refreshes this.
+    queryKey: [...queryKeys.databases.list(workspaceId), 'archived'],
+    queryFn: async () => {
+      const res = await apiClient.get<DatabasesListResponse>(API_ROUTES.databases.list, {
+        params: { workspaceId, includeArchived: 'true' },
+      });
+      return res.data.databases.filter((d) => d.archived);
+    },
     enabled: isAuthenticated && Boolean(workspaceId),
   });
 }
@@ -159,10 +176,13 @@ export function useDeleteDatabase() {
         params: hard ? { hard: 'true' } : undefined,
       });
     },
-    onSuccess: (_data, { workspaceId }) => {
+    onSuccess: (_data, { id, workspaceId, hard }) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.databases.list(workspaceId),
       });
+      // Trashed, it reads as archived; deleted, as nothing.
+      if (hard) queryClient.removeQueries({ queryKey: queryKeys.databases.detail(id) });
+      else queryClient.invalidateQueries({ queryKey: queryKeys.databases.detail(id), exact: true });
     },
   });
 }

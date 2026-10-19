@@ -15,6 +15,7 @@ import { FilterBuilder } from './filter-builder';
 import { SortBuilder } from './sort-builder';
 import { AddPropertyButton } from './property-config-modal';
 import { DatabaseCellScopeProvider } from './cell-scope';
+import { ViewSearch } from './view-search';
 
 interface DatabaseViewContainerProps {
   database: Database;
@@ -29,8 +30,11 @@ interface DatabaseViewContainerProps {
 }
 
 /**
- * Wraps the active view with the shared "tools" bar — filter, sort,
- * add-property — and delegates rendering to the matching view component.
+ * Wraps the active view with the shared "tools" bar — search, filter, sort,
+ * add-property, new row — and delegates rendering to the matching view
+ * component. A reader searches; whoever may change the view filters and
+ * sorts it; the database's editors add rows, and properties unless it is
+ * locked, as its own views then are too (a linked view is its block's).
  */
 export function DatabaseViewContainer({
   database,
@@ -44,22 +48,28 @@ export function DatabaseViewContainer({
   isFetchingMore,
 }: DatabaseViewContainerProps) {
   const { t } = useTranslation();
+  const locked = database.locked === true;
+  const viewEditable = !viewsReadOnly && !(locked && !view.blockId);
+  const schemaEditable = !readOnly && !locked;
 
   if (view.type === 'form') return <ViewForm database={database} view={view} readOnly={readOnly} />;
 
   return (
     <DatabaseCellScopeProvider databaseId={database.id}>
       <View className="flex-1">
-        {!viewsReadOnly ? (
-          <View className="flex-row items-center justify-between px-6 py-2 border-b border-border">
-            <View className="flex-row items-center gap-1">
-              <FilterBuilder database={database} view={view} rows={rows} />
-              <SortBuilder database={database} view={view} />
-              {!readOnly ? <AddPropertyButton database={database} /> : null}
-            </View>
-            {!readOnly ? <NewRowMenu databaseId={database.id} /> : null}
+        <View className="flex-row items-center justify-between px-6 py-2 border-b border-border">
+          <View className="flex-row items-center gap-1">
+            <ViewSearch viewId={view.id} />
+            {viewEditable ? (
+              <>
+                <FilterBuilder database={database} view={view} rows={rows} />
+                <SortBuilder database={database} view={view} />
+              </>
+            ) : null}
+            {schemaEditable && !viewsReadOnly ? <AddPropertyButton database={database} /> : null}
           </View>
-        ) : null}
+          {!readOnly && !viewsReadOnly ? <NewRowMenu databaseId={database.id} /> : null}
+        </View>
 
         {total !== undefined ? (
           <Text className="px-4 py-1 text-xs text-muted-foreground">
@@ -76,6 +86,7 @@ export function DatabaseViewContainer({
             <RowsScrollView onLoadMore={onLoadMore}>
               <ViewTable
                 readOnly={readOnly}
+                schemaReadOnly={!schemaEditable || !viewEditable}
                 database={database}
                 view={view}
                 rows={rows}
