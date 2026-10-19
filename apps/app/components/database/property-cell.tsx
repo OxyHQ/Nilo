@@ -16,6 +16,7 @@ import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { DatabaseProperty, PropertyValue, SelectOption } from '@/lib/types/databases';
+import { withStart } from '@/lib/date-values';
 import { SELECT_CHIP_HUE } from './select-color';
 
 export interface PropertyCellProps {
@@ -130,7 +131,8 @@ export function PropertyCell({
         <DateCell
           variant={variant}
           value={readDateStart(value)}
-          onChange={(start) => onChange({ start, end: null, includeTime: false })}
+          // Only the start is edited here: an end and a time it had stay.
+          onChange={(start) => onChange(withStart(value, start))}
         />
       );
     case 'person':

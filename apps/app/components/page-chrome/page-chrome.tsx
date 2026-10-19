@@ -62,20 +62,22 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
   const iconPicker = useDialogControl();
   const coverPicker = useDialogControl();
   const [repositioning, setRepositioning] = React.useState(false);
+  // A locked page, or one in the trash, keeps its icon and cover as they are.
+  const frozen = page.locked || page.archived === true;
 
   const handleIconSelect = React.useCallback(
     (next: string | null) => {
-      if (readOnly || page.locked) return;
+      if (readOnly || frozen) return;
       updatePage.mutate({ id: page.id, icon: next });
     },
-    [page.id, page.locked, readOnly, updatePage],
+    [page.id, frozen, readOnly, updatePage],
   );
   const handleCoverSelect = React.useCallback(
     (next: string | null) => {
-      if (readOnly || page.locked) return;
+      if (readOnly || frozen) return;
       updatePage.mutate({ id: page.id, cover: next, coverPosition: 50 });
     },
-    [page.id, page.locked, readOnly, updatePage],
+    [page.id, frozen, readOnly, updatePage],
   );
 
   const stateValue = React.useMemo<PageChromeState>(
@@ -113,7 +115,7 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
           {children}
         </RepositioningContext.Provider>
 
-        {!readOnly && !page.locked ? (
+        {!readOnly && !frozen ? (
           <>
             <IconPicker control={iconPicker} onSelect={handleIconSelect} />
             <CoverPicker control={coverPicker} onSelect={handleCoverSelect} />

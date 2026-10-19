@@ -1,7 +1,7 @@
 import { useSlashItems } from './slash-items';
 import { DatabasePicker } from './database-picker';
 import { PresenceAvatars } from './presence-avatars';
-import { useCreateDatabase } from '@/lib/hooks/use-databases';
+import { useCreateDatabase, useDeleteDatabase } from '@/lib/hooks/use-databases';
 import { usePage } from '@/lib/hooks/use-pages';
 import { useSearchBlock } from '@/lib/hooks/use-search-block';
 import {
@@ -28,6 +28,13 @@ import { AiDialog } from './ai-dialog';
 import { useAiAvailable } from '@/lib/ai/use-ai';
 
 const paragraph = (): BlockSnapshot => ({ type: 'paragraph', text: [] });
+
+/** What a refused change is told as; any other refusal is the page turning read-only. */
+const REJECTION_MESSAGES: Record<string, string> = {
+  UPDATE_TOO_LARGE: 'editor.status.tooLarge',
+  PAGE_ARCHIVED: 'editor.status.archived',
+  DEVICE_STORE: 'editor.status.deviceStore',
+};
 
 /** Containers that arrive with their structure: two columns, a 2×2 table. */
 const CONTAINERS: Record<string, BlockSnapshot> = {
@@ -56,15 +63,24 @@ function insertContainer(store: EditorStore, id: string, blockId: string): void 
   insertBlockSnapshot(store, snapshot, blockId);
 }
 
+/**
+ * Insert `snapshot` after `blockId`, replacing the block when it is empty.
+ * The block gone meanwhile (a collaborator removed it while a database was
+ * being made for it), the new block goes at the end of the page instead of
+ * nowhere.
+ */
 function insertBlockSnapshot(store: EditorStore, snapshot: BlockSnapshot, blockId: string): void {
-  if (!store.doc.blocks[blockId]) return;
-  const block = getBlock(store.doc, blockId);
-  const empty = (block.text ?? []).every((segment) => !segment.text) && block.children.length === 0;
+  const anchor = store.doc.blocks[blockId] ? blockId : null;
+  const block = anchor ? getBlock(store.doc, anchor) : null;
+  const empty =
+    block !== null &&
+    (block.text ?? []).every((segment) => !segment.text) &&
+    block.children.length === 0;
   store.sealHistory();
   store.run((ctx) =>
     composeCommands(ctx, [
-      (c) => insertSnapshot(c.doc, [snapshot], blockId, c.newId, c.schema),
-      (c) => (empty ? removeBlocks(c, [blockId]) : null),
+      (c) => insertSnapshot(c.doc, [snapshot], anchor, c.newId, c.schema),
+      (c) => (empty && anchor ? removeBlocks(c, [anchor]) : null),
     ]),
   );
 }
@@ -102,6 +118,7 @@ export function PageEditor({
   useSearchBlock(focusedBlockId, true);
   const page = usePage(pageId);
   const createDatabase = useCreateDatabase();
+  const deleteDatabase = useDeleteDatabase();
   const [linkTarget, setLinkTarget] = useState<{ blockId: string; store: EditorStore } | null>(
     null,
   );
@@ -182,6 +199,10 @@ export function PageEditor({
             { type: 'inline_database', props: { databaseId: database.id } },
             blockId,
           );
+        } else {
+          // The page closed or turned read-only meanwhile: no block will show
+          // the database, so it goes to the trash (a hard delete is an owner's).
+          deleteDatabase.mutate({ id: database.id, workspaceId: workspace });
         }
       } catch {
         toast.error(t('editor.inlineDatabase.createFailed'));
@@ -189,14 +210,12 @@ export function PageEditor({
         creatingDatabase.current = false;
       }
     },
-    [store, readOnly, pageId, t, createDatabaseAsync],
+    [store, readOnly, pageId, t, createDatabaseAsync, deleteDatabase.mutate],
   );
 
   useEffect(() => {
     if (!rejected) return;
-    toast.error(
-      t(rejected.code === 'UPDATE_TOO_LARGE' ? 'editor.status.tooLarge' : 'editor.status.rejected'),
-    );
+    toast.error(t(REJECTION_MESSAGES[rejected.code] ?? 'editor.status.rejected'));
   }, [rejected, t]);
 
   if (error) {

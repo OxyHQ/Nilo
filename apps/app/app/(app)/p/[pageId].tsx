@@ -18,7 +18,7 @@ import {
 import { PageEditor } from '@/components/page-editor/page-editor';
 import { ShareButton } from '@/components/sharing';
 import { CommentPanel } from '@/components/comments/comment-panel';
-import { PageChrome, PageHeader } from '@/components/page-chrome';
+import { PageChrome, PageHeader, TrashedPageBanner } from '@/components/page-chrome';
 import { RowPropertiesPanel } from '@/components/database/row-properties-panel';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -137,7 +137,8 @@ function PageDetail({
 
   const page = data.page;
   const canEdit = hasRole(role, 'editor');
-  const contentReadOnly = !canEdit || page.locked;
+  // A page in the trash is read there; restoring it makes it editable again.
+  const contentReadOnly = !canEdit || page.locked || page.archived === true;
 
   const rightHeader = (
     <View className="flex-row items-center gap-2">
@@ -162,6 +163,7 @@ function PageDetail({
   return (
     <PageEditorProvider pageId={pageId} readOnly={contentReadOnly}>
       <PageChrome page={page} readOnly={!canEdit} rightHeader={rightHeader}>
+        {page.archived === true ? <TrashedPageBanner page={page} canEdit={canEdit} /> : null}
         <View className="flex-1 flex-row">
           {page.mode === 'canvas' ? (
             // A canvas fills the page: notes are placed on it, not scrolled through.
@@ -188,7 +190,7 @@ function PageDetail({
             </View>
           ) : (
             <EditorScrollView>
-              <PageHeader page={page} readOnly={!canEdit} />
+              <PageHeader page={page} readOnly={!canEdit || page.archived} />
               <View
                 className={cn('px-6 md:px-10 w-full mx-auto pt-4', !page.fullWidth && 'max-w-3xl')}
               >

@@ -7,6 +7,7 @@ export {
   contentFields,
   defaultContent,
   isBlockType,
+  isSafeUrl,
   normalizeContent,
   SAFE_LINK,
   segmentSchema,

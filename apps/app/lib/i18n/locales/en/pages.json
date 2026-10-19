@@ -335,5 +335,6 @@
     "mode": "Canvas",
     "hint": "Place the page's content as notes on an infinite canvas. Turning it off puts the notes back in order, top to bottom.",
     "failed": "The page's layout could not be changed"
-  }
+  },
+  "inTrash": "This page is in the trash."
 }

@@ -5,7 +5,7 @@ import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { VideoSource } from '@/lib/types/pages';
-import type { BlockComponentProps } from './types';
+import { type BlockComponentProps, blockUrl, typedUrl } from './types';
 
 function detectVideoSource(url: string): VideoSource {
   try {
@@ -63,7 +63,7 @@ function loomEmbed(url: string): string | null {
  */
 export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const url = typeof block.content.url === 'string' ? block.content.url : '';
+  const url = blockUrl(block.content.url);
   const caption = typeof block.content.caption === 'string' ? block.content.caption : '';
   const [urlDraft, setUrlDraft] = React.useState(url);
   const lastBlockId = React.useRef(block.id);
@@ -73,7 +73,7 @@ export function VideoBlock({ block, onChangeContent }: BlockComponentProps) {
   }
 
   const commitUrl = (next: string) => {
-    const trimmed = next.trim();
+    const trimmed = typedUrl(next);
     const source = detectVideoSource(trimmed);
     onChangeContent({ ...block.content, url: trimmed, source });
   };

@@ -8,13 +8,11 @@ import { Platform, ScrollView, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
 import { useRouter } from 'expo-router';
-import { useOxy } from '@oxy.so/services/ui/client';
 import { toast } from '@oxy.so/bloom/toast';
 import { Popover, PopoverTrigger, PopoverContent, PopoverSeparator } from '@oxy.so/bloom/popover';
 import { Button } from '@oxy.so/bloom/button';
 import { Item } from '@oxy.so/bloom/item';
 import { RadioGroup } from '@oxy.so/bloom/radio';
-import { confirm } from '@oxy.so/bloom/surfaces';
 import { Switch } from '@oxy.so/bloom/switch';
 import { Text } from '@oxy.so/bloom/typography';
 import { AiPageAction } from './ai-page-action';
@@ -28,6 +26,7 @@ import { useExportPage } from '@/lib/hooks/use-page-transfer';
 import { ImportPagesDialog } from './import-pages-dialog';
 import type { Page } from '@/lib/types/pages';
 import { MoveToDialog } from './move-to-dialog';
+import { useTrashedPageActions } from './trashed-page';
 
 interface PageActionsMenuProps {
   page: Page;
@@ -50,7 +49,6 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
   const follow = usePageFollow(page.id);
   const setFollow = useSetPageFollow(page.id);
   const { t } = useTranslation();
-  const { user } = useOxy();
   const duplicatePage = useDuplicatePage();
   const updatePage = useUpdatePage();
   const deletePage = useDeletePage();
@@ -61,8 +59,6 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [remindersOpen, setRemindersOpen] = React.useState(false);
   const [moveOpen, setMoveOpen] = React.useState(false);
-
-  const isOwner = user?.id === page.ownerId;
 
   const handleDuplicate = React.useCallback(() => {
     duplicatePage.mutate(
@@ -122,31 +118,7 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
     );
   }, [deletePage, page.id, page.workspaceId, router, t]);
 
-  const handleRestore = React.useCallback(() => {
-    updatePage.mutate(
-      { id: page.id, archived: false },
-      {
-        onSuccess: () => {
-          toast.success(t('pages.toasts.restored'));
-        },
-      },
-    );
-  }, [updatePage, page.id, t]);
-
-  const handleHardDelete = React.useCallback(() => {
-    deletePage.mutate(
-      { id: page.id, workspaceId: page.workspaceId, hard: true },
-      {
-        onSuccess: () => {
-          toast.success(t('pages.toasts.deletedPermanently'));
-          router.replace('/trash');
-        },
-        onError: (err) => {
-          toast.error(err.message || t('pages.toasts.deleteFailed'));
-        },
-      },
-    );
-  }, [deletePage, page.id, page.workspaceId, router, t]);
+  const trashed = useTrashedPageActions(page);
 
   return (
     <>
@@ -343,24 +315,14 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
               </>
             ) : !readOnly ? (
               <>
-                <Action label={t('pages.actions.restoreFromTrash')} onPress={handleRestore} />
-                {isOwner ? (
+                <Action label={t('pages.actions.restoreFromTrash')} onPress={trashed.restore} />
+                {trashed.canDeleteForever ? (
                   <Action
                     label={t('pages.actions.deletePermanently')}
                     destructive
                     onPress={() => {
                       setMenuOpen(false);
-                      void confirm({
-                        title: t('pages.deleteDialog.title'),
-                        description: t('pages.deleteDialog.description', {
-                          title: page.title || t('pages.untitled'),
-                        }),
-                        confirmLabel: t('common.delete'),
-                        cancelLabel: t('common.cancel'),
-                        destructive: true,
-                      }).then((confirmed) => {
-                        if (confirmed) handleHardDelete();
-                      });
+                      void trashed.deleteForever();
                     }}
                   />
                 ) : null}

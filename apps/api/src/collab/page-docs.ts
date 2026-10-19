@@ -118,7 +118,12 @@ export function registerPageDocs(io: Server, socket: Socket): void {
         reply({ ok: false, error: 'Read-only', code: 'READ_ONLY' });
         return;
       }
-      await appendUpdate(getDb(), { pageId, update: change, actorId: data.userId });
+      await appendUpdate(getDb(), {
+        pageId,
+        update: change,
+        actorId: data.userId,
+        byEditor: true,
+      });
       broadcastDocUpdate(io, pageId, change, socket.id);
       scheduleProjection(pageId);
       reply({ ok: true });

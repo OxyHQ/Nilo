@@ -100,7 +100,8 @@ router.post('/pages/:pageId/doc', async (req: Request, res: Response) => {
       .parse(req.body ?? {});
     const db = getDb();
     const page = await findPageById(db, params.pageId);
-    if (!page || page.archived) {
+    // A page in the trash can still be read.
+    if (!page) {
       res.status(404).json({ error: 'Page not found' });
       return;
     }
@@ -144,6 +145,10 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
       return;
     }
     if (!(await checkPageAccess(req, res, db, page.id, 'editor'))) return;
+    if (page.archived) {
+      res.status(409).json({ error: 'The page is in the trash', code: 'PAGE_ARCHIVED' });
+      return;
+    }
     await applyBlockTransaction(db, {
       pageId: page.id,
       ops: body.ops,

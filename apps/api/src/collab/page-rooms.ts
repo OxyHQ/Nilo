@@ -57,7 +57,8 @@ export function registerPageRooms(io: Server, socket: Socket): void {
       }
       const db = getDb();
       const page = await findPageById(db, pageId);
-      if (!page || page.archived) {
+      // A page in the trash is joined to be read; `doc:update` refuses it.
+      if (!page) {
         reply({ ok: false, error: 'Page not found' });
         return;
       }

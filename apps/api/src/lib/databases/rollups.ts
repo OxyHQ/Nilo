@@ -3,6 +3,7 @@ import type { DatabaseProperty, DatabaseSchema } from '../../db/schema/databases
 import type { PageProperties } from '../../db/schema/pages.js';
 import { findDatabaseById } from '../../repositories/databases.js';
 import { findPagesByIds } from '../../repositories/pages.js';
+import { resolveDatabaseRole } from '../page-access.js';
 
 /**
  * Rollup values for rows of one database.
@@ -15,6 +16,10 @@ import { findPagesByIds } from '../../repositories/pages.js';
  *
  * `null` when a rollup cannot be resolved (missing config, missing target
  * database…) so the UI can render an em-dash placeholder.
+ *
+ * The related rows are those of the relation's configured target database,
+ * and only when `viewerId` can open it: a rollup must not show what is read
+ * from a database its reader has no access to.
  *
  * Batched: per rollup property, the related rows of every row are read in one
  * query and the target database once — a view of a thousand rows used to read
@@ -80,43 +85,54 @@ export async function resolveRollups(
   handle: PgHandle,
   schema: DatabaseSchema,
   rows: readonly RowLike[],
+  viewerId: string | null,
 ): Promise<Map<string, Map<string, RollupValue>>> {
   const out = new Map<string, Map<string, RollupValue>>(rows.map((r) => [r.id, new Map()]));
+  // A target database is read, and its access checked, once per call.
+  const targets = new Map<string, Awaited<ReturnType<typeof findDatabaseById>>>();
+  const readableTarget = async (id: string) => {
+    if (!targets.has(id)) {
+      const db = await findDatabaseById(handle, id);
+      const readable =
+        db && !db.archived && viewerId ? await resolveDatabaseRole(handle, viewerId, db) : null;
+      targets.set(id, readable ? db : null);
+    }
+    return targets.get(id) ?? null;
+  };
   for (const property of schema.properties) {
     if (property.type !== 'rollup') continue;
     const config = property.config;
     const set = (rowId: string, value: RollupValue) => out.get(rowId)?.set(property.id, value);
-    if (!config?.relationPropertyId || !config.function || !config.targetPropertyId) {
+    const relation = schema.properties.find(
+      (p) => p.id === config?.relationPropertyId && p.type === 'relation',
+    );
+    const targetDbId = relation?.config?.targetDatabaseId;
+    const needsTarget = config?.function !== 'count';
+    const targetDb = targetDbId ? await readableTarget(targetDbId) : null;
+    const target = targetDb?.propertiesSchema.properties.find(
+      (p) => p.id === config?.targetPropertyId,
+    );
+    if (!config?.function || !relation || !targetDb || (needsTarget && !target)) {
       for (const row of rows) set(row.id, null);
       continue;
     }
-    const idsByRow = new Map(
-      rows.map((r) => [r.id, relatedIds(r, config.relationPropertyId as string)]),
-    );
-    if (config.function === 'count') {
-      for (const row of rows) {
-        const ids = idsByRow.get(row.id);
-        set(row.id, ids === null || ids === undefined ? null : ids.length);
-      }
-      continue;
-    }
+    const idsByRow = new Map(rows.map((r) => [r.id, relatedIds(r, relation.id)]));
     const wanted = [...new Set([...idsByRow.values()].flatMap((ids) => ids ?? []))];
     const related =
       wanted.length > 0 ? await findPagesByIds(handle, wanted, { archived: false }) : [];
     const byId = new Map(related.map((r) => [r.id, r]));
-    // The related rows' database (one relation points into one database).
-    const targetDbId = related[0]?.databaseId;
-    const targetDb = targetDbId ? await findDatabaseById(handle, targetDbId) : null;
-    const target = targetDb?.propertiesSchema.properties.find(
-      (p) => p.id === config.targetPropertyId,
-    );
     for (const row of rows) {
-      const ids = idsByRow.get(row.id) ?? [];
-      const rowRelated = ids.flatMap((id) => {
+      const ids = idsByRow.get(row.id);
+      // `count` counts the live related rows, as every other function reads them.
+      const rowRelated = (ids ?? []).flatMap((id) => {
         const found = byId.get(id);
-        return found && found.databaseId === targetDbId ? [found] : [];
+        return found && found.databaseId === targetDb.id ? [found] : [];
       });
-      set(row.id, target ? computeRollup(config.function, target, rowRelated) : null);
+      if (config.function === 'count') {
+        set(row.id, ids === null || ids === undefined ? null : rowRelated.length);
+      } else {
+        set(row.id, target ? computeRollup(config.function, target, rowRelated) : null);
+      }
     }
   }
   return out;

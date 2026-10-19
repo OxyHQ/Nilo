@@ -33,7 +33,7 @@ import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import express from 'express';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { uuidv7 } from '@oxy.so/db';
 import {
   closeTestDb,
@@ -46,6 +46,7 @@ import { blocks, pages } from '../../db/schema/pages.js';
 import { databases } from '../../db/schema/databases.js';
 import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
 import { closeDb } from '../../db/client.js';
+import { deleteArchivedPages } from '../../repositories/pages.js';
 // Type-only, and from the PostgreSQL schema that owns the role declaration used
 // by the `Express.Request` augmentation in `middleware/auth.ts`. `vi.mock`
 // replaces a module at runtime and leaves its types alone.
@@ -605,14 +606,14 @@ describe('PATCH /pages/:id', () => {
       expect(updated.properties.name).toEqual({ text: 'new' });
     });
 
-    it('skips a property the database schema does not declare', async () => {
+    it('refuses a property the database schema does not declare, and stores nothing', async () => {
       const res = await api('PATCH', `/pages/${rowId}`, {
-        properties: { nosuch: { text: 'ignored' } },
+        properties: { nosuch: { text: 'refused' } },
       });
-      expect(res.status).toBe(200);
-      expect(
-        (res.json.page as { properties: Record<string, unknown> }).properties,
-      ).not.toHaveProperty('nosuch');
+      expect(res.status).toBe(400);
+      expect(res.json.code).toBe('UNKNOWN_PROPERTY');
+      const [row] = await db.select().from(pages).where(eq(pages.id, rowId));
+      expect(row?.properties).not.toHaveProperty('nosuch');
     });
   });
 });
@@ -655,6 +656,76 @@ describe('DELETE /pages/:id', () => {
       .from(blocks)
       .where(eq(blocks.pageId, grandchild.id as string));
     expect(orphanBlocks).toHaveLength(0);
+  });
+
+  it('takes the subpages to the trash with their page, and brings them back with it', async () => {
+    const root = await createPage({ title: 'root' });
+    const child = await createPage({ parentId: root.id });
+    const grandchild = await createPage({ parentId: child.id });
+    // A subpage trashed on its own before stays its own entry in the trash.
+    const earlier = await createPage({ parentId: root.id });
+    expect((await api('DELETE', `/pages/${earlier.id}`)).status).toBe(200);
+
+    expect((await api('DELETE', `/pages/${root.id}`)).status).toBe(200);
+    const state = async () =>
+      new Map(
+        (
+          await db
+            .select({ id: pages.id, archived: pages.archived, archivedWith: pages.archivedWith })
+            .from(pages)
+            .where(inArray(pages.id, [root.id, child.id, grandchild.id, earlier.id] as string[]))
+        ).map((p) => [p.id, p]),
+      );
+    let now = await state();
+    expect(now.get(child.id as string)).toMatchObject({ archived: true, archivedWith: root.id });
+    expect(now.get(grandchild.id as string)).toMatchObject({
+      archived: true,
+      archivedWith: root.id,
+    });
+    expect(now.get(earlier.id as string)).toMatchObject({ archived: true, archivedWith: null });
+
+    // The trash lists what was trashed, not what went with it.
+    const trash = await api('GET', `/pages?workspaceId=${workspaceId}&archivedOnly=true`);
+    const listed = (trash.json.pages as { id: string }[]).map((p) => p.id);
+    expect(listed).toEqual(expect.arrayContaining([root.id, earlier.id]));
+    expect(listed).not.toContain(child.id);
+
+    expect((await api('PATCH', `/pages/${root.id}`, { archived: false })).status).toBe(200);
+    now = await state();
+    for (const id of [root.id, child.id, grandchild.id]) {
+      expect(now.get(id as string)).toMatchObject({ archived: false, archivedWith: null });
+    }
+    expect(now.get(earlier.id as string)?.archived).toBe(true);
+  });
+
+  it('restores a subpage on its own to the top, out from under its trashed page', async () => {
+    const root = await createPage({ title: 'root' });
+    const child = await createPage({ parentId: root.id });
+    await api('PATCH', `/pages/${child.id}`, { archived: true });
+    await api('PATCH', `/pages/${root.id}`, { archived: true });
+    const restored = await api('PATCH', `/pages/${child.id}`, { archived: false });
+    expect(restored.status).toBe(200);
+    expect(restored.json.page).toMatchObject({ archived: false, parentId: null });
+  });
+
+  it('empties the trash of a page and its subpages, leaving no orphan behind', async () => {
+    const scope = testScope('routes-trash');
+    const [ws] = await db
+      .insert(workspaces)
+      .values({ name: scope, ownerId: `owner-${scope}` })
+      .returning({ id: workspaces.id });
+    await db
+      .insert(workspaceMembers)
+      .values({ workspaceId: ws.id, userId: ctx.userId, role: 'owner' });
+    const mk = async (input: Record<string, unknown>) =>
+      ((await api('POST', '/pages', { workspaceId: ws.id, ...input })).json.page as { id: string })
+        .id;
+    const root = await mk({ title: 'root' });
+    const child = await mk({ parentId: root });
+    await api('DELETE', `/pages/${root}`);
+    await deleteArchivedPages(db, ws.id);
+    const left = await db.select().from(pages).where(eq(pages.workspaceId, ws.id));
+    expect(left.map((p) => p.id)).not.toContain(child);
   });
 
   it('403s a hard delete for a non-owner', async () => {
@@ -1016,6 +1087,24 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
     const byId = new Map(rows.map((r) => [r.id, r]));
     expect(byId.get(child)?.parentBlockId).toBe(parent);
     expect(byId.get(child)?.content).toMatchObject({ text: 'hi' });
+  });
+
+  it('refuses a page in the trash', async () => {
+    const page = await createPage();
+    await api('DELETE', `/pages/${page.id}`);
+    const res = await tx(page.id, [
+      {
+        kind: 'insert',
+        id: uuidv7(),
+        parentBlockId: null,
+        type: 'paragraph',
+        afterId: null,
+        content: {},
+      },
+    ]);
+    expect(res.status).toBe(409);
+    expect(res.json.code).toBe('PAGE_ARCHIVED');
+    expect(await rowsOf(page.id as string)).toHaveLength(0);
   });
 
   it('updates, moves and removes a subtree', async () => {

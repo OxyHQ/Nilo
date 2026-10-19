@@ -51,6 +51,7 @@ jest.mock('../move-to-dialog', () => ({ MoveToDialog: () => null }));
 jest.mock('@oxy.so/bloom/surfaces', () => ({ confirm: jest.fn().mockResolvedValue(true) }));
 jest.mock('../breadcrumb', () => ({ Breadcrumb: () => null }));
 jest.mock('../favorite-button', () => ({ FavoriteButton: () => null }));
+jest.mock('@/lib/hooks/use-workspaces', () => ({ useWorkspaceRole: () => 'owner' }));
 jest.mock('../cover-display', () => ({ CoverDisplay: () => null }));
 jest.mock('../icon-display', () => ({ IconDisplay: () => null }));
 jest.mock('../icon-picker', () => ({ IconPicker: jest.fn(() => null) }));
