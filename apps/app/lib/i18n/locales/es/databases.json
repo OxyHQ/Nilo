@@ -31,7 +31,10 @@
     "createFailed": "No se pudo crear la vista. Inténtalo de nuevo.",
     "settings": "Ajustes de %{name}",
     "updateFailed": "No se pudo actualizar la vista.",
-    "deleteFailed": "No se pudo eliminar la vista."
+    "deleteFailed": "No se pudo eliminar la vista.",
+    "makeDefault": "Usar como vista predeterminada",
+    "moveLeft": "Mover a la izquierda",
+    "moveRight": "Mover a la derecha"
   },
   "propertyTypes": {
     "text": "Texto",
@@ -74,7 +77,10 @@
       "other": "%{count} páginas"
     },
     "deleteFailed": "No se pudo eliminar la propiedad. Inténtalo de nuevo.",
-    "updateFailed": "No se pudo actualizar la propiedad. Inténtalo de nuevo."
+    "updateFailed": "No se pudo actualizar la propiedad. Inténtalo de nuevo.",
+    "changeType": "Cambiar tipo",
+    "changeTypeTitle": "¿Cambiar a %{type}?",
+    "changeTypeDescription": "Los valores que encajan en el nuevo tipo se convierten; los demás se borran. Los filtros sobre esta propiedad se quitan de sus vistas."
   },
   "filters": {
     "title": "Filtros",
@@ -131,7 +137,9 @@
     "loadMore": "Cargar más",
     "moveTo": "Mover a",
     "moveCard": "Mover %{title} a otra columna",
-    "longPressHint": "Mantén pulsado para moverla a otra columna"
+    "longPressHint": "Mantén pulsado para moverla a otra columna",
+    "checked": "Marcado",
+    "unchecked": "Sin marcar"
   },
   "gallery": {
     "newCard": "Nueva tarjeta"
@@ -146,14 +154,16 @@
     "rowCount": {
       "one": "%{count} página",
       "other": "%{count} páginas"
-    }
+    },
+    "webOnly": "La vista de calendario solo está disponible en la web en la fase 4. Abre la vista de tabla en el móvil para editar las filas."
   },
   "timeline": {
     "needsDateProperty": "Añade una propiedad de fecha para activar la vista de cronograma.",
     "row": "Fila",
     "earlier": "Antes",
     "later": "Después",
-    "noRows": "No hay páginas en estos días"
+    "noRows": "No hay páginas en estos días",
+    "webOnly": "La vista de cronograma solo está disponible en la web en la fase 4. Abre la vista de tabla en el móvil para ver tus filas."
   },
   "form": {
     "builder": "Editor de formulario",
@@ -415,5 +425,119 @@
   },
   "contact": {
     "edit": "Editar %{property}"
+  },
+  "chrome": {
+    "changeIcon": "Cambiar icono",
+    "addCover": "Añadir portada",
+    "changeCover": "Cambiar portada",
+    "removeCover": "Quitar portada",
+    "saveFailed": "No se pudo guardar la base de datos."
+  },
+  "delete": {
+    "trash": "Mover a la papelera",
+    "trashTitle": "¿Mover a la papelera?",
+    "trashDescription": "«%{name}» y sus filas irán a la papelera, desde donde se puede restaurar.",
+    "trashed": "Movida a la papelera",
+    "hard": "Eliminar definitivamente",
+    "hardTitle": "¿Eliminar definitivamente?",
+    "hardDescription": "«%{name}», sus filas y sus vistas se eliminarán para siempre.",
+    "deleted": "Base de datos eliminada",
+    "failed": "No se pudo eliminar la base de datos."
+  },
+  "lock": {
+    "lock": "Bloquear base de datos",
+    "unlock": "Desbloquear base de datos",
+    "badge": "Bloqueada",
+    "locked": "Base de datos bloqueada: ya no se pueden cambiar sus propiedades ni sus vistas.",
+    "unlocked": "Base de datos desbloqueada",
+    "failed": "No se pudo cambiar el bloqueo."
+  },
+  "search": {
+    "open": "Buscar",
+    "label": "Buscar en esta vista",
+    "placeholder": "Escribe para buscar…",
+    "clear": "Cerrar búsqueda"
+  },
+  "viewSettings": {
+    "title": "Ajustes de la vista",
+    "groupBy": "Agrupar por",
+    "calendarBy": "Mostrar calendario por",
+    "start": "Fecha de inicio",
+    "end": "Fecha de fin",
+    "none": "Ninguna",
+    "cardPreview": "Vista previa de la tarjeta",
+    "pageCover": "Portada de la página",
+    "fitImage": "Ajustar imagen",
+    "freezeUpTo": "Fijar columnas hasta",
+    "loadLimit": "Límite de carga",
+    "rows": {
+      "one": "%{count} fila",
+      "other": "%{count} filas"
+    },
+    "properties": "Propiedades",
+    "show": "Mostrar %{name}",
+    "moveUp": "Subir %{name}",
+    "moveDown": "Bajar %{name}"
+  },
+  "options": {
+    "color": "Color de %{name}",
+    "rename": "Renombrar %{name}",
+    "name": "Nombre de la opción",
+    "moveUp": "Subir %{name}",
+    "moveDown": "Bajar %{name}",
+    "group": "Grupo"
+  },
+  "statusGroups": {
+    "todo": "Por hacer",
+    "in_progress": "En curso",
+    "complete": "Completado"
+  },
+  "numberFormat": {
+    "title": "Formato de número",
+    "format": "Formato",
+    "precision": "Decimales",
+    "defaultPrecision": "Predeterminado",
+    "example": "Se muestra como %{value}",
+    "formats": {
+      "number": "Número",
+      "number_with_commas": "Número con separadores",
+      "percent": "Porcentaje",
+      "currency_USD": "Dólar estadounidense",
+      "currency_EUR": "Euro",
+      "currency_GBP": "Libra esterlina",
+      "currency_JPY": "Yen"
+    }
+  },
+  "dateFormat": {
+    "title": "Formato de fecha y hora",
+    "format": "Formato de fecha",
+    "includeTime": "Incluir hora",
+    "formats": {
+      "full": "Fecha completa",
+      "short": "Fecha corta",
+      "month_day_year": "Mes/Día/Año",
+      "day_month_year": "Día/Mes/Año",
+      "iso": "Año-Mes-Día",
+      "relative": "Relativa"
+    }
+  },
+  "rollup": {
+    "configure": "Editar rollup",
+    "relation": "Relación",
+    "property": "Propiedad",
+    "function": "Calcular",
+    "noRelation": "Añade antes una relación: un rollup lee las filas que enlaza.",
+    "functions": {
+      "count": "Contar todo",
+      "sum": "Suma",
+      "avg": "Media",
+      "min": "Mínimo",
+      "max": "Máximo",
+      "earliest": "Fecha más antigua",
+      "latest": "Fecha más reciente",
+      "show_original": "Mostrar original",
+      "percent_empty": "Porcentaje vacío",
+      "percent_not_empty": "Porcentaje no vacío"
+    }
   }
 }

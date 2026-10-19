@@ -25,6 +25,7 @@ jest.mock('@/lib/hooks/use-database-properties', () => ({
   useUpdateProperty: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useDeleteProperty: () => ({ mutateAsync: mockDelete, isPending: false }),
 }));
+jest.mock('@/lib/hooks/use-databases', () => ({ useDatabase: () => ({ data: undefined }) }));
 jest.mock('@/lib/hooks/use-database-views', () => ({
   useUpdateView: () => ({ mutateAsync: jest.fn() }),
 }));

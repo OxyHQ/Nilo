@@ -66,6 +66,7 @@ export const API_ROUTES = {
     addProperty: (id: string) => `/databases/${id}/properties`,
     updateProperty: (id: string, propertyId: string) => `/databases/${id}/properties/${propertyId}`,
     deleteProperty: (id: string, propertyId: string) => `/databases/${id}/properties/${propertyId}`,
+    reorderProperties: (id: string) => `/databases/${id}/properties/order`,
     listRows: (id: string) => `/databases/${id}/rows`,
     createRow: (id: string) => `/databases/${id}/rows`,
     getRow: (id: string, rowId: string) => `/databases/${id}/rows/${rowId}`,

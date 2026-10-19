@@ -31,7 +31,10 @@
     "createFailed": "Could not create the view. Please try again.",
     "settings": "Settings for %{name}",
     "updateFailed": "Could not update the view.",
-    "deleteFailed": "Could not delete the view."
+    "deleteFailed": "Could not delete the view.",
+    "makeDefault": "Make default view",
+    "moveLeft": "Move left",
+    "moveRight": "Move right"
   },
   "propertyTypes": {
     "text": "Text",
@@ -74,7 +77,10 @@
       "other": "%{count} pages"
     },
     "deleteFailed": "Could not delete the property. Try again.",
-    "updateFailed": "Could not update the property. Try again."
+    "updateFailed": "Could not update the property. Try again.",
+    "changeType": "Change type",
+    "changeTypeTitle": "Change to %{type}?",
+    "changeTypeDescription": "Values that fit the new type are converted; the others are cleared. Filters on this property are removed from its views."
   },
   "filters": {
     "title": "Filters",
@@ -131,7 +137,9 @@
     "loadMore": "Load more",
     "moveTo": "Move to",
     "moveCard": "Move %{title} to another column",
-    "longPressHint": "Long press to move it to another column"
+    "longPressHint": "Long press to move it to another column",
+    "checked": "Checked",
+    "unchecked": "Unchecked"
   },
   "gallery": {
     "newCard": "New card"
@@ -146,14 +154,16 @@
     "rowCount": {
       "one": "%{count} page",
       "other": "%{count} pages"
-    }
+    },
+    "webOnly": "Calendar view is web-only in Phase 4. Open the table view on native to edit rows."
   },
   "timeline": {
     "needsDateProperty": "Add a date property to enable the timeline view.",
     "row": "Row",
     "earlier": "Earlier",
     "later": "Later",
-    "noRows": "No pages in these days"
+    "noRows": "No pages in these days",
+    "webOnly": "Timeline view is web-only in Phase 4. Open the table view on native to see your rows."
   },
   "form": {
     "builder": "Form builder",
@@ -415,5 +425,119 @@
   },
   "contact": {
     "edit": "Edit %{property}"
+  },
+  "chrome": {
+    "changeIcon": "Change icon",
+    "addCover": "Add cover",
+    "changeCover": "Change cover",
+    "removeCover": "Remove cover",
+    "saveFailed": "Could not save the database."
+  },
+  "delete": {
+    "trash": "Move to trash",
+    "trashTitle": "Move to trash?",
+    "trashDescription": "“%{name}” and its rows go to the trash, where it can be restored.",
+    "trashed": "Moved to trash",
+    "hard": "Delete permanently",
+    "hardTitle": "Delete permanently?",
+    "hardDescription": "“%{name}”, its rows and its views will be removed forever.",
+    "deleted": "Database deleted",
+    "failed": "Could not delete the database."
+  },
+  "lock": {
+    "lock": "Lock database",
+    "unlock": "Unlock database",
+    "badge": "Locked",
+    "locked": "Database locked: its properties and views can no longer be changed.",
+    "unlocked": "Database unlocked",
+    "failed": "Could not change the lock."
+  },
+  "search": {
+    "open": "Search",
+    "label": "Search this view",
+    "placeholder": "Type to search…",
+    "clear": "Close search"
+  },
+  "viewSettings": {
+    "title": "View settings",
+    "groupBy": "Group by",
+    "calendarBy": "Show calendar by",
+    "start": "Start date",
+    "end": "End date",
+    "none": "None",
+    "cardPreview": "Card preview",
+    "pageCover": "Page cover",
+    "fitImage": "Fit image",
+    "freezeUpTo": "Freeze columns up to",
+    "loadLimit": "Load limit",
+    "rows": {
+      "one": "%{count} row",
+      "other": "%{count} rows"
+    },
+    "properties": "Properties",
+    "show": "Show %{name}",
+    "moveUp": "Move %{name} up",
+    "moveDown": "Move %{name} down"
+  },
+  "options": {
+    "color": "Color of %{name}",
+    "rename": "Rename %{name}",
+    "name": "Option name",
+    "moveUp": "Move %{name} up",
+    "moveDown": "Move %{name} down",
+    "group": "Group"
+  },
+  "statusGroups": {
+    "todo": "To-do",
+    "in_progress": "In progress",
+    "complete": "Complete"
+  },
+  "numberFormat": {
+    "title": "Number format",
+    "format": "Format",
+    "precision": "Decimal places",
+    "defaultPrecision": "Default",
+    "example": "Shows as %{value}",
+    "formats": {
+      "number": "Number",
+      "number_with_commas": "Number with commas",
+      "percent": "Percent",
+      "currency_USD": "US dollar",
+      "currency_EUR": "Euro",
+      "currency_GBP": "Pound sterling",
+      "currency_JPY": "Yen"
+    }
+  },
+  "dateFormat": {
+    "title": "Date format & time",
+    "format": "Date format",
+    "includeTime": "Include time",
+    "formats": {
+      "full": "Full date",
+      "short": "Short date",
+      "month_day_year": "Month/Day/Year",
+      "day_month_year": "Day/Month/Year",
+      "iso": "Year-Month-Day",
+      "relative": "Relative"
+    }
+  },
+  "rollup": {
+    "configure": "Edit rollup",
+    "relation": "Relation",
+    "property": "Property",
+    "function": "Calculate",
+    "noRelation": "Add a relation first: a rollup reads the rows it links.",
+    "functions": {
+      "count": "Count all",
+      "sum": "Sum",
+      "avg": "Average",
+      "min": "Min",
+      "max": "Max",
+      "earliest": "Earliest date",
+      "latest": "Latest date",
+      "show_original": "Show original",
+      "percent_empty": "Percent empty",
+      "percent_not_empty": "Percent not empty"
+    }
   }
 }

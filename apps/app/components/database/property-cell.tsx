@@ -26,6 +26,7 @@ import type {
   SelectOption,
 } from '@/lib/types/databases';
 import { formatDateValue } from '@/lib/date-values';
+import { formatNumberValue } from '@/lib/number-format';
 import { SELECT_CHIP_HUE } from './select-color';
 
 export interface PropertyCellProps {
@@ -205,7 +206,7 @@ function PropertyValueText({
       display = readText(value);
       break;
     case 'number':
-      display = formatNumber(readNumber(value), property);
+      display = formatNumberValue(readNumber(value), property.config, locale);
       break;
     case 'url':
     case 'email':
@@ -379,6 +380,9 @@ interface NumberCellProps extends CellVariantProps {
 
 function NumberCell({ property, value, autoFocus, onChange, variant }: NumberCellProps) {
   const { colors } = useColorScheme();
+  const { locale } = useTranslation();
+  // The number as typed while it is edited, as its format shows it otherwise.
+  const [focused, setFocused] = React.useState(false);
   const [draft, setDraft] = React.useState(value === null ? '' : String(value));
   React.useEffect(() => {
     setDraft(value === null ? '' : String(value));
@@ -398,15 +402,19 @@ function NumberCell({ property, value, autoFocus, onChange, variant }: NumberCel
     }
   };
 
-  const displayValue = formatNumber(value, property);
+  const displayValue = formatNumberValue(value, property.config, locale);
 
   return (
     <View className="flex-row items-center">
       {variant === 'table' ? (
         <TextInput
-          value={draft}
+          value={focused || draft !== (value === null ? '' : String(value)) ? draft : displayValue}
           onChangeText={setDraft}
-          onBlur={commit}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            commit();
+          }}
           onSubmitEditing={commit}
           autoFocus={autoFocus}
           keyboardType={NUMBER_KEYBOARD}
@@ -455,28 +463,6 @@ function NumberCell({ property, value, autoFocus, onChange, variant }: NumberCel
  * numeric keyboard has both.
  */
 const NUMBER_KEYBOARD = Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric';
-
-function formatNumber(value: number | null, property: DatabaseProperty): string {
-  if (value === null) return '';
-  const format = property.config?.format ?? 'number';
-  const precision = property.config?.precision ?? 2;
-  if (format === 'percent') {
-    return `${(value * 100).toFixed(precision)}%`;
-  }
-  if (format.startsWith('currency:')) {
-    const currency = format.slice('currency:'.length);
-    try {
-      return new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: precision,
-      }).format(value);
-    } catch {
-      return String(value);
-    }
-  }
-  return String(value);
-}
 
 interface CheckboxCellProps {
   label: string;

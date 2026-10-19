@@ -52,6 +52,9 @@ export function ComputedCell({
       display = property.config?.prefix
         ? `${property.config.prefix}-${value.number}`
         : String(value.number);
+    // A rollup's percentages are already 0 to 100.
+    else if (property.type === 'rollup' && property.config?.function?.startsWith('percent_'))
+      display = `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value.number)}%`;
     else {
       const format = property.config?.format;
       display = new Intl.NumberFormat(locale, {
