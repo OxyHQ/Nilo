@@ -17,7 +17,7 @@ export const offlineFiles: OfflineFiles = {
     const dir = folder();
     if (!dir.exists) dir.create({ intermediates: true });
     const temporary = new File(dir, `${name}.tmp`);
-    temporary.write(text);
+    await temporary.write(text);
     temporary.moveSync(new File(dir, name), { overwrite: true });
   },
   async remove(name) {

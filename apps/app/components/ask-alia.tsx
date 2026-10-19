@@ -1,5 +1,4 @@
 import { AliaChatSheet, type AliaChatSheetRef } from '@alia.onl/sdk';
-import { VoiceSession } from '@alia.onl/sdk/voice';
 import { useAuth } from '@oxy.so/services';
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useRef } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -41,7 +40,6 @@ export function AskAliaRoot({ children }: { children: ReactNode }) {
       {canUsePrivateApi && (
         <AliaChatSheet
           ref={chatRef}
-          voiceSession={VoiceSession}
           clientContext={t('alia.clientContext')}
           welcomeSuggestions={welcomeSuggestions}
         />

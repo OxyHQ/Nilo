@@ -302,6 +302,11 @@ jobs:
         with:
           bun-version-file: package.json
 
+      # The Expo SDK 58 CLI needs Node 22.13+ / 24.3+; the runner's default is older.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 

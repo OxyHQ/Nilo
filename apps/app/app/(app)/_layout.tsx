@@ -14,6 +14,7 @@ import { CommandPalette } from '@/components/command-palette';
 import { ShortcutsDialog } from '@/components/shortcuts-dialog';
 import { AskAliaRoot } from '@/components/ask-alia';
 import { NiloSettingsProvider } from '@/components/settings/settings-provider';
+import { APP_SCREENS } from '@/lib/app-screens';
 
 // Routes that handle their own top safe area insets
 const SELF_INSET_ROUTES = new Set(['index']);
@@ -81,7 +82,12 @@ export default function AppLayout() {
             <View className="isolate flex h-auto max-h-screen min-w-0 grow flex-col">
               {/* content-area: relative isolate min-h-0 flex-1 overflow-hidden bg-background */}
               <View className="relative isolate min-h-0 flex-1 overflow-hidden bg-background">
-                <Drawer drawerContent={renderDrawerContent} screenOptions={screenOptions} />
+                <Drawer drawerContent={renderDrawerContent} screenOptions={screenOptions}>
+                  {/* Expo Router 58 renders only declared screens (lib/app-screens.ts). */}
+                  {APP_SCREENS.map((name) => (
+                    <Drawer.Screen key={name} name={name} />
+                  ))}
+                </Drawer>
               </View>
             </View>
           </View>

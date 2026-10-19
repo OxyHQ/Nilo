@@ -10,12 +10,14 @@
 module.exports = {
   preset: 'jest-expo',
   testTimeout: 30_000,
-  // Worklets' own resolver picks its JS (non-.native) runtime, so the real
-  // Reanimated that Bloom's components animate with loads without the native
-  // module.
-  resolver: require.resolve('react-native-worklets/jest/resolver'),
+  // Reanimated's resolver (which wraps Worklets' own) picks the JS (non-.native)
+  // runtime of both, so the real Reanimated that Bloom's components animate
+  // with loads without the native module. Since Reanimated 4.7 its native
+  // initializers run a worklet on the UI runtime at import, so Worklets' resolver
+  // alone is no longer enough.
+  resolver: require.resolve('react-native-reanimated/jest/resolver'),
   // Bloom's sheets and swipeable surfaces are gesture-handler views.
-  setupFiles: ['react-native-gesture-handler/jestSetup'],
+  setupFiles: ['react-native-gesture-handler/jestSetup', '<rootDir>/test-support/jest-setup.js'],
   // As in Metro (metro.config.js): lib0 takes its standard Web Crypto build,
   // which Node provides, not the React Native one that needs expo-random.
   moduleNameMapper: {
