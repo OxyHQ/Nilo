@@ -44,6 +44,13 @@ export interface CommentContent {
   plainText: string;
 }
 
+/** The text an inline comment is on (`comments.anchor`). */
+export interface CommentAnchor {
+  start: number;
+  end: number;
+  quote: string;
+}
+
 export interface CommentRow {
   id: string;
   workspaceId: string;
@@ -52,6 +59,7 @@ export interface CommentRow {
   parentCommentId: string | null;
   authorId: string;
   content: CommentContent;
+  anchor: CommentAnchor | null;
   resolvedAt: Date | null;
   editedAt: Date | null;
   createdAt: Date;
@@ -65,6 +73,7 @@ export interface CreateCommentInput {
   parentCommentId?: string | null;
   authorId: string;
   content: CommentContent;
+  anchor?: CommentAnchor | null;
 }
 
 /** The stored columns, reassembled into the shape every caller expects. */
@@ -80,6 +89,7 @@ function toCommentRow(row: typeof comments.$inferSelect): CommentRow {
       segments: row.contentSegments as CommentSegment[],
       plainText: row.contentPlainText,
     },
+    anchor: row.anchor ?? null,
     resolvedAt: row.resolvedAt,
     editedAt: row.editedAt,
     createdAt: row.createdAt,
@@ -138,6 +148,7 @@ export async function createComment(
       authorId: input.authorId,
       contentSegments: input.content.segments,
       contentPlainText: input.content.plainText,
+      anchor: input.anchor ?? null,
     })
     .returning();
   const row = rows[0];

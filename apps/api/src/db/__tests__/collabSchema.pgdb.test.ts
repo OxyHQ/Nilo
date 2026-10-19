@@ -53,6 +53,7 @@ const EXPECTED_COLUMNS: Record<(typeof TABLES)[number], string[]> = {
     'author_id',
     'content_segments',
     'content_plain_text',
+    'anchor',
     'resolved_at',
     'edited_at',
     'created_at',

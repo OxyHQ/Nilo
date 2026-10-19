@@ -14,6 +14,7 @@ import {
   listCommentsByPage,
   setCommentResolvedAt,
   updateCommentContent,
+  type CommentAnchor,
   type CommentContent,
   type CommentSegment,
   type CommentRow,
@@ -29,6 +30,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import { sendNotification } from '../lib/notification-service.js';
 import { log } from '../lib/logger.js';
 import { checkPageAccess, resolvePageAccess } from '../lib/page-access.js';
+import { projectNow } from '../lib/page-projection.js';
 import { follow, listFollowers } from '../repositories/pageFollows.js';
 import { hasRole } from '../db/schema/workspaces.js';
 
@@ -74,11 +76,39 @@ const contentInputSchema = z.object({
   segments: z.array(segmentSchema).min(1, 'Comment must not be empty'),
 });
 
-const createBodySchema = z.object({
-  blockId: objectIdSchema.nullable().optional(),
-  parentCommentId: objectIdSchema.nullable().optional(),
-  content: contentInputSchema,
-});
+/** How much text an inline comment may quote. */
+const MAX_QUOTE_LENGTH = 2000;
+
+/**
+ * The stretch of the block's text an inline comment is on: offsets into its
+ * plain text as the writer saw it, and that text. Readers find the text again
+ * when edits move it (`apps/app/lib/comments/anchor.ts`).
+ */
+const anchorSchema = z
+  .object({
+    start: z.number().int().min(0),
+    end: z.number().int().min(1),
+    quote: z.string().min(1).max(MAX_QUOTE_LENGTH),
+  })
+  .refine((a) => a.end > a.start && a.end - a.start === a.quote.length, {
+    message: 'The quote must be the text between start and end',
+  });
+
+const createBodySchema = z
+  .object({
+    blockId: objectIdSchema.nullable().optional(),
+    parentCommentId: objectIdSchema.nullable().optional(),
+    anchor: anchorSchema.nullable().optional(),
+    content: contentInputSchema,
+  })
+  .refine((body) => !body.anchor || body.blockId, {
+    message: 'An inline comment needs its block',
+    path: ['anchor'],
+  })
+  .refine((body) => !body.anchor || !body.parentCommentId, {
+    message: 'A reply is on its thread, not on text',
+    path: ['anchor'],
+  });
 
 const updateBodySchema = z.object({
   content: contentInputSchema,
@@ -245,6 +275,7 @@ function serializeComment(c: SerializableComment, reactions: readonly ReactionSu
     parentCommentId: c.parentCommentId,
     authorId: c.authorId,
     content: c.content,
+    anchor: c.anchor,
     resolvedAt: c.resolvedAt,
     editedAt: c.editedAt,
     createdAt: c.createdAt,
@@ -494,7 +525,10 @@ router.post('/pages/:pageId/comments', async (req: Request, res: Response) => {
     // Validate block belongs to the same page (if provided).
     let blockId: string | null = null;
     if (body.blockId) {
-      const block = await findBlockById(db, body.blockId);
+      // A block typed a moment ago may not be in the rows yet.
+      const block =
+        (await findBlockById(db, body.blockId)) ??
+        (await projectNow(page.id).then(() => findBlockById(db, body.blockId as string)));
       if (!block) {
         res.status(404).json({ error: 'Block not found' });
         return;
@@ -546,6 +580,8 @@ router.post('/pages/:pageId/comments', async (req: Request, res: Response) => {
       parentCommentId,
       authorId: req.user.id,
       content,
+      // Parsed by `anchorSchema`: every field is there.
+      anchor: (body.anchor as CommentAnchor | null | undefined) ?? null,
     });
 
     // Whoever comments on a page follows it.
