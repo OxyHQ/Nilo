@@ -45,6 +45,7 @@ import {
   rawFileEventBody,
 } from './routes/oxy-file-events.js';
 import pagesRouter from './routes/pages.js';
+import pageVisitsRouter from './routes/page-visits.js';
 import inviteLinksRouter from './routes/invite-links.js';
 import blocksRouter from './routes/blocks.js';
 import databasesRouter from './routes/databases.js';
@@ -190,6 +191,8 @@ app.use(pagePermissionsRouter);
 app.use(blocksRouter);
 app.use(commentsRouter);
 app.use(filesRouter);
+// Before the pages router, whose `/:id` would read `/pages/recent` as a page.
+app.use(pageVisitsRouter);
 app.use('/pages', pagesRouter);
 app.use('/search', searchRouter);
 app.use('/databases', databasesRouter);
