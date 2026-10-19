@@ -961,6 +961,32 @@ describe('GET /pages/:id/export', () => {
     expect(res.text).toContain('- nested');
     expect(res.text).toContain('- [x] done');
   });
+
+  it('keeps a child page block, exports it as its subpage, and removing it leaves the page', async () => {
+    const page = await createPage({ title: 'Parent' });
+    const child = await createPage({ title: 'Minutes', parentId: page.id });
+    const block = await createBlock(page.id as string, {
+      type: 'child_page',
+      content: { pageId: child.id },
+    });
+    expect(block).toMatchObject({ type: 'child_page', content: { pageId: child.id } });
+
+    const md = await api('GET', `/pages/${page.id}/export?format=md`);
+    expect(md.status).toBe(200);
+    expect(md.text).toContain('→ Minutes');
+    const html = await api('GET', `/pages/${page.id}/export?format=html`);
+    expect(html.text).toContain('<p class="page-link">→ Minutes</p>');
+
+    const removed = await api(
+      'POST',
+      `/pages/${page.id}/blocks/transactions`,
+      { ops: [{ kind: 'remove', id: block.id }] },
+      { 'x-workspace-id': workspaceId },
+    );
+    expect(removed.status).toBe(200);
+    const [stored] = await db.select().from(pages).where(eq(pages.id, child.id as string));
+    expect(stored).toMatchObject({ archived: false, parentId: page.id });
+  });
 });
 
 describe('blocks', () => {

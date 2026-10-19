@@ -608,7 +608,8 @@ function renderNodeMarkdown(
     case 'mermaid':
       line = fenced(stringOf(block.content.code), 'mermaid');
       break;
-    case 'link_to_page': {
+    case 'link_to_page':
+    case 'child_page': {
       const title = ctx.pageTitle?.(targetId(block, 'pageId'));
       line = title === undefined ? '' : `${indent}→ ${escapeInline(title || 'Untitled')}`;
       break;
@@ -824,7 +825,8 @@ function renderNodesHtml(blocks: readonly BlockNode[], ctx: RenderContext): stri
           `<pre><code class="language-mermaid">${escapeHtml(stringOf(block.content.code))}</code></pre>`,
         );
         break;
-      case 'link_to_page': {
+      case 'link_to_page':
+      case 'child_page': {
         const title = ctx.pageTitle?.(targetId(block, 'pageId'));
         if (title !== undefined)
           out.push(`<p class="page-link">→ ${escapeHtml(title || 'Untitled')}</p>`);

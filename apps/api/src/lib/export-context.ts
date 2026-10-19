@@ -16,12 +16,12 @@ const MAX_LINKED_PAGES = 100;
 const MAX_DATABASES = 10;
 const MAX_ROWS = 1000;
 
-function targets(tree: readonly BlockNode[], type: string, key: string): string[] {
+function targets(tree: readonly BlockNode[], types: readonly string[], key: string): string[] {
   const ids = new Set<string>();
   const walk = (nodes: readonly BlockNode[]) => {
     for (const node of nodes) {
       const id = node.content[key];
-      if (node.type === type && typeof id === 'string') ids.add(id);
+      if (types.includes(node.type) && typeof id === 'string') ids.add(id);
       walk(node.children);
     }
   };
@@ -38,7 +38,7 @@ export async function exportContext(
   const titles = new Map<string, string>();
   const linked = await findPagesByIds(
     db,
-    targets(tree, 'link_to_page', 'pageId').slice(0, MAX_LINKED_PAGES),
+    targets(tree, ['link_to_page', 'child_page'], 'pageId').slice(0, MAX_LINKED_PAGES),
     { workspaceId: page.workspaceId, archived: false },
   );
   for (const target of linked) {
@@ -46,7 +46,7 @@ export async function exportContext(
   }
 
   const tables = new Map<string, { name: string; table: string[][] }>();
-  for (const id of targets(tree, 'inline_database', 'databaseId').slice(0, MAX_DATABASES)) {
+  for (const id of targets(tree, ['inline_database'], 'databaseId').slice(0, MAX_DATABASES)) {
     const database = await findDatabaseById(db, id);
     if (!database || database.archived || database.workspaceId !== page.workspaceId) continue;
     if (!(await resolveDatabaseRole(db, viewerId, database))) continue;

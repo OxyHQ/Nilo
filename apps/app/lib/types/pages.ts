@@ -100,6 +100,7 @@ export type BlockType =
   // Interactive
   | 'button'
   | 'link_to_page'
+  | 'child_page'
   | 'sync_block'
   | 'breadcrumb'
   | 'table_of_contents'
@@ -143,7 +144,7 @@ export interface Segment {
   text: string;
   mention?: {
     indicator: '@';
-    attributes: { kind: 'page' | 'user'; id: string } | { kind: 'date'; date: string };
+    attributes: { kind: 'page' | 'user'; id: string } | { kind: 'date'; date: string; time?: string };
   };
   bold?: boolean;
   italic?: boolean;

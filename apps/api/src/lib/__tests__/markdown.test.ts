@@ -305,12 +305,16 @@ describe('attachments stored in Nilo', () => {
   const tree = [
     node('image', { fileId: 'f1', url: '', caption: 'Plano del piso' }),
     node('file', { fileId: 'f2', url: '', name: 'informe.pdf' }),
+    node('video', { fileId: 'f3', url: '', source: 'upload', name: 'demo.mp4' }),
+    node('audio', { fileId: 'f4', url: '', name: 'nota.m4a' }),
   ];
 
   it('are named, not linked, in Markdown: their URLs expire', () => {
     const md = blocksToMarkdown(tree, 'Adjuntos');
     expect(md).toContain('*Plano del piso*');
     expect(md).toContain('informe.pdf');
+    expect(md).toContain('demo.mp4');
+    expect(md).toContain('nota.m4a');
     expect(md).not.toMatch(/\]\(/);
   });
 
@@ -318,6 +322,8 @@ describe('attachments stored in Nilo', () => {
     const html = blocksToHtml(tree, 'Adjuntos');
     expect(html).toContain('<em>Plano del piso</em>');
     expect(html).toContain('<p>informe.pdf</p>');
+    expect(html).toContain('<p>demo.mp4</p>');
+    expect(html).toContain('<p>nota.m4a</p>');
     expect(html).not.toContain('<img');
   });
 });
@@ -332,13 +338,16 @@ describe('blocks that point elsewhere, in exports', () => {
     node('mermaid', { code: 'graph TD;\nA-->B;' }),
     node('link_to_page', { pageId: 'seen' }),
     node('link_to_page', { pageId: 'hidden' }),
+    node('child_page', { pageId: 'child' }),
+    node('child_page', { pageId: 'secret-child' }),
     node('inline_database', { databaseId: 'tasks' }),
     node('button', { label: 'Docs', action: 'navigate', url: 'https://example.com' }),
     node('button', { label: 'Bad', action: 'navigate', url: 'javascript:alert(1)' }),
     node('breadcrumb', {}),
   ];
   const context = {
-    pageTitle: (id: string) => (id === 'seen' ? 'Roadmap' : undefined),
+    pageTitle: (id: string) =>
+      id === 'seen' ? 'Roadmap' : id === 'child' ? 'Meeting <notes>' : undefined,
     database: (id: string) =>
       id === 'tasks'
         ? {
@@ -355,6 +364,9 @@ describe('blocks that point elsewhere, in exports', () => {
     const md = blocksToMarkdown(tree, 'Page', context);
     expect(md).toContain('```mermaid\ngraph TD;\nA-->B;\n```');
     expect(md).toContain('→ Roadmap');
+    // A subpage reads as a link to it does; one the reader may not open is left out.
+    expect(md).toContain('→ Meeting <notes>');
+    expect(md).not.toContain('secret-child');
     expect(md).toContain('**Tasks**\n\n| Name | Done |\n| --- | --- |\n| Write \\| test | Yes |');
     expect(md).toContain('[Docs](https://example.com)');
     expect(md).toContain('- Plan\n    - Steps');
@@ -367,6 +379,7 @@ describe('blocks that point elsewhere, in exports', () => {
     const html = blocksToHtml(tree, 'Page', context);
     expect(html).toContain('<code class="language-mermaid">graph TD;\nA--&gt;B;</code>');
     expect(html).toContain('<p class="page-link">→ Roadmap</p>');
+    expect(html).toContain('<p class="page-link">→ Meeting &lt;notes&gt;</p>');
     expect(html).toContain('<figcaption>Tasks</figcaption><table><tr><th>Name</th><th>Done</th>');
     expect(html).toContain('href="https://example.com"');
     expect(html).not.toContain('javascript:');
@@ -376,6 +389,7 @@ describe('blocks that point elsewhere, in exports', () => {
   it('leaves out what it cannot resolve without a context', () => {
     const md = blocksToMarkdown(tree, 'Page');
     expect(md).not.toContain('Roadmap');
+    expect(md).not.toContain('Meeting');
     expect(md).not.toContain('Tasks');
   });
 });

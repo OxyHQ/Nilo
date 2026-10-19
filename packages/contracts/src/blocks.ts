@@ -36,6 +36,7 @@ export const BLOCK_TYPES = [
   'table_cell',
   'button',
   'link_to_page',
+  'child_page',
   'sync_block',
   'breadcrumb',
   'table_of_contents',
@@ -55,7 +56,7 @@ const entityIdSchema = z.string().refine(isEntityId, 'Invalid id');
 
 /**
  * The id a content payload carries when the UI has not chosen a target yet —
- * `link_to_page` before a page is picked, `inline_database` between the block
+ * `link_to_page` before a page is picked, `child_page` before its page exists, `inline_database` between the block
  * being created and its database existing.
  *
  * It survives the move off ObjectIds unchanged because it is a well-formed
@@ -201,8 +202,12 @@ const imageContentSchema = z.object({
 });
 
 const videoSourceSchema = z.enum(['upload', 'youtube', 'vimeo', 'loom', 'other']);
+// An uploaded video or audio holds its attachment's id (`fileId`, as an image
+// does) and is played from a URL minted for each reader; `url` stays empty.
 const videoContentSchema = z.object({
   url: urlField.default(''),
+  fileId: z.string().optional(),
+  name: z.string().optional(),
   source: videoSourceSchema.default('other'),
   caption: z.string().optional(),
   ...styleFields,
@@ -210,6 +215,8 @@ const videoContentSchema = z.object({
 
 const audioContentSchema = z.object({
   url: urlField.default(''),
+  fileId: z.string().optional(),
+  name: z.string().optional(),
   caption: z.string().optional(),
   ...styleFields,
 });
@@ -296,6 +303,15 @@ const buttonContentSchema = z.object({
 });
 
 const linkToPageContentSchema = z.object({
+  pageId: entityIdSchema.default(UNRESOLVED_TARGET_ID),
+  ...styleFields,
+});
+
+/**
+ * A subpage shown in its parent (Notion's "Page" block): the page it opens.
+ * Removing the block leaves the page where it is, a subpage in the sidebar.
+ */
+const childPageContentSchema = z.object({
   pageId: entityIdSchema.default(UNRESOLVED_TARGET_ID),
   ...styleFields,
 });
@@ -421,6 +437,8 @@ export function normalizeContent(type: BlockType, content: unknown): BlockConten
       return buttonContentSchema.parse(incoming);
     case 'link_to_page':
       return linkToPageContentSchema.parse(incoming);
+    case 'child_page':
+      return childPageContentSchema.parse(incoming);
     case 'sync_block':
       return syncBlockContentSchema.parse(incoming);
     case 'breadcrumb':
@@ -488,6 +506,8 @@ function schemaFor(type: BlockType): z.AnyZodObject {
       return buttonContentSchema;
     case 'link_to_page':
       return linkToPageContentSchema;
+    case 'child_page':
+      return childPageContentSchema;
     case 'sync_block':
       return syncBlockContentSchema;
     case 'breadcrumb':
