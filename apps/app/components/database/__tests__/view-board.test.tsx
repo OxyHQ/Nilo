@@ -4,6 +4,14 @@ import { PropertyCell } from '../property-cell';
 import { ViewBoard } from '../view-board';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 
+// The cells read people, files and rows through the API client and Oxy's session.
+jest.mock('@/lib/api/client', () => ({
+  __esModule: true,
+  default: { get: jest.fn(), post: jest.fn() },
+}));
+jest.mock('@oxy.so/services/ui/client', () => ({
+  useOxy: () => ({ isAuthenticated: false, oxyServices: {} }),
+}));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
 }));

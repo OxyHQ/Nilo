@@ -7,6 +7,7 @@ import { Text } from '@oxy.so/bloom/typography';
 import type { Database, DatabaseRow, PropertyValue } from '@/lib/types/databases';
 import { useDatabaseRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { PropertyCell } from './property-cell';
+import { DatabaseCellScopeProvider } from './cell-scope';
 
 interface RowPropertiesPanelProps {
   database: Database;
@@ -41,39 +42,42 @@ export function RowPropertiesPanel({ database, row, readOnly = false }: RowPrope
   const properties = database.schema.properties.filter((p) => p.id !== 'name');
 
   return (
-    <View className="gap-2">
-      {properties.map((property) => (
-        <View key={property.id} className="flex-row items-start gap-3">
-          <View className="w-36">
-            <Text className="text-xs text-muted-foreground py-1">{property.name}</Text>
+    <DatabaseCellScopeProvider databaseId={database.id}>
+      <View className="gap-2">
+        {properties.map((property) => (
+          <View key={property.id} className="flex-row items-start gap-3">
+            <View className="w-36">
+              <Text className="text-xs text-muted-foreground py-1">{property.name}</Text>
+            </View>
+            <View className="flex-1">
+              {property.type === 'formula' && !computedRow ? (
+                computed.isPending ? (
+                  <Loading variant="inline" accessibilityLabel={t('common.loading')} />
+                ) : computed.isError ? (
+                  <Button
+                    appearance="plain"
+                    className="self-start"
+                    onPress={() => {
+                      void computed.refetch();
+                    }}
+                  >
+                    {t('databases.formula.retry')}
+                  </Button>
+                ) : null
+              ) : (
+                <PropertyCell
+                  property={property}
+                  value={(computedRow ?? row).properties[property.id] ?? null}
+                  variant="panel"
+                  rowId={row.id}
+                  readOnly={readOnly}
+                  onChange={(value) => onChange(property.id, value)}
+                />
+              )}
+            </View>
           </View>
-          <View className="flex-1">
-            {property.type === 'formula' && !computedRow ? (
-              computed.isPending ? (
-                <Loading variant="inline" accessibilityLabel={t('common.loading')} />
-              ) : computed.isError ? (
-                <Button
-                  appearance="plain"
-                  className="self-start"
-                  onPress={() => {
-                    void computed.refetch();
-                  }}
-                >
-                  {t('databases.formula.retry')}
-                </Button>
-              ) : null
-            ) : (
-              <PropertyCell
-                property={property}
-                value={(computedRow ?? row).properties[property.id] ?? null}
-                variant="panel"
-                readOnly={readOnly}
-                onChange={(value) => onChange(property.id, value)}
-              />
-            )}
-          </View>
-        </View>
-      ))}
-    </View>
+        ))}
+      </View>
+    </DatabaseCellScopeProvider>
   );
 }

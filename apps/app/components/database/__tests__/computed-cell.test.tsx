@@ -1,3 +1,11 @@
+// The cells read people, files and rows through the API client and Oxy's session.
+jest.mock('@/lib/api/client', () => ({
+  __esModule: true,
+  default: { get: jest.fn(), post: jest.fn() },
+}));
+jest.mock('@oxy.so/services/ui/client', () => ({
+  useOxy: () => ({ isAuthenticated: false, oxyServices: {} }),
+}));
 jest.mock('../relation-cell', () => ({ RelationCell: () => null }));
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';

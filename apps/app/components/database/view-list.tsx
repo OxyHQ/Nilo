@@ -106,6 +106,7 @@ export function ViewList({
                     property={property}
                     value={row.properties[property.id] ?? null}
                     variant="card"
+                    rowId={row.id}
                     onChange={() => router.push(`/p/${row.id}`)}
                   />
                 </View>

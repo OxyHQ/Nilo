@@ -1,5 +1,9 @@
 import { RelationCell } from './relation-cell';
 import { ComputedCell } from './computed-cell';
+import { ContactCell, ContactLink } from './contact-cell';
+import { DateCell } from './date-cell';
+import { FilesCell, FilesChips } from './files-cell';
+import { PersonCell, PersonChips } from './person-cell';
 import * as React from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
@@ -21,7 +25,7 @@ import type {
   PropertyValue,
   SelectOption,
 } from '@/lib/types/databases';
-import { withStart } from '@/lib/date-values';
+import { formatDateValue } from '@/lib/date-values';
 import { SELECT_CHIP_HUE } from './select-color';
 
 export interface PropertyCellProps {
@@ -33,6 +37,11 @@ export interface PropertyCellProps {
   onChange: (next: PropertyValue) => void;
   /** Optional initial focus when becoming interactive (table double-click). */
   autoFocus?: boolean;
+  /**
+   * The row's page: a file is uploaded to it, and a file in Oxy storage is
+   * opened as one of its files. Without it files can be linked, not uploaded.
+   */
+  rowId?: string;
 }
 
 /**
@@ -54,10 +63,13 @@ export function PropertyCell({
   onChange,
   autoFocus,
   readOnly = false,
+  rowId,
 }: PropertyCellProps) {
   if (property.type === 'formula' || property.type === 'unique_id')
     return <ComputedCell property={property} value={value} />;
-  if (readOnly) return <PropertyValueText property={property} value={value} />;
+  // A card previews its row and opens it when pressed: only its pickers edit in place.
+  if (readOnly || (variant === 'card' && SHOWN_ON_CARDS.has(property.type)))
+    return <PropertyValueText property={property} value={value} rowId={rowId} />;
   switch (property.type) {
     case 'text':
       return (
@@ -82,17 +94,12 @@ export function PropertyCell({
     case 'email':
     case 'phone':
       return (
-        <TextCell
+        <ContactCell
+          kind={property.type}
+          label={property.name}
           value={readScalarString(value)}
           variant={variant}
           autoFocus={autoFocus}
-          keyboardType={
-            property.type === 'email'
-              ? 'email-address'
-              : property.type === 'phone'
-                ? 'phone-pad'
-                : 'url'
-          }
           onChange={(v) => onChange({ value: v })}
         />
       );
@@ -132,23 +139,34 @@ export function PropertyCell({
         />
       );
     case 'date':
+      return <DateCell label={property.name} variant={variant} value={value} onChange={onChange} />;
+    case 'person':
       return (
-        <DateCell
+        <PersonCell
+          label={property.name}
+          value={readUserIds(value)}
           variant={variant}
-          value={readDateStart(value)}
-          // Only the start is edited here: an end and a time it had stay.
-          onChange={(start) => onChange(withStart(value, start))}
+          onChange={(userIds) => onChange({ userIds })}
         />
       );
-    case 'person':
-      return <PersonCell value={readUserIds(value)} variant={variant} />;
     case 'files':
-      return <FilesCell value={readFiles(value)} variant={variant} />;
+      return (
+        <FilesCell
+          label={property.name}
+          value={readFiles(value)}
+          rowId={rowId}
+          variant={variant}
+          onChange={(files) => onChange({ files })}
+        />
+      );
     case 'relation':
       return (
         <RelationCell
+          label={property.name}
           value={readPageIds(value)}
+          variant={variant}
           targetDatabaseId={property.config?.targetDatabaseId}
+          onChange={(pageIds) => onChange({ pageIds })}
         />
       );
     case 'rollup':
@@ -158,13 +176,29 @@ export function PropertyCell({
       return <DerivedCell value={value} variant={variant} format="date" />;
     case 'created_by':
     case 'last_edited_by':
-      return <PersonCell value={readUserIds(value)} variant={variant} />;
+      return <PersonChips userIds={readUserIds(value)} />;
   }
 }
 
+/** The types a card shows as they read, not as an editor (which would take the press). */
+const SHOWN_ON_CARDS: ReadonlySet<DatabaseProperty['type']> = new Set([
+  'text',
+  'number',
+  'url',
+  'email',
+  'phone',
+  'date',
+  'person',
+  'files',
+]);
+
 /** Static rendering keeps read-only values out of the keyboard edit path. */
-function PropertyValueText({ property, value }: Pick<PropertyCellProps, 'property' | 'value'>) {
-  const { t } = useTranslation();
+function PropertyValueText({
+  property,
+  value,
+  rowId,
+}: Pick<PropertyCellProps, 'property' | 'value' | 'rowId'>) {
+  const { t, locale } = useTranslation();
   let display: string;
   switch (property.type) {
     case 'text':
@@ -176,8 +210,7 @@ function PropertyValueText({ property, value }: Pick<PropertyCellProps, 'propert
     case 'url':
     case 'email':
     case 'phone':
-      display = readScalarString(value);
-      break;
+      return <ContactLink kind={property.type} value={readScalarString(value)} />;
     case 'checkbox':
       display = t(readChecked(value) ? 'sharing.checked' : 'sharing.unchecked');
       break;
@@ -192,17 +225,15 @@ function PropertyValueText({ property, value }: Pick<PropertyCellProps, 'propert
         .map((option) => option.name)
         .join(', ');
       break;
-    case 'date': {
-      const start = readDateStart(value);
-      display = start ? new Date(start).toLocaleDateString() : '';
+    case 'date':
+      display = formatDateValue(value, locale);
       break;
-    }
     case 'person':
     case 'created_by':
     case 'last_edited_by':
-      return <PersonCell value={readUserIds(value)} variant="card" />;
+      return <PersonChips userIds={readUserIds(value)} />;
     case 'files':
-      return <FilesCell value={readFiles(value)} variant="card" />;
+      return <FilesChips value={readFiles(value)} rowId={rowId} />;
     case 'relation':
       return (
         <RelationCell
@@ -263,13 +294,6 @@ function readOptionIds(v: PropertyValue): string[] {
   }
   return [];
 }
-function readDateStart(v: PropertyValue): string | null {
-  if (v && typeof v === 'object' && 'start' in v) {
-    const start = v.start;
-    return typeof start === 'string' ? start : null;
-  }
-  return null;
-}
 function readUserIds(v: PropertyValue): string[] {
   if (v && typeof v === 'object' && 'userIds' in v) {
     const ids = v.userIds;
@@ -312,11 +336,10 @@ interface CellVariantProps {
 interface TextCellProps extends CellVariantProps {
   value: string;
   autoFocus?: boolean;
-  keyboardType?: 'default' | 'email-address' | 'phone-pad' | 'url';
   onChange: (next: string) => void;
 }
 
-function TextCell({ value, autoFocus, keyboardType, onChange, variant }: TextCellProps) {
+function TextCell({ value, autoFocus, onChange, variant }: TextCellProps) {
   const { colors } = useColorScheme();
   const [draft, setDraft] = React.useState(value);
   React.useEffect(() => {
@@ -334,7 +357,6 @@ function TextCell({ value, autoFocus, keyboardType, onChange, variant }: TextCel
       onBlur={commit}
       onSubmitEditing={commit}
       autoFocus={autoFocus}
-      keyboardType={keyboardType ?? 'default'}
       placeholder=""
       placeholderTextColor={colors.mutedForeground}
       className={variant === 'panel' ? 'text-sm text-foreground py-1' : 'text-sm text-foreground'}
@@ -387,7 +409,7 @@ function NumberCell({ property, value, autoFocus, onChange, variant }: NumberCel
           onBlur={commit}
           onSubmitEditing={commit}
           autoFocus={autoFocus}
-          keyboardType="numeric"
+          keyboardType={NUMBER_KEYBOARD}
           inputMode="decimal"
           placeholder=""
           placeholderTextColor={colors.mutedForeground}
@@ -407,7 +429,7 @@ function NumberCell({ property, value, autoFocus, onChange, variant }: NumberCel
             onBlur={commit}
             onSubmitEditing={commit}
             autoFocus={autoFocus}
-            keyboardType="numeric"
+            keyboardType={NUMBER_KEYBOARD}
             inputMode="decimal"
             placeholder="—"
             placeholderTextColor={colors.mutedForeground}
@@ -426,6 +448,13 @@ function NumberCell({ property, value, autoFocus, onChange, variant }: NumberCel
     </View>
   );
 }
+
+/**
+ * iOS's number pad has no minus sign and its decimal pad no minus either:
+ * numbers with punctuation take a negative or a decimal number. Android's
+ * numeric keyboard has both.
+ */
+const NUMBER_KEYBOARD = Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric';
 
 function formatNumber(value: number | null, property: DatabaseProperty): string {
   if (value === null) return '';
@@ -645,128 +674,6 @@ function SelectPicker({
         ) : null}
       </PopoverContent>
     </Popover>
-  );
-}
-
-interface DateCellProps extends CellVariantProps {
-  value: string | null;
-  onChange: (next: string | null) => void;
-}
-
-function DateCell({ value, onChange, variant }: DateCellProps) {
-  const { colors } = useColorScheme();
-  const { locale } = useTranslation();
-  const display = value ? new Date(value).toLocaleDateString(locale) : '—';
-  // On web, the browser's date input edits it. On native the date is shown,
-  // not edited: there is no date editor here yet. The web input is its own
-  // component so its state hooks are never called conditionally from this one.
-  if (Platform.OS === 'web') {
-    return <WebDateInput value={value} onChange={onChange} color={colors.foreground} />;
-  }
-  // Native fallback
-  return (
-    <View className={variant === 'panel' ? 'py-1' : ''}>
-      <Text variant="body-regular">{display}</Text>
-    </View>
-  );
-}
-
-/** The browser's own date input; commits on blur. */
-function WebDateInput({
-  value,
-  onChange,
-  color,
-}: {
-  value: string | null;
-  onChange: (next: string | null) => void;
-  color: string;
-}) {
-  const [draft, setDraft] = React.useState<string>(value ? toDateInput(value) : '');
-  React.useEffect(() => {
-    setDraft(value ? toDateInput(value) : '');
-  }, [value]);
-
-  return (
-    <View className="flex-row items-center gap-2">
-      <input
-        type="date"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => {
-          if (!draft) {
-            if (value) onChange(null);
-            return;
-          }
-          const iso = new Date(draft).toISOString();
-          if (iso !== value) onChange(iso);
-        }}
-        style={{
-          background: 'transparent',
-          border: 'none',
-          outline: 'none',
-          color,
-          fontSize: 13,
-          padding: 0,
-        }}
-      />
-    </View>
-  );
-}
-
-function toDateInput(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-interface ReadOnlyArrayCellProps extends CellVariantProps {
-  value: string[];
-}
-
-function PersonCell({ value, variant }: ReadOnlyArrayCellProps) {
-  if (value.length === 0) {
-    return <Text className="text-sm text-muted-foreground">—</Text>;
-  }
-  return (
-    <View className={`flex-row flex-wrap gap-1 ${variant === 'panel' ? 'py-1' : ''}`}>
-      {value.map((id) => (
-        <Chip key={id} size="sm">
-          {shortenUserId(id)}
-        </Chip>
-      ))}
-    </View>
-  );
-}
-
-function shortenUserId(id: string): string {
-  if (id.length <= 8) return id;
-  return `${id.slice(0, 4)}…${id.slice(-3)}`;
-}
-
-interface FilesCellProps extends CellVariantProps {
-  value: FileEntry[];
-}
-
-function FilesCell({ value }: FilesCellProps) {
-  if (value.length === 0) {
-    return <Text className="text-sm text-muted-foreground">—</Text>;
-  }
-  return (
-    <View className="flex-row flex-wrap gap-1">
-      {value.slice(0, 3).map((f, index) => (
-        // A file in Oxy storage has an id and no link of its own: keyed by the id first.
-        // biome-ignore lint/suspicious/noArrayIndexKey: the last resort for a file with neither
-        <Chip key={f.fileId ?? f.url ?? index} size="sm">
-          {f.name}
-        </Chip>
-      ))}
-      {value.length > 3 ? (
-        <Text className="text-xs text-muted-foreground">+{value.length - 3}</Text>
-      ) : null}
-    </View>
   );
 }
 

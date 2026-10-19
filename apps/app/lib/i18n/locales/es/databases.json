@@ -346,7 +346,13 @@
     "removeDescription": "Se eliminarán la propiedad correspondiente y sus enlaces de la otra base de datos.",
     "configure": "Editar relación",
     "failed": "No se pudo guardar la relación. Inténtalo de nuevo.",
-    "unavailable": "Página no disponible"
+    "unavailable": "Página no disponible",
+    "pick": "Páginas relacionadas",
+    "noTarget": "Elige la base de datos relacionada en la configuración de la propiedad",
+    "open": "Abrir %{title}",
+    "remove": "Quitar %{title}",
+    "none": "No se encontraron páginas",
+    "searchFailed": "No se pudieron buscar las páginas. Inténtalo de nuevo."
   },
   "subItems": {
     "name": "Subelementos",
@@ -363,5 +369,34 @@
   "system": {
     "property": "%{app} usa esta propiedad: no se puede eliminar y su tipo y ajustes son fijos.",
     "database": "Esta base de datos pertenece a %{app} y no se puede eliminar."
+  },
+  "people": {
+    "unknown": "Persona desconocida",
+    "search": "Buscar personas",
+    "none": "No hay nadie para añadir",
+    "failed": "No se pudieron cargar las personas de este espacio de trabajo",
+    "guest": "Invitado",
+    "remove": "Quitar a %{name}"
+  },
+  "files": {
+    "title": "Archivos",
+    "empty": "Todavía no hay archivos",
+    "upload": "Subir un archivo",
+    "link": "Enlace a un archivo",
+    "addLink": "Añadir enlace",
+    "remove": "Quitar %{name}",
+    "invalidLink": "Eso no es un enlace",
+    "tooLarge": "Este archivo es demasiado grande"
+  },
+  "dates": {
+    "date": "Fecha",
+    "range": "Fechas",
+    "startTime": "Hora de inicio",
+    "endTime": "Hora de fin",
+    "endDate": "Fecha de fin",
+    "includeTime": "Incluir hora"
+  },
+  "contact": {
+    "edit": "Editar %{property}"
   }
 }

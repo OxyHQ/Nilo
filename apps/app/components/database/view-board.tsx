@@ -297,6 +297,7 @@ function BoardCard({ row, properties, onOpen, readOnly }: BoardCardProps) {
               property={property}
               value={row.properties[property.id] ?? null}
               variant="card"
+              rowId={row.id}
               onChange={() => {
                 // cards are not editable inline — opens row instead
                 onOpen();
