@@ -23,6 +23,12 @@ export {
   NILO_OXY_APPLICATION_ID,
 } from './files';
 export { MAX_DOC_UPDATE_BYTES } from './collab';
+export {
+  acceptsFilterOperator,
+  DATABASE_PROPERTY_TYPES,
+  type DatabasePropertyType,
+  FILTER_OPERATORS_BY_TYPE,
+} from './databases';
 export { isEntityId } from './ids';
 export { compareOrder, MIN_ORDER_GAP, placeAfter, type Sibling } from './order';
 export {

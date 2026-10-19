@@ -1,56 +1,12 @@
+import { acceptsFilterOperator } from '@oxy.so/nilo-contracts';
 import { z } from 'zod';
 import type {
   DatabaseProperty,
   DatabasePropertyType,
   Filter,
+  FilterCondition,
   FilterGroup,
 } from '../../db/schema/databases.js';
-
-/**
- * Operators valid per property type. Keeping the list explicit makes it
- * easy for the frontend to discover what's available and for tests to
- * cover the contract.
- */
-export const OPERATORS_BY_TYPE: Record<DatabasePropertyType, readonly string[]> = {
-  text: [
-    'contains',
-    'equals',
-    'does_not_equal',
-    'starts_with',
-    'ends_with',
-    'is_empty',
-    'is_not_empty',
-  ],
-  number: ['=', '!=', '>', '<', '>=', '<=', 'is_empty', 'is_not_empty'],
-  unique_id: ['=', '!=', '>', '<', '>=', '<='],
-  select: ['is', 'is_not', 'is_empty', 'is_not_empty'],
-  multi_select: ['contains', 'does_not_contain', 'is_empty', 'is_not_empty'],
-  status: ['is', 'is_not', 'is_empty', 'is_not_empty'],
-  date: [
-    'before',
-    'after',
-    'on_or_before',
-    'on_or_after',
-    'equals',
-    'is_empty',
-    'is_not_empty',
-    'in_last',
-    'in_next',
-  ],
-  person: ['contains', 'does_not_contain', 'is_empty', 'is_not_empty'],
-  files: ['is_empty', 'is_not_empty'],
-  checkbox: ['is', 'is_not'],
-  url: ['contains', 'equals', 'is_empty', 'is_not_empty'],
-  email: ['contains', 'equals', 'is_empty', 'is_not_empty'],
-  phone: ['contains', 'equals', 'is_empty', 'is_not_empty'],
-  relation: ['contains', 'does_not_contain', 'is_empty', 'is_not_empty'],
-  rollup: ['is_empty', 'is_not_empty'],
-  formula: ['is_empty', 'is_not_empty'],
-  created_time: ['before', 'after', 'on_or_before', 'on_or_after', 'equals'],
-  last_edited_time: ['before', 'after', 'on_or_before', 'on_or_after', 'equals'],
-  created_by: ['contains', 'does_not_contain'],
-  last_edited_by: ['contains', 'does_not_contain'],
-};
 
 /**
  * Zod schemas for filter trees. Filters self-reference (groups contain
@@ -165,6 +121,27 @@ export const filterGroupSchema = z.unknown().transform((raw, ctx): FilterGroup =
     return { kind: 'group', combinator: 'and', filters: [] };
   }
 });
+
+/**
+ * The first condition of a filter tree the database cannot evaluate: one on a
+ * property it does not have, or with an operator its property's type does not
+ * take (`@oxy.so/nilo-contracts` `FILTER_OPERATORS_BY_TYPE`). Null when every
+ * condition is sound. The shape is `filterGroupSchema`'s; this needs the schema.
+ */
+export function invalidCondition(
+  filter: Filter,
+  propertyById: Map<string, DatabaseProperty>,
+): FilterCondition | null {
+  if (filter.kind === 'group') {
+    for (const child of filter.filters) {
+      const invalid = invalidCondition(child, propertyById);
+      if (invalid) return invalid;
+    }
+    return null;
+  }
+  const property = propertyById.get(filter.propertyId);
+  return property && acceptsFilterOperator(property.type, filter.operator) ? null : filter;
+}
 
 /**
  * Read property value for filter/sort evaluation. Returns the raw JSON
@@ -303,6 +280,28 @@ function isEmpty(value: unknown, type: DatabasePropertyType): boolean {
   }
 }
 
+/**
+ * Whether a negative operator holds for an empty value, as in Notion: a row
+ * with no option "is not" any option, and one with no labels, people or
+ * related rows "does not contain" any. A checkbox is never empty but when it
+ * was never set, which says nothing of what it is not.
+ */
+export function emptyMatches(operator: string, type: DatabasePropertyType): boolean {
+  switch (type) {
+    case 'select':
+    case 'status':
+      return operator === 'is_not';
+    case 'multi_select':
+    case 'person':
+    case 'relation':
+    case 'created_by':
+    case 'last_edited_by':
+      return operator === 'does_not_contain';
+    default:
+      return false;
+  }
+}
+
 function evaluateCondition(
   operator: string,
   value: unknown,
@@ -312,8 +311,8 @@ function evaluateCondition(
   if (operator === 'is_empty') return isEmpty(value, type);
   if (operator === 'is_not_empty') return !isEmpty(value, type);
 
-  // From here, value being empty short-circuits most operators to false.
-  if (isEmpty(value, type)) return false;
+  // An empty value passes only the negative operators (`emptyMatches`).
+  if (isEmpty(value, type)) return emptyMatches(operator, type);
 
   const obj = (value ?? {}) as Record<string, unknown>;
 
