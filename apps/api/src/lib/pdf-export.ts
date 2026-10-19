@@ -48,7 +48,7 @@ const RULE = '#d0d7de';
 const SHADE = '#f6f8fa';
 const HEADINGS = { heading_1: 20, heading_2: 16, heading_3: 13 } as const;
 /** Blocks that only hold others: their content goes where they are, not indented. */
-const CONTAINERS = new Set(['columns', 'column', 'canvas_note']);
+const CONTAINERS = new Set(['columns', 'column', 'canvas_note', 'sync_block']);
 
 /** Bytes of an image a block points at, or null to show it as a link. */
 /**

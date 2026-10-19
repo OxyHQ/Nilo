@@ -11,6 +11,7 @@ export {
   normalizeContent,
   SAFE_LINK,
   segmentSchema,
+  syncedSource,
 } from './blocks';
 export {
   blockFileId,
@@ -51,6 +52,7 @@ export {
   renderInline,
   type Segment,
   segmentsOf,
+  withSyncedContent,
 } from './markdown';
 export {
   type Note,

@@ -76,7 +76,9 @@ const BEHAVIOUR = extendSchema(DEFAULT_SCHEMA, [
   { type: 'button', hasText: false, canHaveChildren: false },
   { type: 'link_to_page', hasText: false, canHaveChildren: false },
   { type: 'child_page', hasText: false, canHaveChildren: false },
-  { type: 'sync_block', hasText: false, canHaveChildren: false },
+  // A synced block's original holds its content; a reference holds nothing
+  // and shows its original's.
+  { type: 'sync_block', hasText: false, canHaveChildren: true, isContainer: true },
   { type: 'breadcrumb', hasText: false, canHaveChildren: false },
   { type: 'table_of_contents', hasText: false, canHaveChildren: false },
   { type: 'equation', hasText: false, canHaveChildren: false },

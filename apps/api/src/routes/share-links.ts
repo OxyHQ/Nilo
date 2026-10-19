@@ -22,6 +22,7 @@ import {
 import { log } from '../lib/logger.js';
 import { generateLinkToken as generateToken, publicAppUrl } from '../lib/public-links.js';
 import { rateLimit } from '../lib/rate-limit.js';
+import { resolveSyncedBlocks } from '../lib/synced-blocks.js';
 import { respondWithFileUrls } from './files.js';
 
 const router = Router();
@@ -308,6 +309,9 @@ router.get(
       // Ordering lives in the repository (`...ByOrder`) rather than in a chained
       // `.sort()` here, so every reader of a page's blocks gets the same order.
       const blocks = await listBlocksForPageByOrder(db, page.id);
+      // A synced block shows its original only when the original is on this
+      // page: the link opens this page and nothing else.
+      const synced = await resolveSyncedBlocks(db, blocks, async (id) => id === page.id);
 
       res.json({
         page: {
@@ -327,6 +331,7 @@ router.get(
           content: b.content,
           order: b.order,
         })),
+        synced: Object.fromEntries(synced),
         share: {
           scope: link.scope,
           expiresAt: link.expiresAt,

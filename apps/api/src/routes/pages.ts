@@ -22,6 +22,7 @@ import {
   blocksToMarkdown,
   blocksToTree,
   inReadingOrder,
+  withSyncedContent,
 } from '@oxy.so/nilo-contracts';
 import { copyPageTree, listCopyableSubtree } from '../repositories/pageCopies.js';
 import { follow } from '../repositories/pageFollows.js';
@@ -1025,12 +1026,16 @@ router.get(
           : format === 'html'
             ? { extension: 'html', type: 'text/html; charset=utf-8' }
             : { extension: 'md', type: 'text/markdown; charset=utf-8' };
-      // Linked pages and inline databases, as far as this reader may see them.
-      const context =
-        format === 'pdf' ? undefined : await exportContext(db, req.user?.id ?? '', page, tree);
+      // Linked pages, inline databases and synced blocks, as far as this
+      // reader may see them.
+      const context = await exportContext(db, req.user?.id ?? '', page, tree);
       const body =
         format === 'pdf'
-          ? await blocksToPdf(tree, title, await exportImageLoader(page, tree))
+          ? await blocksToPdf(
+              withSyncedContent(tree, context),
+              title,
+              await exportImageLoader(page, tree),
+            )
           : format === 'html'
             ? blocksToHtml(tree, title, context)
             : blocksToMarkdown(tree, title, context);

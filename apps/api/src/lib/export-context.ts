@@ -1,16 +1,17 @@
 /**
  * What a page's export says about what it points at (`ExportContext` in
- * `@oxy.so/nilo-contracts`): the titles of the pages it links to and its
- * inline databases as tables — each only when the reader exporting it may
- * open that page or database. Bounded, so a page of links cannot turn one
- * export into thousands of reads.
+ * `@oxy.so/nilo-contracts`): the titles of the pages it links to, its
+ * inline databases as tables and what its synced blocks show — each only
+ * when the reader exporting it may open that page or database. Bounded, so a
+ * page of links cannot turn one export into thousands of reads.
  */
-import type { BlockNode, ExportContext } from '@oxy.so/nilo-contracts';
+import { type BlockNode, blocksToTree, type ExportContext } from '@oxy.so/nilo-contracts';
 import type { PgHandle } from '../db/client.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { findPagesByIds, listDatabaseRows } from '../repositories/pages.js';
 import { databaseToTable } from './databases/csv.js';
 import { resolveDatabaseRole, resolvePageAccess } from './page-access.js';
+import { resolveSyncedBlocks } from './synced-blocks.js';
 
 const MAX_LINKED_PAGES = 100;
 const MAX_DATABASES = 10;
@@ -57,5 +58,24 @@ export async function exportContext(
     });
   }
 
-  return { pageTitle: (id) => titles.get(id), database: (id) => tables.get(id) };
+  const flat: BlockNode[] = [];
+  const collect = (nodes: readonly BlockNode[]) => {
+    for (const node of nodes) {
+      flat.push(node);
+      collect(node.children);
+    }
+  };
+  collect(tree);
+  const synced = await resolveSyncedBlocks(
+    db,
+    flat,
+    async (pageId) => (await resolvePageAccess(db, viewerId, pageId)) !== null,
+  );
+  const syncedTrees = new Map([...synced].map(([id, rows]) => [id, blocksToTree(rows)]));
+
+  return {
+    pageTitle: (id) => titles.get(id),
+    database: (id) => tables.get(id),
+    syncedBlocks: (id) => syncedTrees.get(id),
+  };
 }

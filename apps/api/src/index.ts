@@ -30,6 +30,7 @@ import { createNotesMcpService } from './capabilities/notes-mcp.js';
 import { startEventOutboxWorker, stopEventOutboxWorker } from './capabilities/event-outbox.js';
 import importRouter from './routes/import.js';
 import backlinksRouter from './routes/backlinks.js';
+import syncedBlocksRouter from './routes/synced-blocks.js';
 import formsRouter from './routes/forms.js';
 import pageFollowsRouter from './routes/page-follows.js';
 import { startReminderSweep, stopReminderSweep } from './lib/reminders.js';
@@ -176,6 +177,8 @@ app.use('/health', healthRouter);
 app.use('/feedback', feedbackRouter);
 app.use('/notifications', notificationsRouter);
 app.use(teamspacesRouter);
+// Before `/workspaces`: it also answers `/workspaces/:id/synced-blocks`.
+app.use(syncedBlocksRouter);
 app.use('/workspaces', workspacesRouter);
 app.use('/notes', notesRouter);
 app.use(formsRouter);
