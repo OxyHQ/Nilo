@@ -427,6 +427,57 @@ export async function updateMemberRole(
 }
 
 /**
+ * Hand the workspace to another member: they become its owner (and an owner
+ * of its default teamspace), the previous owner stays as an admin. One
+ * transaction, guarded on both rows, so a workspace never has no owner or
+ * two. Returns false when either is no longer what the caller saw (the
+ * previous owner is not the owner, or the next one not a member).
+ */
+export async function transferOwnership(
+  db: PgHandle,
+  workspaceId: string,
+  fromUserId: string,
+  toUserId: string,
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    // The next owner's row first, locked: nothing is written unless they are
+    // still a member when the transaction commits.
+    const [next] = await tx
+      .select({ id: workspaceMembers.id })
+      .from(workspaceMembers)
+      .where(
+        and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, toUserId)),
+      )
+      .for('update');
+    if (!next) return false;
+    const [workspace] = await tx
+      .update(workspaces)
+      .set({ ownerId: toUserId })
+      .where(
+        and(
+          eq(workspaces.id, workspaceId),
+          eq(workspaces.ownerId, fromUserId),
+          eq(workspaces.isPersonal, false),
+        ),
+      )
+      .returning({ id: workspaces.id });
+    if (!workspace) return false;
+    await tx
+      .update(workspaceMembers)
+      .set({ role: 'owner' })
+      .where(eq(workspaceMembers.id, next.id));
+    await tx
+      .update(workspaceMembers)
+      .set({ role: 'admin' })
+      .where(
+        and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, fromUserId)),
+      );
+    await ensureDefaultTeamspace(tx, workspaceId, toUserId);
+    return true;
+  });
+}
+
+/**
  * Remove a member.
  *
  * Returns whether a row was removed, read off `RETURNING` rather than

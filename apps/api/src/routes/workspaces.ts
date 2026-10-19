@@ -11,7 +11,29 @@ import {
   requireWorkspaceMember,
 } from '../middleware/workspace.js';
 import { getDb } from '../db/client.js';
-import type { WorkspaceRole } from '../db/schema/workspaces.js';
+import {
+  INVITABLE_WORKSPACE_ROLES,
+  type InvitableWorkspaceRole,
+  WORKSPACE_INVITE_TTL_MS,
+  WORKSPACE_LINK_ROLES,
+  type WorkspaceLinkRole,
+  type WorkspaceRole,
+} from '../db/schema/workspaces.js';
+import { deleteGrantsOfUserInWorkspace, listGuestGrants } from '../repositories/pagePermissions.js';
+import {
+  acceptPendingInvites,
+  anyPendingInvite,
+  deletePendingInvite,
+  findLiveInviteLink,
+  listPendingInvites,
+  replaceInviteLink,
+  revokeLiveInviteLink,
+  setLiveInviteLinkRole,
+  type WorkspaceInviteLinkRow,
+  type WorkspaceInviteRow,
+  upsertPendingInvite,
+} from '../repositories/workspaceInvites.js';
+import { generateLinkToken, publicAppUrl } from '../lib/public-links.js';
 import { deleteArchivedPages } from '../repositories/pages.js';
 import {
   addMember,
@@ -23,6 +45,7 @@ import {
   listMembershipsForUser,
   removeMember,
   resetPersonalWorkspace,
+  transferOwnership,
   updateMemberRole,
   updateWorkspace,
 } from '../repositories/workspaces.js';
@@ -33,21 +56,86 @@ import { createWorkspaceSchema, updateWorkspaceSchema } from '../lib/workspace-i
 
 const router = Router();
 
-// Members can be invited as any role except `owner`. Owner is reserved
-// for the creator and is not transferable in MVP.
-const INVITABLE_ROLES: readonly WorkspaceRole[] = ['admin', 'editor', 'commenter', 'viewer'];
-
+// Members can be invited as any role except `owner`: a workspace has one
+// owner, who hands it over with `POST /:id/transfer`.
 const inviteMemberSchema = z.object({
-  email: z.string().email(),
-  role: z.enum(INVITABLE_ROLES as unknown as [WorkspaceRole, ...WorkspaceRole[]]),
+  email: z.string().trim().email(),
+  role: z.enum(INVITABLE_WORKSPACE_ROLES),
 });
+
+const inviteLinkSchema = z.object({ role: z.enum(WORKSPACE_LINK_ROLES).default('editor') });
+const inviteLinkRoleSchema = z.object({ role: z.enum(WORKSPACE_LINK_ROLES) });
+const transferSchema = z.object({ userId: z.string().min(1) });
 
 /** The reset is confirmed by typing the workspace's current name. */
 const resetWorkspaceSchema = z.object({ confirm: z.string() });
 
-const updateMemberSchema = z.object({
-  role: z.enum(INVITABLE_ROLES as unknown as [WorkspaceRole, ...WorkspaceRole[]]),
-});
+const updateMemberSchema = z.object({ role: z.enum(INVITABLE_WORKSPACE_ROLES) });
+
+function paramString(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function serializeInvite(invite: WorkspaceInviteRow, now = Date.now()) {
+  return {
+    id: invite.id,
+    email: invite.email,
+    role: invite.role as InvitableWorkspaceRole,
+    invitedBy: invite.invitedBy,
+    createdAt: invite.createdAt,
+    expiresAt: invite.expiresAt,
+    expired: invite.expiresAt.getTime() <= now,
+  };
+}
+
+function serializeInviteLink(link: WorkspaceInviteLinkRow) {
+  return {
+    id: link.id,
+    token: link.token,
+    url: publicAppUrl(`/join/${link.token}`),
+    role: link.role as WorkspaceLinkRole,
+    createdBy: link.createdBy,
+    createdAt: link.createdAt,
+  };
+}
+
+/**
+ * The caller's Oxy email: on the request when the session carried it, else
+ * from their profile. Null when Oxy cannot say.
+ */
+async function callerEmail(req: Request): Promise<string | null> {
+  const onRequest = req.user?.email;
+  if (typeof onRequest === 'string' && onRequest) return onRequest;
+  if (!req.user?.id) return null;
+  try {
+    const user = await oxyClient.users.get(req.user.id);
+    return typeof user?.email === 'string' && user.email ? user.email : null;
+  } catch (err: unknown) {
+    log.general.warn({ err }, 'Could not read the caller email for pending invitations');
+    return null;
+  }
+}
+
+/**
+ * Accept the invitations waiting for the caller's email (`docs/access.md`).
+ * Asks Oxy for the email only while some invitation is waiting somewhere,
+ * and never fails the request it runs in: an invitation not accepted now is
+ * accepted on the next list.
+ */
+async function acceptInvitesForCaller(req: Request): Promise<void> {
+  const userId = req.user?.id;
+  if (!userId) return;
+  try {
+    const db = getDb();
+    const now = new Date();
+    if (!(await anyPendingInvite(db, now))) return;
+    const email = await callerEmail(req);
+    if (!email) return;
+    await acceptPendingInvites(db, userId, email, now);
+  } catch (err: unknown) {
+    log.general.warn({ err }, 'Accepting pending workspace invitations failed');
+  }
+}
 
 function serializeWorkspace(
   ws: {
@@ -90,6 +178,7 @@ router.get('/', authenticateToken, ensurePersonalWorkspace, async (req: Request,
       return;
     }
 
+    await acceptInvitesForCaller(req);
     const db = getDb();
     const memberships = await listMembershipsForUser(db, req.user.id);
 
@@ -432,10 +521,10 @@ router.get(
 /**
  * POST /api/workspaces/:workspaceId/members
  *
- * Invite a user by email. Admin role or higher.
- *
- * We refuse to create Oxy accounts on the caller's behalf — if the email
- * does not resolve to an existing Oxy user we 404 with a clear message.
+ * Invite someone by email. Admin role or higher. An Oxy account with that
+ * email becomes a member now (201 `{ member }`); any other email gets an
+ * invitation that waits for an account with it (201 `{ pending, invite }`).
+ * Nilo creates no Oxy account on anyone's behalf.
  */
 router.post(
   '/:workspaceId/members',
@@ -465,12 +554,17 @@ router.post(
 
       const invitee = await findUserByEmail(email);
       if (!invitee) {
-        res.status(404).json({
-          error: 'No Oxy user found with that email',
-          code: 'INVITEE_NOT_FOUND',
-          message:
-            "Ask them to sign up at Oxy first — we do not create accounts on a user's behalf.",
+        // Someone without an Oxy account yet: the invitation waits for them,
+        // and their first workspace list accepts it. Nilo has no outbound
+        // mail, so whoever invited them tells them.
+        const invite = await upsertPendingInvite(getDb(), {
+          workspaceId: ws.id,
+          email,
+          role,
+          invitedBy: req.user.id,
+          expiresAt: new Date(Date.now() + WORKSPACE_INVITE_TTL_MS),
         });
+        res.status(201).json({ pending: true, invite: serializeInvite(invite) });
         return;
       }
 
@@ -509,7 +603,7 @@ router.post(
  * PATCH /api/workspaces/:workspaceId/members/:userId
  *
  * Change a member's role. Admin or higher. The owner's role cannot be
- * changed (ownership transfer is out of scope for MVP).
+ * changed here: the owner hands the workspace over with `POST /:id/transfer`.
  */
 router.patch(
   '/:workspaceId/members/:userId',
@@ -608,7 +702,10 @@ router.delete(
         return;
       }
       if (target.role === 'owner') {
-        res.status(400).json({ error: 'The owner cannot be removed' });
+        res.status(400).json({
+          error: 'The owner cannot be removed; transfer the workspace to another member first',
+          code: 'OWNER_CANNOT_LEAVE',
+        });
         return;
       }
 
@@ -715,6 +812,325 @@ router.get(
       }
       log.general.error({ err: error }, 'Failed to export workspace');
       res.status(500).json({ error: 'Failed to export workspace' });
+    }
+  },
+);
+
+/**
+ * GET /api/workspaces/:workspaceId/invites
+ *
+ * The invitations by email still waiting for an Oxy account (expired ones
+ * flagged). Admin role or higher.
+ */
+router.get(
+  '/:workspaceId/invites',
+  authenticateToken,
+  requireWorkspaceMember,
+  requireRole('admin'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.workspaceDoc) {
+        res.status(500).json({ error: 'Workspace context not loaded' });
+        return;
+      }
+      const invites = await listPendingInvites(getDb(), req.workspaceDoc.id);
+      const now = Date.now();
+      res.json({ invites: invites.map((invite) => serializeInvite(invite, now)) });
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to list workspace invitations');
+      res.status(500).json({ error: 'Failed to list invitations' });
+    }
+  },
+);
+
+/**
+ * DELETE /api/workspaces/:workspaceId/invites/:inviteId
+ *
+ * Revoke a waiting invitation. Admin role or higher.
+ */
+router.delete(
+  '/:workspaceId/invites/:inviteId',
+  authenticateToken,
+  requireWorkspaceMember,
+  requireRole('admin'),
+  async (req: Request, res: Response) => {
+    try {
+      const inviteId = paramString(req.params.inviteId);
+      if (!req.workspaceDoc || !inviteId) {
+        res.status(400).json({ error: 'Invitation id required' });
+        return;
+      }
+      const removed = await deletePendingInvite(getDb(), req.workspaceDoc.id, inviteId);
+      if (!removed) {
+        res.status(404).json({ error: 'Invitation not found' });
+        return;
+      }
+      res.json({ success: true });
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to revoke workspace invitation');
+      res.status(500).json({ error: 'Failed to revoke invitation' });
+    }
+  },
+);
+
+/**
+ * GET /api/workspaces/:workspaceId/invite-link
+ *
+ * The workspace's join link, or null when it has none (disabled). Admin role
+ * or higher: the token lets anyone in.
+ */
+router.get(
+  '/:workspaceId/invite-link',
+  authenticateToken,
+  requireWorkspaceMember,
+  requireRole('admin'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.workspaceDoc) {
+        res.status(500).json({ error: 'Workspace context not loaded' });
+        return;
+      }
+      const link = await findLiveInviteLink(getDb(), req.workspaceDoc.id);
+      res.json({ link: link ? serializeInviteLink(link) : null });
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to read the workspace invite link');
+      res.status(500).json({ error: 'Failed to load the invite link' });
+    }
+  },
+);
+
+/**
+ * POST /api/workspaces/:workspaceId/invite-link { role? }
+ *
+ * Enable the join link, or regenerate it: the old link stops working and a
+ * new one (a new token) gives `role` (`editor` when absent). Admin role or
+ * higher; never on a personal workspace.
+ */
+router.post(
+  '/:workspaceId/invite-link',
+  authenticateToken,
+  requireWorkspaceMember,
+  requireRole('admin'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.workspaceDoc || !req.user?.id) {
+        res.status(500).json({ error: 'Workspace context not loaded' });
+        return;
+      }
+      if (req.workspaceDoc.isPersonal) {
+        res.status(400).json({ error: 'Personal workspaces cannot have additional members' });
+        return;
+      }
+      const parsed = inviteLinkSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+        return;
+      }
+      const link = await replaceInviteLink(
+        getDb(),
+        {
+          workspaceId: req.workspaceDoc.id,
+          token: generateLinkToken(),
+          role: parsed.data.role,
+          createdBy: req.user.id,
+        },
+        new Date(),
+      );
+      res.status(201).json({ link: serializeInviteLink(link) });
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to create the workspace invite link');
+      res.status(500).json({ error: 'Failed to create the invite link' });
+    }
+  },
+);
+
+/**
+ * PATCH /api/workspaces/:workspaceId/invite-link { role }
+ *
+ * Change the role the live link gives; the link itself stays. Admin role or
+ * higher. 404 when the link is disabled.
+ */
+router.patch(
+  '/:workspaceId/invite-link',
+  authenticateToken,
+  requireWorkspaceMember,
+  requireRole('admin'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.workspaceDoc) {
+        res.status(500).json({ error: 'Workspace context not loaded' });
+        return;
+      }
+      const parsed = inviteLinkRoleSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+        return;
+      }
+      const link = await setLiveInviteLinkRole(getDb(), req.workspaceDoc.id, parsed.data.role);
+      if (!link) {
+        res.status(404).json({ error: 'The invite link is disabled' });
+        return;
+      }
+      res.json({ link: serializeInviteLink(link) });
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to update the workspace invite link');
+      res.status(500).json({ error: 'Failed to update the invite link' });
+    }
+  },
+);
+
+/**
+ * DELETE /api/workspaces/:workspaceId/invite-link
+ *
+ * Disable the join link. The people it brought in stay members.
+ */
+router.delete(
+  '/:workspaceId/invite-link',
+  authenticateToken,
+  requireWorkspaceMember,
+  requireRole('admin'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.workspaceDoc) {
+        res.status(500).json({ error: 'Workspace context not loaded' });
+        return;
+      }
+      const revoked = await revokeLiveInviteLink(getDb(), req.workspaceDoc.id, new Date());
+      res.json({ success: true, alreadyDisabled: !revoked });
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to disable the workspace invite link');
+      res.status(500).json({ error: 'Failed to disable the invite link' });
+    }
+  },
+);
+
+/**
+ * POST /api/workspaces/:workspaceId/transfer { userId }
+ *
+ * The owner makes another member the owner and stays as an admin. Owner
+ * only, never a personal workspace (`docs/access.md`).
+ */
+router.post(
+  '/:workspaceId/transfer',
+  authenticateToken,
+  requireWorkspaceMember,
+  requireRole('owner'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.workspaceDoc || !req.user?.id) {
+        res.status(500).json({ error: 'Workspace context not loaded' });
+        return;
+      }
+      const ws = req.workspaceDoc;
+      if (ws.isPersonal) {
+        res.status(400).json({ error: 'A personal workspace cannot be transferred' });
+        return;
+      }
+      const parsed = transferSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+        return;
+      }
+      const toUserId = parsed.data.userId;
+      if (toUserId === req.user.id) {
+        res.status(400).json({ error: 'You already own this workspace' });
+        return;
+      }
+      const db = getDb();
+      if (!(await findMembership(db, ws.id, toUserId))) {
+        res.status(404).json({ error: 'Member not found' });
+        return;
+      }
+      if (!(await transferOwnership(db, ws.id, req.user.id, toUserId))) {
+        res.status(409).json({ error: 'The workspace changed meanwhile; try again' });
+        return;
+      }
+      res.json({ success: true, ownerId: toUserId });
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to transfer workspace ownership');
+      res.status(500).json({ error: 'Failed to transfer the workspace' });
+    }
+  },
+);
+
+/**
+ * GET /api/workspaces/:workspaceId/guests
+ *
+ * The workspace's guests: people with pages shared with them who are not its
+ * members, each with those pages and their role on each. Admin role or higher.
+ */
+router.get(
+  '/:workspaceId/guests',
+  authenticateToken,
+  requireWorkspaceMember,
+  requireRole('admin'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.workspaceDoc) {
+        res.status(500).json({ error: 'Workspace context not loaded' });
+        return;
+      }
+      const grants = await listGuestGrants(getDb(), req.workspaceDoc.id);
+      const byUser = new Map<string, typeof grants>();
+      for (const grant of grants) {
+        const list = byUser.get(grant.userId) ?? [];
+        list.push(grant);
+        byUser.set(grant.userId, list);
+      }
+      const profiles = await loadMemberProfiles([...byUser.keys()]);
+      res.json({
+        guests: [...byUser.entries()].map(([userId, list]) => ({
+          userId,
+          user: profiles.get(userId) ?? null,
+          pages: list.map((grant) => ({
+            pageId: grant.pageId,
+            title: grant.title,
+            icon: grant.icon,
+            role: grant.role,
+            grantedBy: grant.grantedBy,
+            sharedAt: grant.createdAt,
+          })),
+        })),
+      });
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to list workspace guests');
+      res.status(500).json({ error: 'Failed to list guests' });
+    }
+  },
+);
+
+/**
+ * DELETE /api/workspaces/:workspaceId/guests/:userId
+ *
+ * Remove a guest: no page of the workspace is shared with them any more.
+ * Admin role or higher. A member is removed as a member instead (400).
+ */
+router.delete(
+  '/:workspaceId/guests/:userId',
+  authenticateToken,
+  requireWorkspaceMember,
+  requireRole('admin'),
+  async (req: Request, res: Response) => {
+    try {
+      const userId = paramString(req.params.userId);
+      if (!req.workspaceDoc || !userId) {
+        res.status(400).json({ error: 'Guest id required' });
+        return;
+      }
+      const db = getDb();
+      if (await findMembership(db, req.workspaceDoc.id, userId)) {
+        res.status(400).json({ error: 'That person is a member, not a guest' });
+        return;
+      }
+      const removed = await deleteGrantsOfUserInWorkspace(db, req.workspaceDoc.id, userId);
+      if (removed === 0) {
+        res.status(404).json({ error: 'Guest not found' });
+        return;
+      }
+      res.json({ success: true, removed });
+    } catch (error: unknown) {
+      log.general.error({ err: error }, 'Failed to remove workspace guest');
+      res.status(500).json({ error: 'Failed to remove guest' });
     }
   },
 );

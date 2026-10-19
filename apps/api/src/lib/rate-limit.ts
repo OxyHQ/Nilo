@@ -21,6 +21,8 @@ export type RateLimitScope =
   | 'form-submit'
   | 'share-read'
   | 'share-join'
+  | 'invite-link-read'
+  | 'invite-link-join'
   | 'page-export-pdf'
   | 'button-webhook'
   | 'export-zip';

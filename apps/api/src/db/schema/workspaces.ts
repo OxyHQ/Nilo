@@ -140,3 +140,84 @@ export const workspaceMembers = pgTable(
     check('workspace_members_role', sql`${t.role} in (${sql.raw(inList(WORKSPACE_ROLES))})`),
   ],
 );
+
+/** The roles an invitation by email can give: anything but `owner`. */
+export const INVITABLE_WORKSPACE_ROLES = ['viewer', 'commenter', 'editor', 'admin'] as const;
+export type InvitableWorkspaceRole = (typeof INVITABLE_WORKSPACE_ROLES)[number];
+
+/** How long an invitation to someone without an Oxy account waits for them. */
+export const WORKSPACE_INVITE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * An invitation addressed to an email that is not (yet) an Oxy account. When
+ * someone whose Oxy email is this one lists their workspaces, it is accepted
+ * (`acceptPendingInvites`): they become a member with `role`. An accepted
+ * invitation stays as the record of who was invited; a revoked one is deleted.
+ */
+export const workspaceInvites = pgTable(
+  'workspace_invites',
+  {
+    id: generatedId(),
+    workspaceId: text()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    /** Always lower-cased: the CHECK below holds every writer to it. */
+    email: text().notNull(),
+    role: text().$type<InvitableWorkspaceRole>().notNull(),
+    /** Oxy user id of whoever invited them. */
+    invitedBy: text().notNull(),
+    createdAt: createdAt(),
+    expiresAt: timestamptz().notNull(),
+    /** When the invitation became a membership; null while it waits. */
+    acceptedAt: timestamptz(),
+  },
+  (t) => [
+    // One waiting invitation per person and workspace; a new one replaces it.
+    uniqueIndex('workspace_invites_pending_key')
+      .on(t.workspaceId, t.email)
+      .where(sql`${t.acceptedAt} is null`),
+    // "Invitations waiting for me", read when a person lists their workspaces.
+    index('workspace_invites_pending_email_idx').on(t.email).where(sql`${t.acceptedAt} is null`),
+    check('workspace_invites_email_lower', sql`${t.email} = lower(${t.email})`),
+    check(
+      'workspace_invites_role',
+      sql`${t.role} in (${sql.raw(inList(INVITABLE_WORKSPACE_ROLES))})`,
+    ),
+  ],
+);
+
+/** The roles a workspace's join link can give: never more than editing. */
+export const WORKSPACE_LINK_ROLES = ['viewer', 'commenter', 'editor'] as const;
+export type WorkspaceLinkRole = (typeof WORKSPACE_LINK_ROLES)[number];
+
+/**
+ * A workspace's join link, Notion's "invite link": anyone signed in who opens
+ * it becomes a member with `role`. A workspace has at most one live link;
+ * disabling stamps `revokedAt`, regenerating revokes it and makes another with
+ * a new token. The members a link brought in stay when it goes.
+ */
+export const workspaceInviteLinks = pgTable(
+  'workspace_invite_links',
+  {
+    id: generatedId(),
+    workspaceId: text()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    token: text().notNull(),
+    role: text().$type<WorkspaceLinkRole>().notNull(),
+    /** Oxy user id of whoever made it. */
+    createdBy: text().notNull(),
+    createdAt: createdAt(),
+    revokedAt: timestamptz(),
+  },
+  (t) => [
+    uniqueIndex('workspace_invite_links_token_key').on(t.token),
+    uniqueIndex('workspace_invite_links_live_key')
+      .on(t.workspaceId)
+      .where(sql`${t.revokedAt} is null`),
+    check(
+      'workspace_invite_links_role',
+      sql`${t.role} in (${sql.raw(inList(WORKSPACE_LINK_ROLES))})`,
+    ),
+  ],
+);

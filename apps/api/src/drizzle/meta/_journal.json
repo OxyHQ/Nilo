@@ -316,6 +316,13 @@
       "when": 1792446859572,
       "tag": "0044_database_locked",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1792447588661,
+      "tag": "0045_workspace_invites",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,10 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
 import { type PageGrantRole, pagePermissions } from '../db/schema/collab.js';
 import { databases } from '../db/schema/databases.js';
 import { pages } from '../db/schema/pages.js';
+import { workspaceMembers } from '../db/schema/workspaces.js';
 import { BREADCRUMB_MAX_DEPTH } from './pages.js';
 
 export type PagePermissionRow = typeof pagePermissions.$inferSelect;
@@ -137,6 +138,71 @@ export async function listUsersWithGrantsInWorkspace(
     .innerJoin(pages, eq(pages.id, pagePermissions.pageId))
     .where(and(inArray(pagePermissions.userId, [...userIds]), eq(pages.workspaceId, workspaceId)));
   return rows.map((r) => r.userId);
+}
+
+/** A guest's grant: a page of the workspace shared with someone who is not its member. */
+export interface GuestGrant {
+  userId: string;
+  pageId: string;
+  title: string;
+  icon: string | null;
+  role: PageGrantRole;
+  grantedBy: string;
+  createdAt: Date;
+}
+
+/**
+ * The workspace's guests, as Notion lists them: everyone holding a grant on
+ * one of its pages without being a member, with each page shared with them
+ * (pages in the trash included: the grant is still there).
+ */
+export async function listGuestGrants(db: PgHandle, workspaceId: string): Promise<GuestGrant[]> {
+  const rows = await db
+    .select({
+      userId: pagePermissions.userId,
+      pageId: pagePermissions.pageId,
+      title: pages.title,
+      icon: pages.icon,
+      role: pagePermissions.role,
+      grantedBy: pagePermissions.grantedBy,
+      createdAt: pagePermissions.createdAt,
+    })
+    .from(pagePermissions)
+    .innerJoin(pages, eq(pages.id, pagePermissions.pageId))
+    .leftJoin(
+      workspaceMembers,
+      and(
+        eq(workspaceMembers.workspaceId, pages.workspaceId),
+        eq(workspaceMembers.userId, pagePermissions.userId),
+      ),
+    )
+    .where(and(eq(pages.workspaceId, workspaceId), isNull(workspaceMembers.id)))
+    .orderBy(pagePermissions.userId, pagePermissions.createdAt);
+  return rows as GuestGrant[];
+}
+
+/**
+ * Take every grant `userId` holds on the workspace's pages: the guest has
+ * nothing there any more. Returns how many went.
+ */
+export async function deleteGrantsOfUserInWorkspace(
+  db: PgHandle,
+  workspaceId: string,
+  userId: string,
+): Promise<number> {
+  const rows = await db
+    .delete(pagePermissions)
+    .where(
+      and(
+        eq(pagePermissions.userId, userId),
+        inArray(
+          pagePermissions.pageId,
+          db.select({ id: pages.id }).from(pages).where(eq(pages.workspaceId, workspaceId)),
+        ),
+      ),
+    )
+    .returning({ pageId: pagePermissions.pageId });
+  return rows.length;
 }
 
 /**
