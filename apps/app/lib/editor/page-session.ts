@@ -82,8 +82,22 @@ export class PageSession {
   private appends = 0;
   private status: SyncStatus = 'saved';
   private storeFailed = false;
+  private readOnly: boolean;
 
-  constructor(private readonly options: PageSessionOptions) {}
+  constructor(private readonly options: PageSessionOptions) {
+    this.readOnly = options.readOnly;
+  }
+
+  /**
+   * Send this device's changes, or stop sending them (the page turned
+   * read-only, or someone who may edit opened it here as well). Turned
+   * writable while connected, it syncs again, sending what the server lacks.
+   */
+  setReadOnly(readOnly: boolean): void {
+    if (readOnly === this.readOnly || this.disposed) return;
+    this.readOnly = readOnly;
+    if (!readOnly && this.joined) this.handshake();
+  }
 
   /** Open the page: the device's copy, then the server whenever the socket is connected. */
   async start(): Promise<void> {
@@ -151,7 +165,8 @@ export class PageSession {
   };
 
   private readonly onUpdate = (update: Uint8Array, origin: unknown) => {
-    const { store, pageId, readOnly } = this.options;
+    const { store, pageId } = this.options;
+    const { readOnly } = this;
     const local = origin !== FROM_SERVER && origin !== FROM_DEVICE;
     if (origin !== FROM_DEVICE && store) {
       void store.append(pageId, update, local).catch(this.storeFailure);
@@ -250,7 +265,7 @@ export class PageSession {
 
   /** The Yjs sync, both ways. */
   private handshake(): void {
-    const { socket, pageId, readOnly, store } = this.options;
+    const { socket, pageId, store } = this.options;
     socket.emit('doc:sync', { pageId, stateVector: Y.encodeStateVector(this.doc) }, ((
       reply: Reply,
     ) => {
@@ -263,7 +278,9 @@ export class PageSession {
       Y.applyUpdate(this.doc, bytes(reply.update), FROM_SERVER);
       this.joined = true;
       this.markReady();
-      const missing = readOnly ? null : Y.encodeStateAsUpdate(this.doc, bytes(reply.stateVector));
+      const missing = this.readOnly
+        ? null
+        : Y.encodeStateAsUpdate(this.doc, bytes(reply.stateVector));
       if (missing && hasContent(missing)) this.send(missing);
       else {
         this.setStatus('saved');
