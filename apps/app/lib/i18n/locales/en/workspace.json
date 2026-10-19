@@ -117,6 +117,10 @@
     "archiveInfo": "This teamspace will no longer appear under Teamspaces.",
     "failed": "Could not complete this action. Please try again.",
     "newDatabase": "New database",
-    "search": "Find a teamspace"
+    "search": "Find a teamspace",
+    "archivedTitle": "Archived teamspaces",
+    "archivedSubtitle": "Archived: out of the sidebar",
+    "unarchive": "Unarchive",
+    "unarchiveName": "Unarchive %{name}"
   }
 }

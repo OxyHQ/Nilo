@@ -58,6 +58,9 @@ export function TeamspaceDialog({
         : 'workspace.teamspaces.settings',
   );
   const close = () => control.close();
+  // Out of the sidebar, but here: whoever manages one can bring it back.
+  const archived = teamspaces.data?.filter((space) => space.archived) ?? [];
+  const manages = (space: Teamspace) => space.role === 'owner' || hasRole(role, 'admin');
   return (
     <Dialog
       control={control}
@@ -122,6 +125,43 @@ export function TeamspaceDialog({
                 ) : null}
               </View>
             ))}
+          {archived.length > 0 ? (
+            <Text accessibilityRole="header" variant="body-medium" className="pt-2">
+              {t('workspace.teamspaces.archivedTitle')}
+            </Text>
+          ) : null}
+          {archived.map((space) => (
+            <View key={space.id} className="rounded-lg border border-border">
+              <Item
+                accessibilityLabel={space.name}
+                onPress={() => onSelect(space)}
+                title={`${space.icon ?? ''} ${space.name}`.trim()}
+                subtitle={t('workspace.teamspaces.archivedSubtitle')}
+                trailing={
+                  manages(space) ? (
+                    <Button
+                      appearance="outline"
+                      size="sm"
+                      stopPropagation
+                      disabled={mutation.isPending}
+                      accessibilityLabel={t('workspace.teamspaces.unarchiveName', {
+                        name: space.name,
+                      })}
+                      onPress={() =>
+                        mutation.mutate({
+                          action: 'update',
+                          id: space.id,
+                          input: { archived: false },
+                        })
+                      }
+                    >
+                      {t('workspace.teamspaces.unarchive')}
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </View>
+          ))}
           {mutation.isError ? (
             <Text accessibilityRole="alert" className="text-sm text-destructive">
               {apiErrorMessage(mutation.error, t('workspace.teamspaces.failed'))}
@@ -362,7 +402,19 @@ function TeamspaceDetails({
               {t('workspace.teamspaces.leave')}
             </Button>
           ) : null}
-          {manages && !teamspace.isDefault ? (
+          {manages && teamspace.archived ? (
+            <Button
+              appearance="solid"
+              tone="accent"
+              disabled={busy}
+              accessibilityLabel={t('workspace.teamspaces.unarchive')}
+              onPress={() =>
+                mutation.mutate({ action: 'update', id: teamspace.id, input: { archived: false } })
+              }
+            >
+              {t('workspace.teamspaces.unarchive')}
+            </Button>
+          ) : manages && !teamspace.isDefault ? (
             <>
               {archiveConfirm ? (
                 <Text variant="body-regular">{t('workspace.teamspaces.archiveInfo')}</Text>

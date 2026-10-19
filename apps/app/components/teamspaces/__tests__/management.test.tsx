@@ -229,3 +229,28 @@ it('archives only after confirmation', async () => {
   await press('workspace.teamspaces.confirmArchive');
   expect(apiClient.patch).toHaveBeenCalledWith('/teamspaces/t', { archived: true });
 });
+
+it('lists an archived teamspace, out of the sidebar, and brings it back', async () => {
+  teamspace.archived = true;
+  await mount('browse');
+  await press('workspace.teamspaces.unarchiveName:Team');
+  expect(apiClient.patch).toHaveBeenCalledWith('/teamspaces/t', { archived: false });
+});
+
+it("offers unarchiving, not archiving, in an archived teamspace's settings", async () => {
+  teamspace.archived = true;
+  await mount();
+  const labels = buttons().map((b) => b.props.accessibilityLabel);
+  expect(labels).not.toContain('workspace.teamspaces.archive');
+  await press('workspace.teamspaces.unarchive');
+  expect(apiClient.patch).toHaveBeenCalledWith('/teamspaces/t', { archived: false });
+});
+
+it('does not offer unarchiving to a member who does not manage it', async () => {
+  teamspace.archived = true;
+  teamspace.role = 'member';
+  await mount('browse');
+  expect(buttons().map((b) => b.props.accessibilityLabel)).not.toContain(
+    'workspace.teamspaces.unarchiveName:Team',
+  );
+});
