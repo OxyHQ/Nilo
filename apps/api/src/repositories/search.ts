@@ -66,6 +66,35 @@ function snippetParts(headline: string): SnippetPart[] {
 
 const col = (column: Parameters<typeof sqlColumnName>[0]) => sql.identifier(sqlColumnName(column));
 
+/** Narrowing a search: who created the page, and when it was last edited. */
+export interface SearchFilter {
+  /** The page's creator (`pages.owner_id`). */
+  createdBy?: string;
+  /** Edited at or after. */
+  editedAfter?: Date;
+  /** Edited before. */
+  editedBefore?: Date;
+}
+
+/** The filter as predicates on `pages` (aliased `alias` when it is), each one ANDed in. */
+function filterSql(filter: SearchFilter | undefined, alias?: string) {
+  const column = (c: Parameters<typeof sqlColumnName>[0]) =>
+    alias ? sql`${sql.identifier(alias)}.${col(c)}` : col(c);
+  const parts = [];
+  if (filter?.createdBy) parts.push(sql` and ${column(pages.ownerId)} = ${filter.createdBy}`);
+  if (filter?.editedAfter) {
+    parts.push(
+      sql` and ${column(pages.updatedAt)} >= ${filter.editedAfter.toISOString()}::timestamptz`,
+    );
+  }
+  if (filter?.editedBefore) {
+    parts.push(
+      sql` and ${column(pages.updatedAt)} < ${filter.editedBefore.toISOString()}::timestamptz`,
+    );
+  }
+  return sql.join(parts, sql``);
+}
+
 /**
  * How close a word must be to one in a title to count (`word_similarity`):
  * one typo in a word of six letters is about 0.5.
@@ -83,6 +112,7 @@ export async function searchPageTitles(
   workspaceId: string,
   words: readonly string[],
   limit: number,
+  filter?: SearchFilter,
 ): Promise<TitleHit[]> {
   if (words.length === 0) return [];
   const vector = sql`to_tsvector('nilo_search'::regconfig, ${col(pages.title)})`;
@@ -111,7 +141,7 @@ export async function searchPageTitles(
       from ${pages}
       where ${col(pages.workspaceId)} = ${workspaceId}
         and not ${col(pages.archived)}
-        and ${everyWord}
+        and ${everyWord}${filterSql(filter)}
       order by rank desc, ${col(pages.updatedAt)} desc
       limit ${limit}
     `);
@@ -128,6 +158,7 @@ export async function searchBlockText(
   workspaceId: string,
   query: string,
   limit: number,
+  filter?: SearchFilter,
 ): Promise<BlockHit[]> {
   const text = sql`coalesce(b.${col(blocks.content)} ->> 'text', '')`;
   const rows = await db.execute(sql`
@@ -143,7 +174,7 @@ export async function searchBlockText(
       from ${blocks} b
       join ${pages} p on p.${col(pages.id)} = b.${col(blocks.pageId)}
       where p.${col(pages.workspaceId)} = ${workspaceId}
-        and not p.${col(pages.archived)}
+        and not p.${col(pages.archived)}${filterSql(filter, 'p')}
         and to_tsvector('nilo_search'::regconfig, ${text}) @@ to_tsquery('nilo_search'::regconfig, ${query})
     )
     select block_id, page_id, rank,

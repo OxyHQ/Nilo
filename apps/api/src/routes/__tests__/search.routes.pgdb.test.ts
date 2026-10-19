@@ -11,6 +11,7 @@ import express from 'express';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { closeDb } from '../../db/client.js';
 import { pagePermissions } from '../../db/schema/collab.js';
+import { teamspaces } from '../../db/schema/teamspaces.js';
 import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
 import {
   closeTestDb,
@@ -19,6 +20,7 @@ import {
   testDatabaseUrl,
   testScope,
 } from '../../db/__tests__/testDatabase.js';
+import { createPage } from '../../repositories/pages.js';
 
 vi.mock('../../middleware/auth.js', () => ({
   authenticateToken: (req: express.Request, _res: express.Response, next: express.NextFunction) => {
@@ -213,6 +215,75 @@ describe('GET /search', () => {
       `/search?workspaceId=${workspaceId}&q=plan`,
     );
     expect(stranger.status).toBe(403);
+  });
+
+  it('narrows by title only, creator, teamspace and when a page was edited', async () => {
+    const EDITOR = 'search-filter-editor';
+    const [team] = await db
+      .insert(teamspaces)
+      .values({ workspaceId, name: 'Filters', privacy: 'open', createdBy: OWNER })
+      .returning({ id: teamspaces.id });
+    const started = new Date(Date.now() - 1);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const inTeam = await createPage(db, {
+      workspaceId,
+      ownerId: EDITOR,
+      title: 'Planificación del equipo',
+      order: 50,
+      teamspaceId: team.id,
+    });
+    const mine = await createPage(db, {
+      workspaceId,
+      ownerId: OWNER,
+      title: 'Planificación privada',
+      order: 51,
+      teamspaceId: null,
+    });
+    const filtered = async (params: Record<string, string>) =>
+      (
+        (
+          await api(
+            OWNER,
+            'GET',
+            `/search?${new URLSearchParams({ workspaceId, ...params }).toString()}`,
+          )
+        ).json.results as Result[]
+      ).map((r) => r.page.id);
+
+    // Text matches are left out when only titles are asked for.
+    const everything = await filtered({ q: 'planificación' });
+    expect(everything).toEqual(expect.arrayContaining([notes, inTeam.id, mine.id]));
+    const titles = await filtered({ q: 'planificación', titleOnly: 'true' });
+    expect(titles).toEqual(expect.arrayContaining([inTeam.id, mine.id]));
+    expect(titles).not.toContain(notes);
+
+    expect(await filtered({ q: 'planificación', createdBy: EDITOR })).toEqual([inTeam.id]);
+    expect(await filtered({ q: 'planificación', teamspaceId: team.id })).toEqual([inTeam.id]);
+    const privately = await filtered({ q: 'planificación', teamspaceId: 'private' });
+    expect(privately).toContain(mine.id);
+    expect(privately).not.toContain(inTeam.id);
+
+    const recent = await filtered({ q: 'planificación', editedAfter: started.toISOString() });
+    expect(recent.sort()).toEqual([inTeam.id, mine.id].sort());
+    expect(
+      await filtered({
+        q: 'planificación',
+        editedBefore: started.toISOString(),
+        titleOnly: 'true',
+      }),
+    ).toEqual([]);
+
+    // Filters with nothing typed: the pages they match, the latest edited first.
+    expect(await filtered({ q: '', createdBy: EDITOR })).toEqual([inTeam.id]);
+    expect(await filtered({ editedAfter: started.toISOString() })).toEqual([mine.id, inTeam.id]);
+    // A guest's filtered search still stops at what is shared with them.
+    expect(
+      (await api('search-guest', 'GET', `/search?workspaceId=${workspaceId}&createdBy=${EDITOR}`))
+        .json.results,
+    ).toEqual([]);
+    expect(
+      (await api(OWNER, 'GET', `/search?workspaceId=${workspaceId}&editedAfter=yesterday`)).status,
+    ).toBe(400);
   });
 
   it('can use the full-text and trigram indexes', async () => {
