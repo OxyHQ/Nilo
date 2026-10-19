@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { signOutOfDevice } from '@/lib/account-boundary';
 import { PlacementSections } from './sidebar-sections/placement-sections';
+import { PageDragProvider } from './sidebar-sections/drag-context';
 import { useNewPageStore } from '@/lib/stores/new-page-store';
 import { SharedWithMeSection } from './sidebar-sections/shared-with-me-section';
 import React from 'react';
@@ -228,12 +229,15 @@ export const Sidebar = React.memo(function Sidebar() {
         {isAuthenticated ? <SharedWithMeSection /> : null}
 
         {isAuthenticated && currentWorkspaceId ? (
-          <View className="mt-2">
-            <RecentsSection />
-            <FavoritesSection />
-            <PlacementSections />
-            <TemplatesSection />
-          </View>
+          // One drag across the sections: a page moves between them.
+          <PageDragProvider>
+            <View className="mt-2">
+              <RecentsSection />
+              <FavoritesSection />
+              <PlacementSections />
+              <TemplatesSection />
+            </View>
+          </PageDragProvider>
         ) : null}
 
         {isAuthenticated ? (
