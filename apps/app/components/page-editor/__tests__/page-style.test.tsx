@@ -24,6 +24,7 @@ const mockT = (key: string) => key;
 const mockMentions = {};
 const mockOpenMention = jest.fn();
 const mockCreateDatabase = jest.fn();
+const mockDeleteDatabase = jest.fn();
 let mockPage: { font: PageFont; smallText: boolean; fullWidth: boolean; workspaceId: string };
 jest.mock('@/components/page-editor/page-canvas', () => ({ PageCanvas: () => null }));
 jest.mock('@/lib/ai/use-ai', () => ({ useAiAvailable: () => false }));
@@ -55,6 +56,7 @@ jest.mock('@/hooks/useTranslation', () => ({ useTranslation: () => ({ t: mockT, 
 jest.mock('@/lib/hooks/use-pages', () => ({ usePage: () => ({ data: { page: mockPage } }) }));
 jest.mock('@/lib/hooks/use-databases', () => ({
   useCreateDatabase: () => ({ mutateAsync: mockCreateDatabase }),
+  useDeleteDatabase: () => ({ mutate: mockDeleteDatabase }),
 }));
 jest.mock('@/lib/hooks/use-search-block', () => ({ useSearchBlock: jest.fn() }));
 jest.mock('@/lib/hooks/use-member-profiles', () => ({
