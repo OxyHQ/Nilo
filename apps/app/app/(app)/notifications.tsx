@@ -18,7 +18,7 @@ import { RiCheckDoubleLine } from '@oxy.so/bloom/icons/RiCheckDoubleLine';
 import { RiMessage2Line } from '@oxy.so/bloom/icons/RiMessage2Line';
 import { RiUserAddLine } from '@oxy.so/bloom/icons/RiUserAddLine';
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@oxy.so/services';
+import { useAuth } from '@oxy.so/services/ui/client';
 import * as ExpoNotifications from 'expo-notifications';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 

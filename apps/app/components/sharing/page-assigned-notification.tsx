@@ -1,4 +1,4 @@
-import { useUserById } from '@oxy.so/services';
+import { useUserById } from '@oxy.so/services/ui/client';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePage } from '@/lib/hooks/use-pages';

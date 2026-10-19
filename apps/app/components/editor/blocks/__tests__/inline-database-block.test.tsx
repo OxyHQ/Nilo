@@ -11,7 +11,7 @@ import type { Block } from '@/lib/types/pages';
 const mockPush = jest.fn();
 let sourceRole = 'viewer';
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock('@oxy.so/services', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { error: jest.fn() } }));
 jest.mock('@/lib/realtime/use-live-updates', () => ({ useDatabaseLive: jest.fn() }));
 jest.mock('@/lib/hooks/use-pages', () => ({

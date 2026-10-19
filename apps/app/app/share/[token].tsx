@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ScrollView, Pressable, Platform, Linking } from 'react-native';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';

@@ -7,7 +7,7 @@ import { TeamspaceDialog, type TeamspaceSelection } from '../teamspace-dialog';
 import apiClient from '@/lib/api/client';
 import type { Teamspace } from '@/lib/hooks/use-teamspaces';
 
-jest.mock('@oxy.so/services', () => ({
+jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({ isAuthenticated: true, user: { id: 'me' } }),
 }));
 jest.mock('@/hooks/useTranslation', () => ({

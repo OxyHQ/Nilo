@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import apiClient from '../api/client';
 import { workspaceMemberKeys } from './workspace-keys';
 import type { WorkspaceRole } from './use-workspaces';

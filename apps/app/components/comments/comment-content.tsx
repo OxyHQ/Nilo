@@ -5,7 +5,7 @@ import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { RiUserLine } from '@oxy.so/bloom/icons/RiUserLine';
 import { Chip } from '@oxy.so/bloom/chip';
 import { Text } from '@oxy.so/bloom/typography';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/hooks/useTranslation';

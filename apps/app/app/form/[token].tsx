@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { openAccountDialog, useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import axios from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@oxy.so/bloom/button';
@@ -19,7 +19,7 @@ export default function PublicFormRoute() {
 function PublicFormPage({ token }: { token: string }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isAuthenticated, user } = useOxy();
+  const { isAuthenticated, user, openAccountDialog } = useOxy();
   const query = usePublicForm(token);
   const submit = useSubmitForm(token);
   const submitting = useRef(false);

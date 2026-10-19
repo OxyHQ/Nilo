@@ -6,11 +6,9 @@ import apiClient from '@/lib/api/client';
 import { Button } from '@oxy.so/bloom/button';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
-import { openAccountDialog } from '@oxy.so/services';
-
-jest.mock('@oxy.so/services', () => ({
-  useOxy: () => ({ isAuthenticated: false, user: null }),
-  openAccountDialog: jest.fn(),
+const mockOpenAccountDialog = jest.fn();
+jest.mock('@oxy.so/services/ui/client', () => ({
+  useOxy: () => ({ isAuthenticated: false, user: null, openAccountDialog: mockOpenAccountDialog }),
 }));
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({ token: 'token' }) }));
 jest.mock('@/hooks/useTranslation', () => ({
@@ -94,7 +92,7 @@ it('offers sign-in without navigating away from the form', async () => {
   });
   await mount();
   act(() => button('login.signInButton')?.props.onPress());
-  expect(openAccountDialog).toHaveBeenCalledTimes(1);
+  expect(mockOpenAccountDialog).toHaveBeenCalledTimes(1);
   expect(button('databases.form.submit')).toBeUndefined();
 });
 it('retains answers and disables submission during Retry-After', async () => {

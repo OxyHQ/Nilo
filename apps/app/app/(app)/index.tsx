@@ -3,7 +3,7 @@ import * as React from 'react';
 import { View } from 'react-native';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { Redirect } from 'expo-router';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { Button } from '@oxy.so/bloom/button';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';

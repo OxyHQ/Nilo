@@ -31,7 +31,7 @@ import { useUIStore } from '@/lib/stores/ui-store';
 import { useRouter } from 'expo-router';
 import { useNiloSettings } from '@/components/settings/settings-provider';
 import { UserAvatar } from '@/components/user-avatar';
-import { useOxy, openAccountDialog } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { NiloWordmark } from '@/components/nilo-wordmark';
 import { WorkspaceSwitcher } from '@/components/workspace/workspace-switcher';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -66,7 +66,7 @@ export const Sidebar = React.memo(function Sidebar() {
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const openNewPage = useNewPageStore((s) => s.open);
 
-  const { user, isAuthenticated, logout, showBottomSheet } = useOxy();
+  const { user, isAuthenticated, logout, showBottomSheet, openAccountDialog } = useOxy();
   // Surface the Comments agent's unread count on the Inbox row.
   const { data: unreadData } = useUnreadCount();
   const unreadCount = unreadData?.count ?? 0;
@@ -90,7 +90,7 @@ export const Sidebar = React.memo(function Sidebar() {
     // (lib/account-boundary.ts).
     void signOutOfDevice(queryClient);
   }, [router, logout, queryClient]);
-  const handleLogin = React.useCallback(() => openAccountDialog(), []);
+  const handleLogin = React.useCallback(() => openAccountDialog(), [openAccountDialog]);
   const handleNotifications = React.useCallback(
     () => router.push('/(app)/notifications'),
     [router],

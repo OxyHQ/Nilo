@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { useIsMutating } from '@tanstack/react-query';
 import { RiEmotionLine } from '@oxy.so/bloom/icons/RiEmotionLine';
 import { Button } from '@oxy.so/bloom/button';

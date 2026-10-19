@@ -7,7 +7,7 @@ import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
 import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';
 import { TextField, TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useFileImageSource, useFileRemoved, useFileScope } from '@/lib/files/file-urls';
 import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';

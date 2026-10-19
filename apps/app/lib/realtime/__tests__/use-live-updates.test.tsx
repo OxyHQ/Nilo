@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useWorkspaceLive, useDatabaseLive, useCommentsLive } from '../use-live-updates';
 import { acquireSocket, releaseSocket } from '../socket';
 
-jest.mock('@oxy.so/services', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
 jest.mock('../socket', () => ({ acquireSocket: jest.fn(), releaseSocket: jest.fn() }));
 let client: QueryClient;
 let renderer: ReactTestRenderer;

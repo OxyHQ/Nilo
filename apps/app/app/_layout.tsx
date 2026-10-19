@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { OxyProvider, useOxy } from '@oxy.so/services';
+import { OxyProvider, useOxy } from '@oxy.so/services/ui/client';
 import { OverlayInertBoundary, PortalOutlet, PortalProvider } from '@oxy.so/bloom/portal';
 import { BloomProvider } from '@oxy.so/bloom/provider';
 import { ImageResolverProvider } from '@oxy.so/bloom/image-resolver';

@@ -24,7 +24,7 @@ jest.mock('@/lib/ai/use-ai', () => ({
   ...jest.requireActual('@/lib/ai/use-ai'),
   useAiAction: () => mockRun,
 }));
-jest.mock('@oxy.so/services', () => ({
+jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({ isAuthenticated: true, oxyServices: {} }),
 }));
 // The dialog's body renders in place; closing it settles at once and reports

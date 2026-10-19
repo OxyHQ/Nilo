@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { API_ROUTES } from '../api/routes';
 import type { SearchResponse } from '../types/search';
 import { useAuthQuery } from './create-query';

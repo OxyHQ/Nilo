@@ -47,7 +47,7 @@ jest.mock('@oxy.so/bloom/fonts', () => ({
   fontFamilies: { sans: 'Inter', display: 'BlomusModernus', mono: 'JetBrains Mono' },
 }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { error: jest.fn() } }));
-jest.mock('@oxy.so/services', () => ({ useOxy: () => ({ user: { id: 'owner' } }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ user: { id: 'owner' } }) }));
 jest.mock('@/lib/useColorScheme', () => ({
   useColorScheme: () => ({ colors: mockColors, isDarkColorScheme: false }),
 }));

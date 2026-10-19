@@ -1,7 +1,7 @@
 import { useEditorTheme } from './editor-presentation';
 import { collaboratorColor } from './presence';
 import { View } from 'react-native';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { Avatar } from '@oxy.so/bloom/avatar';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';

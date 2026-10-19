@@ -1,5 +1,5 @@
 import { Avatar } from '@oxy.so/bloom/avatar';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import type { Workspace } from '@/lib/hooks/use-workspaces';
 
 interface WorkspaceAvatarProps {

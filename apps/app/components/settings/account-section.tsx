@@ -5,7 +5,7 @@ import { RiExternalLinkLine } from '@oxy.so/bloom/icons/RiExternalLinkLine';
 import { SettingsCard, SettingsRow } from '@oxy.so/bloom/settings-modal/modal';
 import { getAccountDisplayName } from '@oxy.so/core';
 import { Text } from '@oxy.so/bloom/typography';
-import { openAccountDialog, useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useNiloSettings } from './settings-provider';
 
@@ -14,7 +14,7 @@ import { useNiloSettings } from './settings-provider';
  * edited in Oxy's own account surface.
  */
 export function AccountSection() {
-  const { user, isAuthenticated, showBottomSheet } = useOxy();
+  const { user, isAuthenticated, showBottomSheet, openAccountDialog } = useOxy();
   const { t, locale } = useTranslation();
   const { afterClose } = useNiloSettings();
 

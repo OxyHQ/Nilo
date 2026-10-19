@@ -5,7 +5,7 @@ import { Button } from '@oxy.so/bloom/button';
 import { RiFileLine } from '@oxy.so/bloom/icons/RiFileLine';
 import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';
 import { Text } from '@oxy.so/bloom/typography';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { freshFileUrl, isFileRemoved, useFileRemoved, useFileScope } from '@/lib/files/file-urls';
 import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';

@@ -11,7 +11,7 @@ jest.mock('@oxy.so/core/inference', () => {
   const actual = jest.requireActual('@oxy.so/core/inference');
   return { ...actual, createInferenceClient: () => mockClient };
 });
-jest.mock('@oxy.so/services', () => ({
+jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({
     isAuthenticated: mockAuthenticated,
     oxyServices: { apps: { getPublic: (id: string) => mockGetPublic(id) } },

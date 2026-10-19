@@ -8,7 +8,7 @@ import { Platform, ScrollView, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
 import { useRouter } from 'expo-router';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { toast } from '@oxy.so/bloom/toast';
 import { Popover, PopoverTrigger, PopoverContent, PopoverSeparator } from '@oxy.so/bloom/popover';
 import { Button } from '@oxy.so/bloom/button';

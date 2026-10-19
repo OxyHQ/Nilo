@@ -5,7 +5,7 @@ import apiClient from '@/lib/api/client';
 import { useCommentReaction } from '../use-comments';
 import type { Comment, CommentsListResponse } from '@/lib/types/comments';
 
-jest.mock('@oxy.so/services', () => ({ useOxy: () => ({ user: { id: 'me' } }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ user: { id: 'me' } }) }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { put: jest.fn(), delete: jest.fn() },

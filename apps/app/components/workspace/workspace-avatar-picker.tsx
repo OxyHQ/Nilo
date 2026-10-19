@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { View } from 'react-native';
 import { Button } from '@oxy.so/bloom/button';
 import type { FileMetadata } from '@oxy.so/core';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { useTranslation } from '@/hooks/useTranslation';
 import { WorkspaceAvatar } from './workspace-avatar';
 

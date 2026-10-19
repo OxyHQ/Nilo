@@ -6,7 +6,7 @@ import { useChangeFormLink, usePublicForm, useSubmitForm } from '../use-forms';
 import { queryKeys } from '../query-keys';
 
 let mockUserId: string | undefined;
-jest.mock('@oxy.so/services', () => ({
+jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({
     isAuthenticated: Boolean(mockUserId),
     user: mockUserId ? { id: mockUserId } : null,

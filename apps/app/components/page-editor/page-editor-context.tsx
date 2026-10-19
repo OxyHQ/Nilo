@@ -17,7 +17,7 @@ import {
   type BlockDecoration,
 } from '@oxy.so/bloom-editor';
 import { usePage } from '@/lib/hooks/use-pages';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePageEditor, type PageEditorState } from '@/lib/editor/use-page-editor';

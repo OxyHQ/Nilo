@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import {
   SettingsModal,
   type SettingsIcon,

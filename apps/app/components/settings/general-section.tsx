@@ -10,7 +10,7 @@ import {
 } from '@oxy.so/bloom/select';
 import { APP_COLOR_NAMES, useBloomTheme } from '@oxy.so/bloom/theme';
 import { getNativeLanguageName } from '@oxy.so/core';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useNiloSettings } from './settings-provider';

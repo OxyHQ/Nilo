@@ -1,5 +1,5 @@
 import NetInfo from '@react-native-community/netinfo';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { useCallback, useEffect, useState } from 'react';
 import { type OfflineEntry, offlinePages } from './offline-pages';
 import { refreshPinnedPages } from './offline-sync';

@@ -4,7 +4,7 @@ import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { CommentReactions } from '../comment-reactions';
 import type { Comment } from '@/lib/types/comments';
 const mockMutate = jest.fn();
-jest.mock('@oxy.so/services', () => ({ useOxy: () => ({ user: { id: 'me' } }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ user: { id: 'me' } }) }));
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: () => 0 }));
 jest.mock('@/lib/hooks/use-comments', () => ({
   useCommentReaction: () => ({ mutate: mockMutate }),

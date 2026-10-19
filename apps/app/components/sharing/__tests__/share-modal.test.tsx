@@ -15,7 +15,7 @@ jest.mock('@/lib/hooks/use-workspace-members', () => ({
 }));
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn() }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
-jest.mock('@oxy.so/services', () => ({ useOxy: () => ({ user: { id: 'me' } }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ user: { id: 'me' } }) }));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));

@@ -8,7 +8,7 @@
  * and restored before anything renders. Everything else stays in memory, so a
  * root added later and forgotten here is at worst kept for its own account.
  */
-import type { AccountQueriesConfig } from '@oxy.so/services';
+import type { AccountQueriesConfig } from '@oxy.so/services/ui';
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
 
 /** How long a kept query may serve without being read again. */

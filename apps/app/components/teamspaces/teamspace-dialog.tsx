@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { Button } from '@oxy.so/bloom/button';
 import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
 import { Item } from '@oxy.so/bloom/item';

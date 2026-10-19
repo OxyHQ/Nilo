@@ -1,4 +1,4 @@
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { Avatar } from '@oxy.so/bloom/avatar';
 
 interface UserAvatarProps {
