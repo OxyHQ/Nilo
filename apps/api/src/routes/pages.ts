@@ -39,6 +39,7 @@ import { notifyAssigned } from '../lib/databases/assignments.js';
 import { projectNow } from '../lib/page-projection.js';
 import { blocksToPdf, type ImageLoader, imageSources } from '../lib/pdf-export.js';
 import { exportContext } from '../lib/export-context.js';
+import { ExportTooLarge, exportPagesZip, zipExports } from '../lib/export-zip.js';
 import { servableFileIds } from '../repositories/pageFiles.js';
 import { safeFetch } from '../lib/safe-fetch.js';
 import { log } from '../lib/logger.js';
@@ -918,6 +919,11 @@ router.get('/:id/breadcrumb', async (req: Request, res: Response) => {
 
 const exportQuerySchema = z.object({
   format: z.enum(['md', 'markdown', 'html', 'pdf']).default('md'),
+  /** The page and its subpages, as a ZIP of Markdown or HTML files. */
+  subpages: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
 });
 
 /** An image a PDF embeds: fetched safely, PNG or JPEG, whole, at most 8 MB. */
@@ -959,13 +965,36 @@ async function exportImageLoader(
 /** A PDF is drawn on the server: a member gets a few a minute. */
 const pdfExports = rateLimit('page-export-pdf', { max: 10, windowMs: 60_000 });
 
+/** The headers of a file a browser saves, named for every OS and, exactly, for RFC 5987 readers. */
+function attachment(res: Response, title: string, extension: string, type: string): void {
+  const ascii =
+    title
+      .normalize('NFKD')
+      .replace(/[^a-zA-Z0-9-_]+/gu, '-')
+      .replace(/^-+|-+$/g, '') || 'page';
+  res.setHeader('Content-Type', type);
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${ascii}.${extension}"; filename*=UTF-8''${encodeURIComponent(`${title}.${extension}`)}`,
+  );
+}
+
 router.get(
   '/:id/export',
-  (req, res, next) => (req.query.format === 'pdf' ? pdfExports(req, res, next) : next()),
+  (req, res, next) =>
+    req.query.subpages === 'true'
+      ? zipExports(req, res, next)
+      : req.query.format === 'pdf'
+        ? pdfExports(req, res, next)
+        : next(),
   async (req: Request, res: Response) => {
     try {
       const params = z.object({ id: entityIdSchema }).parse(req.params);
-      const { format } = exportQuerySchema.parse(req.query);
+      const { format, subpages } = exportQuerySchema.parse(req.query);
+      if (subpages && format === 'pdf') {
+        res.status(400).json({ error: 'A page with its subpages exports as Markdown or HTML' });
+        return;
+      }
 
       const db = getDb();
       const page = await findPageById(db, params.id);
@@ -977,14 +1006,19 @@ router.get(
 
       // The rows, brought up to the latest edits.
       await projectNow(page.id);
+      if (subpages) {
+        const zip = await exportPagesZip(db, {
+          viewerId: req.user?.id ?? '',
+          workspaceId: page.workspaceId,
+          rootIds: [page.id],
+          format: format === 'html' ? 'html' : 'md',
+        });
+        attachment(res, page.title?.trim() ? page.title : 'Untitled', 'zip', 'application/zip');
+        res.send(Buffer.from(zip.bytes));
+        return;
+      }
       const tree = inReadingOrder(blocksToTree(await listBlocksForPage(db, page.id)));
       const title = page.title?.trim() ? page.title : 'Untitled';
-      // A filename every OS accepts, plus the exact name for clients that read RFC 5987.
-      const ascii =
-        title
-          .normalize('NFKD')
-          .replace(/[^a-zA-Z0-9-_]+/gu, '-')
-          .replace(/^-+|-+$/g, '') || 'page';
       const kind =
         format === 'pdf'
           ? { extension: 'pdf', type: 'application/pdf' }
@@ -1000,14 +1034,16 @@ router.get(
           : format === 'html'
             ? blocksToHtml(tree, title, context)
             : blocksToMarkdown(tree, title, context);
-      res.setHeader('Content-Type', kind.type);
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${ascii}.${kind.extension}"; filename*=UTF-8''${encodeURIComponent(`${title}.${kind.extension}`)}`,
-      );
+      attachment(res, title, kind.extension, kind.type);
       res.send(body);
     } catch (error: unknown) {
       if (handleZodError(error, res)) return;
+      if (error instanceof ExportTooLarge) {
+        res
+          .status(413)
+          .json({ error: 'Too many pages to export at once', code: 'EXPORT_TOO_LARGE' });
+        return;
+      }
       log.general.error({ err: error }, 'Failed to export page');
       res.status(500).json({ error: 'Failed to export page' });
     }

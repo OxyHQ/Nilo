@@ -89,12 +89,13 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
     toast.success(t('pages.toasts.linkCopied'));
   }, [page.id, t]);
 
-  const handleExport = async (format: ExportFormat) => {
+  const handleExport = async (format: ExportFormat, subpages = false) => {
     try {
       const { blob, filename } = await exportPage.mutateAsync({
         id: page.id,
         format,
-        fallback: t('pages.untitled'),
+        subpages,
+        fallback: page.title || t('pages.untitled'),
       });
       await saveExport({ blob, filename });
       toast.success(t('pages.export.downloaded'));
@@ -248,6 +249,16 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
                 disabled={exportPage.isPending}
                 onPress={() => {
                   void handleExport(format);
+                }}
+              />
+            ))}
+            {(['md', 'html'] as const).map((format) => (
+              <Action
+                key={`${format}-subpages`}
+                label={t('pages.export.withSubpages', { format: t(EXPORT_LABELS[format]) })}
+                disabled={exportPage.isPending}
+                onPress={() => {
+                  void handleExport(format, true);
                 }}
               />
             ))}

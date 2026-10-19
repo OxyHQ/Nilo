@@ -31,6 +31,7 @@ export const API_ROUTES = {
   share: { join: (token: string) => `/share/${encodeURIComponent(token)}/join` },
   workspaces: {
     emptyTrash: (id: string) => `/workspaces/${id}/trash/empty`,
+    export: (id: string) => `/workspaces/${id}/export`,
   },
   blocks: {
     // Blocks are written only through `/pages/:id/blocks/transactions` (lib/editor).

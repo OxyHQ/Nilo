@@ -93,18 +93,48 @@ export function useExportPage() {
       id,
       format,
       fallback,
+      subpages,
     }: {
       id: string;
       format: ExportFormat;
       fallback: string;
+      /** The page and its subpages, as a ZIP (Markdown or HTML). */
+      subpages?: boolean;
     }) => {
       const response = await apiClient.get<Blob>(API_ROUTES.pages.export(id), {
+        params: subpages ? { format, subpages: 'true' } : { format },
+        responseType: 'blob',
+      });
+      return {
+        blob: response.data,
+        filename: exportFilename(
+          response.headers['content-disposition'],
+          `${fallback}.${subpages ? 'zip' : format}`,
+        ),
+      };
+    },
+  });
+}
+
+/** Every page of a workspace the member can open, as a ZIP of Markdown or HTML files. */
+export function useExportWorkspace() {
+  return useMutation({
+    mutationFn: async ({
+      id,
+      format,
+      fallback,
+    }: {
+      id: string;
+      format: 'md' | 'html';
+      fallback: string;
+    }) => {
+      const response = await apiClient.get<Blob>(API_ROUTES.workspaces.export(id), {
         params: { format },
         responseType: 'blob',
       });
       return {
         blob: response.data,
-        filename: exportFilename(response.headers['content-disposition'], `${fallback}.${format}`),
+        filename: exportFilename(response.headers['content-disposition'], `${fallback}.zip`),
       };
     },
   });

@@ -94,6 +94,10 @@
     "resetInputLabel": "Nombre del espacio de trabajo",
     "resetMismatch": "El nombre no coincide. No se ha eliminado nada.",
     "resetDone": "Tu espacio de trabajo personal está vacío",
-    "resetFailed": "No se pudo restablecer el espacio de trabajo."
+    "resetFailed": "No se pudo restablecer el espacio de trabajo.",
+    "export": "Exportar",
+    "exportLabel": "Exportar el workspace",
+    "exportDescription": "Todas las páginas que puedes abrir, como archivos Markdown o HTML en carpetas por subpágina, con las bases de datos como tablas.",
+    "exportFailed": "No se pudo exportar el workspace."
   }
 }
