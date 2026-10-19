@@ -25,6 +25,12 @@ import {
 } from '@oxy.so/nilo-contracts';
 import { copyPageTree, listCopyableSubtree } from '../repositories/pageCopies.js';
 import { follow } from '../repositories/pageFollows.js';
+import {
+  favorite,
+  isFavorited,
+  listFavoritedIds,
+  unfavorite,
+} from '../repositories/pageFavorites.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
@@ -175,10 +181,12 @@ function assertWorkspace(req: Request, res: Response): string | null {
  * Every column is already the right JavaScript type coming out of drizzle, so
  * there is nothing here to coerce: `String(...)` around each id was undoing
  * `ObjectId`, and `?? 50` / `?? false` were defending against a document
- * written before those fields had defaults. `coverPosition`, `favorited` and
- * `properties` are all `NOT NULL DEFAULT` in the schema.
+ * written before those fields had defaults. `coverPosition` and `properties`
+ * are both `NOT NULL DEFAULT` in the schema.
+ *
+ * `favorited` is the caller's own (`page_favorites`), so every caller says it.
  */
-function serializePage(page: PageRow) {
+function serializePage(page: PageRow, favorited: boolean) {
   return {
     id: page.id,
     workspaceId: page.workspaceId,
@@ -189,7 +197,7 @@ function serializePage(page: PageRow) {
     coverPosition: page.coverPosition,
     ownerId: page.ownerId,
     archived: page.archived,
-    favorited: page.favorited,
+    favorited,
     restricted: page.restricted,
     template: page.template,
     teamspaceId: page.teamspaceId,
@@ -216,7 +224,8 @@ function serializePage(page: PageRow) {
  * Returns a flat list. Frontend builds the tree.
  *
  * - `archivedOnly=true`     — return only archived pages (trash view).
- * - `favoritedOnly=true`    — return only starred pages (sidebar favorites).
+ * - `favoritedOnly=true`    — return only the pages the caller starred, in the
+ *                             order of their Favorites.
  * - `includeArchived=true`  — include archived pages alongside active ones.
  */
 // `requireWorkspaceMember` resolves the workspace id from (in order) route
@@ -244,6 +253,7 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
     }
 
     const db = getDb();
+    const userId = req.user?.id ?? '';
     const pages = await listPages(db, {
       workspaceId,
       parentId:
@@ -253,19 +263,19 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
             ? null
             : query.parentId,
       archived,
-      favoritedOnly: query.favoritedOnly,
+      favoritedBy: query.favoritedOnly ? userId : undefined,
       template: query.templates === 'include' ? undefined : query.templates === 'only',
     });
 
     // Only the pages the caller can open: the rule needs each page's
     // ancestry and where its tree lives, so it runs over the whole workspace
     // (owners and admins too: others' private pages are not theirs to see).
-    const userId = req.user?.id ?? '';
-    const [all, viewer, grants, homes] = await Promise.all([
+    const [all, viewer, grants, homes, favorites] = await Promise.all([
       listPages(db, { workspaceId }),
       loadViewer(db, workspaceId, userId),
       listGrantsOfUserInWorkspace(db, userId, workspaceId),
       databaseHomes(db, workspaceId),
+      listFavoritedIds(db, userId, workspaceId),
     ]);
     const sharedOnly = new Set<string>();
     const roles = rolesForPages(all, viewer, grants, homes, sharedOnly);
@@ -274,7 +284,10 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
     // `sharedWithMe`: reached only because it was shared with the caller —
     // the sidebar's "Shared", as opposed to their teamspaces and private pages.
     res.json({
-      pages: visible.map((p) => ({ ...serializePage(p), sharedWithMe: sharedOnly.has(p.id) })),
+      pages: visible.map((p) => ({
+        ...serializePage(p, favorites.has(p.id)),
+        sharedWithMe: sharedOnly.has(p.id),
+      })),
     });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -330,6 +343,7 @@ router.get('/shared', async (req: Request, res: Response) => {
       const all = await listPages(db, { workspaceId, archived: false });
       const guest = { userId, memberRole: null, teamspaces: new Map() };
       const roles = rolesForPages(all, guest, grants, await databaseHomes(db, workspaceId));
+      const favorites = await listFavoritedIds(db, userId, workspaceId);
       out.push({
         workspace: {
           id: workspace.id,
@@ -338,7 +352,7 @@ router.get('/shared', async (req: Request, res: Response) => {
         },
         pages: all
           .filter((p) => roles.has(p.id))
-          .map((p) => ({ ...serializePage(p), role: roles.get(p.id) })),
+          .map((p) => ({ ...serializePage(p, favorites.has(p.id)), role: roles.get(p.id) })),
       });
     }
     res.json({ shared: out });
@@ -366,7 +380,8 @@ router.get('/:id', async (req: Request, res: Response) => {
     if (!access) return;
 
     // The caller's role on this page decides what the app lets them do.
-    res.json({ page: serializePage(page), role: access.role });
+    const favorited = await isFavorited(db, page.id, req.user?.id as string);
+    res.json({ page: serializePage(page, favorited), role: access.role });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to fetch page');
@@ -436,7 +451,7 @@ router.post('/', async (req: Request, res: Response) => {
     await follow(db, page.id, userId);
 
     announceChange({ workspaceId });
-    res.status(201).json({ page: serializePage(page) });
+    res.status(201).json({ page: serializePage(page, false) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to create page');
@@ -459,9 +474,20 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const access = await checkPageAccess(req, res, db, page.id, 'editor');
+    // A favorite is the caller's own, so starring a page they can open
+    // changes nothing of the page: viewing it is enough.
+    const onlyFavorite = Object.keys(body).every((key) => key === 'favorited');
+    const access = await checkPageAccess(req, res, db, page.id, onlyFavorite ? 'viewer' : 'editor');
     if (!access) return;
     const userId = req.user?.id as string;
+
+    if (body.favorited !== undefined) {
+      await (body.favorited ? favorite : unfavorite)(db, page.id, userId);
+    }
+    if (onlyFavorite) {
+      res.json({ page: serializePage(page, body.favorited === true) });
+      return;
+    }
 
     if (body.parentId !== undefined && body.parentId !== null) {
       if (body.parentId === page.id) {
@@ -568,7 +594,6 @@ router.patch('/:id', async (req: Request, res: Response) => {
       order: body.order,
       archived: body.archived,
       archivedWith: movesTrash ? null : undefined,
-      favorited: body.favorited,
       restricted: body.restricted,
       template: body.template,
       fullWidth: body.fullWidth,
@@ -668,7 +693,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       });
     }
     announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
-    res.json({ page: serializePage(updated) });
+    res.json({ page: serializePage(updated, await isFavorited(db, page.id, userId)) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to update page');
@@ -730,7 +755,9 @@ router.delete('/:id', async (req: Request, res: Response) => {
     }
 
     announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
-    res.json({ page: serializePage(archivedPage) });
+    res.json({
+      page: serializePage(archivedPage, await isFavorited(db, page.id, req.user?.id as string)),
+    });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to delete page');
@@ -846,7 +873,7 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
     });
 
     announceChange({ workspaceId: source.workspaceId });
-    res.status(201).json({ page: serializePage(duplicate) });
+    res.status(201).json({ page: serializePage(duplicate, false) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to duplicate page');

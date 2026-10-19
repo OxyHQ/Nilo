@@ -11,7 +11,8 @@ interface FavoriteButtonProps {
 }
 
 /**
- * Star icon that toggles `Page.favorited`. Fills when active. Reads its own
+ * Star icon that toggles `Page.favorited`, the reader's own favorite (anyone
+ * who can open the page can star it). Fills when active. Reads its own
  * UI state from the prop so it can be driven by either the page detail or
  * the actions menu (single source of truth: the page itself).
  */

@@ -21,6 +21,7 @@ import {
 } from '../db/__tests__/testDatabase.js';
 import { databases } from '../db/schema/databases.js';
 import { blocks, pages } from '../db/schema/pages.js';
+import { favorite } from './pageFavorites.js';
 import { workspaces } from '../db/schema/workspaces.js';
 import {
   BREADCRUMB_MAX_DEPTH,
@@ -94,7 +95,8 @@ describe('pages repository (real database)', () => {
       'coverPosition',
       'ownerId',
       'archived',
-      'favorited',
+      // Written with `archived`, by `setTreeArchived`.
+      'archivedWith',
       // Written by `PATCH /pages/:id` (restricting a page) and its duplicate.
       'restricted',
       // Written by `PATCH /pages/:id` and by copying a template.
@@ -121,6 +123,11 @@ describe('pages repository (real database)', () => {
       'databaseId',
       'properties',
     ] as const;
+    /** Columns no route writes any more, kept until a post migration drops them. */
+    const RETIRED_FIELDS = [
+      // Superseded by `page_favorites`.
+      'favorited',
+    ] as const;
 
     it('declares a column for every field a route writes, and no column without one', () => {
       // `column.name` is the TypeScript PROPERTY name, which is what a writer
@@ -130,7 +137,7 @@ describe('pages repository (real database)', () => {
       expect(WRITER_FIELDS.length).toBe(26);
       for (const field of WRITER_FIELDS) expect(declared).toContain(field);
       expect(new Set(declared)).toEqual(
-        new Set([...WRITER_FIELDS, 'id', 'createdAt', 'updatedAt']),
+        new Set([...WRITER_FIELDS, ...RETIRED_FIELDS, 'id', 'createdAt', 'updatedAt']),
       );
     });
 
@@ -282,7 +289,9 @@ describe('pages repository (real database)', () => {
       const trashed = await seedPage({ title: 'trashed' });
       const starred = await seedPage({ title: 'starred' });
       await updatePage(db, trashed.id, { archived: true });
-      await updatePage(db, starred.id, { favorited: true });
+      await favorite(db, starred.id, 'user-owner');
+      // Someone else's favorite is not the owner's.
+      await favorite(db, live.id, 'user-other');
 
       const active = await listPages(db, { workspaceId, archived: false });
       expect(active.map((page) => page.title).sort()).toEqual(['live', 'starred']);
@@ -290,10 +299,12 @@ describe('pages repository (real database)', () => {
       const trash = await listPages(db, { workspaceId, archived: true });
       expect(trash.map((page) => page.title)).toEqual(['trashed']);
 
-      // `favoritedOnly` adds `favorited = true` and never `favorited = false`,
-      // so an unstarred page is excluded rather than the filter being ignored.
-      const favorites = await listPages(db, { workspaceId, favoritedOnly: true });
+      // A favorite is one person's: an unstarred page is excluded rather than
+      // the filter being ignored, and so is a page another person starred.
+      const favorites = await listPages(db, { workspaceId, favoritedBy: 'user-owner' });
       expect(favorites.map((page) => page.title)).toEqual(['starred']);
+      const theirs = await listPages(db, { workspaceId, favoritedBy: 'user-other' });
+      expect(theirs.map((page) => page.title)).toEqual(['live']);
 
       const everything = await listPages(db, { workspaceId });
       expect(everything).toHaveLength(3);
