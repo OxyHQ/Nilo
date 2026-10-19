@@ -98,7 +98,7 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
             <Breadcrumb pageId={page.id} workspaceId={page.workspaceId} />
           </View>
           <View className="flex-row items-center gap-1">
-            {!readOnly ? (
+            {!page.archived ? (
               <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
             ) : null}
             {page.publishedAt ? (

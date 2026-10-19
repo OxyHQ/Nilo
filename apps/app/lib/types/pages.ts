@@ -42,6 +42,7 @@ export interface Page {
   restricted: boolean;
   template: boolean;
   archived: boolean;
+  /** Starred by the signed-in member: each person has their own favorites. */
   favorited: boolean;
   /** Sibling order within the same parent. */
   order: number;

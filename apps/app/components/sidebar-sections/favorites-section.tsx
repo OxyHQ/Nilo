@@ -9,9 +9,9 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { SidebarPageTree } from './sidebar-page-tree';
 
 /**
- * Favorites — pages with `favorited === true`. The Page chrome agent (#14)
- * owns the toggle; this section consumes the field. Hidden entirely when no
- * favorites exist to avoid empty sections cluttering the sidebar.
+ * Favorites — the pages the signed-in member starred (`favorited` is each
+ * reader's own). Hidden entirely when there are none, so an empty section
+ * does not clutter the sidebar.
  */
 export function FavoritesSection() {
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
