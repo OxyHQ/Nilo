@@ -7,13 +7,14 @@ import { Text } from '@oxy.so/bloom/typography';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useUIStore } from '@/lib/stores/ui-store';
+import { useRecentPageIds } from '@/lib/hooks/use-recent-pages';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { usePages } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 
 /**
- * Recents — top 5 recently-opened pages from the persisted UI store. Renders
+ * Recents — the top 5 recently-opened pages, from every device
+ * (`useRecentPageIds`: the server's list, this device's offline). Renders
  * inline (no collapsible header) above the Favorites section so it stays
  * visually distinct from the main page tree.
  *
@@ -24,8 +25,8 @@ export function RecentsSection() {
   const pathname = usePathname();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const recentPageIds = useUIStore((s) => s.recentPageIds);
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const recentPageIds = useRecentPageIds(currentWorkspaceId);
   const { data } = usePages(currentWorkspaceId);
 
   const pages = React.useMemo<Page[]>(() => {
