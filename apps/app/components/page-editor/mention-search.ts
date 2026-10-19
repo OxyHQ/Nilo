@@ -63,11 +63,15 @@ export function mentionSearchResults({
       group: labels.pages,
       attributes: { kind: 'page', id },
     }));
-  const dates = dateMentionMatches(text, now).map((date) => ({
-    id: `date:${date}`,
-    label: formatMentionDate(date, locale) ?? date,
-    group: labels.date,
-    attributes: { kind: 'date', date },
-  }));
+  const dates = dateMentionMatches(text, now).map(({ date, time }) => {
+    const attributes: Record<string, string> = { kind: 'date', date };
+    if (time) attributes.time = time;
+    return {
+      id: time ? `date:${date}T${time}` : `date:${date}`,
+      label: formatMentionDate(date, locale, time) ?? date,
+      group: labels.date,
+      attributes,
+    };
+  });
   return [...users, ...documents, ...dates];
 }

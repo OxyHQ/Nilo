@@ -144,7 +144,9 @@ export interface Segment {
   text: string;
   mention?: {
     indicator: '@';
-    attributes: { kind: 'page' | 'user'; id: string } | { kind: 'date'; date: string; time?: string };
+    attributes:
+      | { kind: 'page' | 'user'; id: string }
+      | { kind: 'date'; date: string; time?: string };
   };
   bold?: boolean;
   italic?: boolean;

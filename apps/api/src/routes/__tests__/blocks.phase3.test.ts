@@ -46,7 +46,7 @@ describe('block content normalization', () => {
     });
   });
 
-  it('keeps an image\'s width, alignment and alt text, and refuses a width that is none', () => {
+  it("keeps an image's width, alignment and alt text, and refuses a width that is none", () => {
     expect(
       normalizeContent('image', { url: '', width: 320, alignment: 'right', alt: 'Plan' }),
     ).toMatchObject({ width: 320, alignment: 'right', alt: 'Plan' });
@@ -54,7 +54,7 @@ describe('block content normalization', () => {
     expect(() => normalizeContent('image', { alignment: 'middle' })).toThrow();
   });
 
-  it('keeps a column\'s ratio between 0 and 1', () => {
+  it("keeps a column's ratio between 0 and 1", () => {
     expect(normalizeContent('column', { ratio: 0.3 })).toMatchObject({ ratio: 0.3 });
     expect(() => normalizeContent('column', { ratio: 1.5 })).toThrow();
   });

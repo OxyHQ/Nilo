@@ -62,7 +62,11 @@ function TextSegment({ segment }: { segment: Segment }) {
       }}
     >
       {segment.mention?.attributes.kind === 'date'
-        ? (formatMentionDate(segment.mention.attributes.date, locale) ?? segment.text)
+        ? (formatMentionDate(
+            segment.mention.attributes.date,
+            locale,
+            segment.mention.attributes.time,
+          ) ?? segment.text)
         : segment.text}
     </Text>
   );
