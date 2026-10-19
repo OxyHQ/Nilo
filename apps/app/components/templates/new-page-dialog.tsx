@@ -10,6 +10,9 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useCreatePage, useDuplicatePage } from '@/lib/hooks/use-pages';
 import { useNewPageStore, type NewPageDestination } from '@/lib/stores/new-page-store';
 import { ImportPagesDialog } from '@/components/page-chrome/import-pages-dialog';
+import { useBuiltInTemplate } from '@/lib/hooks/use-built-in-template';
+import { templateLocale } from '@/lib/templates/built-in';
+import { BuiltInTemplates } from './built-in-templates';
 import { TemplateList } from './template-list';
 
 export function NewPageDialog() {
@@ -24,17 +27,19 @@ export function NewPageDialog() {
 }
 
 function PageChoices({ destination }: { destination: NewPageDestination }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const router = useRouter();
   const close = useNewPageStore((s) => s.close);
   const control = useDialogControl();
   const create = useCreatePage();
   const duplicate = useDuplicatePage();
   const database = useCreateDatabase();
+  const builtIn = useBuiltInTemplate();
   const [importOpen, setImportOpen] = useState(false);
   const [csvOnly, setCsvOnly] = useState(false);
   const [templates, setTemplates] = useState(false);
-  const pending = create.isPending || duplicate.isPending || database.isPending;
+  const pending =
+    create.isPending || duplicate.isPending || database.isPending || builtIn.isPending;
   const created = (page: { id: string }) => {
     control.close();
     router.push(`/p/${page.id}`);
@@ -55,16 +60,36 @@ function PageChoices({ destination }: { destination: NewPageDestination }) {
       actions={[{ label: t('common.close'), color: 'cancel', disabled: pending }]}
     >
       {templates ? (
-        <TemplateList
-          workspaceId={destination.workspaceId}
-          pending={pending}
-          onUse={(page) =>
-            duplicate.mutate(
-              { id: page.id, ...destination, fromTemplate: true },
-              { onSuccess: created },
-            )
-          }
-        />
+        <View className="gap-3">
+          <BuiltInTemplates
+            atTop={destination.parentId === null}
+            pending={pending}
+            onUse={(template) =>
+              builtIn.mutate(
+                { template, locale: templateLocale(locale), destination },
+                {
+                  onSuccess: (made) => {
+                    control.close();
+                    router.push(made.kind === 'page' ? `/p/${made.id}` : `/db/${made.id}`);
+                  },
+                },
+              )
+            }
+          />
+          <Text className="px-3 text-xs text-muted-foreground">
+            {t('pages.templates.workspace')}
+          </Text>
+          <TemplateList
+            workspaceId={destination.workspaceId}
+            pending={pending}
+            onUse={(page) =>
+              duplicate.mutate(
+                { id: page.id, ...destination, fromTemplate: true },
+                { onSuccess: created },
+              )
+            }
+          />
+        </View>
       ) : (
         <View className="gap-2">
           {destination.parentId === null ? (
@@ -133,10 +158,10 @@ function PageChoices({ destination }: { destination: NewPageDestination }) {
           {t('pages.templates.creating')}
         </Text>
       ) : null}
-      {create.isError || duplicate.isError || database.isError ? (
+      {create.isError || duplicate.isError || database.isError || builtIn.isError ? (
         <Text accessibilityRole="alert" className="mt-3 text-sm text-destructive">
           {apiErrorMessage(
-            create.error ?? duplicate.error ?? database.error,
+            create.error ?? duplicate.error ?? database.error ?? builtIn.error,
             t('pages.templates.createFailed'),
           )}
         </Text>

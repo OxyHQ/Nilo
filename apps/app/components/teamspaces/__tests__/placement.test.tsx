@@ -20,7 +20,7 @@ jest.mock('@oxy.so/services/ui/client', () => ({
 }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
 }));
 jest.mock('@/lib/hooks/use-workspaces', () => ({ useWorkspaceRole: () => 'editor' }));
 jest.mock('@/lib/stores/workspace-store', () => ({ useWorkspaceStore: () => 'w' }));

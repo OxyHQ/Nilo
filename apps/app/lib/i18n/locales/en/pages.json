@@ -200,7 +200,9 @@
     "blank": "Blank page",
     "fromTemplate": "From template…",
     "creating": "Creating page…",
-    "createFailed": "Could not create the page. Check your access to the destination and try again."
+    "createFailed": "Could not create the page. Check your access to the destination and try again.",
+    "builtIn": "Nilo templates",
+    "workspace": "Your workspace’s templates"
   },
   "publish": {
     "title": "Publish",
