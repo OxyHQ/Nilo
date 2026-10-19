@@ -11,6 +11,7 @@
  * `total` on every page.
  */
 import { eq } from 'drizzle-orm';
+import { FILTER_OPERATORS_BY_TYPE as OPERATORS_BY_TYPE } from '@oxy.so/nilo-contracts';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   closeTestDb,
@@ -27,7 +28,7 @@ import {
 } from '../../db/schema/databases.js';
 import { pages } from '../../db/schema/pages.js';
 import { listDatabaseRows, type PageRow } from '../../repositories/pages.js';
-import { evaluateFilter, OPERATORS_BY_TYPE, valueType } from './filters.js';
+import { evaluateFilter, valueType } from './filters.js';
 import { compareBySorts } from './sorts.js';
 import { compileView, decodeRowsCursor, listViewRows } from './view-query.js';
 
@@ -521,6 +522,23 @@ describe('a view in SQL', () => {
       if ((await check(view)) > 0) nonEmpty += 1;
     }
     expect(nonEmpty).toBeGreaterThan(200);
+  });
+
+  it('keeps the rows with no value in the negative operators, as in Notion', async () => {
+    for (const [propertyId, operator, value] of [
+      ['s1', 'is_not', 'opt-a'],
+      ['st', 'is_not', 'done'],
+      ['ms', 'does_not_contain', 'l-red'],
+      ['p1', 'does_not_contain', 'u-ana'],
+      ['r1', 'does_not_contain', 'p-1'],
+    ] as const) {
+      const filters = only({ kind: 'condition', propertyId, operator, value });
+      const empty = reference.filter((r) => r.properties[propertyId] === undefined);
+      expect(empty.length).toBeGreaterThan(0);
+      const { ids } = await actual({ filters, sorts: [], pageSize: 500 });
+      for (const row of empty) expect(ids).toContain(row.id);
+      await check({ filters, sorts: [], pageSize: 500 });
+    }
   });
 
   it('names its row in the cursor when the sort values are too long to carry', async () => {

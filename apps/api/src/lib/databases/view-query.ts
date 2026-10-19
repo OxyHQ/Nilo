@@ -22,6 +22,7 @@ import type { PgHandle } from '../../db/client.js';
 import type { DatabaseProperty, Filter, ViewSort } from '../../db/schema/databases.js';
 import { pages } from '../../db/schema/pages.js';
 import type { PageRow } from '../../repositories/pages.js';
+import { emptyMatches } from './filters.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -360,6 +361,10 @@ function compileFilter(filter: Filter, propertyById: Map<string, DatabasePropert
   if (filter.operator === 'is_empty') return sql`(${accessor.empty})`;
   if (filter.operator === 'is_not_empty') return sql`(not ${accessor.empty})`;
   const test = accessor.test(filter.operator, filter.value);
+  // An empty value passes only the negative operators, as `evaluateCondition` has it.
+  if (emptyMatches(filter.operator, property.type)) {
+    return sql`(${accessor.empty} or coalesce(${test ?? never}, false))`;
+  }
   if (!test) return never;
   return sql`(not ${accessor.empty} and coalesce(${test}, false))`;
 }
