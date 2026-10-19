@@ -1,6 +1,7 @@
 import { Platform, View } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { AliaAvatarIcon } from '@alia.onl/sdk/avatar';
+import { RiHome5Line } from '@oxy.so/bloom/icons/RiHome5Line';
 import { RiSearchLine } from '@oxy.so/bloom/icons/RiSearchLine';
 import { RiInbox2Line } from '@oxy.so/bloom/icons/RiInbox2Line';
 import { RiSettings3Line } from '@oxy.so/bloom/icons/RiSettings3Line';
@@ -50,6 +51,21 @@ export function SidebarSearchButton() {
           </View>
         ) : undefined
       }
+    />
+  );
+}
+
+/** "Home" — the workspace's Home screen: a greeting and the pages last visited. */
+export function SidebarHomeButton() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { t } = useTranslation();
+  return (
+    <SidebarItem
+      icon={RiHome5Line}
+      label={t('sidebar.home')}
+      isActive={pathname === '/'}
+      onPress={() => router.push('/(app)')}
     />
   );
 }

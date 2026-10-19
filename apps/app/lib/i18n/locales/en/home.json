@@ -3,5 +3,16 @@
   "selectWorkspace": "Select a workspace from the sidebar to get started.",
   "empty": "Your workspace is empty. Create your first page to begin.",
   "creating": "Creating…",
-  "createFirstPage": "Create your first page"
+  "createFirstPage": "Create your first page",
+  "greeting": {
+    "morning": "Good morning, %{name}",
+    "afternoon": "Good afternoon, %{name}",
+    "evening": "Good evening, %{name}",
+    "morningAnonymous": "Good morning",
+    "afternoonAnonymous": "Good afternoon",
+    "eveningAnonymous": "Good evening"
+  },
+  "newPage": "New page",
+  "recentlyVisited": "Recently visited",
+  "noRecent": "Pages you open on this device show up here."
 }
