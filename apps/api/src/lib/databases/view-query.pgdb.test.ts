@@ -711,6 +711,16 @@ describe('a grouped view in SQL', () => {
   });
 
   it('names its row and its group in the cursor when the sort values are too long', async () => {
+    // Two rows of its own whose sort values are too long to carry, so the
+    // first page of one row always has a next one: nothing left by an
+    // earlier test, or by the seeded data, decides it.
+    for (const [i, row] of (reference.slice(0, 2) as PageRow[]).entries()) {
+      await db
+        .update(pages)
+        .set({ properties: { ...row.properties, t2: { text: 'z'.repeat(3000 - i) } } })
+        .where(eq(pages.id, row.id));
+    }
+    reference = await listDatabaseRows(db, databaseId, { archived: false, template: false });
     const view: GroupedCase = {
       spec: groupSpec('p1'),
       filters: only({ kind: 'condition', propertyId: 't2', operator: 'starts_with', value: 'z' }),
