@@ -15,7 +15,12 @@ import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
-import type { DatabaseProperty, PropertyValue, SelectOption } from '@/lib/types/databases';
+import type {
+  DatabaseProperty,
+  FileEntry,
+  PropertyValue,
+  SelectOption,
+} from '@/lib/types/databases';
 import { withStart } from '@/lib/date-values';
 import { SELECT_CHIP_HUE } from './select-color';
 
@@ -274,17 +279,16 @@ function readUserIds(v: PropertyValue): string[] {
   }
   return [];
 }
-function readFiles(v: PropertyValue): { name: string; url: string }[] {
+/** A file is a link or a file in Oxy storage (`fileId`, Noted's attachments): either has a name. */
+function readFiles(v: PropertyValue): FileEntry[] {
   if (v && typeof v === 'object' && 'files' in v) {
     const files = v.files;
     if (Array.isArray(files)) {
-      return files.filter(
-        (f): f is { name: string; url: string } =>
-          typeof f === 'object' &&
-          f !== null &&
-          typeof (f as { name?: unknown }).name === 'string' &&
-          typeof (f as { url?: unknown }).url === 'string',
-      );
+      return files.filter((f): f is FileEntry => {
+        if (typeof f !== 'object' || f === null) return false;
+        const { name, url, fileId } = f as { name?: unknown; url?: unknown; fileId?: unknown };
+        return typeof name === 'string' && (typeof url === 'string' || typeof fileId === 'string');
+      });
     }
   }
   return [];
@@ -653,10 +657,9 @@ function DateCell({ value, onChange, variant }: DateCellProps) {
   const { colors } = useColorScheme();
   const { locale } = useTranslation();
   const display = value ? new Date(value).toLocaleDateString(locale) : '—';
-  // On web, use a native date input. On native, render the date as text
-  // and allow clearing — full picker is a Phase 4.5 stretch goal. The web
-  // input is its own component so its state hooks are never called
-  // conditionally from this one.
+  // On web, the browser's date input edits it. On native the date is shown,
+  // not edited: there is no date editor here yet. The web input is its own
+  // component so its state hooks are never called conditionally from this one.
   if (Platform.OS === 'web') {
     return <WebDateInput value={value} onChange={onChange} color={colors.foreground} />;
   }
@@ -744,7 +747,7 @@ function shortenUserId(id: string): string {
 }
 
 interface FilesCellProps extends CellVariantProps {
-  value: { name: string; url: string }[];
+  value: FileEntry[];
 }
 
 function FilesCell({ value }: FilesCellProps) {
@@ -753,8 +756,10 @@ function FilesCell({ value }: FilesCellProps) {
   }
   return (
     <View className="flex-row flex-wrap gap-1">
-      {value.slice(0, 3).map((f) => (
-        <Chip key={f.url} size="sm">
+      {value.slice(0, 3).map((f, index) => (
+        // A file in Oxy storage has an id and no link of its own: keyed by the id first.
+        // biome-ignore lint/suspicious/noArrayIndexKey: the last resort for a file with neither
+        <Chip key={f.fileId ?? f.url ?? index} size="sm">
           {f.name}
         </Chip>
       ))}

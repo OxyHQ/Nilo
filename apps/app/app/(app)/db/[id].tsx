@@ -6,6 +6,7 @@ import { Loading } from '@oxy.so/bloom/loading';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useDatabase } from '@/lib/hooks/use-databases';
 import { useDatabaseRows } from '@/lib/hooks/use-database-rows';
+import { hasRole } from '@/lib/hooks/workspace-roles';
 import { DatabaseHeader } from '@/components/database/database-header';
 import { DatabaseViewContainer } from '@/components/database/database-view';
 
@@ -75,6 +76,9 @@ function DatabasePage({ id }: { id: string }) {
     );
   }
 
+  // The caller's role on the database, as the API reports it: a reader sees it, an editor edits it.
+  const readOnly = !hasRole(data.role, 'editor');
+
   return (
     <View className="flex-1 bg-background">
       <DatabaseHeader
@@ -82,11 +86,13 @@ function DatabasePage({ id }: { id: string }) {
         views={views}
         activeViewId={selectedViewId}
         onSelectView={setActiveViewId}
+        readOnly={readOnly}
       />
       {selectedView ? (
         <DatabaseViewContainer
           database={data.database}
           view={selectedView}
+          readOnly={readOnly}
           rows={rows.data?.rows ?? []}
           isLoading={rows.isLoading}
           total={rows.data?.total}

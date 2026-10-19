@@ -1,38 +1,19 @@
+import type { DatabasePropertyType } from '@oxy.so/nilo-contracts';
 import type { WorkspaceRole } from '../hooks/use-workspaces';
 /**
- * Shared types for Databases (Phase 4).
+ * Shared types for Databases.
  *
  * Mirrors the backend contract:
- *   - apps/api/src/models/database.ts
- *   - apps/api/src/models/database-view.ts
- *   - apps/api/src/routes/databases.ts
+ *   - apps/api/src/db/schema/databases.ts (properties, views, filters)
+ *   - apps/api/src/routes/databases.ts (the wire shapes it serializes)
  *
- * Property `value` shapes are validated at write time on the server. The
- * frontend uses these as a TypeScript-only assertion of the payload it
- * sends — the wire shape stays JSON-clean.
+ * The property types, with the filter operators each takes, come from
+ * `@oxy.so/nilo-contracts` itself. Property `value` shapes are validated at
+ * write time on the server. The frontend uses these as a TypeScript-only
+ * assertion of the payload it sends — the wire shape stays JSON-clean.
  */
 
-export type DatabasePropertyType =
-  | 'text'
-  | 'number'
-  | 'select'
-  | 'multi_select'
-  | 'status'
-  | 'date'
-  | 'person'
-  | 'files'
-  | 'checkbox'
-  | 'url'
-  | 'email'
-  | 'phone'
-  | 'relation'
-  | 'rollup'
-  | 'created_time'
-  | 'last_edited_time'
-  | 'created_by'
-  | 'last_edited_by'
-  | 'formula'
-  | 'unique_id';
+export type { DatabasePropertyType } from '@oxy.so/nilo-contracts';
 
 export type SelectColor =
   | 'default'
@@ -63,6 +44,8 @@ export interface SelectOption {
   id: string;
   name: string;
   color: SelectColor;
+  /** A Noted label's own colour, shown as `color` until it is changed in Nilo. */
+  noteColor?: string;
 }
 
 export type NumberFormat =
@@ -112,9 +95,17 @@ export interface Database {
   isInline: boolean;
   parentPageId: string | null;
   archived: boolean;
+  /**
+   * The app that keeps this database (Noted's notes and folders), null for
+   * every other one: its own properties cannot be removed or retyped, nor the
+   * database deleted (409 SYSTEM_PROPERTY / SYSTEM_DATABASE).
+   */
+  systemKey: SystemDatabaseKey | null;
   createdAt: string;
   updatedAt: string;
 }
+
+export type SystemDatabaseKey = 'notes' | 'note_folders';
 
 export type DatabaseViewType =
   | 'table'
@@ -201,8 +192,14 @@ export interface DateValue {
 export interface PersonValue {
   userIds: string[];
 }
+/** A file is a link (`url`), or a file in its owner's Oxy storage (`fileId`), shown through a link. */
+export interface FileEntry {
+  name: string;
+  url?: string;
+  fileId?: string;
+}
 export interface FilesValue {
-  files: { name: string; url: string }[];
+  files: FileEntry[];
 }
 export interface CheckboxValue {
   checked: boolean;

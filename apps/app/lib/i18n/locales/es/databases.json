@@ -72,7 +72,9 @@
     "pageCount": {
       "one": "%{count} página",
       "other": "%{count} páginas"
-    }
+    },
+    "deleteFailed": "No se pudo eliminar la propiedad. Inténtalo de nuevo.",
+    "updateFailed": "No se pudo actualizar la propiedad. Inténtalo de nuevo."
   },
   "filters": {
     "title": "Filtros",
@@ -348,5 +350,9 @@
   },
   "rows": {
     "total": "%{count} filas"
+  },
+  "system": {
+    "property": "%{app} usa esta propiedad: no se puede eliminar y su tipo y ajustes son fijos.",
+    "database": "Esta base de datos pertenece a %{app} y no se puede eliminar."
   }
 }
