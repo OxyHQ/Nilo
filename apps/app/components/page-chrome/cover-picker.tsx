@@ -14,17 +14,21 @@ import {
   COVER_COLORS,
   COVER_GRADIENTS,
   encodeColor,
+  encodeCoverFile,
   encodeCoverImage,
   encodeGradient,
   encodeUnsplash,
 } from './cover-value';
 import { CoverDisplay } from './cover-display';
+import { PageImageUpload } from './page-image-upload';
 
 type Tab = 'gradient' | 'color' | 'unsplash' | 'upload' | 'link';
 
 interface CoverPickerProps {
   /** Opened by the caller with `control.open()`; the picker closes itself. */
   control: DialogControlProps;
+  /** The page whose cover this is: an uploaded image goes to it. */
+  pageId: string;
   /** Called with the new encoded cover string or null to remove. */
   onSelect: (next: string | null) => void;
 }
@@ -34,7 +38,7 @@ interface CoverPickerProps {
  * Unsplash tab is gated behind `EXPO_PUBLIC_UNSPLASH_ACCESS_KEY`; without
  * one we show a friendly disabled state.
  */
-export function CoverPicker({ control, onSelect }: CoverPickerProps) {
+export function CoverPicker({ control, pageId, onSelect }: CoverPickerProps) {
   const [tab, setTab] = React.useState<Tab>('gradient');
   const { t } = useTranslation();
   const header = React.useMemo(() => ({ title: t('pages.coverPicker.title') }), [t]);
@@ -92,7 +96,11 @@ export function CoverPicker({ control, onSelect }: CoverPickerProps) {
         ) : tab === 'link' ? (
           <LinkTab onSelect={(url) => handleSelect(encodeCoverImage(url))} />
         ) : (
-          <UploadTab onSelect={(url) => handleSelect(encodeCoverImage(url))} />
+          <PageImageUpload
+            pageId={pageId}
+            hint={t('pages.coverPicker.uploadHint')}
+            onUploaded={(fileId) => handleSelect(encodeCoverFile(fileId))}
+          />
         )}
       </View>
     </Dialog>
@@ -303,36 +311,6 @@ function LinkTab({ onSelect }: { onSelect: (url: string) => void }) {
       >
         {t('pages.coverPicker.useImage')}
       </Button>
-    </View>
-  );
-}
-
-/* ---------------------------------------------------------------- *
- * Upload tab
- * ---------------------------------------------------------------- */
-
-function UploadTab({ onSelect }: { onSelect: (url: string) => void }) {
-  const { t } = useTranslation();
-  // Direct upload to Spaces lives behind the More Block Types agent's infra
-  // work. Until then, accept a URL through the same TextInput as Link. We
-  // surface the message clearly so users know to use Link in the interim.
-  return (
-    <View className="items-center gap-2 px-2 py-12">
-      <EmptyState
-        variant="compact"
-        title={t('pages.coverPicker.uploadSoon')}
-        description={t('pages.coverPicker.uploadUseLink')}
-      />
-      <Pressable
-        onPress={() => {
-          // No-op; tab acts as messaging. Provide an explicit handler so the
-          // `onSelect` prop's purpose stays clear if someone wires a button
-          // later.
-          onSelect('');
-        }}
-        accessibilityLabel={t('pages.coverPicker.acknowledgeUpload')}
-        className="h-0 w-0 opacity-0"
-      />
     </View>
   );
 }

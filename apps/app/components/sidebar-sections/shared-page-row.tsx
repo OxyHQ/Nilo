@@ -1,3 +1,4 @@
+import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { MoveToDialog } from '@/components/page-chrome/move-to-dialog';
 import { apiErrorMessage } from '@/lib/api/error-message';
 import { toast } from '@oxy.so/bloom/toast';
@@ -8,7 +9,6 @@ import { useRouter } from 'expo-router';
 import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { RiFileCopyLine } from '@oxy.so/bloom/icons/RiFileCopyLine';
-import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiStarLine } from '@oxy.so/bloom/icons/RiStarLine';
@@ -162,11 +162,7 @@ export function SharedPageRow({
           <View className="h-5 w-5" />
         )}
         <View className="h-5 w-5 items-center justify-center">
-          {page.icon ? (
-            <Text className="text-sm leading-5 text-foreground">{page.icon}</Text>
-          ) : (
-            <RiFileTextLine width={13} height={13} fill={colors.mutedForeground} />
-          )}
+          <IconDisplay value={page.icon} size={15} showPlaceholder pageId={page.id} />
         </View>
         <Text
           className={

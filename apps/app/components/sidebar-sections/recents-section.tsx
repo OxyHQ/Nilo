@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
-import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { RiTimeLine } from '@oxy.so/bloom/icons/RiTimeLine';
 import { Item } from '@oxy.so/bloom/item';
 import { Text } from '@oxy.so/bloom/typography';
+import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUIStore } from '@/lib/stores/ui-store';
@@ -64,11 +64,7 @@ export function RecentsSection() {
               accessibilityLabel={t('pages.openPage', { title })}
               leading={
                 <View className="h-5 w-5 items-center justify-center">
-                  {p.icon ? (
-                    <Text className="text-sm leading-5 text-foreground">{p.icon}</Text>
-                  ) : (
-                    <RiFileTextLine width={13} height={13} fill={colors.mutedForeground} />
-                  )}
+                  <IconDisplay value={p.icon} size={15} showPlaceholder pageId={p.id} />
                 </View>
               }
               title={title}

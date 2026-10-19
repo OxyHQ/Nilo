@@ -21,6 +21,8 @@ export {
   MAX_FILE_URL_IDS,
   NILO_FILE_ENTITY_TYPE,
   NILO_OXY_APPLICATION_ID,
+  PAGE_FILE_PREFIX,
+  pageValueFileId,
 } from './files';
 export { MAX_DOC_UPDATE_BYTES } from './collab';
 export {

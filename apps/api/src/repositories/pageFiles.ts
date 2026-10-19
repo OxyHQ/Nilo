@@ -1,4 +1,5 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
+import { pageValueFileId } from '@oxy.so/nilo-contracts';
 import type { PgHandle } from '../db/client.js';
 import { blocks, pageFiles } from '../db/schema/pages.js';
 
@@ -21,12 +22,12 @@ export async function recordPageFile(
 
 /**
  * Of `fileIds`, the ones `page` may show: files of its workspace that were
- * uploaded to it, or that one of its blocks holds (a copied or duplicated
- * block keeps its file).
+ * uploaded to it, or that its icon, its cover or one of its blocks holds (a
+ * copied or duplicated page or block keeps its file).
  */
 export async function servableFileIds(
   db: PgHandle,
-  page: { id: string; workspaceId: string },
+  page: { id: string; workspaceId: string; icon?: string | null; cover?: string | null },
   fileIds: readonly string[],
 ): Promise<string[]> {
   if (fileIds.length === 0) return [];
@@ -36,8 +37,11 @@ export async function servableFileIds(
     .where(
       and(eq(pageFiles.workspaceId, page.workspaceId), inArray(pageFiles.fileId, [...fileIds])),
     );
-  const servable = new Set(rows.filter((r) => r.pageId === page.id).map((r) => r.fileId));
-  const elsewhere = rows.filter((r) => r.pageId !== page.id).map((r) => r.fileId);
+  const own = new Set([pageValueFileId(page.icon), pageValueFileId(page.cover)]);
+  const servable = new Set(
+    rows.filter((r) => r.pageId === page.id || own.has(r.fileId)).map((r) => r.fileId),
+  );
+  const elsewhere = rows.filter((r) => !servable.has(r.fileId)).map((r) => r.fileId);
   if (elsewhere.length > 0) {
     const held = await db
       .selectDistinct({ fileId: sql<string>`${blocks.content} ->> 'fileId'` })

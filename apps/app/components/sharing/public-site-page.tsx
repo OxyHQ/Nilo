@@ -60,7 +60,11 @@ export default function PublicSitePage() {
       ) : (
         <ScrollView contentContainerClassName="pb-12">
           <View className={cn('w-full mx-auto px-6 md:px-10', !data.page.fullWidth && 'max-w-3xl')}>
-            <CoverDisplay value={data.page.cover} position={data.page.coverPosition} />
+            <CoverDisplay
+              value={data.page.cover}
+              position={data.page.coverPosition}
+              fileScope={{ kind: 'published', slug, pageId: data.page.id }}
+            />
           </View>
           <View
             className={cn(
@@ -86,7 +90,11 @@ export default function PublicSitePage() {
                 </Link>
               ))}
             </View>
-            <IconDisplay value={data.page.icon} size={48} />
+            <IconDisplay
+              value={data.page.icon}
+              size={48}
+              fileScope={{ kind: 'published', slug, pageId: data.page.id }}
+            />
             <Text
               accessibilityRole="header"
               className="text-3xl font-bold text-foreground"
@@ -113,7 +121,14 @@ export default function PublicSitePage() {
                       accessibilityLabel={t('pages.openPage', {
                         title: child.title || t('pages.untitled'),
                       })}
-                      leading={<IconDisplay value={child.icon} size={18} showPlaceholder />}
+                      leading={
+                        <IconDisplay
+                          value={child.icon}
+                          size={18}
+                          showPlaceholder
+                          fileScope={{ kind: 'published', slug, pageId: child.id }}
+                        />
+                      }
                     >
                       {child.title || t('pages.untitled')}
                     </Button>

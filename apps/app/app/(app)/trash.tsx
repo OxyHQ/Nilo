@@ -189,7 +189,7 @@ function TrashRow({ page, onRestore, onHardDelete, canHardDelete }: TrashRowProp
         density="compact"
         onPress={() => router.push(`/p/${page.id}`)}
         accessibilityLabel={t('pages.openPage', { title })}
-        leading={<IconDisplay value={page.icon} size={20} showPlaceholder />}
+        leading={<IconDisplay value={page.icon} size={20} showPlaceholder pageId={page.id} />}
         title={title}
         subtitle={t('trash.archivedAt', { date: formatTime(page.updatedAt) })}
         trailing={

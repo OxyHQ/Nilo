@@ -6,6 +6,7 @@
  * sends back.
  */
 import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from 'drizzle-orm';
+import { PAGE_FILE_PREFIX } from '@oxy.so/nilo-contracts';
 import type { PgHandle } from '../db/client.js';
 import {
   type FileReferenceJob,
@@ -119,7 +120,7 @@ const bytesHold = (bytes: unknown) =>
  * An attachment stays while the page it was uploaded to exists (archived
  * pages included — the trash can give it back). Once that page is gone it
  * stays while anything in the workspace still holds the file: a block, a
- * kept version of a page (restoring it brings the block back), or the page's
+ * page's icon or cover (a duplicate keeps them), a kept version of a page (restoring it brings the block back), or the page's
  * Yjs document itself — a change not projected to `blocks` yet. The document
  * test looks for the id's bytes in the stored state and updates, so it can
  * only err on the side of keeping a row, never of letting one go.
@@ -138,6 +139,10 @@ export async function releaseOrphanedPageFiles(db: PgHandle, limit: number): Pro
         sql`not exists (
           select 1 from blocks b join pages p on p.id = b.page_id
           where ${sameWorkspace} and b.content ->> 'fileId' = ${pageFiles.fileId})`,
+        sql`not exists (
+          select 1 from pages p
+          where ${sameWorkspace}
+            and (${PAGE_FILE_PREFIX} || ${pageFiles.fileId}) in (p.icon, p.cover))`,
         sql`not exists (
           select 1 from page_versions v join pages p on p.id = v.page_id
           cross join lateral jsonb_array_elements(v.blocks) as e(block)

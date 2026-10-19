@@ -2,15 +2,19 @@
  * Encoding for the Page.icon string column.
  *
  * The model stores a single string with a `prefix:value` convention so a page
- * can hold any of: a unicode emoji, a named page icon (`page-icons.ts`), or an
- * uploaded image URL — without piling on new model columns. Legacy rows that contain a bare
+ * can hold any of: a unicode emoji, a named page icon (`page-icons.ts`), an
+ * image uploaded to the page (`file:<fileId>`, `@oxy.so/nilo-contracts`) or an
+ * image URL — without piling on new model columns. Legacy rows that contain a bare
  * emoji (no prefix) are still rendered as such for backwards compatibility.
  */
+
+import { PAGE_FILE_PREFIX, pageValueFileId } from '@oxy.so/nilo-contracts';
 
 export type IconValue =
   | { kind: 'emoji'; emoji: string }
   | { kind: 'icon'; name: string }
   | { kind: 'image'; url: string }
+  | { kind: 'file'; fileId: string }
   | { kind: 'none' };
 
 /**
@@ -34,6 +38,10 @@ export function parseIcon(raw: string | null | undefined): IconValue {
     const url = trimmed.slice('image:'.length);
     return url ? { kind: 'image', url } : { kind: 'none' };
   }
+  if (trimmed.startsWith(PAGE_FILE_PREFIX)) {
+    const fileId = pageValueFileId(trimmed);
+    return fileId ? { kind: 'file', fileId } : { kind: 'none' };
+  }
 
   // Legacy: bare emoji. Pages created before this prefix scheme stored the
   // emoji character directly. Treat anything else as an emoji to preserve
@@ -51,4 +59,8 @@ export function encodeIcon(name: string): string {
 
 export function encodeImage(url: string): string {
   return `image:${url}`;
+}
+
+export function encodeIconFile(fileId: string): string {
+  return `${PAGE_FILE_PREFIX}${fileId}`;
 }

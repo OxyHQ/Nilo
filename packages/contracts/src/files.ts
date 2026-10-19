@@ -57,3 +57,17 @@ export function blockFileId(content: object): string | null {
   const id = (content as { fileId?: unknown }).fileId;
   return typeof id === 'string' && id.length > 0 ? id : null;
 }
+
+/**
+ * A page's icon or cover can be an image uploaded to the page, stored as
+ * `file:<fileId>` (the app's `icon-value.ts` and `cover-value.ts`). The page
+ * holds that file as a block would.
+ */
+export const PAGE_FILE_PREFIX = 'file:';
+
+/** The id of the file a page's icon or cover names, or null for any other value. */
+export function pageValueFileId(value: string | null | undefined): string | null {
+  if (!value?.startsWith(PAGE_FILE_PREFIX)) return null;
+  const id = value.slice(PAGE_FILE_PREFIX.length).trim();
+  return id.length > 0 ? id : null;
+}

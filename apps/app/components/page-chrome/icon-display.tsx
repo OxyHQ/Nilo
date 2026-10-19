@@ -1,9 +1,12 @@
 import * as React from 'react';
 import { Image, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
+import type { FileUrlScope } from '@oxy.so/nilo-contracts';
 import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useFileImageSource, useFileScope } from '@/lib/files/file-urls';
 import { getPageIcon } from './page-icons';
 import { parseIcon, type IconValue } from './icon-value';
 
@@ -14,6 +17,10 @@ interface IconDisplayProps {
   size?: number;
   /** Optional placeholder when icon is null/empty. Defaults to a doc icon. */
   showPlaceholder?: boolean;
+  /** The page whose icon this is: an uploaded one is read through it. */
+  pageId?: string;
+  /** How the reader reached the page, when not as a member (a share link, a published site). */
+  fileScope?: FileUrlScope;
 }
 
 /**
@@ -21,7 +28,13 @@ interface IconDisplayProps {
  * for sidebar (small), page header (large), and breadcrumb (xs) by varying
  * `size`. Falls back to a doc placeholder when `showPlaceholder` is true.
  */
-export function IconDisplay({ value, size = 16, showPlaceholder = false }: IconDisplayProps) {
+export function IconDisplay({
+  value,
+  size = 16,
+  showPlaceholder = false,
+  pageId,
+  fileScope,
+}: IconDisplayProps) {
   const parsed = React.useMemo<IconValue>(() => parseIcon(value), [value]);
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -59,10 +72,42 @@ export function IconDisplay({ value, size = 16, showPlaceholder = false }: IconD
     return <Icon width={size} height={size} fill={colors.foreground} />;
   }
 
-  // Image (uploaded or external URL).
+  if (parsed.kind === 'file') {
+    return <FileIcon fileId={parsed.fileId} size={size} pageId={pageId} fileScope={fileScope} />;
+  }
+
+  // Image by URL.
   return (
     <Image
       source={{ uri: parsed.url }}
+      style={{ width: size, height: size, borderRadius: size * 0.15 }}
+      accessibilityLabel={t('pages.header.pageIcon')}
+    />
+  );
+}
+
+/** An icon uploaded to the page: its file, shown with a URL minted for this reader. */
+function FileIcon({
+  fileId,
+  size,
+  pageId,
+  fileScope,
+}: {
+  fileId: string;
+  size: number;
+  pageId?: string;
+  fileScope?: FileUrlScope;
+}) {
+  const { t } = useTranslation();
+  const contextScope = useFileScope(pageId);
+  const source = useFileImageSource(fileScope ?? contextScope, fileId);
+  if (!source) {
+    return <View className="rounded-sm bg-muted" style={{ width: size, height: size }} />;
+  }
+  return (
+    <ExpoImage
+      source={source}
+      contentFit="cover"
       style={{ width: size, height: size, borderRadius: size * 0.15 }}
       accessibilityLabel={t('pages.header.pageIcon')}
     />

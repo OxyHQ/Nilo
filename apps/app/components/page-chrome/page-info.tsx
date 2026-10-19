@@ -88,7 +88,7 @@ function Backlinks({ pageId }: { pageId: string }) {
               className="rounded-md border border-border p-3 gap-1"
             >
               <View className="flex-row items-center gap-2">
-                <IconDisplay value={page.icon} size={18} />
+                <IconDisplay value={page.icon} size={18} pageId={page.id} />
                 <Text variant="body-medium">{page.title || t('pages.untitled')}</Text>
               </View>
               {text ? (
