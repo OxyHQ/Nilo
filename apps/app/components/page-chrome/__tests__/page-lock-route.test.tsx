@@ -43,6 +43,7 @@ jest.mock('@/components/page-chrome', () => ({
   PageHeader: () => null,
 }));
 jest.mock('@/components/sharing', () => ({ ShareButton: () => null }));
+jest.mock('@/components/page-chrome/icon-display', () => ({ IconDisplay: () => null }));
 jest.mock('@/components/comments/comment-panel', () => ({ CommentPanel: jest.fn(() => null) }));
 jest.mock('@/components/database/row-properties-panel', () => ({
   RowPropertiesPanel: jest.fn(() => null),

@@ -11,8 +11,9 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
 }));
 jest.mock('@oxy.so/services/ui/client', () => ({ useAuth: () => ({ isAuthenticated: true }) }));
-jest.mock('expo-notifications', () => ({
-  getPermissionsAsync: async () => ({ status: 'granted' }),
+jest.mock('@/lib/push-registration', () => ({
+  readPushState: async () => ({ supported: true, permission: 'granted', enabled: true }),
+  setPushEnabled: jest.fn(),
 }));
 jest.mock('@/components/reminders/reminder-list', () => ({ ReminderList: () => null }));
 jest.mock('@/components/sharing/page-shared-notification', () => ({
