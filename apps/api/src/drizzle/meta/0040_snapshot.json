@@ -1,5 +1,5 @@
 {
-  "id": "0e0cd395-52bc-41e8-8cfa-a37d5a9e23c3",
+  "id": "93bb823e-fd65-4feb-b221-c0dc43bb0ba9",
   "prevId": "3d8a8f7c-e367-47fa-b5eb-5c5a60c69750",
   "version": "7",
   "dialect": "postgresql",
@@ -1384,22 +1384,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "pages_archived_with_idx": {
-          "name": "pages_archived_with_idx",
-          "columns": [
-            {
-              "expression": "archived_with",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"pages\".\"archived_with\" is not null",
           "concurrently": false,
           "method": "btree",
           "with": {}

@@ -224,8 +224,6 @@ export const pages = pgTable(
     index('pages_workspace_parent_order_idx').on(t.workspaceId, t.parentId, t.order),
     /** Ported from `PageSchema.index({ workspaceId: 1, archived: 1 })`. */
     index('pages_workspace_archived_idx').on(t.workspaceId, t.archived),
-    /** What restoring a page brings back with it. */
-    index('pages_archived_with_idx').on(t.archivedWith).where(sql`${t.archivedWith} is not null`),
     /**
      * Ported from `PageSchema.index({ databaseId: 1, archived: 1, createdAt: 1 })`.
      * Its prefix subsumes the standalone `databaseId` index, as above.

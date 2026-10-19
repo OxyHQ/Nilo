@@ -12,6 +12,7 @@
 
 import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { sqlColumnName } from '@oxy.so/db';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { PgHandle } from '../db/client.js';
 import {
   PAGE_TOMBSTONE_RETENTION_MS,
@@ -460,27 +461,25 @@ export async function setTreeArchived(
   rootId: string,
   archived: boolean,
 ): Promise<number> {
-  if (!archived) {
-    const restored = await db
-      .update(pages)
-      .set({ archived: false, archivedWith: null })
-      .where(eq(pages.archivedWith, rootId))
-      .returning({ id: pages.id });
-    return restored.length;
-  }
-  const id = sql.identifier(sqlColumnName(pages.id));
+  const column = (c: AnyPgColumn) => sql.identifier(sqlColumnName(c));
+  const id = column(pages.id);
+  // Down the tree through `pages_parent_idx`, never a scan of the table:
+  // going, through the live subpages; coming back, through those that went.
+  const follows = archived
+    ? sql`not child.${column(pages.archived)}`
+    : sql`child.${column(pages.archivedWith)} = ${rootId}`;
   const rows = await db.execute(sql`
     with recursive tree as (
       select ${pages.id} from ${pages} where ${pages.id} = ${rootId}
       union all
       select child.${id}
       from ${pages} child
-      join tree on child.${sql.identifier(sqlColumnName(pages.parentId))} = tree.${id}
-      where not child.${sql.identifier(sqlColumnName(pages.archived))}
+      join tree on child.${column(pages.parentId)} = tree.${id}
+      where ${follows}
     ) cycle ${id} set is_cycle using cycle_path
     update ${pages}
-    set ${sql.identifier(sqlColumnName(pages.archived))} = true,
-        ${sql.identifier(sqlColumnName(pages.archivedWith))} = ${rootId}
+    set ${column(pages.archived)} = ${archived},
+        ${column(pages.archivedWith)} = ${archived ? rootId : null}
     where ${pages.id} in (select ${id} from tree where not is_cycle) and ${pages.id} <> ${rootId}
     returning ${pages.id}
   `);
