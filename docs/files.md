@@ -19,6 +19,14 @@ The member's app does three things (`apps/app/lib/files/upload-page-file.ts`):
 A block holds the file's id (`content.fileId`), never a URL. A pasted URL
 still goes in `content.url`. A page's icon or cover uploaded the same way is
 stored as `file:<fileId>` (`pageValueFileId` in `@oxy.so/nilo-contracts`).
+Image, video, audio and file blocks are uploaded to this way.
+
+A video or a sound plays in the native players (`expo-video`, `expo-audio`)
+from a minted URL, which the app asks for again before it expires while the
+block is shown (`useMediaFileUrl`). A player takes the newer URL only while it
+is not playing (`useMediaSource`), so playback is never cut to swap one; a
+player streaming one URL for longer than it lasts can still lose it, which
+only a longer-lived media URL from Oxy would remove.
 
 ## Reading
 

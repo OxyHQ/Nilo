@@ -879,6 +879,45 @@ describe('POST /pages/:id/duplicate', () => {
       .where(eq(blocks.pageId, children[0]?.id as string));
     expect(deep.map((b) => b.content.text)).toEqual(['deep']);
   });
+
+  it("points a copy's child page blocks at the copies of its subpages", async () => {
+    const source = await createPage({ title: 'parent' });
+    const child = await createPage({ title: 'minutes', parentId: source.id });
+    const elsewhere = await createPage({ title: 'elsewhere' });
+    await createBlock(source.id as string, { type: 'child_page', content: { pageId: child.id } });
+    // A child page block whose page is not among those copied keeps it.
+    await createBlock(source.id as string, {
+      type: 'child_page',
+      content: { pageId: elsewhere.id },
+    });
+    // A link to the subpage is a link: it still names the page it named.
+    await createBlock(source.id as string, { type: 'link_to_page', content: { pageId: child.id } });
+
+    const res = await api('POST', `/pages/${source.id}/duplicate`);
+    const copyId = (res.json.page as { id: string }).id;
+    const [childCopy] = (await api('GET', `/pages?workspaceId=${workspaceId}&parentId=${copyId}`))
+      .json.pages as { id: string }[];
+    expect(childCopy?.id).toBeDefined();
+    const copied = await db.select().from(blocks).where(eq(blocks.pageId, copyId));
+    const targets = copied
+      .map((b) => [b.type, b.content.pageId])
+      .sort((a, b) => String(a).localeCompare(String(b)));
+    expect(targets).toEqual(
+      [
+        ['child_page', childCopy?.id],
+        ['child_page', elsewhere.id],
+        ['link_to_page', child.id],
+      ].sort((a, b) => String(a).localeCompare(String(b))),
+    );
+    // The source keeps its own.
+    const original = await db
+      .select()
+      .from(blocks)
+      .where(eq(blocks.pageId, source.id as string));
+    expect(original.filter((b) => b.type === 'child_page').map((b) => b.content.pageId)).toContain(
+      child.id,
+    );
+  });
 });
 
 describe('templates', () => {
@@ -960,6 +999,35 @@ describe('GET /pages/:id/export', () => {
     expect(res.text).toContain('# Heading');
     expect(res.text).toContain('- nested');
     expect(res.text).toContain('- [x] done');
+  });
+
+  it('keeps a child page block, exports it as its subpage, and removing it leaves the page', async () => {
+    const page = await createPage({ title: 'Parent' });
+    const child = await createPage({ title: 'Minutes', parentId: page.id });
+    const block = await createBlock(page.id as string, {
+      type: 'child_page',
+      content: { pageId: child.id },
+    });
+    expect(block).toMatchObject({ type: 'child_page', content: { pageId: child.id } });
+
+    const md = await api('GET', `/pages/${page.id}/export?format=md`);
+    expect(md.status).toBe(200);
+    expect(md.text).toContain('→ Minutes');
+    const html = await api('GET', `/pages/${page.id}/export?format=html`);
+    expect(html.text).toContain('<p class="page-link">→ Minutes</p>');
+
+    const removed = await api(
+      'POST',
+      `/pages/${page.id}/blocks/transactions`,
+      { ops: [{ kind: 'remove', id: block.id }] },
+      { 'x-workspace-id': workspaceId },
+    );
+    expect(removed.status).toBe(200);
+    const [stored] = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.id, child.id as string));
+    expect(stored).toMatchObject({ archived: false, parentId: page.id });
   });
 });
 

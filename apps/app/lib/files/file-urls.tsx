@@ -103,16 +103,38 @@ function fileUrlQuery(scope: FileUrlScope, fileId: string) {
   });
 }
 
-function useFileQuery(scope: FileUrlScope | null, fileId: string | null, fetch = true) {
+function useFileQuery(
+  scope: FileUrlScope | null,
+  fileId: string | null,
+  fetch = true,
+  keepFresh = false,
+) {
   return useQuery({
     ...fileUrlQuery(scope ?? { kind: 'page', pageId: '' }, fileId ?? ''),
     enabled: fetch && Boolean(scope && fileId),
+    // Asked again a minute before it stops working, while the block is shown.
+    ...(keepFresh && {
+      refetchInterval: (query: { state: { data: CachedFile | null | undefined } }) => {
+        const data = query.state.data;
+        return isUrl(data) ? Math.max(5_000, data.expiresAt - Date.now() - RENEW_BEFORE_MS) : false;
+      },
+    }),
   });
 }
 
 /** The URL to show `fileId` with, or null while there is none (loading, refused, removed, offline). */
 export function useFileUrl(scope: FileUrlScope | null, fileId: string | null): string | null {
   const data = useFileQuery(scope, fileId).data;
+  return isUrl(data) ? data.url : null;
+}
+
+/**
+ * The URL to play `fileId` (a video, a sound) from, kept working while it is
+ * shown: a player streams from its URL for as long as it plays, so a new one
+ * is asked for before the last expires, not only when the block is opened.
+ */
+export function useMediaFileUrl(scope: FileUrlScope | null, fileId: string | null): string | null {
+  const data = useFileQuery(scope, fileId, true, true).data;
   return isUrl(data) ? data.url : null;
 }
 

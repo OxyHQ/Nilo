@@ -25,6 +25,8 @@ const mockMentions = {};
 const mockOpenMention = jest.fn();
 const mockCreateDatabase = jest.fn();
 const mockDeleteDatabase = jest.fn();
+const mockCreatePage = jest.fn();
+const mockRouter = { push: jest.fn() };
 let mockPage: { font: PageFont; smallText: boolean; fullWidth: boolean; workspaceId: string };
 jest.mock('@/components/page-editor/page-canvas', () => ({ PageCanvas: () => null }));
 jest.mock('@/lib/ai/use-ai', () => ({ useAiAvailable: () => false }));
@@ -53,7 +55,18 @@ jest.mock('@/lib/useColorScheme', () => ({
   useColorScheme: () => ({ colors: mockColors, isDarkColorScheme: false }),
 }));
 jest.mock('@/hooks/useTranslation', () => ({ useTranslation: () => ({ t: mockT, locale: 'en' }) }));
-jest.mock('@/lib/hooks/use-pages', () => ({ usePage: () => ({ data: { page: mockPage } }) }));
+jest.mock('@/lib/hooks/use-pages', () => ({
+  usePage: () => ({ data: { page: mockPage } }),
+  useCreatePage: () => ({ mutateAsync: mockCreatePage }),
+}));
+jest.mock('@/lib/hooks/use-comments', () => ({ usePageComments: () => ({ data: undefined }) }));
+// Read when used: the factory runs before this file's constants are set.
+jest.mock('expo-router', () => ({
+  get router() {
+    return mockRouter;
+  },
+}));
+jest.mock('@/components/page-chrome/icon-picker', () => ({ IconPicker: () => null }));
 jest.mock('@/lib/hooks/use-databases', () => ({
   useCreateDatabase: () => ({ mutateAsync: mockCreateDatabase }),
   useDeleteDatabase: () => ({ mutate: mockDeleteDatabase }),
@@ -72,7 +85,10 @@ jest.mock('../open-target', () => ({
   openEditorLink: jest.fn(),
 }));
 jest.mock('../renderers', () => ({ createRenderers: () => ({}), createMarkers: () => ({}) }));
-jest.mock('../presence', () => ({ collaboratorDecorations: () => new Map() }));
+jest.mock('../presence', () => ({
+  collaboratorDecorations: () => new Map(),
+  withCommentDecorations: () => new Map(),
+}));
 jest.mock('../presence-avatars', () => ({ PresenceAvatars: () => null }));
 jest.mock('react-native-keyboard-controller', () => ({
   KeyboardStickyView: require('react-native').View,
@@ -148,6 +164,31 @@ it('opens the linked database picker and inserts a block with its own id without
   expect(mockStore.doc.blocks.anchor).toBeUndefined();
   expect(mockCreateDatabase).not.toHaveBeenCalled();
   expect(renderer.root.findAllByType(DatabasePicker)).toHaveLength(0);
+});
+it('makes a subpage of this page for a Page block, shows it here and opens it', async () => {
+  const child = '01890000-0000-7000-8000-000000000001';
+  mockCreatePage.mockResolvedValueOnce({ id: child, workspaceId: 'workspace' });
+  await act(async () =>
+    renderer.root.findByType(BlockEditor).props.onSlashAction('childPage', 'anchor'),
+  );
+  expect(mockCreatePage).toHaveBeenCalledWith({ workspaceId: 'workspace', parentId: 'page' });
+  // The empty paragraph it was typed in gives way to the block.
+  expect(mockStore.doc.root).toEqual(['new-block']);
+  expect(mockStore.doc.blocks['new-block']).toMatchObject({
+    type: 'child_page',
+    props: { pageId: child },
+  });
+  expect(mockRouter.push).toHaveBeenCalledWith({
+    pathname: '/(app)/p/[pageId]',
+    params: { pageId: child },
+  });
+});
+it('leaves the page as it is when the subpage cannot be made', async () => {
+  mockCreatePage.mockRejectedValueOnce(new Error('offline'));
+  await act(async () =>
+    renderer.root.findByType(BlockEditor).props.onSlashAction('childPage', 'anchor'),
+  );
+  expect(mockStore.doc.root).toEqual(['anchor']);
 });
 it('cancels the picker without inserting a block', async () => {
   await act(async () =>

@@ -75,6 +75,7 @@ const BEHAVIOUR = extendSchema(DEFAULT_SCHEMA, [
   },
   { type: 'button', hasText: false, canHaveChildren: false },
   { type: 'link_to_page', hasText: false, canHaveChildren: false },
+  { type: 'child_page', hasText: false, canHaveChildren: false },
   { type: 'sync_block', hasText: false, canHaveChildren: false },
   { type: 'breadcrumb', hasText: false, canHaveChildren: false },
   { type: 'table_of_contents', hasText: false, canHaveChildren: false },

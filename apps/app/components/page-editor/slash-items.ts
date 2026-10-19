@@ -36,6 +36,14 @@ export function useSlashItems(): SlashItem[] {
         block('paragraph'),
       ),
       item(
+        'childPage',
+        t('editor.slashMenu.childPage.label'),
+        t('editor.slashMenu.childPage.description'),
+        t('editor.slashMenu.childPage.keywords'),
+        'basic',
+        { kind: 'custom', id: 'childPage' },
+      ),
+      item(
         'heading1',
         t('editor.slashMenu.heading1.label'),
         t('editor.slashMenu.heading1.description'),

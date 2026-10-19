@@ -1,49 +1,82 @@
-import { Platform, Pressable, View } from 'react-native';
+import { View } from 'react-native';
+import { blockFileId } from '@oxy.so/nilo-contracts';
+import { Button } from '@oxy.so/bloom/button';
 import { RiMusic2Line } from '@oxy.so/bloom/icons/RiMusic2Line';
+import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';
 import { Text } from '@oxy.so/bloom/typography';
+import { useFileRemoved, useFileScope, useMediaFileUrl } from '@/lib/files/file-urls';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { BlockCaption, UrlPrompt } from './block-parts';
+import { AudioPlayer } from './media-players';
+import { useMediaUpload } from './media-upload';
 import { type BlockComponentProps, blockUrl } from './types';
 
+/** The last part of a link's path, as a name for the sound it points at. */
+function nameFromUrl(url: string): string {
+  try {
+    return decodeURIComponent(new URL(url).pathname.split('/').filter(Boolean).pop() ?? '');
+  } catch {
+    return '';
+  }
+}
+
 /**
- * Audio block — accepts a URL (paste or upload) and renders a player.
- * On web we use the standard <audio> element; on native we link out to the
- * URL. Nilo stores the block and opens native audio in the system browser;
- * it does not request microphone or background-audio permissions.
+ * Audio block — a sound uploaded to the page (`content.fileId`, played from
+ * a URL minted for each reader) or a link to one, played by the native player
+ * (`expo-audio`) on every platform. Nilo only plays: it asks for no
+ * microphone or background-audio permission.
  */
 export function AudioBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
   const url = blockUrl(block.content.url);
+  const fileId = blockFileId(block.content);
+  const scope = useFileScope(block.pageId);
+  const fileUrl = useMediaFileUrl(scope, fileId);
+  const removed = useFileRemoved(scope, fileId, { fetch: false });
+  const upload = useMediaUpload(block.pageId, 'audio', (file) =>
+    onChangeContent({ ...block.content, url: '', fileId: file.fileId, name: file.name }),
+  );
+  const name = typeof block.content.name === 'string' ? block.content.name : '';
+  const title = name || (url ? nameFromUrl(url) : '') || t('editor.blocks.audio.label');
 
-  if (!url) {
+  if (!url && !fileId) {
     return (
-      <UrlPrompt
-        icon={RiMusic2Line}
-        label={t('editor.blocks.audio.label')}
-        paste={t('editor.blocks.audio.paste')}
-        readOnly={readOnly}
-        onCommit={(next) => onChangeContent({ ...block.content, url: next })}
-      />
+      <View className="gap-2">
+        <UrlPrompt
+          icon={RiMusic2Line}
+          label={t('editor.blocks.audio.label')}
+          paste={t('editor.blocks.audio.paste')}
+          readOnly={readOnly}
+          onCommit={(next) => onChangeContent({ ...block.content, url: next })}
+        >
+          <Button
+            appearance="solid"
+            tone="accent"
+            size="md"
+            onPress={upload.choose}
+            disabled={upload.busy}
+            leadingIcon={RiUpload2Line}
+          >
+            {upload.busy ? t('editor.blocks.uploading') : t('editor.blocks.upload')}
+          </Button>
+        </UrlPrompt>
+        {readOnly ? null : upload.input}
+        {upload.error ? <Text className="text-xs text-destructive">{upload.error}</Text> : null}
+      </View>
     );
   }
 
   return (
     <View className="gap-1">
-      {Platform.OS === 'web' ? (
-        // biome-ignore lint/a11y/useMediaCaption: user-uploaded audio; the block model has no caption track to attach
-        <audio controls src={url} style={{ width: '100%' }} />
+      {fileId && removed ? (
+        <View className="flex-row items-center gap-2 rounded-lg bg-muted/40 px-3 py-3">
+          <RiMusic2Line width={14} height={14} fill={colors.mutedForeground} />
+          <Text className="text-sm text-muted-foreground">{t('editor.blocks.audio.removed')}</Text>
+        </View>
       ) : (
-        <Pressable
-          className="flex-row items-center gap-2 rounded-lg bg-muted/60 px-3 py-2"
-          onPress={() => {
-            import('expo-web-browser').then((mod) => mod.openBrowserAsync(url));
-          }}
-        >
-          <RiMusic2Line width={14} height={14} fill={colors.foreground} />
-          <Text variant="body-regular">{url}</Text>
-        </Pressable>
+        <AudioPlayer url={fileId ? fileUrl : url} title={title} />
       )}
       <BlockCaption block={block} onChangeContent={onChangeContent} readOnly={readOnly} />
     </View>

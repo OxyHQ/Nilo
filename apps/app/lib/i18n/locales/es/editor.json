@@ -1,5 +1,10 @@
 {
   "slashMenu": {
+    "childPage": {
+      "label": "Página",
+      "description": "Una subpágina dentro de esta página.",
+      "keywords": "página, pagina, subpágina, subpagina, nueva página, documento"
+    },
     "paragraph": {
       "label": "Texto",
       "description": "Párrafo de texto sin formato.",
@@ -267,7 +272,8 @@
   "mentions": {
     "people": "Personas",
     "pages": "Páginas",
-    "date": "Fecha"
+    "date": "Fecha",
+    "profile": "Perfil de %{name}"
   },
   "canvas": {
     "label": "Lienzo",
@@ -313,17 +319,35 @@
     },
     "video": {
       "label": "Vídeo",
-      "paste": "Pega un enlace de YouTube, Vimeo, Loom o de vídeo"
+      "paste": "Pega un enlace de YouTube, Vimeo, Loom o de vídeo",
+      "removed": "Este vídeo se eliminó",
+      "open": "Abrir vídeo"
     },
     "audio": {
       "label": "Audio",
-      "paste": "Pega un enlace de audio"
+      "paste": "Pega un enlace de audio",
+      "removed": "Este audio se eliminó",
+      "play": "Reproducir",
+      "pause": "Pausar",
+      "seek": "Buscar posición"
     },
     "image": {
       "label": "Imagen",
       "paste": "Pega un enlace a una imagen",
       "removed": "Esta imagen se eliminó",
-      "alt": "Imagen"
+      "alt": "Imagen",
+      "align": {
+        "left": "Alinear a la izquierda",
+        "center": "Centrar",
+        "right": "Alinear a la derecha",
+        "full": "Ancho completo"
+      },
+      "size": "%{percent} % de ancho",
+      "altText": "Texto alternativo",
+      "altPlaceholder": "Describe la imagen",
+      "altHint": "Los lectores de pantalla lo leen en lugar de la imagen.",
+      "options": "Opciones de la imagen",
+      "resize": "Cambiar el tamaño de la imagen"
     },
     "file": {
       "label": "Archivo",
@@ -379,6 +403,45 @@
         "duplicate-template": "Duplicar plantilla",
         "webhook": "Webhook"
       }
+    },
+    "table": {
+      "label": "Tabla de %{rows} filas por %{cols} columnas",
+      "addRow": "Añadir fila",
+      "addColumn": "Añadir columna",
+      "insertAbove": "Insertar fila encima",
+      "insertBelow": "Insertar fila debajo",
+      "insertLeft": "Insertar columna a la izquierda",
+      "insertRight": "Insertar columna a la derecha",
+      "deleteRow": "Eliminar fila",
+      "deleteColumn": "Eliminar columna",
+      "headerRow": "Fila de encabezado",
+      "rowMenu": "Opciones de la fila %{index}",
+      "columnMenu": "Opciones de la columna %{index}"
+    },
+    "columns": {
+      "label": {
+        "one": "%{count} columna",
+        "other": "%{count} columnas"
+      },
+      "addLeft": "Añadir columna a la izquierda",
+      "addRight": "Añadir columna a la derecha",
+      "remove": "Quitar columna",
+      "menu": "Opciones de la columna %{index}",
+      "empty": "Columna vacía. Pulsa para escribir en ella.",
+      "resize": "Cambiar el ancho de las columnas"
+    },
+    "childPage": {
+      "creating": "Creando página…",
+      "missing": "Esta página no está disponible",
+      "trashed": "En la papelera",
+      "createFailed": "No se pudo crear la página"
+    },
+    "callout": {
+      "changeIcon": "Cambiar icono"
+    },
+    "code": {
+      "plain": "Texto sin formato",
+      "language": "Lenguaje: %{language}"
     }
   }
 }

@@ -17,6 +17,8 @@ jest.mock('expo-router', () => ({
 jest.mock('expo-router/head', () => ({ __esModule: true, default: () => null }));
 // Images and files ask the API for their URLs (`lib/files`); none render here.
 jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { post: jest.fn() } }));
+// Video and audio blocks can be uploaded to, through the member's Oxy session.
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ oxyServices: {} }) }));
 jest.mock('@oxy.so/bloom/fonts', () => ({
   fontFamilies: { sans: 'Inter', display: 'BlomusModernus', mono: 'JetBrains Mono' },
 }));

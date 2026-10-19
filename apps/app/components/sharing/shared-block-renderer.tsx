@@ -6,7 +6,6 @@ import { Checkbox } from '@oxy.so/bloom/checkbox';
 import { Divider } from '@oxy.so/bloom/divider';
 import { Text } from '@oxy.so/bloom/typography';
 import { useQueryClient } from '@tanstack/react-query';
-import { Image as ExpoImage } from 'expo-image';
 import { Platform, Pressable, type TextStyle, View } from 'react-native';
 import {
   FileScopeProvider,
@@ -17,7 +16,7 @@ import {
 } from '@/lib/files/file-urls';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
 import type { PageFont } from '@/lib/types/pages';
-import { MONO_FONT_FAMILY, PAGE_FONT_FAMILIES } from '@/lib/fonts';
+import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
 import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { RiFileLine } from '@oxy.so/bloom/icons/RiFileLine';
@@ -40,6 +39,10 @@ import { EquationBlock } from '@/components/editor/blocks/equation-block';
 import { MermaidBlock } from '@/components/editor/blocks/mermaid-block';
 import { PdfBlock } from '@/components/editor/blocks/pdf-block';
 import { VideoBlock } from '@/components/editor/blocks/video-block';
+import { CodeView } from '@/components/editor/blocks/code-view';
+import { SizedImage } from '@/components/editor/blocks/image-block';
+import { imageAlignment, imageWidth } from '@/components/editor/blocks/image-layout';
+import { columnShares } from '@/lib/editor/columns';
 
 /**
  * The editor's own blocks, read-only, for the kinds a shared page shows the
@@ -88,9 +91,6 @@ function getText(content: Record<string, unknown>): string {
     .map((segment) => segment.text)
     .join('');
 }
-
-/** Bloom's `Text` sets its face inline, so code names its own. */
-const MONO_STYLE = { fontFamily: MONO_FONT_FAMILY };
 
 function getChecked(content: Record<string, unknown>): boolean {
   return content.checked === true;
@@ -193,21 +193,10 @@ function DividerBlock() {
   return <Divider spacing={12} />;
 }
 
-function CodeBlock({ content, textStyle }: BlockProps) {
-  const text = getText(content);
-  const language = getLanguage(content);
+function CodeBlock({ content }: BlockProps) {
   return (
     <View className="rounded-lg border border-border bg-muted/40 overflow-hidden">
-      <View className="flex-row items-center justify-between px-3 py-1.5 border-b border-border/60">
-        <Text className="text-[11px] text-muted-foreground" style={textStyle}>
-          {language}
-        </Text>
-      </View>
-      <View className="p-3">
-        <Text className="text-sm text-foreground" style={MONO_STYLE}>
-          {text}
-        </Text>
-      </View>
+      <CodeView code={getText(content)} language={getLanguage(content)} />
     </View>
   );
 }
@@ -248,11 +237,12 @@ function SharedImage({ content }: { content: Record<string, unknown> }) {
   }
   return (
     <View className="gap-1">
-      <ExpoImage
+      <SizedImage
         source={fileSource ?? { uri: url }}
-        style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 8 }}
-        contentFit="contain"
-        accessibilityLabel={stringOf(content.alt) || caption || undefined}
+        alt={stringOf(content.alt) || caption || undefined}
+        width={imageWidth(content.width)}
+        alignment={imageAlignment(content.alignment)}
+        readOnly
       />
       {caption ? <Text className="text-xs text-muted-foreground">{caption}</Text> : null}
     </View>
@@ -337,6 +327,7 @@ export function SharedBlockRenderer({ block, listIndex = 1, textStyle }: SharedB
     case 'button':
       return <SharedButton content={content} />;
     case 'link_to_page':
+    case 'child_page':
       return <SharedPageLink content={content} textStyle={textStyle} />;
     case 'inline_database':
       return (
@@ -518,10 +509,18 @@ function BlockNode({
   // Columns side by side (stacked when there is no room), a table as a grid,
   // and a synced block as its content: laid out here, where the children are.
   if (block.type === 'columns') {
+    const shares = columnShares(
+      childrenNodes.map(({ block: column }) =>
+        typeof column.content.ratio === 'number' ? column.content.ratio : undefined,
+      ),
+    );
     return (
       <View className="flex-row flex-wrap gap-4">
-        {childrenNodes.map((column) => (
-          <View key={column.block.id} className="flex-1" style={{ minWidth: 220 }}>
+        {childrenNodes.map((column, index) => (
+          <View
+            key={column.block.id}
+            style={{ flexGrow: shares[index] ?? 1, flexBasis: 0, minWidth: 220 }}
+          >
             <BlockBranch nodes={column.children} textStyle={textStyle} />
           </View>
         ))}

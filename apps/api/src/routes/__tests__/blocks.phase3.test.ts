@@ -35,6 +35,30 @@ describe('block content normalization', () => {
     });
   });
 
+  it('keeps an uploaded video or audio as its attachment, not a URL', () => {
+    expect(normalizeContent('video', { fileId: 'f1', name: 'demo.mp4', source: 'upload' })).toEqual(
+      { url: '', fileId: 'f1', name: 'demo.mp4', source: 'upload' },
+    );
+    expect(normalizeContent('audio', { fileId: 'f2', name: 'memo.m4a' })).toEqual({
+      url: '',
+      fileId: 'f2',
+      name: 'memo.m4a',
+    });
+  });
+
+  it("keeps an image's width, alignment and alt text, and refuses a width that is none", () => {
+    expect(
+      normalizeContent('image', { url: '', width: 320, alignment: 'right', alt: 'Plan' }),
+    ).toMatchObject({ width: 320, alignment: 'right', alt: 'Plan' });
+    expect(() => normalizeContent('image', { width: 0 })).toThrow();
+    expect(() => normalizeContent('image', { alignment: 'middle' })).toThrow();
+  });
+
+  it("keeps a column's ratio between 0 and 1", () => {
+    expect(normalizeContent('column', { ratio: 0.3 })).toMatchObject({ ratio: 0.3 });
+    expect(() => normalizeContent('column', { ratio: 1.5 })).toThrow();
+  });
+
   it('keeps a toggle heading toggleable, and adds nothing to a plain heading', () => {
     expect(
       normalizeContent('heading_2', { text: 'Plan', toggleable: true, expanded: false }),
@@ -122,6 +146,13 @@ describe('block content normalization', () => {
 
     it('rejects an id of neither shape', () => {
       expect(() => normalizeContent('link_to_page', { pageId: 'not-an-id' })).toThrow();
+    });
+
+    it('accepts a page id on child_page, and refuses any other shape', () => {
+      const id = uuidv7();
+      expect(normalizeContent('child_page', { pageId: id }).pageId).toBe(id);
+      expect(() => normalizeContent('child_page', { pageId: 'not-an-id' })).toThrow();
+      expect(normalizeContent('child_page', {}).pageId).toBe('000000000000000000000000');
     });
 
     it('defaults an unpicked target to a sentinel that names no row', () => {

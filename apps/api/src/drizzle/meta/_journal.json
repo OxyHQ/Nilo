@@ -330,6 +330,20 @@
       "when": 1792447605791,
       "tag": "0046_page_visits",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1792448140479,
+      "tag": "0047_child_page_block",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1792448140928,
+      "tag": "0048_child_page_block_validate",
+      "breakpoints": true
     }
   ]
 }

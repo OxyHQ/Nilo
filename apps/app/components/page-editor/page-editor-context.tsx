@@ -24,7 +24,9 @@ import { usePageEditor, type PageEditorState } from '@/lib/editor/use-page-edito
 import { profileName, useMemberProfiles } from '@/lib/hooks/use-member-profiles';
 import { useEditorTheme, useEditorLabels } from './editor-presentation';
 import type { AiTarget } from './ai-dialog';
-import { collaboratorDecorations } from './presence';
+import { collaboratorDecorations, withCommentDecorations } from './presence';
+import { usePageComments } from '@/lib/hooks/use-comments';
+import { openCommentCounts } from '@/components/comments/comment-indicator';
 
 type EditorContextValue = PageEditorState & {
   /** Null until the page's blocks have loaded (or when they failed: `error`). */
@@ -73,8 +75,13 @@ export function PageEditorProvider({
   const labels = useEditorLabels();
   const [toolbarHeight, setToolbarHeight] = useState(0);
   const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
+  const comments = usePageComments(pageId);
+  const commentCounts = useMemo(
+    () => openCommentCounts(comments.data?.comments ?? []),
+    [comments.data?.comments],
+  );
   useEffect(() => {
-    const next = collaboratorDecorations(
+    const carets = collaboratorDecorations(
       state.collaborators,
       user?.id,
       theme.colors,
@@ -83,9 +90,25 @@ export function PageEditorProvider({
         t('pages.info.unknownMember'),
       previous.current,
     );
+    const next = withCommentDecorations(
+      carets,
+      commentCounts,
+      theme.colors.yellow?.text ?? theme.accent,
+      (count) => t('comments.indicator.count', { count }),
+      previous.current,
+    );
     previous.current = next;
     decorations.set(next);
-  }, [state.collaborators, user?.id, theme.colors, profiles.data, t, decorations]);
+  }, [
+    state.collaborators,
+    user?.id,
+    theme.colors,
+    theme.accent,
+    profiles.data,
+    t,
+    decorations,
+    commentCounts,
+  ]);
   const value = useMemo(
     () => ({
       ...state,

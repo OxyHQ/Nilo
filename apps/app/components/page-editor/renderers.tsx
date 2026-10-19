@@ -6,6 +6,9 @@ import { AudioBlock } from '@/components/editor/blocks/audio-block';
 import { BookmarkBlock } from '@/components/editor/blocks/bookmark-block';
 import { BreadcrumbBlock } from '@/components/editor/blocks/breadcrumb-block';
 import { ButtonBlock } from '@/components/editor/blocks/button-block';
+import { ChildPageBlock } from '@/components/editor/blocks/child-page-block';
+import { CodeLanguagePicker, CodeView } from '@/components/editor/blocks/code-view';
+import { BlockCommentMarker } from '@/components/comments/comment-indicator';
 import { ColumnBlock } from '@/components/editor/blocks/column-block';
 import { ColumnsBlock } from '@/components/editor/blocks/columns-block';
 import { EmbedBlock } from '@/components/editor/blocks/embed-block';
@@ -33,7 +36,11 @@ import { useColorScheme } from '@/lib/useColorScheme';
  * shape) as an editor renderer: it sees the block as the API stores it, and
  * its content edits become one undoable props change.
  */
-function adapt(Component: ComponentType<BlockComponentProps>, pageId: string): BlockRenderer {
+function adapt(
+  Component: ComponentType<BlockComponentProps>,
+  pageId: string,
+  store: EditorStore,
+): BlockRenderer {
   return function Renderer({ block, readOnly, updateProps, renderChildren }: BlockRendererProps) {
     const apiBlock: Block = {
       id: block.id,
@@ -46,14 +53,24 @@ function adapt(Component: ComponentType<BlockComponentProps>, pageId: string): B
       updatedAt: '',
     };
     return (
-      <Component
-        block={apiBlock}
-        readOnly={readOnly}
-        onChangeContent={(next) => updateProps(fieldsFromContent(block.type, next).props)}
-        renderChildren={() => renderChildren()}
-      />
+      <>
+        <Component
+          block={apiBlock}
+          readOnly={readOnly}
+          onChangeContent={(next) => updateProps(fieldsFromContent(block.type, next).props)}
+          renderChildren={() => renderChildren()}
+          store={store}
+        />
+        <BlockCommentMarker blockId={block.id} />
+      </>
     );
   };
+}
+
+/** A code block as a reader sees it: highlighted for its language. */
+function ReadOnlyCode({ block }: BlockRendererProps) {
+  const code = (block.text ?? []).map((segment) => segment.text).join('');
+  return <CodeView code={code} language={block.props.language} />;
 }
 
 /** Headings, read live from the document; pressing one scrolls to it on web. */
@@ -123,33 +140,82 @@ function NoteInDocument({ renderChildren }: BlockRendererProps) {
   return <View className="my-1 rounded-xl border border-border px-3 py-1">{renderChildren()}</View>;
 }
 
-/** Every block type Nilo draws itself, keyed by type. */
-export function createRenderers(pageId: string, store: EditorStore): Record<string, BlockRenderer> {
+/**
+ * Every block type Nilo draws itself, keyed by type. A reader's code blocks
+ * are drawn highlighted; an editor writes in the editor's own text block,
+ * which has no way to colour what is typed in it.
+ */
+export function createRenderers(
+  pageId: string,
+  store: EditorStore,
+  readOnly = false,
+): Record<string, BlockRenderer> {
+  const own = (Component: ComponentType<BlockComponentProps>) => adapt(Component, pageId, store);
   return {
-    inline_database: adapt(InlineDatabaseBlock, pageId),
-    image: adapt(ImageBlock, pageId),
-    video: adapt(VideoBlock, pageId),
-    audio: adapt(AudioBlock, pageId),
-    file: adapt(FileBlock, pageId),
-    pdf: adapt(PdfBlock, pageId),
-    bookmark: adapt(BookmarkBlock, pageId),
-    embed: adapt(EmbedBlock, pageId),
-    columns: adapt(ColumnsBlock, pageId),
+    inline_database: own(InlineDatabaseBlock),
+    image: own(ImageBlock),
+    video: own(VideoBlock),
+    audio: own(AudioBlock),
+    file: own(FileBlock),
+    pdf: own(PdfBlock),
+    bookmark: own(BookmarkBlock),
+    embed: own(EmbedBlock),
+    columns: own(ColumnsBlock),
     canvas_note: NoteInDocument,
-    column: adapt(ColumnBlock, pageId),
-    table: adapt(TableBlock, pageId),
-    table_row: adapt(TableRow, pageId),
-    button: adapt(ButtonBlock, pageId),
-    link_to_page: adapt(LinkToPageBlock, pageId),
-    sync_block: adapt(SyncBlock, pageId),
-    breadcrumb: adapt(BreadcrumbBlock, pageId),
-    equation: adapt(EquationBlock, pageId),
-    mermaid: adapt(MermaidBlock, pageId),
+    column: own(ColumnBlock),
+    table: own(TableBlock),
+    table_row: own(TableRow),
+    button: own(ButtonBlock),
+    link_to_page: own(LinkToPageBlock),
+    child_page: own(ChildPageBlock),
+    sync_block: own(SyncBlock),
+    breadcrumb: own(BreadcrumbBlock),
+    equation: own(EquationBlock),
+    mermaid: own(MermaidBlock),
     table_of_contents: () => <TableOfContents store={store} />,
+    ...(readOnly ? { code: ReadOnlyCode } : {}),
   };
 }
 
-/** Markers Nilo draws beside text blocks. */
-export function createMarkers(): Record<string, BlockRenderer> {
-  return { callout: ({ block }) => <CalloutIcon value={block.props.icon} /> };
+/** A callout's icon, which an editor presses to choose another. */
+function CalloutMarker({ value, onPress }: { value: unknown; onPress?: () => void }) {
+  const { t } = useTranslation();
+  if (!onPress) return <CalloutIcon value={value} />;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t('editor.blocks.callout.changeIcon')}
+      onPress={onPress}
+      className="rounded hover:bg-muted active:bg-muted"
+    >
+      <CalloutIcon value={value} />
+    </Pressable>
+  );
+}
+
+/**
+ * Markers Nilo draws beside text blocks: a callout's icon (an editor presses
+ * it to pick another) and, for an editor, a code block's language.
+ */
+export function createMarkers({
+  onPickCalloutIcon,
+}: {
+  /** Open the icon picker for a callout; without it a callout's icon is only shown. */
+  onPickCalloutIcon?: (blockId: string) => void;
+} = {}): Record<string, BlockRenderer> {
+  return {
+    callout: ({ block, readOnly }) => (
+      <CalloutMarker
+        value={block.props.icon}
+        onPress={readOnly || !onPickCalloutIcon ? undefined : () => onPickCalloutIcon(block.id)}
+      />
+    ),
+    code: ({ block, readOnly, updateProps }) =>
+      readOnly ? null : (
+        <CodeLanguagePicker
+          language={block.props.language}
+          onChange={(language) => updateProps({ language })}
+        />
+      ),
+  };
 }
