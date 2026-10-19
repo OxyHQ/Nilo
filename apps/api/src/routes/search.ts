@@ -1,12 +1,16 @@
 /**
- * GET /search?workspaceId=…&q=…[&limit=20]
+ * GET /search?workspaceId=…&q=…[&limit=20][&titleOnly=true][&createdBy=…]
+ *             [&teamspaceId=…|private][&editedAfter=…][&editedBefore=…]
  *
  * Full-text search over a workspace's live pages: titles and block text, word
  * prefixes, every word required; in titles, a word may also be close, typos
  * included. Results are pages, best first, each with the
  * block that matched best and a snippet whose matches are marked (as parts,
  * never markup), and the titles of the pages above it. Only pages the caller
- * can open are returned.
+ * can open are returned. The filters narrow it, as Notion's do: titles only,
+ * the page's creator, the teamspace its tree lives in, when it was last
+ * edited. With filters and nothing typed, the matching pages come latest
+ * edited first.
  */
 import { Router, type Request, type Response } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
@@ -24,15 +28,30 @@ import {
   queryWords,
   searchBlockText,
   searchPageTitles,
+  type SearchFilter,
   type SnippetPart,
 } from '../repositories/search.js';
 
 const router = Router();
 
+const entityId = z.string().refine(isLiveEntityId, 'Invalid id');
+
 const querySchema = z.object({
-  workspaceId: z.string().refine(isLiveEntityId, 'Invalid id'),
-  q: z.string().max(500),
+  workspaceId: entityId,
+  q: z.string().max(500).default(''),
   limit: z.coerce.number().int().min(1).max(50).default(20),
+  /** Match titles only, never the text of the pages. */
+  titleOnly: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
+  /** Pages this person created. */
+  createdBy: z.string().min(1).max(200).optional(),
+  /** Pages living in this teamspace, or `private` for the caller's private pages. */
+  teamspaceId: z.union([entityId, z.literal('private')]).optional(),
+  /** Edited in this range: at or after `editedAfter`, before `editedBefore`. */
+  editedAfter: z.string().datetime({ offset: true }).optional(),
+  editedBefore: z.string().datetime({ offset: true }).optional(),
 });
 
 /** A title match outranks any amount of body text. */
@@ -46,7 +65,8 @@ const TITLE_WEIGHT = 1;
  */
 router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const { workspaceId, q, limit } = querySchema.parse(req.query);
+    const params = querySchema.parse(req.query);
+    const { workspaceId, q, limit } = params;
     const userId = req.user?.id ?? '';
     const db = getDb();
     const [workspace, member, grants] = await Promise.all([
@@ -62,47 +82,89 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       res.status(403).json({ error: 'Forbidden: nothing in this workspace is shared with you' });
       return;
     }
+    const filter: SearchFilter = {
+      createdBy: params.createdBy,
+      editedAfter: params.editedAfter ? new Date(params.editedAfter) : undefined,
+      editedBefore: params.editedBefore ? new Date(params.editedBefore) : undefined,
+    };
+    const filtered =
+      Boolean(filter.createdBy || filter.editedAfter || filter.editedBefore) ||
+      params.teamspaceId !== undefined;
     const query = prefixQuery(q);
-    if (!query) {
+    // Nothing typed and nothing to narrow by: nothing to show.
+    if (!query && !filtered) {
       res.json({ results: [] });
       return;
     }
 
-    // More than `limit` from each side: some are dropped for access below.
-    const [titles, texts, all] = await Promise.all([
-      searchPageTitles(db, workspaceId, queryWords(q), limit * 3),
-      searchBlockText(db, workspaceId, query, limit * 3),
+    // More than `limit` from each side: some are dropped for access (and
+    // the teamspace) below.
+    const pool = limit * (params.teamspaceId ? 6 : 3);
+    const [titles, texts, all, homes] = await Promise.all([
+      query ? searchPageTitles(db, workspaceId, queryWords(q), pool, filter) : [],
+      query && !params.titleOnly ? searchBlockText(db, workspaceId, query, pool, filter) : [],
       listPages(db, { workspaceId, archived: false }),
+      databaseHomes(db, workspaceId),
     ]);
 
-    const visible = rolesForPages(
-      all,
-      await loadViewer(db, workspaceId, userId),
-      grants,
-      await databaseHomes(db, workspaceId),
-    );
+    const visible = rolesForPages(all, await loadViewer(db, workspaceId, userId), grants, homes);
     const byId = new Map(all.map((p) => [p.id, p]));
+
+    /** The teamspace a page's tree lives in, read at its top; null for private. */
+    const teamspaceOf = (pageId: string): string | null => {
+      const seen = new Set<string>();
+      let page = byId.get(pageId);
+      while (page && !seen.has(page.id)) {
+        seen.add(page.id);
+        const home = page.databaseId ? homes.get(page.databaseId) : undefined;
+        const above = page.parentId ?? home?.parentPageId ?? null;
+        if (!above) return home ? home.teamspaceId : page.teamspaceId;
+        page = byId.get(above);
+      }
+      return null;
+    };
+    const wanted = params.teamspaceId === 'private' ? null : params.teamspaceId;
+    const inTeamspace = (pageId: string) =>
+      params.teamspaceId === undefined || teamspaceOf(pageId) === wanted;
 
     const scored = new Map<
       string,
       { score: number; matchedTitle: boolean; blockId: string | null; snippet: SnippetPart[] }
     >();
-    for (const hit of titles) {
-      scored.set(hit.pageId, {
-        score: TITLE_WEIGHT + hit.rank,
-        matchedTitle: true,
-        blockId: null,
-        snippet: [],
-      });
-    }
-    for (const hit of texts) {
-      const current = scored.get(hit.pageId);
-      scored.set(hit.pageId, {
-        score: (current?.score ?? 0) + hit.rank,
-        matchedTitle: current?.matchedTitle ?? false,
-        blockId: hit.blockId,
-        snippet: hit.snippet,
-      });
+    if (query) {
+      for (const hit of titles) {
+        scored.set(hit.pageId, {
+          score: TITLE_WEIGHT + hit.rank,
+          matchedTitle: true,
+          blockId: null,
+          snippet: [],
+        });
+      }
+      for (const hit of texts) {
+        const current = scored.get(hit.pageId);
+        scored.set(hit.pageId, {
+          score: (current?.score ?? 0) + hit.rank,
+          matchedTitle: current?.matchedTitle ?? false,
+          blockId: hit.blockId,
+          snippet: hit.snippet,
+        });
+      }
+    } else {
+      // Only filters: the matching pages, the latest edited first.
+      const after = filter.editedAfter?.getTime();
+      const before = filter.editedBefore?.getTime();
+      const matching = all
+        .filter(
+          (p) =>
+            !p.template &&
+            (!filter.createdBy || p.ownerId === filter.createdBy) &&
+            (after === undefined || p.updatedAt.getTime() >= after) &&
+            (before === undefined || p.updatedAt.getTime() < before),
+        )
+        .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      for (const [i, p] of matching.entries()) {
+        scored.set(p.id, { score: -i, matchedTitle: false, blockId: null, snippet: [] });
+      }
     }
 
     const path = (pageId: string): string[] => {
@@ -111,7 +173,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       for (let parent = byId.get(pageId)?.parentId; parent && !seen.has(parent); ) {
         seen.add(parent);
         const above = byId.get(parent);
-        if (!above || (visible && !visible.has(above.id))) break;
+        if (!above || !visible.has(above.id)) break;
         titlesAbove.unshift(above.title);
         parent = above.parentId;
       }
@@ -119,7 +181,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     };
 
     const results = [...scored.entries()]
-      .filter(([pageId]) => byId.has(pageId) && (!visible || visible.has(pageId)))
+      .filter(([pageId]) => byId.has(pageId) && visible.has(pageId) && inTeamspace(pageId))
       .sort((a, b) => b[1].score - a[1].score)
       .slice(0, limit)
       .map(([pageId, hit]) => {

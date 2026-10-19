@@ -12,6 +12,43 @@ export interface PageMove {
   patch: { order: number; parentId?: string | null; teamspaceId?: string | null };
 }
 
+/**
+ * Where on a row a drop lands, by how far down it the pointer is (0 at its
+ * top, 1 at its bottom): the top quarter before it, the bottom quarter after
+ * it, the middle inside it.
+ */
+export function dropPositionAt(ratio: number): DropPosition {
+  if (ratio < 0.25) return 'before';
+  if (ratio > 0.75) return 'after';
+  return 'inside';
+}
+
+/** A sidebar row's frame on screen, for the native drag's hit test. */
+export interface RowRect {
+  id: string;
+  y: number;
+  height: number;
+}
+
+export interface DropTarget {
+  targetId: string;
+  position: DropPosition;
+}
+
+/**
+ * The row under `y` and where on it a drop would land; null over no row, or
+ * over the row being dragged (a drop there changes nothing).
+ */
+export function dropTargetAt(
+  rows: readonly RowRect[],
+  y: number,
+  sourceId: string,
+): DropTarget | null {
+  const row = rows.find((r) => r.height > 0 && y >= r.y && y < r.y + r.height);
+  if (!row || row.id === sourceId) return null;
+  return { targetId: row.id, position: dropPositionAt((y - row.y) / row.height) };
+}
+
 /** The tree's own sibling order (`buildPageTree`): by order, the latest update first on a tie. */
 function displayOrder(a: Page, b: Page): number {
   const ao = a.order ?? 0;

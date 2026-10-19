@@ -19,6 +19,18 @@ model, credential, conversation or chat-completion route.
 - `GET/POST /workspaces`, `GET/PATCH/DELETE /workspaces/:id`, members
   (`GET/POST /workspaces/:id/members`, `PATCH/DELETE …/members/:userId`),
   `POST /workspaces/:id/trash/empty`.
+- Invitations (admin+): inviting an email with no Oxy account records a
+  pending invitation (`{ pending, invite }`) that the next `GET /workspaces`
+  of someone with that email accepts; `GET /workspaces/:id/invites`,
+  `DELETE …/invites/:inviteId`. Nilo sends no mail: the inviter tells them.
+- Join link (admin+): `GET/POST/PATCH/DELETE /workspaces/:id/invite-link`
+  (read, enable or regenerate `{ role }`, change its role, disable); whoever
+  opens it: public `GET /invite-links/:token`, signed in
+  `POST /invite-links/:token/join` (the app's `/join/<token>`).
+- `POST /workspaces/:id/transfer { userId }` — owner only, never personal:
+  the member becomes the owner, the previous owner an admin.
+- Guests (admin+): `GET /workspaces/:id/guests` (each with the pages shared
+  with them), `DELETE …/guests/:userId` (every grant they hold there).
 - `GET /workspaces/personal` — the caller's personal workspace, provisioned
   on the spot (see `docs/access.md`). `POST /workspaces/:id/reset`
   `{ confirm: <current name> }` — owner only, personal only: permanently
@@ -40,6 +52,9 @@ model, credential, conversation or chat-completion route.
   `GET /share/:token`, `POST /share/:token/join`.
 - Publishing: `POST/DELETE /pages/:id/publish`, public
   `GET /public/pages/:slug[/:pageId]`.
+- Recents: `POST /pages/:id/visit` (the app, on opening a page),
+  `GET /pages/recent?workspaceId&limit` — the caller's latest, only pages
+  they can still open.
 - `GET /pages/:id/backlinks`, `GET/PUT/DELETE /pages/:id/follow`,
   history (`GET /pages/:id/versions[/:versionId]`,
   `POST …/versions/:versionId/restore`), reminders
@@ -129,6 +144,9 @@ the catalog after each healthy rollout.
 
 - `GET /search?workspaceId&q` — titles and text, accent-insensitive, every word
   as a prefix; in titles a word may also be close (a typo), by trigrams.
+  Filters: `titleOnly=true`, `createdBy`, `teamspaceId` (or `private`),
+  `editedAfter`/`editedBefore` (ISO); with filters and no `q`, the matching
+  pages, the latest edited first.
 - `POST /pages/:id/files { fileId, name }` (editor) — record a file uploaded
   to Oxy and linked to Nilo as an attachment of the page.
 - `POST /pages/:id/files/urls`, `POST /share/:token/files/urls`,

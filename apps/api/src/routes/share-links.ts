@@ -1,5 +1,4 @@
 import { Router, type Request, type Response } from 'express';
-import crypto from 'node:crypto';
 import { z } from 'zod';
 import { authenticateToken } from '../middleware/auth.js';
 import { getDb } from '../db/client.js';
@@ -21,35 +20,14 @@ import {
   upsertGrant,
 } from '../repositories/pagePermissions.js';
 import { log } from '../lib/logger.js';
+import { generateLinkToken as generateToken, publicAppUrl } from '../lib/public-links.js';
 import { rateLimit } from '../lib/rate-limit.js';
 import { respondWithFileUrls } from './files.js';
 
 const router = Router();
 
-const TOKEN_BYTES = 24; // base64url of 24 random bytes ≈ 32 chars
-
-function generateToken(): string {
-  // base64url is url-safe (RFC 4648 §5) — no padding, only [A-Za-z0-9_-]
-  return crypto.randomBytes(TOKEN_BYTES).toString('base64url');
-}
-
 function shareLinkPublicUrl(token: string): string {
-  const configuredOrigin = process.env.OXYNILO_PUBLIC_URL;
-  if (!configuredOrigin) {
-    throw new Error('OXYNILO_PUBLIC_URL is required to create share links');
-  }
-  const origin = new URL(configuredOrigin);
-  if (
-    !['http:', 'https:'].includes(origin.protocol) ||
-    origin.pathname !== '/' ||
-    origin.username ||
-    origin.password ||
-    origin.search ||
-    origin.hash
-  ) {
-    throw new Error('OXYNILO_PUBLIC_URL must be an HTTP(S) origin');
-  }
-  return `${origin.origin}/share/${token}`;
+  return publicAppUrl(`/share/${token}`);
 }
 
 const createShareLinkSchema = z.object({

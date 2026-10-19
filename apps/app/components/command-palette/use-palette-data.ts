@@ -15,6 +15,14 @@ import { useRouter } from 'expo-router';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { usePages } from '@/lib/hooks/use-pages';
+import { useRecentPageIds } from '@/lib/hooks/use-recent-pages';
+import { useTeamspaces } from '@/lib/hooks/use-teamspaces';
+import {
+  filtersFindPages,
+  hasSearchFilters,
+  NO_SEARCH_FILTERS,
+  type SearchFilters,
+} from '@/lib/search-filters';
 import {
   memberProfileName,
   useWorkspaceMembers,
@@ -24,6 +32,7 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { useNiloSettings } from '@/components/settings/settings-provider';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Page } from '@/lib/types/pages';
+import type { FilterOption } from './search-filter-bar';
 import type { PageItem, MemberItem, CommandItem } from './types';
 
 function memberDisplayName(member: WorkspaceMember, t: (key: string) => string): string {
@@ -42,6 +51,8 @@ interface UsePaletteDataParams {
   /** Current query text. Used to limit result sizing. */
   query: string;
   enabled: boolean;
+  /** The quick find's filters (`SearchFilterBar`). */
+  filters?: SearchFilters;
 }
 
 interface PaletteData {
@@ -52,16 +63,22 @@ interface PaletteData {
   searchLoading: boolean;
   searchError: boolean;
   retrySearch: () => void;
+  /** What the filters offer: the workspace's people and teamspaces. */
+  filterOptions: { people: FilterOption[]; teamspaces: FilterOption[] };
 }
 
 /**
  * Builds the result groups for the command palette. Memoizes on the inputs
  * so the modal re-renders are cheap.
  */
-export function usePaletteData({ query, enabled }: UsePaletteDataParams): PaletteData {
+export function usePaletteData({
+  query,
+  enabled,
+  filters = NO_SEARCH_FILTERS,
+}: UsePaletteDataParams): PaletteData {
   const router = useRouter();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-  const recentPageIds = useUIStore((s) => s.recentPageIds);
+  const recentPageIds = useRecentPageIds(currentWorkspaceId);
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const setShortcutsDialogOpen = useUIStore((s) => s.setShortcutsDialogOpen);
   const { setColorScheme, colorScheme } = useColorScheme();
@@ -69,7 +86,12 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
   const { open: openSettings } = useNiloSettings();
   const { t } = useTranslation();
 
-  const search = useSearch(currentWorkspaceId, query, enabled);
+  const search = useSearch(currentWorkspaceId, query, enabled, filters);
+  const { data: teamspaces } = useTeamspaces(currentWorkspaceId);
+  const filtered = hasSearchFilters(filters);
+  // Search results replace the list of every page once something is typed,
+  // or a filter finds pages by itself.
+  const searching = query.trim().length > 0 || filtersFindPages(filters);
   const { data: pageData } = usePages(currentWorkspaceId);
   const { data: members } = useWorkspaceMembers(currentWorkspaceId);
 
@@ -119,7 +141,7 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
   }, [pageData?.pages, buildBreadcrumb, t]);
 
   const recents: PageItem[] = React.useMemo(() => {
-    if (query.trim().length > 0) return [];
+    if (query.trim().length > 0 || filtered) return [];
     const byId = new Map(pages.map((p) => [p.pageId, p] as const));
     const out: PageItem[] = [];
     for (const id of recentPageIds) {
@@ -128,7 +150,7 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
       if (out.length >= 5) break;
     }
     return out;
-  }, [pages, recentPageIds, query]);
+  }, [pages, recentPageIds, query, filtered]);
 
   const memberItems: MemberItem[] = React.useMemo(() => {
     const list = members ?? [];
@@ -260,9 +282,19 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
     t,
   ]);
 
+  const filterOptions = React.useMemo(
+    () => ({
+      people: memberItems.flatMap((m) => (m.userId ? [{ id: m.userId, name: m.title }] : [])),
+      teamspaces: (teamspaces ?? [])
+        .filter((ts) => !ts.archived)
+        .map((ts) => ({ id: ts.id, name: ts.name })),
+    }),
+    [memberItems, teamspaces],
+  );
+
   return {
     recents,
-    pages: query.trim()
+    pages: searching
       ? mapSearchResults(search.data?.results ?? [], t('commandPalette.untitled'))
       : pages,
     members: fuzzyFilter(memberItems, query, [(m) => m.searchValue]).map(({ item }) => item),
@@ -274,5 +306,6 @@ export function usePaletteData({ query, enabled }: UsePaletteDataParams): Palett
     retrySearch: () => {
       void search.refetch();
     },
+    filterOptions,
   };
 }

@@ -38,7 +38,7 @@
   },
   "invite": {
     "title": "Invite a member",
-    "description": "Invite an existing Oxy user to this workspace. They must already have an account at oxy.so.",
+    "description": "Invite someone by email. Someone without an Oxy account yet joins when they sign up with that email.",
     "email": "Email",
     "emailPlaceholder": "teammate@example.com",
     "invalidEmail": "Enter a valid email address.",
@@ -46,8 +46,8 @@
     "submit": "Send invite",
     "invited": "Invited %{email} as %{role}",
     "failed": "Failed to invite member",
-    "userNotFound": "User not found. Ask them to sign up at oxy.so first.",
-    "alreadyMember": "That user is already a member of this workspace."
+    "alreadyMember": "That user is already a member of this workspace.",
+    "pending": "Invitation saved for %{email} as %{role}. They join when they sign up to Oxy with that email."
   },
   "members": {
     "count": {
@@ -65,7 +65,8 @@
     "removeFailed": "Failed to remove member",
     "loadFailed": "Failed to load members",
     "empty": "No members yet.",
-    "adminOnly": "Only admins and owners can invite members or change roles."
+    "adminOnly": "Only admins and owners can invite members or change roles.",
+    "personal": "Your personal workspace is yours alone: it takes no members."
   },
   "switcher": {
     "createFirst": "Create your first workspace",
@@ -122,5 +123,69 @@
     "archivedSubtitle": "Archived: out of the sidebar",
     "unarchive": "Unarchive",
     "unarchiveName": "Unarchive %{name}"
+  },
+  "inviteLink": {
+    "title": "Invite link",
+    "description": "Anyone signed in who opens this link joins the workspace.",
+    "enable": "Invite link enabled",
+    "role": "Joins as",
+    "copy": "Copy link",
+    "copied": "Invite link copied",
+    "regenerate": "Regenerate",
+    "regenerateTitle": "Regenerate the invite link?",
+    "regenerateDescription": "The current link stops working. People who joined with it stay members.",
+    "regenerated": "A new invite link is ready",
+    "failed": "Could not update the invite link"
+  },
+  "pendingInvites": {
+    "title": {
+      "one": "%{count} pending invitation",
+      "other": "%{count} pending invitations"
+    },
+    "description": "Waiting for these people to sign up to Oxy with the email they were invited with. Let them know: Nilo sends no email.",
+    "waiting": "Invited as %{role}",
+    "expired": "Expired",
+    "revoke": "Revoke",
+    "revokeFor": "Revoke the invitation for %{email}",
+    "revoked": "Invitation for %{email} revoked",
+    "revokeFailed": "Could not revoke the invitation"
+  },
+  "guests": {
+    "title": {
+      "one": "%{count} guest",
+      "other": "%{count} guests"
+    },
+    "description": "People pages are shared with who are not members of the workspace.",
+    "empty": "No guests. Pages shared with people outside the workspace make them guests.",
+    "loadFailed": "Failed to load guests",
+    "remove": "Remove guest",
+    "removeTitle": "Remove %{name}?",
+    "removeDescription": {
+      "one": "They lose access to the page shared with them.",
+      "other": "They lose access to the %{count} pages shared with them."
+    },
+    "removed": "Removed %{name}",
+    "removeFailed": "Could not remove the guest"
+  },
+  "transfer": {
+    "action": "Transfer ownership",
+    "title": "Make %{name} the owner?",
+    "description": "%{name} becomes the owner of this workspace and you become an admin. Only the new owner can give it back.",
+    "confirm": "Transfer",
+    "done": "%{name} is now the owner",
+    "failed": "Could not transfer the workspace"
+  },
+  "join": {
+    "title": "Join %{name}",
+    "description": "You are invited to join %{name} as %{role}.",
+    "submit": "Join workspace",
+    "signIn": "Sign in to Oxy to join this workspace.",
+    "notFoundTitle": "Invite link not found",
+    "notFoundBody": "Check the link, or ask for a new one.",
+    "disabledTitle": "This invite link no longer works",
+    "disabledBody": "It was disabled or replaced. Ask a workspace admin for the current link.",
+    "failed": "Could not join the workspace",
+    "joined": "You joined %{name}",
+    "alreadyMember": "You are already a member of %{name}"
   }
 }

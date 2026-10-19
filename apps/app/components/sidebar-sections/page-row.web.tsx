@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { SharedPageRow, type PageRowSharedProps } from './shared-page-row';
+import { dropPositionAt } from '@/lib/sidebar-drop';
 import { usePageDrag, type DropPosition } from './drag-context';
 
 export type { PageRowSharedProps };
@@ -26,11 +27,7 @@ export function SidebarPageRow(props: PageRowSharedProps) {
 
   const computePosition = React.useCallback((node: HTMLElement, clientY: number): DropPosition => {
     const rect = node.getBoundingClientRect();
-    const offset = clientY - rect.top;
-    const ratio = offset / rect.height;
-    if (ratio < 0.25) return 'before';
-    if (ratio > 0.75) return 'after';
-    return 'inside';
+    return dropPositionAt((clientY - rect.top) / rect.height);
   }, []);
 
   // The listeners are bound once per row and read what changes between

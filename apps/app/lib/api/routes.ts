@@ -14,6 +14,8 @@ export const API_ROUTES = {
     restoreVersion: (id: string, versionId: string) => `/pages/${id}/versions/${versionId}/restore`,
     reminders: (id: string) => `/pages/${id}/reminders`,
     shared: '/pages/shared',
+    recent: '/pages/recent',
+    visit: (id: string) => `/pages/${id}/visit`,
     permissions: (id: string) => `/pages/${id}/permissions`,
     permission: (id: string, userId: string) =>
       `/pages/${id}/permissions/${encodeURIComponent(userId)}`,
@@ -32,6 +34,16 @@ export const API_ROUTES = {
   workspaces: {
     emptyTrash: (id: string) => `/workspaces/${id}/trash/empty`,
     export: (id: string) => `/workspaces/${id}/export`,
+    invites: (id: string) => `/workspaces/${id}/invites`,
+    invite: (id: string, inviteId: string) => `/workspaces/${id}/invites/${inviteId}`,
+    inviteLink: (id: string) => `/workspaces/${id}/invite-link`,
+    transfer: (id: string) => `/workspaces/${id}/transfer`,
+    guests: (id: string) => `/workspaces/${id}/guests`,
+    guest: (id: string, userId: string) => `/workspaces/${id}/guests/${encodeURIComponent(userId)}`,
+  },
+  inviteLinks: {
+    get: (token: string) => `/invite-links/${encodeURIComponent(token)}`,
+    join: (token: string) => `/invite-links/${encodeURIComponent(token)}/join`,
   },
   blocks: {
     // Blocks are written only through `/pages/:id/blocks/transactions` (lib/editor).

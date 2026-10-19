@@ -40,7 +40,7 @@ export interface PageRowSharedProps {
   onToggle: () => void;
   isActive: boolean;
   workspaceId: string;
-  /** Native sidebar passes false to disable drag affordance on small screens. */
+  /** Whether the row can be dragged (long press on native, HTML5 drag on web). */
   enableDrag?: boolean;
   readOnly?: boolean;
   /** Notifies parent of a drop. */
@@ -60,7 +60,7 @@ export interface PlatformDragProps {
 }
 
 interface SharedRowProps extends PageRowSharedProps {
-  /** Web build supplies handlers and indicators; native passes null. */
+  /** The drag's state for this row (`page-row[.web].tsx`); null where it cannot be dragged. */
   platformDrag: PlatformDragProps | null;
 }
 

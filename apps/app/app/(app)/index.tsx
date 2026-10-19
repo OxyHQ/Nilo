@@ -11,21 +11,21 @@ import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
-import { useUIStore } from '@/lib/stores/ui-store';
+import { useRecentPageIds } from '@/lib/hooks/use-recent-pages';
 import { usePages } from '@/lib/hooks/use-pages';
 import { greetingFor, recentlyVisited } from '@/lib/home';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Page } from '@/lib/types/pages';
 
 /**
- * Home, as in Notion: a greeting, the pages last visited on this device and a
- * way to start a new page. An empty workspace is asked for its first page.
+ * Home, as in Notion: a greeting, the pages last visited (on any device; this
+ * device's own while offline) and a way to start a new page. An empty workspace is asked for its first page.
  */
 export default function HomePage() {
   const { t } = useTranslation();
   const { isAuthenticated, user } = useOxy();
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-  const recentPageIds = useUIStore((s) => s.recentPageIds);
+  const recentPageIds = useRecentPageIds(currentWorkspaceId);
   const { data, isLoading } = usePages(currentWorkspaceId);
   const openNewPage = useNewPageStore((s) => s.open);
 

@@ -16,6 +16,10 @@ export const queryKeys = {
     all: ['reminders'] as const,
     list: (userId?: string, pageId?: string) => ['reminders', userId, pageId] as const,
   },
+  recentPages: {
+    all: ['recent-pages'] as const,
+    workspace: (workspaceId: string | null) => ['recent-pages', workspaceId] as const,
+  },
   search: {
     all: ['search'] as const,
     workspace: (workspaceId: string | null) => ['search', workspaceId] as const,

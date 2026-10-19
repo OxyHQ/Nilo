@@ -1,6 +1,6 @@
 /**
  * What the Home screen shows (`app/(app)/index.tsx`), as Notion's does: a
- * greeting for the time of day and the pages last visited on this device.
+ * greeting for the time of day and the pages last visited (`useRecentPageIds`).
  */
 import type { Page } from '@/lib/types/pages';
 

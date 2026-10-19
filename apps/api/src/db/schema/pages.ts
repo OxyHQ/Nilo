@@ -563,6 +563,30 @@ export const pageFavorites = pgTable(
   ],
 );
 
+/**
+ * When each person last opened each page: their Recents, on every device
+ * (`POST /pages/:id/visit`, `GET /pages/recent`). One row per person and page,
+ * moved forward on every visit.
+ */
+export const pageVisits = pgTable(
+  'page_visits',
+  {
+    /** Oxy user id. */
+    userId: text().notNull(),
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    visitedAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.pageId] }),
+    // "My recent pages", newest first.
+    index('page_visits_user_visited_idx').on(t.userId, t.visitedAt.desc()),
+    // The cascade from `pages` finds a page's visits without a scan.
+    index('page_visits_page_idx').on(t.pageId),
+  ],
+);
+
 /** How long a deleted row is remembered for clients catching up (`page_tombstones`). */
 export const PAGE_TOMBSTONE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 

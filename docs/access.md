@@ -16,10 +16,25 @@ Every user has exactly one personal workspace (`workspaces.is_personal`,
 unique per owner). It is provisioned whole (workspace, owner membership,
 default teamspace, in one transaction) on the first `GET /workspaces` or
 `GET /workspaces/personal`, and that same path repairs one missing its owner
-row. It takes no invitations and can never be archived: the delete route
+row. It takes no invitations, cannot be transferred and can never be archived: the delete route
 refuses it and the `workspaces_personal_not_archived` CHECK backs the route.
 Its owner can **reset** it instead, which deletes everything in it for good
 and keeps the same id. Any other workspace a user needs, they create.
+
+## Joining and leaving a workspace
+
+- Invited by email: an Oxy account with that email becomes a member at once;
+  any other email gets an invitation (`workspace_invites`, 30 days) that
+  becomes a membership on the first workspace list of someone signed in with
+  that Oxy email. Admins list and revoke the invitations waiting.
+- The join link (`workspace_invite_links`, one live per workspace) makes
+  whoever opens it signed in a member, at most an editor. Disabling or
+  regenerating it stops the old link; the members it brought stay.
+- A workspace has one owner (`workspaces.owner_id`, the `owner` member).
+  They cannot be removed, demoted or leave: they first hand the workspace to
+  another member (`POST /workspaces/:id/transfer`), staying as an admin.
+- Guests (grants, no membership) are listed for admins with their pages;
+  removing one deletes every grant they hold in the workspace.
 
 ## Where a page lives
 

@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@oxy.so/bloom/select';
 import { SettingsCard, SettingsRow, SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
+import { confirm } from '@oxy.so/bloom/surfaces';
 import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
 import { cn } from '@/lib/utils';
@@ -36,7 +37,13 @@ import {
 } from '@/lib/hooks/use-workspace-members';
 import type { WorkspaceRole } from '@/lib/hooks/use-workspaces';
 import { WORKSPACE_ROLES, hasRole } from '@/lib/hooks/workspace-roles';
+import { useTransferOwnership } from '@/lib/hooks/use-workspace-admin';
 import { InviteMemberModal } from './invite-member-modal';
+import {
+  GuestsSection,
+  InviteLinkSection,
+  PendingInvitesSection,
+} from './workspace-access-sections';
 import { roleLabel } from './role-labels';
 import { useTranslation } from '@/hooks/useTranslation';
 import { apiErrorMessage } from '@/lib/api/error-message';
@@ -56,17 +63,29 @@ interface MemberRowProps {
   callerUserId: string | undefined;
   /** The last row of the card draws no separator under it. */
   last: boolean;
+  /** A personal workspace cannot be handed over. */
+  isPersonal: boolean;
 }
 
-function MemberRow({ member, workspaceId, callerRole, callerUserId, last }: MemberRowProps) {
+function MemberRow({
+  member,
+  workspaceId,
+  callerRole,
+  callerUserId,
+  last,
+  isPersonal,
+}: MemberRowProps) {
   const { t } = useTranslation();
   const { mutate: updateRole, isPending: isUpdating } = useUpdateMemberRole(workspaceId);
   const { mutate: removeMember, isPending: isRemoving } = useRemoveMember(workspaceId);
+  const transfer = useTransferOwnership(workspaceId);
 
   const isOwner = member.role === 'owner';
   const isSelf = callerUserId === member.userId;
   // Only admin+ can manage members. Owners can't be demoted via this UI.
   const canManage = hasRole(callerRole, 'admin') && !isOwner && !isSelf;
+  // The owner hands the workspace to another member and becomes an admin.
+  const canTransfer = callerRole === 'owner' && !isOwner && !isSelf && !isPersonal;
   const name = memberDisplayName(member);
   const roles = ASSIGNABLE_ROLES.map((role) => ({ value: role, label: roleLabel(role) }));
 
@@ -106,6 +125,20 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId, last }: Memb
       },
     });
   }, [removeMember, member, name, t]);
+
+  const handleTransfer = React.useCallback(async () => {
+    const confirmed = await confirm({
+      title: t('workspace.transfer.title', { name }),
+      description: t('workspace.transfer.description', { name }),
+      confirmLabel: t('workspace.transfer.confirm'),
+      destructive: true,
+    });
+    if (!confirmed) return;
+    transfer.mutate(member.userId, {
+      onSuccess: () => toast.success(t('workspace.transfer.done', { name })),
+      onError: (error) => toast.error(apiErrorMessage(error, t('workspace.transfer.failed'))),
+    });
+  }, [transfer, member.userId, name, t]);
 
   // A member row carries an avatar, which `SettingsRow` has no slot for, so it
   // draws the row's geometry itself.
@@ -170,6 +203,11 @@ function MemberRow({ member, workspaceId, callerRole, callerUserId, last }: Memb
               />
             </DropdownMenuTrigger>
             <DropdownMenuContent>
+              {canTransfer ? (
+                <DropdownMenuItem onPress={handleTransfer} disabled={transfer.isPending}>
+                  {t('workspace.transfer.action')}
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem tone="danger" onPress={handleRemove}>
                 {t('workspace.members.remove')}
               </DropdownMenuItem>
@@ -195,7 +233,10 @@ export function MembersSection() {
   const { data: members, isLoading, isError, error } = useWorkspaceMembers(currentWorkspaceId);
 
   const callerRole = currentWorkspace?.role;
-  const canInvite = hasRole(callerRole, 'admin');
+  const isPersonal = Boolean(currentWorkspace?.isPersonal);
+  const isAdmin = hasRole(callerRole, 'admin');
+  // A personal workspace takes no invitations (docs/access.md).
+  const canInvite = isAdmin && !isPersonal;
 
   // Sort: owners first, then by role rank (desc), then by joinedAt asc.
   const sortedMembers = React.useMemo(() => {
@@ -212,7 +253,11 @@ export function MembersSection() {
       <SettingsSection
         label={t('workspace.members.count', { count: members?.length ?? 0 })}
         description={
-          canInvite ? t('settings.members.description') : t('workspace.members.adminOnly')
+          isPersonal
+            ? t('workspace.members.personal')
+            : canInvite
+              ? t('settings.members.description')
+              : t('workspace.members.adminOnly')
         }
         action={
           canInvite && currentWorkspaceId ? (
@@ -245,11 +290,20 @@ export function MembersSection() {
                 callerRole={callerRole}
                 callerUserId={user?.id}
                 last={idx === sortedMembers.length - 1}
+                isPersonal={isPersonal}
               />
             ))
           )}
         </SettingsCard>
       </SettingsSection>
+
+      {currentWorkspaceId && canInvite ? (
+        <>
+          <PendingInvitesSection workspaceId={currentWorkspaceId} />
+          <InviteLinkSection workspaceId={currentWorkspaceId} />
+        </>
+      ) : null}
+      {currentWorkspaceId && isAdmin ? <GuestsSection workspaceId={currentWorkspaceId} /> : null}
 
       {currentWorkspaceId ? (
         <InviteMemberModal control={inviteDialog} workspaceId={currentWorkspaceId} />

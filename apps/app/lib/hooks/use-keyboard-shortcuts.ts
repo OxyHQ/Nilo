@@ -16,6 +16,9 @@ export const SHORTCUT_KEYS: Record<Shortcut, string[]> = {
   shortcuts: ['Mod', '/'],
 };
 
+/** Notion's Quick Find, which opens the same palette as Mod+K. */
+export const QUICK_FIND_KEYS = ['Mod', 'P'];
+
 /**
  * Which app-wide shortcut a key press is, if any. Modifier+key combos a user
  * clearly means app-wide, so they fire inside text fields too, except Mod+/
@@ -29,7 +32,8 @@ export function shortcutFor(
   // With Alt (Option) a letter types another character: read the key's place.
   if (e.altKey) return e.code === 'KeyN' ? 'newPage' : null;
   const key = e.key.toLowerCase();
-  if (key === 'k') return 'palette';
+  // Mod+P is Notion's Quick Find; it also keeps the browser's print dialog away.
+  if (key === 'k' || key === 'p') return 'palette';
   if (key === '\\') return 'sidebar';
   if (key === '/' && !inEditor) return 'shortcuts';
   return null;
@@ -48,7 +52,7 @@ function isEditing(e: KeyboardEvent): boolean {
  * the (app) layout level.
  *
  * Shortcuts (`SHORTCUT_KEYS`):
- *   - Cmd/Ctrl+K      → open command palette
+ *   - Cmd/Ctrl+K, P   → open command palette (P: Notion's Quick Find)
  *   - Cmd/Ctrl+Alt+N  → create new root page in current workspace
  *   - Cmd/Ctrl+\      → toggle sidebar collapsed
  *   - Cmd/Ctrl+/      → toggle shortcuts dialog (only when not focused inside editor)
