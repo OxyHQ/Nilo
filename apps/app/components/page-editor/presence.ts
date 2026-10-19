@@ -11,6 +11,29 @@ export function collaboratorColor(userId: string, colors: PresencePalette): stri
   return colors[PRESENCE_COLORS[hash % PRESENCE_COLORS.length]].text;
 }
 
+/**
+ * The edge Bloom draws on a block, for every block with open comments
+ * (`counts`) as well: someone's caret wins where both are, being where they
+ * are now. The edge is what a text block can show; Bloom has no place for a
+ * count on one (`BlockCommentMarker` draws it on Nilo's own blocks).
+ */
+export function withCommentDecorations(
+  carets: ReadonlyMap<string, BlockDecoration>,
+  counts: ReadonlyMap<string, number>,
+  color: string,
+  labelOf: (count: number) => string,
+  previous: ReadonlyMap<string, BlockDecoration> = new Map(),
+): Map<string, BlockDecoration> {
+  const merged = new Map(carets);
+  for (const [blockId, count] of counts) {
+    if (count <= 0 || merged.has(blockId)) continue;
+    const label = labelOf(count);
+    const old = previous.get(blockId);
+    merged.set(blockId, old?.color === color && old.label === label ? old : { color, label });
+  }
+  return merged;
+}
+
 export function collaboratorDecorations(
   collaborators: readonly Collaborator[],
   currentUserId: string | undefined,

@@ -31,6 +31,14 @@ interface IconPickerProps {
    * (a full-page database's icon) an image is taken by link only.
    */
   pageId?: string;
+  /**
+   * `callout`: a callout's icon, which is always one (no removing it) and an
+   * emoji or an icon (no upload: an image would belong to the page, not the
+   * block, and a callout copied elsewhere would lose it).
+   */
+  variant?: 'page' | 'callout';
+  /** The title above the picker; the page icon's by default. */
+  title?: string;
 }
 
 /**
@@ -38,12 +46,20 @@ interface IconPickerProps {
  * a link to one).
  * Layout-wise the picker fits a 672px-wide dialog.
  */
-export function IconPicker({ control, onSelect, pageId }: IconPickerProps) {
+export function IconPicker({
+  control,
+  onSelect,
+  pageId,
+  variant = 'page',
+  title: givenTitle,
+}: IconPickerProps) {
   const [tab, setTab] = React.useState<Tab>('emoji');
   const [query, setQuery] = React.useState('');
   const [skinTone, setSkinTone] = React.useState<string>('');
   const { t } = useTranslation();
-  const header = React.useMemo(() => ({ title: t('pages.iconPicker.title') }), [t]);
+  const title = givenTitle ?? t('pages.iconPicker.title');
+  const header = React.useMemo(() => ({ title }), [title]);
+  const callout = variant === 'callout';
 
   const handleSelect = React.useCallback(
     (next: string | null) => {
@@ -57,7 +73,7 @@ export function IconPicker({ control, onSelect, pageId }: IconPickerProps) {
     <Dialog
       control={control}
       header={header}
-      label={t('pages.iconPicker.title')}
+      label={title}
       placement={{ base: 'bottom', md: 'center' }}
       maxWidth={672}
     >
@@ -69,11 +85,13 @@ export function IconPicker({ control, onSelect, pageId }: IconPickerProps) {
               variant="pill"
               value={tab}
               onValueChange={(next) => setTab(next as Tab)}
-              label={t('pages.iconPicker.title')}
+              label={title}
             >
               <TabsTrigger value="emoji" label={t('pages.iconPicker.tabs.emoji')} />
               <TabsTrigger value="icon" label={t('pages.iconPicker.tabs.icon')} />
-              <TabsTrigger value="upload" label={t('pages.iconPicker.tabs.upload')} />
+              {callout ? null : (
+                <TabsTrigger value="upload" label={t('pages.iconPicker.tabs.upload')} />
+              )}
             </Tabs>
           </View>
           <Button
@@ -86,16 +104,18 @@ export function IconPicker({ control, onSelect, pageId }: IconPickerProps) {
           >
             {t('pages.iconPicker.random')}
           </Button>
-          <Button
-            appearance="outline"
-            tone="danger"
-            size="sm"
-            onPress={() => handleSelect(null)}
-            accessibilityLabel={t('pages.iconPicker.removeIcon')}
-            leadingIcon={RiDeleteBin6Line}
-          >
-            {t('pages.iconPicker.remove')}
-          </Button>
+          {callout ? null : (
+            <Button
+              appearance="outline"
+              tone="danger"
+              size="sm"
+              onPress={() => handleSelect(null)}
+              accessibilityLabel={t('pages.iconPicker.removeIcon')}
+              leadingIcon={RiDeleteBin6Line}
+            >
+              {t('pages.iconPicker.remove')}
+            </Button>
+          )}
         </View>
 
         {/* Search */}

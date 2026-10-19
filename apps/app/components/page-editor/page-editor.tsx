@@ -2,8 +2,10 @@ import { useSlashItems } from './slash-items';
 import { DatabasePicker } from './database-picker';
 import { PresenceAvatars } from './presence-avatars';
 import { useCreateDatabase, useDeleteDatabase } from '@/lib/hooks/use-databases';
-import { usePage } from '@/lib/hooks/use-pages';
+import { usePageComments } from '@/lib/hooks/use-comments';
+import { useCreatePage, usePage } from '@/lib/hooks/use-pages';
 import { useSearchBlock } from '@/lib/hooks/use-search-block';
+import { runCommand } from '@/lib/editor/run-command';
 import {
   BlockEditor,
   type BlockSnapshot,
@@ -12,8 +14,14 @@ import {
   getBlock,
   insertSnapshot,
   removeBlocks,
+  setProps,
 } from '@oxy.so/bloom-editor';
+import { useDialogControl } from '@oxy.so/bloom/dialog';
 import { toast } from '@oxy.so/bloom/toast';
+import { router } from 'expo-router';
+import { BlockCommentsProvider, openCommentCounts } from '@/components/comments/comment-indicator';
+import { IconPicker } from '@/components/page-chrome/icon-picker';
+import { MemberProfileCard } from './member-profile-card';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Loading } from '@oxy.so/bloom/loading';
@@ -130,15 +138,39 @@ export function PageEditor({
   const workspaceId = useRef<string | undefined>(undefined);
   workspaceId.current = page.data?.page.workspaceId;
   const mentions = useEditorMentions(pageId, page.data?.page.workspaceId);
-  const onOpenMention = useOpenEditorMention();
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const onOpenMention = useOpenEditorMention(setProfileUserId);
   const slashItems = useSlashItems();
-  const renderers = useMemo(() => (store ? createRenderers(pageId, store) : {}), [pageId, store]);
-  const markers = useMemo(() => createMarkers(), []);
+  const renderers = useMemo(
+    () => (store ? createRenderers(pageId, store, readOnly) : {}),
+    [pageId, store, readOnly],
+  );
+  const iconPicker = useDialogControl();
+  const calloutTarget = useRef<string | null>(null);
+  const openIconPicker = iconPicker.open;
+  const markers = useMemo(
+    () =>
+      createMarkers({
+        onPickCalloutIcon: (blockId) => {
+          calloutTarget.current = blockId;
+          openIconPicker();
+        },
+      }),
+    [openIconPicker],
+  );
+  const createPage = useCreatePage();
+  const creatingPage = useRef(false);
   // The latest callback, read when pressed: the actions (and so the editor's
   // context) stay stable when the screen passes a new function each render.
   const openComments = useRef(onOpenBlockComments);
   openComments.current = onOpenBlockComments;
   const canComment = onOpenBlockComments !== undefined;
+  const comments = usePageComments(canComment ? pageId : undefined);
+  const commentCounts = useMemo(
+    () => openCommentCounts(comments.data?.comments ?? []),
+    [comments.data?.comments],
+  );
+  const openBlockComments = useCallback((blockId: string) => openComments.current?.(blockId), []);
   const blockActions = useMemo(
     () => [
       ...(aiAvailable
@@ -172,11 +204,36 @@ export function PageEditor({
 
   // Stable across renders: the editor's context (and so every block) depends on it.
   const createDatabaseAsync = createDatabase.mutateAsync;
+  const createPageAsync = createPage.mutateAsync;
   const onSlashAction = useCallback(
     async (id: string, blockId: string) => {
       if (!store || readOnly) return;
       if (id === 'linkedDatabase') {
         setLinkTarget({ blockId, store });
+        return;
+      }
+      if (id === 'childPage') {
+        // A subpage of this one, shown here (Notion's "Page"); it is opened at
+        // once, as Notion does. Made but not placed (the page closed or turned
+        // read-only meanwhile), it is still a subpage in the sidebar.
+        const workspace = workspaceId.current;
+        if (!workspace || creatingPage.current) return;
+        creatingPage.current = true;
+        try {
+          const child = await createPageAsync({ workspaceId: workspace, parentId: pageId });
+          if (currentEditor.current.store === store && !currentEditor.current.readOnly) {
+            insertBlockSnapshot(
+              store,
+              { type: 'child_page', props: { pageId: child.id } },
+              blockId,
+            );
+            router.push({ pathname: '/(app)/p/[pageId]', params: { pageId: child.id } });
+          }
+        } catch {
+          toast.error(t('editor.blocks.childPage.createFailed'));
+        } finally {
+          creatingPage.current = false;
+        }
         return;
       }
       if (id !== 'inlineDatabase') {
@@ -210,7 +267,7 @@ export function PageEditor({
         creatingDatabase.current = false;
       }
     },
-    [store, readOnly, pageId, t, createDatabaseAsync, deleteDatabase.mutate],
+    [store, readOnly, pageId, t, createDatabaseAsync, createPageAsync, deleteDatabase.mutate],
   );
 
   useEffect(() => {
@@ -307,7 +364,27 @@ export function PageEditor({
           onClose={() => setAiTarget(null)}
         />
       ) : null}
-      {layout === 'canvas' ? <PageCanvas {...editorProps} /> : <BlockEditor {...editorProps} />}
+      {profileUserId ? (
+        <MemberProfileCard userId={profileUserId} onClose={() => setProfileUserId(null)} />
+      ) : null}
+      {readOnly ? null : (
+        <IconPicker
+          control={iconPicker}
+          pageId={pageId}
+          variant="callout"
+          title={t('editor.blocks.callout.changeIcon')}
+          onSelect={(icon) => {
+            const target = calloutTarget.current;
+            calloutTarget.current = null;
+            if (!icon || !target || currentEditor.current.store !== store) return;
+            if (currentEditor.current.readOnly || !store.doc.blocks[target]) return;
+            runCommand(store, (c) => setProps(c, target, { icon }));
+          }}
+        />
+      )}
+      <BlockCommentsProvider counts={commentCounts} open={openBlockComments}>
+        {layout === 'canvas' ? <PageCanvas {...editorProps} /> : <BlockEditor {...editorProps} />}
+      </BlockCommentsProvider>
     </View>
   );
 }

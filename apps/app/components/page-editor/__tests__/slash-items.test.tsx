@@ -39,6 +39,12 @@ it.each(['en', 'es'] as const)(
       kind: 'custom',
       id: 'linkedDatabase',
     });
+    // Notion's "Page": a subpage made here and shown as a block.
+    const childPage = items.find((item) => item.id === 'childPage');
+    expect(childPage?.action).toEqual({ kind: 'custom', id: 'childPage' });
+    expect(childPage?.group).toBe('basic');
+    expect(childPage?.label).toBe(mockT('editor.slashMenu.childPage.label'));
+    expect(childPage?.keywords?.length).toBeGreaterThan(1);
     const before = items;
     act(() => renderer.update(<Hooks />));
     expect(items).toBe(before);

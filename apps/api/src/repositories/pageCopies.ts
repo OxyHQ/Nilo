@@ -1,7 +1,7 @@
-import { sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
-import { pages } from '../db/schema/pages.js';
+import { blocks, pages } from '../db/schema/pages.js';
 import { duplicateBlocksToPage } from './blocks.js';
 import { listGrantsOnPages, upsertGrant } from './pagePermissions.js';
 import {
@@ -119,6 +119,34 @@ export async function copyPageTree(db: PgHandle, input: CopyPageTreeInput): Prom
     });
   }
 
+  await repointChildPages(db, copied);
+
   if (!root) throw new Error(`copyPageTree found no page ${input.sourceId}`);
   return root;
+}
+
+/**
+ * A copied page's child page blocks (`child_page`) open the copies of their
+ * subpages, as the copy's sidebar shows them, not the originals. A block
+ * whose subpage was not copied (in the trash, a database row) keeps its page.
+ */
+async function repointChildPages(db: PgHandle, copied: ReadonlyMap<string, string>) {
+  if (copied.size === 0) return;
+  const target = sql`${blocks.content} ->> 'pageId'`;
+  const cases = sql.join(
+    [...copied].map(([from, to]) => sql`when ${from} then ${to}`),
+    sql` `,
+  );
+  await db
+    .update(blocks)
+    .set({
+      content: sql`jsonb_set(${blocks.content}, '{pageId}', to_jsonb((case ${target} ${cases} end)::text))`,
+    })
+    .where(
+      and(
+        inArray(blocks.pageId, [...copied.values()]),
+        eq(blocks.type, 'child_page'),
+        inArray(target, [...copied.keys()]),
+      ),
+    );
 }

@@ -1,4 +1,4 @@
-import { collaboratorColor, collaboratorDecorations } from '../presence';
+import { collaboratorColor, collaboratorDecorations, withCommentDecorations } from '../presence';
 
 const colors = Object.fromEntries(
   ['blue', 'purple', 'green', 'orange', 'pink', 'red'].map((name) => [
@@ -70,4 +70,22 @@ it('updates the named theme color when the theme changes', () => {
   const next = collaboratorDecorations(people, 'self', dark, nameOf, first);
   expect(next.get('a')?.color).toBe(collaboratorColor('ana', dark));
   expect(next.get('a')).not.toBe(first.get('a'));
+});
+it('marks blocks with open comments, a caret winning where both are, kept while unchanged', () => {
+  const carets = collaboratorDecorations([{ userId: 'ana', blockId: 'a' }], 'self', colors, nameOf);
+  const counts = new Map([
+    ['a', 1],
+    ['b', 2],
+    ['c', 0],
+  ]);
+  const label = (count: number) => `${count} comments`;
+  const first = withCommentDecorations(carets, counts, 'yellow', label);
+  expect([...first]).toEqual([
+    ['a', carets.get('a')],
+    ['b', { color: 'yellow', label: '2 comments' }],
+  ]);
+  const again = withCommentDecorations(carets, counts, 'yellow', label, first);
+  expect(again.get('b')).toBe(first.get('b'));
+  const more = withCommentDecorations(carets, new Map([['b', 3]]), 'yellow', label, first);
+  expect(more.get('b')).toEqual({ color: 'yellow', label: '3 comments' });
 });
