@@ -95,8 +95,6 @@ describe('pages repository (real database)', () => {
       'coverPosition',
       'ownerId',
       'archived',
-      // Written with `archived`, by `setTreeArchived`.
-      'archivedWith',
       // Written by `PATCH /pages/:id` (restricting a page) and its duplicate.
       'restricted',
       // Written by `PATCH /pages/:id` and by copying a template.
@@ -134,7 +132,7 @@ describe('pages repository (real database)', () => {
       // spells. `sqlColumnName` is used below where the SQL identifier is what
       // matters — reading one for the other is the 42703 trap.
       const declared = getTableConfig(pages).columns.map((column) => column.name);
-      expect(WRITER_FIELDS.length).toBe(26);
+      expect(WRITER_FIELDS.length).toBe(25);
       for (const field of WRITER_FIELDS) expect(declared).toContain(field);
       expect(new Set(declared)).toEqual(
         new Set([...WRITER_FIELDS, ...RETIRED_FIELDS, 'id', 'createdAt', 'updatedAt']),
