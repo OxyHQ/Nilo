@@ -83,6 +83,9 @@ export async function listPages(db: PgHandle, filter: ListPagesFilter): Promise<
     );
   }
   if (filter.archived !== undefined) predicates.push(eq(pages.archived, filter.archived));
+  // The trash lists what was trashed; a subpage that went with its page is
+  // in it through that page.
+  if (filter.archived === true) predicates.push(isNull(pages.archivedWith));
   if (filter.favoritedOnly) predicates.push(eq(pages.favorited, true));
   if (filter.template !== undefined) predicates.push(eq(pages.template, filter.template));
 
@@ -241,6 +244,8 @@ export interface UpdatePageInput {
   coverPosition?: number;
   order?: number;
   archived?: boolean;
+  /** See `pages.archivedWith`; `setTreeArchived` writes the subtree's. */
+  archivedWith?: string | null;
   favorited?: boolean;
   restricted?: boolean;
   template?: boolean;
@@ -301,6 +306,7 @@ export async function updatePage(
   if (patch.coverPosition !== undefined) values.coverPosition = patch.coverPosition;
   if (patch.order !== undefined) values.order = patch.order;
   if (patch.archived !== undefined) values.archived = patch.archived;
+  if (patch.archivedWith !== undefined) values.archivedWith = patch.archivedWith;
   if (patch.favorited !== undefined) values.favorited = patch.favorited;
   if (patch.restricted !== undefined) values.restricted = patch.restricted;
   if (patch.template !== undefined) values.template = patch.template;
@@ -393,11 +399,11 @@ export async function deleteDatabaseRows(db: PgHandle, databaseId: string): Prom
 /**
  * `POST /api/workspaces/:workspaceId/trash/empty` — `routes/workspaces.ts:604-618`.
  *
- * This is the route the `pages.parentId` referential action is chosen for. A
- * live child of an archived page is NOT in the delete set, so under `ON DELETE
- * SET NULL` it survives with `parent_id = NULL` and becomes a root page of the
- * workspace rather than keeping a `parentId` pointing at a row that no longer
- * exists. Under CASCADE it would be destroyed — see the schema.
+ * A page's subpages go to the trash with it (`setTreeArchived`), so they are in
+ * the delete set too. A live child of an archived page should not exist; one
+ * that does is NOT in the delete set, and under `ON DELETE SET NULL` it
+ * survives with `parent_id = NULL` as a root page of the workspace rather than
+ * being destroyed (CASCADE) — see the schema.
  */
 export async function deleteArchivedPages(db: PgHandle, workspaceId: string): Promise<number> {
   // The rows and their tombstones commit together, or a syncing client could
@@ -440,6 +446,45 @@ export async function recordTombstones(
         lt(pageTombstones.deletedAt, new Date(Date.now() - PAGE_TOMBSTONE_RETENTION_MS)),
       ),
     );
+}
+
+/**
+ * The rest of `rootId`'s tree follows it to the trash (`archived`) or back
+ * out. Going, every live page below it is archived with it (`archivedWith`);
+ * a subpage already in the trash on its own stays its own entry, and so do
+ * the pages below it. Coming back, exactly the pages that went with it return.
+ * The root's own row is the caller's write. Returns how many pages moved.
+ */
+export async function setTreeArchived(
+  db: PgHandle,
+  rootId: string,
+  archived: boolean,
+): Promise<number> {
+  if (!archived) {
+    const restored = await db
+      .update(pages)
+      .set({ archived: false, archivedWith: null })
+      .where(eq(pages.archivedWith, rootId))
+      .returning({ id: pages.id });
+    return restored.length;
+  }
+  const id = sql.identifier(sqlColumnName(pages.id));
+  const rows = await db.execute(sql`
+    with recursive tree as (
+      select ${pages.id} from ${pages} where ${pages.id} = ${rootId}
+      union all
+      select child.${id}
+      from ${pages} child
+      join tree on child.${sql.identifier(sqlColumnName(pages.parentId))} = tree.${id}
+      where not child.${sql.identifier(sqlColumnName(pages.archived))}
+    ) cycle ${id} set is_cycle using cycle_path
+    update ${pages}
+    set ${sql.identifier(sqlColumnName(pages.archived))} = true,
+        ${sql.identifier(sqlColumnName(pages.archivedWith))} = ${rootId}
+    where ${pages.id} in (select ${id} from tree where not is_cycle) and ${pages.id} <> ${rootId}
+    returning ${pages.id}
+  `);
+  return rows.length;
 }
 
 /**

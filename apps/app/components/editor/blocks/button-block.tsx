@@ -13,7 +13,7 @@ import { Text } from '@oxy.so/bloom/typography';
 import { useCreatePage, useDuplicatePage } from '@/lib/hooks/use-pages';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import type { ButtonAction } from '@/lib/types/pages';
-import type { BlockComponentProps } from './types';
+import { type BlockComponentProps, blockUrl, typedUrl } from './types';
 
 /**
  * Configurable button block. Renders a styled button + a small inline form
@@ -29,9 +29,13 @@ import type { BlockComponentProps } from './types';
 export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
   const label = typeof block.content.label === 'string' ? block.content.label : 'Button';
   const action: ButtonAction = (block.content.action as ButtonAction | undefined) ?? 'navigate';
-  const targetUrl = typeof block.content.url === 'string' ? block.content.url : '';
-  const webhookUrl = typeof block.content.webhookUrl === 'string' ? block.content.webhookUrl : '';
+  const targetUrl = blockUrl(block.content.url);
+  const webhookUrl = blockUrl(block.content.webhookUrl);
 
+  // Typed URLs are drafts until the field is left: a half-typed one is not a
+  // safe URL yet, and committing each keystroke would also be one write each.
+  const [urlDraft, setUrlDraft] = React.useState(targetUrl);
+  const [webhookDraft, setWebhookDraft] = React.useState(webhookUrl);
   const [editing, setEditing] = React.useState(false);
   const [status, setStatus] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -124,8 +128,9 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
             <TextFieldInput
               label="https://…"
               size="sm"
-              value={targetUrl}
-              onChangeText={(t) => onChangeContent({ ...block.content, url: t.trim() })}
+              value={urlDraft}
+              onChangeText={setUrlDraft}
+              onBlur={() => onChangeContent({ ...block.content, url: typedUrl(urlDraft) })}
               placeholder="https://…"
             />
           ) : null}
@@ -133,8 +138,11 @@ export function ButtonBlock({ block, onChangeContent }: BlockComponentProps) {
             <TextFieldInput
               label="https://… (POST)"
               size="sm"
-              value={webhookUrl}
-              onChangeText={(t) => onChangeContent({ ...block.content, webhookUrl: t.trim() })}
+              value={webhookDraft}
+              onChangeText={setWebhookDraft}
+              onBlur={() =>
+                onChangeContent({ ...block.content, webhookUrl: typedUrl(webhookDraft) })
+              }
               placeholder="https://… (POST)"
             />
           ) : null}

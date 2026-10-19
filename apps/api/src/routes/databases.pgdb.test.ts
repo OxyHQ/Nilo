@@ -560,6 +560,81 @@ describe('two-way relations', () => {
   });
 });
 
+describe('relations across access', () => {
+  const schemaOf = async (id: string) =>
+    (asRecord(asRecord((await api('GET', `/api/databases/${id}`)).body.database).schema)
+      .properties ?? []) as { type: string }[];
+
+  /** A database of this workspace that is a stranger's private one. */
+  const strangersDatabase = async () => {
+    const id = await createDatabase({ name: 'Private' });
+    await db
+      .update(databases)
+      .set({ teamspaceId: null, ownerId: `stranger-${ctx.workspaceId}` })
+      .where(eq(databases.id, id));
+    return id;
+  };
+
+  it('refuse a target in another workspace', async () => {
+    const elsewhere = await createDatabase({ name: 'Elsewhere' });
+    await db
+      .update(databases)
+      .set({ workspaceId: otherWorkspaceId })
+      .where(eq(databases.id, elsewhere));
+    const source = await createDatabase({ name: 'Source' });
+    const added = await api('POST', `/api/databases/${source}/properties`, {
+      name: 'Link',
+      type: 'relation',
+      config: { targetDatabaseId: elsewhere, twoWay: true },
+    });
+    expect(added.status).toBe(400);
+    const [target] = await db.select().from(databases).where(eq(databases.id, elsewhere));
+    expect(target?.propertiesSchema.properties.some((p) => p.type === 'relation')).toBe(false);
+  });
+
+  it('refuse a target the caller cannot open, one-way, two-way or at creation', async () => {
+    const hidden = await strangersDatabase();
+    const source = await createDatabase({ name: 'Source' });
+    for (const twoWay of [false, true]) {
+      const added = await api('POST', `/api/databases/${source}/properties`, {
+        name: 'Link',
+        type: 'relation',
+        config: { targetDatabaseId: hidden, twoWay },
+      });
+      expect(added.status).toBe(403);
+    }
+    // Pointing an existing relation there is refused the same way.
+    await api('POST', `/api/databases/${source}/properties`, {
+      id: 'link',
+      name: 'Link',
+      type: 'relation',
+    });
+    const patched = await api('PATCH', `/api/databases/${source}/properties/link`, {
+      config: { targetDatabaseId: hidden, twoWay: true },
+    });
+    expect(patched.status).toBe(403);
+    const created = await api('POST', '/api/databases', {
+      workspaceId: ctx.workspaceId,
+      name: 'Sneaky',
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          {
+            id: 'rel',
+            name: 'Rel',
+            type: 'relation',
+            config: { targetDatabaseId: hidden, twoWay: true },
+          },
+        ],
+      },
+    });
+    expect(created.status).toBe(403);
+    const [target] = await db.select().from(databases).where(eq(databases.id, hidden));
+    expect(target?.propertiesSchema.properties.some((p) => p.type === 'relation')).toBe(false);
+    expect((await schemaOf(source)).filter((p) => p.type === 'relation')).toHaveLength(1);
+  });
+});
+
 describe('properties', () => {
   it('adds a property, assigning option ids', async () => {
     const databaseId = await createDatabase();
@@ -820,6 +895,33 @@ describe('rows', () => {
       .from(pages)
       .where(eq(pages.id, idOf(created.body.row)));
     expect(Object.keys(stored.properties)).toEqual(['name']);
+  });
+
+  it('refuses to set a property the database lacks or computes, and stores nothing', async () => {
+    const databaseId = await createDatabase({
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'n', name: 'N', type: 'number' },
+          { id: 'f', name: 'F', type: 'formula', config: { expression: 'prop("N") * 2' } },
+        ],
+      },
+    });
+    const rowId = idOf(
+      (await api('POST', `/api/databases/${databaseId}/rows`, { title: 'r' })).body.row,
+    );
+    const unknown = await api('PATCH', `/api/pages/${rowId}`, {
+      properties: { n: { number: 1 }, gone: { text: 'x' } },
+    });
+    expect(unknown.status).toBe(400);
+    expect(unknown.body.code).toBe('UNKNOWN_PROPERTY');
+    const computed = await api('PATCH', `/api/pages/${rowId}`, {
+      properties: { f: { number: 9 } },
+    });
+    expect(computed.status).toBe(400);
+    expect(computed.body.code).toBe('COMPUTED_PROPERTY');
+    const [stored] = await db.select().from(pages).where(eq(pages.id, rowId));
+    expect(stored?.properties.n).toBeUndefined();
   });
 
   it('numbers rows from the highest existing order', async () => {
@@ -1189,12 +1291,13 @@ describe('rows', () => {
   });
 
   it('counts an empty relation as 0 and a missing one as blank', async () => {
+    const targetId = await createDatabase({ name: 'Counted' });
     const databaseId = await createDatabase({
       name: 'Empty rollups',
       schema: {
         properties: [
           { id: 'name', name: 'Name', type: 'text' },
-          { id: 'rel', name: 'Related', type: 'relation' },
+          { id: 'rel', name: 'Related', type: 'relation', config: { targetDatabaseId: targetId } },
           {
             id: 'howMany',
             name: 'How many',
@@ -1227,6 +1330,92 @@ describe('rows', () => {
     expect(asRecord(byTitle.get('empty list')?.howMany).number).toBe(0);
     // No relation value at all is unresolvable, not zero — the em-dash case.
     expect(asRecord(byTitle.get('no relation at all')?.howMany).text).toBe('');
+  });
+
+  it('counts only live related rows, with no target property', async () => {
+    const targetId = await createDatabase({ name: 'Counted live' });
+    const kept = idOf(
+      (await api('POST', `/api/databases/${targetId}/rows`, { title: 'kept' })).body.row,
+    );
+    const gone = idOf(
+      (await api('POST', `/api/databases/${targetId}/rows`, { title: 'gone' })).body.row,
+    );
+    expect((await api('DELETE', `/api/pages/${gone}`)).status).toBe(200);
+    const sourceId = await createDatabase({
+      name: 'Live count',
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'rel', name: 'Related', type: 'relation', config: { targetDatabaseId: targetId } },
+          {
+            id: 'n',
+            name: 'N',
+            type: 'rollup',
+            config: { relationPropertyId: 'rel', function: 'count' },
+          },
+        ],
+      },
+    });
+    await api('POST', `/api/databases/${sourceId}/rows`, {
+      title: 'counts',
+      properties: { rel: { pageIds: [kept, gone] } },
+    });
+    const listed = await api('GET', `/api/databases/${sourceId}/rows`);
+    const props = asRecord(asRecord(asArray(listed.body.rows)[0]).properties);
+    expect(asRecord(props.n).number).toBe(1);
+  });
+
+  it('rolls up nothing from a database the reader cannot open', async () => {
+    const targetId = await createDatabase({
+      name: 'Salaries',
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'pay', name: 'Pay', type: 'number' },
+        ],
+      },
+    });
+    const salary = idOf(
+      (
+        await api('POST', `/api/databases/${targetId}/rows`, {
+          title: 'salary',
+          properties: { pay: { number: 90_000 } },
+        })
+      ).body.row,
+    );
+    const sourceId = await createDatabase({
+      name: 'People',
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'rel', name: 'Related', type: 'relation', config: { targetDatabaseId: targetId } },
+          {
+            id: 'total',
+            name: 'Total',
+            type: 'rollup',
+            config: { relationPropertyId: 'rel', targetPropertyId: 'pay', function: 'sum' },
+          },
+        ],
+      },
+    });
+    await api('POST', `/api/databases/${sourceId}/rows`, {
+      title: 'someone',
+      properties: { rel: { pageIds: [salary] } },
+    });
+    const totalNow = async () =>
+      asRecord(
+        asRecord(
+          asRecord(asArray((await api('GET', `/api/databases/${sourceId}/rows`)).body.rows)[0])
+            .properties,
+        ).total,
+      );
+    expect(totalNow().then((t) => t.number)).resolves.toBe(90_000);
+    // The target becomes someone else's private database.
+    await db
+      .update(databases)
+      .set({ teamspaceId: null, ownerId: `stranger-${ctx.workspaceId}` })
+      .where(eq(databases.id, targetId));
+    expect((await totalNow()).number).toBeUndefined();
   });
 });
 
@@ -1300,6 +1489,22 @@ describe('views', () => {
       groupBy: null,
     });
     expect(asRecord(ungrouped.body.view).groupBy).toBeNull();
+  });
+
+  it('keeps a form view’s description', async () => {
+    const databaseId = await createDatabase({ name: 'Signups' });
+    const created = await api('POST', `/api/databases/${databaseId}/views`, {
+      name: 'Form',
+      type: 'form',
+      config: { description: 'Tell us who you are.' },
+    });
+    expect(created.status).toBe(201);
+    expect(asRecord(asRecord(created.body.view).config).description).toBe('Tell us who you are.');
+    const viewId = idOf(created.body.view);
+    const patched = await api('PATCH', `/api/databases/${databaseId}/views/${viewId}`, {
+      config: { description: 'Updated.' },
+    });
+    expect(asRecord(asRecord(patched.body.view).config).description).toBe('Updated.');
   });
 
   it('refuses a view belonging to another database', async () => {

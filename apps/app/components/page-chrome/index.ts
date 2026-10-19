@@ -4,6 +4,7 @@ export { CoverDisplay } from './cover-display';
 export { Breadcrumb } from './breadcrumb';
 export { FavoriteButton } from './favorite-button';
 export { PageActionsMenu } from './page-actions-menu';
+export { TrashedPageBanner, useTrashedPageActions } from './trashed-page';
 export { IconPicker } from './icon-picker';
 export { CoverPicker } from './cover-picker';
 export { parseIcon, encodeEmoji, encodeIcon, encodeImage } from './icon-value';

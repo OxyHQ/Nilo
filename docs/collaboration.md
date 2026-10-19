@@ -62,8 +62,12 @@ put on top of them, a property changed only where it changed.
   `@oxy.so/nilo-contracts`), malformed update, or one to a gone or locked page
   is refused. The socket's message limit is set from the same number
   (`SOCKET_MAX_MESSAGE_BYTES`), so an oversized change is answered
-  (`UPDATE_TOO_LARGE`), never a dropped connection. A page in the trash is not open to editors (its room
-  refuses them) but keeps content a server write may change.
+  (`UPDATE_TOO_LARGE`), never a dropped connection. A page in the trash is read in its room
+  and refuses a change typed there (`PAGE_ARCHIVED`), as does
+  `/blocks/transactions`, but keeps content a server write may change.
+- A page goes to the trash with its subpages (`pages.archived_with` names the
+  page they went with), the trash lists only what was trashed itself, and
+  restoring a page brings back exactly what went with it.
 
 ## The room
 

@@ -4,7 +4,7 @@ import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
-import type { BlockComponentProps } from './types';
+import { type BlockComponentProps, blockUrl, typedUrl } from './types';
 
 /**
  * PDF block — embeds the PDF in an iframe on web, links out on native.
@@ -14,7 +14,7 @@ import type { BlockComponentProps } from './types';
  */
 export function PdfBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const url = typeof block.content.url === 'string' ? block.content.url : '';
+  const url = blockUrl(block.content.url);
   const [urlDraft, setUrlDraft] = React.useState(url);
   const lastBlockId = React.useRef(block.id);
   if (lastBlockId.current !== block.id) {
@@ -33,7 +33,7 @@ export function PdfBlock({ block, onChangeContent }: BlockComponentProps) {
           label="Paste PDF URL"
           value={urlDraft}
           onChangeText={setUrlDraft}
-          onBlur={() => onChangeContent({ ...block.content, url: urlDraft.trim() })}
+          onBlur={() => onChangeContent({ ...block.content, url: typedUrl(urlDraft) })}
           placeholder="Paste PDF URL"
         />
       </View>

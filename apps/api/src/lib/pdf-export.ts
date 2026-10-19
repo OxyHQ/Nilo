@@ -11,6 +11,7 @@ import { createRequire } from 'node:module';
 import {
   type BlockNode,
   blockFileId,
+  isSafeUrl,
   mergeSegments,
   type Segment,
   segmentsOf,
@@ -191,7 +192,8 @@ class Writer {
         continued: i < runs.length - 1,
         underline: Boolean(run.underline || run.link),
         strike: Boolean(run.strike),
-        link: run.link ?? null,
+        // A link nothing vetted (a block's URL) is printed, not followed.
+        link: isSafeUrl(run.link) ? run.link.trim() : null,
         lineGap: 2,
       };
       if (i === 0) doc.text(run.text, x, doc.y, settings);

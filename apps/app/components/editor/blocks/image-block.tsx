@@ -12,7 +12,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useFileImageSource, useFileRemoved, useFileScope } from '@/lib/files/file-urls';
 import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
 import { useColorScheme } from '@/lib/useColorScheme';
-import type { BlockComponentProps } from './types';
+import { type BlockComponentProps, blockUrl, typedUrl } from './types';
 
 /**
  * Image block — renders a captioned image. Empty state offers two paths:
@@ -33,7 +33,7 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
   const scope = useFileScope(block.pageId);
   const fileSource = useFileImageSource(scope, fileId);
   const removed = useFileRemoved(scope, fileId);
-  const pastedUrl = typeof block.content.url === 'string' ? block.content.url : '';
+  const pastedUrl = blockUrl(block.content.url);
   const url = fileId ? (fileSource?.uri ?? null) : pastedUrl;
   const caption = typeof block.content.caption === 'string' ? block.content.caption : '';
   const [urlDraft, setUrlDraft] = React.useState(pastedUrl);
@@ -47,7 +47,7 @@ export function ImageBlock({ block, onChangeContent }: BlockComponentProps) {
   }
 
   const commitUrl = (next: string) => {
-    onChangeContent({ ...block.content, url: next.trim() });
+    onChangeContent({ ...block.content, url: typedUrl(next) });
   };
   const commitCaption = (next: string) => {
     onChangeContent({ ...block.content, caption: next });

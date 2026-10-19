@@ -14,6 +14,27 @@ import { uuidv7 } from '@oxy.so/db';
 import { normalizeContent } from '@oxy.so/nilo-contracts';
 
 describe('block content normalization', () => {
+  it('keeps no URL a reader could not safely load or follow', () => {
+    for (const unsafe of [
+      'javascript:alert(1)',
+      ' JavaScript:alert(1)',
+      'data:text/html,x',
+      'vbscript:x',
+    ]) {
+      expect(normalizeContent('pdf', { url: unsafe })).toMatchObject({ url: '' });
+      expect(normalizeContent('embed', { url: unsafe })).toMatchObject({ url: '' });
+      expect(
+        normalizeContent('bookmark', { url: unsafe, image: unsafe, favicon: unsafe }),
+      ).toMatchObject({ url: '', image: '', favicon: '' });
+      expect(
+        normalizeContent('button', { action: 'webhook', url: unsafe, webhookUrl: unsafe }),
+      ).toMatchObject({ url: '', webhookUrl: '' });
+    }
+    expect(normalizeContent('video', { url: ' https://example.com/v.mp4 ' })).toMatchObject({
+      url: 'https://example.com/v.mp4',
+    });
+  });
+
   it('keeps a toggle heading toggleable, and adds nothing to a plain heading', () => {
     expect(
       normalizeContent('heading_2', { text: 'Plan', toggleable: true, expanded: false }),

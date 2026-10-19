@@ -45,7 +45,10 @@ export interface PageSessionOptions {
   /** The document has something to show: the device's copy, or the server's state. */
   onReady: (doc: Y.Doc) => void;
   onStatus: (status: SyncStatus) => void;
-  /** The server refused this device's change (read-only, a locked page, too large). */
+  /**
+   * The server refused this device's change (read-only, a locked page, one in
+   * the trash, too large), or — `DEVICE_STORE` — the device could not keep it.
+   */
   onRejected: (code: string) => void;
   /** The page cannot be opened: no access, gone, or offline with nothing kept. */
   onUnavailable: (reason: 'forbidden' | 'not_found' | 'offline') => void;
@@ -78,13 +81,17 @@ export class PageSession {
   private batchTimer: ReturnType<typeof setTimeout> | null = null;
   private appends = 0;
   private status: SyncStatus = 'saved';
+  private storeFailed = false;
 
   constructor(private readonly options: PageSessionOptions) {}
 
   /** Open the page: the device's copy, then the server whenever the socket is connected. */
   async start(): Promise<void> {
     const { store, pageId, socket } = this.options;
-    const kept = await store?.load(pageId).catch(() => null);
+    const kept = await store?.load(pageId).catch((err: unknown) => {
+      this.storeFailure(err);
+      return null;
+    });
     if (this.disposed) return;
     if (kept && kept.updates.length > 0) {
       Y.applyUpdate(this.doc, Y.mergeUpdates(kept.updates), FROM_DEVICE);
@@ -131,15 +138,27 @@ export class PageSession {
     this.options.onReady(this.doc);
   }
 
+  /**
+   * The device could not keep what it was given. The server still has what
+   * reached it, but a change made offline would be lost with the app: said
+   * once per page, not swallowed.
+   */
+  private readonly storeFailure = (err: unknown) => {
+    console.warn('[page-session] the device could not keep this page', err);
+    if (this.storeFailed || this.disposed) return;
+    this.storeFailed = true;
+    this.options.onRejected('DEVICE_STORE');
+  };
+
   private readonly onUpdate = (update: Uint8Array, origin: unknown) => {
     const { store, pageId, readOnly } = this.options;
     const local = origin !== FROM_SERVER && origin !== FROM_DEVICE;
     if (origin !== FROM_DEVICE && store) {
-      void store.append(pageId, update, local).catch(() => {});
+      void store.append(pageId, update, local).catch(this.storeFailure);
       this.appends += 1;
       if (this.appends >= COMPACT_EVERY) {
         this.appends = 0;
-        void store.compact(pageId, Y.encodeStateAsUpdate(this.doc)).catch(() => {});
+        void store.compact(pageId, Y.encodeStateAsUpdate(this.doc)).catch(this.storeFailure);
       }
     }
     if (!local || readOnly) return;
@@ -179,6 +198,7 @@ export class PageSession {
         if (
           reply?.code === 'READ_ONLY' ||
           reply?.code === 'PAGE_LOCKED' ||
+          reply?.code === 'PAGE_ARCHIVED' ||
           reply?.code === 'UPDATE_TOO_LARGE'
         ) {
           this.options.onRejected(reply.code);

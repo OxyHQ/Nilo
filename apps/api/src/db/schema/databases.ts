@@ -208,8 +208,10 @@ export interface ViewGroupBy {
  *   - timeline: { startPropertyId, endPropertyId? }
  *   - gallery:  { coverSource, coverPropertyId?, fit? }
  *   - board:    grouping is via top-level `groupBy`; no extra fields needed.
+ *   - form:     { description? }, shown above its fields
  */
 export interface ViewConfig {
+  description?: string;
   datePropertyId?: string;
   startPropertyId?: string;
   endPropertyId?: string;

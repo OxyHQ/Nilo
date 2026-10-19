@@ -81,11 +81,11 @@ export const pages = pgTable(
      * which BFS-collects descendants and deletes them — but it is WRONG here,
      * because a second delete path exists. `POST
      * /api/workspaces/:id/trash/empty` (`routes/workspaces.ts:604-618`) deletes
-     * every ARCHIVED page in the workspace, and archiving a page
-     * (`routes/pages.ts:485`) stamps only that page — its children stay
-     * `archived: false`. Under CASCADE, emptying the trash would destroy live
-     * descendants of an archived parent. That is data loss introduced by the
-     * FK alone, and it would be reachable.
+     * every ARCHIVED page in the workspace. Archiving a page archives its
+     * live subtree with it (`archivedWith`), but a live child of an archived
+     * page can still arise (one created or moved under it afterwards). Under
+     * CASCADE, emptying the trash would destroy it. That is data loss
+     * introduced by the FK alone.
      *
      * NO ACTION was the other candidate and is worse still: the same
      * trash-empty would abort with 23503, breaking a route that works.
@@ -115,6 +115,14 @@ export const pages = pgTable(
     ownerId: text().notNull(),
     /** Soft delete. The trash view lists these; emptying the trash removes them. */
     archived: boolean().notNull().default(false),
+    /**
+     * The page whose move to the trash took this one with it: a subpage goes
+     * to the trash with its tree, as in Notion, and comes back when that page
+     * is restored. Null for a page trashed itself (what the trash lists) and
+     * for every live page. Set null if that page is gone, which leaves this
+     * one in the trash on its own rather than lost.
+     */
+    archivedWith: text().references((): AnyPgColumn => pages.id, { onDelete: 'set null' }),
     /** Starred in the sidebar Favorites section. */
     favorited: boolean().notNull().default(false),
     /**
@@ -216,6 +224,8 @@ export const pages = pgTable(
     index('pages_workspace_parent_order_idx').on(t.workspaceId, t.parentId, t.order),
     /** Ported from `PageSchema.index({ workspaceId: 1, archived: 1 })`. */
     index('pages_workspace_archived_idx').on(t.workspaceId, t.archived),
+    /** What restoring a page brings back with it. */
+    index('pages_archived_with_idx').on(t.archivedWith).where(sql`${t.archivedWith} is not null`),
     /**
      * Ported from `PageSchema.index({ databaseId: 1, archived: 1, createdAt: 1 })`.
      * Its prefix subsumes the standalone `databaseId` index, as above.

@@ -100,6 +100,18 @@ const blockColorSchema = z.enum(BLOCK_COLORS);
  */
 export const SAFE_LINK = /^(https?:|mailto:|tel:|\/|#)/i;
 
+/** Whether a page may load or link to `url`: what `SAFE_LINK` accepts. */
+export function isSafeUrl(url: string | null | undefined): url is string {
+  return typeof url === 'string' && SAFE_LINK.test(url.trim());
+}
+
+/**
+ * A URL a block loads or links to. One that is not safe (`javascript:`,
+ * `data:`…) is kept as none rather than refused, so a page holding one still
+ * projects and the block reads as empty.
+ */
+const urlField = z.string().transform((url) => (isSafeUrl(url) ? url.trim() : ''));
+
 const mentionSchema = z.object({
   indicator: z.string().min(1).max(4),
   attributes: z.record(z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/i), z.string().max(512)),
@@ -179,7 +191,7 @@ const imageAlignmentSchema = z.enum(['left', 'center', 'right', 'full']);
 // `fileId`: an attachment in Oxy's file manager (`files.ts`); `url` then stays
 // empty. A block without it points at the URL someone pasted.
 const imageContentSchema = z.object({
-  url: z.string().default(''),
+  url: urlField.default(''),
   fileId: z.string().optional(),
   caption: z.string().optional(),
   alt: z.string().optional(),
@@ -190,20 +202,20 @@ const imageContentSchema = z.object({
 
 const videoSourceSchema = z.enum(['upload', 'youtube', 'vimeo', 'loom', 'other']);
 const videoContentSchema = z.object({
-  url: z.string().default(''),
+  url: urlField.default(''),
   source: videoSourceSchema.default('other'),
   caption: z.string().optional(),
   ...styleFields,
 });
 
 const audioContentSchema = z.object({
-  url: z.string().default(''),
+  url: urlField.default(''),
   caption: z.string().optional(),
   ...styleFields,
 });
 
 const fileContentSchema = z.object({
-  url: z.string().default(''),
+  url: urlField.default(''),
   fileId: z.string().optional(),
   name: z.string().default(''),
   size: z.number().int().nonnegative().default(0),
@@ -212,22 +224,22 @@ const fileContentSchema = z.object({
 });
 
 const pdfContentSchema = z.object({
-  url: z.string().default(''),
+  url: urlField.default(''),
   ...styleFields,
 });
 
 // --- Phase 3: embeds ---
 const bookmarkContentSchema = z.object({
-  url: z.string().default(''),
+  url: urlField.default(''),
   title: z.string().optional(),
   description: z.string().optional(),
-  image: z.string().optional(),
-  favicon: z.string().optional(),
+  image: urlField.optional(),
+  favicon: urlField.optional(),
   ...styleFields,
 });
 
 const embedContentSchema = z.object({
-  url: z.string().default(''),
+  url: urlField.default(''),
   source: z.string().optional(),
   ...styleFields,
 });
@@ -276,10 +288,10 @@ const buttonContentSchema = z.object({
   label: z.string().default('Button'),
   action: buttonActionSchema.default('navigate'),
   /** Action-specific params kept loose — validated by callers when fired. */
-  url: z.string().optional(),
+  url: urlField.optional(),
   pageId: entityIdSchema.optional(),
   templateId: entityIdSchema.optional(),
-  webhookUrl: z.string().optional(),
+  webhookUrl: urlField.optional(),
   ...styleFields,
 });
 

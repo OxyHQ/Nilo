@@ -4,7 +4,7 @@ import { RiCodeSSlashLine } from '@oxy.so/bloom/icons/RiCodeSSlashLine';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
-import type { BlockComponentProps } from './types';
+import { type BlockComponentProps, blockUrl, typedUrl } from './types';
 
 interface EmbedDescriptor {
   src: string;
@@ -111,7 +111,7 @@ function buildEmbed(url: string): EmbedDescriptor | null {
  */
 export function EmbedBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const url = typeof block.content.url === 'string' ? block.content.url : '';
+  const url = blockUrl(block.content.url);
   const [urlDraft, setUrlDraft] = React.useState(url);
   const lastBlockId = React.useRef(block.id);
   if (lastBlockId.current !== block.id) {
@@ -122,7 +122,7 @@ export function EmbedBlock({ block, onChangeContent }: BlockComponentProps) {
   const descriptor = React.useMemo(() => (url ? buildEmbed(url) : null), [url]);
 
   const commitUrl = (next: string) => {
-    const trimmed = next.trim();
+    const trimmed = typedUrl(next);
     const desc = trimmed ? buildEmbed(trimmed) : null;
     onChangeContent({
       ...block.content,

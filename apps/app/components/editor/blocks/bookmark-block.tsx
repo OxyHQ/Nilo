@@ -7,7 +7,7 @@ import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { fetchEmbedPreview } from '@/lib/embed-preview';
-import type { BlockComponentProps } from './types';
+import { type BlockComponentProps, blockUrl, typedUrl } from './types';
 
 /**
  * Bookmark block — once a URL is set, fetches OG metadata from
@@ -17,12 +17,12 @@ import type { BlockComponentProps } from './types';
  */
 export function BookmarkBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const url = typeof block.content.url === 'string' ? block.content.url : '';
+  const url = blockUrl(block.content.url);
   const title = typeof block.content.title === 'string' ? block.content.title : '';
   const description =
     typeof block.content.description === 'string' ? block.content.description : '';
-  const image = typeof block.content.image === 'string' ? block.content.image : '';
-  const favicon = typeof block.content.favicon === 'string' ? block.content.favicon : '';
+  const image = blockUrl(block.content.image);
+  const favicon = blockUrl(block.content.favicon);
 
   // Reset the draft when the block id changes (effectively "key-based reset").
   const [urlDraft, setUrlDraft] = React.useState(url);
@@ -40,25 +40,27 @@ export function BookmarkBlock({ block, onChangeContent }: BlockComponentProps) {
     staleTime: 1000 * 60 * 30,
   });
 
-  // Persist fetched metadata back onto the block's content — runs once per
-  // (url, fetch result) pair. Using onSuccess via TanStack's data field via
-  // a single declarative check keeps this idempotent.
+  // Persist fetched metadata back onto the block's content, once per
+  // (url, fetch result) pair — after the render that saw it, never during it.
   const fetched = preview.data;
   const lastWrittenUrl = React.useRef<string | null>(hasMetadata ? url : null);
-  if (fetched && lastWrittenUrl.current !== fetched.url && !hasMetadata) {
+  const content = React.useRef(block.content);
+  content.current = block.content;
+  React.useEffect(() => {
+    if (!fetched || hasMetadata || lastWrittenUrl.current === fetched.url) return;
     lastWrittenUrl.current = fetched.url;
     onChangeContent({
-      ...block.content,
+      ...content.current,
       url,
       title: fetched.title,
       description: fetched.description,
       image: fetched.image,
       favicon: fetched.favicon,
     });
-  }
+  }, [fetched, hasMetadata, url, onChangeContent]);
 
   const commitUrl = (next: string) => {
-    const trimmed = next.trim();
+    const trimmed = typedUrl(next);
     if (trimmed === url) return;
     lastWrittenUrl.current = null;
     onChangeContent({

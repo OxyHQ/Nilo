@@ -243,7 +243,9 @@
       "other": "%{count} personas más aquí"
     },
     "present": "%{name} está en esta página",
-    "morePresent": "%{count} miembros más"
+    "morePresent": "%{count} miembros más",
+    "archived": "Tu cambio no se guardó: esta página está en la papelera. Restáurala para editarla.",
+    "deviceStore": "Este dispositivo no pudo guardar esta página. Los cambios que hagas sin conexión podrían perderse."
   },
   "tableOfContents": {
     "empty": "Añade encabezados para completar el índice."

@@ -4,7 +4,7 @@ import { RiMusic2Line } from '@oxy.so/bloom/icons/RiMusic2Line';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useColorScheme } from '@/lib/useColorScheme';
-import type { BlockComponentProps } from './types';
+import { type BlockComponentProps, blockUrl, typedUrl } from './types';
 
 /**
  * Audio block — accepts a URL (paste or upload) and renders a player.
@@ -14,7 +14,7 @@ import type { BlockComponentProps } from './types';
  */
 export function AudioBlock({ block, onChangeContent }: BlockComponentProps) {
   const { colors } = useColorScheme();
-  const url = typeof block.content.url === 'string' ? block.content.url : '';
+  const url = blockUrl(block.content.url);
   const caption = typeof block.content.caption === 'string' ? block.content.caption : '';
   const [urlDraft, setUrlDraft] = React.useState(url);
   const lastBlockId = React.useRef(block.id);
@@ -34,7 +34,7 @@ export function AudioBlock({ block, onChangeContent }: BlockComponentProps) {
           label="Paste audio URL"
           value={urlDraft}
           onChangeText={setUrlDraft}
-          onBlur={() => onChangeContent({ ...block.content, url: urlDraft.trim() })}
+          onBlur={() => onChangeContent({ ...block.content, url: typedUrl(urlDraft) })}
           placeholder="Paste audio URL"
         />
       </View>

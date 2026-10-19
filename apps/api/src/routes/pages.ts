@@ -12,6 +12,7 @@ import {
   findPagesByIds,
   listPages,
   nextSiblingOrder,
+  setTreeArchived,
   updatePage,
 } from '../repositories/pages.js';
 import { listBlocksForPage } from '../repositories/blocks.js';
@@ -542,6 +543,16 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return;
     }
 
+    // Into the trash or out of it, the page's tree goes with it. A page
+    // restored on its own while the page above it is still in the trash comes
+    // back at the top of where that tree lives, not under a page in the trash.
+    const movesTrash = body.archived !== undefined && body.archived !== page.archived;
+    let restoredToTop = false;
+    if (movesTrash && !body.archived && page.parentId && body.parentId === undefined) {
+      const parent = await findPageById(db, page.parentId);
+      restoredToTop = parent?.archived === true;
+    }
+
     let rowDatabase: DatabaseRecord | null = null;
 
     // Built by assignment rather than by spreading `body`, because `title` is
@@ -554,6 +565,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       coverPosition: body.coverPosition,
       order: body.order,
       archived: body.archived,
+      archivedWith: movesTrash ? null : undefined,
       favorited: body.favorited,
       restricted: body.restricted,
       template: body.template,
@@ -581,16 +593,24 @@ router.patch('/:id', async (req: Request, res: Response) => {
       }
       rowDatabase = database;
       const schemaById = new Map(database.propertiesSchema.properties.map((p) => [p.id, p]));
-      // Only the keys that survive validation are sent. `mergeProperties` is a
-      // shallow top-level merge into the stored object, so the keys the request
-      // does not mention keep their values — which is what `.set()` on the
-      // page's existing property Map did.
+      // `mergeProperties` is a shallow top-level merge into the stored object,
+      // so the keys the request does not mention keep their values — which is
+      // what `.set()` on the page's existing property Map did. A key the
+      // database does not have, or one the server computes, is refused rather
+      // than dropped: answering 200 would have the client show a value that
+      // was never stored.
       const merge: Record<string, unknown> = {};
       for (const [key, raw] of Object.entries(body.properties)) {
         const prop = schemaById.get(key);
-        if (!prop) continue;
-        const parsed = parsePropertyValue(prop.type, raw);
-        if (!parsed) continue;
+        const parsed = prop ? parsePropertyValue(prop.type, raw) : null;
+        if (!prop || !parsed) {
+          res.status(400).json({
+            error: prop ? `"${prop.name}" is computed and cannot be set` : 'Unknown property',
+            code: prop ? 'COMPUTED_PROPERTY' : 'UNKNOWN_PROPERTY',
+            propertyId: key,
+          });
+          return;
+        }
         merge[key] = serializeParsedValue(parsed);
         // Keep title <-> Name in sync. This overwrites `body.title` when both
         // are submitted, matching the order the two writes happened in before.
@@ -614,8 +634,13 @@ router.patch('/:id', async (req: Request, res: Response) => {
     }
 
     // A row's two-way relations change their other side in the same write.
+    if (restoredToTop) {
+      patch.parentId = null;
+      patch.teamspaceId = access.home.teamspaceId;
+    }
     const updated = await db.transaction(async (tx) => {
       const written = await updatePage(tx, page.id, patch);
+      if (written && movesTrash) await setTreeArchived(tx, page.id, written.archived);
       if (written && rowDatabase && patch.mergeProperties && !written.template) {
         await syncRelations(tx, rowDatabase, page.id, page.properties, written.properties);
       }
@@ -686,7 +711,12 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return;
     }
 
-    const archivedPage = await updatePage(db, page.id, { archived: true });
+    // The page's subpages go to the trash with it.
+    const archivedPage = await db.transaction(async (tx) => {
+      const written = await updatePage(tx, page.id, { archived: true, archivedWith: null });
+      if (written && !page.archived) await setTreeArchived(tx, page.id, true);
+      return written;
+    });
     if (!archivedPage) {
       res.status(404).json({ error: 'Page not found' });
       return;

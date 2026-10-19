@@ -122,11 +122,12 @@ export async function loadPageDoc(db: PgHandle, pageId: string): Promise<Y.Doc> 
 
 /**
  * Append one update to a page. Refuses an empty, oversized or malformed one,
- * and a page that is gone or locked against edits.
+ * a page that is gone or locked against edits, and — `byEditor`, a change
+ * someone typed — a page in the trash.
  */
 export async function appendUpdate(
   db: PgHandle,
-  input: { pageId: string; update: Uint8Array; actorId: string },
+  input: { pageId: string; update: Uint8Array; actorId: string; byEditor?: boolean },
 ): Promise<number> {
   if (input.update.byteLength === 0) throw new PageDocRejected(400, 'Empty update');
   if (input.update.byteLength > MAX_DOC_UPDATE_BYTES) {
@@ -142,11 +143,17 @@ export async function appendUpdate(
   const id = await db.transaction(async (tx) => {
     const page = await lockPageShared(tx, input.pageId);
     // A page in the trash keeps content a server write may still change (an
-    // import of trashed notes); editors cannot reach it: joining its room is
-    // refused.
+    // import of trashed notes); someone reading it there cannot.
     if (!page) throw new PageDocRejected(404, 'Page not found');
     if (page.locked) throw new PageDocRejected(423, 'The page is locked', 'PAGE_LOCKED');
-    return appendPageUpdate(tx, input);
+    if (input.byEditor && page.archived) {
+      throw new PageDocRejected(409, 'The page is in the trash', 'PAGE_ARCHIVED');
+    }
+    return appendPageUpdate(tx, {
+      pageId: input.pageId,
+      update: input.update,
+      actorId: input.actorId,
+    });
   });
   // Not a query per keystroke: each process looks every so many appends.
   const appends = (appendsSinceCheck.get(input.pageId) ?? 0) + 1;

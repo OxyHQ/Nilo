@@ -335,5 +335,6 @@
     "mode": "Lienzo",
     "hint": "Coloca el contenido de la página como notas en un lienzo infinito. Al desactivarlo, las notas vuelven en orden, de arriba abajo.",
     "failed": "No se pudo cambiar la disposición de la página"
-  }
+  },
+  "inTrash": "Esta página está en la papelera."
 }

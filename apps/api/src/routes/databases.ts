@@ -73,6 +73,7 @@ import {
   databaseHomes,
   loadViewer,
   rolesForPages,
+  resolveDatabaseRole,
 } from '../lib/page-access.js';
 import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
 import { hasRole } from '../db/schema/workspaces.js';
@@ -225,6 +226,18 @@ const createRowSchema = z.object({
   template: z.boolean().optional(),
 });
 
+/** A view's `config` (`ViewConfig`): a key it does not name is dropped, so each is listed. */
+const viewConfigSchema = z.object({
+  /** A form's text above its fields. */
+  description: z.string().max(5000).optional(),
+  datePropertyId: z.string().optional(),
+  startPropertyId: z.string().optional(),
+  endPropertyId: z.string().optional(),
+  coverSource: z.enum(['property', 'pageCover']).optional(),
+  coverPropertyId: z.string().optional(),
+  fit: z.enum(['cover', 'contain']).optional(),
+});
+
 const updateViewSchema = z
   .object({
     name: z.string().min(1).max(200).optional(),
@@ -243,16 +256,7 @@ const updateViewSchema = z
     hiddenProperties: z.array(z.string()).optional(),
     frozenProperties: z.array(z.string()).optional(),
     pageSize: z.number().int().min(1).max(500).optional(),
-    config: z
-      .object({
-        datePropertyId: z.string().optional(),
-        startPropertyId: z.string().optional(),
-        endPropertyId: z.string().optional(),
-        coverSource: z.enum(['property', 'pageCover']).optional(),
-        coverPropertyId: z.string().optional(),
-        fit: z.enum(['cover', 'contain']).optional(),
-      })
-      .optional(),
+    config: viewConfigSchema.optional(),
     order: z.number().finite().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
@@ -278,16 +282,7 @@ const createViewSchema = z.object({
   hiddenProperties: z.array(z.string()).optional(),
   frozenProperties: z.array(z.string()).optional(),
   pageSize: z.number().int().min(1).max(500).optional(),
-  config: z
-    .object({
-      datePropertyId: z.string().optional(),
-      startPropertyId: z.string().optional(),
-      endPropertyId: z.string().optional(),
-      coverSource: z.enum(['property', 'pageCover']).optional(),
-      coverPropertyId: z.string().optional(),
-      fit: z.enum(['cover', 'contain']).optional(),
-    })
-    .optional(),
+  config: viewConfigSchema.optional(),
   order: z.number().finite().optional(),
 });
 
@@ -407,8 +402,9 @@ async function resolveDerivedForRows(
   handle: PgHandle,
   rows: readonly PageRow[],
   schema: DatabaseSchema,
+  viewerId: string | null,
 ): Promise<Map<string, Record<string, unknown>>> {
-  const rollups = await resolveRollups(handle, schema, rows);
+  const rollups = await resolveRollups(handle, schema, rows, viewerId);
   return new Map(rows.map((row) => [row.id, deriveRow(row, schema, rollups.get(row.id))]));
 }
 
@@ -416,8 +412,9 @@ async function resolveDerivedProperties(
   handle: PgHandle,
   row: PageRow,
   schema: DatabaseSchema,
+  viewerId: string | null,
 ): Promise<Record<string, unknown>> {
-  return (await resolveDerivedForRows(handle, [row], schema)).get(row.id) ?? {};
+  return (await resolveDerivedForRows(handle, [row], schema, viewerId)).get(row.id) ?? {};
 }
 
 /** One row's derived properties, its rollups already resolved. */
@@ -618,6 +615,9 @@ router.post('/', async (req: Request, res: Response) => {
           })),
         })
       : buildDefaultSchema();
+    for (const property of propertiesSchema.properties) {
+      if (!(await checkRelationTarget(req, res, handle, { workspaceId }, property))) return;
+    }
 
     const created = await handle.transaction(async (tx) => {
       const db = await insertDatabase(tx, {
@@ -646,6 +646,7 @@ router.post('/', async (req: Request, res: Response) => {
     });
 
     announceChange({ workspaceId });
+    announceSchemaChange(created.db, ...created.db.propertiesSchema.properties);
     res.status(201).json({
       database: serializeDatabase(created.db),
       views: created.views.map((v) => serializeView(v)),
@@ -764,6 +765,52 @@ router.delete('/:id', async (req: Request, res: Response) => {
 // Properties (schema mutations)
 // ---------------------------------------------------------------------------
 
+/**
+ * A relation may only point into a database of the same workspace that the
+ * caller can read, and a two-way one writes the target's schema and rows, so
+ * it needs the caller to edit the target too. Otherwise the refusal is sent
+ * and false returned. Anything but a relation to another database passes.
+ */
+async function checkRelationTarget(
+  req: Request,
+  res: Response,
+  handle: PgHandle,
+  source: { id?: string; workspaceId: string },
+  property: DatabaseProperty,
+): Promise<boolean> {
+  const targetId = property.type === 'relation' ? property.config?.targetDatabaseId : undefined;
+  if (!targetId || targetId === source.id) return true;
+  const target = await findDatabaseById(handle, targetId);
+  if (!target || target.archived || target.workspaceId !== source.workspaceId) {
+    res.status(400).json({ error: 'The related database is not in this workspace' });
+    return false;
+  }
+  const minRole = property.config?.twoWay ? 'editor' : 'viewer';
+  const role = await resolveDatabaseRole(handle, req.user?.id ?? '', target);
+  if (!role || !hasRole(role, minRole)) {
+    res.status(403).json({ error: `Relating to that database requires ${minRole} access to it` });
+    return false;
+  }
+  return true;
+}
+
+/** Whoever watches `db`, and the other side of the two-way relations it changed. */
+function announceSchemaChange(
+  db: DatabaseRecord,
+  ...changed: (DatabaseProperty | null | undefined)[]
+) {
+  announceChange({ databaseId: db.id });
+  const others = new Set(
+    changed.flatMap((p) =>
+      p?.type === 'relation' && p.config?.twoWay && p.config.targetDatabaseId
+        ? [p.config.targetDatabaseId]
+        : [],
+    ),
+  );
+  others.delete(db.id);
+  for (const databaseId of others) announceChange({ databaseId });
+}
+
 router.post('/:id/properties', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
@@ -789,6 +836,7 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
       res.status(409).json({ error: 'Property id already exists' });
       return;
     }
+    if (!(await checkRelationTarget(req, res, handle, db, property))) return;
 
     db.propertiesSchema.properties.push(property);
     normalizeSchema(db.propertiesSchema);
@@ -808,7 +856,7 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
       return;
     }
 
-    announceChange({ databaseId: db.id });
+    announceSchemaChange(db, property);
     res.status(201).json({ database: serializeDatabase(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -855,6 +903,8 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
     const wasTwoWay = current.type === 'relation' && current.config?.twoWay === true;
     const isTwoWay = next.type === 'relation' && next.config?.twoWay === true;
     const sameTarget = current.config?.targetDatabaseId === next.config?.targetDatabaseId;
+    const relinks = current.type !== 'relation' || !sameTarget || (isTwoWay && !wasTwoWay);
+    if (relinks && !(await checkRelationTarget(req, res, handle, db, next))) return;
     if (wasTwoWay && isTwoWay && sameTarget) {
       next.config = { ...next.config, syncedPropertyId: current.config?.syncedPropertyId };
     }
@@ -870,7 +920,7 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
       return;
     }
 
-    announceChange({ databaseId: db.id });
+    announceSchemaChange(db, current, next);
     res.json({ database: serializeDatabase(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -927,7 +977,7 @@ router.delete('/:id/properties/:propertyId', async (req: Request, res: Response)
       return;
     }
 
-    announceChange({ databaseId: db.id });
+    announceSchemaChange(db, removed);
     res.json({ database: serializeDatabase(updated) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -998,7 +1048,12 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
         return;
       }
       const rowDocs = await listDatabaseRows(handle, db.id, { archived: false, template: false });
-      derivedAll = await resolveDerivedForRows(handle, rowDocs, db.propertiesSchema);
+      derivedAll = await resolveDerivedForRows(
+        handle,
+        rowDocs,
+        db.propertiesSchema,
+        req.user?.id ?? null,
+      );
       let filtered = rowDocs.map((row) => ({
         ...row,
         properties: { ...row.properties, ...derivedAll?.get(row.id) },
@@ -1040,7 +1095,8 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     }
 
     const derivedSlice =
-      derivedAll ?? (await resolveDerivedForRows(handle, slice, db.propertiesSchema));
+      derivedAll ??
+      (await resolveDerivedForRows(handle, slice, db.propertiesSchema, req.user?.id ?? null));
     const serializedRows = slice.map((row) =>
       serializeRow(row, { derived: derivedSlice.get(row.id) ?? {} }),
     );
@@ -1077,7 +1133,12 @@ router.get('/:id/rows/:rowId', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Row not found' });
       return;
     }
-    const derived = await resolveDerivedProperties(handle, row, db.propertiesSchema);
+    const derived = await resolveDerivedProperties(
+      handle,
+      row,
+      db.propertiesSchema,
+      req.user?.id ?? null,
+    );
     res.json({ row: serializeRow(row, { derived }) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1150,7 +1211,12 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
       return created;
     });
 
-    const derived = await resolveDerivedProperties(handle, row, db.propertiesSchema);
+    const derived = await resolveDerivedProperties(
+      handle,
+      row,
+      db.propertiesSchema,
+      req.user?.id ?? null,
+    );
 
     void notifyAssigned({
       properties: db.propertiesSchema.properties,
@@ -1388,7 +1454,12 @@ router.get('/:id/templates', async (req: Request, res: Response) => {
     }
     if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
     const templates = await listDatabaseRows(handle, db.id, { archived: false, template: true });
-    const derived = await resolveDerivedForRows(handle, templates, db.propertiesSchema);
+    const derived = await resolveDerivedForRows(
+      handle,
+      templates,
+      db.propertiesSchema,
+      req.user?.id ?? null,
+    );
     res.json({
       templates: templates.map((t) => serializeRow(t, { derived: derived.get(t.id) ?? {} })),
     });
