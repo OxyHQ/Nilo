@@ -11,6 +11,7 @@
 import {
   anchorOf,
   applyOperation,
+  canHold,
   type EditorDocument,
   isWithin,
   type Operation,
@@ -22,6 +23,7 @@ import {
   type BlockRow,
   contentOf,
   fieldsFromContent,
+  NILO_SCHEMA,
   rowsToDocument,
 } from '@oxy.so/nilo-contracts/editor';
 import { diffDocuments } from '@oxy.so/bloom-editor/yjs';
@@ -99,12 +101,26 @@ export function toEditorTransaction(
       throw new TransactionRejected(400, `Parent block ${id} is not on this page`);
     }
   };
+  // A table holds rows, a row cells, a columns block columns — and those live
+  // nowhere else: the same rule the editor keeps (`canHold`).
+  const requireFits = (parentId: string | null, type: string) => {
+    const parent = parentId === null ? null : (doc.blocks[parentId] ?? null);
+    if (!canHold(NILO_SCHEMA, parent, type)) {
+      throw new TransactionRejected(
+        400,
+        parent
+          ? `A ${type} block cannot go in a ${parent.type} block`
+          : `A ${type} block cannot go at the top of a page`,
+      );
+    }
+  };
   for (const op of ops) {
     let next: Operation;
     switch (op.kind) {
       case 'insert': {
         if (doc.blocks[op.id]) throw new TransactionRejected(409, `Block ${op.id} already exists`);
         requireParent(op.parentBlockId);
+        requireFits(op.parentBlockId, op.type);
         const { text, props } = fieldsFromContent(op.type, normalizeContent(op.type, op.content));
         next = {
           kind: 'insert',
@@ -128,6 +144,7 @@ export function toEditorTransaction(
         const current = doc.blocks[op.id];
         if (!current || (op.type === undefined && op.content === undefined)) continue;
         const type = op.type ?? current.type;
+        if (type !== current.type) requireFits(current.parent, type);
         const content = normalizeContent(
           type as Parameters<typeof normalizeContent>[0],
           op.content ?? contentOf(current),
@@ -147,6 +164,7 @@ export function toEditorTransaction(
         if (op.parentBlockId !== null && isWithin(doc, op.parentBlockId, op.id)) {
           throw new TransactionRejected(400, 'A block cannot be nested inside itself');
         }
+        requireFits(op.parentBlockId, (doc.blocks[op.id] as { type: string }).type);
         next = {
           kind: 'move',
           id: op.id,

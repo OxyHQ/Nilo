@@ -1210,6 +1210,36 @@ describe('POST /pages/:pageId/blocks/transactions', () => {
     expect(byId.get(child)?.content).toMatchObject({ text: 'hi' });
   });
 
+  it('keeps a table a table: rows in it, cells in rows, nothing else', async () => {
+    const page = await createPage();
+    const [table, row, cell, para] = [uuidv7(), uuidv7(), uuidv7(), uuidv7()];
+    const insert = (id: string, parentBlockId: string | null, type: string) => ({
+      kind: 'insert',
+      id,
+      parentBlockId,
+      afterId: null,
+      type,
+      content: {},
+    });
+    const made = await tx(page.id, [
+      insert(table, null, 'table'),
+      insert(row, table, 'table_row'),
+      insert(cell, row, 'table_cell'),
+      insert(para, null, 'paragraph'),
+    ]);
+    expect(made.status).toBe(200);
+    for (const ops of [
+      [insert(uuidv7(), row, 'paragraph')],
+      [insert(uuidv7(), null, 'table_cell')],
+      [{ kind: 'move', id: cell, parentBlockId: null, afterId: para }],
+      [{ kind: 'move', id: para, parentBlockId: table, afterId: null }],
+      [{ kind: 'update', id: cell, type: 'heading_1' }],
+    ]) {
+      expect((await tx(page.id, ops)).status).toBe(400);
+    }
+    expect(await rowsOf(page.id as string)).toHaveLength(4);
+  });
+
   it('refuses a page in the trash', async () => {
     const page = await createPage();
     await api('DELETE', `/pages/${page.id}`);
