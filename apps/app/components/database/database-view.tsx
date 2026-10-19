@@ -88,6 +88,8 @@ export function DatabaseViewContainer({
             view={view}
             rows={rows}
             isLoading={isLoading}
+            hasMore={total !== undefined && rows.length < total}
+            onLoadMore={onLoadMore}
           />
         ) : null}
         {view.type === 'gallery' ? (

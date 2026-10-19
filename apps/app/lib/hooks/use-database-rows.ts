@@ -10,6 +10,7 @@ import { useOxy } from '@oxy.so/services/ui/client';
 import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
 import { queryKeys } from './query-keys';
+import { useVisibleDatesStore } from '../stores/visible-dates-store';
 import type {
   DatabaseViewType,
   DatabaseRow,
@@ -66,18 +67,27 @@ interface DeleteRowInput {
   rowId: string;
 }
 
-/** Infinite queries refetch only the pages already loaded on live invalidation. */
+/**
+ * A view's rows. Infinite queries refetch only the pages already loaded on
+ * live invalidation. A calendar or a timeline reads every row of the dates it
+ * shows (`useVisibleDatesStore`), and nothing before it says which; every other
+ * view, a board too, pages a hundred rows at a time and loads more on demand.
+ */
 export function useDatabaseRows(
   databaseId: string | undefined,
   viewId: string | null,
   type: DatabaseViewType = 'table',
 ) {
   const { isAuthenticated } = useOxy();
-  const incremental = ['table', 'list', 'gallery'].includes(type);
+  const dated = type === 'calendar' || type === 'timeline';
+  const dates = useVisibleDatesStore((state) =>
+    dated && viewId ? (state.byView[viewId] ?? null) : null,
+  );
   const query = useInfiniteQuery({
     queryKey: [
       ...queryKeys.databases.rows(databaseId ?? 'none', viewId),
-      incremental ? 'paged' : 'all',
+      dated ? 'dates' : 'paged',
+      ...(dated ? [dates] : []),
     ],
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam, signal }): Promise<DatabaseRowsResponse> => {
@@ -89,21 +99,31 @@ export function useDatabaseRows(
           API_ROUTES.databases.listRows(databaseId),
           {
             signal,
-            params: { ...(viewId && { viewId }), pageSize: '100', ...(cursor && { cursor }) },
+            params: {
+              ...(viewId && { viewId }),
+              pageSize: '100',
+              ...(cursor && { cursor }),
+              ...(dates && { filter: JSON.stringify(dates) }),
+            },
           },
         );
         result = result ? { ...data, rows: [...result.rows, ...data.rows] } : data;
         cursor = data.cursor;
-      } while (!incremental && cursor);
+      } while (dated && cursor);
       return result;
     },
     getNextPageParam: (last) => last.cursor ?? undefined,
+    // A calendar moved to another month shows the one it leaves until the next is read.
+    placeholderData: (previous, previousQuery) =>
+      dated && previousQuery?.queryKey[1] === databaseId && previousQuery?.queryKey[3] === viewId
+        ? previous
+        : undefined,
     retry: (count, error) => {
       if (axios.isAxiosError(error) && [403, 404].includes(error.response?.status ?? 0))
         return false;
       return count < 2;
     },
-    enabled: isAuthenticated && Boolean(databaseId),
+    enabled: isAuthenticated && Boolean(databaseId) && (!dated || dates !== null),
   });
   const first = query.data?.pages[0];
   return {
@@ -146,6 +166,41 @@ export function useDatabaseRow(databaseId: string | undefined, rowId: string) {
       return res.data.row;
     },
     enabled: isAuthenticated && Boolean(databaseId),
+  });
+}
+
+/** The most rows one batch read names (`POST /databases/:id/rows/batch`). */
+const MAX_BATCH_ROWS = 100;
+
+/**
+ * The rows `rowIds` of a database with their computed values, read in one
+ * request (one per hundred): what a relation shows of the rows it points at.
+ * A row missing from the result is not a live row of that database.
+ */
+export function useRelatedRows(databaseId: string | undefined, rowIds: readonly string[]) {
+  const { isAuthenticated } = useOxy();
+  const ids = [...new Set(rowIds)].sort();
+  return useQuery<DatabaseRow[]>({
+    queryKey: databaseId
+      ? queryKeys.databases.related(databaseId, ids)
+      : ['database', 'none', 'related'],
+    queryFn: async ({ signal }) => {
+      if (!databaseId) throw new Error('Database id required');
+      const chunks = Array.from({ length: Math.ceil(ids.length / MAX_BATCH_ROWS) }, (_, i) =>
+        ids.slice(i * MAX_BATCH_ROWS, (i + 1) * MAX_BATCH_ROWS),
+      );
+      const responses = await Promise.all(
+        chunks.map((chunk) =>
+          apiClient.post<{ rows: DatabaseRow[] }>(
+            API_ROUTES.databases.batchRows(databaseId),
+            { ids: chunk },
+            { signal },
+          ),
+        ),
+      );
+      return responses.flatMap((res) => res.data.rows);
+    },
+    enabled: isAuthenticated && Boolean(databaseId) && ids.length > 0,
   });
 }
 

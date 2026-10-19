@@ -9,6 +9,8 @@ import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
+import { useVisibleDatesStore } from '@/lib/stores/visible-dates-store';
+import { visibleDatesFilter } from '@/lib/visible-dates';
 
 interface ViewCalendarProps {
   database: Database;
@@ -34,6 +36,22 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
     }
     return database.schema.properties.find((p) => p.type === 'date') ?? null;
   }, [database.schema.properties, view.config.datePropertyId]);
+
+  // The rows read are those of the six weeks the month's grid shows.
+  const show = useVisibleDatesStore((state) => state.show);
+  const datePropertyId = dateProperty?.id;
+  React.useEffect(() => {
+    if (!datePropertyId || Platform.OS !== 'web') return;
+    const days = buildMonthGrid(cursor);
+    show(
+      view.id,
+      visibleDatesFilter({
+        startPropertyId: datePropertyId,
+        from: days[0] as Date,
+        to: days[days.length - 1] as Date,
+      }),
+    );
+  }, [cursor, datePropertyId, show, view.id]);
 
   if (isLoading) {
     return (

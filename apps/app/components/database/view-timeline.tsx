@@ -6,6 +6,8 @@ import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
+import { useVisibleDatesStore } from '@/lib/stores/visible-dates-store';
+import { visibleDatesFilter } from '@/lib/visible-dates';
 
 interface ViewTimelineProps {
   database: Database;
@@ -42,6 +44,19 @@ export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelinePr
     return p?.type === 'date' ? p : null;
   }, [database.schema.properties, view.config.endPropertyId]);
 
+  // The rows read are those whose bar meets the window shown.
+  const show = useVisibleDatesStore((state) => state.show);
+  const startPropertyId = startProperty?.id;
+  const endPropertyId = endProperty?.id;
+  React.useEffect(() => {
+    if (!startPropertyId || Platform.OS !== 'web') return;
+    const { windowStart, windowEnd } = timelineWindow();
+    show(
+      view.id,
+      visibleDatesFilter({ startPropertyId, endPropertyId, from: windowStart, to: windowEnd }),
+    );
+  }, [endPropertyId, show, startPropertyId, view.id]);
+
   if (isLoading) {
     return (
       <View className="py-10 items-center">
@@ -70,11 +85,7 @@ export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelinePr
     );
   }
 
-  const today = startOfDay(new Date());
-  const windowStart = new Date(today);
-  windowStart.setDate(today.getDate() - 7);
-  const windowEnd = new Date(windowStart);
-  windowEnd.setDate(windowStart.getDate() + DAYS_WINDOW);
+  const { windowStart, windowEnd } = timelineWindow();
 
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator>
@@ -169,6 +180,16 @@ export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelinePr
       </View>
     </ScrollView>
   );
+}
+
+/** The days shown: a week back from today, `DAYS_WINDOW` days in all. */
+function timelineWindow(): { windowStart: Date; windowEnd: Date } {
+  const today = startOfDay(new Date());
+  const windowStart = new Date(today);
+  windowStart.setDate(today.getDate() - 7);
+  const windowEnd = new Date(windowStart);
+  windowEnd.setDate(windowStart.getDate() + DAYS_WINDOW);
+  return { windowStart, windowEnd };
 }
 
 function startOfDay(d: Date): Date {
