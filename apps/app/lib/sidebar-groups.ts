@@ -27,6 +27,8 @@ export function groupSidebar(
       root = parent;
       seen.add(root.id);
     }
+    // An archived teamspace leaves the sidebar with its pages, as in Notion; the
+    // teamspace dialog lists it to unarchive.
     if (root.teamspaceId !== null && archived.has(root.teamspaceId)) continue;
     if (root.parentId === null && root.teamspaceId !== null && groups.has(root.teamspaceId)) {
       groups.get(root.teamspaceId)?.push(page);

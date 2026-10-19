@@ -117,6 +117,10 @@
     "archiveInfo": "Este espacio de equipo dejará de aparecer en Espacios de equipo.",
     "failed": "No se pudo completar la acción. Inténtalo de nuevo.",
     "newDatabase": "Nueva base de datos",
-    "search": "Buscar un espacio de equipo"
+    "search": "Buscar un espacio de equipo",
+    "archivedTitle": "Espacios de equipo archivados",
+    "archivedSubtitle": "Archivado: fuera de la barra lateral",
+    "unarchive": "Desarchivar",
+    "unarchiveName": "Desarchivar %{name}"
   }
 }
