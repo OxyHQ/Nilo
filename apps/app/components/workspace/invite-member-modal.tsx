@@ -35,7 +35,6 @@ interface InviteMemberModalProps {
 /** The server's explanation, else what its status means; never the client's own error text. */
 function extractErrorMessage(err: unknown, fallback: string): string {
   const status = axios.isAxiosError(err) ? err.response?.status : undefined;
-  if (status === 404) return apiErrorMessage(err, i18n.t('workspace.invite.userNotFound'));
   if (status === 409) return apiErrorMessage(err, i18n.t('workspace.invite.alreadyMember'));
   return apiErrorMessage(err, fallback);
 }
@@ -64,9 +63,11 @@ export function InviteMemberModal({ control, workspaceId }: InviteMemberModalPro
     mutate(
       { email: trimmedEmail, role },
       {
-        onSuccess: () => {
+        onSuccess: (result) => {
           toast.success(
-            t('workspace.invite.invited', { email: trimmedEmail, role: roleLabel(role) }),
+            result.pending
+              ? t('workspace.invite.pending', { email: trimmedEmail, role: roleLabel(role) })
+              : t('workspace.invite.invited', { email: trimmedEmail, role: roleLabel(role) }),
           );
           control.close();
         },

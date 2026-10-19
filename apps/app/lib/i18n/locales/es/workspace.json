@@ -38,7 +38,7 @@
   },
   "invite": {
     "title": "Invitar a un miembro",
-    "description": "Invita a un usuario de Oxy a este espacio de trabajo. Debe tener ya una cuenta en oxy.so.",
+    "description": "Invita a alguien por correo. Quien aún no tenga cuenta de Oxy se une al registrarse con ese correo.",
     "email": "Correo electrónico",
     "emailPlaceholder": "companero@ejemplo.com",
     "invalidEmail": "Introduce un correo electrónico válido.",
@@ -46,8 +46,8 @@
     "submit": "Enviar invitación",
     "invited": "Has invitado a %{email} como %{role}",
     "failed": "No se pudo invitar al miembro",
-    "userNotFound": "Usuario no encontrado. Pídele que se registre primero en oxy.so.",
-    "alreadyMember": "Ese usuario ya es miembro de este espacio de trabajo."
+    "alreadyMember": "Ese usuario ya es miembro de este espacio de trabajo.",
+    "pending": "Invitación guardada para %{email} como %{role}. Se unirá al registrarse en Oxy con ese correo."
   },
   "members": {
     "count": {
@@ -65,7 +65,8 @@
     "removeFailed": "No se pudo quitar al miembro",
     "loadFailed": "No se pudieron cargar los miembros",
     "empty": "Todavía no hay miembros.",
-    "adminOnly": "Solo los administradores y propietarios pueden invitar a miembros o cambiar roles."
+    "adminOnly": "Solo los administradores y propietarios pueden invitar a miembros o cambiar roles.",
+    "personal": "Tu espacio de trabajo personal es solo tuyo: no admite miembros."
   },
   "switcher": {
     "createFirst": "Crea tu primer espacio de trabajo",
@@ -122,5 +123,69 @@
     "archivedSubtitle": "Archivado: fuera de la barra lateral",
     "unarchive": "Desarchivar",
     "unarchiveName": "Desarchivar %{name}"
+  },
+  "inviteLink": {
+    "title": "Enlace de invitación",
+    "description": "Cualquiera con sesión iniciada que abra este enlace se une al espacio de trabajo.",
+    "enable": "Enlace de invitación activado",
+    "role": "Se une como",
+    "copy": "Copiar enlace",
+    "copied": "Enlace de invitación copiado",
+    "regenerate": "Regenerar",
+    "regenerateTitle": "¿Regenerar el enlace de invitación?",
+    "regenerateDescription": "El enlace actual deja de funcionar. Quienes se unieron con él siguen siendo miembros.",
+    "regenerated": "Hay un nuevo enlace de invitación",
+    "failed": "No se pudo actualizar el enlace de invitación"
+  },
+  "pendingInvites": {
+    "title": {
+      "one": "%{count} invitación pendiente",
+      "other": "%{count} invitaciones pendientes"
+    },
+    "description": "Esperando a que estas personas se registren en Oxy con el correo al que se les invitó. Avísales: Nilo no envía correos.",
+    "waiting": "Invitado como %{role}",
+    "expired": "Caducada",
+    "revoke": "Revocar",
+    "revokeFor": "Revocar la invitación de %{email}",
+    "revoked": "Invitación de %{email} revocada",
+    "revokeFailed": "No se pudo revocar la invitación"
+  },
+  "guests": {
+    "title": {
+      "one": "%{count} invitado",
+      "other": "%{count} invitados"
+    },
+    "description": "Personas con páginas compartidas que no son miembros del espacio de trabajo.",
+    "empty": "No hay invitados. Compartir páginas con personas de fuera del espacio de trabajo las convierte en invitados.",
+    "loadFailed": "No se pudieron cargar los invitados",
+    "remove": "Quitar invitado",
+    "removeTitle": "¿Quitar a %{name}?",
+    "removeDescription": {
+      "one": "Pierde el acceso a la página compartida con esta persona.",
+      "other": "Pierde el acceso a las %{count} páginas compartidas con esta persona."
+    },
+    "removed": "Se quitó a %{name}",
+    "removeFailed": "No se pudo quitar al invitado"
+  },
+  "transfer": {
+    "action": "Transferir la propiedad",
+    "title": "¿Hacer a %{name} propietario?",
+    "description": "%{name} pasa a ser el propietario de este espacio de trabajo y tú pasas a ser administrador. Solo el nuevo propietario puede devolverlo.",
+    "confirm": "Transferir",
+    "done": "%{name} es ahora el propietario",
+    "failed": "No se pudo transferir el espacio de trabajo"
+  },
+  "join": {
+    "title": "Unirse a %{name}",
+    "description": "Te invitan a unirte a %{name} como %{role}.",
+    "submit": "Unirse al espacio de trabajo",
+    "signIn": "Inicia sesión en Oxy para unirte a este espacio de trabajo.",
+    "notFoundTitle": "No se encontró el enlace de invitación",
+    "notFoundBody": "Revisa el enlace o pide uno nuevo.",
+    "disabledTitle": "Este enlace de invitación ya no funciona",
+    "disabledBody": "Se desactivó o se sustituyó. Pide el enlace actual a un administrador del espacio de trabajo.",
+    "failed": "No se pudo unir al espacio de trabajo",
+    "joined": "Te uniste a %{name}",
+    "alreadyMember": "Ya eres miembro de %{name}"
   }
 }

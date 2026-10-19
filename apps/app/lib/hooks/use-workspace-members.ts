@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
 import { useOxy } from '@oxy.so/services/ui/client';
 import apiClient from '../api/client';
-import { workspaceMemberKeys } from './workspace-keys';
+import { workspaceAdminKeys, workspaceMemberKeys } from './workspace-keys';
 import type { WorkspaceRole } from './use-workspaces';
 
 export interface WorkspaceMemberUser {
@@ -78,20 +78,25 @@ export function useWorkspaceMembers(
   });
 }
 
+/**
+ * An invitation's answer: the member, or (for an email with no Oxy account
+ * yet) the invitation waiting for them (`pending`).
+ */
+export type InviteMemberResult =
+  | { pending?: false; member: WorkspaceMember }
+  | { pending: true; invite: { id: string; email: string; role: WorkspaceRole } };
+
 export function useInviteMember(workspaceId: string) {
   const queryClient = useQueryClient();
 
-  return useMutation<WorkspaceMember, Error, InviteMemberInput>({
-    mutationFn: async (input) => {
-      const res = await apiClient.post<{ member: WorkspaceMember }>(
-        membersBase(workspaceId),
-        input,
-      );
-      return res.data.member;
-    },
-    onSuccess: () => {
+  return useMutation<InviteMemberResult, Error, InviteMemberInput>({
+    mutationFn: async (input) =>
+      (await apiClient.post<InviteMemberResult>(membersBase(workspaceId), input)).data,
+    onSuccess: (result) => {
       queryClient.invalidateQueries({
-        queryKey: workspaceMemberKeys.list(workspaceId),
+        queryKey: result.pending
+          ? workspaceAdminKeys.invites(workspaceId)
+          : workspaceMemberKeys.list(workspaceId),
       });
     },
   });
