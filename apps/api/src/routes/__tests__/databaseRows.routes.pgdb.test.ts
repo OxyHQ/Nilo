@@ -261,4 +261,71 @@ describe('GET /databases/:id/rows', () => {
     const first = await rows(databaseId, { viewId, pageSize: '1' });
     expect(first.page.rows[0]?.properties.double).toEqual({ number: 4 });
   });
+
+  it('narrows a view by the filter its reader passes, as a calendar does by its dates', async () => {
+    const databaseId = await setup(30);
+    const viewId = await view(databaseId, {
+      filters: {
+        kind: 'group',
+        combinator: 'and',
+        filters: [{ kind: 'condition', propertyId: 'done', operator: 'is', value: true }],
+      },
+    });
+    const narrow = (filter: unknown, extra: Record<string, string> = {}) =>
+      walk(databaseId, { viewId, pageSize: '2', filter: JSON.stringify(filter), ...extra });
+    const points = (operator: string, value: number) => ({
+      kind: 'group',
+      combinator: 'and',
+      filters: [{ kind: 'condition', propertyId: 'points', operator, value }],
+    });
+    // Points 30..25 are rows 1..6, of which the even ones are done.
+    expect(await narrow(points('>=', 25))).toEqual({ titles: titles([2, 4, 6]), totals: [3] });
+    // On a formula the view is read in JS, narrowed the same way.
+    expect(
+      await narrow({
+        kind: 'group',
+        combinator: 'and',
+        filters: [{ kind: 'condition', propertyId: 'double', operator: '>=', value: 50 }],
+      }),
+    ).toEqual({ titles: titles([2, 4, 6]), totals: [3] });
+
+    expect((await rows(databaseId, { viewId, filter: '{not json' })).status).toBe(400);
+    const wrong = await api(
+      'GET',
+      `/databases/${databaseId}/rows?${new URLSearchParams({
+        viewId,
+        filter: JSON.stringify(points('contains', 1)),
+      })}`,
+    );
+    expect(wrong.status).toBe(400);
+    expect(wrong.json.code).toBe('INVALID_FILTER');
+  });
+});
+
+describe('POST /databases/:id/rows/batch', () => {
+  it('reads the live rows it names in one request, in the order asked', async () => {
+    const databaseId = await setup(4);
+    const other = await setup(1);
+    const ids = new Map(
+      (await rows(databaseId, { pageSize: '500' })).page.rows.map((r) => [r.title, r.id]),
+    );
+    const stranger = (await rows(other, {})).page.rows[0]?.id as string;
+    await db
+      .update(pages)
+      .set({ archived: true })
+      .where(and(eq(pages.id, ids.get('row 2') as string), eq(pages.databaseId, databaseId)));
+
+    const read = await api('POST', `/databases/${databaseId}/rows/batch`, {
+      ids: [ids.get('row 3'), stranger, ids.get('row 2'), ids.get('row 1'), ids.get('row 3')],
+    });
+    expect(read.status).toBe(200);
+    const found = read.json.rows as RowsPage['rows'];
+    // Another database's row and a row in the trash are not this database's to show.
+    expect(found.map((r) => r.title)).toEqual(['row 3', 'row 1']);
+    expect(found[0]?.properties.double).toEqual({ number: 4 });
+
+    expect((await api('POST', `/databases/${databaseId}/rows/batch`, { ids: [] })).status).toBe(
+      400,
+    );
+  });
 });

@@ -17,6 +17,7 @@ import {
   databaseViews,
 } from '../db/schema/databases.js';
 import { normalizeIncomingProperties } from '../lib/databases/create.js';
+import { invalidReference } from '../lib/databases/property-references.js';
 import { NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
 import { log } from '../lib/logger.js';
 import { checkDatabaseAccess } from '../lib/page-access.js';
@@ -250,6 +251,11 @@ router.post(
         loaded.database.propertiesSchema,
         offered,
       );
+      const invalid = await invalidReference(loaded.db, loaded.database, stored);
+      if (invalid) {
+        res.status(400).json(invalid);
+        return;
+      }
       const title = (nameFromProperty ?? '').trim();
       if (allowed.has(NAME_PROPERTY_ID) && !title) {
         res.status(400).json({ error: 'The first field is required', field: NAME_PROPERTY_ID });

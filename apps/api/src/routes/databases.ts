@@ -36,6 +36,7 @@ import {
   insertDatabaseView,
   listDatabasesByWorkspace,
   listViewsByDatabase,
+  lockViewsOfDatabase,
   nextViewOrder,
   updateDatabase,
   updateDatabaseView,
@@ -47,6 +48,7 @@ import {
   createPage,
   deleteDatabaseRows,
   findPageById,
+  findPagesByIds,
   listDatabaseRows,
   listPages,
   nextDatabaseRowOrder,
@@ -79,10 +81,12 @@ import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js'
 import { hasRole } from '../db/schema/workspaces.js';
 import { buildDefaultSchema, NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
 import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
+import { invalidReference } from '../lib/databases/property-references.js';
 import {
   evaluateFilter,
   filterGroupSchema,
   filterPropertyIds,
+  invalidCondition,
   readsComputed,
 } from '../lib/databases/filters.js';
 import { compareBySorts } from '../lib/databases/sorts.js';
@@ -96,6 +100,7 @@ import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js
 import { rowFormulaContext } from '../lib/databases/row-values.js';
 import { linkTwoWay, syncRelations, unlinkTwoWay } from '../lib/databases/relations.js';
 import { resolveRollups } from '../lib/databases/rollups.js';
+import { schemaWithoutProperty, viewWithoutProperty } from '../lib/databases/property-removal.js';
 import {
   keepNoteColors,
   systemDatabaseDeleteError,
@@ -300,6 +305,11 @@ const listRowsQuerySchema = z.object({
   cursor: z.string().max(2048).optional(),
   pageSize: z.string().regex(/^\d+$/u).optional(),
   search: z.string().max(200).optional(),
+  /**
+   * A filter group (JSON) the rows must pass besides the view's own: the dates
+   * a calendar or a timeline shows, so it reads those rows and no others.
+   */
+  filter: z.string().max(8192).optional(),
 });
 
 function handleZodError(err: unknown, res: Response): boolean {
@@ -307,6 +317,24 @@ function handleZodError(err: unknown, res: Response): boolean {
     res.status(400).json({ error: 'Invalid input', details: err.errors });
     return true;
   }
+  return false;
+}
+
+/**
+ * A filter must name the database's properties with operators their types
+ * take: a view's, or the one a reader narrows a view's rows with. Otherwise
+ * the refusal is sent and false returned.
+ */
+function checkFilter(res: Response, schema: DatabaseSchema, filter: Filter | undefined): boolean {
+  if (!filter) return true;
+  const invalid = invalidCondition(filter, new Map(schema.properties.map((p) => [p.id, p])));
+  if (!invalid) return true;
+  res.status(400).json({
+    error: `"${invalid.operator}" cannot filter that property`,
+    code: 'INVALID_FILTER',
+    propertyId: invalid.propertyId,
+    operator: invalid.operator,
+  });
   return false;
 }
 
@@ -929,6 +957,18 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
   }
 });
 
+/** Every view of `databaseId` that names `propertyId`, rewritten without it. */
+async function removePropertyFromViews(
+  tx: PgHandle,
+  databaseId: string,
+  propertyId: string,
+): Promise<void> {
+  for (const view of await lockViewsOfDatabase(tx, databaseId)) {
+    const patch = viewWithoutProperty(view, propertyId);
+    if (patch) await updateDatabaseView(tx, view.id, patch);
+  }
+}
+
 router.delete('/:id/properties/:propertyId', async (req: Request, res: Response) => {
   try {
     const params = z
@@ -958,18 +998,30 @@ router.delete('/:id/properties/:propertyId', async (req: Request, res: Response)
     // Dropping the property from the schema and from every row is one
     // logical write: the schema is what tells a reader the key exists, so a
     // failure between the two leaves values no reader can reach and no
-    // writer will overwrite.
+    // writer will overwrite. Its views and rollups stop naming it in the
+    // same write, so no reader sees a view sorted, filtered or grouped on a
+    // property that is gone.
     const updated = await handle.transaction(async (tx) => {
-      // A two-way relation's other side goes with it.
-      if (removed?.type === 'relation' && removed.config?.twoWay) {
-        await unlinkTwoWay(tx, db, removed);
-      }
-      const propertiesSchema: DatabaseSchema = {
-        properties: db.propertiesSchema.properties.filter((p) => p.id !== params.propertyId),
-      };
-      const row = await writeDatabaseSchema(tx, db.id, propertiesSchema);
+      // A two-way relation's other side goes with it, and from its views.
+      const otherSide =
+        removed?.type === 'relation' && removed.config?.twoWay
+          ? {
+              databaseId: removed.config.targetDatabaseId,
+              propertyId: removed.config.syncedPropertyId,
+            }
+          : null;
+      if (removed && otherSide) await unlinkTwoWay(tx, db, removed);
+      const row = await writeDatabaseSchema(
+        tx,
+        db.id,
+        schemaWithoutProperty(db.propertiesSchema, db.id, params.propertyId),
+      );
       if (!row) return null;
       await removePropertyFromDatabaseRows(tx, db.id, params.propertyId);
+      await removePropertyFromViews(tx, db.id, params.propertyId);
+      if (otherSide?.databaseId && otherSide.propertyId) {
+        await removePropertyFromViews(tx, otherSide.databaseId, otherSide.propertyId);
+      }
       return row;
     });
     if (!updated) {
@@ -1029,11 +1081,31 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       return;
     }
 
+    let narrowed: Filter | undefined;
+    if (query.filter !== undefined) {
+      let raw: unknown;
+      try {
+        raw = JSON.parse(query.filter);
+      } catch {
+        res.status(400).json({ error: 'Invalid filter' });
+        return;
+      }
+      narrowed = filterGroupSchema.parse(raw);
+      if (!checkFilter(res, db.propertiesSchema, narrowed)) return;
+    }
+
     // A view is filtered, sorted and paged in SQL, and only the rows of the
     // page it returns are read. Formulas and rollups are computed, not
     // stored: a view that reads one computes them for every row first, then
     // filters and sorts in JS.
-    const viewFilter = view?.filters as Filter | undefined;
+    const ownFilter = view?.filters as Filter | undefined;
+    const viewFilter: Filter | undefined = narrowed
+      ? {
+          kind: 'group',
+          combinator: 'and',
+          filters: ownFilter ? [ownFilter, narrowed] : [narrowed],
+        }
+      : ownFilter;
     const viewReads = [
       ...(viewFilter ? filterPropertyIds(viewFilter) : []),
       ...(view?.sorts ?? []).map((s) => s.propertyId),
@@ -1147,6 +1219,50 @@ router.get('/:id/rows/:rowId', async (req: Request, res: Response) => {
   }
 });
 
+/** The most rows one batch read names: a relation cell shows a few, a page of them at most. */
+const MAX_BATCH_ROWS = 100;
+
+/**
+ * POST /databases/:id/rows/batch { ids } — the live rows among `ids` with
+ * their computed values, in the order asked: what a relation shows of the rows
+ * it points at, read in one request rather than one per row. An id that is not
+ * a live row of this database is left out, so a related row trashed or moved
+ * reads as unavailable.
+ */
+router.post('/:id/rows/batch', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ id: entityIdSchema }).parse(req.params);
+    const body = z
+      .object({ ids: z.array(entityIdSchema).min(1).max(MAX_BATCH_ROWS) })
+      .parse(req.body);
+    const handle = getDb();
+    const db = await findDatabaseById(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+    if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
+    const found = await findPagesByIds(handle, [...new Set(body.ids)], { archived: false });
+    const byId = new Map(
+      found.filter((row) => row.databaseId === db.id && !row.template).map((row) => [row.id, row]),
+    );
+    const live = [...new Set(body.ids)].flatMap((id) => byId.get(id) ?? []);
+    const derived = await resolveDerivedForRows(
+      handle,
+      live,
+      db.propertiesSchema,
+      req.user?.id ?? null,
+    );
+    res.json({
+      rows: live.map((row) => serializeRow(row, { derived: derived.get(row.id) ?? {} })),
+    });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to read rows');
+    res.status(500).json({ error: 'Failed to read rows' });
+  }
+});
+
 router.post('/:id/rows', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
@@ -1170,6 +1286,11 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
       db.propertiesSchema,
       body.properties ?? {},
     );
+    const invalid = await invalidReference(handle, db, stored);
+    if (invalid) {
+      res.status(400).json(invalid);
+      return;
+    }
 
     // Resolve final title: explicit body.title wins, then properties.name,
     // then fall back to "" (the row card will show "Untitled").
@@ -1293,13 +1414,14 @@ router.post('/:id/views', async (req: Request, res: Response) => {
     const body = createViewSchema.parse(req.body);
 
     const handle = getDb();
-    const db = await findDatabaseWorkspaceId(handle, params.id);
+    const db = await findDatabaseById(handle, params.id);
     if (!db) {
       res.status(404).json({ error: 'Database not found' });
       return;
     }
     const blockId = body.blockId ?? null;
     if (!(await checkViewsAccess(req, res, handle, db, blockId, true))) return;
+    if (!checkFilter(res, db.propertiesSchema, body.filters)) return;
 
     // `??`, not `||`: `order: 0` is a legitimate explicit order.
     const nextOrder = body.order ?? (await nextViewOrder(handle, db.id, blockId));
@@ -1343,7 +1465,7 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
     const body = updateViewSchema.parse(req.body);
 
     const handle = getDb();
-    const db = await findDatabaseWorkspaceId(handle, params.id);
+    const db = await findDatabaseById(handle, params.id);
     if (!db) {
       res.status(404).json({ error: 'Database not found' });
       return;
@@ -1354,6 +1476,7 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
       return;
     }
     if (!(await checkViewsAccess(req, res, handle, db, view.blockId, true))) return;
+    if (!checkFilter(res, db.propertiesSchema, body.filters)) return;
 
     // Promoting a view and demoting the previous default(s) commit
     // together, so a failure between the two cannot leave the database with
