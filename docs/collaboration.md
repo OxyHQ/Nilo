@@ -102,6 +102,42 @@ The Redis adapter carries the room across the API's tasks.
   sent at all: the person is told, and undoing it leaves little to send (Yjs
   keeps only the length of deleted text).
 
+## One document per page on the device
+
+A page can be shown in more than one place at once: as the page, and in a
+synced block on another page (or the same one). `lib/editor/shared-sessions.ts`
+keeps one session per page for all of them — one `Y.Doc`, one room — and
+each place binds its own `EditorStore` to it (its own selection and undo).
+Two sessions of one page on one socket would not hear each other (the room
+sends a change to every socket but the one that made it), and the first to
+close would take the other out of the room. The session sends changes while
+any place holding it may edit, and closes with the last.
+
+## Synced blocks
+
+An original is a `sync_block` holding its content as children, edited in
+place like any container; a reference is a `sync_block` naming it
+(`sourceBlockId`, `sourcePageId`). A reference opens its original's page
+(above) and lays the original's children out with Bloom's `BlockList` over
+that page's store, inside an `EditorSurface` of its own: editing there edits
+the original, live for everyone, when the reader may edit the original's
+page; read only otherwise. "Copy and sync" makes a block an original (wrapped
+where it stood) and keeps it for "Paste synced block"; "Unsync" puts a copy
+of the original's blocks in the reference's place. Deleting an original
+warns, with undo, how many other pages will show "Original deleted".
+Exports, share links and published pages read references on the server
+(`apps/api/src/lib/synced-blocks.ts`).
+
+## Comments on text
+
+A comment may be on a stretch of its block's text: `anchor { start, end,
+quote }`. Offsets drift as the block is edited, so the quote is what holds:
+the comment panel finds it again where it was, else at its nearest
+occurrence, else says the original text changed (`lib/comments/anchor.ts`).
+Bloom draws decorations on whole blocks, so the text itself is not
+highlighted: its block carries the comment edge, and pressing the quote
+selects the text.
+
 ## On the device
 
 `apps/app/lib/editor/doc-store*.ts`: every update the page takes is written
@@ -181,7 +217,8 @@ so open editors receive it live.
   — seeding, compaction, refusals; the room carrying edits, refusing a
   viewer's, merging offline work.
 - `apps/app/lib/editor/__tests__/page-session.test.ts` — the session against
-  a fake room.
+  a fake room (`test-support/fake-room.ts`); `shared-sessions.test.ts` — one
+  page in two places on one document and one room.
 - `e2e/live-editing.test.ts` — editors wired as the app wires them, against
   the real room and PostgreSQL: the editors, the server's document and the
   projected rows must be the same page, with seeded random concurrent edits

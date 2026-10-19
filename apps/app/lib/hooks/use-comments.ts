@@ -5,6 +5,7 @@ import { API_ROUTES } from '../api/routes';
 import { queryKeys } from './query-keys';
 import type {
   Comment,
+  CommentAnchor,
   CommentReaction,
   CommentContent,
   CommentResponse,
@@ -57,6 +58,8 @@ interface CreateCommentInput {
   pageId: string;
   blockId?: string | null;
   parentCommentId?: string | null;
+  /** On a stretch of the block's text (`blockId` required). */
+  anchor?: CommentAnchor | null;
   content: { segments: CommentContent['segments'] };
 }
 

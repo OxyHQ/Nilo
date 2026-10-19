@@ -16,7 +16,8 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { groupIntoThreads, useCreateComment, usePageComments } from '@/lib/hooks/use-comments';
 import { CommentComposer } from './comment-composer';
 import { CommentThread } from './comment-thread';
-import type { CommentSegment } from '@/lib/types/comments';
+import type { CommentAnchor, CommentSegment } from '@/lib/types/comments';
+import { CommentQuote } from './comment-quote';
 import { useTranslation } from '@/hooks/useTranslation';
 
 type FilterMode = 'all' | 'open' | 'resolved';
@@ -32,6 +33,10 @@ interface CommentPanelProps {
    * composer is hidden; the thread list filters to that block.
    */
   focusedBlockId?: string | null;
+  /** The text the next comment is on (`focusedBlockId`'s), when asked for on a selection. */
+  anchor?: CommentAnchor | null;
+  /** The anchor was used, or put aside for a comment on the whole block. */
+  onAnchorUsed?: () => void;
 }
 
 /**
@@ -46,6 +51,8 @@ export function CommentPanel({
   open,
   onClose,
   focusedBlockId,
+  anchor = null,
+  onAnchorUsed,
   canComment = true,
 }: CommentPanelProps) {
   useCommentsLive(open ? pageId : undefined);
@@ -76,13 +83,17 @@ export function CommentPanel({
     return grouped;
   }, [data?.comments, focusedBlockId, filter]);
 
+  // An anchor is on its own block's text only.
+  const quoted = focusedBlockId ? anchor : null;
   const handleSubmit = async (segments: CommentSegment[]) => {
     await createMutation.mutateAsync({
       pageId,
       blockId: focusedBlockId ?? null,
       parentCommentId: null,
+      anchor: quoted,
       content: { segments },
     });
+    if (quoted) onAnchorUsed?.();
   };
 
   const headerTitle = focusedBlockId ? t('comments.panel.blockTitle') : t('comments.panel.title');
@@ -154,13 +165,26 @@ export function CommentPanel({
       </ScrollView>
 
       {canComment ? (
-        <View className="border-t border-border p-3">
+        <View className="border-t border-border p-3 gap-2">
+          {quoted ? (
+            <View className="flex-row items-start gap-2">
+              <View className="flex-1">
+                <CommentQuote blockId={focusedBlockId ?? null} anchor={quoted} />
+              </View>
+              <CloseButton
+                onPress={() => onAnchorUsed?.()}
+                accessibilityLabel={t('comments.panel.cancelQuote')}
+              />
+            </View>
+          ) : null}
           <CommentComposer
             workspaceId={workspaceId}
             placeholder={
-              focusedBlockId
-                ? t('comments.panel.blockPlaceholder')
-                : t('comments.panel.pagePlaceholder')
+              quoted
+                ? t('comments.panel.textPlaceholder')
+                : focusedBlockId
+                  ? t('comments.panel.blockPlaceholder')
+                  : t('comments.panel.pagePlaceholder')
             }
             onSubmit={handleSubmit}
             submitting={createMutation.isPending}

@@ -45,6 +45,13 @@ it.each(['en', 'es'] as const)(
     expect(childPage?.group).toBe('basic');
     expect(childPage?.label).toBe(mockT('editor.slashMenu.childPage.label'));
     expect(childPage?.keywords?.length).toBeGreaterThan(1);
+    // Synced blocks: an original made here, and one pasted from elsewhere.
+    for (const id of ['syncedBlock', 'pasteSyncedBlock']) {
+      const item = items.find((entry) => entry.id === id);
+      expect(item?.action).toEqual({ kind: 'custom', id });
+      expect(item?.label).toBe(mockT(`editor.slashMenu.${id}.label`));
+      expect(item?.keywords?.length).toBeGreaterThan(1);
+    }
     const before = items;
     act(() => renderer.update(<Hooks />));
     expect(items).toBe(before);

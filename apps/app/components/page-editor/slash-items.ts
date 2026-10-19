@@ -206,6 +206,22 @@ export function useSlashItems(): SlashItem[] {
         { kind: 'custom', id: 'table' },
       ),
       item(
+        'syncedBlock',
+        t('editor.slashMenu.syncedBlock.label'),
+        t('editor.slashMenu.syncedBlock.description'),
+        t('editor.slashMenu.syncedBlock.keywords'),
+        'advanced',
+        { kind: 'custom', id: 'syncedBlock' },
+      ),
+      item(
+        'pasteSyncedBlock',
+        t('editor.slashMenu.pasteSyncedBlock.label'),
+        t('editor.slashMenu.pasteSyncedBlock.description'),
+        t('editor.slashMenu.pasteSyncedBlock.keywords'),
+        'advanced',
+        { kind: 'custom', id: 'pasteSyncedBlock' },
+      ),
+      item(
         'button',
         t('editor.slashMenu.button.label'),
         t('editor.slashMenu.button.description'),

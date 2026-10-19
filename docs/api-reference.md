@@ -81,9 +81,17 @@ model, credential, conversation or chat-completion route.
 - `POST /pages/:id/blocks/transactions { ops }` — change blocks without an
   editor (insert / update / move / remove, all or none), as one change to
   the document.
+- Synced blocks: `GET /blocks/:id/synced` — where an original is shown (its
+  references on pages the caller opens); `GET /workspaces/:id/synced-blocks`
+  — the originals the caller may paste, with the start of their text.
+  Exports read a reference as its original's blocks when the reader may open
+  the original; share links and published pages send them as `synced` (by
+  original id) only from the shared page or the published site.
 - Comments: `GET/POST /pages/:id/comments`, `GET /blocks/:id/comments`,
   `PATCH/DELETE /comments/:id`, `POST /comments/:id/resolve|unresolve`,
-  `PUT/DELETE /comments/:id/reactions/:emoji`.
+  `PUT/DELETE /comments/:id/reactions/:emoji`. A comment on a stretch of its
+  block's text carries `anchor { start, end, quote }` (a top-level comment
+  with a `blockId`; the quote is the text between the offsets).
 
 ## Databases
 

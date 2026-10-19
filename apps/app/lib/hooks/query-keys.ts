@@ -44,6 +44,10 @@ export const queryKeys = {
     url: (scope: string, fileId: string) => ['file-url', scope, fileId] as const,
     cachedImage: (fileId: string) => ['file-cached-image', fileId] as const,
   },
+  syncedBlocks: {
+    usages: (blockId: string) => ['synced-blocks', 'usages', blockId] as const,
+    list: (workspaceId: string) => ['synced-blocks', 'list', workspaceId] as const,
+  },
   comments: {
     page: (pageId: string, includeResolved: boolean) =>
       ['comments', 'page', pageId, includeResolved] as const,

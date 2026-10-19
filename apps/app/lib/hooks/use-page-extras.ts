@@ -15,6 +15,8 @@ export interface PublicPage {
     'id' | 'title' | 'icon' | 'cover' | 'coverPosition' | 'updatedAt' | 'font' | 'fullWidth'
   >;
   blocks: ReadOnlyBlock[];
+  /** What each synced block on the page shows, by its original's id. */
+  synced?: Record<string, ReadOnlyBlock[]>;
   children: BreadcrumbEntry[];
   breadcrumb: BreadcrumbEntry[];
   site: { slug: string; allowIndexing: boolean };

@@ -43,6 +43,16 @@ export interface CommentReaction {
   userIds: string[];
 }
 
+/**
+ * The stretch of its block's text an inline comment is on: offsets into the
+ * block's plain text when it was written, and that text (`lib/comments/anchor.ts`).
+ */
+export interface CommentAnchor {
+  start: number;
+  end: number;
+  quote: string;
+}
+
 export interface Comment {
   reactions: CommentReaction[];
   id: string;
@@ -52,6 +62,8 @@ export interface Comment {
   parentCommentId: string | null;
   authorId: string;
   content: CommentContent;
+  /** On a stretch of `blockId`'s text; null for the whole block or the page. */
+  anchor: CommentAnchor | null;
   resolvedAt: string | null;
   editedAt: string | null;
   createdAt: string;

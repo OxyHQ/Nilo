@@ -1,5 +1,5 @@
 import { BlockText, blockTextSegments, PublicMentionContext } from './block-text';
-import { blockFileId, type FileUrlScope, isEntityId } from '@oxy.so/nilo-contracts';
+import { blockFileId, type FileUrlScope, isEntityId, syncedSource } from '@oxy.so/nilo-contracts';
 import { Button } from '@oxy.so/bloom/button';
 import { router } from 'expo-router';
 import { Checkbox } from '@oxy.so/bloom/checkbox';
@@ -72,6 +72,44 @@ function asEditorBlock(block: ReadOnlyBlock): Block {
 
 /** The page's headings, for a table of contents anywhere in it. */
 const HeadingsContext = createContext<readonly ReadOnlyBlock[]>([]);
+
+/**
+ * What the page's synced blocks show, by original id (the server sends only
+ * what this reader may see), and the originals being shown around a block:
+ * a reference inside the original it shows draws nothing.
+ */
+const SyncedContext = createContext<{
+  synced: Readonly<Record<string, readonly ReadOnlyBlock[]>>;
+  showing: ReadonlySet<string>;
+}>({ synced: {}, showing: new Set() });
+
+/** A synced block, read: an original its own blocks, a reference its original's. */
+function SyncedContent({
+  block,
+  childrenNodes,
+  textStyle,
+}: {
+  block: ReadOnlyBlock;
+  childrenNodes: BlockTreeNode[];
+  textStyle: TextStyle;
+}) {
+  const { synced, showing } = useContext(SyncedContext);
+  const source = syncedSource(block.type, block.content);
+  const sourceId = source?.blockId ?? null;
+  const shown = sourceId && !showing.has(sourceId) ? synced[sourceId] : undefined;
+  const nodes = useMemo(() => (shown ? buildBlockTree(shown) : null), [shown]);
+  const inner = useMemo(
+    () => ({ synced, showing: new Set([...showing, ...(sourceId ? [sourceId] : [])]) }),
+    [synced, showing, sourceId],
+  );
+  if (!sourceId) return <BlockBranch nodes={childrenNodes} textStyle={textStyle} />;
+  if (!nodes) return null;
+  return (
+    <SyncedContext.Provider value={inner}>
+      <BlockBranch nodes={nodes} textStyle={textStyle} />
+    </SyncedContext.Provider>
+  );
+}
 
 interface SharedBlockRendererProps {
   block: ReadOnlyBlock;
@@ -427,13 +465,18 @@ function TableOfContents({ textStyle }: { textStyle?: TextStyle }) {
 }
 
 /** Shared nesting and sibling ordering for published pages and version previews. */
+const NO_SYNCED: Readonly<Record<string, readonly ReadOnlyBlock[]>> = {};
+
 export function SharedBlockTree({
   blocks,
+  synced = NO_SYNCED,
   publicSlug,
   font = 'default',
   fileScope,
 }: {
   blocks: readonly ReadOnlyBlock[];
+  /** What each synced block shows, by its original's id, as the server sends it. */
+  synced?: Readonly<Record<string, readonly ReadOnlyBlock[]>>;
   publicSlug?: string;
   font?: PageFont;
   /** How the reader reached these blocks, which is how their files are asked for. */
@@ -442,6 +485,7 @@ export function SharedBlockTree({
   const { t } = useTranslation();
   const textStyle = useMemo(() => ({ fontFamily: PAGE_FONT_FAMILIES[font] }), [font]);
   const tree = useMemo(() => inReadingOrder(buildBlockTree(blocks)), [blocks]);
+  const syncedValue = useMemo(() => ({ synced, showing: new Set<string>() }), [synced]);
   const headings = useMemo(() => {
     const found: ReadOnlyBlock[] = [];
     const walk = (nodes: readonly BlockTreeNode[]) => {
@@ -462,7 +506,9 @@ export function SharedBlockTree({
   const branch = (
     <PublicMentionContext.Provider value={publicSlug}>
       <HeadingsContext.Provider value={headings}>
-        <BlockBranch nodes={tree} textStyle={textStyle} />
+        <SyncedContext.Provider value={syncedValue}>
+          <BlockBranch nodes={tree} textStyle={textStyle} />
+        </SyncedContext.Provider>
       </HeadingsContext.Provider>
     </PublicMentionContext.Provider>
   );
@@ -558,7 +604,10 @@ function BlockNode({
       </View>
     );
   }
-  if (block.type === 'sync_block' || block.type === 'column') {
+  if (block.type === 'sync_block') {
+    return <SyncedContent block={block} childrenNodes={childrenNodes} textStyle={textStyle} />;
+  }
+  if (block.type === 'column') {
     return <BlockBranch nodes={childrenNodes} textStyle={textStyle} />;
   }
   // A canvas note, read as a page: its blocks in a frame, not under a line.
