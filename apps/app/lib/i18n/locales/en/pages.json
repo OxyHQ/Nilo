@@ -111,8 +111,9 @@
     },
     "noEmojis": "No emojis match “%{query}”.",
     "noIcons": "No icons match “%{query}”.",
-    "uploadHint": "Paste an image URL to use as your icon. Direct upload is rolling out soon.",
-    "useImage": "Use image"
+    "uploadHint": "Upload an image to use as the icon.",
+    "useImage": "Use image",
+    "linkHint": "Or paste a link to an image."
   },
   "coverPicker": {
     "title": "Choose a cover",
@@ -134,9 +135,6 @@
     "linkHint": "Paste an image URL to use as the cover.",
     "useImage": "Use image",
     "useImageLink": "Use image link",
-    "uploadSoon": "Direct upload is rolling out soon.",
-    "uploadUseLink": "Until then, use the Link tab to paste an image URL.",
-    "acknowledgeUpload": "Acknowledge upload limitation",
     "gradients": {
       "sunset": "Sunset",
       "aurora": "Aurora",
@@ -160,7 +158,8 @@
       "violet": "Violet",
       "rose": "Rose",
       "charcoal": "Charcoal"
-    }
+    },
+    "uploadHint": "Upload an image to use as the cover."
   },
   "tree": {
     "selectWorkspace": "Select a workspace to see pages.",
@@ -336,5 +335,11 @@
     "hint": "Place the page's content as notes on an infinite canvas. Turning it off puts the notes back in order, top to bottom.",
     "failed": "The page's layout could not be changed"
   },
-  "inTrash": "This page is in the trash."
+  "inTrash": "This page is in the trash.",
+  "imageUpload": {
+    "choose": "Choose an image",
+    "uploading": "Uploading…",
+    "failed": "The image couldn’t be uploaded.",
+    "tooLarge": "This image is too large."
+  }
 }

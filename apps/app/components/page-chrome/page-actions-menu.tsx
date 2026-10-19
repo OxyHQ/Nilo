@@ -112,7 +112,7 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
           router.replace('/(app)');
         },
         onError: (err) => {
-          toast.error(err.message || t('pages.toasts.moveToTrashFailed'));
+          toast.error(apiErrorMessage(err, t('pages.toasts.moveToTrashFailed')));
         },
       },
     );
@@ -251,6 +251,17 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
                 }}
               />
             ))}
+            {/* A favorite is the reader's own: viewing the page is enough. */}
+            {!page.archived ? (
+              <Action
+                label={t(
+                  page.favorited
+                    ? 'pages.actions.removeFromFavorites'
+                    : 'pages.actions.addToFavorites',
+                )}
+                onPress={handleFavorite}
+              />
+            ) : null}
             {!readOnly && !page.archived ? (
               <>
                 <Action
@@ -286,14 +297,6 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
                     setMenuOpen(false);
                     handleDuplicate();
                   }}
-                />
-                <Action
-                  label={t(
-                    page.favorited
-                      ? 'pages.actions.removeFromFavorites'
-                      : 'pages.actions.addToFavorites',
-                  )}
-                  onPress={handleFavorite}
                 />
                 <Action
                   label={t('pages.actions.moveTo')}

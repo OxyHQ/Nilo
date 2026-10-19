@@ -1,5 +1,8 @@
 import * as React from 'react';
 import { Image, View, Platform, type ImageStyle, type ViewStyle } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
+import type { FileUrlScope } from '@oxy.so/nilo-contracts';
+import { useFileImageSource, useFileScope } from '@/lib/files/file-urls';
 import { parseCover, COVER_GRADIENTS, type CoverValue } from './cover-value';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -11,6 +14,10 @@ interface CoverDisplayProps {
   height?: number;
   /** Render a compact preview (used in pickers). */
   preview?: boolean;
+  /** The page whose cover this is: an uploaded one is read through it. */
+  pageId?: string;
+  /** How the reader reached the page, when not as a member (a share link, a published site). */
+  fileScope?: FileUrlScope;
 }
 
 /**
@@ -36,6 +43,8 @@ export function CoverDisplay({
   position = 50,
   height = 192,
   preview = false,
+  pageId,
+  fileScope,
 }: CoverDisplayProps) {
   const parsed = React.useMemo<CoverValue>(() => parseCover(value), [value]);
   const { t } = useTranslation();
@@ -61,6 +70,19 @@ export function CoverDisplay({
     );
   }
 
+  if (parsed.kind === 'file') {
+    return (
+      <FileCover
+        fileId={parsed.fileId}
+        position={position}
+        height={height}
+        preview={preview}
+        pageId={pageId}
+        fileScope={fileScope}
+      />
+    );
+  }
+
   const uri = parsed.url;
   const imageStyle: WebImage =
     Platform.OS === 'web'
@@ -82,6 +104,38 @@ export function CoverDisplay({
       source={{ uri }}
       style={imageStyle as ImageStyle}
       resizeMode="cover"
+      accessibilityLabel={t('pages.header.pageCover')}
+    />
+  );
+}
+
+/** A cover uploaded to the page: its file, shown with a URL minted for this reader. */
+function FileCover({
+  fileId,
+  position,
+  height,
+  preview,
+  pageId,
+  fileScope,
+}: {
+  fileId: string;
+  position: number;
+  height: number;
+  preview: boolean;
+  pageId?: string;
+  fileScope?: FileUrlScope;
+}) {
+  const { t } = useTranslation();
+  const contextScope = useFileScope(pageId);
+  const source = useFileImageSource(fileScope ?? contextScope, fileId);
+  const style = { width: '100%' as const, height, borderRadius: preview ? 8 : 0 };
+  if (!source) return <View className="bg-muted" style={style} />;
+  return (
+    <ExpoImage
+      source={source}
+      style={style}
+      contentFit="cover"
+      contentPosition={{ left: '50%', top: `${position}%` }}
       accessibilityLabel={t('pages.header.pageCover')}
     />
   );

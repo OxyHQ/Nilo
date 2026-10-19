@@ -307,7 +307,7 @@ function PageRow({
       accessibilityLabel={item.title}
       onPress={() => onSelect(item)}
       onHoverIn={onHighlight}
-      leading={item.icon ? <IconDisplay value={item.icon} size={16} /> : icon}
+      leading={item.icon ? <IconDisplay value={item.icon} size={16} pageId={item.pageId} /> : icon}
       title={item.title}
       subtitle={details}
     />

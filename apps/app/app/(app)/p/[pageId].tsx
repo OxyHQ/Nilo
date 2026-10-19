@@ -169,7 +169,7 @@ function PageDetail({
             // A canvas fills the page: notes are placed on it, not scrolled through.
             <View className="flex-1">
               <View className="flex-row items-center gap-2 border-b border-border px-4 py-2">
-                <IconDisplay value={page.icon} size={18} />
+                <IconDisplay value={page.icon} size={18} pageId={page.id} />
                 <Text variant="headline-semibold" numberOfLines={1}>
                   {page.title || t('pages.untitled')}
                 </Text>

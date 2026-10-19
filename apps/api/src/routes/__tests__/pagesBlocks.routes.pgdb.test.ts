@@ -353,7 +353,7 @@ describe('GET /pages — the three-valued archived filter', () => {
     expect(ids(res)).toEqual([archived]);
   });
 
-  it('adds favorited=true without ever adding favorited=false', async () => {
+  it("lists only the caller's favorites, never the pages they did not star", async () => {
     const res = await api('GET', `/pages?workspaceId=${listWorkspace}&favoritedOnly=true`);
     expect(ids(res)).toEqual([favorite]);
   });
@@ -389,6 +389,87 @@ describe('GET /pages — the three-valued archived filter', () => {
       headers: { 'x-workspace-id': otherWorkspaceId },
     });
     expect(mismatch.status).toBe(200);
+  });
+});
+
+describe('favorites — each person their own', () => {
+  const other = 'route-test-favorites-other';
+
+  beforeAll(async () => {
+    await db.insert(workspaceMembers).values({ workspaceId, userId: other, role: 'viewer' });
+  });
+
+  /** Runs as the other member, a viewer of the workspace. */
+  async function asOther<T>(run: () => Promise<T>): Promise<T> {
+    const previous = { userId: ctx.userId, role: ctx.role };
+    ctx.userId = other;
+    ctx.role = 'viewer';
+    try {
+      return await run();
+    } finally {
+      ctx.userId = previous.userId;
+      ctx.role = previous.role;
+    }
+  }
+
+  const listed = async () => {
+    const res = await api('GET', `/pages?workspaceId=${workspaceId}&favoritedOnly=true`);
+    expect(res.status).toBe(200);
+    return (res.json.pages as { id: string; favorited: boolean }[]).map((p) => p.id);
+  };
+
+  it('stars a page for the caller only, and says so to each of them', async () => {
+    const mine = await createPage({ title: 'mine' });
+    const theirs = await createPage({ title: 'theirs' });
+    const starred = await api('PATCH', `/pages/${mine.id}`, { favorited: true });
+    expect(starred.json.page).toMatchObject({ favorited: true });
+
+    await asOther(async () => {
+      expect((await api('GET', `/pages/${mine.id}`)).json.page).toMatchObject({
+        favorited: false,
+      });
+      expect(await listed()).not.toContain(mine.id);
+      // A viewer stars a page they can open: it changes nothing of the page.
+      const res = await api('PATCH', `/pages/${theirs.id}`, { favorited: true });
+      expect(res.status).toBe(200);
+      expect(res.json.page).toMatchObject({ favorited: true });
+      expect(await listed()).toContain(theirs.id);
+    });
+
+    expect(await listed()).toContain(mine.id);
+    expect(await listed()).not.toContain(theirs.id);
+    const all = await api('GET', `/pages?workspaceId=${workspaceId}`);
+    const byId = new Map(
+      (all.json.pages as { id: string; favorited: boolean }[]).map((p) => [p.id, p.favorited]),
+    );
+    expect(byId.get(mine.id as string)).toBe(true);
+    expect(byId.get(theirs.id as string)).toBe(false);
+
+    // Unstarring is the caller's too.
+    await api('PATCH', `/pages/${mine.id}`, { favorited: false });
+    expect(await listed()).not.toContain(mine.id);
+    expect(await asOther(listed)).toContain(theirs.id);
+  });
+
+  it('lists favorites in the order they were starred', async () => {
+    const first = await createPage({ title: 'first' });
+    const second = await createPage({ title: 'second' });
+    await api('PATCH', `/pages/${second.id}`, { favorited: true });
+    await api('PATCH', `/pages/${first.id}`, { favorited: true });
+    const ids = await listed();
+    expect(ids.indexOf(second.id as string)).toBeLessThan(ids.indexOf(first.id as string));
+  });
+
+  it('still needs edit access for anything else sent with it', async () => {
+    const page = await createPage({ title: 'kept' });
+    await asOther(async () => {
+      const res = await api('PATCH', `/pages/${page.id}`, { favorited: true, title: 'changed' });
+      expect(res.status).toBe(403);
+      expect((await api('GET', `/pages/${page.id}`)).json.page).toMatchObject({
+        title: 'kept',
+        favorited: false,
+      });
+    });
   });
 });
 

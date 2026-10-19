@@ -34,7 +34,7 @@ export const fileUrlsSchema = z.object({
 export async function respondWithFileUrls(
   req: Request,
   res: Response,
-  page: { id: string; workspaceId: string },
+  page: { id: string; workspaceId: string; icon: string | null; cover: string | null },
 ): Promise<void> {
   const parsed = fileUrlsSchema.safeParse(req.body);
   if (!parsed.success) {

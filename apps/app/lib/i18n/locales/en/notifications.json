@@ -20,5 +20,6 @@
   "dismiss": "Dismiss notification",
   "reminder": "Reminder",
   "pageEdited": "%{page} was edited",
-  "assigned": "%{name} added you to %{page}"
+  "assigned": "%{name} added you to %{page}",
+  "pushUnsupported": "This browser can’t receive push notifications."
 }

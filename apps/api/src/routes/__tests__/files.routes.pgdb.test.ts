@@ -299,6 +299,27 @@ describe('URLs for readers', () => {
     expect(await urlsFor(STRANGER, `/pages/${theirs}/files/urls`, { ids: [fileId] })).toEqual([]);
   });
 
+  it("follow a page's uploaded cover and icon to its duplicate", async () => {
+    const original = await page('Covered');
+    const cover = await attach(original);
+    const icon = await attach(original);
+    const set = await api(OWNER, 'PATCH', `/pages/${original}`, {
+      cover: `file:${cover}`,
+      icon: `file:${icon}`,
+    });
+    expect(set.status).toBe(200);
+    const copy = (await api(OWNER, 'POST', `/pages/${original}/duplicate`)).json.page as {
+      id: string;
+    };
+    const ids = (await urlsFor(VIEWER, `/pages/${copy.id}/files/urls`, { ids: [cover, icon] }))
+      .map((f) => f.id)
+      .sort();
+    expect(ids).toEqual([cover, icon].sort());
+    // A page whose cover is something else does not serve them.
+    const other = await page('Plain');
+    expect(await urlsFor(OWNER, `/pages/${other}/files/urls`, { ids: [cover] })).toEqual([]);
+  });
+
   it('serve whoever holds a live share link, until it is revoked', async () => {
     const target = await page('Shared');
     const fileId = await attach(target);
@@ -391,6 +412,20 @@ describe('letting go of an attachment', () => {
     await sweep();
     expect(await recorded(fileId)).toBeUndefined();
     expect(await queued([fileId])).toEqual([{ fileId, entityType: 'page', entityId: original }]);
+  });
+
+  it("keeps it past its page while another page's cover holds it", async () => {
+    const original = await page('Cover source');
+    const fileId = await attach(original);
+    const holder = await page('Cover holder');
+    await api(OWNER, 'PATCH', `/pages/${holder}`, { cover: `file:${fileId}` });
+    expect((await api(OWNER, 'DELETE', `/pages/${original}?hard=true`)).status).toBe(200);
+    await sweep();
+    expect(await recorded(fileId)).toBeDefined();
+
+    await api(OWNER, 'PATCH', `/pages/${holder}`, { cover: null });
+    await sweep();
+    expect(await recorded(fileId)).toBeUndefined();
   });
 
   it('keeps it while a kept version or an unprojected document of another page holds it', async () => {

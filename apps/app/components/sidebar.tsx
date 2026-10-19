@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { signOutOfDevice } from '@/lib/account-boundary';
+import { releaseDevice, signOutOfDevice } from '@/lib/account-boundary';
 import { PlacementSections } from './sidebar-sections/placement-sections';
+import { PageDragProvider } from './sidebar-sections/drag-context';
 import { useNewPageStore } from '@/lib/stores/new-page-store';
 import { SharedWithMeSection } from './sidebar-sections/shared-with-me-section';
 import React from 'react';
@@ -40,6 +41,7 @@ import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { useUnreadCount } from '@/lib/hooks/use-notifications';
 import {
   SidebarAskAliaButton,
+  SidebarHomeButton,
   SidebarSearchButton,
   SidebarInboxButton,
   SidebarSettingsButton,
@@ -82,7 +84,9 @@ export const Sidebar = React.memo(function Sidebar() {
     [showBottomSheet],
   );
   const queryClient = useQueryClient();
-  const handleLogout = React.useCallback(() => {
+  const handleLogout = React.useCallback(async () => {
+    // Push stops first: telling the API needs the session.
+    await releaseDevice();
     logout();
     router.replace('/(app)');
     // What the device kept for this account goes with it, and whatever is
@@ -209,7 +213,12 @@ export const Sidebar = React.memo(function Sidebar() {
       {/* Scrollable middle: search + nav + sections */}
       <ScrollView className="min-h-0 flex-1" showsVerticalScrollIndicator={false}>
         <View className="px-1 py-1 gap-0.5">
-          {isAuthenticated ? <SidebarSearchButton /> : null}
+          {isAuthenticated ? (
+            <>
+              <SidebarSearchButton />
+              <SidebarHomeButton />
+            </>
+          ) : null}
           <SidebarAskAliaButton />
           {isAuthenticated ? (
             <>
@@ -222,12 +231,15 @@ export const Sidebar = React.memo(function Sidebar() {
         {isAuthenticated ? <SharedWithMeSection /> : null}
 
         {isAuthenticated && currentWorkspaceId ? (
-          <View className="mt-2">
-            <RecentsSection />
-            <FavoritesSection />
-            <PlacementSections />
-            <TemplatesSection />
-          </View>
+          // One drag across the sections: a page moves between them.
+          <PageDragProvider>
+            <View className="mt-2">
+              <RecentsSection />
+              <FavoritesSection />
+              <PlacementSections />
+              <TemplatesSection />
+            </View>
+          </PageDragProvider>
         ) : null}
 
         {isAuthenticated ? (
@@ -327,7 +339,7 @@ export const Sidebar = React.memo(function Sidebar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"
-                onPress={handleLogout}
+                onPress={() => void handleLogout()}
                 leading={<RiLogoutBoxRLine size="sm" fill={colors.mutedForeground} />}
               >
                 {t('sidebar.logOut')}

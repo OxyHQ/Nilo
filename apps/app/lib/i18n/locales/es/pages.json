@@ -111,8 +111,9 @@
     },
     "noEmojis": "Ningún emoji coincide con «%{query}».",
     "noIcons": "Ningún icono coincide con «%{query}».",
-    "uploadHint": "Pega la URL de una imagen para usarla como icono. La subida directa llegará pronto.",
-    "useImage": "Usar imagen"
+    "uploadHint": "Sube una imagen para usarla como icono.",
+    "useImage": "Usar imagen",
+    "linkHint": "O pega el enlace de una imagen."
   },
   "coverPicker": {
     "title": "Elige una portada",
@@ -134,9 +135,6 @@
     "linkHint": "Pega la URL de una imagen para usarla como portada.",
     "useImage": "Usar imagen",
     "useImageLink": "Usar enlace de imagen",
-    "uploadSoon": "La subida directa llegará pronto.",
-    "uploadUseLink": "Mientras tanto, usa la pestaña Enlace para pegar la URL de una imagen.",
-    "acknowledgeUpload": "Entendido: la subida aún no está disponible",
     "gradients": {
       "sunset": "Atardecer",
       "aurora": "Aurora",
@@ -160,7 +158,8 @@
       "violet": "Violeta",
       "rose": "Rosa",
       "charcoal": "Carbón"
-    }
+    },
+    "uploadHint": "Sube una imagen para usarla como portada."
   },
   "tree": {
     "selectWorkspace": "Selecciona un espacio de trabajo para ver las páginas.",
@@ -336,5 +335,11 @@
     "hint": "Coloca el contenido de la página como notas en un lienzo infinito. Al desactivarlo, las notas vuelven en orden, de arriba abajo.",
     "failed": "No se pudo cambiar la disposición de la página"
   },
-  "inTrash": "Esta página está en la papelera."
+  "inTrash": "Esta página está en la papelera.",
+  "imageUpload": {
+    "choose": "Elegir una imagen",
+    "uploading": "Subiendo…",
+    "failed": "No se pudo subir la imagen.",
+    "tooLarge": "Esta imagen es demasiado grande."
+  }
 }

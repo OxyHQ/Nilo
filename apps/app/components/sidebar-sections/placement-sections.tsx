@@ -88,6 +88,7 @@ function WorkspacePlacements({ workspaceId }: { workspaceId: string }) {
               pages={tree}
               workspaceId={workspaceId}
               readOnly={!hasRole(role, 'editor') && teamspace.role !== 'owner'}
+              place={{ teamspaceId: teamspace.id }}
             />
             <DatabaseRows databases={dbs} />
           </SidebarSection>
@@ -120,6 +121,7 @@ function WorkspacePlacements({ workspaceId }: { workspaceId: string }) {
           pages={grouped.privatePages}
           workspaceId={workspaceId}
           emptyText={t('sidebar.noPrivatePages')}
+          place={{ teamspaceId: null }}
         />
         <DatabaseRows databases={grouped.privateDatabases} />
       </SidebarSection>

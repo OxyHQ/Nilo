@@ -10,9 +10,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 import { NiloWordmark } from '@/components/nilo-wordmark';
 import { useTranslation } from '@/hooks/useTranslation';
+import { apiErrorMessage } from '@/lib/api/error-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSharedPage, type SharedPage } from '@/lib/hooks/use-share-links';
 import { SharedBlockTree } from '@/components/sharing/shared-block-renderer';
+import { IconDisplay } from '@/components/page-chrome/icon-display';
 
 interface ShareLoadStateProps {
   title: string;
@@ -102,8 +104,8 @@ export default function PublicSharePage() {
     } else if (status === 410) {
       title = t('pages.share.expiredTitle');
       body = t('pages.share.expiredBody');
-    } else if (error instanceof Error && error.message) {
-      body = error.message;
+    } else if (error) {
+      body = apiErrorMessage(error, body);
     }
     return (
       <View
@@ -150,7 +152,7 @@ export default function PublicSharePage() {
               ) : null}
             </View>
           ) : null}
-          <SharedPageHeader page={data.page} />
+          <SharedPageHeader page={data.page} token={token} />
           <View className="gap-1.5">
             <SharedBlockTree blocks={data.blocks} fileScope={{ kind: 'share', token }} />
           </View>
@@ -161,14 +163,12 @@ export default function PublicSharePage() {
   );
 }
 
-function SharedPageHeader({ page }: { page: SharedPage['page'] }) {
+function SharedPageHeader({ page, token }: { page: SharedPage['page']; token: string }) {
   const { t } = useTranslation();
   return (
     <View className="gap-2">
       {page.icon ? (
-        <Text className="text-4xl text-foreground" style={{ lineHeight: 48 }}>
-          {page.icon}
-        </Text>
+        <IconDisplay value={page.icon} size={40} fileScope={{ kind: 'share', token }} />
       ) : null}
       <Text className="text-3xl font-bold text-foreground sm:text-4xl">
         {page.title?.trim() ? page.title : t('pages.untitled')}

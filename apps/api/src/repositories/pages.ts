@@ -10,7 +10,7 @@
  * referential action above all) live in `../db/schema/pages.ts`.
  */
 
-import { and, asc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, getTableColumns, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { sqlColumnName } from '@oxy.so/db';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import type { PgHandle } from '../db/client.js';
@@ -18,6 +18,7 @@ import {
   PAGE_TOMBSTONE_RETENTION_MS,
   type PageFont,
   type PageMode,
+  pageFavorites,
   pages,
   type PageProperties,
   pageTombstones,
@@ -63,8 +64,11 @@ export interface ListPagesFilter {
    * `false` — the default listing.
    */
   archived?: boolean;
-  /** `?favoritedOnly=true`. Adds `favorited = true`; never `favorited = false`. */
-  favoritedOnly?: boolean;
+  /**
+   * `?favoritedOnly=true`: only the pages this person starred, in the order
+   * of their Favorites. Never the pages they did not.
+   */
+  favoritedBy?: string;
 }
 
 /**
@@ -87,9 +91,19 @@ export async function listPages(db: PgHandle, filter: ListPagesFilter): Promise<
   // The trash lists what was trashed; a subpage that went with its page is
   // in it through that page.
   if (filter.archived === true) predicates.push(isNull(pages.archivedWith));
-  if (filter.favoritedOnly) predicates.push(eq(pages.favorited, true));
   if (filter.template !== undefined) predicates.push(eq(pages.template, filter.template));
 
+  if (filter.favoritedBy !== undefined) {
+    return db
+      .select(getTableColumns(pages))
+      .from(pages)
+      .innerJoin(
+        pageFavorites,
+        and(eq(pageFavorites.pageId, pages.id), eq(pageFavorites.userId, filter.favoritedBy)),
+      )
+      .where(and(...predicates))
+      .orderBy(asc(pageFavorites.order), asc(pageFavorites.createdAt), asc(pages.id));
+  }
   return db
     .select()
     .from(pages)
@@ -208,9 +222,9 @@ export interface CreatePageInput {
  * (`routes/pages.ts:551`) and `POST /api/databases/:id/rows`
  * (`routes/databases.ts:1057`).
  *
- * `coverPosition` and `favorited` are absent from the input on purpose: no
- * creator sets them, including the duplicate route, which does not copy the
- * source page's cover offset. That is the existing behaviour and is preserved
+ * `coverPosition` is absent from the input on purpose: no creator sets it,
+ * including the duplicate route, which does not copy the source page's cover
+ * offset. That is the existing behaviour and is preserved
  * rather than quietly fixed here.
  */
 export async function createPage(db: PgHandle, input: CreatePageInput): Promise<PageRow> {
@@ -247,7 +261,6 @@ export interface UpdatePageInput {
   archived?: boolean;
   /** See `pages.archivedWith`; `setTreeArchived` writes the subtree's. */
   archivedWith?: string | null;
-  favorited?: boolean;
   restricted?: boolean;
   template?: boolean;
   fullWidth?: boolean;
@@ -308,7 +321,6 @@ export async function updatePage(
   if (patch.order !== undefined) values.order = patch.order;
   if (patch.archived !== undefined) values.archived = patch.archived;
   if (patch.archivedWith !== undefined) values.archivedWith = patch.archivedWith;
-  if (patch.favorited !== undefined) values.favorited = patch.favorited;
   if (patch.restricted !== undefined) values.restricted = patch.restricted;
   if (patch.template !== undefined) values.template = patch.template;
   if (patch.fullWidth !== undefined) values.fullWidth = patch.fullWidth;

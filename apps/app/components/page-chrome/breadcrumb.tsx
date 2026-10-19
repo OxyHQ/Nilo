@@ -49,7 +49,11 @@ export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProp
             key={`page-${entry.page.id}`}
             onPress={() => router.push(`/p/${entry.page.id}`)}
             accessibilityLabel={entry.page.title || t('pages.untitled')}
-            leading={entry.page.icon ? <IconDisplay value={entry.page.icon} size={14} /> : null}
+            leading={
+              entry.page.icon ? (
+                <IconDisplay value={entry.page.icon} size={14} pageId={entry.page.id} />
+              ) : null
+            }
           >
             {entry.page.title.trim() || t('pages.untitled')}
           </BreadcrumbItem>
@@ -65,7 +69,9 @@ export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProp
       {current ? (
         <BreadcrumbItem
           current
-          leading={current.icon ? <IconDisplay value={current.icon} size={14} /> : null}
+          leading={
+            current.icon ? <IconDisplay value={current.icon} size={14} pageId={current.id} /> : null
+          }
         >
           {current.title.trim() || t('pages.untitled')}
         </BreadcrumbItem>

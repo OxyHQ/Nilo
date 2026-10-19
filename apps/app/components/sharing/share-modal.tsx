@@ -32,6 +32,7 @@ import {
 } from '@/lib/hooks/use-share-links';
 import { buildShareUrl } from './build-share-url';
 import { useTranslation } from '@/hooks/useTranslation';
+import { apiErrorMessage } from '@/lib/api/error-message';
 import i18n from '@/lib/i18n';
 import { usePagePermissions } from '@/lib/hooks/use-page-permissions';
 import { hasRole } from '@/lib/hooks/workspace-roles';
@@ -334,7 +335,7 @@ function ShareModalBody({ pageId, onNavigate }: { pageId: string; onNavigate: ()
               </View>
             ) : isError ? (
               <Text className="text-sm text-destructive">
-                {error instanceof Error ? error.message : t('sharing.modal.loadFailed')}
+                {apiErrorMessage(error, t('sharing.modal.loadFailed'))}
               </Text>
             ) : activeLinks.length === 0 ? (
               <EmptyState

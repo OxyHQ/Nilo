@@ -123,7 +123,11 @@ export const pages = pgTable(
      * one in the trash on its own rather than lost.
      */
     archivedWith: text().references((): AnyPgColumn => pages.id, { onDelete: 'set null' }),
-    /** Starred in the sidebar Favorites section. */
+    /**
+     * Superseded by `page_favorites` (a favorite is each person's own): no
+     * longer read or written, kept until the post migration drops it so the
+     * image before it still reads a column.
+     */
     favorited: boolean().notNull().default(false),
     /**
      * Open only to the people granted access to it or to a page above it
@@ -257,7 +261,8 @@ export const pages = pgTable(
      * and the only query that filters on it (`?favoritedOnly=true`) is always
      * workspace-scoped, so the port is a PARTIAL index keyed on `workspaceId`.
      * Reshaped, not dropped: dropping it is the change that no functional test
-     * could ever detect.
+     * could ever detect. Goes with the column, which `page_favorites`
+     * replaced; until then it serves the image before 0043.
      */
     index('pages_workspace_favorited_idx').on(t.workspaceId).where(sql`${t.favorited}`),
     /**
@@ -533,6 +538,28 @@ export const pageAppData = pgTable(
   (t) => [
     primaryKey({ columns: [t.pageId, t.app] }),
     check('page_app_data_app', sql`${t.app} in (${sql.raw(inList(PAGE_DATA_APPS))})`),
+  ],
+);
+
+/**
+ * A person's favorites, as in Notion: each member stars pages for themselves,
+ * in the order their sidebar shows them. Viewing a page is enough to star it.
+ */
+export const pageFavorites = pgTable(
+  'page_favorites',
+  {
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    /** Oxy user id. */
+    userId: text().notNull(),
+    /** Position in the person's Favorites; see `pages.order`. */
+    order: doublePrecision().notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pageId, t.userId] }),
+    index('page_favorites_user_order_idx').on(t.userId, t.order),
   ],
 );
 

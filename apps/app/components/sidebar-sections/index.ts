@@ -2,6 +2,7 @@ export { SidebarSection } from './sidebar-section';
 export { SidebarItem } from './sidebar-item';
 export {
   SidebarAskAliaButton,
+  SidebarHomeButton,
   SidebarSearchButton,
   SidebarInboxButton,
   SidebarSettingsButton,

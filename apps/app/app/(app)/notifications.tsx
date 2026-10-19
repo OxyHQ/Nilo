@@ -2,7 +2,7 @@ import { PageAssignedNotification } from '@/components/sharing/page-assigned-not
 import { PageEditedNotification } from '@/components/sharing/page-edited-notification';
 import { ReminderList } from '@/components/reminders/reminder-list';
 import { PageSharedNotification } from '@/components/sharing/page-shared-notification';
-import { View, ScrollView, Pressable, Platform } from 'react-native';
+import { View, ScrollView, Pressable } from 'react-native';
 import { Button, CloseButton } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
@@ -19,12 +19,12 @@ import { RiMessage2Line } from '@oxy.so/bloom/icons/RiMessage2Line';
 import { RiUserAddLine } from '@oxy.so/bloom/icons/RiUserAddLine';
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@oxy.so/services/ui/client';
-import * as ExpoNotifications from 'expo-notifications';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import i18n from '@/lib/i18n';
+import { type PushState, readPushState, setPushEnabled } from '@/lib/push-registration';
 import {
   useNotifications,
   useMarkAsRead,
@@ -67,8 +67,8 @@ export default function NotificationsScreen() {
   const { colors } = useColorScheme();
   const { isAuthenticated } = useAuth();
 
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [permissionStatus, setPermissionStatus] = useState<string | null>(null);
+  // What this device really gets: its registration, in a browser too.
+  const [push, setPush] = useState<PushState | null>(null);
   const [pushLoading, setPushLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -83,38 +83,30 @@ export default function NotificationsScreen() {
     }
   }, [isAuthenticated, router]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: a mount-only permission check; checkPermissions is recreated every render and sets state, so depending on it would re-run it on every render
   useEffect(() => {
-    checkPermissions();
+    let cancelled = false;
+    readPushState()
+      .catch((): PushState => ({ supported: false, permission: 'undetermined', enabled: false }))
+      .then((state) => {
+        if (cancelled) return;
+        setPush(state);
+        setPushLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const checkPermissions = async () => {
-    if (Platform.OS === 'web') {
-      setPermissionStatus('unavailable');
-      setPushLoading(false);
-      return;
-    }
+  // Off tells the API to stop sending here; the device remembers it.
+  const handleTogglePush = async (value: boolean) => {
+    setPushLoading(true);
     try {
-      const { status } = await ExpoNotifications.getPermissionsAsync();
-      setPermissionStatus(status);
-      setPushEnabled(status === 'granted');
-    } catch (_error: unknown) {
-      setPermissionStatus('unavailable');
+      setPush(await setPushEnabled(value));
     } finally {
       setPushLoading(false);
     }
   };
-
-  const handleTogglePush = async (value: boolean) => {
-    if (Platform.OS === 'web') return;
-    if (value) {
-      const { status } = await ExpoNotifications.requestPermissionsAsync();
-      setPermissionStatus(status);
-      setPushEnabled(status === 'granted');
-    } else {
-      setPushEnabled(false);
-    }
-  };
+  const pushEnabled = push?.enabled ?? false;
 
   const handleNotificationPress = useCallback(
     (notification: Notification) => {
@@ -192,13 +184,20 @@ export default function NotificationsScreen() {
                     <Switch
                       checked={pushEnabled}
                       onCheckedChange={handleTogglePush}
-                      disabled={pushLoading}
+                      disabled={pushLoading || push?.supported === false}
                       accessibilityLabel={t('notifications.pushNotifications')}
                     />
                   }
                 />
               </SettingsListGroup>
-              {permissionStatus === 'denied' && (
+              {push?.supported === false && (
+                <View className="mt-3 p-3 rounded-lg bg-muted">
+                  <Text className="text-xs text-muted-foreground">
+                    {t('notifications.pushUnsupported')}
+                  </Text>
+                </View>
+              )}
+              {push?.permission === 'denied' && (
                 <View className="mt-3 p-3 rounded-lg bg-muted">
                   <Text className="text-xs text-muted-foreground">
                     {t('notifications.permissionDenied')}
