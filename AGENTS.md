@@ -66,8 +66,8 @@ Prettier): `bun run lint` checks the whole repo, as CI's `biome ci .` does;
 `bun run format` rewrites formatting. Formatting-only commits go in
 `.git-blame-ignore-revs`.
 
-Every `test*`/`check*` script must be run by `ci.yml`; `check:ci-wiring`
-enforces it. A boot or migration failure must exit non-zero: never defer a
+Every `test*`/`check*`/`typecheck` script must be run by `ci.yml`;
+`check:ci-wiring` enforces it. A boot or migration failure must exit non-zero: never defer a
 fatal exit to an unref'd timer, and `check:api-entrypoints` executes the built
 artefacts under bun, the image's runtime, to hold that.
 

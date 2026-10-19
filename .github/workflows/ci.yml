@@ -96,6 +96,22 @@ jobs:
       - name: Lint (Biome)
         run: bunx biome ci .
 
+      # Every workspace typechecks; neither the API's bun build nor the Expo
+      # export runs tsc, so without these a type error ships silently.
+      - name: Typecheck the API
+        run: bun run --filter @nilo/api typecheck
+      - name: Typecheck the app
+        run: bun run --filter @nilo/app typecheck
+      - name: Typecheck the published contracts
+        run: bun run --filter @oxy.so/nilo-contracts typecheck
+
+      # Every Oxy app shares one Postgres: a new migration may not hold a lock
+      # that stalls a hot table (NOT VALID foreign keys validated later, hot-table
+      # DDL alone in its migration). The rules are @oxy.so/db's; the baseline and
+      # hot tables are in apps/api's db:check-locks script.
+      - name: Verify every new migration keeps its locks short
+        run: bun run --filter @nilo/api db:check-locks
+
       # `packageManager` is the one bun pin. Every setup-bun here reads it, but
       # apps/api/Dockerfile's `FROM oven/bun:<ver>` is a literal; this fails
       # when the image (or a workflow) runs a different bun from the one that

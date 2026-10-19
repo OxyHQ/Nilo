@@ -1,13 +1,13 @@
 /**
- * Every test and check this repository defines must be RUN by CI.
+ * Every test, check and typecheck this repository defines must be RUN by CI.
  *
  * `test:worker` sat in the root package.json, passing, while no workflow ever
  * ran it: a suite that is green and inert reports exactly what a suite that is
  * green and enforced reports. This fails when:
- *  - a workspace script named `test`, `test:*`, `check` or `check:*` (other
- *    than the interactive `:watch` and the `:coverage` variant) is not invoked
- *    by `.github/workflows/ci.yml` — `bun run <name>` at the root,
- *    `bun run --filter <package> <name>` in a workspace;
+ *  - a workspace script named `test`, `test:*`, `check`, `check:*` or
+ *    `typecheck` (other than the interactive `:watch` and the `:coverage`
+ *    variant) is not invoked by `.github/workflows/ci.yml` — `bun run <name>`
+ *    at the root, `bun run --filter <package> <name>` in a workspace;
  *  - a tracked `*.test.*` file outside the trees a runner owns (below) is not
  *    named by any root script, so no runner reaches it;
  *  - the command that runs an owned tree's runner is not invoked by CI;
@@ -35,7 +35,7 @@ const OWNED_TREES = [
   { root: 'apps/app/', command: 'bun run --filter @nilo/app test' },
   { root: 'e2e/', command: 'bun run test:e2e' },
 ] as const;
-const GATED_SCRIPT = /^(test|check)(:.+)?$/u;
+const GATED_SCRIPT = /^(test|check|typecheck)(:.+)?$/u;
 const EXEMPT_SCRIPT = /:(watch|coverage)$/u;
 const TEST_FILE = /\.test\.(ts|tsx|js|jsx|mjs|cjs)$/u;
 
@@ -98,14 +98,15 @@ export function checkCiWiring(root: string): { errors: string[]; summary: string
   }
 
   // Vacuity floors: today's counts. Raise them when adding; never lower them to pass.
-  if (scriptCount < 6) errors.push(`found only ${scriptCount} test/check script(s); expected 6+`);
+  if (scriptCount < 12)
+    errors.push(`found only ${scriptCount} test/check/typecheck script(s); expected 12+`);
   if (outside.length < 2)
     errors.push(`found only ${outside.length} root test file(s); expected 2+`);
 
   return {
     errors,
     summary:
-      `${scriptCount} test/check scripts are all run by ${WORKFLOW}, and ` +
+      `${scriptCount} test/check/typecheck scripts are all run by ${WORKFLOW}, and ` +
       `${outside.length} test file(s) outside ${OWNED_TREES.map((tree) => tree.root).join(', ')} ` +
       'are all named by a root script.',
   };
