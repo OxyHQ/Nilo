@@ -21,7 +21,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, type ViewInstance } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { Button } from '@oxy.so/bloom/button';
@@ -170,7 +170,7 @@ export function PageCanvas(props: SurfaceProps & { store: EditorStore; readOnly:
   const background = Gesture.Simultaneous(pan, pinch, doubleTap);
 
   // The mouse wheel on the web: scroll pans, with Ctrl or ⌘ it zooms at the pointer.
-  const frame = useRef<View>(null);
+  const frame = useRef<ViewInstance>(null);
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const element = frame.current as unknown as HTMLElement | null;

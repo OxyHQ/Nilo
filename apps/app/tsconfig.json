@@ -1,7 +1,9 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "expo/tsconfig.base.json",
   "compilerOptions": {
     "strict": true,
+    // TypeScript 6 no longer loads every @types package by default.
+    "types": ["jest", "node"],
     "paths": {
       "@/*": ["./*"]
     }

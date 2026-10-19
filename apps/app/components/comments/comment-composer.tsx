@@ -1,10 +1,9 @@
 import * as React from 'react';
 import {
-  type NativeSyntheticEvent,
   Platform,
-  type TextInput,
-  type TextInputKeyPressEventData,
-  type TextInputSelectionChangeEventData,
+  type TextInputInstance,
+  type TextInputKeyPressEvent,
+  type TextInputSelectionChangeEvent,
   View,
 } from 'react-native';
 import { RiSendPlaneLine } from '@oxy.so/bloom/icons/RiSendPlaneLine';
@@ -148,7 +147,7 @@ export function CommentComposer({
   initialSegments,
 }: CommentComposerProps) {
   const { t } = useTranslation();
-  const inputRef = React.useRef<TextInput>(null);
+  const inputRef = React.useRef<TextInputInstance>(null);
   const initial = React.useMemo(
     () => (initialSegments ? segmentsToText(initialSegments) : { text: '', anchored: [] }),
     [initialSegments],
@@ -163,7 +162,7 @@ export function CommentComposer({
 
   const isEmpty = text.trim().length === 0 && anchored.length === 0;
 
-  const handleSelectionChange = (e: NativeSyntheticEvent<TextInputSelectionChangeEventData>) => {
+  const handleSelectionChange = (e: TextInputSelectionChangeEvent) => {
     selectionRef.current = e.nativeEvent.selection;
     // Recompute mention draft state from caret position.
     if (mentionDraft) {
@@ -214,7 +213,7 @@ export function CommentComposer({
     }
   };
 
-  const handleKeyPress = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+  const handleKeyPress = (e: TextInputKeyPressEvent) => {
     const key = e.nativeEvent.key;
     if (key === 'Escape' && mentionDraft) {
       setMentionDraft(null);

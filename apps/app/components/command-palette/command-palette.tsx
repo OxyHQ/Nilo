@@ -3,7 +3,7 @@ import { SearchSnippet } from './search-snippet';
 import { SearchStatus } from './search-status';
 import { searchPageHref } from './search-results';
 import * as React from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { Platform, ScrollView, type ScrollViewInstance, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { RiTimeLine } from '@oxy.so/bloom/icons/RiTimeLine';
 import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
@@ -130,7 +130,7 @@ export function CommandPalette() {
     Platform.OS === 'web' ? { onKeyPress: handleKeyDown } : {};
 
   // Keep the highlighted row inside the results viewport (web).
-  const listRef = React.useRef<ScrollView | null>(null);
+  const listRef = React.useRef<ScrollViewInstance | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: the highlight moving is what re-runs this; the DOM carries the row.
   React.useEffect(() => {
     if (Platform.OS !== 'web') return;

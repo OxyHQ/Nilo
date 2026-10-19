@@ -31,5 +31,5 @@ export async function saveExport({
     reader.readAsDataURL(blob);
   });
   const file = directory.createFile(filename, blob.type || null);
-  file.write(base64, { encoding: 'base64' });
+  await file.write(base64, { encoding: 'base64' });
 }
