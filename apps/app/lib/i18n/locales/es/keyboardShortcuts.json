@@ -16,5 +16,7 @@
   "moveSelection": "Mover la selección arriba / abajo",
   "openResult": "Abrir el resultado seleccionado",
   "openInNewTab": "Abrir en una pestaña nueva",
-  "close": "Cerrar"
+  "close": "Cerrar",
+  "editing": "Edición",
+  "commentOnSelection": "Comentar el texto seleccionado"
 }

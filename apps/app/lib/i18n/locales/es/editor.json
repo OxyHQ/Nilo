@@ -147,8 +147,8 @@
     },
     "syncedBlock": {
       "label": "Bloque sincronizado",
-      "description": "Hace referencia a otro bloque (marcador de posición de la fase 3).",
-      "keywords": "sincronizado, espejo, referencia"
+      "description": "Contenido que es el mismo dondequiera que lo pegues.",
+      "keywords": "sincronizar, sincronizado, espejo, reutilizar"
     },
     "inlineDatabase": {
       "label": "Base de datos — Integrada",
@@ -174,6 +174,11 @@
       "label": "Vista enlazada de base de datos",
       "description": "Muestra otra base de datos con vistas propias.",
       "keywords": "enlace, base de datos, referencia, vista"
+    },
+    "pasteSyncedBlock": {
+      "label": "Pegar bloque sincronizado",
+      "description": "Muestra un bloque sincronizado de otra página, siempre al día.",
+      "keywords": "sincronizar, sincronizado, pegar, espejo, reutilizar"
     }
   },
   "ui": {
@@ -218,7 +223,8 @@
     "textColor": "Color del texto",
     "copyBlockLink": "Copiar enlace al bloque",
     "codeLanguage": "Lenguaje",
-    "codeLanguageSearch": "Buscar lenguajes"
+    "codeLanguageSearch": "Buscar lenguajes",
+    "copyAndSync": "Copiar y sincronizar"
   },
   "slashGroups": {
     "basic": "Bloques básicos",
@@ -383,7 +389,40 @@
       "loading": "Cargando ruta…"
     },
     "syncBlock": {
-      "label": "Bloque sincronizado"
+      "label": "Bloque sincronizado",
+      "shownOn": {
+        "one": "Se muestra en %{count} página más",
+        "other": "Se muestra en %{count} páginas más"
+      },
+      "copy": "Copiar y sincronizar",
+      "copied": "Bloque sincronizado copiado. Usa «Pegar bloque sincronizado» para mostrarlo en cualquier sitio.",
+      "cannotSync": "Este bloque forma parte de un diseño y no se puede sincronizar por separado.",
+      "addBlock": "Añadir un bloque",
+      "empty": "Bloque sincronizado vacío",
+      "from": "Sincronizado desde %{title}",
+      "untitled": "Sin título",
+      "editOriginal": "Editar el original",
+      "unsync": "Dejar de sincronizar",
+      "deleted": "Original eliminado",
+      "deletedHint": "Se eliminó el bloque que mostraba este.",
+      "remove": "Quitar",
+      "noAccess": "No tienes acceso al original de este bloque sincronizado.",
+      "unavailable": "No se puede abrir el original de este bloque sincronizado.",
+      "loading": "Cargando bloque sincronizado…",
+      "loop": "Este bloque sincronizado está dentro de su propio original.",
+      "deletedWarning": {
+        "one": "Bloque sincronizado original eliminado: %{count} página más muestra ahora «Original eliminado».",
+        "other": "Bloque sincronizado original eliminado: %{count} páginas más muestran ahora «Original eliminado»."
+      },
+      "undo": "Deshacer",
+      "picker": {
+        "title": "Pegar bloque sincronizado",
+        "search": "Buscar bloques sincronizados",
+        "copied": "Copiado hace un momento",
+        "none": "Aún no hay bloques sincronizados. Usa «Copiar y sincronizar» en un bloque para crear uno.",
+        "loadFailed": "No se pudieron cargar los bloques sincronizados.",
+        "retry": "Reintentar"
+      }
     },
     "button": {
       "defaultLabel": "Botón",
