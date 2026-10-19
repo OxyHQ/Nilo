@@ -17,7 +17,8 @@ The member's app does three things (`apps/app/lib/files/upload-page-file.ts`):
    measured them. It writes a `page_files` row and answers with a first URL.
 
 A block holds the file's id (`content.fileId`), never a URL. A pasted URL
-still goes in `content.url`.
+still goes in `content.url`. A page's icon or cover uploaded the same way is
+stored as `file:<fileId>` (`pageValueFileId` in `@oxy.so/nilo-contracts`).
 
 ## Reading
 
@@ -29,9 +30,10 @@ A file is served on a page only when both of these hold
 (`repositories/pageFiles.ts`):
 
 - it was recorded in the page's workspace;
-- it was uploaded to that page, or one of the page's blocks holds it.
+- it was uploaded to that page, or the page's icon, its cover or one of its
+  blocks holds it.
 
-The second rule is why a copied or duplicated block keeps its file. The first
+The second rule is why a copied or duplicated block, or page, keeps its file. The first
 rule is why knowing a file's id is not enough to read it through a page in
 another workspace.
 
@@ -89,7 +91,8 @@ Nilo uses a file on a page while either holds (`db/triggers.ts`):
 
 - a `page_files` row records the file as uploaded to the page. The row
   outlives the page while anything in its workspace still holds the file: a
-  block (a copy keeps its file), a kept version (restoring it brings the block
+  block (a copy keeps its file), a page's icon or cover (a duplicate keeps
+  them), a kept version (restoring it brings the block
   back), or a page's Yjs document (a change not projected yet). Pages in the
   trash keep their rows: restoring one must find its files.
 - the page exists and one of its properties lists the file (a `files`
