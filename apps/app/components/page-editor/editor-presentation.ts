@@ -94,6 +94,10 @@ export function useEditorLabels(): EditorLabels {
       toggleOpen: t('editor.ui.toggleOpen'),
       toggleClosed: t('editor.ui.toggleClosed'),
       checkbox: t('editor.ui.checkbox'),
+      textColor: t('editor.ui.textColor'),
+      copyBlockLink: t('editor.ui.copyBlockLink'),
+      codeLanguage: t('editor.ui.codeLanguage'),
+      codeLanguageSearch: t('editor.ui.codeLanguageSearch'),
     }),
     [t, locale],
   );

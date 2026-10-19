@@ -72,6 +72,9 @@ jest.mock('@/lib/hooks/use-databases', () => ({
   useDeleteDatabase: () => ({ mutate: mockDeleteDatabase }),
 }));
 jest.mock('@/lib/hooks/use-search-block', () => ({ useSearchBlock: jest.fn() }));
+// Uploads and the clipboard are the extras' own; one stable object, as a memoised hook gives.
+const mockExtras = {};
+jest.mock('../editor-extras', () => ({ useEditorExtras: () => mockExtras }));
 jest.mock('@/lib/hooks/use-member-profiles', () => ({
   useMemberProfiles: () => ({}),
   profileName: jest.fn(),

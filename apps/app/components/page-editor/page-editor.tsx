@@ -31,11 +31,15 @@ import { usePageEditorContext } from './page-editor-context';
 import { useEditorMentions } from './use-editor-mentions';
 import { useOpenEditorMention, openEditorLink } from './open-target';
 import { createMarkers, createRenderers } from './renderers';
+import { useEditorExtras } from './editor-extras';
 import { PageCanvas } from './page-canvas';
 import { AiDialog } from './ai-dialog';
 import { useAiAvailable } from '@/lib/ai/use-ai';
 
 const paragraph = (): BlockSnapshot => ({ type: 'paragraph', text: [] });
+
+/** An equation typed between `$$` is a mention (the page's `@`), drawn and edited as one. */
+const INLINE_EQUATIONS = { indicator: '@' } as const;
 
 /** What a refused change is told as; any other refusal is the page turning read-only. */
 const REJECTION_MESSAGES: Record<string, string> = {
@@ -141,10 +145,8 @@ export function PageEditor({
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const onOpenMention = useOpenEditorMention(setProfileUserId);
   const slashItems = useSlashItems();
-  const renderers = useMemo(
-    () => (store ? createRenderers(pageId, store, readOnly) : {}),
-    [pageId, store, readOnly],
-  );
+  const extras = useEditorExtras(pageId, store, readOnly);
+  const renderers = useMemo(() => (store ? createRenderers(pageId, store) : {}), [pageId, store]);
   const iconPicker = useDialogControl();
   const calloutTarget = useRef<string | null>(null);
   const openIconPicker = iconPicker.open;
@@ -289,6 +291,8 @@ export function PageEditor({
   }
 
   const editorProps = {
+    ...extras,
+    inlineEquations: INLINE_EQUATIONS,
     store,
     controller,
     decorations,
