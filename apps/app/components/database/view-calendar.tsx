@@ -1,6 +1,5 @@
 import * as React from 'react';
-import { Platform, Pressable, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Pressable, useWindowDimensions, View } from 'react-native';
 import { RiArrowLeftSLine } from '@oxy.so/bloom/icons/RiArrowLeftSLine';
 import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { Button } from '@oxy.so/bloom/button';
@@ -9,8 +8,10 @@ import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
+import { dayOf, readDateValue } from '@/lib/date-values';
 import { useVisibleDatesStore } from '@/lib/stores/visible-dates-store';
 import { visibleDatesFilter } from '@/lib/visible-dates';
+import { useOpenRow } from './open-row';
 
 interface ViewCalendarProps {
   database: Database;
@@ -19,14 +20,22 @@ interface ViewCalendarProps {
   isLoading: boolean;
 }
 
+/** Narrower than this a day cell cannot hold titles: the grid marks days and lists the picked one. */
+const COMPACT_WIDTH = 640;
+
 /**
- * Calendar view — month grid keyed on a date property. Web-first;
- * native rendering shows a list-style fallback per the Phase 4 spec.
+ * Calendar view — a month grid keyed on a date property, on web and native.
+ * Wide, each day lists its rows; narrow (a phone), each day shows a mark per
+ * row and the day picked lists them below the grid. Both read only the rows of
+ * the six weeks shown (`useVisibleDatesStore`).
  */
 export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarProps) {
-  const router = useRouter();
+  const openRow = useOpenRow();
   const { t, locale } = useTranslation();
+  const { width } = useWindowDimensions();
+  const compact = width < COMPACT_WIDTH;
   const [cursor, setCursor] = React.useState(() => startOfMonth(new Date()));
+  const [picked, setPicked] = React.useState(() => dayKey(new Date()));
 
   const dateProperty = React.useMemo(() => {
     const id = view.config.datePropertyId;
@@ -41,7 +50,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
   const show = useVisibleDatesStore((state) => state.show);
   const datePropertyId = dateProperty?.id;
   React.useEffect(() => {
-    if (!datePropertyId || Platform.OS !== 'web') return;
+    if (!datePropertyId) return;
     const days = buildMonthGrid(cursor);
     show(
       view.id,
@@ -71,24 +80,22 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
     );
   }
 
-  if (Platform.OS !== 'web') {
-    // Native fallback — show rows grouped by month
-    return (
-      <EmptyState
-        // icon: Calendar
-        variant="compact"
-        title={t('databases.calendar.webOnly')}
-      />
-    );
-  }
-
   const days = buildMonthGrid(cursor);
   const rowsByDay = groupRowsByDay(rows, dateProperty.id);
-
-  const monthLabel = cursor.toLocaleDateString(locale, {
-    month: 'long',
-    year: 'numeric',
-  });
+  const monthLabel = cursor.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+  const goTo = (month: Date) => {
+    setCursor(month);
+    // A month moved to shows its first day's rows, or today's in this month.
+    const today = new Date();
+    setPicked(
+      dayKey(
+        today.getMonth() === month.getMonth() && today.getFullYear() === month.getFullYear()
+          ? today
+          : month,
+      ),
+    );
+  };
+  const pickedRows = rowsByDay.get(picked) ?? [];
 
   return (
     <View className="p-3">
@@ -100,10 +107,10 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
             appearance="plain"
             size="xs"
             accessibilityLabel={t('databases.calendar.previousMonth')}
-            onPress={() => setCursor(addMonths(cursor, -1))}
+            onPress={() => goTo(addMonths(cursor, -1))}
             leadingIcon={RiArrowLeftSLine}
           />
-          <Button appearance="plain" size="xs" onPress={() => setCursor(startOfMonth(new Date()))}>
+          <Button appearance="plain" size="xs" onPress={() => goTo(startOfMonth(new Date()))}>
             {t('databases.calendar.today')}
           </Button>
           <Button
@@ -111,7 +118,7 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
             appearance="plain"
             size="xs"
             accessibilityLabel={t('databases.calendar.nextMonth')}
-            onPress={() => setCursor(addMonths(cursor, 1))}
+            onPress={() => goTo(addMonths(cursor, 1))}
             leadingIcon={RiArrowRightSLine}
           />
         </View>
@@ -119,8 +126,12 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
 
       <View className="flex-row">
         {weekdayLabels(locale).map((label) => (
-          <View key={label} className="flex-1 px-2 py-1 border-b border-border">
-            <Text className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          <View key={label} className="flex-1 px-1 py-1 border-b border-border">
+            <Text
+              className={`text-[10px] uppercase tracking-wider text-muted-foreground ${
+                compact ? 'text-center' : ''
+              }`}
+            >
               {label}
             </Text>
           </View>
@@ -130,27 +141,37 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
       <View>
         {chunk(days, 7).map((week) => (
           <View
-            key={week[0].toISOString()}
+            key={dayKey(week[0] as Date)}
             className="flex-row border-b border-border/60"
-            style={{ minHeight: 100 }}
+            style={{ minHeight: compact ? 48 : 100 }}
           >
             {week.map((day) => {
-              const inMonth = day.getMonth() === cursor.getMonth();
-              const key = day.toISOString().slice(0, 10);
+              const key = dayKey(day);
               const dayRows = rowsByDay.get(key) ?? [];
-              return (
+              const inMonth = day.getMonth() === cursor.getMonth();
+              return compact ? (
+                <CompactDay
+                  key={key}
+                  day={day}
+                  rowIds={dayRows.map((r) => r.id)}
+                  inMonth={inMonth}
+                  picked={key === picked}
+                  label={day.toLocaleDateString(locale, { day: 'numeric', month: 'long' })}
+                  onPress={() => setPicked(key)}
+                />
+              ) : (
                 <View
-                  key={day.toISOString()}
-                  className={`flex-1 border-r border-border/60 p-1.5 ${
-                    inMonth ? '' : 'opacity-40'
-                  }`}
+                  key={key}
+                  className={`flex-1 border-r border-border/60 p-1.5 ${inMonth ? '' : 'opacity-40'}`}
                 >
                   <Text className="mb-1 text-xs text-foreground">{day.getDate()}</Text>
                   <View className="gap-1">
                     {dayRows.slice(0, 3).map((row) => (
                       <Pressable
                         key={row.id}
-                        onPress={() => router.push(`/p/${row.id}`)}
+                        accessibilityRole="link"
+                        accessibilityLabel={row.title || t('databases.untitled')}
+                        onPress={() => openRow(row.id)}
                         className="bg-primary/10 rounded px-1.5 py-0.5"
                       >
                         <Text variant="caption-1-regular" numberOfLines={1}>
@@ -170,8 +191,94 @@ export function ViewCalendar({ database, view, rows, isLoading }: ViewCalendarPr
           </View>
         ))}
       </View>
+
+      {compact ? (
+        <View className="mt-3 gap-1" accessibilityLabel={t('databases.calendar.dayRows')}>
+          <Text className="text-xs font-semibold uppercase text-muted-foreground">
+            {fromDayKey(picked).toLocaleDateString(locale, {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })}
+          </Text>
+          {pickedRows.length === 0 ? (
+            <Text className="py-2 text-sm text-muted-foreground">
+              {t('databases.calendar.noRows')}
+            </Text>
+          ) : (
+            pickedRows.map((row) => (
+              <Pressable
+                key={row.id}
+                accessibilityRole="link"
+                accessibilityLabel={row.title || t('databases.untitled')}
+                onPress={() => openRow(row.id)}
+                className="rounded-md bg-primary/10 px-3 py-2"
+              >
+                <Text variant="body-regular" numberOfLines={1}>
+                  {row.title || t('databases.untitled')}
+                </Text>
+              </Pressable>
+            ))
+          )}
+        </View>
+      ) : null}
     </View>
   );
+}
+
+/** A day of the narrow grid: its number and a mark per row (three at most). */
+function CompactDay({
+  day,
+  rowIds,
+  inMonth,
+  picked,
+  label,
+  onPress,
+}: {
+  day: Date;
+  rowIds: string[];
+  inMonth: boolean;
+  picked: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  const { t } = useTranslation();
+  const count = rowIds.length;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: picked }}
+      accessibilityLabel={
+        count > 0 ? `${label}, ${t('databases.calendar.rowCount', { count })}` : label
+      }
+      onPress={onPress}
+      className={`flex-1 items-center gap-1 py-1.5 ${inMonth ? '' : 'opacity-40'}`}
+    >
+      <View
+        className={`h-7 w-7 items-center justify-center rounded-full ${picked ? 'bg-primary' : ''}`}
+      >
+        <Text className={`text-xs ${picked ? 'text-primary-foreground' : 'text-foreground'}`}>
+          {day.getDate()}
+        </Text>
+      </View>
+      <View className="flex-row gap-0.5">
+        {rowIds.slice(0, 3).map((id) => (
+          <View key={id} className="h-1 w-1 rounded-full bg-primary" />
+        ))}
+      </View>
+    </Pressable>
+  );
+}
+
+/** `YYYY-MM-DD` of a local day: what a day cell and a row's date are matched on. */
+function dayKey(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function fromDayKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y as number, (m as number) - 1, d);
 }
 
 /** Short weekday names, Sunday first, in the app's current locale. */
@@ -202,16 +309,19 @@ function buildMonthGrid(monthStart: Date): Date[] {
   return result;
 }
 
-function groupRowsByDay(rows: DatabaseRow[], propertyId: string): Map<string, DatabaseRow[]> {
+/**
+ * The rows by the day their date starts on, as the reader sees it: a date
+ * without time on the day it names, one with a time on its local day.
+ */
+export function groupRowsByDay(
+  rows: DatabaseRow[],
+  propertyId: string,
+): Map<string, DatabaseRow[]> {
   const result = new Map<string, DatabaseRow[]>();
   for (const row of rows) {
-    const value = row.properties[propertyId];
-    if (!value || typeof value !== 'object' || !('start' in value)) continue;
-    const start = value.start;
-    if (typeof start !== 'string') continue;
-    const d = new Date(start);
-    if (Number.isNaN(d.getTime())) continue;
-    const key = d.toISOString().slice(0, 10);
+    const { start, includeTime } = readDateValue(row.properties[propertyId] ?? null);
+    if (!start) continue;
+    const key = dayKey(dayOf(start, includeTime));
     const bucket = result.get(key) ?? [];
     bucket.push(row);
     result.set(key, bucket);

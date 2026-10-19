@@ -128,22 +128,32 @@
   "board": {
     "needsGroupProperty": "Add a status or select property to use the board view.",
     "noStatus": "No status",
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "moveTo": "Move to",
+    "moveCard": "Move %{title} to another column",
+    "longPressHint": "Long press to move it to another column"
   },
   "gallery": {
     "newCard": "New card"
   },
   "calendar": {
     "needsDateProperty": "Add a date property to enable the calendar view.",
-    "webOnly": "Calendar view is web-only in Phase 4. Open the table view on native to edit rows.",
     "today": "Today",
     "previousMonth": "Previous month",
-    "nextMonth": "Next month"
+    "nextMonth": "Next month",
+    "dayRows": "Pages on this day",
+    "noRows": "No pages on this day",
+    "rowCount": {
+      "one": "%{count} page",
+      "other": "%{count} pages"
+    }
   },
   "timeline": {
     "needsDateProperty": "Add a date property to enable the timeline view.",
-    "webOnly": "Timeline view is web-only in Phase 4. Open the table view on native to see your rows.",
-    "row": "Row"
+    "row": "Row",
+    "earlier": "Earlier",
+    "later": "Later",
+    "noRows": "No pages in these days"
   },
   "form": {
     "builder": "Form builder",

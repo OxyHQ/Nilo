@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { RiArrowRightUpLine } from '@oxy.so/bloom/icons/RiArrowRightUpLine';
 import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
 import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
@@ -15,6 +14,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useRelatedRows, useRowSearch } from '@/lib/hooks/use-database-rows';
 import type { DatabaseRow } from '@/lib/types/databases';
+import { useOpenRow } from './open-row';
 
 /** A related row's title: its own, untitled, or why it cannot be shown. */
 function useRelatedTitles(targetDatabaseId: string | undefined, value: string[]) {
@@ -35,11 +35,6 @@ function useRelatedTitles(targetDatabaseId: string | undefined, value: string[])
       )
     );
   };
-}
-
-function useOpenRow() {
-  const router = useRouter();
-  return (id: string) => router.push({ pathname: '/p/[pageId]', params: { pageId: id } });
 }
 
 interface RelationCellProps {

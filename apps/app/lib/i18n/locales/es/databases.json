@@ -128,22 +128,32 @@
   "board": {
     "needsGroupProperty": "Añade una propiedad de estado o de selección para usar la vista de tablero.",
     "noStatus": "Sin estado",
-    "loadMore": "Cargar más"
+    "loadMore": "Cargar más",
+    "moveTo": "Mover a",
+    "moveCard": "Mover %{title} a otra columna",
+    "longPressHint": "Mantén pulsado para moverla a otra columna"
   },
   "gallery": {
     "newCard": "Nueva tarjeta"
   },
   "calendar": {
     "needsDateProperty": "Añade una propiedad de fecha para activar la vista de calendario.",
-    "webOnly": "La vista de calendario solo está disponible en la web en la fase 4. Abre la vista de tabla en el móvil para editar las filas.",
     "today": "Hoy",
     "previousMonth": "Mes anterior",
-    "nextMonth": "Mes siguiente"
+    "nextMonth": "Mes siguiente",
+    "dayRows": "Páginas de este día",
+    "noRows": "No hay páginas este día",
+    "rowCount": {
+      "one": "%{count} página",
+      "other": "%{count} páginas"
+    }
   },
   "timeline": {
     "needsDateProperty": "Añade una propiedad de fecha para activar la vista de cronograma.",
-    "webOnly": "La vista de cronograma solo está disponible en la web en la fase 4. Abre la vista de tabla en el móvil para ver tus filas.",
-    "row": "Fila"
+    "row": "Fila",
+    "earlier": "Antes",
+    "later": "Después",
+    "noRows": "No hay páginas en estos días"
   },
   "form": {
     "builder": "Editor de formulario",
