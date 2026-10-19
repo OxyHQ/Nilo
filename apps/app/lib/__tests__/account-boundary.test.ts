@@ -13,6 +13,8 @@ jest.mock('../editor/doc-store', () => ({
 jest.mock('../editor/offline-pages', () => ({
   offlinePages: { clear: jest.fn(async () => undefined) },
 }));
+// Releasing push on sign-out is `push-registration.test.ts`'s.
+jest.mock('../push-registration', () => ({ unregisterPush: jest.fn(async () => undefined) }));
 
 let client: QueryClient;
 beforeEach(async () => {
