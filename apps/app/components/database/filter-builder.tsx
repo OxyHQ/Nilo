@@ -1,3 +1,4 @@
+import { FILTER_OPERATORS_BY_TYPE } from '@oxy.so/nilo-contracts';
 import { resultPropertyFromRows } from '@/lib/formula-results';
 import * as React from 'react';
 import { ScrollView, View } from 'react-native';
@@ -6,6 +7,7 @@ import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { Button } from '@oxy.so/bloom/button';
 import { Chip } from '@oxy.so/bloom/chip';
+import { DatePicker } from '@oxy.so/bloom/date-picker';
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
 import {
   DropdownMenu,
@@ -29,41 +31,29 @@ import {
   SelectValue,
 } from '@oxy.so/bloom/select';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
+import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import i18n from '@/lib/i18n';
 import type {
   Database,
   DatabaseProperty,
+  DatabasePropertyType,
   DatabaseRow,
   DatabaseView,
+  Filter,
   FilterCondition,
   FilterGroup,
 } from '@/lib/types/databases';
+import { useDatabaseRows } from '@/lib/hooks/use-database-rows';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
+import { memberProfileName, useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
 
 interface FilterBuilderProps {
   database: Database;
   view: DatabaseView;
   rows: DatabaseRow[];
 }
-
-/** Operator values (sent to the API) offered per property type. */
-const OPERATORS_BY_TYPE: Record<string, string[]> = {
-  text: ['contains', 'equals', 'starts_with', 'ends_with', 'is_empty', 'is_not_empty'],
-  number: ['=', '!=', '>', '<', '>=', '<=', 'is_empty'],
-  select: ['is', 'is_not', 'is_empty'],
-  status: ['is', 'is_not', 'is_empty'],
-  multi_select: ['contains', 'does_not_contain', 'is_empty'],
-  date: ['before', 'after', 'on_or_before', 'on_or_after', 'equals', 'is_empty'],
-  checkbox: ['is', 'is_not'],
-  url: ['contains', 'equals', 'is_empty'],
-  email: ['contains', 'equals', 'is_empty'],
-  phone: ['contains', 'equals', 'is_empty'],
-  person: ['contains', 'does_not_contain', 'is_empty'],
-  relation: ['contains', 'does_not_contain', 'is_empty'],
-  files: ['is_empty', 'is_not_empty'],
-};
 
 /** Translated at call time: the locale can change while the app runs. */
 function operatorLabel(operator: string): string {
@@ -74,6 +64,8 @@ function operatorLabel(operator: string): string {
       return i18n.t('databases.filters.operators.doesNotContain');
     case 'equals':
       return i18n.t('databases.filters.operators.equals');
+    case 'does_not_equal':
+      return i18n.t('databases.filters.operators.doesNotEqual');
     case 'starts_with':
       return i18n.t('databases.filters.operators.startsWith');
     case 'ends_with':
@@ -94,6 +86,10 @@ function operatorLabel(operator: string): string {
       return i18n.t('databases.filters.operators.onOrBefore');
     case 'on_or_after':
       return i18n.t('databases.filters.operators.onOrAfter');
+    case 'in_last':
+      return i18n.t('databases.filters.operators.inLast');
+    case 'in_next':
+      return i18n.t('databases.filters.operators.inNext');
     case '!=':
       return '≠';
     case '>=':
@@ -105,15 +101,23 @@ function operatorLabel(operator: string): string {
   }
 }
 
-function operatorsFor(type: string): { value: string; label: string }[] {
-  const values = OPERATORS_BY_TYPE[type] ?? ['is_empty', 'is_not_empty'];
-  return values.map((value) => ({ value, label: operatorLabel(value) }));
+/** The operators a property's type takes, as the API checks them (`@oxy.so/nilo-contracts`). */
+function operatorsFor(type: DatabasePropertyType): { value: string; label: string }[] {
+  return FILTER_OPERATORS_BY_TYPE[type].map((value) => ({ value, label: operatorLabel(value) }));
+}
+
+/** What a new condition on a property starts with: its first operator, and no value. */
+function startCondition(property: DatabaseProperty): Pick<FilterCondition, 'operator' | 'value'> {
+  return {
+    operator: operatorsFor(property.type)[0]?.value ?? 'is_empty',
+    value: property.type === 'checkbox' ? true : '',
+  };
 }
 
 /**
- * The toolbar's Filter button and the dialog it opens — render the AND/OR tree
- * as a flat list of conditions (groups inside groups exist in the data model but
- * aren't exposed in the MVP UI to keep things simple).
+ * The toolbar's Filter button and the dialog it opens. The dialog edits the
+ * top-level conditions of the view's AND/OR tree; groups nested in it (which
+ * the API takes) are kept as they are but not shown.
  */
 export function FilterBuilder({ database: sourceDatabase, view, rows }: FilterBuilderProps) {
   const database = {
@@ -127,21 +131,25 @@ export function FilterBuilder({ database: sourceDatabase, view, rows }: FilterBu
   const { t } = useTranslation();
   const updateView = useUpdateView();
   const control = useDialogControl();
-  const [draft, setDraft] = React.useState<FilterGroup>(() => cloneFilterGroup(view.filters));
+  // A condition on a property the database no longer has is dropped: the API
+  // refuses to save one.
+  const fromView = () =>
+    cloneFilterGroup(view.filters, new Set(database.schema.properties.map((p) => p.id)));
+  const [draft, setDraft] = React.useState<FilterGroup>(fromView);
   const filterCount = countFilters(view.filters);
 
   const open = () => {
-    setDraft(cloneFilterGroup(view.filters));
+    setDraft(fromView());
     control.open();
   };
 
-  const apply = async () => {
-    await updateView.mutateAsync({
-      databaseId: database.id,
-      viewId: view.id,
-      filters: draft,
-    });
-    control.close();
+  const save = async (filters: FilterGroup) => {
+    try {
+      await updateView.mutateAsync({ databaseId: database.id, viewId: view.id, filters });
+      control.close();
+    } catch {
+      toast.error(t('databases.filters.saveFailed'));
+    }
   };
 
   const reset = async () => {
@@ -151,16 +159,10 @@ export function FilterBuilder({ database: sourceDatabase, view, rows }: FilterBu
       filters: [],
     };
     setDraft(empty);
-    await updateView.mutateAsync({
-      databaseId: database.id,
-      viewId: view.id,
-      filters: empty,
-    });
-    control.close();
+    await save(empty);
   };
 
   const addCondition = (property: DatabaseProperty) => {
-    const operator = operatorsFor(property.type)[0]?.value ?? 'is_empty';
     setDraft((prev) => ({
       ...prev,
       filters: [
@@ -168,8 +170,7 @@ export function FilterBuilder({ database: sourceDatabase, view, rows }: FilterBu
         {
           kind: 'condition',
           propertyId: property.id,
-          operator,
-          value: property.type === 'checkbox' ? true : '',
+          ...startCondition(property),
         } satisfies FilterCondition,
       ],
     }));
@@ -218,7 +219,7 @@ export function FilterBuilder({ database: sourceDatabase, view, rows }: FilterBu
           {
             label: t('databases.actions.apply'),
             shouldCloseOnPress: false,
-            onPress: () => void apply(),
+            onPress: () => void save(draft),
           },
           {
             label: t('databases.actions.clearAll'),
@@ -297,11 +298,7 @@ function ConditionRow({ database, filter, onChange, onRemove }: ConditionRowProp
         onValueChange={(id) => {
           const next = database.schema.properties.find((p) => p.id === id);
           if (!next) return;
-          onChange({
-            propertyId: id,
-            operator: operatorsFor(next.type)[0]?.value ?? 'is_empty',
-            value: next.type === 'checkbox' ? true : '',
-          });
+          onChange({ propertyId: id, ...startCondition(next) });
         }}
       />
       <OptionSelect
@@ -311,6 +308,7 @@ function ConditionRow({ database, filter, onChange, onRemove }: ConditionRowProp
       />
       <View className="min-w-32 flex-1">
         <ConditionValueInput
+          workspaceId={database.workspaceId}
           property={property ?? null}
           operator={filter.operator}
           value={filter.value}
@@ -387,76 +385,230 @@ function PropertyMenu({ label, properties, onPick }: PropertyMenuProps) {
 }
 
 interface ConditionValueInputProps {
+  workspaceId: string;
   property: DatabaseProperty | null;
   operator: string;
   value: unknown;
   onChange: (next: unknown) => void;
 }
 
-function ConditionValueInput({ property, operator, value, onChange }: ConditionValueInputProps) {
+/**
+ * The value a condition compares with, in the form its property holds it: an
+ * option, a member or a row is picked by its id and a date from a calendar;
+ * only text, a number and a count of days are typed.
+ */
+function ConditionValueInput({
+  workspaceId,
+  property,
+  operator,
+  value,
+  onChange,
+}: ConditionValueInputProps) {
   const { t } = useTranslation();
   // Operators that don't take a value
   if (operator === 'is_empty' || operator === 'is_not_empty') {
     return <View />;
   }
 
-  if (property?.type === 'checkbox') {
+  switch (property?.type) {
+    case 'checkbox':
+      return (
+        <SegmentedControl
+          type="radio"
+          size="sm"
+          className="self-start"
+          label={t('databases.filters.value')}
+          value={value === true ? 'checked' : value === false ? 'unchecked' : ''}
+          onValueChange={(next) => onChange(next === 'checked')}
+        >
+          <SegmentedControlItem value="checked">
+            <SegmentedControlItemText>{t('databases.filters.checked')}</SegmentedControlItemText>
+          </SegmentedControlItem>
+          <SegmentedControlItem value="unchecked">
+            <SegmentedControlItemText>{t('databases.filters.unchecked')}</SegmentedControlItemText>
+          </SegmentedControlItem>
+        </SegmentedControl>
+      );
+    case 'select':
+    case 'status':
+    case 'multi_select':
+      return (
+        <ChoiceChips
+          choices={(property.config?.options ?? []).map((o) => ({ value: o.id, label: o.name }))}
+          value={value}
+          onChange={onChange}
+        />
+      );
+    case 'person':
+    case 'created_by':
+    case 'last_edited_by':
+      return <MemberChoice workspaceId={workspaceId} value={value} onChange={onChange} />;
+    case 'relation':
+      return (
+        <RowChoice
+          databaseId={property.config?.targetDatabaseId}
+          value={value}
+          onChange={onChange}
+        />
+      );
+    case 'date':
+    case 'created_time':
+    case 'last_edited_time':
+      return operator === 'in_last' || operator === 'in_next' ? (
+        <NumberInput label={t('databases.filters.days')} value={value} onChange={onChange} />
+      ) : (
+        <DateChoice value={value} onChange={onChange} />
+      );
+    case 'number':
+      return <NumberInput label={t('databases.filters.value')} value={value} onChange={onChange} />;
+    default:
+      return (
+        <TextFieldInput
+          size="sm"
+          value={typeof value === 'string' ? value : String(value ?? '')}
+          onChangeText={onChange}
+          label={t('databases.filters.value')}
+        />
+      );
+  }
+}
+
+/** A typed number, or a count of days: sent as a number once it reads as one. */
+function NumberInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: unknown;
+  onChange: (next: unknown) => void;
+}) {
+  return (
+    <TextFieldInput
+      size="sm"
+      value={typeof value === 'string' ? value : String(value ?? '')}
+      onChangeText={(text) =>
+        onChange(text.trim() && Number.isFinite(Number(text)) ? Number(text) : text)
+      }
+      keyboardType="numeric"
+      label={label}
+    />
+  );
+}
+
+interface ChoiceChipsProps {
+  choices: { value: string; label: string }[];
+  value: unknown;
+  onChange: (next: string) => void;
+}
+
+/** One of a set of choices, sent by its id: an option, a member, a row. */
+function ChoiceChips({ choices, value, onChange }: ChoiceChipsProps) {
+  const { t } = useTranslation();
+  if (choices.length === 0) {
     return (
-      <SegmentedControl
-        type="radio"
-        size="sm"
-        className="self-start"
-        label={t('databases.filters.value')}
-        value={value === true ? 'checked' : value === false ? 'unchecked' : ''}
-        onValueChange={(next) => onChange(next === 'checked')}
-      >
-        <SegmentedControlItem value="checked">
-          <SegmentedControlItemText>{t('databases.filters.checked')}</SegmentedControlItemText>
-        </SegmentedControlItem>
-        <SegmentedControlItem value="unchecked">
-          <SegmentedControlItemText>{t('databases.filters.unchecked')}</SegmentedControlItemText>
-        </SegmentedControlItem>
-      </SegmentedControl>
+      <Text className="py-1 text-sm text-muted-foreground">{t('databases.filters.noChoices')}</Text>
     );
   }
-
-  if (property?.type === 'select' || property?.type === 'status') {
-    const opts = property.config?.options ?? [];
-    return (
+  return (
+    <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled>
       <View
         accessibilityRole="radiogroup"
         accessibilityLabel={t('databases.filters.value')}
         className="flex-row flex-wrap gap-1"
       >
-        {opts.map((o) => (
+        {choices.map((choice) => (
           <Chip
-            key={o.id}
+            key={choice.value}
             size="sm"
             role="radio"
-            selected={value === o.id}
-            onPress={() => onChange(o.id)}
+            selected={value === choice.value}
+            onPress={() => onChange(choice.value)}
           >
-            {o.name}
+            {choice.label}
           </Chip>
         ))}
       </View>
-    );
-  }
+    </ScrollView>
+  );
+}
 
-  const text = typeof value === 'string' ? value : String(value ?? '');
+/** A person of the workspace, by user id. */
+function MemberChoice({
+  workspaceId,
+  value,
+  onChange,
+}: {
+  workspaceId: string;
+  value: unknown;
+  onChange: (next: string) => void;
+}) {
+  const { data: members = [] } = useWorkspaceMembers(workspaceId);
   return (
-    <TextFieldInput
-      size="sm"
-      value={text}
-      onChangeText={(text) =>
+    <ChoiceChips
+      choices={members.map((m) => ({ value: m.userId, label: memberProfileName(m) ?? m.userId }))}
+      value={value}
+      onChange={onChange}
+    />
+  );
+}
+
+/** A row of the relation's database, by page id: its first hundred, searched by title. */
+function RowChoice({
+  databaseId,
+  value,
+  onChange,
+}: {
+  databaseId: string | undefined;
+  value: unknown;
+  onChange: (next: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [search, setSearch] = React.useState('');
+  const { data } = useDatabaseRows(databaseId, null);
+  const needle = search.trim().toLowerCase();
+  const rows = (data?.rows ?? []).filter(
+    (row) => !needle || row.title.toLowerCase().includes(needle),
+  );
+  return (
+    <View className="gap-1">
+      <TextFieldInput
+        size="sm"
+        value={search}
+        onChangeText={setSearch}
+        label={t('databases.filters.searchRows')}
+      />
+      <ChoiceChips
+        choices={rows.map((row) => ({
+          value: row.id,
+          label: row.title || t('databases.untitled'),
+        }))}
+        value={value}
+        onChange={onChange}
+      />
+    </View>
+  );
+}
+
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})/;
+
+/** A day from a calendar, sent as `YYYY-MM-DD`: the UTC day a date filter compares. */
+function DateChoice({ value, onChange }: { value: unknown; onChange: (next: string) => void }) {
+  const { t, locale } = useTranslation();
+  const day = typeof value === 'string' ? ISO_DAY.exec(value) : null;
+  const selected = day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : null;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    <DatePicker
+      value={selected}
+      locale={locale}
+      accessibilityLabel={t('databases.filters.value')}
+      placeholder={t('databases.filters.pickDate')}
+      onChange={(next) =>
         onChange(
-          property?.type === 'number' && text.trim() && Number.isFinite(Number(text))
-            ? Number(text)
-            : text,
+          next ? `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}` : '',
         )
       }
-      keyboardType={property?.type === 'number' ? 'numeric' : 'default'}
-      label={t('databases.filters.value')}
     />
   );
 }
@@ -470,10 +622,18 @@ function countFilters(group: FilterGroup): number {
   return count;
 }
 
-function cloneFilterGroup(group: FilterGroup): FilterGroup {
+/**
+ * A copy of `group` without the conditions on a property not among
+ * `propertyIds`, and without a nested group left with none.
+ */
+function cloneFilterGroup(group: FilterGroup, propertyIds: ReadonlySet<string>): FilterGroup {
   return {
     kind: 'group',
     combinator: group.combinator,
-    filters: group.filters.map((f) => (f.kind === 'condition' ? { ...f } : cloneFilterGroup(f))),
+    filters: group.filters.flatMap((f): Filter[] => {
+      if (f.kind === 'condition') return propertyIds.has(f.propertyId) ? [{ ...f }] : [];
+      const child = cloneFilterGroup(f, propertyIds);
+      return child.filters.length > 0 || f.filters.length === 0 ? [child] : [];
+    }),
   };
 }

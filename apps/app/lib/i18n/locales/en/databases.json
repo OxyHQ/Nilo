@@ -98,8 +98,16 @@
       "before": "before",
       "after": "after",
       "onOrBefore": "on or before",
-      "onOrAfter": "on or after"
-    }
+      "onOrAfter": "on or after",
+      "doesNotEqual": "does not equal",
+      "inLast": "in the last",
+      "inNext": "in the next"
+    },
+    "days": "Days",
+    "saveFailed": "Could not save the filters. Try again.",
+    "noChoices": "Nothing to choose from",
+    "searchRows": "Search rows",
+    "pickDate": "Pick a date"
   },
   "sorts": {
     "title": "Sort",
@@ -112,7 +120,8 @@
   },
   "board": {
     "needsGroupProperty": "Add a status or select property to use the board view.",
-    "noStatus": "No status"
+    "noStatus": "No status",
+    "loadMore": "Load more"
   },
   "gallery": {
     "newCard": "New card"

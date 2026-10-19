@@ -2,8 +2,9 @@ import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Chip } from '@oxy.so/bloom/chip';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useDatabaseRow } from '@/lib/hooks/use-database-rows';
+import { useRelatedRows } from '@/lib/hooks/use-database-rows';
 
+/** The rows a relation points at, as pills that open them; read in one request for the cell. */
 export function RelationCell({
   value,
   targetDatabaseId,
@@ -11,31 +12,37 @@ export function RelationCell({
   value: string[];
   targetDatabaseId?: string;
 }) {
-  return (
-    <View className="flex-row flex-wrap gap-1">
-      {value.map((id) => (
-        <RelatedRow key={id} id={id} databaseId={targetDatabaseId} />
-      ))}
-    </View>
-  );
-}
-
-function RelatedRow({ id, databaseId }: { id: string; databaseId?: string }) {
-  const { data, isError } = useDatabaseRow(databaseId, id);
+  const { data, isError } = useRelatedRows(targetDatabaseId, value);
   const router = useRouter();
   const { t } = useTranslation();
-  const title =
-    data?.title ||
-    t(isError ? 'databases.relations.unavailable' : data ? 'databases.untitled' : 'common.loading');
+  const byId = new Map((data ?? []).map((row) => [row.id, row]));
   return (
-    <Chip
-      size="sm"
-      // The cell or card around the pill opens the row.
-      stopPropagation
-      accessibilityLabel={title}
-      onPress={() => router.push({ pathname: '/p/[pageId]', params: { pageId: id } })}
-    >
-      {title}
-    </Chip>
+    <View className="flex-row flex-wrap gap-1">
+      {value.map((id) => {
+        const row = byId.get(id);
+        // Read, and not there: no longer a live row of the related database.
+        const title =
+          row?.title ||
+          t(
+            row
+              ? 'databases.untitled'
+              : isError || data
+                ? 'databases.relations.unavailable'
+                : 'common.loading',
+          );
+        return (
+          <Chip
+            key={id}
+            size="sm"
+            // The cell or card around the pill opens the row.
+            stopPropagation
+            accessibilityLabel={title}
+            onPress={() => router.push({ pathname: '/p/[pageId]', params: { pageId: id } })}
+          >
+            {title}
+          </Chip>
+        );
+      })}
+    </View>
   );
 }

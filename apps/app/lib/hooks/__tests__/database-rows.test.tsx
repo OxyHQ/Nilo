@@ -4,6 +4,8 @@ import apiClient from '@/lib/api/client';
 import { useDatabaseRows, useUpdateRow } from '../use-database-rows';
 import { invalidateLiveQueries } from '@/lib/realtime/use-live-updates';
 import { queryKeys } from '../query-keys';
+import { useVisibleDatesStore } from '@/lib/stores/visible-dates-store';
+import { visibleDatesFilter } from '@/lib/visible-dates';
 import type { DatabaseRowsResponse, DatabaseViewType } from '@/lib/types/databases';
 
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
@@ -39,6 +41,7 @@ async function mount() {
 }
 beforeEach(() => {
   jest.clearAllMocks();
+  useVisibleDatesStore.setState({ byView: {} });
   type = 'table';
   client = new QueryClient({
     defaultOptions: {
@@ -66,7 +69,7 @@ afterEach(() => {
   client.clear();
 });
 
-it.each(['table', 'list', 'gallery'] as const)(
+it.each(['table', 'list', 'gallery', 'board'] as const)(
   '%s fetches 100 initially and only fetches more on demand',
   async (viewType) => {
     type = viewType;
@@ -95,12 +98,47 @@ it.each(['table', 'list', 'gallery'] as const)(
     expect(rows.data?.rows).toHaveLength(300);
   },
 );
-it.each(['board', 'calendar', 'timeline'] as const)('%s still loads all rows', async (viewType) => {
-  type = viewType;
-  await mount();
-  expect(rows.data?.rows).toHaveLength(300);
-  expect(rows.hasNextPage).toBe(false);
-});
+it.each(['calendar', 'timeline'] as const)(
+  '%s reads nothing until it shows its dates, then every row of those dates only',
+  async (viewType) => {
+    type = viewType;
+    await mount();
+    expect(apiClient.get).not.toHaveBeenCalled();
+    const dates = visibleDatesFilter({
+      startPropertyId: 'due',
+      from: new Date('2026-10-01T00:00:00Z'),
+      to: new Date('2026-10-31T00:00:00Z'),
+    });
+    act(() => useVisibleDatesStore.getState().show('view', dates));
+    await tick();
+    expect(rows.data?.rows).toHaveLength(300);
+    expect(rows.hasNextPage).toBe(false);
+    expect(apiClient.get).toHaveBeenCalledTimes(3);
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/databases/db/rows',
+      expect.objectContaining({
+        params: { viewId: 'view', pageSize: '100', filter: JSON.stringify(dates) },
+      }),
+    );
+
+    // Another month is read on its own, the one it leaves shown meanwhile.
+    jest.mocked(apiClient.get).mockClear();
+    const next = visibleDatesFilter({
+      startPropertyId: 'due',
+      from: new Date('2026-11-01T00:00:00Z'),
+      to: new Date('2026-11-30T00:00:00Z'),
+    });
+    act(() => useVisibleDatesStore.getState().show('view', next));
+    expect(rows.data?.rows).toHaveLength(300);
+    await tick();
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/databases/db/rows',
+      expect.objectContaining({
+        params: expect.objectContaining({ filter: JSON.stringify(next) }),
+      }),
+    );
+  },
+);
 it('a live database event refetches only the two loaded pages', async () => {
   await mount();
   await act(async () => {
