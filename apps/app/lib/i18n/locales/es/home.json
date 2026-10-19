@@ -3,5 +3,16 @@
   "selectWorkspace": "Selecciona un espacio de trabajo en la barra lateral para empezar.",
   "empty": "Tu espacio de trabajo está vacío. Crea tu primera página para empezar.",
   "creating": "Creando…",
-  "createFirstPage": "Crea tu primera página"
+  "createFirstPage": "Crea tu primera página",
+  "greeting": {
+    "morning": "Buenos días, %{name}",
+    "afternoon": "Buenas tardes, %{name}",
+    "evening": "Buenas noches, %{name}",
+    "morningAnonymous": "Buenos días",
+    "afternoonAnonymous": "Buenas tardes",
+    "eveningAnonymous": "Buenas noches"
+  },
+  "newPage": "Nueva página",
+  "recentlyVisited": "Visitadas recientemente",
+  "noRecent": "Las páginas que abras en este dispositivo aparecerán aquí."
 }

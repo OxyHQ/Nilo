@@ -40,6 +40,7 @@ import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { useUnreadCount } from '@/lib/hooks/use-notifications';
 import {
   SidebarAskAliaButton,
+  SidebarHomeButton,
   SidebarSearchButton,
   SidebarInboxButton,
   SidebarSettingsButton,
@@ -209,7 +210,12 @@ export const Sidebar = React.memo(function Sidebar() {
       {/* Scrollable middle: search + nav + sections */}
       <ScrollView className="min-h-0 flex-1" showsVerticalScrollIndicator={false}>
         <View className="px-1 py-1 gap-0.5">
-          {isAuthenticated ? <SidebarSearchButton /> : null}
+          {isAuthenticated ? (
+            <>
+              <SidebarSearchButton />
+              <SidebarHomeButton />
+            </>
+          ) : null}
           <SidebarAskAliaButton />
           {isAuthenticated ? (
             <>
