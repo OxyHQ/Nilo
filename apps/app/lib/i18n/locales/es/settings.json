@@ -51,7 +51,7 @@
   },
   "offline": {
     "description": "Las páginas guardadas en este dispositivo se abren sin conexión. Las que marcas como disponibles sin conexión se quedan hasta que las quites; también se guardan las últimas que abriste.",
-    "webOnly": "Las páginas se guardan sin conexión en la app de Nilo para iOS y Android.",
+    "webOnly": "Este navegador no puede guardar páginas sin conexión.",
     "empty": "Todavía no hay páginas guardadas en este dispositivo.",
     "total": {
       "one": "%{count} página · %{size}",
