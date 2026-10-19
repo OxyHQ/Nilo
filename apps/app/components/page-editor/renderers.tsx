@@ -7,7 +7,6 @@ import { BookmarkBlock } from '@/components/editor/blocks/bookmark-block';
 import { BreadcrumbBlock } from '@/components/editor/blocks/breadcrumb-block';
 import { ButtonBlock } from '@/components/editor/blocks/button-block';
 import { ChildPageBlock } from '@/components/editor/blocks/child-page-block';
-import { CodeLanguagePicker, CodeView } from '@/components/editor/blocks/code-view';
 import { BlockCommentMarker } from '@/components/comments/comment-indicator';
 import { ColumnBlock } from '@/components/editor/blocks/column-block';
 import { ColumnsBlock } from '@/components/editor/blocks/columns-block';
@@ -65,12 +64,6 @@ function adapt(
       </>
     );
   };
-}
-
-/** A code block as a reader sees it: highlighted for its language. */
-function ReadOnlyCode({ block }: BlockRendererProps) {
-  const code = (block.text ?? []).map((segment) => segment.text).join('');
-  return <CodeView code={code} language={block.props.language} />;
 }
 
 /** Headings, read live from the document; pressing one scrolls to it on web. */
@@ -141,15 +134,11 @@ function NoteInDocument({ renderChildren }: BlockRendererProps) {
 }
 
 /**
- * Every block type Nilo draws itself, keyed by type. A reader's code blocks
- * are drawn highlighted; an editor writes in the editor's own text block,
- * which has no way to colour what is typed in it.
+ * Every block type Nilo draws itself, keyed by type. Code blocks are Bloom's:
+ * it draws them highlighted (`highlightCode`, `editor-extras.ts`) and offers
+ * their language (`codeLanguages`).
  */
-export function createRenderers(
-  pageId: string,
-  store: EditorStore,
-  readOnly = false,
-): Record<string, BlockRenderer> {
+export function createRenderers(pageId: string, store: EditorStore): Record<string, BlockRenderer> {
   const own = (Component: ComponentType<BlockComponentProps>) => adapt(Component, pageId, store);
   return {
     inline_database: own(InlineDatabaseBlock),
@@ -173,7 +162,6 @@ export function createRenderers(
     equation: own(EquationBlock),
     mermaid: own(MermaidBlock),
     table_of_contents: () => <TableOfContents store={store} />,
-    ...(readOnly ? { code: ReadOnlyCode } : {}),
   };
 }
 
@@ -195,7 +183,7 @@ function CalloutMarker({ value, onPress }: { value: unknown; onPress?: () => voi
 
 /**
  * Markers Nilo draws beside text blocks: a callout's icon (an editor presses
- * it to pick another) and, for an editor, a code block's language.
+ * it to pick another).
  */
 export function createMarkers({
   onPickCalloutIcon,
@@ -210,12 +198,5 @@ export function createMarkers({
         onPress={readOnly || !onPickCalloutIcon ? undefined : () => onPickCalloutIcon(block.id)}
       />
     ),
-    code: ({ block, readOnly, updateProps }) =>
-      readOnly ? null : (
-        <CodeLanguagePicker
-          language={block.props.language}
-          onChange={(language) => updateProps({ language })}
-        />
-      ),
   };
 }

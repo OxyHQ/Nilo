@@ -214,7 +214,11 @@
     "checkbox": "Hecho",
     "comment": "Comentar",
     "mentionNoResults": "Sin resultados",
-    "mentionSearching": "Buscando…"
+    "mentionSearching": "Buscando…",
+    "textColor": "Color del texto",
+    "copyBlockLink": "Copiar enlace al bloque",
+    "codeLanguage": "Lenguaje",
+    "codeLanguageSearch": "Buscar lenguajes"
   },
   "slashGroups": {
     "basic": "Bloques básicos",
@@ -443,5 +447,7 @@
       "plain": "Texto sin formato",
       "language": "Lenguaje: %{language}"
     }
-  }
+  },
+  "blockLinkCopied": "Enlace al bloque copiado",
+  "codePlain": "Texto plano"
 }

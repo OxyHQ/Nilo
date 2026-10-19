@@ -3,7 +3,6 @@ import { EditorStore } from '@oxy.so/bloom-editor/model';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
-import { CodeLanguagePicker, CodeView } from '@/components/editor/blocks/code-view';
 import { createMarkers, createRenderers } from '../renderers';
 
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ oxyServices: {} }) }));
@@ -63,25 +62,9 @@ const mount = (node: React.ReactNode) =>
   });
 
 describe('code blocks', () => {
-  it("are highlighted for a reader, and an editor's are left to the editor's text block", () => {
-    const reader = createRenderers('page', store, true);
-    const editor = createRenderers('page', store, false);
-    expect(editor.code).toBeUndefined();
-    mount(reader.code?.(props(code, true)));
-    const view = renderer.root.findByType(CodeView);
-    expect(view.props).toMatchObject({ code: 'SELECT 1', language: 'sql' });
-    expect(JSON.stringify(renderer.toJSON())).toContain('SQL');
-  });
-
-  it('offer an editor their language beside the code, and store the one picked', () => {
-    const markers = createMarkers();
-    expect(markers.code?.(props(code, true))).toBeNull();
-    const updateProps = jest.fn();
-    mount(markers.code?.(props(code, false, updateProps)));
-    const picker = renderer.root.findByType(CodeLanguagePicker);
-    expect(picker.props.language).toBe('sql');
-    act(() => picker.props.onChange('python'));
-    expect(updateProps).toHaveBeenCalledWith({ language: 'python' });
+  it('are Bloom’s: highlighted and given their language by the editor, not a renderer or marker', () => {
+    expect(createRenderers('page', store).code).toBeUndefined();
+    expect(createMarkers().code).toBeUndefined();
   });
 });
 
