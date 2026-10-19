@@ -77,9 +77,10 @@ function serializeWorkspace(
 /**
  * GET /api/workspaces
  *
- * Lists every workspace the caller is a member of, sorted by most recent
- * join. Personal workspace is created lazily on first access via the
- * `ensurePersonalWorkspace` middleware.
+ * Lists every workspace the caller is a member of: the personal one first,
+ * then the newest workspace first (by when it was created, not when the
+ * caller joined it). Personal workspace is created lazily on first access via
+ * the `ensurePersonalWorkspace` middleware.
  */
 router.get('/', authenticateToken, ensurePersonalWorkspace, async (req: Request, res: Response) => {
   try {
@@ -123,7 +124,7 @@ router.get('/', authenticateToken, ensurePersonalWorkspace, async (req: Request,
           role,
         );
       })
-      // Stable ordering: personal first, then most recently joined.
+      // Stable ordering: personal first, then the newest workspace.
       .sort((a, b) => {
         if (a.isPersonal !== b.isPersonal) return a.isPersonal ? -1 : 1;
         return b.createdAt.getTime() - a.createdAt.getTime();

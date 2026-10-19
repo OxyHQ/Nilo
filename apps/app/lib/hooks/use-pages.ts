@@ -283,29 +283,3 @@ export function useEmptyTrash() {
     },
   });
 }
-
-/**
- * Builds a tree from a flat list of pages. Pages with parentId === null are
- * roots. Children are ordered by `updatedAt` descending (most recent first).
- */
-export function buildPageTree(pages: Page[]) {
-  const byId = new Map<string, { page: Page; children: Page[] }>();
-  for (const page of pages) {
-    if (page.template) continue;
-    byId.set(page.id, { page, children: [] });
-  }
-  const roots: Page[] = [];
-  for (const page of pages) {
-    if (page.template) continue;
-    if (page.parentId && byId.has(page.parentId)) {
-      byId.get(page.parentId)?.children.push(page);
-    } else {
-      roots.push(page);
-    }
-  }
-  for (const node of byId.values()) {
-    node.children.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  }
-  roots.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  return { roots, byId };
-}
