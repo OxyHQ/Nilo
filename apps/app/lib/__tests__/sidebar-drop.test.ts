@@ -1,4 +1,4 @@
-import { planSidebarDrop } from '../sidebar-drop';
+import { dropPositionAt, dropTargetAt, planSidebarDrop } from '../sidebar-drop';
 import type { Page } from '../types/pages';
 
 const page = (id: string, order: number, patch: Partial<Page> = {}) =>
@@ -87,5 +87,28 @@ describe('dropping a page in the sidebar', () => {
     expect(
       planSidebarDrop({ pages: tree, sourceId: 'a', targetId: 'child', position: 'inside' }),
     ).toBeNull();
+  });
+});
+
+describe('the row under a finger dragging a page (native)', () => {
+  const rows = [
+    { id: 'a', y: 100, height: 28 },
+    { id: 'b', y: 128, height: 28 },
+    { id: 'gone', y: 156, height: 0 },
+  ];
+
+  it('lands before, inside or after a row by how far down it the finger is', () => {
+    expect(dropPositionAt(0.1)).toBe('before');
+    expect(dropPositionAt(0.5)).toBe('inside');
+    expect(dropPositionAt(0.9)).toBe('after');
+    expect(dropTargetAt(rows, 130, 'a')).toEqual({ targetId: 'b', position: 'before' });
+    expect(dropTargetAt(rows, 142, 'a')).toEqual({ targetId: 'b', position: 'inside' });
+    expect(dropTargetAt(rows, 155, 'a')).toEqual({ targetId: 'b', position: 'after' });
+  });
+
+  it('lands nowhere over the dragged row itself, between rows or over a hidden one', () => {
+    expect(dropTargetAt(rows, 110, 'a')).toBeNull();
+    expect(dropTargetAt(rows, 90, 'a')).toBeNull();
+    expect(dropTargetAt(rows, 156, 'a')).toBeNull();
   });
 });
