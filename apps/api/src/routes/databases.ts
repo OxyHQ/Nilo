@@ -78,6 +78,8 @@ import {
   resolveDatabaseRole,
 } from '../lib/page-access.js';
 import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
+import { listDatabasePeople } from '../lib/databases/people.js';
+import { loadMemberProfiles } from '../lib/member-profiles.js';
 import { hasRole } from '../db/schema/workspaces.js';
 import { buildDefaultSchema, NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
 import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
@@ -1216,6 +1218,34 @@ router.get('/:id/rows/:rowId', async (req: Request, res: Response) => {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to read row');
     res.status(500).json({ error: 'Failed to read row' });
+  }
+});
+
+/**
+ * GET /databases/:id/people — who a person property of this database can
+ * name (`lib/databases/people.ts`), with their Oxy profiles: what the cell's
+ * picker offers. For its editors only, who are the ones setting people; a
+ * guest who may only read a page is not handed the workspace's member list.
+ */
+router.get('/:id/people', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ id: entityIdSchema }).parse(req.params);
+    const handle = getDb();
+    const db = await findDatabaseById(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+    if (!(await checkDatabaseAccess(req, res, handle, db, 'editor'))) return;
+    const people = await listDatabasePeople(handle, db.workspaceId);
+    const profiles = await loadMemberProfiles(people.map((p) => p.userId));
+    res.json({
+      people: people.map((p) => ({ ...p, user: profiles.get(p.userId) ?? null })),
+    });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to list database people');
+    res.status(500).json({ error: 'Failed to list people' });
   }
 });
 
