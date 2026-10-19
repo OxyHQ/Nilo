@@ -213,7 +213,7 @@ export function tableToDatabase(table: readonly (readonly string[])[]): CsvDatab
 }
 
 /** Types whose values are computed or point at other records: not written to CSV. */
-const NOT_EXPORTED = new Set<DatabasePropertyType>(['formula', 'rollup']);
+const NOT_EXPORTED = new Set<DatabasePropertyType>(['formula', 'rollup', 'button']);
 
 /**
  * A database's rows as a table: a header of property names, then one line

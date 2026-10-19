@@ -18,7 +18,7 @@
  *   - Person from people only (a created-by or edited-by value too), files
  *     from files only.
  *   - To a computed type (formula, rollup, created or edited time or by, ID):
- *     cleared; the server computes those.
+ *     cleared; the server computes those. To a button: cleared; it holds none.
  *
  * Computed types converted to a stored one keep what they showed: the caller
  * passes their computed values. Pure: the route reads the rows and writes back
@@ -46,9 +46,11 @@ const COMPUTED_TYPES: ReadonlySet<DatabasePropertyType> = new Set([
   'created_by',
   'last_edited_by',
   'unique_id',
+  // Holds no value at all: it runs its actions.
+  'button',
 ]);
 
-/** Whether the server computes a type's values rather than storing what clients write. */
+/** Whether the server computes a type's values (or a button: none) rather than storing what clients write. */
 export function isComputedType(type: DatabasePropertyType): boolean {
   return COMPUTED_TYPES.has(type);
 }

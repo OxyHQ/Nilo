@@ -88,6 +88,7 @@ export interface DatabaseViewRecord {
   filters: FilterGroup;
   sorts: ViewSort[];
   groupBy: ViewGroupBy | null;
+  subGroupBy: ViewGroupBy | null;
   hiddenProperties: string[];
   frozenProperties: string[];
   pageSize: number;
@@ -131,6 +132,7 @@ function toViewRecord(row: DatabaseViewRow): DatabaseViewRecord {
     filters: row.filters,
     sorts: row.sorts,
     groupBy: row.groupBy,
+    subGroupBy: row.subGroupBy,
     hiddenProperties: row.hiddenProperties,
     frozenProperties: row.frozenProperties,
     pageSize: row.pageSize,
@@ -480,6 +482,7 @@ export interface InsertDatabaseViewInput {
   filters: FilterGroup;
   sorts: ViewSort[];
   groupBy: ViewGroupBy | null;
+  subGroupBy?: ViewGroupBy | null;
   hiddenProperties: string[];
   frozenProperties: string[];
   pageSize: number;
@@ -506,6 +509,7 @@ export interface UpdateDatabaseViewInput {
   filters?: FilterGroup;
   sorts?: ViewSort[];
   groupBy?: ViewGroupBy | null;
+  subGroupBy?: ViewGroupBy | null;
   hiddenProperties?: string[];
   frozenProperties?: string[];
   pageSize?: number;
@@ -532,6 +536,7 @@ export async function updateDatabaseView(
   if (patch.filters !== undefined) values.filters = patch.filters;
   if (patch.sorts !== undefined) values.sorts = patch.sorts;
   if (patch.groupBy !== undefined) values.groupBy = patch.groupBy;
+  if (patch.subGroupBy !== undefined) values.subGroupBy = patch.subGroupBy;
   if (patch.hiddenProperties !== undefined) values.hiddenProperties = patch.hiddenProperties;
   if (patch.frozenProperties !== undefined) values.frozenProperties = patch.frozenProperties;
   if (patch.pageSize !== undefined) values.pageSize = patch.pageSize;

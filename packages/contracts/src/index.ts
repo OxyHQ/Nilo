@@ -27,10 +27,30 @@ export {
 } from './files';
 export { MAX_DOC_UPDATE_BYTES } from './collab';
 export {
+  acceptsCalculation,
   acceptsFilterOperator,
+  BUTTON_ACTION_KINDS,
+  type ButtonAction,
+  type ButtonActionKind,
+  CALCULATION_FUNCTIONS,
+  CALCULATIONS_BY_TYPE,
+  type CalculationFunction,
+  CHART_AGGREGATES,
+  CHART_TYPES,
+  type ChartAggregate,
+  type ChartType,
   DATABASE_PROPERTY_TYPES,
+  DATE_GROUP_GRANULARITIES,
   type DatabasePropertyType,
+  type DateGroupGranularity,
   FILTER_OPERATORS_BY_TYPE,
+  GROUPABLE_PROPERTY_TYPES,
+  isGroupableType,
+  MAX_BUTTON_ACTIONS,
+  MAX_COLUMN_WIDTH,
+  MIN_COLUMN_WIDTH,
+  OPEN_ROW_MODES,
+  type OpenRowMode,
 } from './databases';
 export { isEntityId } from './ids';
 export { compareOrder, MIN_ORDER_GAP, placeAfter, type Sibling } from './order';
