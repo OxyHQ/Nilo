@@ -4,15 +4,21 @@ import type { PageProperties } from '../../db/schema/pages.js';
 import { findDatabaseById } from '../../repositories/databases.js';
 import { findPagesByIds } from '../../repositories/pages.js';
 import { resolveDatabaseRole } from '../page-access.js';
+import { isEmptyValue, valueText } from './property-conversion.js';
+import { NAME_PROPERTY_ID } from './schema-defaults.js';
 
 /**
  * Rollup values for rows of one database.
  *
  * Behaviour:
  *   - one-way relations only (we do not propagate two-way back-refs yet)
- *   - functions: count | sum | avg | min | max | earliest | latest
+ *   - functions: count | sum | avg | min | max | earliest | latest |
+ *     show_original | percent_empty | percent_not_empty
  *   - target property must be a number (for sum/avg/min/max) or a date
- *     (for earliest/latest); other shapes give `null`.
+ *     (for earliest/latest); other shapes give `null`. "Show original" lists
+ *     the related values as people read them (`valueText`), comma-separated;
+ *     the percentages are of the related rows, 0 to 100, to two decimals,
+ *     an unchecked checkbox counting as empty as in Notion.
  *
  * `null` when a rollup cannot be resolved (missing config, missing target
  * database…) so the UI can render an em-dash placeholder.
@@ -47,9 +53,23 @@ function relatedIds(row: RowLike, relationPropertyId: string): string[] | null {
 function computeRollup(
   fn: string,
   target: DatabaseProperty,
-  related: readonly { properties: PageProperties }[],
+  related: readonly { title?: string; properties: PageProperties }[],
 ): RollupValue {
+  // The Name of a row is its title.
+  const targetValue = (r: (typeof related)[number]) =>
+    target.id === NAME_PROPERTY_ID ? { text: r.title ?? '' } : r.properties[target.id];
   if (related.length === 0) return null;
+  if (fn === 'show_original') {
+    return related
+      .map((r) => valueText(target, targetValue(r)))
+      .filter((text) => text !== '')
+      .join(', ');
+  }
+  if (fn === 'percent_empty' || fn === 'percent_not_empty') {
+    const empty = related.filter((r) => isEmptyValue(targetValue(r))).length;
+    const share = (fn === 'percent_empty' ? empty : related.length - empty) / related.length;
+    return Math.round(share * 10_000) / 100;
+  }
   const numbers: number[] = [];
   const dates: number[] = [];
   for (const r of related) {

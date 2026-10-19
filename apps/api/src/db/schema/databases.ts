@@ -80,20 +80,63 @@ export interface SelectOption {
 
 export type NumberFormat =
   | 'number'
+  | 'number_with_commas'
   | 'percent'
   | 'currency:USD'
   | 'currency:EUR'
   | 'currency:GBP'
   | 'currency:JPY';
 
+/**
+ * A status property's groups, as Notion's: every option is in exactly one, and
+ * they are always these three, in this order (`normalizeStatusGroups`). Their
+ * names are the app's to translate, so only the id is stored.
+ */
+export const STATUS_GROUP_IDS = ['todo', 'in_progress', 'complete'] as const;
+export type StatusGroupId = (typeof STATUS_GROUP_IDS)[number];
+
+export interface StatusGroup {
+  id: StatusGroupId;
+  optionIds: string[];
+}
+
+/** How a date property shows its dates; absent, the reader's locale's default. */
+export const DATE_FORMATS = [
+  'full',
+  'short',
+  'month_day_year',
+  'day_month_year',
+  'iso',
+  'relative',
+] as const;
+export type DateFormat = (typeof DATE_FORMATS)[number];
+
+export const ROLLUP_FUNCTIONS = [
+  'count',
+  'sum',
+  'avg',
+  'min',
+  'max',
+  'earliest',
+  'latest',
+  /** The related values themselves, listed. */
+  'show_original',
+  'percent_empty',
+  'percent_not_empty',
+] as const;
+export type RollupFunction = (typeof ROLLUP_FUNCTIONS)[number];
+
 export interface PropertyConfig {
   // select / multi_select / status
   options?: SelectOption[];
+  // status
+  groups?: StatusGroup[];
   // number
   format?: NumberFormat;
   precision?: number;
   // date
   includeTime?: boolean;
+  dateFormat?: DateFormat;
   // relation
   targetDatabaseId?: string;
   /** Two-way: the other side is a relation property of the target database. */
@@ -103,7 +146,7 @@ export interface PropertyConfig {
   // rollup
   relationPropertyId?: string;
   targetPropertyId?: string;
-  function?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'earliest' | 'latest';
+  function?: RollupFunction;
   // formula
   expression?: string;
   // unique_id
@@ -357,6 +400,11 @@ export const databases = pgTable(
      * (`routes/workspaces.ts:325-332`).
      */
     archived: boolean().notNull().default(false),
+    /**
+     * Locked, as in Notion: its properties and its own views cannot be changed
+     * (423 `DATABASE_LOCKED`) until it is unlocked; its rows stay editable.
+     */
+    locked: boolean().notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

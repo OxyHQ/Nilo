@@ -309,6 +309,8 @@ describe('columns', () => {
         // The app that keeps it (`lib/databases/system.ts`).
         'system_key',
         'archived',
+        // Its properties and own views not to be changed (`routes/databases.ts`).
+        'locked',
         'created_at',
         'updated_at',
       ]),
