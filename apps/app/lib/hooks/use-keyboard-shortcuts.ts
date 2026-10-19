@@ -4,27 +4,42 @@ import { Platform } from 'react-native';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 
+export type Shortcut = 'palette' | 'newPage' | 'sidebar' | 'shortcuts';
+
+/** The keys of each shortcut, as the shortcuts dialog shows them (`Mod`: ⌘ or Ctrl). */
+export const SHORTCUT_KEYS: Record<Shortcut, string[]> = {
+  palette: ['Mod', 'K'],
+  // Not Mod+N: a browser keeps that for a new window and never lets a page
+  // have it. Notion's web app uses this one.
+  newPage: ['Mod', 'Alt', 'N'],
+  sidebar: ['Mod', '\\'],
+  shortcuts: ['Mod', '/'],
+};
+
 /**
- * Returns true when the active element is an editable text surface (input,
- * textarea, contenteditable) so we don't hijack typing keystrokes.
- *
- * For Cmd+K / Cmd+N / Cmd+\ / Cmd+/ we still fire even inside inputs because
- * those use modifier+letter combos a user clearly intends to be app-wide.
+ * Which app-wide shortcut a key press is, if any. Modifier+key combos a user
+ * clearly means app-wide, so they fire inside text fields too, except Mod+/
+ * (an editor's own). Mod+[ is left to the browser: it is Back.
  */
-function isShortcutAllowedInEditor(): boolean {
-  return true;
+export function shortcutFor(
+  e: Pick<KeyboardEvent, 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'key' | 'code'>,
+  inEditor: boolean,
+): Shortcut | null {
+  if (!(e.metaKey || e.ctrlKey) || e.shiftKey) return null;
+  // With Alt (Option) a letter types another character: read the key's place.
+  if (e.altKey) return e.code === 'KeyN' ? 'newPage' : null;
+  const key = e.key.toLowerCase();
+  if (key === 'k') return 'palette';
+  if (key === '\\') return 'sidebar';
+  if (key === '/' && !inEditor) return 'shortcuts';
+  return null;
 }
 
-interface ShortcutContext {
-  inEditor: boolean;
-}
-
-function getShortcutContext(e: KeyboardEvent): ShortcutContext {
+function isEditing(e: KeyboardEvent): boolean {
   const target = e.target as HTMLElement | null;
-  if (!target) return { inEditor: false };
+  if (!target) return false;
   const tag = target.tagName?.toLowerCase();
-  const isEditable = tag === 'input' || tag === 'textarea' || target.isContentEditable === true;
-  return { inEditor: isEditable };
+  return tag === 'input' || tag === 'textarea' || target.isContentEditable === true;
 }
 
 /**
@@ -32,12 +47,11 @@ function getShortcutContext(e: KeyboardEvent): ShortcutContext {
  * have a meaningful Cmd/Ctrl convention for app-wide actions. Mounted once at
  * the (app) layout level.
  *
- * Shortcuts:
- *   - Cmd/Ctrl+K  → open command palette
- *   - Cmd/Ctrl+N  → create new root page in current workspace
- *   - Cmd/Ctrl+\  → toggle sidebar collapsed
- *   - Cmd/Ctrl+[  → toggle sidebar collapsed (alias)
- *   - Cmd/Ctrl+/  → toggle shortcuts dialog (only when not focused inside editor)
+ * Shortcuts (`SHORTCUT_KEYS`):
+ *   - Cmd/Ctrl+K      → open command palette
+ *   - Cmd/Ctrl+Alt+N  → create new root page in current workspace
+ *   - Cmd/Ctrl+\      → toggle sidebar collapsed
+ *   - Cmd/Ctrl+/      → toggle shortcuts dialog (only when not focused inside editor)
  */
 export function useKeyboardShortcuts() {
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
@@ -67,42 +81,15 @@ export function useKeyboardShortcuts() {
     if (typeof window === 'undefined') return;
 
     const onKeyDown = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
-      if (!isShortcutAllowedInEditor()) return;
-
-      const key = e.key.toLowerCase();
-      const ctx = getShortcutContext(e);
-
-      // Cmd+K → command palette
-      if (key === 'k') {
-        e.preventDefault();
-        handlersRef.current.setCommandPaletteOpen(true);
-        return;
-      }
-
-      // Cmd+N → new page
-      if (key === 'n') {
-        e.preventDefault();
-        const { currentWorkspaceId: wsId, openNewPage: open } = handlersRef.current;
-        if (!wsId) return;
-        open({ workspaceId: wsId, parentId: null });
-        return;
-      }
-
-      // Cmd+\ or Cmd+[ → toggle sidebar
-      if (key === '\\' || key === '[') {
-        e.preventDefault();
-        handlersRef.current.toggleSidebarCollapsed();
-        return;
-      }
-
-      // Cmd+/ → shortcuts dialog (skip when typing in editor surfaces)
-      if (key === '/') {
-        if (ctx.inEditor) return;
-        e.preventDefault();
-        handlersRef.current.toggleShortcutsDialog();
-        return;
+      const shortcut = shortcutFor(e, isEditing(e));
+      if (!shortcut) return;
+      e.preventDefault();
+      const handlers = handlersRef.current;
+      if (shortcut === 'palette') handlers.setCommandPaletteOpen(true);
+      else if (shortcut === 'sidebar') handlers.toggleSidebarCollapsed();
+      else if (shortcut === 'shortcuts') handlers.toggleShortcutsDialog();
+      else if (handlers.currentWorkspaceId) {
+        handlers.openNewPage({ workspaceId: handlers.currentWorkspaceId, parentId: null });
       }
     };
 

@@ -3,6 +3,7 @@ import { Platform, View } from 'react-native';
 import { Dialog } from '@oxy.so/bloom/dialog';
 import { Kbd } from '@oxy.so/bloom/kbd';
 import { Text } from '@oxy.so/bloom/typography';
+import { SHORTCUT_KEYS } from '@/lib/hooks/use-keyboard-shortcuts';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -29,10 +30,14 @@ function buildShortcuts(t: (key: string) => string): ShortcutGroup[] {
       id: 'navigation',
       section: t('keyboardShortcuts.navigation'),
       items: [
-        { id: 'palette', label: t('keyboardShortcuts.openPalette'), keys: ['Mod', 'K'] },
-        { id: 'new-page', label: t('keyboardShortcuts.createPage'), keys: ['Mod', 'N'] },
-        { id: 'sidebar', label: t('keyboardShortcuts.toggleSidebar'), keys: ['Mod', '\\'] },
-        { id: 'shortcuts', label: t('keyboardShortcuts.showShortcuts'), keys: ['Mod', '/'] },
+        { id: 'palette', label: t('keyboardShortcuts.openPalette'), keys: SHORTCUT_KEYS.palette },
+        { id: 'new-page', label: t('keyboardShortcuts.createPage'), keys: SHORTCUT_KEYS.newPage },
+        { id: 'sidebar', label: t('keyboardShortcuts.toggleSidebar'), keys: SHORTCUT_KEYS.sidebar },
+        {
+          id: 'shortcuts',
+          label: t('keyboardShortcuts.showShortcuts'),
+          keys: SHORTCUT_KEYS.shortcuts,
+        },
       ],
     },
     {
@@ -50,13 +55,13 @@ function buildShortcuts(t: (key: string) => string): ShortcutGroup[] {
 
 /**
  * Cross-platform shortcuts dialog. `Mod` renders as `⌘` on macOS and `Ctrl`
- * elsewhere. The UI store owns the open state (Cmd+/ and the palette toggle
+ * elsewhere, `Alt` as `⌥` on macOS. The UI store owns the open state (Cmd+/ and the palette toggle
  * it), so the dialog is controlled by it.
  */
 export function ShortcutsDialog() {
   const open = useUIStore((s) => s.shortcutsDialogOpen);
   const setOpen = useUIStore((s) => s.setShortcutsDialogOpen);
-  const modLabel = useModifierLabel();
+  const { mod: modLabel, alt: altLabel } = useModifierLabels();
   const { t } = useTranslation();
   const shortcuts = buildShortcuts(t);
 
@@ -81,7 +86,9 @@ export function ShortcutsDialog() {
                   <Text className="flex-1 text-sm text-foreground">{sc.label}</Text>
                   <View className="flex-row items-center gap-1">
                     {sc.keys.map((k) => (
-                      <Kbd key={`${sc.id}-${k}`}>{k === 'Mod' ? modLabel : k}</Kbd>
+                      <Kbd key={`${sc.id}-${k}`}>
+                        {k === 'Mod' ? modLabel : k === 'Alt' ? altLabel : k}
+                      </Kbd>
                     ))}
                   </View>
                 </View>
@@ -94,14 +101,14 @@ export function ShortcutsDialog() {
   );
 }
 
-function useModifierLabel(): string {
+function useModifierLabels(): { mod: string; alt: string } {
   return React.useMemo(() => {
+    let isMac = Platform.OS === 'ios';
     if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
       const platform = navigator.platform || '';
       const userAgent = navigator.userAgent || '';
-      const isMac = /Mac|iPhone|iPad/i.test(platform) || /Mac/i.test(userAgent);
-      return isMac ? '⌘' : 'Ctrl';
+      isMac = /Mac|iPhone|iPad/i.test(platform) || /Mac/i.test(userAgent);
     }
-    return Platform.OS === 'ios' ? '⌘' : 'Ctrl';
+    return isMac ? { mod: '⌘', alt: '⌥' } : { mod: 'Ctrl', alt: 'Alt' };
   }, []);
 }
