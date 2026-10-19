@@ -1,14 +1,18 @@
 import * as React from 'react';
 import { Platform, Pressable, ScrollView, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
+import { RiArrowLeftRightLine } from '@oxy.so/bloom/icons/RiArrowLeftRightLine';
+import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
 import { Badge } from '@oxy.so/bloom/badge';
 import { Button } from '@oxy.so/bloom/button';
 import { Chip } from '@oxy.so/bloom/chip';
+import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { Item } from '@oxy.so/bloom/item';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useColorScheme } from '@/lib/useColorScheme';
 import type {
   Database,
   DatabaseProperty,
@@ -18,6 +22,7 @@ import type {
 } from '@/lib/types/databases';
 import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { PropertyCell } from './property-cell';
+import { useOpenRow } from './open-row';
 import { SELECT_CHIP_HUE } from './select-color';
 
 interface ViewBoardProps {
@@ -33,13 +38,17 @@ interface ViewBoardProps {
 
 const COLUMN_WIDTH = 280;
 
+/** The column of the rows without an option. */
+const UNASSIGNED = '__unassigned__';
+
 /**
  * Board view — Kanban grouped by a select / status property. Each
- * column corresponds to one option of the group property; dragging a
- * card between columns updates the row's property value.
+ * column corresponds to one option of the group property; moving a
+ * card to another column updates the row's property value.
  *
- * Drag-and-drop runs on web via HTML5 DataTransfer. On native a card
- * moves by changing its group property on the row's page.
+ * On web a card is dragged (HTML5 DataTransfer). Everywhere, and on native
+ * where nothing drags, its "Move to…" button or a long press on it opens the
+ * columns to move it to.
  */
 export function ViewBoard({
   database,
@@ -50,10 +59,13 @@ export function ViewBoard({
   hasMore = false,
   onLoadMore,
 }: ViewBoardProps) {
-  const router = useRouter();
+  const openRow = useOpenRow();
   const { t } = useTranslation();
   const createRow = useCreateRow();
   const updateRow = useUpdateRow();
+  const moveControl = useDialogControl();
+  // The card the "Move to" dialog moves: one dialog for the board, not one per card.
+  const [moving, setMoving] = React.useState<DatabaseRow | null>(null);
 
   const groupByProperty = React.useMemo<DatabaseProperty | null>(() => {
     const target = view.groupBy?.propertyId;
@@ -121,6 +133,11 @@ export function ViewBoard({
       .slice(0, 3);
   }, [database.schema.properties, view.hiddenProperties]);
 
+  const startMove = (row: DatabaseRow) => {
+    setMoving(row);
+    moveControl.open();
+  };
+
   if (isLoading) {
     return (
       <View className="py-10 items-center">
@@ -163,7 +180,8 @@ export function ViewBoard({
                 readOnly={readOnly}
                 row={row}
                 properties={cardProperties}
-                onOpen={() => router.push(`/p/${row.id}`)}
+                onOpen={() => openRow(row.id)}
+                onMove={() => startMove(row)}
               />
             )}
           />
@@ -171,7 +189,7 @@ export function ViewBoard({
         <BoardColumn
           readOnly={readOnly}
           option={{
-            id: '__unassigned__',
+            id: UNASSIGNED,
             name: t('databases.board.noStatus'),
             color: 'default',
           }}
@@ -186,7 +204,8 @@ export function ViewBoard({
               readOnly={readOnly}
               row={row}
               properties={cardProperties}
-              onOpen={() => router.push(`/p/${row.id}`)}
+              onOpen={() => openRow(row.id)}
+              onMove={() => startMove(row)}
             />
           )}
         />
@@ -196,7 +215,82 @@ export function ViewBoard({
           </Button>
         ) : null}
       </View>
+      {!readOnly ? (
+        <MoveToDialog
+          control={moveControl}
+          options={columns.options}
+          noneLabel={t('databases.board.noStatus')}
+          current={moving ? optionOf(moving, groupByProperty.id) : null}
+          onPick={(optionId) => {
+            if (moving) moveRow(moving.id, optionId);
+            moveControl.close();
+          }}
+        />
+      ) : null}
     </ScrollView>
+  );
+}
+
+/** The option a row's group property holds, or null. */
+function optionOf(row: DatabaseRow, propertyId: string): string | null {
+  const value = row.properties[propertyId];
+  return value &&
+    typeof value === 'object' &&
+    'optionId' in value &&
+    typeof value.optionId === 'string'
+    ? value.optionId
+    : null;
+}
+
+/** The columns a card can move to, the one it is in checked. */
+function MoveToDialog({
+  control,
+  options,
+  noneLabel,
+  current,
+  onPick,
+}: {
+  control: ReturnType<typeof useDialogControl>;
+  options: SelectOption[];
+  noneLabel: string;
+  current: string | null;
+  onPick: (optionId: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  const { colors } = useColorScheme();
+  const choices = [
+    ...options.map((option) => ({ id: option.id as string | null, option })),
+    { id: null, option: { id: UNASSIGNED, name: noneLabel, color: 'default' } as SelectOption },
+  ];
+  return (
+    <Dialog
+      control={control}
+      placement={{ base: 'bottom', md: 'center' }}
+      maxWidth={360}
+      title={t('databases.board.moveTo')}
+    >
+      <View className="pb-4">
+        {choices.map(({ id, option }) => (
+          <Item
+            key={option.id}
+            role="radio"
+            selected={id === current}
+            accessibilityLabel={option.name}
+            title={
+              <Chip size="xs" hue={SELECT_CHIP_HUE[option.color] ?? 'neutral'}>
+                {option.name}
+              </Chip>
+            }
+            trailing={
+              id === current ? (
+                <RiCheckLine width={14} height={14} fill={colors.foreground} />
+              ) : null
+            }
+            onPress={() => onPick(id)}
+          />
+        ))}
+      </View>
+    </Dialog>
   );
 }
 
@@ -262,10 +356,13 @@ interface BoardCardProps {
   /** The properties the card shows, in order. */
   properties: DatabaseProperty[];
   onOpen: () => void;
+  /** Opens the columns to move the card to. */
+  onMove: () => void;
 }
 
-function BoardCard({ row, properties, onOpen, readOnly }: BoardCardProps) {
+function BoardCard({ row, properties, onOpen, onMove, readOnly }: BoardCardProps) {
   const { t } = useTranslation();
+  const title = row.title || t('databases.untitled');
 
   const dragHandlers =
     Platform.OS === 'web' && !readOnly
@@ -281,14 +378,30 @@ function BoardCard({ row, properties, onOpen, readOnly }: BoardCardProps) {
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel={row.title || t('databases.untitled')}
+      accessibilityLabel={title}
+      accessibilityHint={readOnly ? undefined : t('databases.board.longPressHint')}
       onPress={onOpen}
+      onLongPress={readOnly ? undefined : onMove}
       className="bg-card border border-border rounded-md px-3 py-2 shadow-sm"
       {...(dragHandlers as Record<string, unknown>)}
     >
-      <Text className="mb-1 text-sm font-medium text-foreground" numberOfLines={2}>
-        {row.title || t('databases.untitled')}
-      </Text>
+      <View className="mb-1 flex-row items-start gap-1">
+        <Text className="flex-1 text-sm font-medium text-foreground" numberOfLines={2}>
+          {title}
+        </Text>
+        {!readOnly ? (
+          <Button
+            iconOnly
+            appearance="plain"
+            size="xs"
+            // The card around the button opens the row.
+            stopPropagation
+            accessibilityLabel={t('databases.board.moveCard', { title })}
+            onPress={onMove}
+            leadingIcon={RiArrowLeftRightLine}
+          />
+        ) : null}
+      </View>
       <View className="gap-1">
         {properties.map((property) => (
           <View key={property.id} className="flex-row items-center gap-1">
@@ -297,6 +410,7 @@ function BoardCard({ row, properties, onOpen, readOnly }: BoardCardProps) {
               property={property}
               value={row.properties[property.id] ?? null}
               variant="card"
+              rowId={row.id}
               onChange={() => {
                 // cards are not editable inline — opens row instead
                 onOpen();

@@ -12,6 +12,7 @@ import {
   type TestDatabase,
 } from '../db/__tests__/testDatabase.js';
 import { databaseViews, databases } from '../db/schema/databases.js';
+import { pagePermissions } from '../db/schema/collab.js';
 import { blocks, pages } from '../db/schema/pages.js';
 import { closeDb } from '../db/client.js';
 import type { WorkspaceRole } from '../db/schema/workspaces.js';
@@ -53,6 +54,10 @@ vi.mock('../middleware/auth.js', () => ({
   oxyClient: {
     // The real limiters resolve an optional session through this; anonymous here.
     middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
+    // Profiles for the people a person property can name.
+    users: {
+      getMany: async (ids: string[]) => ids.map((id) => ({ id, username: `handle-${id}` })),
+    },
   },
   authenticateToken: (req: Request, _res: Response, next: NextFunction) => {
     req.user = { id: ctx.userId };
@@ -632,6 +637,67 @@ describe('relations across access', () => {
     const [target] = await db.select().from(databases).where(eq(databases.id, hidden));
     expect(target?.propertiesSchema.properties.some((p) => p.type === 'relation')).toBe(false);
     expect((await schemaOf(source)).filter((p) => p.type === 'relation')).toHaveLength(1);
+  });
+});
+
+describe('GET /api/databases/:id/people', () => {
+  it('lists the members and the guests a person property can name, for its editors', async () => {
+    const databaseId = await createDatabase({ name: 'People' });
+    const member = `member-${ctx.workspaceId}`;
+    const guest = `guest-${ctx.workspaceId}`;
+    const elsewhere = `elsewhere-${ctx.workspaceId}`;
+    await db
+      .insert(workspaceMembers)
+      .values({ workspaceId: ctx.workspaceId, userId: member, role: 'viewer' });
+    const [page] = await db
+      .insert(pages)
+      .values({ workspaceId: ctx.workspaceId, ownerId: ctx.userId, order: 0 })
+      .returning();
+    const [foreign] = await db
+      .insert(pages)
+      .values({ workspaceId: otherWorkspaceId, ownerId: ctx.userId, order: 0 })
+      .returning();
+    await db.insert(pagePermissions).values([
+      { pageId: idOf(page), userId: guest, role: 'editor', grantedBy: ctx.userId },
+      // A member shared a page is still a member, not a guest.
+      { pageId: idOf(page), userId: member, role: 'editor', grantedBy: ctx.userId },
+      // A grant in another workspace makes nobody a person of this one.
+      { pageId: idOf(foreign), userId: elsewhere, role: 'editor', grantedBy: ctx.userId },
+    ]);
+
+    const listed = await api('GET', `/api/databases/${databaseId}/people`);
+    expect(listed.status).toBe(200);
+    const people = asArray(listed.body.people).map(asRecord);
+    const byId = new Map(people.map((p) => [p.userId, p]));
+    expect(byId.get(ctx.userId)).toMatchObject({ guest: false });
+    expect(byId.get(member)).toMatchObject({
+      guest: false,
+      user: { id: member, username: `handle-${member}` },
+    });
+    expect(byId.get(guest)).toMatchObject({ guest: true });
+    expect(byId.has(elsewhere)).toBe(false);
+    expect(people.filter((p) => p.userId === member)).toHaveLength(1);
+    // Everyone listed is someone a write accepts.
+    const row = await api('POST', `/api/databases/${databaseId}/rows`, { title: 'r' });
+    await api('POST', `/api/databases/${databaseId}/properties`, {
+      id: 'who',
+      name: 'Who',
+      type: 'person',
+    });
+    const set = await api('PATCH', `/api/pages/${idOf(row.body.row)}`, {
+      properties: { who: { userIds: people.map((p) => p.userId) } },
+    });
+    expect(set.status).toBe(200);
+
+    // A reader of the database is not handed the workspace's people.
+    const owner = ctx.userId;
+    ctx.userId = member;
+    try {
+      expect((await api('GET', `/api/databases/${databaseId}`)).status).toBe(200);
+      expect((await api('GET', `/api/databases/${databaseId}/people`)).status).toBe(403);
+    } finally {
+      ctx.userId = owner;
+    }
   });
 });
 

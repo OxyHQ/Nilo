@@ -25,6 +25,10 @@ time, never stored: formulas, rollups, created/edited time and by.
 - **Rollups** (`rollups.ts`): count, sum, average, min, max, earliest, latest
   over a relation. A view's rows are rolled up together: one query per
   rollup property, whatever the number of rows.
+- **People** (`person`): members of the workspace and its guests (who hold a
+  page of it), as a write checks them (`property-references.ts`). Its editors
+  list them with their profiles (`GET /databases/:id/people`, `people.ts`) to
+  pick from.
 - **IDs** (`unique_id`): numbered by the server (`databases.next_row_number`),
   existing rows too when the property is added; clients never write them.
 

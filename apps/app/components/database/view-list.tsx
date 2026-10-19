@@ -3,7 +3,6 @@ import { nestSubItems, subItemProperties, useExpandedRows } from '@/lib/sub-item
 import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { Loading } from '@oxy.so/bloom/loading';
@@ -13,6 +12,7 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 import { useCreateRow } from '@/lib/hooks/use-database-rows';
 import { PropertyCell } from './property-cell';
+import { useOpenRow } from './open-row';
 
 interface ViewListProps {
   database: Database;
@@ -35,7 +35,7 @@ export function ViewList({
   onLoadMore,
   readOnly = false,
 }: ViewListProps) {
-  const router = useRouter();
+  const openRow = useOpenRow();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const createRow = useCreateRow();
@@ -83,7 +83,7 @@ export function ViewList({
             style={{ paddingLeft: 16 + depth * 24 }}
             accessibilityRole="link"
             accessibilityLabel={row.title || t('databases.untitled')}
-            onPress={() => router.push(`/p/${row.id}`)}
+            onPress={() => openRow(row.id)}
             className="flex-row items-center gap-3 px-4 py-2 border-b border-border/40 hover:bg-muted/40"
           >
             {subItems ? (
@@ -106,7 +106,8 @@ export function ViewList({
                     property={property}
                     value={row.properties[property.id] ?? null}
                     variant="card"
-                    onChange={() => router.push(`/p/${row.id}`)}
+                    rowId={row.id}
+                    onChange={() => openRow(row.id)}
                   />
                 </View>
               ))}

@@ -14,6 +14,7 @@ import { ViewTimeline } from './view-timeline';
 import { FilterBuilder } from './filter-builder';
 import { SortBuilder } from './sort-builder';
 import { AddPropertyButton } from './property-config-modal';
+import { DatabaseCellScopeProvider } from './cell-scope';
 
 interface DatabaseViewContainerProps {
   database: Database;
@@ -47,82 +48,84 @@ export function DatabaseViewContainer({
   if (view.type === 'form') return <ViewForm database={database} view={view} readOnly={readOnly} />;
 
   return (
-    <View className="flex-1">
-      {!viewsReadOnly ? (
-        <View className="flex-row items-center justify-between px-6 py-2 border-b border-border">
-          <View className="flex-row items-center gap-1">
-            <FilterBuilder database={database} view={view} rows={rows} />
-            <SortBuilder database={database} view={view} />
-            {!readOnly ? <AddPropertyButton database={database} /> : null}
-          </View>
-          {!readOnly ? <NewRowMenu databaseId={database.id} /> : null}
-        </View>
-      ) : null}
-
-      {total !== undefined ? (
-        <Text className="px-4 py-1 text-xs text-muted-foreground">
-          {t('databases.rows.total', { count: total })}
-        </Text>
-      ) : null}
-      {isFetchingMore ? (
-        <Text accessibilityLiveRegion="polite" className="px-4 text-xs text-muted-foreground">
-          {t('common.loading')}
-        </Text>
-      ) : null}
+    <DatabaseCellScopeProvider databaseId={database.id}>
       <View className="flex-1">
-        {view.type === 'table' ? (
-          <RowsScrollView onLoadMore={onLoadMore}>
-            <ViewTable
+        {!viewsReadOnly ? (
+          <View className="flex-row items-center justify-between px-6 py-2 border-b border-border">
+            <View className="flex-row items-center gap-1">
+              <FilterBuilder database={database} view={view} rows={rows} />
+              <SortBuilder database={database} view={view} />
+              {!readOnly ? <AddPropertyButton database={database} /> : null}
+            </View>
+            {!readOnly ? <NewRowMenu databaseId={database.id} /> : null}
+          </View>
+        ) : null}
+
+        {total !== undefined ? (
+          <Text className="px-4 py-1 text-xs text-muted-foreground">
+            {t('databases.rows.total', { count: total })}
+          </Text>
+        ) : null}
+        {isFetchingMore ? (
+          <Text accessibilityLiveRegion="polite" className="px-4 text-xs text-muted-foreground">
+            {t('common.loading')}
+          </Text>
+        ) : null}
+        <View className="flex-1">
+          {view.type === 'table' ? (
+            <RowsScrollView onLoadMore={onLoadMore}>
+              <ViewTable
+                readOnly={readOnly}
+                database={database}
+                view={view}
+                rows={rows}
+                isLoading={isLoading}
+              />
+            </RowsScrollView>
+          ) : null}
+          {view.type === 'board' ? (
+            <ViewBoard
+              readOnly={readOnly}
+              database={database}
+              view={view}
+              rows={rows}
+              isLoading={isLoading}
+              hasMore={total !== undefined && rows.length < total}
+              onLoadMore={onLoadMore}
+            />
+          ) : null}
+          {view.type === 'gallery' ? (
+            <ViewGallery
+              onLoadMore={onLoadMore}
               readOnly={readOnly}
               database={database}
               view={view}
               rows={rows}
               isLoading={isLoading}
             />
-          </RowsScrollView>
-        ) : null}
-        {view.type === 'board' ? (
-          <ViewBoard
-            readOnly={readOnly}
-            database={database}
-            view={view}
-            rows={rows}
-            isLoading={isLoading}
-            hasMore={total !== undefined && rows.length < total}
-            onLoadMore={onLoadMore}
-          />
-        ) : null}
-        {view.type === 'gallery' ? (
-          <ViewGallery
-            onLoadMore={onLoadMore}
-            readOnly={readOnly}
-            database={database}
-            view={view}
-            rows={rows}
-            isLoading={isLoading}
-          />
-        ) : null}
-        {view.type === 'list' ? (
-          <ViewList
-            onLoadMore={onLoadMore}
-            readOnly={readOnly}
-            database={database}
-            view={view}
-            rows={rows}
-            isLoading={isLoading}
-          />
-        ) : null}
-        {view.type === 'calendar' ? (
-          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
-            <ViewCalendar database={database} view={view} rows={rows} isLoading={isLoading} />
-          </ScrollView>
-        ) : null}
-        {view.type === 'timeline' ? (
-          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
-            <ViewTimeline database={database} view={view} rows={rows} isLoading={isLoading} />
-          </ScrollView>
-        ) : null}
+          ) : null}
+          {view.type === 'list' ? (
+            <ViewList
+              onLoadMore={onLoadMore}
+              readOnly={readOnly}
+              database={database}
+              view={view}
+              rows={rows}
+              isLoading={isLoading}
+            />
+          ) : null}
+          {view.type === 'calendar' ? (
+            <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+              <ViewCalendar database={database} view={view} rows={rows} isLoading={isLoading} />
+            </ScrollView>
+          ) : null}
+          {view.type === 'timeline' ? (
+            <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+              <ViewTimeline database={database} view={view} rows={rows} isLoading={isLoading} />
+            </ScrollView>
+          ) : null}
+        </View>
       </View>
-    </View>
+    </DatabaseCellScopeProvider>
   );
 }

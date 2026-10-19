@@ -1,13 +1,17 @@
 import * as React from 'react';
-import { Platform, Pressable, ScrollView, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import { RiArrowLeftSLine } from '@oxy.so/bloom/icons/RiArrowLeftSLine';
+import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
+import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
+import { dayOf, readDateValue } from '@/lib/date-values';
 import { useVisibleDatesStore } from '@/lib/stores/visible-dates-store';
 import { visibleDatesFilter } from '@/lib/visible-dates';
+import { useOpenRow } from './open-row';
 
 interface ViewTimelineProps {
   database: Database;
@@ -16,17 +20,27 @@ interface ViewTimelineProps {
   isLoading: boolean;
 }
 
-const DAY_WIDTH = 28; // px per day on web
-const DAYS_WINDOW = 60;
+const DAY_WIDTH = 28;
+export const DAYS_WINDOW = 60;
+/** How far the arrows move the window: four weeks, so a week either side stays in sight. */
+const STEP_DAYS = 28;
+const DAY_MS = 86_400_000;
 
 /**
- * Timeline view — Gantt-style. Reads a `startPropertyId` (and optional
- * `endPropertyId`) date property and lays out a horizontal bar per row.
- * Web-only in Phase 4 — native shows a fallback list.
+ * Timeline view — Gantt-style, on web and native. Reads a `startPropertyId`
+ * (and optional `endPropertyId`) date property and lays out a bar per row
+ * over `DAYS_WINDOW` days, scrolled sideways; the arrows move the window and
+ * only the rows whose bar meets it are read (`useVisibleDatesStore`). A
+ * date's own end, with no end property, ends its bar.
  */
 export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelineProps) {
-  const router = useRouter();
+  const openRow = useOpenRow();
   const { t, locale } = useTranslation();
+  const { width } = useWindowDimensions();
+  // A phone keeps most of its width for the bars.
+  const titleWidth = width < 640 ? 120 : 240;
+  const [windowStart, setWindowStart] = React.useState(() => defaultWindowStart());
+  const windowEnd = addDays(windowStart, DAYS_WINDOW);
 
   const startProperty = React.useMemo(() => {
     const id = view.config.startPropertyId;
@@ -48,14 +62,20 @@ export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelinePr
   const show = useVisibleDatesStore((state) => state.show);
   const startPropertyId = startProperty?.id;
   const endPropertyId = endProperty?.id;
+  const windowTime = windowStart.getTime();
   React.useEffect(() => {
-    if (!startPropertyId || Platform.OS !== 'web') return;
-    const { windowStart, windowEnd } = timelineWindow();
+    if (!startPropertyId) return;
+    const from = new Date(windowTime);
     show(
       view.id,
-      visibleDatesFilter({ startPropertyId, endPropertyId, from: windowStart, to: windowEnd }),
+      visibleDatesFilter({
+        startPropertyId,
+        endPropertyId,
+        from,
+        to: addDays(from, DAYS_WINDOW),
+      }),
     );
-  }, [endPropertyId, show, startPropertyId, view.id]);
+  }, [endPropertyId, show, startPropertyId, view.id, windowTime]);
 
   if (isLoading) {
     return (
@@ -75,132 +95,154 @@ export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelinePr
     );
   }
 
-  if (Platform.OS !== 'web') {
-    return (
-      <EmptyState
-        // icon: TimerReset
-        variant="compact"
-        title={t('databases.timeline.webOnly')}
-      />
+  const gridWidth = DAY_WIDTH * DAYS_WINDOW;
+  const bars = rows.flatMap((row) => {
+    const span = rowSpan(row, startProperty.id, endProperty?.id ?? null);
+    if (!span || span.end < windowStart || span.start > windowEnd) return [];
+    const offsetDays = Math.max(0, Math.round((span.start.getTime() - windowTime) / DAY_MS));
+    // Cut where the window ends, as where it starts.
+    const lastDay = Math.min(
+      DAYS_WINDOW - 1,
+      Math.round((span.end.getTime() - windowTime) / DAY_MS),
     );
-  }
-
-  const { windowStart, windowEnd } = timelineWindow();
+    return [{ row, offsetDays, spanDays: Math.max(1, lastDay - offsetDays + 1) }];
+  });
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator>
-      <View>
-        {/* date header */}
-        <View
-          className="flex-row border-b border-border bg-muted/30"
-          style={{ height: 32, minWidth: DAY_WIDTH * DAYS_WINDOW + 240 }}
-        >
-          <View style={{ width: 240 }} className="px-3 py-1 justify-center border-r border-border">
-            <Text className="text-xs font-semibold uppercase text-muted-foreground">
-              {t('databases.timeline.row')}
-            </Text>
+    <View>
+      <View className="flex-row items-center justify-end gap-1 px-3 py-2">
+        <Button
+          iconOnly
+          appearance="plain"
+          size="xs"
+          accessibilityLabel={t('databases.timeline.earlier')}
+          onPress={() => setWindowStart(addDays(windowStart, -STEP_DAYS))}
+          leadingIcon={RiArrowLeftSLine}
+        />
+        <Button appearance="plain" size="xs" onPress={() => setWindowStart(defaultWindowStart())}>
+          {t('databases.calendar.today')}
+        </Button>
+        <Button
+          iconOnly
+          appearance="plain"
+          size="xs"
+          accessibilityLabel={t('databases.timeline.later')}
+          onPress={() => setWindowStart(addDays(windowStart, STEP_DAYS))}
+          leadingIcon={RiArrowRightSLine}
+        />
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator nestedScrollEnabled>
+        <View>
+          {/* date header */}
+          <View
+            className="flex-row border-b border-border bg-muted/30"
+            style={{ height: 32, minWidth: gridWidth + titleWidth }}
+          >
+            <View
+              style={{ width: titleWidth }}
+              className="px-3 py-1 justify-center border-r border-border"
+            >
+              <Text className="text-xs font-semibold uppercase text-muted-foreground">
+                {t('databases.timeline.row')}
+              </Text>
+            </View>
+            {Array.from({ length: DAYS_WINDOW }, (_, i) => {
+              const day = addDays(windowStart, i);
+              const isFirstOfMonth = day.getDate() === 1 || i === 0;
+              return (
+                <View
+                  key={day.getTime()}
+                  style={{ width: DAY_WIDTH }}
+                  className="items-center justify-center border-r border-border/60"
+                >
+                  <Text className="text-[10px] text-muted-foreground">
+                    {isFirstOfMonth
+                      ? day.toLocaleString(locale, { month: 'short' })
+                      : day.getDate()}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
-          {Array.from({ length: DAYS_WINDOW }).map((_, i) => {
-            const day = new Date(windowStart);
-            day.setDate(windowStart.getDate() + i);
-            const isFirstOfMonth = day.getDate() === 1;
+
+          {bars.length === 0 ? (
+            <View style={{ width: gridWidth + titleWidth }} className="px-3 py-6">
+              <Text className="text-sm text-muted-foreground">
+                {t('databases.timeline.noRows')}
+              </Text>
+            </View>
+          ) : null}
+          {bars.map(({ row, offsetDays, spanDays }) => {
+            const title = row.title || t('databases.untitled');
             return (
               <View
-                key={day.toISOString()}
-                style={{ width: DAY_WIDTH }}
-                className="items-center justify-center border-r border-border/60"
+                key={row.id}
+                className="flex-row border-b border-border/60"
+                style={{ height: 36, minWidth: gridWidth + titleWidth }}
               >
-                <Text className="text-[10px] text-muted-foreground">
-                  {isFirstOfMonth ? day.toLocaleString(locale, { month: 'short' }) : day.getDate()}
-                </Text>
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel={title}
+                  onPress={() => openRow(row.id)}
+                  style={{ width: titleWidth }}
+                  className="px-3 justify-center border-r border-border/60"
+                >
+                  <Text variant="body-regular" numberOfLines={1}>
+                    {title}
+                  </Text>
+                </Pressable>
+                <View style={{ width: gridWidth, height: 36 }}>
+                  <Pressable
+                    accessibilityRole="link"
+                    accessibilityLabel={title}
+                    onPress={() => openRow(row.id)}
+                    style={{
+                      position: 'absolute',
+                      left: offsetDays * DAY_WIDTH + 2,
+                      top: 6,
+                      width: spanDays * DAY_WIDTH - 4,
+                      height: 24,
+                    }}
+                    className="bg-primary/20 border border-primary/50 rounded-md justify-center px-2"
+                  >
+                    <Text className="text-[11px] text-primary" numberOfLines={1}>
+                      {title}
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
             );
           })}
         </View>
-
-        {/* rows */}
-        {rows.map((row) => {
-          const startStr = readDateStart(row, startProperty.id);
-          const endStr = endProperty ? readDateStart(row, endProperty.id) : null;
-          if (!startStr) return null;
-          const start = startOfDay(new Date(startStr));
-          const end = endStr ? startOfDay(new Date(endStr)) : start;
-          if (end.getTime() < windowStart.getTime() || start.getTime() > windowEnd.getTime()) {
-            return null;
-          }
-          const offsetDays = Math.max(
-            0,
-            Math.round((start.getTime() - windowStart.getTime()) / 86_400_000),
-          );
-          const spanDays = Math.max(
-            1,
-            Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1,
-          );
-          return (
-            <View
-              key={row.id}
-              className="flex-row border-b border-border/60"
-              style={{ height: 36, minWidth: DAY_WIDTH * DAYS_WINDOW + 240 }}
-            >
-              <View
-                style={{ width: 240 }}
-                className="px-3 justify-center border-r border-border/60"
-              >
-                <Text variant="body-regular" numberOfLines={1}>
-                  {row.title || t('databases.untitled')}
-                </Text>
-              </View>
-              <View style={{ position: 'relative', flexDirection: 'row' }}>
-                <View
-                  style={{
-                    width: DAY_WIDTH * DAYS_WINDOW,
-                    height: 36,
-                    position: 'relative',
-                  }}
-                />
-                <Pressable
-                  onPress={() => router.push(`/p/${row.id}`)}
-                  style={{
-                    position: 'absolute',
-                    left: offsetDays * DAY_WIDTH + 2,
-                    top: 6,
-                    width: spanDays * DAY_WIDTH - 4,
-                    height: 24,
-                  }}
-                  className="bg-primary/20 border border-primary/50 rounded-md justify-center px-2"
-                >
-                  <Text className="text-[11px] text-primary" numberOfLines={1}>
-                    {row.title || t('databases.untitled')}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
-          );
-        })}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
-/** The days shown: a week back from today, `DAYS_WINDOW` days in all. */
-function timelineWindow(): { windowStart: Date; windowEnd: Date } {
-  const today = startOfDay(new Date());
-  const windowStart = new Date(today);
-  windowStart.setDate(today.getDate() - 7);
-  const windowEnd = new Date(windowStart);
-  windowEnd.setDate(windowStart.getDate() + DAYS_WINDOW);
-  return { windowStart, windowEnd };
+/** The first day shown by default: a week back from today. */
+function defaultWindowStart(): Date {
+  const today = new Date();
+  return addDays(new Date(today.getFullYear(), today.getMonth(), today.getDate()), -7);
 }
 
-function startOfDay(d: Date): Date {
-  const out = new Date(d);
-  out.setHours(0, 0, 0, 0);
-  return out;
+function addDays(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 }
 
-function readDateStart(row: DatabaseRow, propertyId: string): string | null {
-  const value = row.properties[propertyId];
-  if (!value || typeof value !== 'object' || !('start' in value)) return null;
-  const start = value.start;
-  return typeof start === 'string' ? start : null;
+/**
+ * The local days a row's bar covers: from its start to the end property's
+ * day, else to its date's own end, else that one day. Null without a start.
+ */
+export function rowSpan(
+  row: DatabaseRow,
+  startPropertyId: string,
+  endPropertyId: string | null,
+): { start: Date; end: Date } | null {
+  const date = readDateValue(row.properties[startPropertyId] ?? null);
+  if (!date.start) return null;
+  const start = dayOf(date.start, date.includeTime);
+  const until = endPropertyId ? readDateValue(row.properties[endPropertyId] ?? null) : null;
+  const endIso = until ? until.start : date.end;
+  const end = endIso ? dayOf(endIso, until ? until.includeTime : date.includeTime) : start;
+  return { start, end: end < start ? start : end };
 }

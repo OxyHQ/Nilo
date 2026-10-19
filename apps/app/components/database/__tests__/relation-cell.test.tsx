@@ -6,6 +6,14 @@ import { RowPropertiesPanel } from '../row-properties-panel';
 import { useDatabaseRow, useRelatedRows } from '@/lib/hooks/use-database-rows';
 import type { Database, DatabaseRow } from '@/lib/types/databases';
 const mockPush = jest.fn();
+// The cells read people, files and rows through the API client and Oxy's session.
+jest.mock('@/lib/api/client', () => ({
+  __esModule: true,
+  default: { get: jest.fn(), post: jest.fn() },
+}));
+jest.mock('@oxy.so/services/ui/client', () => ({
+  useOxy: () => ({ isAuthenticated: false, oxyServices: {} }),
+}));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key }),

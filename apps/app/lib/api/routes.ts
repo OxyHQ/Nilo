@@ -70,6 +70,7 @@ export const API_ROUTES = {
     createRow: (id: string) => `/databases/${id}/rows`,
     getRow: (id: string, rowId: string) => `/databases/${id}/rows/${rowId}`,
     batchRows: (id: string) => `/databases/${id}/rows/batch`,
+    people: (id: string) => `/databases/${id}/people`,
     templates: (id: string) => `/databases/${id}/templates`,
     listViews: (id: string) => `/databases/${id}/views`,
     createView: (id: string) => `/databases/${id}/views`,

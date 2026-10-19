@@ -204,6 +204,36 @@ export function useRelatedRows(databaseId: string | undefined, rowIds: readonly 
   });
 }
 
+/** The most rows a relation's picker lists at once: more are found by searching. */
+const ROW_SEARCH_SIZE = 25;
+
+/**
+ * Rows of a database whose title holds `search` (all of them, first ones
+ * first, for an empty search), searched by the API: what a relation's picker
+ * offers, whatever the size of the database.
+ */
+export function useRowSearch(databaseId: string | undefined, search: string, enabled = true) {
+  const { isAuthenticated } = useOxy();
+  const query = search.trim();
+  return useQuery<DatabaseRow[]>({
+    queryKey: queryKeys.databases.search(databaseId ?? 'none', query),
+    queryFn: async ({ signal }) => {
+      if (!databaseId) throw new Error('Database id required');
+      const res = await apiClient.get<DatabaseRowsResponse>(
+        API_ROUTES.databases.listRows(databaseId),
+        {
+          signal,
+          params: { pageSize: String(ROW_SEARCH_SIZE), ...(query && { search: query }) },
+        },
+      );
+      return res.data.rows;
+    },
+    // The rows found for the last search stay while the next is read.
+    placeholderData: (previous) => previous,
+    enabled: enabled && isAuthenticated && Boolean(databaseId),
+  });
+}
+
 export function useCreateRow() {
   const queryClient = useQueryClient();
   return useMutation<DatabaseRow, Error, CreateRowInput>({
@@ -240,10 +270,7 @@ export function useUpdateRow() {
       const queries = queryClient.getQueriesData<RowsCache>({
         queryKey: ['database', databaseId, 'rows'],
       });
-      const previous: Array<{
-        key: unknown[];
-        data: RowsCache | undefined;
-      }> = [];
+      const previous: Array<{ key: unknown[]; data: unknown }> = [];
       for (const [key, data] of queries) {
         previous.push({ key: key as unknown[], data });
         if (!data) continue;
@@ -266,17 +293,24 @@ export function useUpdateRow() {
           })),
         });
       }
+      // The row's own page shows it from its own query: it changes at once too.
+      const rowKey = queryKeys.databases.row(databaseId, rowId);
+      await queryClient.cancelQueries({ queryKey: rowKey });
+      const row = queryClient.getQueryData<DatabaseRow>(rowKey);
+      if (row) {
+        previous.push({ key: [...rowKey], data: row });
+        queryClient.setQueryData<DatabaseRow>(rowKey, {
+          ...row,
+          properties: {
+            ...row.properties,
+            ...((patch.properties ?? {}) as Record<string, PropertyValue>),
+          },
+        });
+      }
       return { previous };
     },
     onError: (_err, _vars, context) => {
-      const ctx = context as
-        | {
-            previous?: Array<{
-              key: unknown[];
-              data: RowsCache | undefined;
-            }>;
-          }
-        | undefined;
+      const ctx = context as { previous?: Array<{ key: unknown[]; data: unknown }> } | undefined;
       if (!ctx?.previous) return;
       for (const entry of ctx.previous) {
         if (entry.data === undefined) continue;

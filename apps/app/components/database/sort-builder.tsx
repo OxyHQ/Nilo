@@ -1,5 +1,8 @@
 import * as React from 'react';
-import { ScrollView, View } from 'react-native';
+import { Platform, ScrollView, View } from 'react-native';
+import { RiArrowDownLine } from '@oxy.so/bloom/icons/RiArrowDownLine';
+import { RiArrowUpLine } from '@oxy.so/bloom/icons/RiArrowUpLine';
+import { RiDraggable } from '@oxy.so/bloom/icons/RiDraggable';
 import { RiSortAlphabetAsc } from '@oxy.so/bloom/icons/RiSortAlphabetAsc';
 import { RiSortAlphabetDesc } from '@oxy.so/bloom/icons/RiSortAlphabetDesc';
 import { RiArrowUpDownLine } from '@oxy.so/bloom/icons/RiArrowUpDownLine';
@@ -26,6 +29,7 @@ import {
 } from '@oxy.so/bloom/select';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseView, ViewSort } from '@/lib/types/databases';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
 
@@ -34,7 +38,22 @@ interface SortBuilderProps {
   view: DatabaseView;
 }
 
-/** The toolbar's Sort button and the dialog it opens. */
+/** `list` with the item at `from` moved to `to`, the others keeping their order. */
+export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || from >= list.length || to < 0 || to >= list.length) {
+    return [...list];
+  }
+  const next = [...list];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item as T);
+  return next;
+}
+
+/**
+ * The toolbar's Sort button and the dialog it opens. The first sort decides,
+ * the next breaks its ties and so on: a sort moves up or down that order with
+ * its arrows, or by dragging it on web.
+ */
 export function SortBuilder({ database, view }: SortBuilderProps) {
   const { t } = useTranslation();
   const updateView = useUpdateView();
@@ -115,6 +134,10 @@ export function SortBuilder({ database, view }: SortBuilderProps) {
                 key={`${sort.propertyId}-${idx}`}
                 database={database}
                 sort={sort}
+                index={idx}
+                count={draft.length}
+                onMove={(to) => setDraft((prev) => moveItem(prev, idx, to))}
+                onDropHere={(from) => setDraft((prev) => moveItem(prev, from, idx))}
                 onChange={(patch) =>
                   setDraft((prev) => {
                     const next = [...prev];
@@ -164,16 +187,60 @@ export function SortBuilder({ database, view }: SortBuilderProps) {
 interface SortRowProps {
   database: Database;
   sort: ViewSort;
+  /** Its place in the order, and how many sorts there are. */
+  index: number;
+  count: number;
+  onMove: (to: number) => void;
+  /** The sort at `from` dropped on this one (web): it takes this one's place. */
+  onDropHere: (from: number) => void;
   onChange: (patch: Partial<ViewSort>) => void;
   onRemove: () => void;
 }
 
-function SortRow({ database, sort, onChange, onRemove }: SortRowProps) {
+/** The sort dragged on web, by its place: what a drop moves. */
+const SORT_DRAG_TYPE = 'application/x-nilo-sort';
+
+function SortRow({
+  database,
+  sort,
+  index,
+  count,
+  onMove,
+  onDropHere,
+  onChange,
+  onRemove,
+}: SortRowProps) {
   const { t } = useTranslation();
+  const { colors } = useColorScheme();
   const properties = database.schema.properties.map((p) => ({ value: p.id, label: p.name }));
+  // Web-only: a sort is dragged by its row and dropped on another one's.
+  const dragHandlers =
+    Platform.OS === 'web'
+      ? {
+          draggable: true,
+          onDragStart: (e: { dataTransfer: DataTransfer }) => {
+            e.dataTransfer.setData(SORT_DRAG_TYPE, String(index));
+            e.dataTransfer.effectAllowed = 'move';
+          },
+          onDragOver: (e: { preventDefault: () => void }) => e.preventDefault(),
+          onDrop: (e: { preventDefault: () => void; dataTransfer: DataTransfer }) => {
+            e.preventDefault();
+            // Anything else dropped here (a file, a card) carries no sort.
+            const dragged = e.dataTransfer.getData(SORT_DRAG_TYPE);
+            const from = dragged === '' ? Number.NaN : Number(dragged);
+            if (Number.isInteger(from) && from !== index) onDropHere(from);
+          },
+        }
+      : {};
 
   return (
-    <View className="flex-row items-center gap-2 py-1">
+    <View
+      className="flex-row items-center gap-2 py-1"
+      {...(dragHandlers as Record<string, unknown>)}
+    >
+      {Platform.OS === 'web' ? (
+        <RiDraggable width={14} height={14} fill={colors.mutedForeground} />
+      ) : null}
       <Select
         size="sm"
         value={sort.propertyId}
@@ -213,6 +280,24 @@ function SortRow({ database, sort, onChange, onRemove }: SortRowProps) {
       </ButtonGroup>
 
       <View className="flex-1" />
+      <Button
+        iconOnly
+        appearance="plain"
+        size="xs"
+        accessibilityLabel={t('databases.sorts.moveUp')}
+        disabled={index === 0}
+        onPress={() => onMove(index - 1)}
+        leadingIcon={RiArrowUpLine}
+      />
+      <Button
+        iconOnly
+        appearance="plain"
+        size="xs"
+        accessibilityLabel={t('databases.sorts.moveDown')}
+        disabled={index === count - 1}
+        onPress={() => onMove(index + 1)}
+        leadingIcon={RiArrowDownLine}
+      />
       <Button
         iconOnly
         appearance="plain"

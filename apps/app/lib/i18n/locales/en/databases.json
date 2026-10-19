@@ -107,13 +107,20 @@
     "saveFailed": "Could not save the filters. Try again.",
     "noChoices": "Nothing to choose from",
     "searchRows": "Search rows",
-    "pickDate": "Pick a date"
+    "pickDate": "Pick a date",
+    "group": "Filter group",
+    "combinator": "Match",
+    "addGroup": "Add filter group",
+    "removeGroup": "Remove filter group",
+    "emptyGroup": "No filters in this group yet."
   },
   "sorts": {
     "title": "Sort",
     "empty": "No sorts yet. Add a property below.",
     "add": "Add sort",
-    "allAdded": "All properties added"
+    "allAdded": "All properties added",
+    "moveUp": "Move up",
+    "moveDown": "Move down"
   },
   "table": {
     "empty": "No rows yet"
@@ -121,22 +128,32 @@
   "board": {
     "needsGroupProperty": "Add a status or select property to use the board view.",
     "noStatus": "No status",
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "moveTo": "Move to",
+    "moveCard": "Move %{title} to another column",
+    "longPressHint": "Long press to move it to another column"
   },
   "gallery": {
     "newCard": "New card"
   },
   "calendar": {
     "needsDateProperty": "Add a date property to enable the calendar view.",
-    "webOnly": "Calendar view is web-only in Phase 4. Open the table view on native to edit rows.",
     "today": "Today",
     "previousMonth": "Previous month",
-    "nextMonth": "Next month"
+    "nextMonth": "Next month",
+    "dayRows": "Pages on this day",
+    "noRows": "No pages on this day",
+    "rowCount": {
+      "one": "%{count} page",
+      "other": "%{count} pages"
+    }
   },
   "timeline": {
     "needsDateProperty": "Add a date property to enable the timeline view.",
-    "webOnly": "Timeline view is web-only in Phase 4. Open the table view on native to see your rows.",
-    "row": "Row"
+    "row": "Row",
+    "earlier": "Earlier",
+    "later": "Later",
+    "noRows": "No pages in these days"
   },
   "form": {
     "builder": "Form builder",
@@ -346,7 +363,13 @@
     "removeDescription": "The matching property and its links will be removed from the other database.",
     "configure": "Edit relation",
     "failed": "Could not save the relation. Try again.",
-    "unavailable": "Unavailable page"
+    "unavailable": "Unavailable page",
+    "pick": "Related pages",
+    "noTarget": "Choose the related database in the property's settings",
+    "open": "Open %{title}",
+    "remove": "Remove %{title}",
+    "none": "No pages found",
+    "searchFailed": "Could not search the pages. Try again."
   },
   "subItems": {
     "name": "Sub-items",
@@ -363,5 +386,34 @@
   "system": {
     "property": "%{app} uses this property: it cannot be removed and its type and settings are fixed.",
     "database": "This database belongs to %{app} and cannot be deleted."
+  },
+  "people": {
+    "unknown": "Unknown person",
+    "search": "Search people",
+    "none": "No one to add",
+    "failed": "Could not load the people of this workspace",
+    "guest": "Guest",
+    "remove": "Remove %{name}"
+  },
+  "files": {
+    "title": "Files",
+    "empty": "No files yet",
+    "upload": "Upload a file",
+    "link": "Link to a file",
+    "addLink": "Add link",
+    "remove": "Remove %{name}",
+    "invalidLink": "That is not a link",
+    "tooLarge": "This file is too large"
+  },
+  "dates": {
+    "date": "Date",
+    "range": "Dates",
+    "startTime": "Start time",
+    "endTime": "End time",
+    "endDate": "End date",
+    "includeTime": "Include time"
+  },
+  "contact": {
+    "edit": "Edit %{property}"
   }
 }
