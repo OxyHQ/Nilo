@@ -72,7 +72,9 @@
     "pageCount": {
       "one": "%{count} página",
       "other": "%{count} páginas"
-    }
+    },
+    "deleteFailed": "No se pudo eliminar la propiedad. Inténtalo de nuevo.",
+    "updateFailed": "No se pudo actualizar la propiedad. Inténtalo de nuevo."
   },
   "filters": {
     "title": "Filtros",
@@ -96,8 +98,16 @@
       "before": "antes de",
       "after": "después de",
       "onOrBefore": "en o antes de",
-      "onOrAfter": "en o después de"
-    }
+      "onOrAfter": "en o después de",
+      "doesNotEqual": "no es igual a",
+      "inLast": "en los últimos",
+      "inNext": "en los próximos"
+    },
+    "days": "Días",
+    "saveFailed": "No se pudieron guardar los filtros. Inténtalo de nuevo.",
+    "noChoices": "No hay nada que elegir",
+    "searchRows": "Buscar filas",
+    "pickDate": "Elige una fecha"
   },
   "sorts": {
     "title": "Orden",
@@ -110,7 +120,8 @@
   },
   "board": {
     "needsGroupProperty": "Añade una propiedad de estado o de selección para usar la vista de tablero.",
-    "noStatus": "Sin estado"
+    "noStatus": "Sin estado",
+    "loadMore": "Cargar más"
   },
   "gallery": {
     "newCard": "Nueva tarjeta"
@@ -348,5 +359,9 @@
   },
   "rows": {
     "total": "%{count} filas"
+  },
+  "system": {
+    "property": "%{app} usa esta propiedad: no se puede eliminar y su tipo y ajustes son fijos.",
+    "database": "Esta base de datos pertenece a %{app} y no se puede eliminar."
   }
 }

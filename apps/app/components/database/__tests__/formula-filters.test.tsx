@@ -13,6 +13,12 @@ jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }
 jest.mock('@/lib/hooks/use-database-views', () => ({
   useUpdateView: () => ({ mutateAsync: mockUpdate }),
 }));
+// The pickers of people and related rows, which these filters never open.
+jest.mock('@/lib/hooks/use-database-rows', () => ({ useDatabaseRows: () => ({}) }));
+jest.mock('@/lib/hooks/use-workspace-members', () => ({
+  useWorkspaceMembers: () => ({}),
+  memberProfileName: () => null,
+}));
 const view = {
   id: 'view',
   filters: {

@@ -26,6 +26,9 @@ interface ViewBoardProps {
   rows: DatabaseRow[];
   isLoading: boolean;
   readOnly?: boolean;
+  /** More rows than these: the board reads them a page at a time. */
+  hasMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 const COLUMN_WIDTH = 280;
@@ -35,11 +38,18 @@ const COLUMN_WIDTH = 280;
  * column corresponds to one option of the group property; dragging a
  * card between columns updates the row's property value.
  *
- * Drag-and-drop runs on web via HTML5 DataTransfer. Native gets a
- * tap-to-move fallback (a "Move to…" affordance) — full DnD on native
- * is out of scope for Phase 4 (see spec).
+ * Drag-and-drop runs on web via HTML5 DataTransfer. On native a card
+ * moves by changing its group property on the row's page.
  */
-export function ViewBoard({ database, view, rows, isLoading, readOnly = false }: ViewBoardProps) {
+export function ViewBoard({
+  database,
+  view,
+  rows,
+  isLoading,
+  readOnly = false,
+  hasMore = false,
+  onLoadMore,
+}: ViewBoardProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const createRow = useCreateRow();
@@ -103,6 +113,14 @@ export function ViewBoard({ database, view, rows, isLoading, readOnly = false }:
     [database.id, groupByProperty, updateRow, readOnly],
   );
 
+  // A card shows the first properties the view does not hide.
+  const cardProperties = React.useMemo(() => {
+    const hidden = new Set(view.hiddenProperties);
+    return database.schema.properties
+      .filter((p) => p.id !== 'name' && p.type !== 'rollup' && !hidden.has(p.id))
+      .slice(0, 3);
+  }, [database.schema.properties, view.hiddenProperties]);
+
   if (isLoading) {
     return (
       <View className="py-10 items-center">
@@ -144,7 +162,7 @@ export function ViewBoard({ database, view, rows, isLoading, readOnly = false }:
                 key={row.id}
                 readOnly={readOnly}
                 row={row}
-                database={database}
+                properties={cardProperties}
                 onOpen={() => router.push(`/p/${row.id}`)}
               />
             )}
@@ -167,11 +185,16 @@ export function ViewBoard({ database, view, rows, isLoading, readOnly = false }:
               key={row.id}
               readOnly={readOnly}
               row={row}
-              database={database}
+              properties={cardProperties}
               onOpen={() => router.push(`/p/${row.id}`)}
             />
           )}
         />
+        {hasMore && onLoadMore ? (
+          <Button appearance="subtle" size="sm" className="self-start" onPress={onLoadMore}>
+            {t('databases.board.loadMore')}
+          </Button>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -236,13 +259,13 @@ function BoardColumn({ option, rows, onAddRow, onMoveTo, renderCard, readOnly }:
 interface BoardCardProps {
   readOnly: boolean;
   row: DatabaseRow;
-  database: Database;
+  /** The properties the card shows, in order. */
+  properties: DatabaseProperty[];
   onOpen: () => void;
 }
 
-function BoardCard({ row, database, onOpen, readOnly }: BoardCardProps) {
+function BoardCard({ row, properties, onOpen, readOnly }: BoardCardProps) {
   const { t } = useTranslation();
-  const visible = database.schema.properties.filter((p) => p.id !== 'name' && p.type !== 'rollup');
 
   const dragHandlers =
     Platform.OS === 'web' && !readOnly
@@ -267,7 +290,7 @@ function BoardCard({ row, database, onOpen, readOnly }: BoardCardProps) {
         {row.title || t('databases.untitled')}
       </Text>
       <View className="gap-1">
-        {visible.slice(0, 3).map((property) => (
+        {properties.map((property) => (
           <View key={property.id} className="flex-row items-center gap-1">
             <PropertyCell
               readOnly={readOnly}

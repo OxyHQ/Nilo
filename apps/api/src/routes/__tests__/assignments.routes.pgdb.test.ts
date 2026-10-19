@@ -8,6 +8,8 @@ import type { AddressInfo } from 'node:net';
 import express from 'express';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { closeDb } from '../../db/client.js';
+import { pagePermissions } from '../../db/schema/collab.js';
+import { pages } from '../../db/schema/pages.js';
 import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
 import {
   closeTestDb,
@@ -64,6 +66,7 @@ const { default: databasesRouter } = await import('../databases.js');
 
 const OWNER = 'assign-owner';
 const EDITOR = 'assign-editor';
+/** A guest: shared one page of the workspace, not the database. */
 const OUTSIDER = 'assign-outsider';
 
 let db: TestDatabase;
@@ -104,6 +107,13 @@ beforeAll(async () => {
     { workspaceId, userId: OWNER, role: 'owner' },
     { workspaceId, userId: EDITOR, role: 'editor' },
   ]);
+  const [shared] = await db
+    .insert(pages)
+    .values({ workspaceId, title: 'Compartida', ownerId: OWNER })
+    .returning({ id: pages.id });
+  await db
+    .insert(pagePermissions)
+    .values({ pageId: shared.id, userId: OUTSIDER, role: 'viewer', grantedBy: OWNER });
   const app = express();
   app.use(express.json());
   app.use('/pages', pagesRouter);
@@ -188,6 +198,17 @@ describe('assigning someone to a row', () => {
     expect(again.status).toBe(200);
     await settle();
     expect(assigned().map((n) => [n.userId, n.data?.authorId])).toEqual([[OWNER, EDITOR]]);
+  });
+
+  it('refuses someone who is neither a member nor a guest of the workspace', async () => {
+    const row = await api(OWNER, 'POST', `/databases/${databaseId}/rows`, {
+      title: 'Ajena',
+      properties: { owner: { userIds: ['assign-stranger'] } },
+    });
+    expect(row.status).toBe(400);
+    expect(row.json).toMatchObject({ code: 'UNKNOWN_PERSON', propertyId: 'owner' });
+    await settle();
+    expect(assigned()).toEqual([]);
   });
 
   it('tells nobody about a template', async () => {

@@ -54,5 +54,8 @@ export const queryKeys = {
     rows: (id: string, viewId: string | null) => ['database', id, 'rows', viewId] as const,
     /** One row with its computed values (`rows` holds lists only). */
     row: (id: string, rowId: string) => ['database', id, 'row', rowId] as const,
+    /** The rows a relation points at, read together. */
+    related: (id: string, rowIds: readonly string[]) =>
+      ['database', id, 'related', ...rowIds] as const,
   },
 } as const;

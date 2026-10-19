@@ -62,6 +62,8 @@ interface DatabaseHeaderProps {
   views: DatabaseView[];
   activeViewId: string | null;
   onSelectView: (id: string) => void;
+  /** A reader's: the title, the views and the database's settings are shown, not edited. */
+  readOnly?: boolean;
 }
 
 export function DatabaseHeader({
@@ -69,6 +71,7 @@ export function DatabaseHeader({
   views,
   activeViewId,
   onSelectView,
+  readOnly = false,
 }: DatabaseHeaderProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -78,7 +81,7 @@ export function DatabaseHeader({
   const [newViewOpen, setNewViewOpen] = React.useState(false);
 
   const handleTitleBlur = () => {
-    if (titleDraft === null) return;
+    if (readOnly || titleDraft === null) return;
     if (titleDraft === database.name) {
       setTitleDraft(null);
       return;
@@ -124,6 +127,7 @@ export function DatabaseHeader({
               value={titleDraft ?? database.name}
               onChangeText={setTitleDraft}
               onBlur={handleTitleBlur}
+              editable={!readOnly}
               placeholder={t('databases.untitledDatabase')}
               placeholderTextColor={colors.mutedForeground}
               className="text-3xl font-bold text-foreground"
@@ -133,7 +137,7 @@ export function DatabaseHeader({
               underlineColorAndroid="transparent"
             />
           </View>
-          <DatabaseActionsMenu databaseId={database.id} />
+          <DatabaseActionsMenu databaseId={database.id} readOnly={readOnly} />
         </View>
 
         {/* View tabs */}
@@ -146,22 +150,24 @@ export function DatabaseHeader({
               label={t('databases.views.title')}
             >
               {views.map((v) => (
-                <ViewTab key={v.id} view={v} database={database} />
+                <ViewTab key={v.id} view={v} database={database} readOnly={readOnly} />
               ))}
             </Tabs>
           </View>
-          <Button
-            appearance="plain"
-            size="xs"
-            onPress={() => setNewViewOpen(true)}
-            leadingIcon={RiAddLine}
-          >
-            {t('databases.views.new')}
-          </Button>
+          {!readOnly ? (
+            <Button
+              appearance="plain"
+              size="xs"
+              onPress={() => setNewViewOpen(true)}
+              leadingIcon={RiAddLine}
+            >
+              {t('databases.views.new')}
+            </Button>
+          ) : null}
         </View>
       </View>
       <NewViewPicker
-        open={newViewOpen}
+        open={!readOnly && newViewOpen}
         onClose={() => setNewViewOpen(false)}
         onChoose={handleAddView}
         pending={createView.isPending}

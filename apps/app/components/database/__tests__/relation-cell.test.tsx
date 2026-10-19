@@ -3,7 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { PropertyCell } from '../property-cell';
 import { RowPropertiesPanel } from '../row-properties-panel';
-import { useDatabaseRow } from '@/lib/hooks/use-database-rows';
+import { useDatabaseRow, useRelatedRows } from '@/lib/hooks/use-database-rows';
 import type { Database, DatabaseRow } from '@/lib/types/databases';
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
@@ -13,6 +13,7 @@ jest.mock('@/hooks/useTranslation', () => ({
 jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/lib/hooks/use-database-rows', () => ({
   useDatabaseRow: jest.fn(),
+  useRelatedRows: jest.fn(),
   useUpdateRow: () => ({ mutate: jest.fn() }),
 }));
 let renderer: ReactTestRenderer;
@@ -21,14 +22,12 @@ afterEach(() => act(() => renderer?.unmount()));
 it.each([false, true])(
   'shows and opens related row titles on both sides, readOnly=%s',
   (readOnly) => {
-    jest
-      .mocked(useDatabaseRow)
-      .mockImplementation(
-        (_db, id) =>
-          ({ data: { id, title: id === 'project' ? 'Launch' : 'Design' } }) as ReturnType<
-            typeof useDatabaseRow
-          >,
-      );
+    jest.mocked(useRelatedRows).mockImplementation(
+      (_db, ids) =>
+        ({
+          data: ids.map((id) => ({ id, title: id === 'project' ? 'Launch' : 'Design' })),
+        }) as ReturnType<typeof useRelatedRows>,
+    );
     act(() => {
       renderer = create(
         <BloomTestProviders>
@@ -57,8 +56,8 @@ it.each([false, true])(
         </BloomTestProviders>,
       );
     });
-    expect(useDatabaseRow).toHaveBeenCalledWith('projects', 'project');
-    expect(useDatabaseRow).toHaveBeenCalledWith('tasks', 'task');
+    expect(useRelatedRows).toHaveBeenCalledWith('projects', ['project']);
+    expect(useRelatedRows).toHaveBeenCalledWith('tasks', ['task']);
     const pill = renderer.root.find(
       (node) => node.props?.accessibilityLabel === 'Launch' && node.props.onPress,
     );
@@ -72,6 +71,37 @@ it.each([false, true])(
     expect(JSON.stringify(renderer.toJSON())).toContain('Design');
   },
 );
+
+it('reads every related row of a cell in one request, and marks the ones gone', () => {
+  jest.mocked(useRelatedRows).mockReturnValue({
+    data: [
+      { id: 'a', title: 'Alpha' },
+      { id: 'c', title: '' },
+    ],
+  } as ReturnType<typeof useRelatedRows>);
+  act(() => {
+    renderer = create(
+      <BloomTestProviders>
+        <PropertyCell
+          property={{ id: 'rel', name: 'Rel', type: 'relation', config: { targetDatabaseId: 't' } }}
+          value={{ pageIds: ['a', 'b', 'c'] }}
+          onChange={jest.fn()}
+        />
+      </BloomTestProviders>,
+    );
+  });
+  expect(useRelatedRows).toHaveBeenCalledTimes(1);
+  expect(useRelatedRows).toHaveBeenCalledWith('t', ['a', 'b', 'c']);
+  const labels = renderer.root
+    .findAll((node) => node.props?.stopPropagation === true && node.props.onPress)
+    .map((node) => node.props.accessibilityLabel);
+  expect([...new Set(labels)]).toEqual([
+    'Alpha',
+    'databases.relations.unavailable',
+    'databases.untitled',
+  ]);
+});
+
 it('the row page uses fresh row-query properties without reloading the editor page', () => {
   const property = {
     id: 'rel',
@@ -81,15 +111,17 @@ it('the row page uses fresh row-query properties without reloading the editor pa
   };
   const database = { id: 'db', schema: { properties: [property] } } as Database;
   const row = { id: 'row', properties: { rel: { pageIds: ['old'] } } } as unknown as DatabaseRow;
-  jest.mocked(useDatabaseRow).mockImplementation(
-    (_db, id) =>
-      ({
-        data:
-          id === 'row'
-            ? { ...row, properties: { rel: { pageIds: ['new'] } } }
-            : { id, title: 'New relation' },
-      }) as ReturnType<typeof useDatabaseRow>,
-  );
+  jest.mocked(useDatabaseRow).mockReturnValue({
+    data: { ...row, properties: { rel: { pageIds: ['new'] } } },
+  } as unknown as ReturnType<typeof useDatabaseRow>);
+  jest
+    .mocked(useRelatedRows)
+    .mockImplementation(
+      (_db, ids) =>
+        ({ data: ids.map((id) => ({ id, title: 'New relation' })) }) as ReturnType<
+          typeof useRelatedRows
+        >,
+    );
   act(() => {
     renderer = create(
       <BloomTestProviders>
@@ -98,7 +130,7 @@ it('the row page uses fresh row-query properties without reloading the editor pa
     );
   });
   expect(useDatabaseRow).toHaveBeenCalledWith('db', 'row');
-  expect(useDatabaseRow).toHaveBeenCalledWith('target', 'new');
-  expect(useDatabaseRow).not.toHaveBeenCalledWith('target', 'old');
+  expect(useRelatedRows).toHaveBeenCalledWith('target', ['new']);
+  expect(useRelatedRows).not.toHaveBeenCalledWith('target', ['old']);
   expect(JSON.stringify(renderer.toJSON())).toContain('New relation');
 });

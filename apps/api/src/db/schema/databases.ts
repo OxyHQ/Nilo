@@ -12,6 +12,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
+import { DATABASE_PROPERTY_TYPES, type DatabasePropertyType } from '@oxy.so/nilo-contracts';
 import { blocks, pages } from './pages.js';
 import { workspaces } from './workspaces.js';
 import { teamspaces } from './teamspaces.js';
@@ -24,12 +25,15 @@ import { teamspaces } from './teamspaces.js';
  *
  * ## The domain types live here
  *
- * `DatabaseProperty`, `Filter`, `DATABASE_PROPERTY_TYPES` and the rest are
- * imported — type-only — by `src/lib/databases/{filters,sorts,formula,rollups,
- * property-values,schema-defaults}.ts`, which are pure functions over parsed
- * values. They are declared HERE rather than duplicated or re-exported: the
- * jsonb columns need them for `$type<>()` anyway, so this file is where they
- * are structurally required, and each has one declaration with one owner.
+ * `DatabaseProperty`, `Filter` and the rest are imported — type-only — by
+ * `src/lib/databases/{filters,sorts,formula,rollups,property-values,
+ * schema-defaults}.ts`, which are pure functions over parsed values. They are
+ * declared HERE rather than duplicated or re-exported: the jsonb columns need
+ * them for `$type<>()` anyway, so this file is where they are structurally
+ * required, and each has one declaration with one owner. The one exception is
+ * `DATABASE_PROPERTY_TYPES`, which the app reads too, with the filter
+ * operators of each type: it is declared in `@oxy.so/nilo-contracts` and
+ * re-exported here, as `pages.ts` does with the block types.
  *
  * ## What became a CHECK and what did not
  *
@@ -45,30 +49,8 @@ import { teamspaces } from './teamspaces.js';
 // Property schema — the shape stored in `databases.propertiesSchema` (jsonb)
 // ---------------------------------------------------------------------------
 
-export const DATABASE_PROPERTY_TYPES = [
-  'text',
-  'number',
-  'select',
-  'multi_select',
-  'status',
-  'date',
-  'person',
-  'files',
-  'checkbox',
-  'url',
-  'email',
-  'phone',
-  'relation',
-  'rollup',
-  'created_time',
-  'last_edited_time',
-  'created_by',
-  'last_edited_by',
-  'formula',
-  // A number every row gets in turn when it is created (with an optional prefix: TASK-12).
-  'unique_id',
-] as const;
-export type DatabasePropertyType = (typeof DATABASE_PROPERTY_TYPES)[number];
+/** Every property type, shared with the app with the filter operators each takes. */
+export { DATABASE_PROPERTY_TYPES, type DatabasePropertyType } from '@oxy.so/nilo-contracts';
 
 export const SELECT_COLORS = [
   'default',

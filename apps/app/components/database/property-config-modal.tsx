@@ -57,6 +57,7 @@ import {
   useUpdateProperty,
 } from '@/lib/hooks/use-database-properties';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
+import { databaseChangeError } from '@/lib/database-errors';
 import type { BloomIconComponent } from '@oxy.so/bloom/icons';
 
 interface PropertyHeaderMenuProps {
@@ -157,12 +158,16 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
       setMode('menu');
       return;
     }
-    await updateProperty.mutateAsync({
-      databaseId: database.id,
-      propertyId: property.id,
-      name: nameDraft.trim(),
-    });
-    setMode('menu');
+    try {
+      await updateProperty.mutateAsync({
+        databaseId: database.id,
+        propertyId: property.id,
+        name: nameDraft.trim(),
+      });
+      setMode('menu');
+    } catch (error) {
+      toast.error(databaseChangeError(error, database, t('databases.properties.updateFailed')));
+    }
   };
 
   const applySort = async (direction: 'asc' | 'desc') => {
@@ -188,8 +193,8 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
     try {
       await deleteProperty.mutateAsync({ databaseId: database.id, propertyId: property.id });
       close();
-    } catch {
-      toast.error(t('databases.relations.failed'));
+    } catch (error) {
+      toast.error(databaseChangeError(error, database, t('databases.properties.deleteFailed')));
     }
   };
 
@@ -269,14 +274,14 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
           <Item
             density="compact"
             accessibilityRole="button"
-            leading={icon(RiSortAlphabetDesc)}
+            leading={icon(RiSortAlphabetAsc)}
             title={t('databases.properties.sortAscending')}
             onPress={() => applySort('asc')}
           />
           <Item
             density="compact"
             accessibilityRole="button"
-            leading={icon(RiSortAlphabetAsc)}
+            leading={icon(RiSortAlphabetDesc)}
             title={t('databases.properties.sortDescending')}
             onPress={() => applySort('desc')}
           />
@@ -358,12 +363,18 @@ function SelectOptionsEditor({ property, database, onDone }: SelectOptionsEditor
   const [draftName, setDraftName] = React.useState('');
 
   const persist = async (next: SelectOption[]) => {
+    const previous = options;
     setOptions(next);
-    await updateProperty.mutateAsync({
-      databaseId: database.id,
-      propertyId: property.id,
-      config: { ...(property.config ?? {}), options: next },
-    });
+    try {
+      await updateProperty.mutateAsync({
+        databaseId: database.id,
+        propertyId: property.id,
+        config: { ...(property.config ?? {}), options: next },
+      });
+    } catch (error) {
+      setOptions(previous);
+      toast.error(databaseChangeError(error, database, t('databases.properties.updateFailed')));
+    }
   };
 
   const addOption = async () => {

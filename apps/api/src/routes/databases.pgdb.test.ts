@@ -690,9 +690,11 @@ describe('properties', () => {
 
   it('drops the key from the schema and from every row that carries it', async () => {
     const databaseId = await createDatabase();
+    const [created] = await db.select().from(databases).where(eq(databases.id, databaseId));
+    const status = created.propertiesSchema.properties.find((p) => p.id === 'status');
     const withValue = await api('POST', `/api/databases/${databaseId}/rows`, {
       title: 'Has status',
-      properties: { status: { optionId: 'opt-1' } },
+      properties: { status: { optionId: status?.config?.options?.[0]?.id } },
     });
     const withoutValue = await api('POST', `/api/databases/${databaseId}/rows`, {
       title: 'No status',
@@ -717,6 +719,96 @@ describe('properties', () => {
     // null. `jsonb - text` on a missing key is a no-op, unlike a replacement.
     const [untouched] = await db.select().from(pages).where(eq(pages.id, withoutValueId));
     expect(untouched.properties).toEqual({});
+  });
+});
+
+describe('removing a property', () => {
+  it('takes it out of every view and every rollup that read it, in the same write', async () => {
+    const databaseId = await createDatabase({
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          { id: 'due', name: 'Due', type: 'date' },
+          { id: 'pts', name: 'Points', type: 'number' },
+          { id: 'kept', name: 'Kept', type: 'number' },
+        ],
+      },
+    });
+    // A rollup reading this database's own points through a relation to itself.
+    for (const property of [
+      { id: 'rel', name: 'Parent', type: 'relation', config: { targetDatabaseId: databaseId } },
+      {
+        id: 'sum',
+        name: 'Sum',
+        type: 'rollup',
+        config: { relationPropertyId: 'rel', targetPropertyId: 'pts', function: 'sum' },
+      },
+    ]) {
+      expect((await api('POST', `/api/databases/${databaseId}/properties`, property)).status).toBe(
+        201,
+      );
+    }
+    const condition = (propertyId: string) => ({
+      kind: 'condition',
+      propertyId,
+      operator: 'is_not_empty',
+    });
+    const board = await api('POST', `/api/databases/${databaseId}/views`, {
+      name: 'Everything',
+      type: 'timeline',
+      filters: {
+        kind: 'group',
+        combinator: 'or',
+        filters: [
+          condition('kept'),
+          { kind: 'group', combinator: 'and', filters: [condition('pts'), condition('due')] },
+          { kind: 'group', combinator: 'and', filters: [condition('due')] },
+        ],
+      },
+      sorts: [
+        { propertyId: 'due', direction: 'asc' },
+        { propertyId: 'kept', direction: 'desc' },
+      ],
+      groupBy: { propertyId: 'due' },
+      hiddenProperties: ['due', 'kept'],
+      frozenProperties: ['due'],
+      config: { startPropertyId: 'due', endPropertyId: 'due', datePropertyId: 'due' },
+    });
+    expect(board.status).toBe(201);
+
+    const dropped = await api('DELETE', `/api/databases/${databaseId}/properties/due`);
+    expect(dropped.status).toBe(200);
+    const [view] = await db
+      .select()
+      .from(databaseViews)
+      .where(eq(databaseViews.id, idOf(board.body.view)));
+    expect(view.filters).toEqual({
+      kind: 'group',
+      combinator: 'or',
+      filters: [
+        condition('kept'),
+        { kind: 'group', combinator: 'and', filters: [condition('pts')] },
+      ],
+    });
+    expect(view.sorts).toEqual([{ propertyId: 'kept', direction: 'desc' }]);
+    expect(view.groupBy).toBeNull();
+    expect(view.hiddenProperties).toEqual(['kept']);
+    expect(view.frozenProperties).toEqual([]);
+    expect(view.config).toEqual({});
+    // The view is saveable again as it now stands.
+    const resaved = await api('PATCH', `/api/databases/${databaseId}/views/${view.id}`, {
+      filters: view.filters,
+    });
+    expect(resaved.status).toBe(200);
+
+    expect((await api('DELETE', `/api/databases/${databaseId}/properties/pts`)).status).toBe(200);
+    const rollupConfig = async () => {
+      const [stored] = await db.select().from(databases).where(eq(databases.id, databaseId));
+      return stored.propertiesSchema.properties.find((p) => p.id === 'sum')?.config;
+    };
+    expect(await rollupConfig()).toEqual({ relationPropertyId: 'rel', function: 'sum' });
+    expect((await api('DELETE', `/api/databases/${databaseId}/properties/rel`)).status).toBe(200);
+    expect(await rollupConfig()).toEqual({ function: 'sum' });
   });
 });
 
@@ -922,6 +1014,81 @@ describe('rows', () => {
     expect(computed.body.code).toBe('COMPUTED_PROPERTY');
     const [stored] = await db.select().from(pages).where(eq(pages.id, rowId));
     expect(stored?.properties.n).toBeUndefined();
+  });
+
+  it('refuses an option, a person or a related row the property cannot hold', async () => {
+    const targetId = await createDatabase({ name: 'Targets' });
+    const elsewhere = await createDatabase({ name: 'Elsewhere' });
+    const target = idOf(
+      (await api('POST', `/api/databases/${targetId}/rows`, { title: 'target' })).body.row,
+    );
+    const stray = idOf(
+      (await api('POST', `/api/databases/${elsewhere}/rows`, { title: 'stray' })).body.row,
+    );
+    const databaseId = await createDatabase({
+      schema: {
+        properties: [
+          { id: 'name', name: 'Name', type: 'text' },
+          {
+            id: 'pri',
+            name: 'Priority',
+            type: 'select',
+            config: { options: [{ id: 'hi', name: 'Hi' }] },
+          },
+          {
+            id: 'tags',
+            name: 'Tags',
+            type: 'multi_select',
+            config: {
+              options: [
+                { id: 'a', name: 'A' },
+                { id: 'b', name: 'B' },
+              ],
+            },
+          },
+          { id: 'who', name: 'Who', type: 'person' },
+          { id: 'rel', name: 'Related', type: 'relation', config: { targetDatabaseId: targetId } },
+        ],
+      },
+    });
+    const create = (properties: Record<string, unknown>) =>
+      api('POST', `/api/databases/${databaseId}/rows`, { title: 'r', properties });
+    for (const [properties, code] of [
+      [{ pri: { optionId: 'ghost' } }, 'UNKNOWN_OPTION'],
+      [{ tags: { optionIds: ['a', 'ghost'] } }, 'UNKNOWN_OPTION'],
+      [{ who: { userIds: [`stranger-${ctx.workspaceId}`] } }, 'UNKNOWN_PERSON'],
+      [{ rel: { pageIds: [stray] } }, 'UNKNOWN_RELATED_ROW'],
+    ] as const) {
+      const refused = await create(properties);
+      expect(refused.status, JSON.stringify(properties)).toBe(400);
+      expect(refused.body.code).toBe(code);
+    }
+    const made = await create({
+      pri: { optionId: 'hi' },
+      tags: { optionIds: ['a', 'b'] },
+      who: { userIds: [ctx.userId] },
+      rel: { pageIds: [target] },
+    });
+    expect(made.status).toBe(201);
+    const rowId = idOf(made.body.row);
+
+    const patched = await api('PATCH', `/api/pages/${rowId}`, {
+      properties: { rel: { pageIds: [target, stray] } },
+    });
+    expect(patched.status).toBe(400);
+    expect(patched.body).toMatchObject({ code: 'UNKNOWN_RELATED_ROW', propertyId: 'rel' });
+    const [unchanged] = await db.select().from(pages).where(eq(pages.id, rowId));
+    expect(unchanged?.properties.rel).toEqual({ pageIds: [target] });
+
+    // An id the row already holds stays when its option is gone: the client sends the list back.
+    const removed = await api('PATCH', `/api/databases/${databaseId}/properties/tags`, {
+      config: { options: [{ id: 'a', name: 'A' }] },
+    });
+    expect(removed.status).toBe(200);
+    const kept = await api('PATCH', `/api/pages/${rowId}`, {
+      properties: { tags: { optionIds: ['b'] } },
+    });
+    expect(kept.status).toBe(200);
   });
 
   it('numbers rows from the highest existing order', async () => {
@@ -1340,7 +1507,6 @@ describe('rows', () => {
     const gone = idOf(
       (await api('POST', `/api/databases/${targetId}/rows`, { title: 'gone' })).body.row,
     );
-    expect((await api('DELETE', `/api/pages/${gone}`)).status).toBe(200);
     const sourceId = await createDatabase({
       name: 'Live count',
       schema: {
@@ -1360,6 +1526,8 @@ describe('rows', () => {
       title: 'counts',
       properties: { rel: { pageIds: [kept, gone] } },
     });
+    // Trashed once related: a relation cannot be given a row in the trash.
+    expect((await api('DELETE', `/api/pages/${gone}`)).status).toBe(200);
     const listed = await api('GET', `/api/databases/${sourceId}/rows`);
     const props = asRecord(asRecord(asArray(listed.body.rows)[0]).properties);
     expect(asRecord(props.n).number).toBe(1);
@@ -1505,6 +1673,38 @@ describe('views', () => {
       config: { description: 'Updated.' },
     });
     expect(asRecord(asRecord(patched.body.view).config).description).toBe('Updated.');
+  });
+
+  it('refuses a filter on a property the database lacks or with an operator it does not take', async () => {
+    const databaseId = await createDatabase();
+    const viewId = idOf(
+      (await api('POST', `/api/databases/${databaseId}/views`, { name: 'V', type: 'table' })).body
+        .view,
+    );
+    const only = (propertyId: string, operator: string) => ({
+      kind: 'group',
+      combinator: 'and',
+      filters: [
+        { kind: 'group', combinator: 'or', filters: [{ kind: 'condition', propertyId, operator }] },
+      ],
+    });
+    for (const filters of [only('status', 'contains'), only('ghost', 'is_empty')]) {
+      const refused = await api('PATCH', `/api/databases/${databaseId}/views/${viewId}`, {
+        filters,
+      });
+      expect(refused.status).toBe(400);
+      expect(refused.body.code).toBe('INVALID_FILTER');
+      const created = await api('POST', `/api/databases/${databaseId}/views`, {
+        name: 'W',
+        type: 'table',
+        filters,
+      });
+      expect(created.status).toBe(400);
+    }
+    const accepted = await api('PATCH', `/api/databases/${databaseId}/views/${viewId}`, {
+      filters: only('status', 'is_not'),
+    });
+    expect(accepted.status).toBe(200);
   });
 
   it('refuses a view belonging to another database', async () => {
