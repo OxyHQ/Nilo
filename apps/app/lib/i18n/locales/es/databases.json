@@ -34,7 +34,8 @@
     "deleteFailed": "No se pudo eliminar la vista.",
     "makeDefault": "Usar como vista predeterminada",
     "moveLeft": "Mover a la izquierda",
-    "moveRight": "Mover a la derecha"
+    "moveRight": "Mover a la derecha",
+    "chart": "Gráfico"
   },
   "propertyTypes": {
     "text": "Texto",
@@ -56,7 +57,8 @@
     "createdBy": "Creado por",
     "lastEditedBy": "Editado por última vez por",
     "formula": "Fórmula",
-    "uniqueId": "ID"
+    "uniqueId": "ID",
+    "button": "Botón"
   },
   "properties": {
     "property": "Propiedad",
@@ -80,7 +82,9 @@
     "updateFailed": "No se pudo actualizar la propiedad. Inténtalo de nuevo.",
     "changeType": "Cambiar tipo",
     "changeTypeTitle": "¿Cambiar a %{type}?",
-    "changeTypeDescription": "Los valores que encajan en el nuevo tipo se convierten; los demás se borran. Los filtros sobre esta propiedad se quitan de sus vistas."
+    "changeTypeDescription": "Los valores que encajan en el nuevo tipo se convierten; los demás se borran. Los filtros sobre esta propiedad se quitan de sus vistas.",
+    "moveLeft": "Mover a la izquierda",
+    "moveRight": "Mover a la derecha"
   },
   "filters": {
     "title": "Filtros",
@@ -477,7 +481,36 @@
     "properties": "Propiedades",
     "show": "Mostrar %{name}",
     "moveUp": "Subir %{name}",
-    "moveDown": "Bajar %{name}"
+    "moveDown": "Bajar %{name}",
+    "openIn": "Abrir páginas en",
+    "openModes": {
+      "side_peek": "Vista lateral",
+      "center_peek": "Vista central",
+      "full_page": "Página completa"
+    },
+    "subGroupBy": "Subagrupar por",
+    "granularity": "Agrupar fechas por",
+    "granularities": {
+      "day": "Día",
+      "week": "Semana",
+      "month": "Mes",
+      "year": "Año"
+    },
+    "hideEmpty": "Ocultar grupos vacíos",
+    "chartType": "Tipo de gráfico",
+    "chartTypes": {
+      "bar": "Barras",
+      "line": "Línea",
+      "donut": "Anillo"
+    },
+    "xAxis": "Eje X",
+    "yAxis": "Eje Y",
+    "aggregates": {
+      "count": "Número de filas",
+      "sum": "Suma",
+      "average": "Promedio"
+    },
+    "yProperty": "Propiedad a sumar"
   },
   "options": {
     "color": "Color de %{name}",
@@ -539,5 +572,92 @@
       "percent_empty": "Porcentaje vacío",
       "percent_not_empty": "Porcentaje no vacío"
     }
+  },
+  "peek": {
+    "openFull": "Abrir como página completa",
+    "close": "Cerrar",
+    "loadFailed": "No se pudo abrir esta página."
+  },
+  "groups": {
+    "none": "Sin %{name}",
+    "weekOf": "Semana del %{date}",
+    "collapse": "Contraer %{name}",
+    "expand": "Expandir %{name}",
+    "count": {
+      "one": "%{count} fila",
+      "other": "%{count} filas"
+    },
+    "addRow": "Nueva fila en %{name}"
+  },
+  "calculations": {
+    "calculate": "Calcular",
+    "none": "Ninguno",
+    "pick": "Calcular %{name}",
+    "failed": "No se pudo calcular.",
+    "days": {
+      "one": "%{count} día",
+      "other": "%{count} días"
+    },
+    "hours": {
+      "one": "%{count} hora",
+      "other": "%{count} horas"
+    },
+    "functions": {
+      "count_all": "Contar todo",
+      "count_values": "Contar valores",
+      "count_unique": "Contar valores únicos",
+      "count_empty": "Contar vacíos",
+      "count_not_empty": "Contar no vacíos",
+      "percent_empty": "Porcentaje vacío",
+      "percent_not_empty": "Porcentaje no vacío",
+      "sum": "Suma",
+      "average": "Promedio",
+      "median": "Mediana",
+      "min": "Mínimo",
+      "max": "Máximo",
+      "range": "Rango",
+      "earliest": "Fecha más temprana",
+      "latest": "Fecha más reciente",
+      "date_range": "Rango de fechas",
+      "checked": "Marcados",
+      "unchecked": "Sin marcar",
+      "percent_checked": "Porcentaje marcado"
+    }
+  },
+  "columns": {
+    "resize": "Cambiar el ancho de %{name}",
+    "drag": "Arrastra %{name} para moverla"
+  },
+  "chart": {
+    "empty": "No hay filas para el gráfico.",
+    "needsAxis": "Elige una propiedad para el eje X en los ajustes de la vista.",
+    "loadFailed": "No se pudo cargar el gráfico.",
+    "retry": "Reintentar",
+    "summary": "Gráfico de %{type} por %{name}: %{points}",
+    "point": "%{label}, %{value}",
+    "other": "Otros",
+    "total": "Total"
+  },
+  "button": {
+    "configure": "Editar acciones",
+    "actions": "Acciones",
+    "add": "Añadir acción",
+    "remove": "Quitar la acción %{index}",
+    "kinds": {
+      "open_url": "Abrir un enlace",
+      "set_property": "Editar una propiedad",
+      "create_row": "Añadir una página"
+    },
+    "kind": "Acción",
+    "url": "Enlace",
+    "property": "Propiedad",
+    "value": "Valor",
+    "database": "Añadir a",
+    "thisDatabase": "Esta base de datos",
+    "title": "Título de la página nueva",
+    "noActions": "Añade una acción a este botón.",
+    "invalidUrl": "Usa un enlace que empiece por http://, https:// o mailto:.",
+    "failed": "El botón no pudo terminar.",
+    "running": "Ejecutando…"
   }
 }
