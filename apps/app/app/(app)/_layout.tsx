@@ -34,7 +34,7 @@ export default function AppLayout() {
   // Pages kept offline stay current (lib/editor/offline-pages.ts).
   useOfflineSync();
 
-  // Global app-wide keyboard shortcuts (Cmd+K, Cmd+N, Cmd+\, Cmd+/)
+  // Global app-wide keyboard shortcuts (Cmd+K, Cmd+Alt+N, Cmd+\, Cmd+/)
   useKeyboardShortcuts();
 
   const renderDrawerContent = useCallback(() => <Sidebar />, []);
