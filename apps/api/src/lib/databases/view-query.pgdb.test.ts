@@ -8,10 +8,15 @@
  * random filter trees, sorts and searches. For each, every page is walked
  * through the cursor, and the ids in order must be exactly what
  * `evaluateFilter` and a stable `compareBySorts` give over the same rows, with
- * `total` on every page.
+ * `total` on every page. Grouped, each row once per group it is in, in the
+ * order and with the counts `groups.ts` gives; and every footer calculation
+ * of every type, as `calculations.ts` computes it in JS.
  */
 import { eq } from 'drizzle-orm';
-import { FILTER_OPERATORS_BY_TYPE as OPERATORS_BY_TYPE } from '@oxy.so/nilo-contracts';
+import {
+  CALCULATIONS_BY_TYPE,
+  FILTER_OPERATORS_BY_TYPE as OPERATORS_BY_TYPE,
+} from '@oxy.so/nilo-contracts';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   closeTestDb,
@@ -28,9 +33,18 @@ import {
 } from '../../db/schema/databases.js';
 import { pages } from '../../db/schema/pages.js';
 import { listDatabaseRows, type PageRow } from '../../repositories/pages.js';
+import { calculate, calculationsInSql } from './calculations.js';
 import { evaluateFilter, valueType } from './filters.js';
+import {
+  countGroups,
+  type GroupKey,
+  type GroupSpec,
+  groupRows,
+  resolveGroupSpec,
+  summarizeGroups,
+} from './groups.js';
 import { compareBySorts } from './sorts.js';
-import { compileView, decodeRowsCursor, listViewRows } from './view-query.js';
+import { compileView, decodeRowsCursor, listViewGroups, listViewRows } from './view-query.js';
 
 /** mulberry32: a small seeded generator, so a failure replays. */
 function generator(seed: number) {
@@ -141,7 +155,15 @@ const PROPERTIES: DatabaseProperty[] = [
     id: 'st',
     name: 'Status',
     type: 'status',
-    config: { options: STATUS_OPTIONS.map((id) => ({ id, name: id, color: 'default' })) },
+    config: {
+      options: STATUS_OPTIONS.map((id) => ({ id, name: id, color: 'default' })),
+      // Grouped in another order than listed: a status groups in its groups' order.
+      groups: [
+        { id: 'todo', optionIds: ['todo'] },
+        { id: 'in_progress', optionIds: ['doing'] },
+        { id: 'complete', optionIds: ['done'] },
+      ],
+    },
   },
   {
     id: 'ms',
@@ -560,5 +582,190 @@ describe('a view in SQL', () => {
     expect(cursor).toEqual({ row: target.id });
     reference = await listDatabaseRows(db, databaseId, { archived: false, template: false });
     await check(view);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Groups
+// ---------------------------------------------------------------------------
+
+const GROUPABLE = ['s1', 'st', 'ms', 'p1', 'c1', 'd1', 'd2', `t'1 "x"`, 'name', 'u1', 'cb', 'eb'];
+const DATED = ['d1', 'd2', 'ct', 'et'];
+const ZONES = ['UTC', 'America/New_York', 'Asia/Kathmandu', 'Pacific/Kiritimati'];
+
+interface GroupedCase extends ViewCase {
+  spec: GroupSpec;
+}
+
+function groupSpec(propertyId: string): GroupSpec {
+  const spec = resolveGroupSpec(
+    { propertyId, granularity: pick(['day', 'week', 'month', 'year'] as const) },
+    propertyById,
+    pick(ZONES),
+  );
+  if (!spec) throw new Error(`${propertyId} cannot group`);
+  return spec;
+}
+
+/** The (row, group) entries the JS path gives, in its order. */
+function expectedGroups(view: GroupedCase): { id: string; key: GroupKey }[] {
+  let rows = reference;
+  if (view.search) {
+    const needle = view.search.toLowerCase();
+    rows = rows.filter((r) => r.title.toLowerCase().includes(needle));
+  }
+  if (view.filters.filters.length > 0) {
+    rows = rows.filter((r) => evaluateFilter(view.filters, r, propertyById));
+  }
+  if (view.sorts.length > 0) rows = [...rows].sort(compareBySorts(view.sorts, propertyById));
+  return groupRows(rows, view.spec).map(({ row, key }) => ({ id: row.id, key }));
+}
+
+async function checkGrouped(view: GroupedCase): Promise<number> {
+  const want = expectedGroups(view);
+  const compiled = compileView(databaseId, view, propertyById, view.spec);
+  const got: { id: string; key: GroupKey }[] = [];
+  let cursor: string | null = null;
+  for (let pageNo = 0; pageNo < 2000; pageNo += 1) {
+    const page = await listViewRows(db, databaseId, compiled, {
+      size: view.pageSize,
+      cursor: cursor === null ? null : decodeRowsCursor(cursor),
+    });
+    if (!page) throw new Error('A cursor the API issued was refused');
+    page.rows.forEach((row, i) => {
+      got.push({ id: row.id, key: page.groupKeys?.[i] ?? null });
+    });
+    cursor = page.cursor;
+    if (!cursor) break;
+  }
+  if (JSON.stringify(got) !== JSON.stringify(want)) {
+    const at = got.findIndex((e, i) => JSON.stringify(e) !== JSON.stringify(want[i]));
+    throw new Error(
+      `SQL and JS group apart at ${at} (${got.length} vs ${want.length}) for ${JSON.stringify({
+        ...view,
+        spec: { ...view.spec, property: view.spec.property.id },
+      })}: SQL ${JSON.stringify(got[at])}, JS ${JSON.stringify(want[at])}`,
+    );
+  }
+  // Every row once in each of its groups, and the groups never come back once left.
+  const seen = new Set<GroupKey>();
+  for (const [i, entry] of got.entries()) {
+    if (i > 0 && got[i - 1]?.key !== entry.key) {
+      expect(seen.has(entry.key)).toBe(false);
+    }
+    seen.add(entry.key);
+  }
+  const counts = await listViewGroups(db, compiled);
+  expect(summarizeGroups(new Map([...counts].map(([k, v]) => [k, v.count])), view.spec)).toEqual(
+    summarizeGroups(countGroups(want), view.spec),
+  );
+  return new Set(want.map((e) => e.key)).size;
+}
+
+describe('a grouped view in SQL', () => {
+  it('groups by every groupable property as the JS path does', async () => {
+    let groups = 0;
+    for (const propertyId of [...GROUPABLE, ...DATED]) {
+      for (let i = 0; i < 6; i += 1) {
+        groups += await checkGrouped({
+          spec: groupSpec(propertyId),
+          filters: chance(0.5) ? only(group(1)) : { kind: 'group', combinator: 'and', filters: [] },
+          sorts: sorts(),
+          search: search(),
+          pageSize: pick([1, 7, 16, 41, 500]),
+        });
+      }
+    }
+    // The groups are many: most properties split the rows several ways.
+    expect(groups).toBeGreaterThan(300);
+  });
+
+  it('puts a row with several labels or people in each of their groups', async () => {
+    for (const propertyId of ['ms', 'p1']) {
+      const spec = groupSpec(propertyId);
+      const view: GroupedCase = {
+        spec,
+        filters: { kind: 'group', combinator: 'and', filters: [] },
+        sorts: [],
+        pageSize: 13,
+      };
+      const entries = expectedGroups(view);
+      expect(entries.length).toBeGreaterThan(reference.length);
+      await checkGrouped(view);
+    }
+  });
+
+  it('lists every option, even one no row holds, the empty group last', async () => {
+    const spec = groupSpec('s1');
+    const none: FilterGroup = only({
+      kind: 'condition',
+      propertyId: 's1',
+      operator: 'is',
+      value: 'opt-a',
+    });
+    const compiled = compileView(databaseId, { filters: none }, propertyById, spec);
+    const counts = await listViewGroups(db, compiled);
+    const summary = summarizeGroups(new Map([...counts].map(([k, v]) => [k, v.count])), spec);
+    expect(summary.map((g) => g.key)).toEqual(SELECT_OPTIONS);
+    expect(summary.filter((g) => g.count > 0).map((g) => g.key)).toEqual(['opt-a']);
+  });
+
+  it('names its row and its group in the cursor when the sort values are too long', async () => {
+    const view: GroupedCase = {
+      spec: groupSpec('p1'),
+      filters: only({ kind: 'condition', propertyId: 't2', operator: 'starts_with', value: 'z' }),
+      sorts: [{ propertyId: 't2', direction: 'desc' }],
+      pageSize: 1,
+    };
+    const compiled = compileView(databaseId, view, propertyById, view.spec);
+    const first = await listViewRows(db, databaseId, compiled, { size: 1, cursor: null });
+    const cursor = decodeRowsCursor(first?.cursor ?? '');
+    expect(cursor && 'row' in cursor && 'group' in cursor).toBe(true);
+    await checkGrouped(view);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Calculations
+// ---------------------------------------------------------------------------
+
+function close(a: number | null, b: number | null): boolean {
+  if (a === null || b === null) return a === b;
+  return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+}
+
+describe('calculations in SQL', () => {
+  it('compute every function of every stored type as the JS path does', async () => {
+    let compared = 0;
+    let nonZero = 0;
+    for (const property of PROPERTIES) {
+      for (const fn of CALCULATIONS_BY_TYPE[property.type]) {
+        for (let i = 0; i < 3; i += 1) {
+          const view: ViewCase = {
+            filters: i === 0 ? { kind: 'group', combinator: 'and', filters: [] } : group(1),
+            sorts: [],
+            search: i === 2 ? search() : undefined,
+            pageSize: 1,
+          };
+          const compiled = compileView(databaseId, view, propertyById);
+          const [got] = await calculationsInSql(db, compiled, [{ property, fn }]);
+          const rows = reference.filter(
+            (r) =>
+              (!view.search || r.title.toLowerCase().includes(view.search.toLowerCase())) &&
+              evaluateFilter(view.filters, r, propertyById),
+          );
+          const want = calculate(fn, property, rows);
+          if (!close(got ?? null, want)) {
+            throw new Error(
+              `${fn} of ${property.id}: SQL ${got}, JS ${want} for ${JSON.stringify(view)}`,
+            );
+          }
+          compared += 1;
+          if (want) nonZero += 1;
+        }
+      }
+    }
+    expect(compared).toBeGreaterThan(300);
+    expect(nonZero).toBeGreaterThan(compared * 0.6);
   });
 });

@@ -243,7 +243,8 @@ export function filterPropertyIds(filter: Filter): string[] {
   return filter.kind === 'group' ? filter.filters.flatMap(filterPropertyIds) : [filter.propertyId];
 }
 
-function isEmpty(value: unknown, type: DatabasePropertyType): boolean {
+/** `is_empty`: whether a value of `type` holds nothing (a checkbox never does). */
+export function isEmpty(value: unknown, type: DatabasePropertyType): boolean {
   if (value === null || value === undefined) return true;
   if (typeof value !== 'object') return true;
   const v = value as Record<string, unknown>;

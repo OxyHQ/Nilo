@@ -2,6 +2,18 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { randomUUID } from 'node:crypto';
 import { isLiveEntityId } from '@oxy.so/db';
+import {
+  acceptsCalculation,
+  CALCULATION_FUNCTIONS,
+  CHART_AGGREGATES,
+  CHART_TYPES,
+  DATE_GROUP_GRANULARITIES,
+  isGroupableType,
+  MAX_BUTTON_ACTIONS,
+  MAX_COLUMN_WIDTH,
+  MIN_COLUMN_WIDTH,
+  OPEN_ROW_MODES,
+} from '@oxy.so/nilo-contracts';
 import { z } from 'zod';
 import { getDb, type PgHandle } from '../db/client.js';
 import {
@@ -104,11 +116,28 @@ import {
 } from '../lib/databases/filters.js';
 import { compareBySorts } from '../lib/databases/sorts.js';
 import {
+  accessorFor,
   compileView,
   decodeRowsCursor,
   encodeRowsCursor,
+  listViewGroups,
   listViewRows,
 } from '../lib/databases/view-query.js';
+import {
+  countGroups,
+  groupRows,
+  type GroupKey,
+  type GroupSpec,
+  isTimeZone,
+  resolveGroupSpec,
+  summarizeGroups,
+} from '../lib/databases/groups.js';
+import {
+  calculableInSql,
+  calculate,
+  calculationsInSql,
+  type CalculationValue,
+} from '../lib/databases/calculations.js';
 import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js';
 import { rowFormulaContext } from '../lib/databases/row-values.js';
 import { linkTwoWay, syncRelations, unlinkTwoWay } from '../lib/databases/relations.js';
@@ -164,6 +193,38 @@ const selectOptionSchema = z.object({
   color: selectColorSchema.optional(),
 });
 
+/** A link a button opens: the web or an email, nothing a browser would run. */
+const BUTTON_LINK = /^(https?:\/\/|mailto:)/iu;
+
+const buttonActionSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('open_url'),
+      url: z
+        .string()
+        .trim()
+        .max(2000)
+        .refine((url) => BUTTON_LINK.test(url), 'Only http, https and mailto links'),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('set_property'),
+      propertyId: z.string().min(1).max(200),
+      /** The value, in the shape its property's type stores (checked when the button is saved). */
+      value: z.unknown(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('create_row'),
+      /** Absent: this database. */
+      databaseId: entityIdSchema.optional(),
+      title: z.string().max(2000).optional(),
+    })
+    .strict(),
+]);
+
 const propertyConfigSchema = z
   .object({
     options: z.array(selectOptionSchema).optional(),
@@ -201,6 +262,8 @@ const propertyConfigSchema = z
       .string()
       .regex(/^[A-Za-z0-9]{0,12}$/)
       .optional(),
+    /** A button's actions, run in order when it is pressed. */
+    actions: z.array(buttonActionSchema).min(1).max(MAX_BUTTON_ACTIONS).optional(),
   })
   .strict();
 
@@ -261,6 +324,23 @@ const createRowSchema = z.object({
   template: z.boolean().optional(),
 });
 
+const granularitySchema = z.enum(DATE_GROUP_GRANULARITIES);
+
+/** A view's grouping (`ViewGroupBy`), or its sub-grouping. */
+const groupBySchema = z.union([
+  z
+    .object({
+      propertyId: z.string().min(1),
+      granularity: granularitySchema.optional(),
+      hideEmpty: z.boolean().optional(),
+    })
+    .strict(),
+  z.null(),
+]);
+
+const MAX_VIEW_PROPERTIES = 500;
+const uniqueIds = (ids: readonly string[]) => new Set(ids).size === ids.length;
+
 /** A view's `config` (`ViewConfig`): a key it does not name is dropped, so each is listed. */
 const viewConfigSchema = z.object({
   /** A form's text above its fields. */
@@ -271,6 +351,34 @@ const viewConfigSchema = z.object({
   coverSource: z.enum(['property', 'pageCover', 'none']).optional(),
   coverPropertyId: z.string().optional(),
   fit: z.enum(['cover', 'contain']).optional(),
+  openIn: z.enum(OPEN_ROW_MODES).optional(),
+  columnWidths: z
+    .record(z.number().int().min(MIN_COLUMN_WIDTH).max(MAX_COLUMN_WIDTH))
+    .refine((widths) => Object.keys(widths).length <= MAX_VIEW_PROPERTIES, 'Too many columns')
+    .optional(),
+  propertyOrder: z
+    .array(z.string().min(1).max(200))
+    .max(MAX_VIEW_PROPERTIES)
+    .refine(uniqueIds, 'Each property once')
+    .optional(),
+  calculations: z
+    .record(z.enum(CALCULATION_FUNCTIONS))
+    .refine((fns) => Object.keys(fns).length <= MAX_VIEW_PROPERTIES, 'Too many calculations')
+    .optional(),
+  chart: z
+    .object({
+      type: z.enum(CHART_TYPES),
+      xAxis: z
+        .object({ propertyId: z.string().min(1), granularity: granularitySchema.optional() })
+        .strict()
+        .optional(),
+      yAxis: z
+        .object({ aggregate: z.enum(CHART_AGGREGATES), propertyId: z.string().min(1).optional() })
+        .strict()
+        .optional(),
+    })
+    .strict()
+    .optional(),
 });
 
 const updateViewSchema = z
@@ -287,7 +395,8 @@ const updateViewSchema = z
         }),
       )
       .optional(),
-    groupBy: z.union([z.object({ propertyId: z.string().min(1) }), z.null()]).optional(),
+    groupBy: groupBySchema.optional(),
+    subGroupBy: groupBySchema.optional(),
     hiddenProperties: z.array(z.string()).optional(),
     frozenProperties: z.array(z.string()).optional(),
     pageSize: z.number().int().min(1).max(500).optional(),
@@ -313,7 +422,8 @@ const createViewSchema = z.object({
       }),
     )
     .optional(),
-  groupBy: z.union([z.object({ propertyId: z.string().min(1) }), z.null()]).optional(),
+  groupBy: groupBySchema.optional(),
+  subGroupBy: groupBySchema.optional(),
   hiddenProperties: z.array(z.string()).optional(),
   frozenProperties: z.array(z.string()).optional(),
   pageSize: z.number().int().min(1).max(500).optional(),
@@ -340,6 +450,14 @@ const listRowsQuerySchema = z.object({
    * a calendar or a timeline shows, so it reads those rows and no others.
    */
   filter: z.string().max(8192).optional(),
+  /** The reader's IANA time zone: a date with a time is grouped by its day there (UTC if absent). */
+  timeZone: z.string().max(64).refine(isTimeZone, 'Unknown time zone').optional(),
+});
+
+/** What a view's calculations or chart are computed over: its rows, as searched. */
+const viewRowsQuerySchema = z.object({
+  search: z.string().max(200).optional(),
+  timeZone: z.string().max(64).refine(isTimeZone, 'Unknown time zone').optional(),
 });
 
 function handleZodError(err: unknown, res: Response): boolean {
@@ -366,6 +484,97 @@ function checkFilter(res: Response, schema: DatabaseSchema, filter: Filter | und
     operator: invalid.operator,
   });
   return false;
+}
+
+/**
+ * A view's grouping, calculations and chart must name properties of the
+ * database that take them: a grouping a type with groups, a calculation one
+ * its type offers (`CALCULATIONS_BY_TYPE`), a chart's sum or average a
+ * number. Otherwise the refusal is sent and false returned.
+ */
+function checkViewSettings(
+  res: Response,
+  schema: DatabaseSchema,
+  body: {
+    groupBy?: ViewGroupBy | null;
+    subGroupBy?: ViewGroupBy | null;
+    config?: ViewConfig;
+  },
+): boolean {
+  const byId = new Map(schema.properties.map((p) => [p.id, p]));
+  const refuse = (error: string, code: string, propertyId?: string) => {
+    res.status(400).json({ error, code, ...(propertyId !== undefined && { propertyId }) });
+    return false;
+  };
+  for (const grouping of [body.groupBy, body.subGroupBy]) {
+    if (!grouping) continue;
+    const property = byId.get(grouping.propertyId);
+    if (!property || !isGroupableType(property.type)) {
+      return refuse('That property cannot group rows', 'INVALID_GROUP', grouping.propertyId);
+    }
+  }
+  for (const [propertyId, fn] of Object.entries(body.config?.calculations ?? {})) {
+    const property = byId.get(propertyId);
+    if (!property || !acceptsCalculation(property.type, fn)) {
+      return refuse(
+        `"${fn}" cannot be calculated on that property`,
+        'INVALID_CALCULATION',
+        propertyId,
+      );
+    }
+  }
+  const chart = body.config?.chart;
+  if (chart?.xAxis) {
+    const property = byId.get(chart.xAxis.propertyId);
+    if (!property || !isGroupableType(property.type)) {
+      return refuse(
+        'That property cannot be a chart axis',
+        'INVALID_CHART',
+        chart.xAxis.propertyId,
+      );
+    }
+  }
+  if (chart?.yAxis && chart.yAxis.aggregate !== 'count') {
+    const property = chart.yAxis.propertyId ? byId.get(chart.yAxis.propertyId) : undefined;
+    if (!property || (property.type !== 'number' && property.type !== 'unique_id')) {
+      return refuse('A chart adds up a number property', 'INVALID_CHART', chart.yAxis.propertyId);
+    }
+  }
+  return true;
+}
+
+/**
+ * A button's actions must set properties of this database that hold values
+ * (not computed ones, nor another button), to a value their type stores.
+ * Otherwise the refusal is sent and false returned.
+ */
+function checkButtonActions(
+  res: Response,
+  schema: DatabaseSchema,
+  property: DatabaseProperty,
+): boolean {
+  if (property.type !== 'button') return true;
+  for (const action of property.config?.actions ?? []) {
+    if (action.kind !== 'set_property') continue;
+    const target = schema.properties.find((p) => p.id === action.propertyId);
+    let valid = false;
+    if (target && target.id !== property.id) {
+      try {
+        valid = parsePropertyValue(target.type, action.value) !== null;
+      } catch {
+        valid = false;
+      }
+    }
+    if (!valid) {
+      res.status(400).json({
+        error: 'A button can only set a property of its row to a value it holds',
+        code: 'INVALID_BUTTON_ACTION',
+        propertyId: action.propertyId,
+      });
+      return false;
+    }
+  }
+  return true;
 }
 
 function assertWorkspace(req: Request, res: Response): string | null {
@@ -413,6 +622,8 @@ function serializeView(view: DatabaseViewRecord) {
     filters: view.filters,
     sorts: view.sorts,
     groupBy: view.groupBy,
+    /** A board's sub-groups: its rows of columns. */
+    subGroupBy: view.subGroupBy,
     hiddenProperties: view.hiddenProperties,
     frozenProperties: view.frozenProperties,
     pageSize: view.pageSize,
@@ -600,6 +811,11 @@ function viewDefaults(
   if (type === 'timeline' && !out.config.startPropertyId && date)
     out.config.startPropertyId = date.id;
   if (type === 'gallery' && !out.config.coverSource) out.config.coverSource = 'pageCover';
+  // A chart counts the rows of each option of the first status (else select), as bars.
+  if (type === 'chart' && !out.config.chart) {
+    const by = first('status', 'select', 'multi_select', 'checkbox', 'date');
+    out.config.chart = { type: 'bar', ...(by && { xAxis: { propertyId: by.id } }) };
+  }
   return out;
 }
 
@@ -955,6 +1171,7 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
       return;
     }
     if (!(await checkRelationTarget(req, res, handle, db, property))) return;
+    if (!checkButtonActions(res, db.propertiesSchema, property)) return;
 
     db.propertiesSchema.properties.push(property);
     normalizeSchema(db.propertiesSchema);
@@ -1077,6 +1294,7 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
     const sameTarget = current.config?.targetDatabaseId === next.config?.targetDatabaseId;
     const relinks = current.type !== 'relation' || !sameTarget || (isTwoWay && !wasTwoWay);
     if (relinks && !(await checkRelationTarget(req, res, handle, db, next))) return;
+    if (!checkButtonActions(res, db.propertiesSchema, next)) return;
     if (wasTwoWay && isTwoWay && sameTarget) {
       next.config = { ...next.config, syncedPropertyId: current.config?.syncedPropertyId };
     }
@@ -1109,7 +1327,7 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
         await writePropertyOfRows(tx, db.id, current.id, conversion.values);
         if (next.type === 'unique_id') await numberExistingRows(tx, db.id, current.id);
         for (const view of await lockViewsOfDatabase(tx, db.id)) {
-          const patch = viewAfterRetype(view, current.id);
+          const patch = viewAfterRetype(view, current.id, next.type);
           if (patch) await updateDatabaseView(tx, view.id, patch);
         }
       }
@@ -1285,7 +1503,11 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       ...(viewFilter ? filterPropertyIds(viewFilter) : []),
       ...(view?.sorts ?? []).map((s) => s.propertyId),
     ];
+    // A grouped view's rows come group by group, each row in every group it is in.
+    const groupSpec = resolveGroupSpec(rowGrouping(view), propertyById, query.timeZone ?? 'UTC');
     let slice: PageRow[];
+    let groupKeys: GroupKey[] | null = null;
+    let groups: ReturnType<typeof summarizeGroups> | null = null;
     let total: number;
     let nextCursor: string | null;
     let derivedAll: Awaited<ReturnType<typeof resolveDerivedForRows>> | null = null;
@@ -1319,24 +1541,39 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       }
       const offset = cursor && 'offset' in cursor ? cursor.offset : 0;
       const byId = new Map(rowDocs.map((row) => [row.id, row] as const));
-      slice = filtered.slice(offset, offset + pageSize).flatMap((r) => byId.get(r.id) ?? []);
+      const entries = groupSpec
+        ? groupRows(filtered, groupSpec)
+        : filtered.map((row) => ({ row, key: null }));
+      if (groupSpec) groups = summarizeGroups(countGroups(entries), groupSpec);
+      const page = entries.slice(offset, offset + pageSize);
+      slice = page.flatMap((e) => byId.get(e.row.id) ?? []);
+      if (groupSpec) groupKeys = page.map((e) => e.key);
       total = filtered.length;
       nextCursor =
-        offset + pageSize < filtered.length
-          ? encodeRowsCursor({ offset: offset + pageSize })
-          : null;
+        offset + pageSize < entries.length ? encodeRowsCursor({ offset: offset + pageSize }) : null;
     } else {
       const compiled = compileView(
         db.id,
         { filters: viewFilter, sorts: view?.sorts, search: query.search },
         propertyById,
+        groupSpec,
       );
-      const page = await listViewRows(handle, db.id, compiled, { size: pageSize, cursor });
+      const [page, counts] = await Promise.all([
+        listViewRows(handle, db.id, compiled, { size: pageSize, cursor }),
+        groupSpec ? listViewGroups(handle, compiled) : null,
+      ]);
       if (!page) {
         res.status(400).json({ error: 'Invalid cursor' });
         return;
       }
       slice = page.rows;
+      groupKeys = page.groupKeys;
+      if (groupSpec && counts) {
+        groups = summarizeGroups(
+          new Map([...counts].map(([key, { count }]) => [key, count])),
+          groupSpec,
+        );
+      }
       total = page.total;
       nextCursor = page.cursor;
     }
@@ -1344,15 +1581,18 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     const derivedSlice =
       derivedAll ??
       (await resolveDerivedForRows(handle, slice, db.propertiesSchema, req.user?.id ?? null));
-    const serializedRows = slice.map((row) =>
-      serializeRow(row, { derived: derivedSlice.get(row.id) ?? {} }),
-    );
+    const serializedRows = slice.map((row, i) => ({
+      ...serializeRow(row, { derived: derivedSlice.get(row.id) ?? {} }),
+      ...(groupKeys && { groupKey: groupKeys[i] ?? null }),
+    }));
 
     res.json({
       rows: serializedRows,
       total,
       cursor: nextCursor,
       view: view ? serializeView(view) : null,
+      // A grouped view's groups in order, with how many rows each holds.
+      ...(groups && { groups }),
     });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -1360,6 +1600,17 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to list rows' });
   }
 });
+
+/**
+ * What a view's rows are grouped by: a table's or a list's sections, a
+ * board's sub-groups (its columns are its own, grouped as it shows them).
+ */
+function rowGrouping(view: DatabaseViewRecord | null): ViewGroupBy | null {
+  if (!view) return null;
+  if (view.type === 'board') return view.subGroupBy;
+  if (view.type === 'table' || view.type === 'list') return view.groupBy;
+  return null;
+}
 
 /**
  * GET /databases/:id/rows/:rowId — one row (a template too) with its computed
@@ -1627,6 +1878,10 @@ router.post('/:id/views', async (req: Request, res: Response) => {
     // A linked view is its block's, not the locked database's.
     if (blockId === null && refuseLocked(res, db)) return;
     if (!checkFilter(res, db.propertiesSchema, body.filters)) return;
+    if (
+      !checkViewSettings(res, db.propertiesSchema, body as Parameters<typeof checkViewSettings>[2])
+    )
+      return;
 
     // `??`, not `||`: `order: 0` is a legitimate explicit order.
     const nextOrder = body.order ?? (await nextViewOrder(handle, db.id, blockId));
@@ -1634,9 +1889,7 @@ router.post('/:id/views', async (req: Request, res: Response) => {
     const setup = viewDefaults(
       body.type,
       db.propertiesSchema,
-      body.groupBy === undefined
-        ? undefined
-        : body.groupBy && { propertyId: body.groupBy.propertyId },
+      body.groupBy === undefined ? undefined : (body.groupBy as ViewGroupBy | null),
       (body.config ?? {}) as ViewConfig,
     );
 
@@ -1649,6 +1902,7 @@ router.post('/:id/views', async (req: Request, res: Response) => {
       filters: body.filters ?? EMPTY_FILTER_GROUP,
       sorts: (body.sorts ?? []) as ViewSort[],
       groupBy: setup.groupBy,
+      subGroupBy: (body.subGroupBy ?? null) as ViewGroupBy | null,
       hiddenProperties: body.hiddenProperties ?? [],
       frozenProperties: body.frozenProperties ?? [],
       pageSize: body.pageSize ?? DEFAULT_VIEW_PAGE_SIZE,
@@ -1684,6 +1938,10 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
     if (!(await checkViewsAccess(req, res, handle, db, view.blockId, true))) return;
     if (view.blockId === null && refuseLocked(res, db)) return;
     if (!checkFilter(res, db.propertiesSchema, body.filters)) return;
+    if (
+      !checkViewSettings(res, db.propertiesSchema, body as Parameters<typeof checkViewSettings>[2])
+    )
+      return;
 
     // Promoting a view and demoting the previous default(s) commit
     // together, so a failure between the two cannot leave the database with
@@ -1698,12 +1956,8 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
         isDefault: body.isDefault,
         filters: body.filters,
         sorts: body.sorts as ViewSort[] | undefined,
-        groupBy:
-          body.groupBy === undefined
-            ? undefined
-            : body.groupBy === null
-              ? null
-              : { propertyId: body.groupBy.propertyId },
+        groupBy: body.groupBy as ViewGroupBy | null | undefined,
+        subGroupBy: body.subGroupBy as ViewGroupBy | null | undefined,
         hiddenProperties: body.hiddenProperties,
         frozenProperties: body.frozenProperties,
         pageSize: body.pageSize,
@@ -1767,6 +2021,180 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
     if (handleZodError(error, res)) return;
     log.general.error({ err: error }, 'Failed to delete view');
     res.status(500).json({ error: 'Failed to delete view' });
+  }
+});
+
+/**
+ * A view's rows with their computed values, read and filtered in JS: what a
+ * calculation or a chart over a formula or a rollup (or of a view filtering
+ * on one) reads.
+ */
+async function computedViewRows(
+  handle: PgHandle,
+  db: DatabaseRecord,
+  filter: Filter,
+  search: string | undefined,
+  viewerId: string | null,
+): Promise<PageRow[]> {
+  const propertyById = new Map(db.propertiesSchema.properties.map((p) => [p.id, p]));
+  const rows = await listDatabaseRows(handle, db.id, { archived: false, template: false });
+  const derived = await resolveDerivedForRows(handle, rows, db.propertiesSchema, viewerId);
+  const needle = search?.toLowerCase();
+  return rows
+    .map((row) => ({ ...row, properties: { ...row.properties, ...derived.get(row.id) } }))
+    .filter((row) => !needle || row.title.toLowerCase().includes(needle))
+    .filter((row) => filter.kind !== 'group' || evaluateFilter(filter, row, propertyById));
+}
+
+/** The database and one of its views, for a reader of the database; else the refusal is sent. */
+async function readableView(
+  req: Request,
+  res: Response,
+): Promise<{
+  db: DatabaseRecord;
+  view: DatabaseViewRecord;
+  search?: string;
+  timeZone: string;
+} | null> {
+  const params = z.object({ id: entityIdSchema, viewId: entityIdSchema }).parse(req.params);
+  const query = viewRowsQuerySchema.parse(req.query);
+  const handle = getDb();
+  const db = await findDatabaseById(handle, params.id);
+  if (!db) {
+    res.status(404).json({ error: 'Database not found' });
+    return null;
+  }
+  if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return null;
+  const view = await findViewById(handle, params.viewId, db.id);
+  if (!view) {
+    res.status(404).json({ error: 'View not found' });
+    return null;
+  }
+  return { db, view, search: query.search, timeZone: query.timeZone ?? 'UTC' };
+}
+
+/**
+ * GET /databases/:id/views/:viewId/calculations?search= — the view's footer
+ * (`config.calculations`) over every row it shows, searched as it is, not
+ * only the page loaded: `{ calculations: { [propertyId]: { function, value } } }`
+ * (`lib/databases/calculations.ts`). In SQL, but for formulas and rollups.
+ */
+router.get('/:id/views/:viewId/calculations', async (req: Request, res: Response) => {
+  try {
+    const found = await readableView(req, res);
+    if (!found) return;
+    const { db, view, search } = found;
+    const handle = getDb();
+    const propertyById = new Map(db.propertiesSchema.properties.map((p) => [p.id, p]));
+    const requested = Object.entries(view.config.calculations ?? {}).flatMap(([id, fn]) => {
+      const property = propertyById.get(id);
+      return property && acceptsCalculation(property.type, fn) ? [{ property, fn }] : [];
+    });
+    let values: CalculationValue[] = [];
+    if (requested.length > 0) {
+      const inJs =
+        readsComputed(filterPropertyIds(view.filters), propertyById) ||
+        requested.some(({ property }) => !calculableInSql(property));
+      if (inJs) {
+        const rows = await computedViewRows(handle, db, view.filters, search, req.user?.id ?? null);
+        values = requested.map(({ property, fn }) => calculate(fn, property, rows));
+      } else {
+        const compiled = compileView(db.id, { filters: view.filters, search }, propertyById);
+        values = await calculationsInSql(handle, compiled, requested);
+      }
+    }
+    res.json({
+      calculations: Object.fromEntries(
+        requested.map(({ property, fn }, i) => [
+          property.id,
+          { function: fn, value: values[i] ?? null },
+        ]),
+      ),
+    });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to calculate view');
+    res.status(500).json({ error: 'Failed to calculate' });
+  }
+});
+
+/**
+ * GET /databases/:id/views/:viewId/chart?search=&timeZone= — a chart view's
+ * points (`config.chart`): one per group of its x-axis property, in the
+ * groups' order (`lib/databases/groups.ts`), each the count of its rows or
+ * the sum or average of a number of them: `{ points: [{ key, count, value }] }`.
+ * Grouped and added up in SQL, but when its filter reads a formula or rollup.
+ */
+router.get('/:id/views/:viewId/chart', async (req: Request, res: Response) => {
+  try {
+    const found = await readableView(req, res);
+    if (!found) return;
+    const { db, view, search, timeZone } = found;
+    const handle = getDb();
+    const propertyById = new Map(db.propertiesSchema.properties.map((p) => [p.id, p]));
+    const chart = view.config.chart;
+    const spec: GroupSpec | null = chart?.xAxis
+      ? resolveGroupSpec(chart.xAxis, propertyById, timeZone)
+      : null;
+    if (!spec) {
+      res.json({ points: [] });
+      return;
+    }
+    const aggregate = chart?.yAxis?.aggregate ?? 'count';
+    const measured =
+      aggregate !== 'count' && chart?.yAxis?.propertyId
+        ? propertyById.get(chart.yAxis.propertyId)
+        : undefined;
+    const measure =
+      measured && (measured.type === 'number' || measured.type === 'unique_id')
+        ? measured
+        : undefined;
+
+    let byKey: Map<GroupKey, { count: number; sum: number | null; average: number | null }>;
+    if (readsComputed(filterPropertyIds(view.filters), propertyById)) {
+      const rows = await computedViewRows(handle, db, view.filters, search, req.user?.id ?? null);
+      const totals = new Map<GroupKey, { count: number; numbers: number[] }>();
+      for (const { row, key } of groupRows(rows, spec)) {
+        const at = totals.get(key) ?? { count: 0, numbers: [] };
+        at.count += 1;
+        const held = measure
+          ? (row.properties[measure.id] as { number?: unknown } | undefined)
+          : null;
+        if (typeof held?.number === 'number') at.numbers.push(held.number);
+        totals.set(key, at);
+      }
+      byKey = new Map(
+        [...totals].map(([key, { count, numbers }]) => {
+          const sum = numbers.length > 0 ? numbers.reduce((a, b) => a + b, 0) : null;
+          return [key, { count, sum, average: sum === null ? null : sum / numbers.length }];
+        }),
+      );
+    } else {
+      const compiled = compileView(db.id, { filters: view.filters, search }, propertyById, spec);
+      byKey = await listViewGroups(
+        handle,
+        compiled,
+        measure ? accessorFor(measure).key.expr : undefined,
+      );
+    }
+    const points = summarizeGroups(
+      new Map([...byKey].map(([key, { count }]) => [key, count])),
+      spec,
+    ).map(({ key, count }) => {
+      const at = byKey.get(key);
+      const value =
+        aggregate === 'count' || !measure
+          ? count
+          : aggregate === 'sum'
+            ? (at?.sum ?? 0)
+            : (at?.average ?? null);
+      return { key, count, value };
+    });
+    res.json({ points });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to chart view');
+    res.status(500).json({ error: 'Failed to chart view' });
   }
 });
 

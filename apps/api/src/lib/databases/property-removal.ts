@@ -5,7 +5,9 @@
  * keeps filtering and sorting on nothing, and a filter naming it can no longer
  * be saved (`invalidCondition`). Pure: the route writes what these return.
  */
+import { acceptsCalculation, isGroupableType } from '@oxy.so/nilo-contracts';
 import type {
+  DatabasePropertyType,
   DatabaseSchema,
   Filter,
   FilterGroup,
@@ -19,6 +21,7 @@ export interface PropertyReferencingView {
   filters: FilterGroup;
   sorts: ViewSort[];
   groupBy: ViewGroupBy | null;
+  subGroupBy?: ViewGroupBy | null;
   hiddenProperties: string[];
   frozenProperties: string[];
   config: ViewConfig;
@@ -67,27 +70,86 @@ export function viewWithoutProperty(
   if (view.frozenProperties.includes(propertyId)) {
     patch.frozenProperties = view.frozenProperties.filter((id) => id !== propertyId);
   }
-  if (CONFIG_PROPERTY_KEYS.some((key) => view.config[key] === propertyId)) {
-    const config: ViewConfig = { ...view.config };
-    for (const key of CONFIG_PROPERTY_KEYS) if (config[key] === propertyId) delete config[key];
-    patch.config = config;
-  }
+  if (view.subGroupBy?.propertyId === propertyId) patch.subGroupBy = null;
+  const config = configWithout(view.config, propertyId);
+  if (config) patch.config = config;
   return Object.keys(patch).length > 0 ? patch : null;
 }
 
 /**
- * The filters of `view` once `propertyId` changed type, or null when none
- * named it: its conditions go, as their operators and values were the old
- * type's (a select's option ids mean nothing to a text). Its sorts, grouping
- * and the rest still apply to the new type and stay.
+ * A view's config without `propertyId`: its dates and cover, its column width
+ * and place in the view's order, its calculation, a chart axis on it. Null
+ * when the config never named it.
+ */
+function configWithout(view: ViewConfig, propertyId: string): ViewConfig | null {
+  const config: ViewConfig = { ...view };
+  for (const key of CONFIG_PROPERTY_KEYS) if (config[key] === propertyId) delete config[key];
+  if (config.columnWidths && propertyId in config.columnWidths) {
+    const { [propertyId]: _width, ...widths } = config.columnWidths;
+    config.columnWidths = widths;
+  }
+  if (config.propertyOrder?.includes(propertyId)) {
+    config.propertyOrder = config.propertyOrder.filter((id) => id !== propertyId);
+  }
+  if (config.calculations && propertyId in config.calculations) {
+    const { [propertyId]: _fn, ...calculations } = config.calculations;
+    config.calculations = calculations;
+  }
+  if (config.chart?.xAxis?.propertyId === propertyId) {
+    const { xAxis: _x, ...chart } = config.chart;
+    config.chart = chart;
+  }
+  if (config.chart?.yAxis?.propertyId === propertyId) {
+    // Nothing left to add up: the chart counts its rows.
+    config.chart = { ...config.chart, yAxis: { aggregate: 'count' } };
+  }
+  return JSON.stringify(config) === JSON.stringify(view) ? null : config;
+}
+
+/**
+ * What of `view` changes once `propertyId` became a `type`, or null when
+ * nothing does: its conditions go, as their operators and values were the
+ * old type's (a select's option ids mean nothing to a text), and so do a
+ * grouping, a calculation or a chart axis the new type does not take. Its
+ * sorts and the rest still apply to the new type and stay.
  */
 export function viewAfterRetype(
   view: PropertyReferencingView,
   propertyId: string,
-): Pick<PropertyReferencingView, 'filters'> | null {
+  type?: DatabasePropertyType,
+): Partial<Pick<PropertyReferencingView, 'filters' | 'groupBy' | 'subGroupBy' | 'config'>> | null {
+  const patch: Partial<
+    Pick<PropertyReferencingView, 'filters' | 'groupBy' | 'subGroupBy' | 'config'>
+  > = {};
   const filters = pruneFilter(view.filters, propertyId) as FilterGroup | null;
-  if (JSON.stringify(filters) === JSON.stringify(view.filters)) return null;
-  return { filters: filters ?? { ...view.filters, filters: [] } };
+  if (JSON.stringify(filters) !== JSON.stringify(view.filters)) {
+    patch.filters = filters ?? { ...view.filters, filters: [] };
+  }
+  if (type && !isGroupableType(type)) {
+    if (view.groupBy?.propertyId === propertyId) patch.groupBy = null;
+    if (view.subGroupBy?.propertyId === propertyId) patch.subGroupBy = null;
+  }
+  if (type) {
+    const config: ViewConfig = { ...view.config };
+    const fn = config.calculations?.[propertyId];
+    if (config.calculations && fn && !acceptsCalculation(type, fn)) {
+      const { [propertyId]: _fn, ...calculations } = config.calculations;
+      config.calculations = calculations;
+    }
+    if (config.chart?.xAxis?.propertyId === propertyId && !isGroupableType(type)) {
+      const { xAxis: _x, ...chart } = config.chart;
+      config.chart = chart;
+    }
+    if (
+      config.chart?.yAxis?.propertyId === propertyId &&
+      type !== 'number' &&
+      type !== 'unique_id'
+    ) {
+      config.chart = { ...config.chart, yAxis: { aggregate: 'count' } };
+    }
+    if (JSON.stringify(config) !== JSON.stringify(view.config)) patch.config = config;
+  }
+  return Object.keys(patch).length > 0 ? patch : null;
 }
 
 /**
@@ -110,6 +172,17 @@ export function schemaWithoutProperty(
     properties: schema.properties.flatMap((property) => {
       if (property.id === propertyId) return [];
       const config = property.config;
+      // A button stops setting a property that is gone.
+      if (property.type === 'button' && config?.actions) {
+        const actions = config.actions.filter(
+          (a) => a.kind !== 'set_property' || a.propertyId !== propertyId,
+        );
+        return [
+          actions.length === config.actions.length
+            ? property
+            : { ...property, config: { ...config, actions } },
+        ];
+      }
       if (property.type !== 'rollup' || !config) return [property];
       if (config.relationPropertyId === propertyId) {
         const { relationPropertyId: _relation, targetPropertyId: _target, ...rest } = config;
