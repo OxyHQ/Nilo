@@ -15,6 +15,11 @@ import {
   TransactionRejected,
 } from '../lib/block-transactions.js';
 import { loadPageState, PageDocRejected } from '../lib/page-docs.js';
+import { projectNow } from '../lib/page-projection.js';
+import { rateLimit } from '../lib/rate-limit.js';
+import { safePost, UnsafeUrlError } from '../lib/safe-fetch.js';
+import { findBlockById } from '../repositories/blocks.js';
+import { isSafeUrl } from '@oxy.so/nilo-contracts';
 import * as Y from 'yjs';
 
 const router = Router();
@@ -167,5 +172,61 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
     res.status(500).json({ error: 'Failed to apply block transaction' });
   }
 });
+
+/**
+ * POST /pages/:pageId/blocks/:blockId/webhook
+ *
+ * A button block's webhook, sent by the server: a browser's own request
+ * would be stopped by CORS on most endpoints and look failed when it was
+ * sent. The URL is the block's as stored — never the caller's — and it goes
+ * through `safePost`, so a page cannot aim the server at its own network.
+ * Pressing it is an edit of the page's world, so it takes an editor.
+ */
+router.post(
+  '/pages/:pageId/blocks/:blockId/webhook',
+  rateLimit('button-webhook', { max: 30, windowMs: 60_000 }),
+  async (req: Request, res: Response) => {
+    try {
+      const params = z
+        .object({ pageId: entityIdSchema, blockId: entityIdSchema })
+        .parse(req.params);
+      const db = getDb();
+      const page = await findPageById(db, params.pageId);
+      if (!page) {
+        res.status(404).json({ error: 'Page not found' });
+        return;
+      }
+      if (!(await checkPageAccess(req, res, db, page.id, 'editor'))) return;
+      // What the button holds now, not what was projected a moment ago.
+      await projectNow(page.id);
+      const block = await findBlockById(db, params.blockId);
+      const content = block?.content as { action?: unknown; webhookUrl?: unknown } | undefined;
+      if (!block || block.pageId !== page.id || block.type !== 'button') {
+        res.status(404).json({ error: 'Button not found' });
+        return;
+      }
+      const url = typeof content?.webhookUrl === 'string' ? content.webhookUrl : '';
+      if (content?.action !== 'webhook' || !isSafeUrl(url)) {
+        res.status(400).json({ error: 'The button has no webhook', code: 'NO_WEBHOOK' });
+        return;
+      }
+      const sent = await safePost(
+        url,
+        { event: 'button.pressed', pageId: page.id, blockId: block.id, userId: req.user?.id },
+        { timeoutMs: 8000, headers: { 'user-agent': 'NiloBot/1.0 (+https://nilo.so/bot)' } },
+      );
+      const ok = sent.status >= 200 && sent.status < 300;
+      res.status(ok ? 200 : 502).json({ ok, status: sent.status });
+    } catch (error: unknown) {
+      if (handleZodError(error, res)) return;
+      if (error instanceof UnsafeUrlError) {
+        res.status(400).json({ error: error.message, code: 'UNSAFE_URL' });
+        return;
+      }
+      log.general.warn({ err: error }, 'Button webhook failed');
+      res.status(502).json({ ok: false, error: 'The webhook could not be reached' });
+    }
+  },
+);
 
 export default router;

@@ -32,6 +32,7 @@ import { mintFileUrls } from '../lib/files.js';
 import { notifyAssigned } from '../lib/databases/assignments.js';
 import { projectNow } from '../lib/page-projection.js';
 import { blocksToPdf, type ImageLoader, imageSources } from '../lib/pdf-export.js';
+import { exportContext } from '../lib/export-context.js';
 import { servableFileIds } from '../repositories/pageFiles.js';
 import { safeFetch } from '../lib/safe-fetch.js';
 import { log } from '../lib/logger.js';
@@ -957,12 +958,15 @@ router.get(
           : format === 'html'
             ? { extension: 'html', type: 'text/html; charset=utf-8' }
             : { extension: 'md', type: 'text/markdown; charset=utf-8' };
+      // Linked pages and inline databases, as far as this reader may see them.
+      const context =
+        format === 'pdf' ? undefined : await exportContext(db, req.user?.id ?? '', page, tree);
       const body =
         format === 'pdf'
           ? await blocksToPdf(tree, title, await exportImageLoader(page, tree))
           : format === 'html'
-            ? blocksToHtml(tree, title)
-            : blocksToMarkdown(tree, title);
+            ? blocksToHtml(tree, title, context)
+            : blocksToMarkdown(tree, title, context);
       res.setHeader('Content-Type', kind.type);
       res.setHeader(
         'Content-Disposition',

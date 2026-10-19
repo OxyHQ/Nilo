@@ -35,6 +35,7 @@ export const API_ROUTES = {
   blocks: {
     // Blocks are written only through `/pages/:id/blocks/transactions` (lib/editor).
     transactions: (pageId: string) => `/pages/${pageId}/blocks/transactions`,
+    webhook: (pageId: string, blockId: string) => `/pages/${pageId}/blocks/${blockId}/webhook`,
     comments: (id: string) => `/blocks/${id}/comments`,
   },
   comments: {

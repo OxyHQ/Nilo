@@ -321,3 +321,61 @@ describe('attachments stored in Nilo', () => {
     expect(html).not.toContain('<img');
   });
 });
+
+describe('blocks that point elsewhere, in exports', () => {
+  const node = (type: string, content: Record<string, unknown>, children: BlockNode[] = []) =>
+    ({ type, content, children }) as unknown as BlockNode;
+  const tree = [
+    node('heading_1', { text: 'Plan' }),
+    node('table_of_contents', {}),
+    node('heading_2', { text: 'Steps' }),
+    node('mermaid', { code: 'graph TD;\nA-->B;' }),
+    node('link_to_page', { pageId: 'seen' }),
+    node('link_to_page', { pageId: 'hidden' }),
+    node('inline_database', { databaseId: 'tasks' }),
+    node('button', { label: 'Docs', action: 'navigate', url: 'https://example.com' }),
+    node('button', { label: 'Bad', action: 'navigate', url: 'javascript:alert(1)' }),
+    node('breadcrumb', {}),
+  ];
+  const context = {
+    pageTitle: (id: string) => (id === 'seen' ? 'Roadmap' : undefined),
+    database: (id: string) =>
+      id === 'tasks'
+        ? {
+            name: 'Tasks',
+            table: [
+              ['Name', 'Done'],
+              ['Write | test', 'Yes'],
+            ],
+          }
+        : undefined,
+  };
+
+  it('keeps diagrams, links a reader may see, databases, buttons and the contents', () => {
+    const md = blocksToMarkdown(tree, 'Page', context);
+    expect(md).toContain('```mermaid\ngraph TD;\nA-->B;\n```');
+    expect(md).toContain('→ Roadmap');
+    expect(md).toContain('**Tasks**\n\n| Name | Done |\n| --- | --- |\n| Write \\| test | Yes |');
+    expect(md).toContain('[Docs](https://example.com)');
+    expect(md).toContain('- Plan\n    - Steps');
+    expect(md).not.toContain('hidden');
+    expect(md).not.toContain('javascript:');
+    expect(md).not.toContain('Bad');
+  });
+
+  it('says the same in HTML, escaped', () => {
+    const html = blocksToHtml(tree, 'Page', context);
+    expect(html).toContain('<code class="language-mermaid">graph TD;\nA--&gt;B;</code>');
+    expect(html).toContain('<p class="page-link">→ Roadmap</p>');
+    expect(html).toContain('<figcaption>Tasks</figcaption><table><tr><th>Name</th><th>Done</th>');
+    expect(html).toContain('href="https://example.com"');
+    expect(html).not.toContain('javascript:');
+    expect(html).toContain('<nav class="toc">');
+  });
+
+  it('leaves out what it cannot resolve without a context', () => {
+    const md = blocksToMarkdown(tree, 'Page');
+    expect(md).not.toContain('Roadmap');
+    expect(md).not.toContain('Tasks');
+  });
+});

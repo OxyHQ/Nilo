@@ -1,10 +1,10 @@
-import * as React from 'react';
-import { Platform, Pressable, TextInput, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { RiMusic2Line } from '@oxy.so/bloom/icons/RiMusic2Line';
-import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { type BlockComponentProps, blockUrl, typedUrl } from './types';
+import { BlockCaption, UrlPrompt } from './block-parts';
+import { type BlockComponentProps, blockUrl } from './types';
 
 /**
  * Audio block — accepts a URL (paste or upload) and renders a player.
@@ -12,32 +12,20 @@ import { type BlockComponentProps, blockUrl, typedUrl } from './types';
  * URL. Nilo stores the block and opens native audio in the system browser;
  * it does not request microphone or background-audio permissions.
  */
-export function AudioBlock({ block, onChangeContent }: BlockComponentProps) {
+export function AudioBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
+  const { t } = useTranslation();
   const { colors } = useColorScheme();
   const url = blockUrl(block.content.url);
-  const caption = typeof block.content.caption === 'string' ? block.content.caption : '';
-  const [urlDraft, setUrlDraft] = React.useState(url);
-  const lastBlockId = React.useRef(block.id);
-  if (lastBlockId.current !== block.id) {
-    lastBlockId.current = block.id;
-    setUrlDraft(url);
-  }
 
   if (!url) {
     return (
-      <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
-        <View className="flex-row items-center gap-2">
-          <RiMusic2Line size="sm" fill={colors.mutedForeground} />
-          <Text className="text-sm text-muted-foreground">Audio</Text>
-        </View>
-        <TextFieldInput
-          label="Paste audio URL"
-          value={urlDraft}
-          onChangeText={setUrlDraft}
-          onBlur={() => onChangeContent({ ...block.content, url: typedUrl(urlDraft) })}
-          placeholder="Paste audio URL"
-        />
-      </View>
+      <UrlPrompt
+        icon={RiMusic2Line}
+        label={t('editor.blocks.audio.label')}
+        paste={t('editor.blocks.audio.paste')}
+        readOnly={readOnly}
+        onCommit={(next) => onChangeContent({ ...block.content, url: next })}
+      />
     );
   }
 
@@ -57,13 +45,7 @@ export function AudioBlock({ block, onChangeContent }: BlockComponentProps) {
           <Text variant="body-regular">{url}</Text>
         </Pressable>
       )}
-      <TextInput
-        value={caption}
-        onChangeText={(t) => onChangeContent({ ...block.content, caption: t })}
-        placeholder="Write a caption…"
-        placeholderTextColor={colors.mutedForeground}
-        className="text-xs text-muted-foreground py-1"
-      />
+      <BlockCaption block={block} onChangeContent={onChangeContent} readOnly={readOnly} />
     </View>
   );
 }

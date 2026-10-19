@@ -1,42 +1,33 @@
-import * as React from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
-import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { type BlockComponentProps, blockUrl, typedUrl } from './types';
+import { UrlPrompt } from './block-parts';
+import { type BlockComponentProps, blockUrl } from './types';
 
 /**
  * PDF block — embeds the PDF in an iframe on web, links out on native.
  * Falls back to a download pill if the iframe load fails (we can't tell
  * from JS whether the iframe succeeded, so we always show a small "Open in
- * new tab" link alongside it).
+ * new tab" link alongside it). The iframe is not sandboxed: Chrome refuses
+ * to show a PDF in a sandboxed frame, and `blockUrl` already keeps out any
+ * URL that is not a page's to load.
  */
-export function PdfBlock({ block, onChangeContent }: BlockComponentProps) {
+export function PdfBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
+  const { t } = useTranslation();
   const { colors } = useColorScheme();
   const url = blockUrl(block.content.url);
-  const [urlDraft, setUrlDraft] = React.useState(url);
-  const lastBlockId = React.useRef(block.id);
-  if (lastBlockId.current !== block.id) {
-    lastBlockId.current = block.id;
-    setUrlDraft(url);
-  }
 
   if (!url) {
     return (
-      <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
-        <View className="flex-row items-center gap-2">
-          <RiFileTextLine size="sm" fill={colors.mutedForeground} />
-          <Text className="text-sm text-muted-foreground">PDF</Text>
-        </View>
-        <TextFieldInput
-          label="Paste PDF URL"
-          value={urlDraft}
-          onChangeText={setUrlDraft}
-          onBlur={() => onChangeContent({ ...block.content, url: typedUrl(urlDraft) })}
-          placeholder="Paste PDF URL"
-        />
-      </View>
+      <UrlPrompt
+        icon={RiFileTextLine}
+        label={t('editor.blocks.pdf.label')}
+        paste={t('editor.blocks.pdf.paste')}
+        readOnly={readOnly}
+        onCommit={(next) => onChangeContent({ ...block.content, url: next })}
+      />
     );
   }
 
@@ -46,7 +37,7 @@ export function PdfBlock({ block, onChangeContent }: BlockComponentProps) {
         <View style={{ width: '100%', aspectRatio: 4 / 5 }}>
           <iframe
             src={url}
-            title="PDF preview"
+            title={t('editor.blocks.pdf.preview')}
             style={{
               border: 0,
               width: '100%',
@@ -62,7 +53,7 @@ export function PdfBlock({ block, onChangeContent }: BlockComponentProps) {
           style={{ fontSize: 12 }}
           className="text-xs text-muted-foreground hover:text-foreground"
         >
-          Open in new tab
+          {t('editor.blocks.pdf.openInNewTab')}
         </a>
       </View>
     );
@@ -74,7 +65,7 @@ export function PdfBlock({ block, onChangeContent }: BlockComponentProps) {
       className="flex-row items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
     >
       <RiFileTextLine width={18} height={18} fill={colors.foreground} />
-      <Text variant="body-regular">Open PDF</Text>
+      <Text variant="body-regular">{t('editor.blocks.pdf.open')}</Text>
     </Pressable>
   );
 }

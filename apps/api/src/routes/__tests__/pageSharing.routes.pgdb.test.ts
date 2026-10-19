@@ -438,6 +438,46 @@ describe('backlinks', () => {
     expect(await titles(OWNER)).toEqual(['Secret', 'Via block', 'Via link', 'Via mention']);
     expect(await titles(VIEWER)).toEqual(['Via block', 'Via link', 'Via mention']);
   });
+
+  it('quotes the first block that points here in reading order, nested ones included', async () => {
+    const target = await page(OWNER, { title: 'Quoted' });
+    const from = await page(OWNER, { title: 'From' });
+    const [toggle, after, a, b, inside] = [uuidv7(), uuidv7(), uuidv7(), uuidv7(), uuidv7()];
+    const mention = (text: string) => ({
+      segments: [
+        { text: `${text} ` },
+        { text: 'Quoted', mention: { indicator: '@', attributes: { kind: 'page', id: target } } },
+      ],
+    });
+    // The nested mention comes first on the page, though its own order (third
+    // in the toggle) is larger than the later top-level block's (second).
+    const insert = (
+      id: string,
+      parentBlockId: string | null,
+      afterId: string | null,
+      content = {},
+    ) => ({
+      kind: 'insert',
+      id,
+      parentBlockId,
+      afterId,
+      type: id === toggle ? 'toggle' : 'paragraph',
+      content,
+    });
+    await api(OWNER, 'POST', `/pages/${from}/blocks/transactions`, {
+      ops: [
+        insert(toggle, null, null, { text: 'T' }),
+        insert(after, null, toggle, mention('later')),
+        insert(a, toggle, null),
+        insert(b, toggle, a),
+        insert(inside, toggle, b, mention('first')),
+      ],
+    });
+    const [backlink] = (await api(OWNER, 'GET', `/pages/${target}/backlinks`)).json.backlinks as {
+      text: string;
+    }[];
+    expect(backlink?.text.startsWith('first')).toBe(true);
+  });
 });
 
 describe('following pages', () => {

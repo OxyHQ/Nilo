@@ -9,6 +9,7 @@ import { useOxy } from '@oxy.so/services/ui/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { freshFileUrl, isFileRemoved, useFileRemoved, useFileScope } from '@/lib/files/file-urls';
 import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { type BlockComponentProps, blockUrl } from './types';
 
@@ -30,7 +31,8 @@ function formatBytes(n: number): string {
  * this page (`lib/files`); pressing the pill asks for a URL that works now
  * and opens it (web: new tab; native: in-app browser).
  */
-export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
+export function FileBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
+  const { t } = useTranslation();
   const { colors } = useColorScheme();
   const { oxyServices } = useOxy();
   const queryClient = useQueryClient();
@@ -59,7 +61,7 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
         mimeType: attached.mimeType,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      setError(err instanceof Error ? err.message : t('editor.blocks.uploadFailed'));
     } finally {
       setBusy(false);
     }
@@ -86,15 +88,15 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
       if (!target) {
         setError(
           fileId && scope && isFileRemoved(queryClient, scope, fileId)
-            ? 'This file was removed'
-            : 'This file is unavailable',
+            ? t('editor.blocks.file.removed')
+            : t('editor.blocks.file.unavailable'),
         );
         return;
       }
       if (Platform.OS === 'web') window.open(target, '_blank', 'noopener,noreferrer');
       else await (await import('expo-web-browser')).openBrowserAsync(target);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'This file is unavailable');
+      setError(err instanceof Error ? err.message : t('editor.blocks.file.unavailable'));
     }
   };
 
@@ -103,26 +105,28 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
         <View className="flex-row items-center gap-2">
           <RiFileLine size="sm" fill={colors.mutedForeground} />
-          <Text className="text-sm text-muted-foreground">File</Text>
+          <Text className="text-sm text-muted-foreground">{t('editor.blocks.file.label')}</Text>
         </View>
-        <Button
-          appearance="solid"
-          tone="accent"
-          size="sm"
-          className="self-start"
-          onPress={() => {
-            if (Platform.OS === 'web') {
-              fileInputRef.current?.click();
-            } else {
-              void handleNativeUpload();
-            }
-          }}
-          disabled={busy}
-          leadingIcon={RiUpload2Line}
-        >
-          {busy ? 'Uploading…' : 'Choose file'}
-        </Button>
-        {Platform.OS === 'web' ? (
+        {readOnly ? null : (
+          <Button
+            appearance="solid"
+            tone="accent"
+            size="sm"
+            className="self-start"
+            onPress={() => {
+              if (Platform.OS === 'web') {
+                fileInputRef.current?.click();
+              } else {
+                void handleNativeUpload();
+              }
+            }}
+            disabled={busy}
+            leadingIcon={RiUpload2Line}
+          >
+            {busy ? t('editor.blocks.uploading') : t('editor.blocks.file.choose')}
+          </Button>
+        )}
+        {Platform.OS === 'web' && !readOnly ? (
           <input
             ref={fileInputRef}
             type="file"
@@ -159,7 +163,7 @@ export function FileBlock({ block, onChangeContent }: BlockComponentProps) {
       {error ? (
         <Text className="text-xs text-destructive">{error}</Text>
       ) : removed ? (
-        <Text className="text-xs text-muted-foreground">This file was removed</Text>
+        <Text className="text-xs text-muted-foreground">{t('editor.blocks.file.removed')}</Text>
       ) : null}
     </View>
   );

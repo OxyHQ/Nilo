@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import { RiCodeSSlashLine } from '@oxy.so/bloom/icons/RiCodeSSlashLine';
-import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
-import { useColorScheme } from '@/lib/useColorScheme';
-import { type BlockComponentProps, blockUrl, typedUrl } from './types';
+import { useTranslation } from '@/hooks/useTranslation';
+import { UrlPrompt } from './block-parts';
+import { type BlockComponentProps, blockUrl } from './types';
 
 interface EmbedDescriptor {
   src: string;
@@ -109,54 +109,39 @@ function buildEmbed(url: string): EmbedDescriptor | null {
  * Generic embed block — accepts a URL and renders the best iframe we can
  * detect. Falls back to a "bookmark"-style summary if we can't auto-embed.
  */
-export function EmbedBlock({ block, onChangeContent }: BlockComponentProps) {
-  const { colors } = useColorScheme();
+export function EmbedBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
+  const { t } = useTranslation();
   const url = blockUrl(block.content.url);
-  const [urlDraft, setUrlDraft] = React.useState(url);
-  const lastBlockId = React.useRef(block.id);
-  if (lastBlockId.current !== block.id) {
-    lastBlockId.current = block.id;
-    setUrlDraft(url);
-  }
-
   const descriptor = React.useMemo(() => (url ? buildEmbed(url) : null), [url]);
-
-  const commitUrl = (next: string) => {
-    const trimmed = typedUrl(next);
-    const desc = trimmed ? buildEmbed(trimmed) : null;
-    onChangeContent({
-      ...block.content,
-      url: trimmed,
-      source: desc?.source ?? 'other',
-    });
-  };
 
   if (!url) {
     return (
-      <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-4 gap-3">
-        <View className="flex-row items-center gap-2">
-          <RiCodeSSlashLine size="sm" fill={colors.mutedForeground} />
-          <Text className="text-sm text-muted-foreground">Embed</Text>
-        </View>
-        <TextFieldInput
-          label="Paste a YouTube, Figma, Twitter, CodePen, GitHub Gist…"
-          value={urlDraft}
-          onChangeText={setUrlDraft}
-          onBlur={() => commitUrl(urlDraft)}
-          placeholder="Paste a YouTube, Figma, Twitter, CodePen, GitHub Gist…"
-        />
-      </View>
+      <UrlPrompt
+        icon={RiCodeSSlashLine}
+        label={t('editor.blocks.embed.label')}
+        paste={t('editor.blocks.embed.paste')}
+        readOnly={readOnly}
+        onCommit={(next) =>
+          onChangeContent({
+            ...block.content,
+            url: next,
+            source: buildEmbed(next)?.source ?? 'other',
+          })
+        }
+      />
     );
   }
 
   if (Platform.OS !== 'web' || !descriptor) {
     return (
       <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={t('editor.blocks.embed.open')}
         className="rounded-lg border border-border bg-muted/30 px-3 py-2"
         onPress={() => {
-          if (Platform.OS !== 'web') {
-            import('expo-web-browser').then((mod) => mod.openBrowserAsync(url));
-          }
+          // A link no embed is known for opens like any other: a tab on web.
+          if (Platform.OS === 'web') window.open(url, '_blank', 'noopener,noreferrer');
+          else import('expo-web-browser').then((mod) => mod.openBrowserAsync(url));
         }}
       >
         <Text variant="body-regular" numberOfLines={2}>

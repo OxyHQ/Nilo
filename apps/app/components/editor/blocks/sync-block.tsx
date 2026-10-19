@@ -1,29 +1,22 @@
 import { View } from 'react-native';
 import { RiRefreshLine } from '@oxy.so/bloom/icons/RiRefreshLine';
 import { Text } from '@oxy.so/bloom/typography';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { BlockComponentProps } from './types';
 
 /**
- * Placeholder synced-block. Phase 3 ships the block type so editors can
- * persist references; the actual "show source block content here" rendering
- * lands in Phase 4 alongside permissions and circular-reference guards.
+ * A synced block's place. The block type is stored so imported pages keep
+ * their references; showing the source's content here is not built yet, and
+ * the slash menu does not offer the block.
  */
-export function SyncBlock({ block }: BlockComponentProps) {
+export function SyncBlock(_props: BlockComponentProps) {
+  const { t } = useTranslation();
   const { colors } = useColorScheme();
-  const sourceId =
-    typeof block.content.sourceBlockId === 'string' ? block.content.sourceBlockId : '';
   return (
     <View className="flex-row items-center gap-2 rounded-md border border-dashed border-border bg-muted/30 px-3 py-2">
       <RiRefreshLine width={14} height={14} fill={colors.mutedForeground} />
-      <View className="flex-1">
-        <Text className="text-sm text-muted-foreground">Synced block (Phase 3)</Text>
-        {sourceId ? (
-          <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-            Source: {sourceId}
-          </Text>
-        ) : null}
-      </View>
+      <Text className="text-sm text-muted-foreground">{t('editor.blocks.syncBlock.label')}</Text>
     </View>
   );
 }

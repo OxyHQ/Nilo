@@ -496,12 +496,72 @@ function attachmentLabel(content: BlockContent, fallback: string): string {
 
 const LISTISH = new Set(['bulleted_list_item', 'numbered_list_item', 'todo', 'toggle']);
 
-function renderNodeMarkdown(block: BlockNode, depth: number, index: number): string {
+/**
+ * What an export may say about what a page points at, each answer only what
+ * its reader may see (undefined otherwise): a linked page's title, an inline
+ * database as a table — its header first. Without it a link shows as a link
+ * and a database is left out.
+ */
+export interface ExportContext {
+  pageTitle?: (pageId: string) => string | undefined;
+  database?: (databaseId: string) => { name: string; table: string[][] } | undefined;
+}
+
+interface RenderContext extends ExportContext {
+  /** The page's headings, for a table of contents. */
+  headings: readonly BlockNode[];
+}
+
+const HEADINGS = new Set(['heading_1', 'heading_2', 'heading_3']);
+
+function renderContext(blocks: readonly BlockNode[], context: ExportContext = {}): RenderContext {
+  const headings: BlockNode[] = [];
+  const walk = (nodes: readonly BlockNode[]) => {
+    for (const node of nodes) {
+      if (HEADINGS.has(node.type)) headings.push(node);
+      walk(node.children);
+    }
+  };
+  walk(blocks);
+  return { ...context, headings };
+}
+
+const headingLevel = (block: BlockNode) => Number(block.type.slice('heading_'.length)) - 1;
+
+/** A Markdown pipe table, its first row the header. */
+function pipeTable(rows: readonly (readonly string[])[]): string {
+  const cell = (text: string) => text.replace(/\|/g, '\\|').replace(/\n/g, ' ');
+  const cols = Math.max(1, ...rows.map((r) => r.length));
+  const pad = (r: readonly string[]) =>
+    `| ${Array.from({ length: cols }, (_, c) => cell(r[c] ?? '')).join(' | ')} |`;
+  const [head = [], ...rest] = rows;
+  return [
+    pad(head),
+    `| ${Array.from({ length: cols }, () => '---').join(' | ')} |`,
+    ...rest.map(pad),
+  ].join('\n');
+}
+
+/** A fenced block of `text`, the fence longer than any run of backticks in it. */
+function fenced(text: string, language: string): string {
+  const longest = Math.max(2, ...(text.match(/`+/g) ?? []).map((run) => run.length));
+  const fence = '`'.repeat(longest + 1);
+  return `${fence}${language}\n${text}\n${fence}`;
+}
+
+const targetId = (block: BlockNode, key: string) => stringOf(block.content[key]);
+
+function renderNodeMarkdown(
+  block: BlockNode,
+  depth: number,
+  index: number,
+  ctx: RenderContext,
+): string {
   const indent = '    '.repeat(depth);
   const inline = renderInline(segmentsOf(block.content));
   const childIndent = LISTISH.has(block.type) ? depth + 1 : depth;
   const children = block.children
-    .map((child, i) => renderNodeMarkdown(child, childIndent, i))
+    .map((child, i) => renderNodeMarkdown(child, childIndent, i, ctx))
     .filter(Boolean)
     .join(LISTISH.has(block.type) ? '\n' : '\n\n');
   let line: string;
@@ -541,13 +601,40 @@ function renderNodeMarkdown(block: BlockNode, depth: number, index: number): str
       line = `${indent}---`;
       break;
     case 'code': {
-      const text = stringOf(block.content.text);
-      const longest = Math.max(2, ...(text.match(/`+/g) ?? []).map((run) => run.length));
-      const fence = '`'.repeat(longest + 1);
       const language = stringOf(block.content.language);
-      line = `${fence}${language === 'plain' ? '' : language}\n${text}\n${fence}`;
+      line = fenced(stringOf(block.content.text), language === 'plain' ? '' : language);
       break;
     }
+    case 'mermaid':
+      line = fenced(stringOf(block.content.code), 'mermaid');
+      break;
+    case 'link_to_page': {
+      const title = ctx.pageTitle?.(targetId(block, 'pageId'));
+      line = title === undefined ? '' : `${indent}→ ${escapeInline(title || 'Untitled')}`;
+      break;
+    }
+    case 'button': {
+      const url = stringOf(block.content.url);
+      const label = escapeInline(stringOf(block.content.label) || 'Button');
+      line = block.content.action === 'navigate' && SAFE_LINK.test(url) ? `[${label}](${url})` : '';
+      break;
+    }
+    case 'inline_database': {
+      const database = ctx.database?.(targetId(block, 'databaseId'));
+      line = database
+        ? `**${escapeInline(database.name || 'Untitled')}**\n\n${pipeTable(database.table.map((row) => row.map(escapeInline)))}`
+        : '';
+      break;
+    }
+    case 'table_of_contents':
+      line = ctx.headings
+        .map((h) => `${'    '.repeat(headingLevel(h))}- ${renderInline(segmentsOf(h.content))}`)
+        .join('\n');
+      break;
+    case 'breadcrumb':
+      // Where the page sits is the app's to show; an exported file has no place.
+      line = '';
+      break;
     case 'equation':
       line = `$$\n${stringOf(block.content.latex)}\n$$`;
       break;
@@ -569,22 +656,12 @@ function renderNodeMarkdown(block: BlockNode, depth: number, index: number): str
       else line = url ? `[${escapeInline(label)}](${url})` : '';
       break;
     }
-    case 'table': {
-      const rows = block.children.map((row) =>
-        row.children.map((cell) =>
-          renderInline(segmentsOf(cell.content)).replace(/\|/g, '\\|').replace(/\n/g, ' '),
+    case 'table':
+      return pipeTable(
+        block.children.map((row) =>
+          row.children.map((cell) => renderInline(segmentsOf(cell.content))),
         ),
       );
-      const cols = Math.max(1, ...rows.map((r) => r.length));
-      const pad = (r: string[]) =>
-        `| ${Array.from({ length: cols }, (_, c) => r[c] ?? '').join(' | ')} |`;
-      const [head = [], ...rest] = rows;
-      return [
-        pad(head),
-        `| ${Array.from({ length: cols }, () => '---').join(' | ')} |`,
-        ...rest.map(pad),
-      ].join('\n');
-    }
     case 'columns':
     case 'column':
     case 'canvas_note':
@@ -599,7 +676,12 @@ function renderNodeMarkdown(block: BlockNode, depth: number, index: number): str
 }
 
 /** Block trees → Markdown, with an optional `# title` first. */
-export function blocksToMarkdown(blocks: readonly BlockNode[], title?: string): string {
+export function blocksToMarkdown(
+  blocks: readonly BlockNode[],
+  title?: string,
+  context?: ExportContext,
+): string {
+  const ctx = renderContext(blocks, context);
   const parts: string[] = [];
   let run: string[] = [];
   // Consecutive list items stay together; everything else is separated by a blank line.
@@ -610,7 +692,7 @@ export function blocksToMarkdown(blocks: readonly BlockNode[], title?: string): 
   let numbered = 0;
   for (const block of blocks) {
     numbered = block.type === 'numbered_list_item' ? numbered + 1 : 0;
-    const rendered = renderNodeMarkdown(block, 0, Math.max(0, numbered - 1));
+    const rendered = renderNodeMarkdown(block, 0, Math.max(0, numbered - 1), ctx);
     if (!rendered) continue;
     if (LISTISH.has(block.type)) run.push(rendered);
     else {
@@ -651,7 +733,16 @@ function renderInlineHtml(segments: readonly Segment[]): string {
     .join('');
 }
 
-function renderNodesHtml(blocks: readonly BlockNode[]): string {
+function htmlTable(rows: readonly (readonly string[])[], header: boolean): string {
+  return `<table>${rows
+    .map(
+      (row, r) =>
+        `<tr>${row.map((cell) => (r === 0 && header ? `<th>${cell}</th>` : `<td>${cell}</td>`)).join('')}</tr>`,
+    )
+    .join('')}</table>`;
+}
+
+function renderNodesHtml(blocks: readonly BlockNode[], ctx: RenderContext): string {
   const out: string[] = [];
   for (let i = 0; i < blocks.length; i += 1) {
     const block = blocks[i] as BlockNode;
@@ -684,7 +775,7 @@ function renderNodesHtml(blocks: readonly BlockNode[]): string {
               item.type === 'todo'
                 ? `<input type="checkbox" disabled${item.content.checked === true ? ' checked' : ''}> `
                 : '';
-            const nested = item.children.length > 0 ? renderNodesHtml(item.children) : '';
+            const nested = item.children.length > 0 ? renderNodesHtml(item.children, ctx) : '';
             const body = `${box}${renderInlineHtml(segmentsOf(item.content))}`;
             return item.type === 'toggle'
               ? `<li><details open><summary>${body}</summary>${nested}</details></li>`
@@ -695,7 +786,7 @@ function renderNodesHtml(blocks: readonly BlockNode[]): string {
       continue;
     }
     const inline = renderInlineHtml(segmentsOf(block.content));
-    const children = block.children.length > 0 ? renderNodesHtml(block.children) : '';
+    const children = block.children.length > 0 ? renderNodesHtml(block.children, ctx) : '';
     switch (block.type) {
       case 'heading_1':
         out.push(`<h1>${inline}</h1>`);
@@ -728,6 +819,50 @@ function renderNodesHtml(blocks: readonly BlockNode[]): string {
       case 'equation':
         out.push(`<div class="equation">${escapeHtml(stringOf(block.content.latex))}</div>`);
         break;
+      case 'mermaid':
+        out.push(
+          `<pre><code class="language-mermaid">${escapeHtml(stringOf(block.content.code))}</code></pre>`,
+        );
+        break;
+      case 'link_to_page': {
+        const title = ctx.pageTitle?.(targetId(block, 'pageId'));
+        if (title !== undefined)
+          out.push(`<p class="page-link">→ ${escapeHtml(title || 'Untitled')}</p>`);
+        break;
+      }
+      case 'button': {
+        const url = stringOf(block.content.url);
+        if (block.content.action === 'navigate' && SAFE_LINK.test(url))
+          out.push(
+            `<p><a class="button" href="${safeUrl(url)}" rel="noopener noreferrer">${escapeHtml(stringOf(block.content.label) || 'Button')}</a></p>`,
+          );
+        break;
+      }
+      case 'inline_database': {
+        const database = ctx.database?.(targetId(block, 'databaseId'));
+        if (database)
+          out.push(
+            `<figure class="database"><figcaption>${escapeHtml(database.name || 'Untitled')}</figcaption>${htmlTable(
+              database.table.map((row) => row.map(escapeHtml)),
+              true,
+            )}</figure>`,
+          );
+        break;
+      }
+      case 'table_of_contents':
+        if (ctx.headings.length > 0)
+          out.push(
+            `<nav class="toc"><ul>${ctx.headings
+              .map(
+                (h) =>
+                  `<li style="margin-left:${headingLevel(h)}rem">${renderInlineHtml(segmentsOf(h.content))}</li>`,
+              )
+              .join('')}</ul></nav>`,
+          );
+        break;
+      case 'breadcrumb':
+        // Where the page sits is the app's to show; an exported file has no place.
+        break;
       case 'image': {
         const url = stringOf(block.content.url);
         if (blockFileId(block.content))
@@ -754,19 +889,16 @@ function renderNodesHtml(blocks: readonly BlockNode[]): string {
           );
         break;
       }
-      case 'table': {
-        const rows = block.children.map(
-          (row, r) =>
-            `<tr>${row.children
-              .map((cell) => {
-                const tag = r === 0 && block.content.withHeader === true ? 'th' : 'td';
-                return `<${tag}>${renderInlineHtml(segmentsOf(cell.content))}</${tag}>`;
-              })
-              .join('')}</tr>`,
+      case 'table':
+        out.push(
+          htmlTable(
+            block.children.map((row) =>
+              row.children.map((cell) => renderInlineHtml(segmentsOf(cell.content))),
+            ),
+            block.content.withHeader === true,
+          ),
         );
-        out.push(`<table>${rows.join('')}</table>`);
         break;
-      }
       case 'columns':
         out.push(`<div class="columns">${children}</div>`);
         break;
@@ -802,8 +934,8 @@ export function inReadingOrder(nodes: readonly BlockNode[]): BlockNode[] {
 }
 
 /** Block trees → the HTML of their content alone, escaped as in `blocksToHtml`. */
-export function blocksToHtmlBody(blocks: readonly BlockNode[]): string {
-  return renderNodesHtml(blocks);
+export function blocksToHtmlBody(blocks: readonly BlockNode[], context?: ExportContext): string {
+  return renderNodesHtml(blocks, renderContext(blocks, context));
 }
 
 /** The text of block trees in reading order, one space between blocks, cut at `limit` characters. */
@@ -841,7 +973,11 @@ export function blocksToText(
 }
 
 /** Block trees → a standalone HTML document. */
-export function blocksToHtml(blocks: readonly BlockNode[], title: string): string {
+export function blocksToHtml(
+  blocks: readonly BlockNode[],
+  title: string,
+  context?: ExportContext,
+): string {
   const name = escapeHtml(title || 'Untitled');
   return `<!doctype html>
 <html>
@@ -860,7 +996,7 @@ table{border-collapse:collapse}td,th{border:1px solid #d0d7de;padding:.25rem .5r
 </head>
 <body>
 <h1>${name}</h1>
-${renderNodesHtml(blocks)}
+${blocksToHtmlBody(blocks, context)}
 </body>
 </html>
 `;

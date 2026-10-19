@@ -56,7 +56,8 @@
     "fileUnavailable": "Este archivo no está disponible ahora",
     "fileRemoved": "Este archivo se ha eliminado",
     "expand": "Expandir %{title}",
-    "collapse": "Contraer %{title}"
+    "collapse": "Contraer %{title}",
+    "database": "Una base de datos"
   },
   "roles": {
     "viewer": "Puede ver",

@@ -2,28 +2,35 @@ import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { isEntityId } from '@oxy.so/nilo-contracts';
+import { Button } from '@oxy.so/bloom/button';
 import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
-import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
+import { IconDisplay } from '@/components/page-chrome/icon-display';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import apiClient from '@/lib/api/client';
 import { API_ROUTES } from '@/lib/api/routes';
 import { queryKeys } from '@/lib/hooks/query-keys';
+import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import type { PageResponse } from '@/lib/types/pages';
+import { PagePicker } from '../page-picker';
 import type { BlockComponentProps } from './types';
 
-const VALID_OBJECT_ID = /^[0-9a-fA-F]{24}$/u;
+/** What a block that names no page yet holds (the contract's default). */
 const PLACEHOLDER_ID = '000000000000000000000000';
 
 /**
- * Inline link to another page. Shows an icon + title once the target page is
- * resolved; otherwise lets the user paste a page id. Clicking routes to the
- * page detail screen.
+ * Inline link to another page: its icon and title, opening it. A block
+ * that names no page yet lets an editor choose one.
  */
-export function LinkToPageBlock({ block, onChangeContent }: BlockComponentProps) {
+export function LinkToPageBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
+  const { t } = useTranslation();
   const { colors } = useColorScheme();
+  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const [choosing, setChoosing] = React.useState(false);
   const pageId = typeof block.content.pageId === 'string' ? block.content.pageId : '';
-  const isResolved = pageId && pageId !== PLACEHOLDER_ID && VALID_OBJECT_ID.test(pageId);
+  const isResolved = pageId !== PLACEHOLDER_ID && isEntityId(pageId);
 
   const pageQuery = useQuery<PageResponse>({
     queryKey: isResolved ? queryKeys.pages.detail(pageId) : ['pages', 'none'],
@@ -31,55 +38,67 @@ export function LinkToPageBlock({ block, onChangeContent }: BlockComponentProps)
       const res = await apiClient.get(API_ROUTES.pages.get(pageId));
       return res.data;
     },
-    enabled: Boolean(isResolved),
+    enabled: isResolved,
     staleTime: 1000 * 30,
   });
-
-  const [draft, setDraft] = React.useState(pageId);
-  const lastBlockId = React.useRef(block.id);
-  if (lastBlockId.current !== block.id) {
-    lastBlockId.current = block.id;
-    setDraft(pageId);
-  }
 
   if (!isResolved) {
     return (
       <View className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-3 gap-2">
         <View className="flex-row items-center gap-2">
-          <RiFileTextLine size="sm" fill={colors.mutedForeground} />
-          <Text className="text-sm text-muted-foreground">Link to page</Text>
+          <RiFileTextLine width={16} height={16} fill={colors.mutedForeground} />
+          <Text className="text-sm text-muted-foreground">
+            {t('editor.blocks.linkToPage.label')}
+          </Text>
         </View>
-        <TextFieldInput
-          label="Paste page id (24 hex chars)"
-          value={draft}
-          onChangeText={setDraft}
-          onBlur={() => {
-            const trimmed = draft.trim();
-            if (VALID_OBJECT_ID.test(trimmed)) {
-              onChangeContent({ ...block.content, pageId: trimmed });
-            }
-          }}
-          placeholder="Paste page id (24 hex chars)"
-        />
+        {readOnly || !workspaceId ? null : (
+          <Button
+            appearance="outline"
+            size="sm"
+            className="self-start"
+            onPress={() => setChoosing(true)}
+          >
+            {t('editor.blocks.linkToPage.choose')}
+          </Button>
+        )}
+        {choosing && workspaceId ? (
+          <PagePicker
+            workspaceId={workspaceId}
+            title={t('editor.blocks.linkToPage.choose')}
+            onChoose={(page) => onChangeContent({ ...block.content, pageId: page.id })}
+            onClose={() => setChoosing(false)}
+          />
+        ) : null}
       </View>
     );
   }
 
-  const title = pageQuery.data?.page.title ?? 'Untitled';
-  const icon = pageQuery.data?.page.icon ?? null;
+  // A page the reader cannot open (or that is gone) is not linked to.
+  if (pageQuery.isError) {
+    return (
+      <View className="flex-row items-center gap-2 px-2 py-1">
+        <RiFileTextLine width={14} height={14} fill={colors.mutedForeground} />
+        <Text className="text-sm text-muted-foreground">
+          {t('editor.blocks.linkToPage.missing')}
+        </Text>
+      </View>
+    );
+  }
 
+  const page = pageQuery.data?.page;
   return (
     <Pressable
+      accessibilityRole="link"
       onPress={() => router.push(`/p/${pageId}`)}
       className="flex-row items-center gap-2 rounded-md px-2 py-1 hover:bg-muted"
     >
-      {icon ? (
-        <Text variant="headline-regular">{icon}</Text>
+      {page?.icon ? (
+        <IconDisplay value={page.icon} size={16} />
       ) : (
         <RiFileTextLine width={14} height={14} fill={colors.foreground} />
       )}
       <Text className="text-sm text-foreground underline" numberOfLines={1}>
-        {title}
+        {page ? page.title || t('pages.untitled') : t('editor.blocks.loading')}
       </Text>
     </Pressable>
   );

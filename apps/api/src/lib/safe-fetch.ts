@@ -154,6 +154,43 @@ function requestOnce(
   });
 }
 
+/**
+ * POST `body` as JSON to a user-supplied URL with the same guards as
+ * `safeFetch`. A redirect is not followed: what a POST means after one is
+ * the server's guess, so its status is the answer. The body is not read.
+ */
+export async function safePost(
+  raw: string,
+  body: unknown,
+  options: { timeoutMs?: number; headers?: Record<string, string> } = {},
+): Promise<{ status: number }> {
+  const url = checkUrl(raw);
+  const payload = JSON.stringify(body);
+  return new Promise((resolve, reject) => {
+    const client = url.protocol === 'https:' ? https : http;
+    const req = client.request(
+      url,
+      {
+        method: 'POST',
+        headers: {
+          ...options.headers,
+          'content-type': 'application/json',
+          'content-length': String(Buffer.byteLength(payload)),
+        },
+        lookup: publicLookup as never,
+        timeout: options.timeoutMs ?? 8000,
+      },
+      (res) => {
+        res.resume();
+        resolve({ status: res.statusCode ?? 0 });
+      },
+    );
+    req.on('timeout', () => req.destroy(new Error('Timed out')));
+    req.on('error', reject);
+    req.end(payload);
+  });
+}
+
 /** GET a user-supplied URL safely (see the module comment). */
 export async function safeFetch(
   raw: string,

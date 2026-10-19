@@ -33,24 +33,39 @@ router.get('/pages/:id/backlinks', authenticateToken, async (req: Request, res: 
     }
 
     const mention = JSON.stringify([{ mention: { attributes: { kind: 'page', id } } }]);
+    // The first block that points here in reading order: a block's place is
+    // the orders of its ancestors and its own, root first, so a nested block
+    // is read where it sits and not by its order among its siblings alone.
     const rows = await db.execute(sql`
-      select distinct on (b.page_id) b.page_id, b.content ->> 'text' as text
-      from blocks b
-      join pages p on p.id = b.page_id
-      where b.page_id <> ${id}
-        and p.workspace_id = ${page.workspaceId}
-        and not p.archived
-        and (
-          (b.type = 'link_to_page' and b.content ->> 'pageId' = ${id})
-          or b.content -> 'segments' @> ${mention}::jsonb
-          or exists (
-            select 1 from jsonb_array_elements(
-              case when jsonb_typeof(b.content -> 'segments') = 'array' then b.content -> 'segments' else '[]'::jsonb end
-            ) s
-            where s ->> 'link' = ${`/p/${id}`}
+      with recursive matches as (
+        select b.id, b.page_id, b.content ->> 'text' as text
+        from blocks b
+        join pages p on p.id = b.page_id
+        where b.page_id <> ${id}
+          and p.workspace_id = ${page.workspaceId}
+          and not p.archived
+          and (
+            (b.type = 'link_to_page' and b.content ->> 'pageId' = ${id})
+            or b.content -> 'segments' @> ${mention}::jsonb
+            or exists (
+              select 1 from jsonb_array_elements(
+                case when jsonb_typeof(b.content -> 'segments') = 'array' then b.content -> 'segments' else '[]'::jsonb end
+              ) s
+              where s ->> 'link' = ${`/p/${id}`}
+            )
           )
-        )
-      order by b.page_id, b."order"
+      ),
+      place as (
+        select m.id as match_id, b.id, b.parent_block_id, array[b."order"] as path
+        from matches m join blocks b on b.id = m.id
+        union all
+        select place.match_id, parent.id, parent.parent_block_id, array[parent."order"] || place.path
+        from place join blocks parent on parent.id = place.parent_block_id
+      ) cycle id set is_cycle using cycle_path
+      select distinct on (m.page_id) m.page_id, m.text
+      from matches m
+      join place on place.match_id = m.id and place.parent_block_id is null and not place.is_cycle
+      order by m.page_id, place.path
     `);
 
     const userId = req.user?.id ?? '';

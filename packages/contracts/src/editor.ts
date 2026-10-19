@@ -36,7 +36,8 @@ const BEHAVIOUR = extendSchema(DEFAULT_SCHEMA, [
   { type: 'canvas_note', hasText: false, canHaveChildren: true, isContainer: true },
   { type: 'table', hasText: false, canHaveChildren: true, isContainer: true },
   { type: 'table_row', hasText: false, canHaveChildren: true, isContainer: true },
-  { type: 'table_cell', hasText: true, canHaveChildren: false },
+  // Return is a line break: splitting a cell would put a block in its row.
+  { type: 'table_cell', hasText: true, multiline: true, canHaveChildren: false },
   { type: 'button', hasText: false, canHaveChildren: false },
   { type: 'link_to_page', hasText: false, canHaveChildren: false },
   { type: 'sync_block', hasText: false, canHaveChildren: false },
