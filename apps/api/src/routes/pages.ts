@@ -59,6 +59,7 @@ import {
 } from '../repositories/pagePermissions.js';
 import { findLiveWorkspaceById, listMembershipsForUser } from '../repositories/workspaces.js';
 import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
+import { invalidReference } from '../lib/databases/property-references.js';
 import { NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
 import { announceChange } from '../collab/live-rooms.js';
 
@@ -618,6 +619,11 @@ router.patch('/:id', async (req: Request, res: Response) => {
         if (key === NAME_PROPERTY_ID && parsed.kind === 'text') {
           patch.title = parsed.text;
         }
+      }
+      const invalid = await invalidReference(db, database, merge, page.properties);
+      if (invalid) {
+        res.status(400).json(invalid);
+        return;
       }
       patch.mergeProperties = merge;
     }

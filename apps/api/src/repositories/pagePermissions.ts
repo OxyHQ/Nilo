@@ -124,6 +124,21 @@ export async function listGrantsOfUserInWorkspace(
   return rows.map((r) => r.grant);
 }
 
+/** Which of `userIds` hold a grant on some page of `workspaceId`: its guests, and members shared a page. */
+export async function listUsersWithGrantsInWorkspace(
+  db: PgHandle,
+  workspaceId: string,
+  userIds: readonly string[],
+): Promise<string[]> {
+  if (userIds.length === 0) return [];
+  const rows = await db
+    .selectDistinct({ userId: pagePermissions.userId })
+    .from(pagePermissions)
+    .innerJoin(pages, eq(pages.id, pagePermissions.pageId))
+    .where(and(inArray(pagePermissions.userId, [...userIds]), eq(pages.workspaceId, workspaceId)));
+  return rows.map((r) => r.userId);
+}
+
 /**
  * Give `userId` `role` on `pageId`, replacing a grant they already hold
  * there. A grant made by hand drops any share link it came from: it stays

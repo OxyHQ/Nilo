@@ -357,6 +357,24 @@ export async function listViewsByDatabase(
 }
 
 /**
+ * Every view of a database, its own and its linked blocks', locked until the
+ * transaction `handle` is in ends: removing a property rewrites the views that
+ * name it, and an edit landing in between would put the id back.
+ */
+export async function lockViewsOfDatabase(
+  handle: NiloHandle,
+  databaseId: string,
+): Promise<DatabaseViewRecord[]> {
+  const rows = await handle
+    .select()
+    .from(databaseViews)
+    .where(eq(databaseViews.databaseId, databaseId))
+    .orderBy(...VIEW_ORDER)
+    .for('update');
+  return rows.map(toViewRecord);
+}
+
+/**
  * `DatabaseView.findById(viewId)` — `routes/databases.ts:940, 1194, 1260`.
  *
  * Every caller immediately checks the view belongs to the database it was
