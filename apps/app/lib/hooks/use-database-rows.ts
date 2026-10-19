@@ -11,6 +11,7 @@ import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
 import { queryKeys } from './query-keys';
 import { useVisibleDatesStore } from '../stores/visible-dates-store';
+import { useViewSearchStore } from '../stores/view-search-store';
 import type {
   DatabaseViewType,
   DatabaseRow,
@@ -71,7 +72,10 @@ interface DeleteRowInput {
  * A view's rows. Infinite queries refetch only the pages already loaded on
  * live invalidation. A calendar or a timeline reads every row of the dates it
  * shows (`useVisibleDatesStore`), and nothing before it says which; every other
- * view, a board too, pages a hundred rows at a time and loads more on demand.
+ * view, a board too, pages its own load limit (`pageSize`, the API's default
+ * when none is asked) at a time and loads more on demand.
+ * A view searched in its toolbar (`useViewSearchStore`) reads the rows whose
+ * title matches.
  */
 export function useDatabaseRows(
   databaseId: string | undefined,
@@ -83,11 +87,13 @@ export function useDatabaseRows(
   const dates = useVisibleDatesStore((state) =>
     dated && viewId ? (state.byView[viewId] ?? null) : null,
   );
+  const search = useViewSearchStore((state) => (viewId ? (state.byView[viewId] ?? '') : ''));
   const query = useInfiniteQuery({
     queryKey: [
       ...queryKeys.databases.rows(databaseId ?? 'none', viewId),
       dated ? 'dates' : 'paged',
       ...(dated ? [dates] : []),
+      ...(search ? [{ search }] : []),
     ],
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam, signal }): Promise<DatabaseRowsResponse> => {
@@ -101,9 +107,11 @@ export function useDatabaseRows(
             signal,
             params: {
               ...(viewId && { viewId }),
-              pageSize: '100',
+              // A calendar or a timeline reads all its dates' rows, a hundred a request.
+              ...(dated && { pageSize: '100' }),
               ...(cursor && { cursor }),
               ...(dates && { filter: JSON.stringify(dates) }),
+              ...(search && { search }),
             },
           },
         );
@@ -113,9 +121,12 @@ export function useDatabaseRows(
       return result;
     },
     getNextPageParam: (last) => last.cursor ?? undefined,
-    // A calendar moved to another month shows the one it leaves until the next is read.
+    // A calendar moved to another month, or a view searched for something
+    // else, shows what it had until the next rows are read.
     placeholderData: (previous, previousQuery) =>
-      dated && previousQuery?.queryKey[1] === databaseId && previousQuery?.queryKey[3] === viewId
+      previousQuery?.queryKey[1] === databaseId &&
+      previousQuery?.queryKey[3] === viewId &&
+      (dated || search !== '' || (previousQuery?.queryKey.length ?? 0) > 5)
         ? previous
         : undefined,
     retry: (count, error) => {

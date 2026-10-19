@@ -65,9 +65,20 @@ export function useAddProperty() {
   });
 }
 
+interface UpdatePropertyContext {
+  previousTarget: string | undefined;
+  previous: DatabaseResponse | undefined;
+}
+
+/**
+ * A property's name, type or config. Shown at once in the database's cache
+ * (a setting changed twice in a row builds on the first), put back if the API
+ * refuses it; a new type's values are the API's to convert, so they are read
+ * again either way.
+ */
 export function useUpdateProperty() {
   const queryClient = useQueryClient();
-  return useMutation<Database, Error, UpdatePropertyInput, string | undefined>({
+  return useMutation<Database, Error, UpdatePropertyInput, UpdatePropertyContext>({
     mutationFn: async ({ databaseId, propertyId, ...input }) => {
       const res = await apiClient.patch<DatabaseResponse>(
         API_ROUTES.databases.updateProperty(databaseId, propertyId),
@@ -75,13 +86,48 @@ export function useUpdateProperty() {
       );
       return res.data.database;
     },
-    onMutate: (input) => targetBefore(queryClient, input.databaseId, input.propertyId),
-    onSettled: (_database, _error, input, previousTarget) =>
-      refreshProperties(queryClient, [
+    onMutate: async ({ databaseId, propertyId, ...patch }) => {
+      const previousTarget = targetBefore(queryClient, databaseId, propertyId);
+      const key = queryKeys.databases.detail(databaseId);
+      await queryClient.cancelQueries({ queryKey: key, exact: true });
+      const previous = queryClient.getQueryData<DatabaseResponse>(key);
+      if (previous) {
+        queryClient.setQueryData<DatabaseResponse>(key, {
+          ...previous,
+          database: {
+            ...previous.database,
+            schema: {
+              properties: previous.database.schema.properties.map((p) =>
+                p.id === propertyId
+                  ? {
+                      ...p,
+                      ...(patch.name !== undefined && { name: patch.name }),
+                      ...(patch.type !== undefined && { type: patch.type }),
+                      ...(patch.config !== undefined && {
+                        config: { ...patch.config, syncedPropertyId: p.config?.syncedPropertyId },
+                      }),
+                    }
+                  : p,
+              ),
+            },
+          },
+        });
+      }
+      return { previousTarget, previous };
+    },
+    onError: (_error, { databaseId }, context) => {
+      if (context?.previous)
+        queryClient.setQueryData(queryKeys.databases.detail(databaseId), context.previous);
+    },
+    onSettled: async (_database, _error, input, context) => {
+      await refreshProperties(queryClient, [
         input.databaseId,
         input.config?.targetDatabaseId,
-        previousTarget,
-      ]),
+        context?.previousTarget,
+      ]);
+      if (input.type !== undefined)
+        await queryClient.invalidateQueries({ queryKey: ['database', input.databaseId, 'rows'] });
+    },
   });
 }
 
@@ -97,5 +143,46 @@ export function useDeleteProperty() {
     onMutate: (input) => targetBefore(queryClient, input.databaseId, input.propertyId),
     onSettled: (_database, _error, input, previousTarget) =>
       refreshProperties(queryClient, [input.databaseId, previousTarget]),
+  });
+}
+
+interface ReorderPropertiesInput {
+  databaseId: string;
+  /** The properties' ids in their new order. */
+  ids: string[];
+}
+
+/** The order of a database's properties (`PUT /databases/:id/properties/order`), shown at once. */
+export function useReorderProperties() {
+  const queryClient = useQueryClient();
+  return useMutation<Database, Error, ReorderPropertiesInput, DatabaseResponse | undefined>({
+    mutationFn: async ({ databaseId, ids }) => {
+      const res = await apiClient.put<DatabaseResponse>(
+        API_ROUTES.databases.reorderProperties(databaseId),
+        { ids },
+      );
+      return res.data.database;
+    },
+    onMutate: async ({ databaseId, ids }) => {
+      const key = queryKeys.databases.detail(databaseId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<DatabaseResponse>(key);
+      if (previous) {
+        const rank = new Map(ids.map((id, i) => [id, i]));
+        const properties = [...previous.database.schema.properties].sort(
+          (a, b) => (rank.get(a.id) ?? ids.length) - (rank.get(b.id) ?? ids.length),
+        );
+        queryClient.setQueryData<DatabaseResponse>(key, {
+          ...previous,
+          database: { ...previous.database, schema: { properties } },
+        });
+      }
+      return previous;
+    },
+    onError: (_error, { databaseId }, previous) => {
+      if (previous) queryClient.setQueryData(queryKeys.databases.detail(databaseId), previous);
+    },
+    onSettled: (_database, _error, { databaseId }) =>
+      queryClient.invalidateQueries({ queryKey: queryKeys.databases.detail(databaseId) }),
   });
 }

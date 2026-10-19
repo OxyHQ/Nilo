@@ -22,8 +22,9 @@ time, never stored: formulas, rollups, created/edited time and by.
   operators, text, dates, conditionals — evaluated without `eval`; errors are
   values (`{ text: '', error }`), never empty cells. Filters and sorts can
   use them.
-- **Rollups** (`rollups.ts`): count, sum, average, min, max, earliest, latest
-  over a relation. A view's rows are rolled up together: one query per
+- **Rollups** (`rollups.ts`): count, sum, average, min, max, earliest, latest,
+  the values themselves ("show original", as text) and the percentage of
+  related rows empty or not (an unchecked checkbox is empty), over a relation. A view's rows are rolled up together: one query per
   rollup property, whatever the number of rows.
 - **People** (`person`): members of the workspace and its guests (who hold a
   page of it), as a write checks them (`property-references.ts`). Its editors
@@ -31,6 +32,21 @@ time, never stored: formulas, rollups, created/edited time and by.
   pick from.
 - **IDs** (`unique_id`): numbered by the server (`databases.next_row_number`),
   existing rows too when the property is added; clients never write them.
+
+## Properties
+
+A database's properties are in the order of its schema
+(`PUT /databases/:id/properties/order`). A status property's options are each
+in one of three groups, To-do, In progress and Complete (`config.groups`, in
+that order, kept whole by the server; an option in none goes to To-do).
+
+Changing a property's type converts every row's value the new type can hold
+and clears the rest, in the same write (`property-conversion.ts`): anything
+reads as text; text spelling a number, an ISO date or a yes becomes one; text
+becomes options (missing ones added, matched by name); option types keep their
+option ids. A computed property becoming a stored one keeps what it showed.
+The views' filters on the property go (their operators and values were the old
+type's); the Name is always text.
 
 ## Relations
 
@@ -45,7 +61,10 @@ itself two-way is **sub-items**: "Sub-items" and "Sub-items (parent)".
 
 ## Views
 
-Table, board, calendar, gallery, list, timeline and form. A view's rows are
+Table, board, calendar, gallery, list, timeline and form. A new view starts
+on what it needs when the request leaves it open: a board grouped by the first
+status (else select, else checkbox), a calendar and a timeline on the first
+date, a gallery of page covers. A view's rows are
 filtered, searched (by title), sorted and paged in PostgreSQL
 (`view-query.ts`): its filter tree and sorts compile to SQL over the rows'
 `properties` and page columns, and only the page asked for is read, with a
@@ -71,6 +90,13 @@ views are its editors' to change. An `inline_database` block showing a
 database from elsewhere is a **linked view**: it has views of its own
 (`database_views.block_id`, gone with the block), kept by whoever may edit
 the block's page as long as they may open the database.
+
+## Locking
+
+A locked database (`databases.locked`, `PATCH /databases/:id { locked }`)
+refuses changes to its properties and its own views with 423
+`DATABASE_LOCKED`, and two-way relations to it, until it is unlocked; its rows,
+name, icon and cover stay editable, and linked views are their block's.
 
 ## Templates, forms, CSV
 

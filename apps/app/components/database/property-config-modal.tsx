@@ -22,6 +22,9 @@ import { RiListCheck3 } from '@oxy.so/bloom/icons/RiListCheck3';
 import { RiFunctions } from '@oxy.so/bloom/icons/RiFunctions';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
+import { RiArrowUpSLine } from '@oxy.so/bloom/icons/RiArrowUpSLine';
+import { RiExchangeLine } from '@oxy.so/bloom/icons/RiExchangeLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Chip } from '@oxy.so/bloom/chip';
 import { Dialog, type DialogControlProps, useDialogControl } from '@oxy.so/bloom/dialog';
@@ -48,8 +51,13 @@ import type {
   DatabaseView,
   SelectColor,
   SelectOption,
+  StatusGroup,
+  StatusGroupId,
 } from '@/lib/types/databases';
-import { SELECT_COLORS } from '@/lib/types/databases';
+import { NAME_PROPERTY_ID, SELECT_COLORS, STATUS_GROUP_IDS } from '@/lib/types/databases';
+import { statusGroups } from '@/lib/status-groups';
+import { DateSettings, NumberSettings, RollupSettings } from './property-settings';
+import { SettingSelect } from './view-settings';
 import { SELECT_CHIP_HUE } from './select-color';
 import {
   useAddProperty,
@@ -137,15 +145,28 @@ const PROPERTY_TYPE_ICONS: Record<DatabasePropertyType, BloomIconComponent> = {
   formula: RiFunctions,
 };
 
+/** The settings each type has besides its name, by the menu item that opens them. */
+const CONFIG_LABELS: Partial<Record<DatabasePropertyType, string>> = {
+  select: 'databases.properties.editOptions',
+  multi_select: 'databases.properties.editOptions',
+  status: 'databases.properties.editOptions',
+  relation: 'databases.relations.configure',
+  formula: 'databases.formula.edit',
+  unique_id: 'databases.uniqueId.configure',
+  number: 'databases.numberFormat.title',
+  date: 'databases.dateFormat.title',
+  rollup: 'databases.rollup.configure',
+};
+
 /**
- * Column-header menu — rename / change type / sort / hide / delete, in a
- * dialog the column header opens.
+ * Column-header menu — rename / settings / change type / sort / hide /
+ * delete, in a dialog the column header opens.
  */
 export function PropertyHeaderMenu({ control, database, view, property }: PropertyHeaderMenuProps) {
   const { colors } = useColorScheme();
   const theme = useTheme();
   const { t } = useTranslation();
-  const [mode, setMode] = React.useState<'menu' | 'rename' | 'config'>('menu');
+  const [mode, setMode] = React.useState<'menu' | 'rename' | 'config' | 'type'>('menu');
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
   const updateView = useUpdateView();
@@ -187,6 +208,23 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
       hiddenProperties: Array.from(new Set([...view.hiddenProperties, property.id])),
     });
     close();
+  };
+
+  // A relation needs its database, chosen in its own settings: it is added, not converted to.
+  const retype = async (type: DatabasePropertyType) => {
+    const confirmed = await confirm({
+      title: t('databases.properties.changeTypeTitle', { type: propertyTypeLabel(type) }),
+      description: t('databases.properties.changeTypeDescription'),
+      confirmLabel: t('databases.properties.changeType'),
+      cancelLabel: t('common.cancel'),
+    });
+    if (!confirmed) return;
+    try {
+      await updateProperty.mutateAsync({ databaseId: database.id, propertyId: property.id, type });
+      setMode('menu');
+    } catch (error) {
+      toast.error(databaseChangeError(error, database, t('databases.properties.updateFailed')));
+    }
   };
 
   const remove = async () => {
@@ -238,37 +276,23 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
               setMode('rename');
             }}
           />
-          {property.type === 'select' ||
-          property.type === 'multi_select' ||
-          property.type === 'status' ? (
+          {CONFIG_LABELS[property.type] ? (
             <Item
               density="compact"
               accessibilityRole="button"
-              leading={icon(RiListCheck3)}
-              title={t('databases.properties.editOptions')}
+              leading={icon(PROPERTY_TYPE_ICONS[property.type])}
+              title={t(CONFIG_LABELS[property.type] as string)}
               onPress={() => setMode('config')}
             />
           ) : null}
-          {property.type === 'relation' ? (
+          {/* The Name is the rows' titles: always text. */}
+          {property.id !== NAME_PROPERTY_ID ? (
             <Item
               density="compact"
               accessibilityRole="button"
-              leading={icon(RiLink)}
-              title={t('databases.relations.configure')}
-              onPress={() => setMode('config')}
-            />
-          ) : null}
-          {property.type === 'formula' || property.type === 'unique_id' ? (
-            <Item
-              density="compact"
-              accessibilityRole="button"
-              leading={icon(property.type === 'formula' ? RiFunctions : RiHashtag)}
-              title={t(
-                property.type === 'formula'
-                  ? 'databases.formula.edit'
-                  : 'databases.uniqueId.configure',
-              )}
-              onPress={() => setMode('config')}
+              leading={icon(RiExchangeLine)}
+              title={t('databases.properties.changeType')}
+              onPress={() => setMode('type')}
             />
           ) : null}
           <Item
@@ -337,9 +361,43 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
           <FormulaEditor property={property} database={database} viewId={view.id} onDone={close} />
         ) : property.type === 'unique_id' ? (
           <UniqueIdEditor databaseId={database.id} property={property} onDone={close} />
+        ) : property.type === 'number' ? (
+          <NumberSettings database={database} property={property} onDone={close} />
+        ) : property.type === 'date' ? (
+          <DateSettings database={database} property={property} onDone={close} />
+        ) : property.type === 'rollup' ? (
+          <RollupSettings database={database} property={property} onDone={close} />
         ) : (
           <SelectOptionsEditor property={property} database={database} onDone={close} />
         )
+      ) : null}
+
+      {mode === 'type' ? (
+        <View>
+          <Text className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">
+            {t('databases.properties.changeType')}
+          </Text>
+          <ScrollView style={{ maxHeight: 360 }}>
+            {ADDABLE_TYPES.filter((type) => type !== property.type && type !== 'relation').map(
+              (type) => (
+                <Item
+                  key={type}
+                  density="compact"
+                  accessibilityRole="button"
+                  disabled={updateProperty.isPending}
+                  leading={icon(PROPERTY_TYPE_ICONS[type])}
+                  title={propertyTypeLabel(type)}
+                  onPress={() => void retype(type)}
+                />
+              ),
+            )}
+          </ScrollView>
+          <View className="mt-2 flex-row justify-end">
+            <Button appearance="subtle" size="sm" onPress={() => setMode('menu')}>
+              {t('common.back')}
+            </Button>
+          </View>
+        </View>
       ) : null}
     </Dialog>
   );
@@ -352,27 +410,35 @@ interface SelectOptionsEditorProps {
 }
 
 /**
- * Tiny inline editor for select / multi-select / status options.
- * Adds and edits in-place — change is persisted via property PATCH on
- * blur or after rename.
+ * The options of a select, multi-select or status: added, renamed,
+ * recoloured, moved up or down and removed in place, each change saved as it
+ * is made. A status's are listed by group (To-do, In progress, Complete), and
+ * each can be moved to another group.
  */
 function SelectOptionsEditor({ property, database, onDone }: SelectOptionsEditorProps) {
   const { t } = useTranslation();
   const updateProperty = useUpdateProperty();
   const [options, setOptions] = React.useState<SelectOption[]>(property.config?.options ?? []);
+  const isStatus = property.type === 'status';
+  const [groups, setGroups] = React.useState<StatusGroup[]>(() =>
+    statusGroups(property.config?.options ?? [], property.config?.groups),
+  );
   const [draftName, setDraftName] = React.useState('');
 
-  const persist = async (next: SelectOption[]) => {
-    const previous = options;
+  const persist = async (next: SelectOption[], nextGroups: StatusGroup[] = groups) => {
+    const previous = { options, groups };
+    const grouped = isStatus ? statusGroups(next, nextGroups) : undefined;
     setOptions(next);
+    if (grouped) setGroups(grouped);
     try {
       await updateProperty.mutateAsync({
         databaseId: database.id,
         propertyId: property.id,
-        config: { ...(property.config ?? {}), options: next },
+        config: { ...(property.config ?? {}), options: next, ...(grouped && { groups: grouped }) },
       });
     } catch (error) {
-      setOptions(previous);
+      setOptions(previous.options);
+      setGroups(previous.groups);
       toast.error(databaseChangeError(error, database, t('databases.properties.updateFailed')));
     }
   };
@@ -388,28 +454,76 @@ function SelectOptionsEditor({ property, database, onDone }: SelectOptionsEditor
     await persist(next);
   };
 
-  const removeOption = async (id: string) => {
-    await persist(options.filter((o) => o.id !== id));
+  const removeOption = (id: string) => persist(options.filter((o) => o.id !== id));
+  const recolorOption = (id: string, color: SelectColor) =>
+    persist(options.map((o) => (o.id === id ? { ...o, color } : o)));
+  const renameOption = (id: string, name: string) =>
+    persist(options.map((o) => (o.id === id ? { ...o, name } : o)));
+  // Up or down among the options it is listed with: its group's, for a status.
+  const moveOption = (id: string, by: -1 | 1) => {
+    const peers = isStatus
+      ? (groups.find((g) => g.optionIds.includes(id))?.optionIds ?? [])
+      : options.map((o) => o.id);
+    const other = peers[peers.indexOf(id) + by];
+    if (!other) return;
+    const next = [...options];
+    const a = next.findIndex((o) => o.id === id);
+    const b = next.findIndex((o) => o.id === other);
+    [next[a], next[b]] = [next[b] as SelectOption, next[a] as SelectOption];
+    return persist(next);
   };
+  const regroupOption = (id: string, groupId: StatusGroupId) =>
+    persist(
+      options,
+      groups.map((g) => ({
+        ...g,
+        optionIds:
+          g.id === groupId
+            ? [...g.optionIds.filter((o) => o !== id), id]
+            : g.optionIds.filter((o) => o !== id),
+      })),
+    );
 
-  const recolorOption = async (id: string, color: SelectColor) => {
-    await persist(options.map((o) => (o.id === id ? { ...o, color } : o)));
-  };
+  const row = (o: SelectOption, peers: string[]) => (
+    <OptionRow
+      key={o.id}
+      option={o}
+      first={peers[0] === o.id}
+      last={peers[peers.length - 1] === o.id}
+      group={isStatus ? groups.find((g) => g.optionIds.includes(o.id))?.id : undefined}
+      onRemove={() => removeOption(o.id)}
+      onRecolor={(color) => recolorOption(o.id, color)}
+      onRename={(name) => renameOption(o.id, name)}
+      onMove={(by) => moveOption(o.id, by)}
+      onRegroup={(groupId) => regroupOption(o.id, groupId)}
+    />
+  );
+  const byId = new Map(options.map((o) => [o.id, o]));
 
   return (
     <View className="gap-2">
       <Text className="text-xs uppercase tracking-wider text-muted-foreground">
         {t('databases.properties.options')}
       </Text>
-      <ScrollView style={{ maxHeight: 240 }}>
-        {options.map((o) => (
-          <OptionRow
-            key={o.id}
-            option={o}
-            onRemove={() => removeOption(o.id)}
-            onRecolor={(color) => recolorOption(o.id, color)}
-          />
-        ))}
+      <ScrollView style={{ maxHeight: 320 }}>
+        {isStatus
+          ? groups.map((group) => (
+              <View key={group.id} className="mb-2">
+                <Text className="text-xs font-semibold text-muted-foreground">
+                  {t(`databases.statusGroups.${group.id}`)}
+                </Text>
+                {group.optionIds.flatMap((id) => {
+                  const option = byId.get(id);
+                  return option ? [row(option, group.optionIds)] : [];
+                })}
+              </View>
+            ))
+          : options.map((o) =>
+              row(
+                o,
+                options.map((x) => x.id),
+              ),
+            )}
       </ScrollView>
       <View className="mt-1 flex-row items-center gap-2">
         <View className="flex-1">
@@ -442,59 +556,133 @@ function SelectOptionsEditor({ property, database, onDone }: SelectOptionsEditor
 
 interface OptionRowProps {
   option: SelectOption;
+  first: boolean;
+  last: boolean;
+  /** A status option's group; a select's options have none. */
+  group?: StatusGroupId;
   onRemove: () => void;
   onRecolor: (color: SelectColor) => void;
+  onRename: (name: string) => void;
+  onMove: (by: -1 | 1) => void;
+  onRegroup: (group: StatusGroupId) => void;
 }
 
-function OptionRow({ option, onRemove, onRecolor }: OptionRowProps) {
+function OptionRow({
+  option,
+  first,
+  last,
+  group,
+  onRemove,
+  onRecolor,
+  onRename,
+  onMove,
+  onRegroup,
+}: OptionRowProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const [colorOpen, setColorOpen] = React.useState(false);
+  const [nameDraft, setNameDraft] = React.useState<string | null>(null);
   const hue = SELECT_CHIP_HUE[option.color] ?? 'neutral';
+  const commitName = () => {
+    const name = nameDraft?.trim();
+    setNameDraft(null);
+    if (name && name !== option.name) onRename(name);
+  };
 
   return (
-    <View className="flex-row items-center gap-2 py-1">
-      <Popover open={colorOpen} onOpenChange={setColorOpen}>
-        <PopoverTrigger asChild>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={option.name}
-            className="flex-row items-center gap-1"
-          >
-            <Chip size="xs" hue={hue}>
-              {option.name}
-            </Chip>
-            <RiArrowRightSLine width={10} height={10} fill={colors.mutedForeground} />
-          </Pressable>
-        </PopoverTrigger>
-        <PopoverContent align="start" label={option.name}>
-          <View className="max-w-[240px] flex-row flex-wrap gap-1">
-            {SELECT_COLORS.map((c) => (
-              <Chip
-                key={c}
-                size="xs"
-                hue={SELECT_CHIP_HUE[c]}
-                onPress={() => {
-                  onRecolor(c);
-                  setColorOpen(false);
-                }}
-              >
-                {t(`editor.colors.${c}`)}
+    <View className="gap-1 py-1">
+      <View className="flex-row items-center gap-1">
+        <Popover open={colorOpen} onOpenChange={setColorOpen}>
+          <PopoverTrigger asChild>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('databases.options.color', { name: option.name })}
+              className="flex-row items-center gap-1"
+            >
+              <Chip size="xs" hue={hue}>
+                {option.name}
               </Chip>
-            ))}
-          </View>
-        </PopoverContent>
-      </Popover>
-      <View className="flex-1" />
-      <Button
-        iconOnly
-        appearance="plain"
-        tone="danger"
-        size="xs"
-        accessibilityLabel={t('common.delete')}
-        onPress={onRemove}
-        leadingIcon={RiDeleteBin6Line}
-      />
+              <RiArrowRightSLine width={10} height={10} fill={colors.mutedForeground} />
+            </Pressable>
+          </PopoverTrigger>
+          <PopoverContent align="start" label={option.name}>
+            <View className="max-w-[240px] flex-row flex-wrap gap-1">
+              {SELECT_COLORS.map((c) => (
+                <Chip
+                  key={c}
+                  size="xs"
+                  hue={SELECT_CHIP_HUE[c]}
+                  onPress={() => {
+                    onRecolor(c);
+                    setColorOpen(false);
+                  }}
+                >
+                  {t(`editor.colors.${c}`)}
+                </Chip>
+              ))}
+            </View>
+          </PopoverContent>
+        </Popover>
+        <View className="flex-1" />
+        <Button
+          iconOnly
+          appearance="plain"
+          size="xs"
+          accessibilityLabel={t('databases.options.rename', { name: option.name })}
+          onPress={() => setNameDraft(option.name)}
+          leadingIcon={RiPencilLine}
+        />
+        <Button
+          iconOnly
+          appearance="plain"
+          size="xs"
+          disabled={first}
+          accessibilityLabel={t('databases.options.moveUp', { name: option.name })}
+          onPress={() => onMove(-1)}
+          leadingIcon={RiArrowUpSLine}
+        />
+        <Button
+          iconOnly
+          appearance="plain"
+          size="xs"
+          disabled={last}
+          accessibilityLabel={t('databases.options.moveDown', { name: option.name })}
+          onPress={() => onMove(1)}
+          leadingIcon={RiArrowDownSLine}
+        />
+        <Button
+          iconOnly
+          appearance="plain"
+          tone="danger"
+          size="xs"
+          accessibilityLabel={t('common.delete')}
+          onPress={onRemove}
+          leadingIcon={RiDeleteBin6Line}
+        />
+      </View>
+      {nameDraft !== null ? (
+        <TextFieldInput
+          size="sm"
+          label={t('databases.options.name')}
+          value={nameDraft}
+          onChangeText={setNameDraft}
+          autoFocus
+          maxLength={120}
+          onSubmitEditing={commitName}
+          onBlur={commitName}
+        />
+      ) : null}
+      {group ? (
+        <SettingSelect
+          label={t('databases.options.group')}
+          value={group}
+          options={STATUS_GROUP_IDS.map((id) => ({
+            value: id,
+            label: t(`databases.statusGroups.${id}`),
+          }))}
+          onChange={(next) => onRegroup(next as StatusGroupId)}
+        />
+      ) : null}
     </View>
   );
 }

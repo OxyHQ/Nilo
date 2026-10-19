@@ -1,4 +1,5 @@
 import { RowsScrollView } from './rows-scroll-view';
+import { CoverDisplay } from '@/components/page-chrome/cover-display';
 import * as React from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -68,18 +69,24 @@ export function ViewGallery({
               className="bg-card border border-border rounded-xl overflow-hidden"
               style={{ width: CARD_WIDTH }}
             >
-              <View className="h-32 bg-muted items-center justify-center">
-                {cover ? (
-                  <Image
-                    source={{ uri: cover.url }}
-                    style={{ width: '100%', height: '100%' }}
-                    resizeMode="cover"
-                    accessible={false}
-                  />
-                ) : (
-                  <RiImageLine size="lg" fill={colors.mutedForeground} />
-                )}
-              </View>
+              {view.config.coverSource === 'none' ? null : (
+                <View className="h-32 bg-muted items-center justify-center overflow-hidden">
+                  {cover?.kind === 'page' ? (
+                    <View className="w-full">
+                      <CoverDisplay value={cover.value} height={128} />
+                    </View>
+                  ) : cover ? (
+                    <Image
+                      source={{ uri: cover.url }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode={view.config.fit === 'contain' ? 'contain' : 'cover'}
+                      accessible={false}
+                    />
+                  ) : (
+                    <RiImageLine size="lg" fill={colors.mutedForeground} />
+                  )}
+                </View>
+              )}
               <View className="p-3 gap-1">
                 <Text variant="body-medium" numberOfLines={2}>
                   {row.title || t('databases.untitled')}
@@ -92,6 +99,7 @@ export function ViewGallery({
                         property={property}
                         value={row.properties[property.id] ?? null}
                         variant="card"
+                        rowId={row.id}
                         onChange={() => router.push(`/p/${row.id}`)}
                       />
                     </View>
@@ -126,10 +134,11 @@ function readCover(
   row: DatabaseRow,
   view: DatabaseView,
   database: Database,
-): { kind: 'url'; url: string } | null {
+): { kind: 'url'; url: string } | { kind: 'page'; value: string } | null {
   const source = view.config.coverSource ?? 'pageCover';
+  // A page's cover is stored encoded (a gradient, a colour, an image): shown as its page shows it.
   if (source === 'pageCover' && row.cover) {
-    return { kind: 'url', url: row.cover };
+    return { kind: 'page', value: row.cover };
   }
   if (source === 'property' && view.config.coverPropertyId) {
     const property = database.schema.properties.find((p) => p.id === view.config.coverPropertyId);

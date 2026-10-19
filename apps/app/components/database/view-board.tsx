@@ -18,8 +18,10 @@ import type {
   DatabaseProperty,
   DatabaseRow,
   DatabaseView,
+  PropertyValue,
   SelectOption,
 } from '@/lib/types/databases';
+import { statusGroups } from '@/lib/status-groups';
 import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { PropertyCell } from './property-cell';
 import { useOpenRow } from './open-row';
@@ -38,13 +40,27 @@ interface ViewBoardProps {
 
 const COLUMN_WIDTH = 280;
 
-/** The column of the rows without an option. */
-const UNASSIGNED = '__unassigned__';
+/** A board's column: the rows whose group property holds `value`, shown as `option`. */
+interface Column {
+  option: SelectOption;
+  rows: DatabaseRow[];
+  /** What a card moved here, or made here, gets. */
+  value: PropertyValue;
+}
+
+/** Columns under one heading: a status group's, or all of them under none. */
+interface Section {
+  id: string;
+  label: string | null;
+  columns: Column[];
+}
 
 /**
- * Board view — Kanban grouped by a select / status property. Each
- * column corresponds to one option of the group property; moving a
- * card to another column updates the row's property value.
+ * Board view — Kanban grouped by a select, status or checkbox property. Each
+ * column corresponds to one option of the group property (a status's in the
+ * order of its groups, To-do, In progress and Complete, under their names; a
+ * checkbox's checked and not); moving a card to another column updates the
+ * row's property value.
  *
  * On web a card is dragged (HTML5 DataTransfer). Everywhere, and on native
  * where nothing drags, its "Move to…" button or a long press on it opens the
@@ -71,23 +87,44 @@ export function ViewBoard({
     const target = view.groupBy?.propertyId;
     if (target) {
       const p = database.schema.properties.find((x) => x.id === target);
-      if (p && (p.type === 'select' || p.type === 'status')) return p;
+      if (p && (p.type === 'select' || p.type === 'status' || p.type === 'checkbox')) return p;
     }
     return (
       database.schema.properties.find((p) => p.type === 'status' || p.type === 'select') ?? null
     );
   }, [database.schema.properties, view.groupBy?.propertyId]);
 
-  const columns = React.useMemo(() => {
-    const options = groupByProperty?.config?.options ?? [];
+  const sections = React.useMemo<Section[]>(() => {
+    if (!groupByProperty) return [];
+    if (groupByProperty.type === 'checkbox') {
+      const checked = (row: DatabaseRow) => {
+        const value = row.properties[groupByProperty.id];
+        return Boolean(value && typeof value === 'object' && 'checked' in value && value.checked);
+      };
+      return [
+        {
+          id: 'checkbox',
+          label: null,
+          columns: [
+            {
+              option: { id: 'checked', name: t('databases.board.checked'), color: 'green' },
+              rows: rows.filter(checked),
+              value: { checked: true },
+            },
+            {
+              option: { id: 'unchecked', name: t('databases.board.unchecked'), color: 'default' },
+              rows: rows.filter((row) => !checked(row)),
+              value: { checked: false },
+            },
+          ],
+        },
+      ];
+    }
+    const options = groupByProperty.config?.options ?? [];
     const unassigned: DatabaseRow[] = [];
     const byOption = new Map<string, DatabaseRow[]>();
     for (const opt of options) byOption.set(opt.id, []);
     for (const row of rows) {
-      if (!groupByProperty) {
-        unassigned.push(row);
-        continue;
-      }
       const value = row.properties[groupByProperty.id];
       const optId =
         value && typeof value === 'object' && 'optionId' in value
@@ -95,31 +132,51 @@ export function ViewBoard({
             ? value.optionId
             : null
           : null;
-      if (!optId) {
-        unassigned.push(row);
-        continue;
-      }
-      const bucket = byOption.get(optId);
-      if (bucket) {
-        bucket.push(row);
-      } else {
-        unassigned.push(row);
-      }
+      const bucket = optId ? byOption.get(optId) : undefined;
+      if (bucket) bucket.push(row);
+      else unassigned.push(row);
     }
-    return {
-      options,
-      byOption,
-      unassigned,
+    const column = (opt: SelectOption): Column => ({
+      option: opt,
+      rows: byOption.get(opt.id) ?? [],
+      value: { optionId: opt.id },
+    });
+    const none: Section = {
+      id: '__unassigned__',
+      label: null,
+      columns: [
+        {
+          option: { id: '__unassigned__', name: t('databases.board.noStatus'), color: 'default' },
+          rows: unassigned,
+          value: { optionId: null },
+        },
+      ],
     };
-  }, [groupByProperty, rows]);
+    // A status grouped before groups existed shows its options as a select's.
+    if (groupByProperty.type !== 'status' || !groupByProperty.config?.groups) {
+      return [{ id: 'options', label: null, columns: options.map(column) }, none];
+    }
+    const byId = new Map(options.map((o) => [o.id, o]));
+    return [
+      ...statusGroups(options, groupByProperty.config.groups).map((group) => ({
+        id: group.id,
+        label: t(`databases.statusGroups.${group.id}`),
+        columns: group.optionIds.flatMap((id) => {
+          const opt = byId.get(id);
+          return opt ? [column(opt)] : [];
+        }),
+      })),
+      none,
+    ];
+  }, [groupByProperty, rows, t]);
 
   const moveRow = React.useCallback(
-    (rowId: string, optionId: string | null) => {
+    (rowId: string, value: PropertyValue) => {
       if (readOnly || !groupByProperty) return;
       updateRow.mutate({
         databaseId: database.id,
         rowId,
-        properties: { [groupByProperty.id]: { optionId } },
+        properties: { [groupByProperty.id]: value },
       });
     },
     [database.id, groupByProperty, updateRow, readOnly],
@@ -159,56 +216,42 @@ export function ViewBoard({
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator>
       <View className="flex-row gap-3 px-3 py-3">
-        {columns.options.map((opt) => (
-          <BoardColumn
-            readOnly={readOnly}
-            key={opt.id}
-            option={opt}
-            rows={columns.byOption.get(opt.id) ?? []}
-            onAddRow={async () => {
-              await createRow.mutateAsync({
-                databaseId: database.id,
-                properties: {
-                  [groupByProperty.id]: { optionId: opt.id },
-                },
-              });
-            }}
-            onMoveTo={(rowId) => moveRow(rowId, opt.id)}
-            renderCard={(row) => (
-              <BoardCard
-                key={row.id}
-                readOnly={readOnly}
-                row={row}
-                properties={cardProperties}
-                onOpen={() => openRow(row.id)}
-                onMove={() => startMove(row)}
-              />
-            )}
-          />
+        {sections.map((section) => (
+          <View key={section.id} className="gap-1">
+            {section.label ? (
+              <Text className="px-1 text-xs font-semibold text-muted-foreground">
+                {section.label}
+              </Text>
+            ) : null}
+            <View className="flex-row gap-3">
+              {section.columns.map((column) => (
+                <BoardColumn
+                  readOnly={readOnly}
+                  key={column.option.id}
+                  option={column.option}
+                  rows={column.rows}
+                  onAddRow={async () => {
+                    await createRow.mutateAsync({
+                      databaseId: database.id,
+                      properties: { [groupByProperty.id]: column.value },
+                    });
+                  }}
+                  onMoveTo={(rowId) => moveRow(rowId, column.value)}
+                  renderCard={(row) => (
+                    <BoardCard
+                      key={row.id}
+                      readOnly={readOnly}
+                      row={row}
+                      properties={cardProperties}
+                      onOpen={() => openRow(row.id)}
+                      onMove={() => startMove(row)}
+                    />
+                  )}
+                />
+              ))}
+            </View>
+          </View>
         ))}
-        <BoardColumn
-          readOnly={readOnly}
-          option={{
-            id: UNASSIGNED,
-            name: t('databases.board.noStatus'),
-            color: 'default',
-          }}
-          rows={columns.unassigned}
-          onAddRow={async () => {
-            await createRow.mutateAsync({ databaseId: database.id });
-          }}
-          onMoveTo={(rowId) => moveRow(rowId, null)}
-          renderCard={(row) => (
-            <BoardCard
-              key={row.id}
-              readOnly={readOnly}
-              row={row}
-              properties={cardProperties}
-              onOpen={() => openRow(row.id)}
-              onMove={() => startMove(row)}
-            />
-          )}
-        />
         {hasMore && onLoadMore ? (
           <Button appearance="subtle" size="sm" className="self-start" onPress={onLoadMore}>
             {t('databases.board.loadMore')}
@@ -218,11 +261,10 @@ export function ViewBoard({
       {!readOnly ? (
         <MoveToDialog
           control={moveControl}
-          options={columns.options}
-          noneLabel={t('databases.board.noStatus')}
-          current={moving ? optionOf(moving, groupByProperty.id) : null}
-          onPick={(optionId) => {
-            if (moving) moveRow(moving.id, optionId);
+          columns={sections.flatMap((section) => section.columns)}
+          current={moving ? (moving.id as string) : null}
+          onPick={(column) => {
+            if (moving) moveRow(moving.id, column.value);
             moveControl.close();
           }}
         />
@@ -231,37 +273,21 @@ export function ViewBoard({
   );
 }
 
-/** The option a row's group property holds, or null. */
-function optionOf(row: DatabaseRow, propertyId: string): string | null {
-  const value = row.properties[propertyId];
-  return value &&
-    typeof value === 'object' &&
-    'optionId' in value &&
-    typeof value.optionId === 'string'
-    ? value.optionId
-    : null;
-}
-
 /** The columns a card can move to, the one it is in checked. */
 function MoveToDialog({
   control,
-  options,
-  noneLabel,
+  columns,
   current,
   onPick,
 }: {
   control: ReturnType<typeof useDialogControl>;
-  options: SelectOption[];
-  noneLabel: string;
+  columns: Column[];
+  /** The card being moved: its column is the one holding it. */
   current: string | null;
-  onPick: (optionId: string | null) => void;
+  onPick: (column: Column) => void;
 }) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
-  const choices = [
-    ...options.map((option) => ({ id: option.id as string | null, option })),
-    { id: null, option: { id: UNASSIGNED, name: noneLabel, color: 'default' } as SelectOption },
-  ];
   return (
     <Dialog
       control={control}
@@ -270,25 +296,26 @@ function MoveToDialog({
       title={t('databases.board.moveTo')}
     >
       <View className="pb-4">
-        {choices.map(({ id, option }) => (
-          <Item
-            key={option.id}
-            role="radio"
-            selected={id === current}
-            accessibilityLabel={option.name}
-            title={
-              <Chip size="xs" hue={SELECT_CHIP_HUE[option.color] ?? 'neutral'}>
-                {option.name}
-              </Chip>
-            }
-            trailing={
-              id === current ? (
-                <RiCheckLine width={14} height={14} fill={colors.foreground} />
-              ) : null
-            }
-            onPress={() => onPick(id)}
-          />
-        ))}
+        {columns.map((column) => {
+          const here = current !== null && column.rows.some((row) => row.id === current);
+          return (
+            <Item
+              key={column.option.id}
+              role="radio"
+              selected={here}
+              accessibilityLabel={column.option.name}
+              title={
+                <Chip size="xs" hue={SELECT_CHIP_HUE[column.option.color] ?? 'neutral'}>
+                  {column.option.name}
+                </Chip>
+              }
+              trailing={
+                here ? <RiCheckLine width={14} height={14} fill={colors.foreground} /> : null
+              }
+              onPress={() => onPick(column)}
+            />
+          );
+        })}
       </View>
     </Dialog>
   );

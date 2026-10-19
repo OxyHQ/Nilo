@@ -9,7 +9,14 @@ import type { Database } from '@/lib/types/databases';
 let mockDatabase: Database;
 jest.mock('@/lib/hooks/use-databases', () => ({
   useDatabase: () => ({ data: { database: mockDatabase } }),
+  useUpdateDatabase: () => ({ mutate: jest.fn(), isPending: false }),
+  useDeleteDatabase: () => ({ mutateAsync: jest.fn(), isPending: false }),
 }));
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ replace: jest.fn() }),
+  usePathname: () => '/db/db',
+}));
+jest.mock('../database-chrome', () => ({ DatabaseChromePickers: () => null }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { post: jest.fn(), delete: jest.fn() },

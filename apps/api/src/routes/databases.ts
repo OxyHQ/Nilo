@@ -7,9 +7,12 @@ import { getDb, type PgHandle } from '../db/client.js';
 import {
   DATABASE_PROPERTY_TYPES,
   DATABASE_VIEW_TYPES,
+  DATE_FORMATS,
   DEFAULT_VIEW_PAGE_SIZE,
   EMPTY_FILTER_GROUP,
+  ROLLUP_FUNCTIONS,
   SELECT_COLORS,
+  STATUS_GROUP_IDS,
   type DatabaseProperty,
   type DatabasePropertyType,
   type DatabaseSchema,
@@ -18,6 +21,7 @@ import {
   type PropertyConfig,
   type SelectOption,
   type ViewConfig,
+  type ViewGroupBy,
   type ViewSort,
 } from '../db/schema/databases.js';
 import type { PageRow } from '../repositories/pages.js';
@@ -53,6 +57,7 @@ import {
   listPages,
   nextDatabaseRowOrder,
   removePropertyFromDatabaseRows,
+  writePropertyOfRows,
 } from '../repositories/pages.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
@@ -81,7 +86,13 @@ import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js'
 import { listDatabasePeople } from '../lib/databases/people.js';
 import { loadMemberProfiles } from '../lib/member-profiles.js';
 import { hasRole } from '../db/schema/workspaces.js';
-import { buildDefaultSchema, NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
+import {
+  buildDefaultSchema,
+  defaultStatusConfig,
+  NAME_PROPERTY_ID,
+  normalizeStatusGroups,
+} from '../lib/databases/schema-defaults.js';
+import { convertValues, isComputedType } from '../lib/databases/property-conversion.js';
 import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
 import { invalidReference } from '../lib/databases/property-references.js';
 import {
@@ -102,7 +113,11 @@ import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js
 import { rowFormulaContext } from '../lib/databases/row-values.js';
 import { linkTwoWay, syncRelations, unlinkTwoWay } from '../lib/databases/relations.js';
 import { resolveRollups } from '../lib/databases/rollups.js';
-import { schemaWithoutProperty, viewWithoutProperty } from '../lib/databases/property-removal.js';
+import {
+  schemaWithoutProperty,
+  viewAfterRetype,
+  viewWithoutProperty,
+} from '../lib/databases/property-removal.js';
 import {
   keepNoteColors,
   systemDatabaseDeleteError,
@@ -152,9 +167,19 @@ const selectOptionSchema = z.object({
 const propertyConfigSchema = z
   .object({
     options: z.array(selectOptionSchema).optional(),
+    groups: z
+      .array(
+        z.object({
+          id: z.enum(STATUS_GROUP_IDS),
+          optionIds: z.array(z.string()).max(500),
+        }),
+      )
+      .max(STATUS_GROUP_IDS.length)
+      .optional(),
     format: z
       .union([
         z.literal('number'),
+        z.literal('number_with_commas'),
         z.literal('percent'),
         z.literal('currency:USD'),
         z.literal('currency:EUR'),
@@ -164,11 +189,12 @@ const propertyConfigSchema = z
       .optional(),
     precision: z.number().int().min(0).max(10).optional(),
     includeTime: z.boolean().optional(),
+    dateFormat: z.enum(DATE_FORMATS).optional(),
     targetDatabaseId: entityIdSchema.optional(),
     twoWay: z.boolean().optional(),
     relationPropertyId: z.string().optional(),
     targetPropertyId: z.string().optional(),
-    function: z.enum(['count', 'sum', 'avg', 'min', 'max', 'earliest', 'latest']).optional(),
+    function: z.enum(ROLLUP_FUNCTIONS).optional(),
     expression: z.string().max(2000).optional(),
     /** An ID property's prefix: letters and digits (TASK → TASK-12). */
     prefix: z
@@ -207,6 +233,8 @@ const updateDatabaseSchema = z
     icon: z.string().max(200).nullable().optional(),
     cover: z.string().max(2000).nullable().optional(),
     archived: z.boolean().optional(),
+    /** Lock or unlock its properties and views: the one change a locked database takes to them. */
+    locked: z.boolean().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field is required',
@@ -240,7 +268,7 @@ const viewConfigSchema = z.object({
   datePropertyId: z.string().optional(),
   startPropertyId: z.string().optional(),
   endPropertyId: z.string().optional(),
-  coverSource: z.enum(['property', 'pageCover']).optional(),
+  coverSource: z.enum(['property', 'pageCover', 'none']).optional(),
   coverPropertyId: z.string().optional(),
   fit: z.enum(['cover', 'contain']).optional(),
 });
@@ -366,6 +394,7 @@ function serializeDatabase(db: DatabaseRecord) {
     parentPageId: db.parentPageId,
     teamspaceId: db.teamspaceId,
     archived: db.archived,
+    locked: db.locked,
     systemKey: db.systemKey,
     createdAt: db.createdAt,
     updatedAt: db.updatedAt,
@@ -519,8 +548,59 @@ function normalizeSchema(schema: DatabaseSchema): DatabaseSchema {
         ...(typeof opt.noteColor === 'string' && { noteColor: opt.noteColor }),
       }));
     }
+    // A status property's options are each in one of its groups; no other type has them.
+    if (prop.type === 'status') {
+      prop.config = {
+        ...prop.config,
+        groups: normalizeStatusGroups(prop.config?.options ?? [], prop.config?.groups),
+      };
+    } else if (prop.config?.groups) {
+      const { groups: _groups, ...rest } = prop.config;
+      prop.config = rest;
+    }
   }
   return schema;
+}
+
+/**
+ * A locked database's properties and own views are not to be changed: the
+ * refusal is sent and false returned. Its rows stay editable, and unlocking it
+ * (`PATCH /databases/:id { locked: false }`) is the change it does take.
+ */
+function refuseLocked(res: Response, db: { locked: boolean }): boolean {
+  if (!db.locked) return false;
+  res.status(423).json({
+    error: 'This database is locked; unlock it to change its properties and views',
+    code: 'DATABASE_LOCKED',
+  });
+  return true;
+}
+
+/**
+ * What a new view of `type` starts showing when the request leaves it open: a
+ * board grouped by the first status (else select, else checkbox), a calendar
+ * and a timeline on the first date property, a gallery of page covers.
+ */
+function viewDefaults(
+  type: DatabaseViewType,
+  schema: DatabaseSchema,
+  groupBy: ViewGroupBy | null | undefined,
+  config: ViewConfig,
+): { groupBy: ViewGroupBy | null; config: ViewConfig } {
+  const first = (...types: DatabasePropertyType[]) =>
+    types.flatMap((t) => schema.properties.find((p) => p.type === t) ?? [])[0];
+  const out = { groupBy: groupBy ?? null, config: { ...config } };
+  if (type === 'board' && groupBy === undefined) {
+    const by = first('status', 'select', 'checkbox');
+    if (by) out.groupBy = { propertyId: by.id };
+  }
+  const date = first('date');
+  if (type === 'calendar' && !out.config.datePropertyId && date)
+    out.config.datePropertyId = date.id;
+  if (type === 'timeline' && !out.config.startPropertyId && date)
+    out.config.startPropertyId = date.id;
+  if (type === 'gallery' && !out.config.coverSource) out.config.coverSource = 'pageCover';
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -718,6 +798,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
       icon: body.icon,
       cover: body.cover,
       archived: body.archived,
+      locked: body.locked,
     });
     if (!updated) {
       res.status(404).json({ error: 'Database not found' });
@@ -815,6 +896,8 @@ async function checkRelationTarget(
     res.status(400).json({ error: 'The related database is not in this workspace' });
     return false;
   }
+  // A two-way relation adds a property to the target: not to a locked one.
+  if (property.config?.twoWay && refuseLocked(res, target)) return false;
   const minRole = property.config?.twoWay ? 'editor' : 'viewer';
   const role = await resolveDatabaseRole(handle, req.user?.id ?? '', target);
   if (!role || !hasRole(role, minRole)) {
@@ -854,12 +937,17 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
     }
     const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
+    if (refuseLocked(res, db)) return;
 
     const property: DatabaseProperty = {
       id: body.id ?? randomUUID(),
       name: body.name,
       type: body.type,
-      config: body.config as PropertyConfig | undefined,
+      // A new status property starts with Notion's three options, one per group.
+      config:
+        body.type === 'status' && !body.config?.options?.length
+          ? { ...(body.config as PropertyConfig | undefined), ...defaultStatusConfig() }
+          : (body.config as PropertyConfig | undefined),
     };
 
     if (db.propertiesSchema.properties.some((p) => p.id === property.id)) {
@@ -895,6 +983,54 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * PUT /databases/:id/properties/order { ids } — the order of the properties:
+ * those `ids` names first, in that order, then the rest in theirs, so a
+ * property added meanwhile is kept, and an id naming none (one removed
+ * meanwhile) is passed over.
+ */
+router.put('/:id/properties/order', async (req: Request, res: Response) => {
+  try {
+    const params = z.object({ id: entityIdSchema }).parse(req.params);
+    const body = z
+      .object({
+        ids: z
+          .array(z.string().min(1))
+          .max(500)
+          .refine((ids) => new Set(ids).size === ids.length, 'Each property once'),
+      })
+      .parse(req.body);
+    const handle = getDb();
+    const db = await findDatabaseById(handle, params.id);
+    if (!db) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+    if (!(await checkDatabaseAccess(req, res, handle, db, 'editor'))) return;
+    if (refuseLocked(res, db)) return;
+
+    const rank = new Map(body.ids.map((id, i) => [id, i]));
+    const properties = db.propertiesSchema.properties
+      .map((property, i) => ({ property, key: rank.get(property.id) ?? body.ids.length + i }))
+      .sort((a, b) => a.key - b.key)
+      .map(({ property }) => property);
+    const updated = await writeDatabaseSchema(handle, db.id, {
+      ...db.propertiesSchema,
+      properties,
+    });
+    if (!updated) {
+      res.status(404).json({ error: 'Database not found' });
+      return;
+    }
+    announceChange({ databaseId: db.id });
+    res.json({ database: serializeDatabase(updated) });
+  } catch (error: unknown) {
+    if (handleZodError(error, res)) return;
+    log.general.error({ err: error }, 'Failed to reorder properties');
+    res.status(500).json({ error: 'Failed to reorder properties' });
+  }
+});
+
 router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) => {
   try {
     const params = z
@@ -910,6 +1046,7 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
     }
     const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
+    if (refuseLocked(res, db)) return;
 
     const idx = db.propertiesSchema.properties.findIndex((p) => p.id === params.propertyId);
     if (idx === -1) {
@@ -917,6 +1054,11 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
       return;
     }
     const current = db.propertiesSchema.properties[idx];
+    // The Name is the rows' titles: always text.
+    if (current.id === NAME_PROPERTY_ID && body.type !== undefined && body.type !== current.type) {
+      res.status(400).json({ error: 'The Name property is always text' });
+      return;
+    }
     const next: DatabaseProperty = {
       id: current.id,
       name: body.name ?? current.name,
@@ -938,11 +1080,41 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
     if (wasTwoWay && isTwoWay && sameTarget) {
       next.config = { ...next.config, syncedPropertyId: current.config?.syncedPropertyId };
     }
+    const retyped = next.type !== current.type;
+    const schemaBefore = structuredClone(db.propertiesSchema);
     db.propertiesSchema.properties[idx] = next;
     normalizeSchema(db.propertiesSchema);
     const updated = await handle.transaction(async (tx) => {
       if (wasTwoWay && !(isTwoWay && sameTarget)) await unlinkTwoWay(tx, db, current);
-      if (isTwoWay && !(wasTwoWay && sameTarget)) return linkTwoWay(tx, db, next);
+      // A new type: every row's value converted or cleared (`property-conversion.ts`),
+      // a computed one's from what it showed, and the views' filters on it go.
+      if (retyped) {
+        const rows = await listDatabaseRows(tx, db.id);
+        const computed = isComputedType(current.type);
+        const derived = computed
+          ? await resolveDerivedForRows(tx, rows, schemaBefore, req.user?.id ?? null)
+          : null;
+        const conversion = convertValues(
+          current,
+          db.propertiesSchema.properties[idx],
+          rows.map((row) => ({
+            id: row.id,
+            // An ID is stored, though no client writes it.
+            value: derived?.get(row.id)?.[current.id] ?? row.properties[current.id],
+            stored: row.properties[current.id],
+          })),
+        );
+        db.propertiesSchema.properties[idx] = conversion.property;
+        normalizeSchema(db.propertiesSchema);
+        await writePropertyOfRows(tx, db.id, current.id, conversion.values);
+        if (next.type === 'unique_id') await numberExistingRows(tx, db.id, current.id);
+        for (const view of await lockViewsOfDatabase(tx, db.id)) {
+          const patch = viewAfterRetype(view, current.id);
+          if (patch) await updateDatabaseView(tx, view.id, patch);
+        }
+      }
+      const written = db.propertiesSchema.properties[idx];
+      if (isTwoWay && !(wasTwoWay && sameTarget)) return linkTwoWay(tx, db, written);
       return writeDatabaseSchema(tx, db.id, db.propertiesSchema);
     });
     if (!updated) {
@@ -985,6 +1157,7 @@ router.delete('/:id/properties/:propertyId', async (req: Request, res: Response)
     }
     const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
     if (!ok) return;
+    if (refuseLocked(res, db)) return;
 
     if (params.propertyId === NAME_PROPERTY_ID) {
       res.status(400).json({ error: 'Cannot delete the Name property' });
@@ -1451,18 +1624,21 @@ router.post('/:id/views', async (req: Request, res: Response) => {
     }
     const blockId = body.blockId ?? null;
     if (!(await checkViewsAccess(req, res, handle, db, blockId, true))) return;
+    // A linked view is its block's, not the locked database's.
+    if (blockId === null && refuseLocked(res, db)) return;
     if (!checkFilter(res, db.propertiesSchema, body.filters)) return;
 
     // `??`, not `||`: `order: 0` is a legitimate explicit order.
     const nextOrder = body.order ?? (await nextViewOrder(handle, db.id, blockId));
 
-    // Convert nullable groupBy { propertyId } into the storage shape.
-    const groupByValue: { propertyId: string } | null =
+    const setup = viewDefaults(
+      body.type,
+      db.propertiesSchema,
       body.groupBy === undefined
-        ? null
-        : body.groupBy === null
-          ? null
-          : { propertyId: body.groupBy.propertyId };
+        ? undefined
+        : body.groupBy && { propertyId: body.groupBy.propertyId },
+      (body.config ?? {}) as ViewConfig,
+    );
 
     const view = await insertDatabaseView(handle, {
       databaseId: db.id,
@@ -1472,11 +1648,11 @@ router.post('/:id/views', async (req: Request, res: Response) => {
       isDefault: body.isDefault ?? false,
       filters: body.filters ?? EMPTY_FILTER_GROUP,
       sorts: (body.sorts ?? []) as ViewSort[],
-      groupBy: groupByValue,
+      groupBy: setup.groupBy,
       hiddenProperties: body.hiddenProperties ?? [],
       frozenProperties: body.frozenProperties ?? [],
       pageSize: body.pageSize ?? DEFAULT_VIEW_PAGE_SIZE,
-      config: (body.config ?? {}) as ViewConfig,
+      config: setup.config,
       order: nextOrder,
     });
 
@@ -1506,6 +1682,7 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
       return;
     }
     if (!(await checkViewsAccess(req, res, handle, db, view.blockId, true))) return;
+    if (view.blockId === null && refuseLocked(res, db)) return;
     if (!checkFilter(res, db.propertiesSchema, body.filters)) return;
 
     // Promoting a view and demoting the previous default(s) commit
@@ -1553,7 +1730,7 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
     const params = z.object({ id: entityIdSchema, viewId: entityIdSchema }).parse(req.params);
 
     const handle = getDb();
-    const db = await findDatabaseWorkspaceId(handle, params.id);
+    const db = await findDatabaseById(handle, params.id);
     if (!db) {
       res.status(404).json({ error: 'Database not found' });
       return;
@@ -1564,6 +1741,7 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
       return;
     }
     if (!(await checkViewsAccess(req, res, handle, db, view.blockId, true))) return;
+    if (view.blockId === null && refuseLocked(res, db)) return;
 
     // Don't allow deleting the last view — promote another to default
     // if we're removing the default.

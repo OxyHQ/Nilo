@@ -76,6 +76,21 @@ export function viewWithoutProperty(
 }
 
 /**
+ * The filters of `view` once `propertyId` changed type, or null when none
+ * named it: its conditions go, as their operators and values were the old
+ * type's (a select's option ids mean nothing to a text). Its sorts, grouping
+ * and the rest still apply to the new type and stay.
+ */
+export function viewAfterRetype(
+  view: PropertyReferencingView,
+  propertyId: string,
+): Pick<PropertyReferencingView, 'filters'> | null {
+  const filters = pruneFilter(view.filters, propertyId) as FilterGroup | null;
+  if (JSON.stringify(filters) === JSON.stringify(view.filters)) return null;
+  return { filters: filters ?? { ...view.filters, filters: [] } };
+}
+
+/**
  * The schema of database `databaseId` without `propertyId`, its rollups that
  * read it unset: one whose relation it was loses its relation and target
  * property, one that read it through a relation to this same database loses

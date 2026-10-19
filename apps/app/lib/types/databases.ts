@@ -50,27 +50,67 @@ export interface SelectOption {
 
 export type NumberFormat =
   | 'number'
+  | 'number_with_commas'
   | 'percent'
   | 'currency:USD'
   | 'currency:EUR'
   | 'currency:GBP'
   | 'currency:JPY';
 
+/** A status property's three groups, always in this order (the API keeps them whole). */
+export const STATUS_GROUP_IDS = ['todo', 'in_progress', 'complete'] as const;
+export type StatusGroupId = (typeof STATUS_GROUP_IDS)[number];
+
+export interface StatusGroup {
+  id: StatusGroupId;
+  optionIds: string[];
+}
+
+export const DATE_FORMATS = [
+  'full',
+  'short',
+  'month_day_year',
+  'day_month_year',
+  'iso',
+  'relative',
+] as const;
+export type DateFormat = (typeof DATE_FORMATS)[number];
+
+export const ROLLUP_FUNCTIONS = [
+  'count',
+  'sum',
+  'avg',
+  'min',
+  'max',
+  'earliest',
+  'latest',
+  'show_original',
+  'percent_empty',
+  'percent_not_empty',
+] as const;
+export type RollupFunction = (typeof ROLLUP_FUNCTIONS)[number];
+
 export interface PropertyConfig {
   options?: SelectOption[];
+  /** A status property's groups; absent on one not written since groups existed. */
+  groups?: StatusGroup[];
   format?: NumberFormat;
   precision?: number;
   includeTime?: boolean;
+  dateFormat?: DateFormat;
   targetDatabaseId?: string;
   twoWay?: boolean;
   /** Server-owned reciprocal property ID. Never included in writes. */
   syncedPropertyId?: string;
   relationPropertyId?: string;
   targetPropertyId?: string;
-  function?: 'count' | 'sum' | 'avg' | 'min' | 'max' | 'earliest' | 'latest';
+  function?: RollupFunction;
   expression?: string;
   prefix?: string;
 }
+
+/** The Name property's id: its value is the row's title, and its type is always text. */
+export const NAME_PROPERTY_ID = 'name';
 
 export interface DatabaseProperty {
   id: string;
@@ -95,6 +135,8 @@ export interface Database {
   isInline: boolean;
   parentPageId: string | null;
   archived: boolean;
+  /** Its properties and own views are not to be changed (423 DATABASE_LOCKED); rows still are. */
+  locked?: boolean;
   /**
    * The app that keeps this database (Noted's notes and folders), null for
    * every other one: its own properties cannot be removed or retyped, nor the
@@ -143,7 +185,7 @@ export interface ViewConfig {
   datePropertyId?: string;
   startPropertyId?: string;
   endPropertyId?: string;
-  coverSource?: 'property' | 'pageCover';
+  coverSource?: 'property' | 'pageCover' | 'none';
   coverPropertyId?: string;
   fit?: 'cover' | 'contain';
 }

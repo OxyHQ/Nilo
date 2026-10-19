@@ -366,6 +366,44 @@ export async function removePropertyFromDatabaseRows(
   return updated.length;
 }
 
+/** Rows one statement of `writePropertyOfRows` writes. */
+const PROPERTY_WRITE_BATCH = 500;
+
+/**
+ * One property's value on many rows of a database (a property changing type,
+ * `lib/databases/property-conversion.ts`): row id → its value, `null` to drop
+ * the key. A few statements, not one per row, and only rows of `databaseId`.
+ */
+export async function writePropertyOfRows(
+  db: PgHandle,
+  databaseId: string,
+  propertyId: string,
+  values: ReadonlyMap<string, unknown>,
+): Promise<void> {
+  const cleared = [...values].flatMap(([id, value]) => (value === null ? [id] : []));
+  const set = [...values].flatMap(([id, value]) => (value === null ? [] : [{ id, value }]));
+  for (let i = 0; i < cleared.length; i += PROPERTY_WRITE_BATCH) {
+    await db
+      .update(pages)
+      .set({ properties: sql`${pages.properties} - ${propertyId}::text` })
+      .where(
+        and(
+          eq(pages.databaseId, databaseId),
+          inArray(pages.id, cleared.slice(i, i + PROPERTY_WRITE_BATCH)),
+        ),
+      );
+  }
+  for (let i = 0; i < set.length; i += PROPERTY_WRITE_BATCH) {
+    const batch = JSON.stringify(set.slice(i, i + PROPERTY_WRITE_BATCH));
+    await db.execute(sql`
+      update ${pages}
+      set properties = ${pages.properties} || jsonb_build_object(${propertyId}::text, v.value)
+      from jsonb_to_recordset(${batch}::jsonb) as v(id text, value jsonb)
+      where ${pages.id} = v.id and ${pages.databaseId} = ${databaseId}
+    `);
+  }
+}
+
 export interface ListDatabaseRowsFilter {
   /** `routes/databases.ts:955` reads live rows only; the hard delete at :765 reads all. */
   archived?: boolean;

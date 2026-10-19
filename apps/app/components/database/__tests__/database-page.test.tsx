@@ -40,7 +40,12 @@ jest.mock('@/lib/hooks/use-database-rows', () => ({
   useCreateRow: () => ({ mutate: jest.fn(), mutateAsync: jest.fn(), isPending: false }),
   useUpdateRow: () => ({ mutate: jest.fn() }),
 }));
+jest.mock('@/lib/hooks/use-database-properties', () => ({
+  useReorderProperties: () => ({ mutate: jest.fn(), isPending: false }),
+}));
+jest.mock('../database-chrome', () => ({ DatabaseChromePickers: () => null }));
 jest.mock('@/lib/hooks/use-database-views', () => ({
+  useDatabaseViews: () => ({ data: undefined }),
   useCreateView: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useDeleteView: () => ({ mutateAsync: jest.fn(), isPending: false }),
   useUpdateView: () => ({ mutateAsync: jest.fn(), isPending: false }),

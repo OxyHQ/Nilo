@@ -1,7 +1,7 @@
 import { nestSubItems, subItemProperties, useExpandedRows } from '@/lib/sub-items';
 import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
-import { Platform, Pressable, ScrollView, View } from 'react-native';
+import { Animated, Platform, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
@@ -10,12 +10,13 @@ import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
-import type {
-  Database,
-  DatabaseProperty,
-  DatabaseRow,
-  DatabaseView,
-  PropertyValue,
+import {
+  NAME_PROPERTY_ID,
+  type Database,
+  type DatabaseProperty,
+  type DatabaseRow,
+  type DatabaseView,
+  type PropertyValue,
 } from '@/lib/types/databases';
 import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { PropertyCell } from './property-cell';
@@ -27,6 +28,8 @@ interface ViewTableProps {
   rows: DatabaseRow[];
   isLoading: boolean;
   readOnly?: boolean;
+  /** The columns' menus (rename, sort, hide…) are not offered: a locked database's, a reader's. */
+  schemaReadOnly?: boolean;
 }
 
 const DEFAULT_COL_WIDTH = 200;
@@ -36,8 +39,21 @@ const TITLE_COL_WIDTH = 280;
  * Table view — spreadsheet-style. Renders the row's title in a fixed
  * first column, then one column per visible property. Each cell uses the
  * shared `PropertyCell` so editing is consistent across views.
+ *
+ * Frozen columns (`view.frozenProperties`: the Name and the properties up to
+ * one, as the view's settings set them) come first and stay put while the
+ * table scrolls sideways: they are moved back by exactly the scroll offset,
+ * on the native driver where there is one, so each row stays one row and its
+ * cells keep one height.
  */
-export function ViewTable({ database, view, rows, isLoading, readOnly = false }: ViewTableProps) {
+export function ViewTable({
+  database,
+  view,
+  rows,
+  isLoading,
+  readOnly = false,
+  schemaReadOnly = readOnly,
+}: ViewTableProps) {
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -54,11 +70,24 @@ export function ViewTable({ database, view, rows, isLoading, readOnly = false }:
   };
   const updateRow = useUpdateRow();
 
+  const frozen = React.useMemo(() => new Set(view.frozenProperties ?? []), [view.frozenProperties]);
+  // The frozen properties first, in the database's order, then the others.
   const visibleProperties = React.useMemo(() => {
-    return database.schema.properties.filter(
-      (p) => !view.hiddenProperties.includes(p.id) && p.id !== 'name',
+    const shown = database.schema.properties.filter(
+      (p) => !view.hiddenProperties.includes(p.id) && p.id !== NAME_PROPERTY_ID,
     );
-  }, [database.schema.properties, view.hiddenProperties]);
+    return [...shown.filter((p) => frozen.has(p.id)), ...shown.filter((p) => !frozen.has(p.id))];
+  }, [database.schema.properties, view.hiddenProperties, frozen]);
+  const frozenCount = visibleProperties.filter((p) => frozen.has(p.id)).length;
+  const titleFrozen = frozen.has(NAME_PROPERTY_ID) || frozenCount > 0;
+  const scrollX = React.useRef(new Animated.Value(0)).current;
+  const onScroll = React.useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+        useNativeDriver: Platform.OS !== 'web',
+      }),
+    [scrollX],
+  );
 
   const handleNewRow = React.useCallback(async () => {
     if (readOnly) return;
@@ -98,26 +127,49 @@ export function ViewTable({ database, view, rows, isLoading, readOnly = false }:
   }
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator>
+    <Animated.ScrollView
+      horizontal
+      showsHorizontalScrollIndicator
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+    >
       <View>
         {/* header row */}
         <View
           className="flex-row border-y border-border bg-muted/30"
           style={{ minWidth: TITLE_COL_WIDTH + visibleProperties.length * DEFAULT_COL_WIDTH + 60 }}
         >
-          <View className="px-3 py-2 border-r border-border" style={{ width: TITLE_COL_WIDTH }}>
-            <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {t('common.name')}
-            </Text>
-          </View>
-          {visibleProperties.map((property) => (
-            <ColumnHeader
-              readOnly={readOnly}
+          <FrozenCell
+            testID="table-title-header"
+            frozen={titleFrozen}
+            last={frozenCount === 0}
+            scrollX={scrollX}
+          >
+            <View
+              className={`px-3 py-2 border-r border-border ${titleFrozen ? 'bg-muted/30' : ''}`}
+              style={{ width: TITLE_COL_WIDTH }}
+            >
+              <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {t('common.name')}
+              </Text>
+            </View>
+          </FrozenCell>
+          {visibleProperties.map((property, index) => (
+            <FrozenCell
               key={property.id}
-              database={database}
-              view={view}
-              property={property}
-            />
+              testID={`table-header-${property.id}`}
+              frozen={index < frozenCount}
+              last={index === frozenCount - 1}
+              scrollX={scrollX}
+            >
+              <ColumnHeader
+                readOnly={schemaReadOnly}
+                database={database}
+                view={view}
+                property={property}
+                frozen={index < frozenCount}
+              />
+            </FrozenCell>
           ))}
           <View className="px-3 py-2 items-center justify-center" style={{ width: 60 }} />
         </View>
@@ -143,40 +195,49 @@ export function ViewTable({ database, view, rows, isLoading, readOnly = false }:
             const { row, depth } = entry;
             return (
               <View key={row.id} className="flex-row border-b border-border/60">
-                <Pressable
-                  className="px-3 py-2 border-r border-border/60 flex-row items-center"
-                  style={{ width: TITLE_COL_WIDTH, paddingLeft: 12 + depth * 24 }}
-                  accessibilityRole="link"
-                  accessibilityLabel={row.title || t('databases.untitled')}
-                  onPress={() => router.push(`/p/${row.id}`)}
-                >
-                  {subItems ? (
-                    <SubItemToggle
-                      expanded={expanded.has(row.id)}
-                      title={row.title}
-                      onPress={() => toggleExpanded(row.id)}
-                    />
-                  ) : null}
-                  <TitleCell
-                    readOnly={readOnly}
-                    initial={row.title}
-                    onChange={(next) => handleTitleChange(row.id, next)}
-                  />
-                </Pressable>
-                {visibleProperties.map((property) => (
-                  <View
-                    key={property.id}
-                    className="px-3 py-2 border-r border-border/60 justify-center"
-                    style={{ width: DEFAULT_COL_WIDTH }}
+                <FrozenCell frozen={titleFrozen} last={frozenCount === 0} scrollX={scrollX}>
+                  <Pressable
+                    className="flex-1 px-3 py-2 border-r border-border/60 flex-row items-center"
+                    style={{ width: TITLE_COL_WIDTH, paddingLeft: 12 + depth * 24 }}
+                    accessibilityRole="link"
+                    accessibilityLabel={row.title || t('databases.untitled')}
+                    onPress={() => router.push(`/p/${row.id}`)}
                   >
-                    <PropertyCell
+                    {subItems ? (
+                      <SubItemToggle
+                        expanded={expanded.has(row.id)}
+                        title={row.title}
+                        onPress={() => toggleExpanded(row.id)}
+                      />
+                    ) : null}
+                    <TitleCell
                       readOnly={readOnly}
-                      property={property}
-                      value={row.properties[property.id] ?? null}
-                      variant="table"
-                      onChange={(value) => handleCellChange(row.id, property.id, value)}
+                      initial={row.title}
+                      onChange={(next) => handleTitleChange(row.id, next)}
                     />
-                  </View>
+                  </Pressable>
+                </FrozenCell>
+                {visibleProperties.map((property, index) => (
+                  <FrozenCell
+                    key={property.id}
+                    frozen={index < frozenCount}
+                    last={index === frozenCount - 1}
+                    scrollX={scrollX}
+                  >
+                    <View
+                      className="px-3 py-2 border-r border-border/60 justify-center flex-1"
+                      style={{ width: DEFAULT_COL_WIDTH }}
+                    >
+                      <PropertyCell
+                        readOnly={readOnly}
+                        property={property}
+                        value={row.properties[property.id] ?? null}
+                        variant="table"
+                        rowId={row.id}
+                        onChange={(value) => handleCellChange(row.id, property.id, value)}
+                      />
+                    </View>
+                  </FrozenCell>
                 ))}
                 <View style={{ width: 60 }} />
               </View>
@@ -205,7 +266,33 @@ export function ViewTable({ database, view, rows, isLoading, readOnly = false }:
           </Pressable>
         ) : null}
       </View>
-    </ScrollView>
+    </Animated.ScrollView>
+  );
+}
+
+interface FrozenCellProps {
+  frozen: boolean;
+  /** The last frozen column, edged where the others scroll under it. */
+  last: boolean;
+  scrollX: Animated.Value;
+  testID?: string;
+  children: React.ReactNode;
+}
+
+/**
+ * A cell of a frozen column: moved back as far as the table scrolled, opaque
+ * and above the cells passing under it. Any other cell is laid out as is.
+ */
+function FrozenCell({ frozen, last, scrollX, testID, children }: FrozenCellProps) {
+  if (!frozen) return <View testID={testID}>{children}</View>;
+  return (
+    <Animated.View testID={testID} style={{ transform: [{ translateX: scrollX }], zIndex: 1 }}>
+      <View
+        className={last ? 'flex-1 bg-background border-r-2 border-border' : 'flex-1 bg-background'}
+      >
+        {children}
+      </View>
+    </Animated.View>
   );
 }
 
@@ -214,13 +301,15 @@ interface ColumnHeaderProps {
   view: DatabaseView;
   property: DatabaseProperty;
   readOnly: boolean;
+  /** Painted as the header row is, over the frozen cell's opaque background. */
+  frozen?: boolean;
 }
 
-function ColumnHeader({ database, view, property, readOnly }: ColumnHeaderProps) {
+function ColumnHeader({ database, view, property, readOnly, frozen = false }: ColumnHeaderProps) {
   const menu = useDialogControl();
   return (
     <View
-      className="px-3 py-2 border-r border-border flex-row items-center justify-between"
+      className={`px-3 py-2 border-r border-border flex-row items-center justify-between ${frozen ? 'bg-muted/30' : ''}`}
       style={{ width: DEFAULT_COL_WIDTH }}
     >
       <Pressable

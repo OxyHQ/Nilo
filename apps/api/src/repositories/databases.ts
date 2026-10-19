@@ -69,6 +69,8 @@ export interface DatabaseRecord {
   /** Where it lives when it sits in no page (`docs/access.md`). */
   teamspaceId: string | null;
   archived: boolean;
+  /** Its properties and own views are not to be changed (`routes/databases.ts`). */
+  locked: boolean;
   /** The app that keeps this database (`lib/databases/system.ts`); null for every other one. */
   systemKey: SystemDatabaseKey | null;
   createdAt: Date;
@@ -111,6 +113,7 @@ function toDatabaseRecord(row: DatabaseRow): DatabaseRecord {
     parentPageId: row.parentPageId,
     teamspaceId: row.teamspaceId,
     archived: row.archived,
+    locked: row.locked,
     systemKey: row.systemKey,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -246,6 +249,7 @@ export interface UpdateDatabaseInput {
   icon?: string | null;
   cover?: string | null;
   archived?: boolean;
+  locked?: boolean;
 }
 
 /**
@@ -272,6 +276,7 @@ export async function updateDatabase(
   if (patch.icon !== undefined) values.icon = patch.icon;
   if (patch.cover !== undefined) values.cover = patch.cover;
   if (patch.archived !== undefined) values.archived = patch.archived;
+  if (patch.locked !== undefined) values.locked = patch.locked;
 
   if (Object.keys(values).length === 0) return findDatabaseById(handle, id);
 

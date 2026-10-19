@@ -27,8 +27,11 @@ type Tab = 'gradient' | 'color' | 'unsplash' | 'upload' | 'link';
 interface CoverPickerProps {
   /** Opened by the caller with `control.open()`; the picker closes itself. */
   control: DialogControlProps;
-  /** The page whose cover this is: an uploaded image goes to it. */
-  pageId: string;
+  /**
+   * The page whose cover this is: an uploaded image goes to it. Without one
+   * (a full-page database's cover) there is nothing to upload to, only links.
+   */
+  pageId?: string;
   /** Called with the new encoded cover string or null to remove. */
   onSelect: (next: string | null) => void;
 }
@@ -72,7 +75,9 @@ export function CoverPicker({ control, pageId, onSelect }: CoverPickerProps) {
               <TabsTrigger value="color" label={t('pages.coverPicker.tabs.colors')} />
               <TabsTrigger value="unsplash" label="Unsplash" />
               <TabsTrigger value="link" label={t('pages.coverPicker.tabs.link')} />
-              <TabsTrigger value="upload" label={t('pages.coverPicker.tabs.upload')} />
+              {pageId ? (
+                <TabsTrigger value="upload" label={t('pages.coverPicker.tabs.upload')} />
+              ) : null}
             </Tabs>
           </View>
           <Button
@@ -95,13 +100,13 @@ export function CoverPicker({ control, pageId, onSelect }: CoverPickerProps) {
           <UnsplashTab onSelect={(url) => handleSelect(encodeUnsplash(url))} />
         ) : tab === 'link' ? (
           <LinkTab onSelect={(url) => handleSelect(encodeCoverImage(url))} />
-        ) : (
+        ) : pageId ? (
           <PageImageUpload
             pageId={pageId}
             hint={t('pages.coverPicker.uploadHint')}
             onUploaded={(fileId) => handleSelect(encodeCoverFile(fileId))}
           />
-        )}
+        ) : null}
       </View>
     </Dialog>
   );

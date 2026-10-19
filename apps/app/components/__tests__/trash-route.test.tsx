@@ -51,6 +51,11 @@ jest.mock('@/lib/hooks/use-pages', () => ({
   useDeletePage: () => ({ mutate: mockMutate }),
   useEmptyTrash: () => ({ mutate: mockMutate, isPending: false }),
 }));
+jest.mock('@/lib/hooks/use-databases', () => ({
+  useArchivedDatabases: () => ({ data: [], isLoading: false }),
+  useUpdateDatabase: () => ({ mutate: mockMutate }),
+  useDeleteDatabase: () => ({ mutate: mockMutate }),
+}));
 jest.mock('@/components/page-chrome', () => ({ IconDisplay: () => null }));
 
 let renderer: ReactTestRenderer;

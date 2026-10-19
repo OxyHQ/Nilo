@@ -23,5 +23,8 @@
   "deleteDialog": {
     "title": "¿Eliminar definitivamente?",
     "description": "«%{title}» se eliminará para siempre."
-  }
+  },
+  "databases": "Bases de datos",
+  "restoreDatabase": "Restaurar %{name}",
+  "deleteDatabasePermanently": "Eliminar %{name} definitivamente"
 }
