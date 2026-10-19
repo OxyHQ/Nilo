@@ -72,7 +72,9 @@
     "pageCount": {
       "one": "%{count} page",
       "other": "%{count} pages"
-    }
+    },
+    "deleteFailed": "Could not delete the property. Try again.",
+    "updateFailed": "Could not update the property. Try again."
   },
   "filters": {
     "title": "Filters",
@@ -348,5 +350,9 @@
   },
   "rows": {
     "total": "%{count} rows"
+  },
+  "system": {
+    "property": "%{app} uses this property: it cannot be removed and its type and settings are fixed.",
+    "database": "This database belongs to %{app} and cannot be deleted."
   }
 }

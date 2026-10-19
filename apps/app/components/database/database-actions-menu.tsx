@@ -15,7 +15,14 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useExportDatabase } from '@/lib/hooks/use-page-transfer';
 import { saveExport } from '@/lib/save-export';
 
-export function DatabaseActionsMenu({ databaseId }: { databaseId: string }) {
+/** The database's menu; a reader's (`readOnly`) only exports it. */
+export function DatabaseActionsMenu({
+  databaseId,
+  readOnly = false,
+}: {
+  databaseId: string;
+  readOnly?: boolean;
+}) {
   const { t } = useTranslation();
   const exportCsv = useExportDatabase();
   const { data } = useDatabase(databaseId);
@@ -67,12 +74,14 @@ export function DatabaseActionsMenu({ databaseId }: { databaseId: string }) {
         />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" label={t('databases.csv.menu')}>
-        <DropdownMenuItem
-          disabled={!data || add.isPending || remove.isPending}
-          onPress={() => void (subItems ? disableSubItems() : toggleSubItems())}
-        >
-          {t(subItems ? 'databases.subItems.disable' : 'databases.subItems.name')}
-        </DropdownMenuItem>
+        {!readOnly ? (
+          <DropdownMenuItem
+            disabled={!data || add.isPending || remove.isPending}
+            onPress={() => void (subItems ? disableSubItems() : toggleSubItems())}
+          >
+            {t(subItems ? 'databases.subItems.disable' : 'databases.subItems.name')}
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem disabled={exportCsv.isPending} onPress={() => void download()}>
           {t('databases.csv.export')}
         </DropdownMenuItem>

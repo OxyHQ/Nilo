@@ -44,6 +44,7 @@ const database: Database = {
   isInline: true,
   parentPageId: 'parent',
   archived: false,
+  systemKey: null,
   createdAt: '',
   updatedAt: '',
   schema: {

@@ -36,8 +36,8 @@ export function RowPropertiesPanel({ database, row, readOnly = false }: RowPrope
     [database.id, row.id, updateRow],
   );
 
-  // Skip the Name property (it's the title above this panel) and any
-  // hidden-by-default derived rollups that aren't ready in Phase 4 MVP.
+  // The Name property is the title above this panel; every other one is
+  // listed, computed ones (formulas, rollups) included.
   const properties = database.schema.properties.filter((p) => p.id !== 'name');
 
   return (
