@@ -7,7 +7,7 @@ import { useUpdateView, useDeleteView } from '../use-database-views';
 import { queryKeys } from '../query-keys';
 import type { Database, DatabaseView } from '@/lib/types/databases';
 
-jest.mock('@oxy.so/services', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() },

@@ -7,7 +7,7 @@ import { useCreateRowTemplate, useRowTemplates } from '../use-row-templates';
 import { useCreateRow } from '../use-database-rows';
 import { queryKeys } from '../query-keys';
 
-jest.mock('@oxy.so/services', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), put: jest.fn(), delete: jest.fn(), post: jest.fn(), patch: jest.fn() },

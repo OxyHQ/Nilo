@@ -15,7 +15,7 @@ import { useNewPageStore } from '@/lib/stores/new-page-store';
 import apiClient from '@/lib/api/client';
 import type { Page } from '@/lib/types/pages';
 
-jest.mock('@oxy.so/services', () => ({
+jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({ isAuthenticated: true, user: { id: 'me' } }),
 }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));

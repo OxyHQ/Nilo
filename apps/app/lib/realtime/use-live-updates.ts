@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { acquireSocket, releaseSocket } from './socket';
 import { queryKeys } from '../hooks/query-keys';

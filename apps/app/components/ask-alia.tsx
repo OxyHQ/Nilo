@@ -1,5 +1,5 @@
 import { AliaChatSheet, type AliaChatSheetRef } from '@alia.onl/sdk';
-import { useAuth } from '@oxy.so/services';
+import { useAuth } from '@oxy.so/services/ui/client';
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useRef } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 

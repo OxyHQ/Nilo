@@ -20,7 +20,7 @@ jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { patch: jest.fn(), get: jest.fn() },
 }));
-jest.mock('@oxy.so/services', () => ({
+jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({ isAuthenticated: true, user: { id: 'owner' } }),
 }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));

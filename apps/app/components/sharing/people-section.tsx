@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { Avatar } from '@oxy.so/bloom/avatar';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View } from 'react-native';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { useRouter } from 'expo-router';
 import { RiSettings3Line } from '@oxy.so/bloom/icons/RiSettings3Line';
 import { Button } from '@oxy.so/bloom/button';

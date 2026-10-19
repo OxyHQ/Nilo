@@ -6,7 +6,7 @@ import { invalidateLiveQueries } from '@/lib/realtime/use-live-updates';
 import { queryKeys } from '../query-keys';
 import type { DatabaseRowsResponse, DatabaseViewType } from '@/lib/types/databases';
 
-jest.mock('@oxy.so/services', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
 jest.mock('@/lib/realtime/socket', () => ({}));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,

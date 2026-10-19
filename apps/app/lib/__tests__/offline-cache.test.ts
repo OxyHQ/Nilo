@@ -14,7 +14,7 @@ import {
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
-jest.mock('@oxy.so/services', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
 jest.mock('@/lib/api/client', () => ({ __esModule: true, default: {} }));
 
 const memoryOnly = new Set<string>(MEMORY_ONLY_ROOTS);

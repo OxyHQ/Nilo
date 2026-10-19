@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { View } from 'react-native';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { usePages } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';

@@ -12,7 +12,7 @@ import {
 import { queryKeys } from '../query-keys';
 import { workspaceMemberKeys } from '../workspace-keys';
 
-jest.mock('@oxy.so/services', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: {

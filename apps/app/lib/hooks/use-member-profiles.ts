@@ -1,4 +1,4 @@
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { useQuery } from '@tanstack/react-query';
 import { getNormalizedUserHandle, type User } from '@oxy.so/core';
 

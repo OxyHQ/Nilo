@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text as RNText, View } from 'react-native';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { Avatar } from '@oxy.so/bloom/avatar';
 import { Button } from '@oxy.so/bloom/button';
 import { useDialogControl } from '@oxy.so/bloom/dialog';

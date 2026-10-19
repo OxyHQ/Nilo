@@ -10,7 +10,7 @@ const mockMarkRead = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
 }));
-jest.mock('@oxy.so/services', () => ({ useAuth: () => ({ isAuthenticated: true }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useAuth: () => ({ isAuthenticated: true }) }));
 jest.mock('expo-notifications', () => ({
   getPermissionsAsync: async () => ({ status: 'granted' }),
 }));

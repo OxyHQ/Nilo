@@ -50,7 +50,21 @@
   "overrides": [
     {
       "includes": ["apps/app/**"],
-      "plugins": ["./biome-plugins/expo-env-vars.grit"]
+      "plugins": ["./biome-plugins/expo-env-vars.grit"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "@oxy.so/services": "The root entry registers every Oxy account screen at import, which puts them in first paint (the web export has no async routes). Import from '@oxy.so/services/ui/client' (or a type from '@oxy.so/services/ui'); open the account dialog with useOxy().openAccountDialog."
+                }
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

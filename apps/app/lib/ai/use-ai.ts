@@ -6,7 +6,7 @@
  * Kaana already have, and say so in the error.
  */
 import { createInferenceClient, OxyInferenceError } from '@oxy.so/core/inference';
-import { useOxy } from '@oxy.so/services';
+import { useOxy } from '@oxy.so/services/ui/client';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import {
