@@ -26,6 +26,8 @@ import {
 } from '@/lib/hooks/use-workspaces';
 import { hasRole } from '@/lib/hooks/workspace-roles';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
+import { useExportWorkspace } from '@/lib/hooks/use-page-transfer';
+import { saveExport } from '@/lib/save-export';
 import { useNiloSettings } from './settings-provider';
 
 /** The current workspace's picture and name, and what only its owner may do. */
@@ -98,8 +100,52 @@ function WorkspaceSettings({ workspace }: { workspace: Workspace }) {
           </SettingsRow>
         </SettingsCard>
       </SettingsSection>
+      <WorkspaceExport workspace={workspace} />
       <WorkspaceDangerZone workspace={workspace} />
     </View>
+  );
+}
+
+/** Every page the member can open, as a ZIP of Markdown or HTML files in folders by subpage. */
+function WorkspaceExport({ workspace }: { workspace: Workspace }) {
+  const { t } = useTranslation();
+  const exportWorkspace = useExportWorkspace();
+  const run = async (format: 'md' | 'html') => {
+    try {
+      const { blob, filename } = await exportWorkspace.mutateAsync({
+        id: workspace.id,
+        format,
+        fallback: workspace.name,
+      });
+      await saveExport({ blob, filename });
+      toast.success(t('pages.export.downloaded'));
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t('settings.workspace.exportFailed')));
+    }
+  };
+  return (
+    <SettingsSection label={t('settings.workspace.export')}>
+      <SettingsCard>
+        <SettingsRow
+          label={t('settings.workspace.exportLabel')}
+          description={t('settings.workspace.exportDescription')}
+        >
+          <View className="flex-row gap-2">
+            {(['md', 'html'] as const).map((format) => (
+              <Button
+                key={format}
+                appearance="outline"
+                size="sm"
+                disabled={exportWorkspace.isPending}
+                onPress={() => void run(format)}
+              >
+                {t(format === 'md' ? 'pages.export.markdown' : 'pages.export.html')}
+              </Button>
+            ))}
+          </View>
+        </SettingsRow>
+      </SettingsCard>
+    </SettingsSection>
   );
 }
 

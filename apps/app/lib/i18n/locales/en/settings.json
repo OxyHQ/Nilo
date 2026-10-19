@@ -94,6 +94,10 @@
     "resetInputLabel": "Workspace name",
     "resetMismatch": "The name you typed does not match. Nothing was deleted.",
     "resetDone": "Your personal workspace is empty",
-    "resetFailed": "Could not reset the workspace."
+    "resetFailed": "Could not reset the workspace.",
+    "export": "Export",
+    "exportLabel": "Export workspace",
+    "exportDescription": "Every page you can open, as Markdown or HTML files in folders by subpage, with databases as tables.",
+    "exportFailed": "The workspace could not be exported."
   }
 }

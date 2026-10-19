@@ -265,7 +265,8 @@
     "html": "HTML",
     "webOnly": "Export is available on the web for now. Open this page in your browser to download it.",
     "downloaded": "Export downloaded",
-    "pdf": "PDF"
+    "pdf": "PDF",
+    "withSubpages": "%{format} with subpages (ZIP)"
   },
   "import": {
     "title": "Import",

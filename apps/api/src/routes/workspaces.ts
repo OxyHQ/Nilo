@@ -27,6 +27,7 @@ import {
   updateWorkspace,
 } from '../repositories/workspaces.js';
 import { log } from '../lib/logger.js';
+import { ExportTooLarge, exportPagesZip, fileName, zipExports } from '../lib/export-zip.js';
 import { findUserByEmail, loadMemberProfiles } from '../lib/member-profiles.js';
 import { createWorkspaceSchema, updateWorkspaceSchema } from '../lib/workspace-input.js';
 
@@ -659,6 +660,61 @@ router.post(
     } catch (error: unknown) {
       log.general.error({ err: error }, 'Failed to empty workspace trash');
       res.status(500).json({ error: 'Failed to empty trash' });
+    }
+  },
+);
+
+/**
+ * GET /api/workspaces/:workspaceId/export?format=md|html
+ *
+ * Every page the caller can open, as a ZIP of Markdown or HTML files in
+ * folders by subpage (`lib/export-zip.ts`). A member's export: what is
+ * someone else's and private stays out.
+ */
+router.get(
+  '/:workspaceId/export',
+  authenticateToken,
+  requireWorkspaceMember,
+  zipExports,
+  async (req: Request, res: Response) => {
+    try {
+      const { format } = z
+        .object({ format: z.enum(['md', 'markdown', 'html']).default('md') })
+        .parse(req.query);
+      if (!req.workspaceDoc) {
+        res.status(500).json({ error: 'Workspace context not loaded' });
+        return;
+      }
+      const zip = await exportPagesZip(getDb(), {
+        viewerId: req.user?.id ?? '',
+        workspaceId: req.workspaceDoc.id,
+        rootIds: null,
+        format: format === 'html' ? 'html' : 'md',
+      });
+      const name = req.workspaceDoc.name?.trim() || 'Workspace';
+      const ascii =
+        fileName(name)
+          .replace(/[^a-zA-Z0-9-_]+/gu, '-')
+          .replace(/^-+|-+$/g, '') || 'workspace';
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${ascii}.zip"; filename*=UTF-8''${encodeURIComponent(`${name}.zip`)}`,
+      );
+      res.send(Buffer.from(zip.bytes));
+    } catch (error: unknown) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ error: 'Invalid input', details: error.errors });
+        return;
+      }
+      if (error instanceof ExportTooLarge) {
+        res
+          .status(413)
+          .json({ error: 'Too many pages to export at once', code: 'EXPORT_TOO_LARGE' });
+        return;
+      }
+      log.general.error({ err: error }, 'Failed to export workspace');
+      res.status(500).json({ error: 'Failed to export workspace' });
     }
   },
 );
