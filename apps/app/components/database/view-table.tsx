@@ -233,6 +233,7 @@ export function ViewTable({
                         property={property}
                         value={row.properties[property.id] ?? null}
                         variant="table"
+                        rowId={row.id}
                         onChange={(value) => handleCellChange(row.id, property.id, value)}
                       />
                     </View>

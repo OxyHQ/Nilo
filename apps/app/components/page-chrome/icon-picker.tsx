@@ -26,8 +26,11 @@ interface IconPickerProps {
    * The caller (PageChrome) is responsible for persisting via useUpdatePage.
    */
   onSelect: (next: string | null) => void;
-  /** The page whose icon this is: an uploaded image goes to it. */
-  pageId: string;
+  /**
+   * The page whose icon this is: an uploaded image goes to it. Without one
+   * (a full-page database's icon) an image is taken by link only.
+   */
+  pageId?: string;
 }
 
 /**
@@ -281,7 +284,7 @@ function IconTab({ query, onPickIcon }: IconTabProps) {
  * ---------------------------------------------------------------- */
 
 interface UploadTabProps {
-  pageId: string;
+  pageId?: string;
   onUploaded: (fileId: string) => void;
   onPickImage: (url: string) => void;
 }
@@ -290,11 +293,13 @@ function UploadTab({ pageId, onUploaded, onPickImage }: UploadTabProps) {
   const { t } = useTranslation();
   return (
     <View className="gap-3 px-1 py-4">
-      <PageImageUpload
-        pageId={pageId}
-        hint={t('pages.iconPicker.uploadHint')}
-        onUploaded={onUploaded}
-      />
+      {pageId ? (
+        <PageImageUpload
+          pageId={pageId}
+          hint={t('pages.iconPicker.uploadHint')}
+          onUploaded={onUploaded}
+        />
+      ) : null}
       <Text variant="body-regular">{t('pages.iconPicker.linkHint')}</Text>
       <TextFieldInput
         size="sm"

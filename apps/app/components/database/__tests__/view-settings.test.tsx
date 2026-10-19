@@ -52,6 +52,9 @@ jest.mock('../property-cell', () => ({ PropertyCell: () => null }));
 jest.mock('../property-config-modal', () => ({ PropertyHeaderMenu: () => null }));
 jest.mock('../database-actions-menu', () => ({ DatabaseActionsMenu: () => null }));
 jest.mock('../database-chrome', () => ({ DatabaseChromePickers: () => null }));
+// The header draws the database's cover and icon, which resolve uploaded files through the API.
+jest.mock('@/components/page-chrome/cover-display', () => ({ CoverDisplay: () => null }));
+jest.mock('@/components/page-chrome/icon-display', () => ({ IconDisplay: () => null }));
 
 const database = {
   id: 'db',

@@ -9,6 +9,9 @@ jest.mock('@/hooks/useTranslation', () => ({
 }));
 jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/lib/hooks/use-database-rows', () => ({ useRelatedRows: () => ({}) }));
+// The other cells of `property-cell` reach the API and the Oxy session; a number cell needs neither.
+jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { get: jest.fn() } }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ oxyServices: {} }) }));
 
 const amount: DatabaseProperty = {
   id: 'amount',
