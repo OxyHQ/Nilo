@@ -19,9 +19,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { QueryClient } from '@tanstack/react-query';
 import { pageDocStore } from './editor/doc-store';
 import { offlinePages } from './editor/offline-pages';
+import { unregisterPush } from './push-registration';
 
 const OWNER_KEY = 'nilo:account';
 const SIGNED_OUT = 'signed-out';
+
+/** How long signing out waits for the API to stop sending push to the device. */
+const PUSH_RELEASE_MS = 3000;
 
 const readOwner = () => AsyncStorage.getItem(OWNER_KEY).catch(() => null);
 const writeOwner = (value: string) => AsyncStorage.setItem(OWNER_KEY, value).catch(() => undefined);
@@ -32,6 +36,23 @@ async function clearDevice(client: QueryClient): Promise<void> {
   // in a browser too, where no page is kept offline but unsent work is.
   await offlinePages.clear();
   await pageDocStore?.clear().catch(() => undefined);
+}
+
+/**
+ * Before signing out from Nilo, while the session still lasts: the API stops
+ * sending the account's notifications to this device (an Expo token, or the
+ * browser's Web Push subscription, which the next account takes over).
+ * Bounded, so an unreachable API never holds the sign-out.
+ */
+export async function releaseDevice(): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([
+    unregisterPush({ unsubscribe: false }),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, PUSH_RELEASE_MS);
+    }),
+  ]);
+  clearTimeout(timer);
 }
 
 /**

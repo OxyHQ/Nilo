@@ -20,5 +20,6 @@
   "dismiss": "Descartar notificación",
   "reminder": "Recordatorio",
   "pageEdited": "Se editó %{page}",
-  "assigned": "%{name} te ha añadido a %{page}"
+  "assigned": "%{name} te ha añadido a %{page}",
+  "pushUnsupported": "Este navegador no puede recibir notificaciones push."
 }
