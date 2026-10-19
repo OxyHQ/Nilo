@@ -200,7 +200,9 @@
     "blank": "Página en blanco",
     "fromTemplate": "Desde una plantilla…",
     "creating": "Creando página…",
-    "createFailed": "No se pudo crear la página. Comprueba tu acceso al destino e inténtalo de nuevo."
+    "createFailed": "No se pudo crear la página. Comprueba tu acceso al destino e inténtalo de nuevo.",
+    "builtIn": "Plantillas de Nilo",
+    "workspace": "Plantillas de tu workspace"
   },
   "publish": {
     "title": "Publicar",
