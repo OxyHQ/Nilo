@@ -25,7 +25,7 @@
     "android": "bun run --filter @nilo/app android",
     "ios": "bun run --filter @nilo/app ios",
     "web": "bun run --filter @nilo/app web",
-    "test:worker": "bun test scripts/web-worker.test.ts",
+    "test:worker": "bun test scripts/web-worker.test.ts scripts/service-worker.test.ts",
     "test:e2e": "vitest run --config e2e/vitest.config.ts",
     "check:api-entrypoints": "bun run build:api && bun scripts/check-api-entrypoints.ts",
     "check:bun-pin": "bun scripts/check-bun-pin.ts && bun test scripts/check-bun-pin.test.ts",

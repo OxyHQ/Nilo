@@ -51,7 +51,7 @@
   },
   "offline": {
     "description": "Pages kept on this device open without a connection. Pages you make available offline stay until you remove them; the last pages you opened are kept too.",
-    "webOnly": "Pages are kept offline in the Nilo app for iOS and Android.",
+    "webOnly": "This browser cannot keep pages offline.",
     "empty": "No pages are kept on this device yet.",
     "total": {
       "one": "%{count} page · %{size}",

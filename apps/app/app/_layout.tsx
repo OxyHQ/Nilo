@@ -12,6 +12,7 @@ import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AppErrorBoundary } from '@/components/error-boundary';
+import { registerAppWorker } from '@/lib/app-worker';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { setTokenGetter } from '@/lib/api/client';
 import { enterAccount, sessionEnded } from '@/lib/account-boundary';
@@ -89,6 +90,7 @@ function AppContent() {
   // splash here leaves no unstyled-text flash.
   useEffect(() => {
     SplashScreen.hideAsync();
+    registerAppWorker();
   }, []);
 
   // No KeyboardProvider here: OxyProvider mounts the app's one, and a second

@@ -41,9 +41,9 @@ async function updateKeys(tx: IDBTransaction, pageId: string): Promise<IDBValidK
 }
 
 /**
- * Pages' documents in IndexedDB. The web app keeps a page only while it holds
- * work the server has not confirmed, so a reload or a lost connection loses
- * nothing; pages are not kept to read offline in a browser.
+ * Pages' documents in IndexedDB: the pages kept offline (`offline-pages.ts`),
+ * and any page while it holds work the server has not confirmed, so a reload
+ * or a lost connection loses nothing.
  */
 export const pageDocStore: PageDocStore | null =
   typeof indexedDB === 'undefined'
