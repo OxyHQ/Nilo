@@ -28,7 +28,16 @@ export type NiloDatabase = OxyDatabase<typeof schema>;
  */
 export type PgHandle = NiloDatabase | Parameters<Parameters<NiloDatabase['transaction']>[0]>[0];
 
-let handle: { db: NiloDatabase; client: ReturnType<typeof createDatabase>['client'] } | null = null;
+/**
+ * The postgres.js client under {@link NiloDatabase}, named through the handle's
+ * own `$client` rather than `ReturnType<typeof createDatabase>`: `createDatabase`
+ * is overloaded (postgres.js by default, `driver: 'bun-sql'` opt-in), and
+ * `ReturnType` of an overloaded function resolves to its LAST overload — the
+ * Bun.SQL client, which has `close()` where postgres.js has `end()`.
+ */
+type NiloSqlClient = NiloDatabase['$client'];
+
+let handle: { db: NiloDatabase; client: NiloSqlClient } | null = null;
 
 export function getDb(): NiloDatabase {
   if (handle) return handle.db;
