@@ -18,7 +18,7 @@ const DRAG_MIME = 'application/x-oxy-page-id';
  *  - bottom quarter → "after" (sibling below target)
  */
 export function SidebarPageRow(props: PageRowSharedProps) {
-  const { page, enableDrag = true } = props;
+  const { page, enableDrag = true, onDrop } = props;
   const drag = usePageDrag();
   const [dropIndicator, setDropIndicator] = React.useState<DropPosition | null>(null);
   const isDragging = drag.draggingId === page.id;
@@ -33,6 +33,14 @@ export function SidebarPageRow(props: PageRowSharedProps) {
     return 'inside';
   }, []);
 
+  // The listeners are bound once per row and read what changes between
+  // renders (the dragged page, the drop handler) from refs: rebinding them on
+  // every render dropped events mid-drag.
+  const latest = React.useRef({ drag, onDrop, pageId: page.id });
+  React.useLayoutEffect(() => {
+    latest.current = { drag, onDrop, pageId: page.id };
+  });
+
   React.useEffect(() => {
     if (!enableDrag) return;
     const node = typeof document !== 'undefined' ? document.getElementById(domId) : null;
@@ -43,14 +51,15 @@ export function SidebarPageRow(props: PageRowSharedProps) {
     const onDragStart = (e: DragEvent) => {
       if (!e.dataTransfer) return;
       e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData(DRAG_MIME, page.id);
+      const { drag, pageId } = latest.current;
+      e.dataTransfer.setData(DRAG_MIME, pageId);
       // Fallback so other browsers can read the id.
-      e.dataTransfer.setData('text/plain', page.id);
-      drag.setDraggingId(page.id);
+      e.dataTransfer.setData('text/plain', pageId);
+      drag.setDraggingId(pageId);
     };
 
     const onDragEnd = () => {
-      drag.setDraggingId(null);
+      latest.current.drag.setDraggingId(null);
       setDropIndicator(null);
     };
 
@@ -61,7 +70,8 @@ export function SidebarPageRow(props: PageRowSharedProps) {
       }
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-      if (!drag.draggingId || drag.draggingId === page.id) {
+      const { drag, pageId } = latest.current;
+      if (!drag.draggingId || drag.draggingId === pageId) {
         setDropIndicator(null);
         return;
       }
@@ -70,22 +80,23 @@ export function SidebarPageRow(props: PageRowSharedProps) {
 
     const onDragLeave = () => setDropIndicator(null);
 
-    const onDrop = (e: DragEvent) => {
+    const onDropEvent = (e: DragEvent) => {
       e.preventDefault();
       const sourceId =
         e.dataTransfer?.getData(DRAG_MIME) || e.dataTransfer?.getData('text/plain') || '';
       const position = computePosition(node, e.clientY);
+      const { drag, onDrop, pageId } = latest.current;
       setDropIndicator(null);
       drag.setDraggingId(null);
-      if (!sourceId || sourceId === page.id) return;
-      props.onDrop?.(sourceId, position);
+      if (!sourceId || sourceId === pageId) return;
+      onDrop?.(sourceId, position);
     };
 
     node.addEventListener('dragstart', onDragStart);
     node.addEventListener('dragend', onDragEnd);
     node.addEventListener('dragover', onDragOver);
     node.addEventListener('dragleave', onDragLeave);
-    node.addEventListener('drop', onDrop);
+    node.addEventListener('drop', onDropEvent);
 
     return () => {
       node.removeAttribute('draggable');
@@ -93,9 +104,9 @@ export function SidebarPageRow(props: PageRowSharedProps) {
       node.removeEventListener('dragend', onDragEnd);
       node.removeEventListener('dragover', onDragOver);
       node.removeEventListener('dragleave', onDragLeave);
-      node.removeEventListener('drop', onDrop);
+      node.removeEventListener('drop', onDropEvent);
     };
-  }, [computePosition, domId, drag, enableDrag, page.id, props]);
+  }, [computePosition, domId, enableDrag]);
 
   return (
     <SharedPageRow

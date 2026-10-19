@@ -1,41 +1,28 @@
 import * as React from 'react';
 
-export type DropPosition = 'before' | 'after' | 'inside';
-
-export interface DragMutation {
-  /** Move sourceId into the parent of targetId at position before/after, or as a child of targetId when inside. */
-  sourceId: string;
-  targetId: string;
-  position: DropPosition;
-}
+export type { DropPosition } from '@/lib/sidebar-drop';
 
 interface DragContextValue {
   draggingId: string | null;
   setDraggingId: (id: string | null) => void;
-  onCommit: ((mutation: DragMutation) => void) | null;
 }
 
 const DragContext = React.createContext<DragContextValue>({
   draggingId: null,
   setDraggingId: () => undefined,
-  onCommit: null,
 });
 
-interface DragProviderProps {
-  onCommit: (mutation: DragMutation) => void;
-  children: React.ReactNode;
-}
-
 /**
- * Shared drag state for the sidebar page rows. The provider keeps the dragging
- * id so siblings can render drop indicators, and exposes a single onCommit
- * callback that the row resolves to a PATCH against the backend.
+ * Which sidebar page is being dragged, so every row can show where it would
+ * land. One provider spans the sidebar's sections: a page dragged from one
+ * (private, a teamspace) can be dropped into another. Each tree resolves a
+ * drop on its rows itself.
  */
-export function PageDragProvider({ onCommit, children }: DragProviderProps) {
+export function PageDragProvider({ children }: { children: React.ReactNode }) {
   const [draggingId, setDraggingId] = React.useState<string | null>(null);
   const value = React.useMemo<DragContextValue>(
-    () => ({ draggingId, setDraggingId, onCommit }),
-    [draggingId, onCommit],
+    () => ({ draggingId, setDraggingId }),
+    [draggingId],
   );
   return <DragContext.Provider value={value}>{children}</DragContext.Provider>;
 }

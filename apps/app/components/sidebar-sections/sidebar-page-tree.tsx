@@ -5,8 +5,14 @@ import { buildPageTree, type TreeNode } from '@/lib/page-tree';
 import { Text } from '@oxy.so/bloom/typography';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
+import { type DropPosition, planSidebarDrop } from '@/lib/sidebar-drop';
 import { SidebarPageRow } from './page-row';
-import { PageDragProvider, type DragMutation } from './drag-context';
+
+interface DragMutation {
+  sourceId: string;
+  targetId: string;
+  position: DropPosition;
+}
 
 interface SidebarPageTreeProps {
   /** Flat list of pages to organize into a tree. */
@@ -18,12 +24,17 @@ interface SidebarPageTreeProps {
   emptyText?: string;
   /** Whether drag-to-reorder is enabled for this tree. */
   enableDrag?: boolean;
+  /**
+   * Where this tree's top-level pages live (a teamspace, or null for
+   * private): a page dropped at its top level moves there.
+   */
+  place?: { teamspaceId: string | null };
 }
 
 /**
  * Renders an indented tree of page rows from a filtered list of pages. Handles
- * local expand/collapse state and resolves drag drops to PATCH calls against
- * the pages API.
+ * local expand/collapse state and resolves drops on its rows to PATCH calls
+ * against the pages API (`planSidebarDrop`).
  */
 export function SidebarPageTree({
   pages,
@@ -31,55 +42,21 @@ export function SidebarPageTree({
   emptyText,
   enableDrag = true,
   readOnly = false,
+  place,
 }: SidebarPageTreeProps) {
   const pathname = usePathname();
   const updatePage = useUpdatePage();
   const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
 
   const roots = React.useMemo(() => buildPageTree(pages), [pages]);
-  const pagesById = React.useMemo(() => {
-    const m = new Map<string, Page>();
-    for (const p of pages) m.set(p.id, p);
-    return m;
-  }, [pages]);
 
+  // A drop on one of this tree's rows, wherever the page came from.
   const handleCommit = React.useCallback(
     ({ sourceId, targetId, position }: DragMutation) => {
-      if (sourceId === targetId) return;
-      const target = pagesById.get(targetId);
-      const source = pagesById.get(sourceId);
-      if (!target || !source) return;
-
-      // Prevent cycles: don't allow dropping onto own descendant.
-      if (position === 'inside' || position === 'before' || position === 'after') {
-        let cursor: Page | undefined = target;
-        while (cursor) {
-          if (cursor.id === sourceId) return;
-          if (!cursor.parentId) break;
-          cursor = pagesById.get(cursor.parentId);
-        }
-      }
-
-      // Determine new parentId + order.
-      let newParentId: string | null;
-      let newOrder: number;
-      if (position === 'inside') {
-        newParentId = target.id;
-        const siblings = pages.filter((p) => p.parentId === target.id).map((p) => p.order ?? 0);
-        newOrder = (siblings.length ? Math.max(...siblings) : -1) + 1;
-      } else {
-        newParentId = target.parentId ?? null;
-        const targetOrder = target.order ?? 0;
-        newOrder = position === 'before' ? targetOrder - 0.5 : targetOrder + 0.5;
-      }
-
-      updatePage.mutate({
-        id: sourceId,
-        parentId: newParentId,
-        order: newOrder,
-      });
+      const moves = planSidebarDrop({ pages, sourceId, targetId, position, place });
+      for (const move of moves ?? []) updatePage.mutate({ id: move.id, ...move.patch });
     },
-    [pages, pagesById, updatePage],
+    [pages, place, updatePage],
   );
 
   if (pages.length === 0) {
@@ -92,24 +69,22 @@ export function SidebarPageTree({
   }
 
   return (
-    <PageDragProvider onCommit={handleCommit}>
-      <View>
-        {roots.map((node) => (
-          <TreeNodeRow
-            key={node.page.id}
-            node={node}
-            depth={0}
-            activePath={pathname}
-            workspaceId={workspaceId}
-            expanded={expanded}
-            setExpanded={setExpanded}
-            readOnly={readOnly}
-            enableDrag={enableDrag && !readOnly}
-            onCommit={handleCommit}
-          />
-        ))}
-      </View>
-    </PageDragProvider>
+    <View>
+      {roots.map((node) => (
+        <TreeNodeRow
+          key={node.page.id}
+          node={node}
+          depth={0}
+          activePath={pathname}
+          workspaceId={workspaceId}
+          expanded={expanded}
+          setExpanded={setExpanded}
+          readOnly={readOnly}
+          enableDrag={enableDrag && !readOnly}
+          onCommit={handleCommit}
+        />
+      ))}
+    </View>
   );
 }
 
@@ -141,7 +116,7 @@ function TreeNodeRow({
   const isActive = activePath === `/p/${node.page.id}`;
 
   const handleDrop = React.useCallback(
-    (sourceId: string, position: 'before' | 'after' | 'inside') => {
+    (sourceId: string, position: DropPosition) => {
       onCommit({ sourceId, targetId: node.page.id, position });
     },
     [node.page.id, onCommit],
