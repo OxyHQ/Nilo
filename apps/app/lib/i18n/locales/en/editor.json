@@ -1,5 +1,10 @@
 {
   "slashMenu": {
+    "childPage": {
+      "label": "Page",
+      "description": "A subpage inside this page.",
+      "keywords": "page, subpage, child page, new page, document"
+    },
     "paragraph": {
       "label": "Text",
       "description": "Plain text paragraph.",
@@ -267,7 +272,8 @@
   "mentions": {
     "people": "People",
     "pages": "Pages",
-    "date": "Date"
+    "date": "Date",
+    "profile": "%{name}'s profile"
   },
   "canvas": {
     "label": "Canvas",
@@ -313,17 +319,35 @@
     },
     "video": {
       "label": "Video",
-      "paste": "Paste a YouTube, Vimeo, Loom or video link"
+      "paste": "Paste a YouTube, Vimeo, Loom or video link",
+      "removed": "This video was removed",
+      "open": "Open video"
     },
     "audio": {
       "label": "Audio",
-      "paste": "Paste an audio link"
+      "paste": "Paste an audio link",
+      "removed": "This audio was removed",
+      "play": "Play",
+      "pause": "Pause",
+      "seek": "Seek"
     },
     "image": {
       "label": "Image",
       "paste": "Paste an image link",
       "removed": "This image was removed",
-      "alt": "Image"
+      "alt": "Image",
+      "align": {
+        "left": "Align left",
+        "center": "Center",
+        "right": "Align right",
+        "full": "Full width"
+      },
+      "size": "%{percent}% wide",
+      "altText": "Alt text",
+      "altPlaceholder": "Describe the image",
+      "altHint": "Read aloud by screen readers in place of the image.",
+      "options": "Image options",
+      "resize": "Resize image"
     },
     "file": {
       "label": "File",
@@ -379,6 +403,45 @@
         "duplicate-template": "Duplicate template",
         "webhook": "Webhook"
       }
+    },
+    "table": {
+      "label": "Table, %{rows} rows by %{cols} columns",
+      "addRow": "Add row",
+      "addColumn": "Add column",
+      "insertAbove": "Insert row above",
+      "insertBelow": "Insert row below",
+      "insertLeft": "Insert column left",
+      "insertRight": "Insert column right",
+      "deleteRow": "Delete row",
+      "deleteColumn": "Delete column",
+      "headerRow": "Header row",
+      "rowMenu": "Row %{index} options",
+      "columnMenu": "Column %{index} options"
+    },
+    "columns": {
+      "label": {
+        "one": "%{count} column",
+        "other": "%{count} columns"
+      },
+      "addLeft": "Add column to the left",
+      "addRight": "Add column to the right",
+      "remove": "Remove column",
+      "menu": "Column %{index} options",
+      "empty": "Empty column. Press to write in it.",
+      "resize": "Resize columns"
+    },
+    "childPage": {
+      "creating": "Creating page…",
+      "missing": "This page is not available",
+      "trashed": "In the trash",
+      "createFailed": "The page could not be created"
+    },
+    "callout": {
+      "changeIcon": "Change icon"
+    },
+    "code": {
+      "plain": "Plain text",
+      "language": "Language: %{language}"
     }
   }
 }

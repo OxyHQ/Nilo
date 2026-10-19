@@ -12,9 +12,7 @@
     "count": {
       "one": "%{count} comment",
       "other": "%{count} comments"
-    },
-    "add": "Add a comment",
-    "label": "Comment"
+    }
   },
   "panel": {
     "title": "Comments",
