@@ -12,7 +12,16 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
-import { DATABASE_PROPERTY_TYPES, type DatabasePropertyType } from '@oxy.so/nilo-contracts';
+import {
+  type ButtonAction,
+  type CalculationFunction,
+  type ChartAggregate,
+  type ChartType,
+  DATABASE_PROPERTY_TYPES,
+  type DatabasePropertyType,
+  type DateGroupGranularity,
+  type OpenRowMode,
+} from '@oxy.so/nilo-contracts';
 import { blocks, pages } from './pages.js';
 import { workspaces } from './workspaces.js';
 import { teamspaces } from './teamspaces.js';
@@ -151,6 +160,8 @@ export interface PropertyConfig {
   expression?: string;
   // unique_id
   prefix?: string;
+  // button: what it does when pressed, in order
+  actions?: ButtonAction[];
 }
 
 export interface DatabaseProperty {
@@ -183,6 +194,8 @@ export const DATABASE_VIEW_TYPES = [
   'timeline',
   // A form: each response becomes a row (`database_forms` holds its link).
   'form',
+  // A chart of the rows: bars, a line or a donut, one point per group.
+  'chart',
 ] as const;
 export type DatabaseViewType = (typeof DATABASE_VIEW_TYPES)[number];
 
@@ -221,9 +234,23 @@ export interface FilterGroup {
 
 export type Filter = FilterCondition | FilterGroup;
 
-/** Board grouping. `null` when the view is ungrouped. */
+/**
+ * How a view groups its rows: a board's columns, a table's or a list's
+ * sections, a board's sub-groups (`subGroupBy`). `null` when the view is
+ * ungrouped. A date groups by `granularity` (a day by default); the empty
+ * groups (an option no row has) are hidden with `hideEmpty`.
+ */
 export interface ViewGroupBy {
   propertyId: string;
+  granularity?: DateGroupGranularity;
+  hideEmpty?: boolean;
+}
+
+/** A chart view's chart: one point per group of `xAxis`, measuring `yAxis`. */
+export interface ViewChartConfig {
+  type: ChartType;
+  xAxis?: { propertyId: string; granularity?: DateGroupGranularity };
+  yAxis?: { aggregate: ChartAggregate; propertyId?: string };
 }
 
 /**
@@ -234,6 +261,9 @@ export interface ViewGroupBy {
  *   - gallery:  { coverSource, coverPropertyId?, fit? }
  *   - board:    grouping is via top-level `groupBy`; no extra fields needed.
  *   - form:     { description? }, shown above its fields
+ *   - table:    { columnWidths?, calculations? }
+ *   - chart:    { chart }
+ *   - any:      { openIn?, propertyOrder? }
  */
 export interface ViewConfig {
   description?: string;
@@ -243,6 +273,16 @@ export interface ViewConfig {
   coverSource?: 'property' | 'pageCover';
   coverPropertyId?: string;
   fit?: 'cover' | 'contain';
+  /** Where the view opens a row; absent, in a side peek. */
+  openIn?: OpenRowMode;
+  /** A table's column widths, by property id (`name` for the title). */
+  columnWidths?: Record<string, number>;
+  /** The view's own property order, overriding the database's; ids it misses follow in that order. */
+  propertyOrder?: string[];
+  /** A table's footer: what it computes over each property of all the view's rows. */
+  calculations?: Record<string, CalculationFunction>;
+  /** A chart view's chart. */
+  chart?: ViewChartConfig;
 }
 
 /** The default a view is created with when the caller supplies no filter. */
@@ -501,6 +541,8 @@ export const databaseViews = pgTable(
     sorts: jsonb().$type<ViewSort[]>().notNull().default([]),
     /** `null` when the view is ungrouped — the default. */
     groupBy: jsonb().$type<ViewGroupBy>(),
+    /** A board's sub-groups (its rows of columns); `null` for none. */
+    subGroupBy: jsonb().$type<ViewGroupBy>(),
     hiddenProperties: text().array().notNull().default([]),
     frozenProperties: text().array().notNull().default([]),
     pageSize: integer().notNull().default(DEFAULT_VIEW_PAGE_SIZE),

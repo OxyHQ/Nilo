@@ -226,6 +226,8 @@ export function InlineDatabaseBlock({
             readOnly={readOnly || (viewState.linked && !canEditSource)}
             viewsReadOnly={readOnly}
             total={rows.data?.total}
+            groups={rows.data?.groups}
+            hasMore={rows.hasNextPage}
             isFetchingMore={rows.isFetchingNextPage}
             onLoadMore={() => {
               if (rows.hasNextPage && !rows.isFetching)

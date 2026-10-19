@@ -8,9 +8,18 @@ import { SubItemToggle, NewSubItem } from '../sub-item-controls';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 
 const mockCreateRow = jest.fn();
+// A group of people shows their profiles, which these tests do not read.
+jest.mock('../person-cell', () => ({ PersonChips: () => null }));
+jest.mock('@/lib/hooks/use-view-data', () => ({
+  useViewCalculations: () => ({ data: undefined }),
+  useViewChart: () => ({ data: undefined, isLoading: false }),
+}));
 jest.mock('@/lib/hooks/use-database-rows', () => ({
   useCreateRow: () => ({ mutate: mockCreateRow }),
   useUpdateRow: () => ({ mutate: jest.fn() }),
+}));
+jest.mock('@/lib/hooks/use-database-views', () => ({
+  useUpdateView: () => ({ mutate: jest.fn() }),
 }));
 jest.mock('../property-cell', () => ({ PropertyCell: () => null }));
 jest.mock('../property-config-modal', () => ({ PropertyHeaderMenu: () => null }));

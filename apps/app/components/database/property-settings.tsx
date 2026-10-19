@@ -105,7 +105,8 @@ export function DateSettings({ database, property, onDone }: PropertySettingsPro
     <View className="gap-3">
       <SettingSelect
         label={t('databases.dateFormat.format')}
-        value={config.dateFormat ?? 'full'}
+        // None set reads as a short date (Oct 5, 2026).
+        value={config.dateFormat ?? 'short'}
         options={DATE_FORMATS.map((format) => ({
           value: format,
           label: t(`databases.dateFormat.formats.${format}`),

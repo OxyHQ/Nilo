@@ -9,6 +9,7 @@ import { PropertyHeaderMenu } from '../property-config-modal';
 import type { Database, DatabaseView } from '@/lib/types/databases';
 
 const mockDelete = jest.fn();
+jest.mock('../button-settings', () => ({ ButtonSettings: () => null }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),

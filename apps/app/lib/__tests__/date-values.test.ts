@@ -82,6 +82,45 @@ describe('editing a date in the cell', () => {
     );
     expect(formatDateValue(null)).toBe('');
   });
+
+  it('reads in the property’s date format', () => {
+    const day = { start: '2026-10-05T00:00:00.000Z' };
+    expect(formatDateValue(day, 'en-US', 'full')).toBe('October 5, 2026');
+    expect(formatDateValue(day, 'en-US', 'short')).toBe('Oct 5, 2026');
+    expect(formatDateValue(day, 'en-US', 'month_day_year')).toBe('10/05/2026');
+    expect(formatDateValue(day, 'en-US', 'day_month_year')).toBe('05/10/2026');
+    expect(formatDateValue(day, 'en-US', 'iso')).toBe('2026-10-05');
+    expect(formatDateValue(day, 'es-ES', 'full')).toBe('5 de octubre de 2026');
+    // Each end of a range and the time keep the format.
+    expect(
+      formatDateValue(
+        { start: local(2026, 10, 5, 14, 30), end: local(2026, 10, 9, 9, 0), includeTime: true },
+        'en-US',
+        'iso',
+      ),
+    ).toBe('2026-10-05 14:30 → 2026-10-09 09:00');
+  });
+
+  it('reads as a day relative to today within a week, else as a short date', () => {
+    const now = new Date(2026, 9, 5, 15, 0);
+    const on = (d: number) => ({ start: new Date(Date.UTC(2026, 9, d)).toISOString() });
+    expect(formatDateValue(on(5), 'en-US', 'relative', now)).toBe('Today');
+    expect(formatDateValue(on(6), 'en-US', 'relative', now)).toBe('Tomorrow');
+    expect(formatDateValue(on(4), 'en-US', 'relative', now)).toBe('Yesterday');
+    expect(formatDateValue(on(8), 'en-US', 'relative', now)).toBe('In 3 days');
+    expect(formatDateValue(on(1), 'en-US', 'relative', now)).toBe('4 days ago');
+    expect(formatDateValue(on(5), 'es-ES', 'relative', now)).toBe('Hoy');
+    expect(formatDateValue(on(20), 'en-US', 'relative', now)).toBe('Oct 20, 2026');
+    // A time on a day of the reader's zone: today until midnight there.
+    expect(
+      formatDateValue(
+        { start: local(2026, 10, 5, 23, 30), includeTime: true },
+        'en-US',
+        'relative',
+        now,
+      ),
+    ).toBe('Today 23:30');
+  });
 });
 
 describe('editing a date’s start', () => {

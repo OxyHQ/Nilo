@@ -62,6 +62,8 @@ export function rowFormulaContext(
         return [row.lastEditedBy ?? row.ownerId];
       case 'rollup':
         return rollups.get(property.id) ?? null;
+      case 'button':
+        return null;
       case 'formula': {
         // A formula reading a broken one is broken too (a cycle marks them all).
         const result = evaluate(property);

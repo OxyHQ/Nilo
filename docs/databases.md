@@ -32,6 +32,9 @@ time, never stored: formulas, rollups, created/edited time and by.
   pick from.
 - **IDs** (`unique_id`): numbered by the server (`databases.next_row_number`),
   existing rows too when the property is added; clients never write them.
+- **Buttons** (`button`): no value; `config.actions` (open a link, set a
+  property of the row to a value its type holds, add a row), checked when
+  saved and run by the app in order. Writes to one are refused.
 
 ## Properties
 
@@ -61,7 +64,7 @@ itself two-way is **sub-items**: "Sub-items" and "Sub-items (parent)".
 
 ## Views
 
-Table, board, calendar, gallery, list, timeline and form. A new view starts
+Table, board, calendar, gallery, list, timeline, form and chart. A new view starts
 on what it needs when the request leaves it open: a board grouped by the first
 status (else select, else checkbox), a calendar and a timeline on the first
 date, a gallery of page covers. A view's rows are
@@ -84,6 +87,29 @@ sorts on one computes them for every row and filters and sorts in JS
 (`filters.ts`, `sorts.ts`), its cursor an offset. The two paths answer
 alike: `view-query.pgdb.test.ts` checks the SQL against the JS on random
 views over every stored property type.
+
+**Groups.** A table or a list grouped (`groupBy`), and a board sub-grouped
+(`subGroupBy`, its rows of columns), page group by group: the group's order
+is the keyset's first key (options as listed, a status's in its groups'
+order; checked before unchecked; dates by day, week, month or year, in the
+reader's `?timeZone=` when they have a time; text and people as text sorts),
+the empty group last. A row with several labels or people comes once per
+group (a lateral join), each row carries its `groupKey`, and the response
+the `groups` with their counts — every option, even one no row holds
+(`hideEmpty` is the app's). `groups.ts` is the JS reference.
+
+**Calculations and charts.** A table's footer (`config.calculations`) and a
+chart view (`config.chart`: bars, a line or a donut; an x-axis grouped as
+above; a count, sum or average) are computed over every row the view shows,
+searched, not the page loaded (`GET …/views/:viewId/calculations`,
+`…/chart`), in SQL but for formulas and rollups (`calculations.ts`); the
+functions each type takes are the contracts' `CALCULATIONS_BY_TYPE`.
+`view-query.pgdb.test.ts` holds both SQL paths to their JS on random views.
+
+**Layout.** A view keeps where it opens rows (`openIn`: a side or centre
+peek — the row's properties and page in a sheet — or the full page), its
+own property order (`propertyOrder`, over the database's) and a table's
+column widths. A removed or retyped property leaves none of these behind.
 
 A database's own
 views are its editors' to change. An `inline_database` block showing a

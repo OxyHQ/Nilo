@@ -93,5 +93,8 @@ export const API_ROUTES = {
     createView: (id: string) => `/databases/${id}/views`,
     updateView: (id: string, viewId: string) => `/databases/${id}/views/${viewId}`,
     deleteView: (id: string, viewId: string) => `/databases/${id}/views/${viewId}`,
+    viewCalculations: (id: string, viewId: string) =>
+      `/databases/${id}/views/${viewId}/calculations`,
+    viewChart: (id: string, viewId: string) => `/databases/${id}/views/${viewId}/chart`,
   },
 } as const;

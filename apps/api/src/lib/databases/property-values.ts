@@ -157,6 +157,8 @@ export function parsePropertyValue(
     case 'last_edited_by':
     // Assigned by the server when the row is created; never written.
     case 'unique_id':
+    // A button holds no value: it runs its actions.
+    case 'button':
       return null;
   }
 }

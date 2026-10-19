@@ -15,6 +15,8 @@ jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), patch: jest.fn() },
 }));
+/** Every read names the reader's zone: a view grouped by date groups in it. */
+const ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 let client: QueryClient;
 let renderer: ReactTestRenderer;
 let rows: ReturnType<typeof useDatabaseRows>;
@@ -82,7 +84,7 @@ it.each(['table', 'list', 'gallery', 'board'] as const)(
     expect(apiClient.get).toHaveBeenCalledWith(
       '/databases/db/rows',
       // No page size: the API reads the view's own (its load limit).
-      expect.objectContaining({ params: { viewId: 'view' } }),
+      expect.objectContaining({ params: { viewId: 'view', timeZone: ZONE } }),
     );
     await act(async () => {
       await rows.fetchNextPage();
@@ -91,7 +93,7 @@ it.each(['table', 'list', 'gallery', 'board'] as const)(
     expect(rows.data?.rows).toHaveLength(200);
     expect(apiClient.get).toHaveBeenLastCalledWith(
       '/databases/db/rows',
-      expect.objectContaining({ params: { viewId: 'view', cursor: '100' } }),
+      expect.objectContaining({ params: { viewId: 'view', cursor: '100', timeZone: ZONE } }),
     );
     await act(async () => {
       await rows.fetchNextPage();
@@ -120,7 +122,7 @@ it.each(['calendar', 'timeline'] as const)(
     expect(apiClient.get).toHaveBeenCalledWith(
       '/databases/db/rows',
       expect.objectContaining({
-        params: { viewId: 'view', pageSize: '100', filter: JSON.stringify(dates) },
+        params: { viewId: 'view', pageSize: '100', filter: JSON.stringify(dates), timeZone: ZONE },
       }),
     );
 
@@ -208,7 +210,7 @@ it('reads the rows a view is searched for, showing the last ones until they come
   await tick();
   expect(apiClient.get).toHaveBeenLastCalledWith(
     '/databases/db/rows',
-    expect.objectContaining({ params: { viewId: 'view', search: 'Row 7' } }),
+    expect.objectContaining({ params: { viewId: 'view', search: 'Row 7', timeZone: ZONE } }),
   );
   expect(rows.data?.rows).toHaveLength(100);
   await act(async () =>

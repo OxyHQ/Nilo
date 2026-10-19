@@ -2,6 +2,7 @@ import { RelationCell } from './relation-cell';
 import { ComputedCell } from './computed-cell';
 import { ContactCell, ContactLink } from './contact-cell';
 import { DateCell } from './date-cell';
+import { ButtonCell } from './button-cell';
 import { FilesCell, FilesChips } from './files-cell';
 import { PersonCell, PersonChips } from './person-cell';
 import * as React from 'react';
@@ -68,6 +69,8 @@ export function PropertyCell({
 }: PropertyCellProps) {
   if (property.type === 'formula' || property.type === 'unique_id')
     return <ComputedCell property={property} value={value} />;
+  if (property.type === 'button')
+    return <ButtonCell property={property} rowId={rowId} readOnly={readOnly} />;
   // A card previews its row and opens it when pressed: only its pickers edit in place.
   if (readOnly || (variant === 'card' && SHOWN_ON_CARDS.has(property.type)))
     return <PropertyValueText property={property} value={value} rowId={rowId} />;
@@ -140,7 +143,16 @@ export function PropertyCell({
         />
       );
     case 'date':
-      return <DateCell label={property.name} variant={variant} value={value} onChange={onChange} />;
+      return (
+        <DateCell
+          label={property.name}
+          variant={variant}
+          value={value}
+          format={property.config?.dateFormat}
+          includeTime={property.config?.includeTime === true}
+          onChange={onChange}
+        />
+      );
     case 'person':
       return (
         <PersonCell
@@ -227,7 +239,7 @@ function PropertyValueText({
         .join(', ');
       break;
     case 'date':
-      display = formatDateValue(value, locale);
+      display = formatDateValue(value, locale, property.config?.dateFormat);
       break;
     case 'person':
     case 'created_by':

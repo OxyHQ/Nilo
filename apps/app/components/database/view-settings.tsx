@@ -15,21 +15,53 @@ import {
 import { Switch } from '@oxy.so/bloom/switch';
 import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
+import {
+  CHART_AGGREGATES,
+  CHART_TYPES,
+  DATE_GROUP_GRANULARITIES,
+  GROUPABLE_PROPERTY_TYPES,
+  OPEN_ROW_MODES,
+} from '@oxy.so/nilo-contracts';
 import { useTranslation } from '@/hooks/useTranslation';
-import { databaseChangeError } from '@/lib/database-errors';
-import { useReorderProperties } from '@/lib/hooks/use-database-properties';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
 import type {
+  ChartAggregate,
+  ChartType,
   Database,
   DatabaseProperty,
   DatabasePropertyType,
   DatabaseView,
+  DateGroupGranularity,
+  OpenRowMode,
+  ViewChartConfig,
   ViewConfig,
+  ViewGroupBy,
 } from '@/lib/types/databases';
 import { NAME_PROPERTY_ID } from '@/lib/types/databases';
+import { moveProperty, orderedProperties } from '@/lib/view-properties';
 
 /** What a board groups by (`view-board.tsx`). */
 export const GROUPABLE_TYPES: readonly DatabasePropertyType[] = ['status', 'select', 'checkbox'];
+
+/** What a table's or a list's rows, a board's sub-groups and a chart's axis group by. */
+const ROW_GROUPABLE: readonly DatabasePropertyType[] = GROUPABLE_PROPERTY_TYPES;
+
+/** The types grouped by day, week, month or year. */
+const DATED: ReadonlySet<DatabasePropertyType> = new Set([
+  'date',
+  'created_time',
+  'last_edited_time',
+]);
+
+/** The views that open rows; a form takes responses, a chart shows none. */
+const OPENS_ROWS: ReadonlySet<DatabaseView['type']> = new Set([
+  'table',
+  'board',
+  'gallery',
+  'list',
+  'calendar',
+  'timeline',
+]);
 
 /** Notion's load limits: the rows a view shows before "Load more". */
 const PAGE_SIZES = [10, 25, 50, 100] as const;
@@ -45,21 +77,21 @@ const PAGED_TYPES: ReadonlySet<DatabaseView['type']> = new Set([
 interface ViewSettingsProps {
   database: Database;
   view: DatabaseView;
-  /** May reorder the database's properties (its editor, and it is not locked). */
-  canEditSchema: boolean;
 }
 
 /**
  * A view's settings, as Notion's view options: what its layout is built from
- * (a board's grouping, a calendar's or a timeline's dates, a gallery's cards,
- * a table's frozen columns), how many rows it loads, and which properties it
- * shows, in the database's order. Every change is saved as it is made.
+ * (a board's grouping and sub-grouping, a table's or a list's groups, a
+ * calendar's or a timeline's dates, a gallery's cards, a table's frozen
+ * columns, a chart's axes), where it opens rows, how many it loads, and which
+ * properties it shows, in its own order (`config.propertyOrder`). Every
+ * change is saved as it is made.
  */
-export function ViewSettings({ database, view, canEditSchema }: ViewSettingsProps) {
+export function ViewSettings({ database, view }: ViewSettingsProps) {
   const { t } = useTranslation();
   const updateView = useUpdateView();
-  const reorder = useReorderProperties();
-  const properties = database.schema.properties;
+  // In the view's order: the one its table's columns and its cards follow.
+  const properties = orderedProperties(database, view);
   const ofType = (...types: DatabasePropertyType[]) =>
     properties.filter((p) => types.includes(p.type));
 
@@ -79,6 +111,10 @@ export function ViewSettings({ database, view, canEditSchema }: ViewSettingsProp
   const choices = (list: DatabaseProperty[]) => list.map((p) => ({ value: p.id, label: p.name }));
   const NONE = '__none__';
   const none = { value: NONE, label: t('databases.viewSettings.none') };
+  const granularities = DATE_GROUP_GRANULARITIES.map((g) => ({
+    value: g,
+    label: t(`databases.viewSettings.granularities.${g}`),
+  }));
 
   // A table's columns as it shows them: the Name, then the properties it does not hide.
   const columns = [
@@ -88,23 +124,72 @@ export function ViewSettings({ database, view, canEditSchema }: ViewSettingsProp
   const frozen = new Set(view.frozenProperties);
   const lastFrozen = [...columns].reverse().find((p) => frozen.has(p.id));
 
+  // Up or down in the view's own order; the database's stays as it is.
   const move = (id: string, by: -1 | 1) => {
     const ids = properties.map((p) => p.id);
-    const from = ids.indexOf(id);
-    const to = from + by;
-    if (from === -1 || to < 0 || to >= ids.length) return;
-    [ids[from], ids[to]] = [ids[to] as string, ids[from] as string];
-    reorder.mutate(
-      { databaseId: database.id, ids },
-      {
-        onError: (error) =>
-          toast.error(databaseChangeError(error, database, t('databases.properties.updateFailed'))),
-      },
+    const propertyOrder = moveProperty(ids, ids, id, by);
+    if (propertyOrder) setConfig({ propertyOrder });
+  };
+
+  /** A grouping (a table's or a list's groups, a board's sub-groups), its dates' unit, and empty groups. */
+  const grouping = (key: 'groupBy' | 'subGroupBy', label: string) => {
+    const current = view[key] ?? null;
+    const property = current ? properties.find((p) => p.id === current.propertyId) : undefined;
+    const set = (next: ViewGroupBy | null) => update({ [key]: next });
+    return (
+      <>
+        <SettingSelect
+          label={label}
+          value={current?.propertyId ?? NONE}
+          options={[none, ...choices(ofType(...ROW_GROUPABLE))]}
+          onChange={(id) =>
+            set(
+              id === NONE
+                ? null
+                : { propertyId: id, ...(current?.hideEmpty && { hideEmpty: true }) },
+            )
+          }
+        />
+        {current && property && DATED.has(property.type) ? (
+          <SettingSelect
+            label={t('databases.viewSettings.granularity')}
+            value={current.granularity ?? 'day'}
+            options={granularities}
+            onChange={(g) => set({ ...current, granularity: g as DateGroupGranularity })}
+          />
+        ) : null}
+        {current ? (
+          <SettingSwitch
+            label={t('databases.viewSettings.hideEmpty')}
+            checked={current.hideEmpty === true}
+            onChange={(hideEmpty) => set({ ...current, hideEmpty })}
+          />
+        ) : null}
+      </>
     );
   };
 
+  const chart: ViewChartConfig = view.config.chart ?? { type: 'bar' };
+  const setChart = (patch: Partial<ViewChartConfig>) =>
+    setConfig({ chart: { ...chart, ...patch } });
+  const xAxis = chart.xAxis;
+  const xProperty = xAxis ? properties.find((p) => p.id === xAxis.propertyId) : undefined;
+  const yAxis = chart.yAxis;
+  const numbers = ofType('number', 'unique_id');
+
   return (
     <View className="gap-3">
+      {OPENS_ROWS.has(view.type) ? (
+        <SettingSelect
+          label={t('databases.viewSettings.openIn')}
+          value={view.config.openIn ?? 'side_peek'}
+          options={OPEN_ROW_MODES.map((mode) => ({
+            value: mode,
+            label: t(`databases.viewSettings.openModes.${mode}`),
+          }))}
+          onChange={(openIn) => setConfig({ openIn: openIn as OpenRowMode })}
+        />
+      ) : null}
       {view.type === 'board' ? (
         <SettingSelect
           label={t('databases.viewSettings.groupBy')}
@@ -112,6 +197,67 @@ export function ViewSettings({ database, view, canEditSchema }: ViewSettingsProp
           options={choices(ofType(...GROUPABLE_TYPES))}
           onChange={(propertyId) => update({ groupBy: { propertyId } })}
         />
+      ) : null}
+      {view.type === 'board'
+        ? grouping('subGroupBy', t('databases.viewSettings.subGroupBy'))
+        : null}
+      {view.type === 'table' || view.type === 'list'
+        ? grouping('groupBy', t('databases.viewSettings.groupBy'))
+        : null}
+      {view.type === 'chart' ? (
+        <>
+          <SettingSelect
+            label={t('databases.viewSettings.chartType')}
+            value={chart.type}
+            options={CHART_TYPES.map((type) => ({
+              value: type,
+              label: t(`databases.viewSettings.chartTypes.${type}`),
+            }))}
+            onChange={(type) => setChart({ type: type as ChartType })}
+          />
+          <SettingSelect
+            label={t('databases.viewSettings.xAxis')}
+            value={xAxis?.propertyId ?? ''}
+            options={choices(ofType(...ROW_GROUPABLE))}
+            onChange={(propertyId) => setChart({ xAxis: { propertyId } })}
+          />
+          {xAxis && xProperty && DATED.has(xProperty.type) ? (
+            <SettingSelect
+              label={t('databases.viewSettings.granularity')}
+              value={xAxis.granularity ?? 'day'}
+              options={granularities}
+              onChange={(g) =>
+                setChart({ xAxis: { ...xAxis, granularity: g as DateGroupGranularity } })
+              }
+            />
+          ) : null}
+          <SettingSelect
+            label={t('databases.viewSettings.yAxis')}
+            value={yAxis?.aggregate ?? 'count'}
+            options={CHART_AGGREGATES.filter((a) => a === 'count' || numbers.length > 0).map(
+              (a) => ({ value: a, label: t(`databases.viewSettings.aggregates.${a}`) }),
+            )}
+            onChange={(aggregate) =>
+              setChart({
+                yAxis:
+                  aggregate === 'count'
+                    ? { aggregate: 'count' }
+                    : {
+                        aggregate: aggregate as ChartAggregate,
+                        propertyId: yAxis?.propertyId ?? numbers[0]?.id,
+                      },
+              })
+            }
+          />
+          {yAxis && yAxis.aggregate !== 'count' ? (
+            <SettingSelect
+              label={t('databases.viewSettings.yProperty')}
+              value={yAxis.propertyId ?? ''}
+              options={choices(numbers)}
+              onChange={(propertyId) => setChart({ yAxis: { ...yAxis, propertyId } })}
+            />
+          ) : null}
+        </>
       ) : null}
       {view.type === 'calendar' ? (
         <SettingSelect
@@ -198,30 +344,26 @@ export function ViewSettings({ database, view, canEditSchema }: ViewSettingsProp
               <Text variant="body-regular" numberOfLines={1} className="flex-1">
                 {property.name}
               </Text>
-              {canEditSchema ? (
-                <>
-                  <Button
-                    iconOnly
-                    appearance="plain"
-                    size="xs"
-                    disabled={index === 0 || reorder.isPending}
-                    accessibilityLabel={t('databases.viewSettings.moveUp', { name: property.name })}
-                    leadingIcon={RiArrowUpSLine}
-                    onPress={() => move(property.id, -1)}
-                  />
-                  <Button
-                    iconOnly
-                    appearance="plain"
-                    size="xs"
-                    disabled={index === properties.length - 1 || reorder.isPending}
-                    accessibilityLabel={t('databases.viewSettings.moveDown', {
-                      name: property.name,
-                    })}
-                    leadingIcon={RiArrowDownSLine}
-                    onPress={() => move(property.id, 1)}
-                  />
-                </>
-              ) : null}
+              <Button
+                iconOnly
+                appearance="plain"
+                size="xs"
+                disabled={index === 0}
+                accessibilityLabel={t('databases.viewSettings.moveUp', { name: property.name })}
+                leadingIcon={RiArrowUpSLine}
+                onPress={() => move(property.id, -1)}
+              />
+              <Button
+                iconOnly
+                appearance="plain"
+                size="xs"
+                disabled={index === properties.length - 1}
+                accessibilityLabel={t('databases.viewSettings.moveDown', {
+                  name: property.name,
+                })}
+                leadingIcon={RiArrowDownSLine}
+                onPress={() => move(property.id, 1)}
+              />
               {/* The Name is every view's title: it is never hidden. */}
               {property.id !== NAME_PROPERTY_ID ? (
                 <Switch

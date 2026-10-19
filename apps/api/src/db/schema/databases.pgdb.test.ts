@@ -88,7 +88,7 @@ describe('databases_property_types', () => {
   it('accepts every value in DATABASE_PROPERTY_TYPES', async () => {
     // The positive control for the rejections below: if the CHECK rejected
     // everything, or the insert path were broken, this fails first.
-    expect(DATABASE_PROPERTY_TYPES.length).toBe(20);
+    expect(DATABASE_PROPERTY_TYPES.length).toBe(21);
     for (const type of DATABASE_PROPERTY_TYPES) {
       await expect(
         insertRawSchema(`{"properties":[{"id":"p","name":"P","type":"${type}"}]}`),
@@ -167,7 +167,7 @@ describe('database_views_type', () => {
       .values({ workspaceId, ownerId: 'owner' })
       .returning({ id: databases.id });
 
-    expect(DATABASE_VIEW_TYPES.length).toBe(7);
+    expect(DATABASE_VIEW_TYPES.length).toBe(8);
     for (const type of DATABASE_VIEW_TYPES) {
       await expect(
         db.insert(databaseViews).values({ databaseId: database.id, type }),
@@ -334,6 +334,8 @@ describe('columns', () => {
         'filters',
         'sorts',
         'group_by',
+        // A board's sub-groups.
+        'sub_group_by',
         'hidden_properties',
         'frozen_properties',
         'page_size',

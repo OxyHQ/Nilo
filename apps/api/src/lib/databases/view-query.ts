@@ -23,10 +23,11 @@ import type { DatabaseProperty, Filter, ViewSort } from '../../db/schema/databas
 import { pages } from '../../db/schema/pages.js';
 import type { PageRow } from '../../repositories/pages.js';
 import { emptyMatches } from './filters.js';
+import { type GroupKey, type GroupSpec, groupKind, orderedOptionIds } from './groups.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** A sort key: a number (`float8`) or a text ordered by `nilo_sort`. */
+/** A sort key: a number (`float8`) or a text ordered by `nilo_sort` (or by bytes, `collate "C"`). */
 type KeyKind = 'number' | 'text';
 
 interface SortKey {
@@ -35,10 +36,24 @@ interface SortKey {
   direction: 'asc' | 'desc';
 }
 
+/**
+ * A view's grouping in SQL (`groups.ts` is its JS reference): each row's
+ * group (`key`, text, NULL for the empty group), the keys its groups are
+ * ordered by, and for a property with several values a lateral join giving
+ * the row once per value.
+ */
+export interface CompiledGroup {
+  key: SQL;
+  keys: SortKey[];
+  lateral: SQL | null;
+}
+
 /** A view compiled to SQL: which rows it shows and the order it shows them in. */
 export interface CompiledView {
   where: SQL;
+  /** The group's keys first when the view is grouped, then its sorts. */
   keys: SortKey[];
+  group: CompiledGroup | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -272,7 +287,7 @@ function dateAccessor(ms: SQL, empty: SQL, includeTime: SQL): Accessor {
   };
 }
 
-function accessorFor(property: DatabaseProperty): Accessor {
+export function accessorFor(property: DatabaseProperty): Accessor {
   if (property.id === 'name' && property.type === 'text') return textAccessor(null);
   const stored = sql`(${pages.properties} -> ${property.id}::text)`;
   switch (property.type) {
@@ -337,10 +352,179 @@ function accessorFor(property: DatabaseProperty): Accessor {
         },
       };
     }
+    // A button holds no value: always empty, never matched, sorted as nothing.
+    case 'button':
+      return {
+        empty: sql`true`,
+        test: () => null,
+        key: { expr: sql`null::float8`, kind: 'number' },
+      };
     case 'formula':
     case 'rollup':
       throw new Error(`A ${property.type} is computed in JS and cannot be read in SQL`);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Groups
+// ---------------------------------------------------------------------------
+
+const textArray = (values: readonly string[]) =>
+  sql`array[${sql.join(
+    values.map((v) => sql`${v}::text`),
+    sql`, `,
+  )}]::text[]`;
+
+/** The groups' order for text keys: as a sort orders them, then by their bytes. */
+function textGroupKeys(key: SQL): SortKey[] {
+  return [
+    { expr: sql`(${key}) collate nilo_sort`, kind: 'text', direction: 'asc' },
+    { expr: sql`(${key}) collate "C"`, kind: 'text', direction: 'asc' },
+  ];
+}
+
+/** The alias of a multi-valued property's lateral join (`… cross join lateral <lateral>`): one row per value, `nilo_group.k`. */
+const GROUP_KEY = sql`nilo_group.k`;
+
+/**
+ * Each value of a list as a row of `nilo_group`, distinct, the strings among
+ * them only (`listed`, when given, those only); one NULL row for none.
+ */
+function lateralValues(list: SQL, listed: readonly string[] | null): SQL {
+  const elements = sql`jsonb_array_elements(case when jsonb_typeof(${list}) = 'array' then ${list} else '[]'::jsonb end) as nilo_value(v)`;
+  const kept = listed
+    ? sql`jsonb_typeof(nilo_value.v) = 'string' and (nilo_value.v #>> '{}') = any(${textArray(listed)})`
+    : sql`jsonb_typeof(nilo_value.v) = 'string'`;
+  return sql`unnest(coalesce(nullif(array(select distinct (nilo_value.v #>> '{}') from ${elements} where ${kept}), '{}'::text[]), array[null]::text[])) as nilo_group(k)`;
+}
+
+/** The day, week, month or year a date falls in, as `groups.ts`' `dateGroupKey`. */
+function dateGroup(ms: SQL, includeTime: SQL, spec: GroupSpec): CompiledGroup {
+  const at = sql`to_timestamp(${ms} / 1000.0)`;
+  const local = sql`(case when ${includeTime} then (${at} at time zone ${spec.timeZone}::text) else (${at} at time zone 'UTC') end)`;
+  const bucket = sql`date_trunc(${spec.granularity}::text, ${local})`;
+  return {
+    key: sql`to_char(${bucket}, 'YYYY-MM-DD')`,
+    keys: [{ expr: sql`extract(epoch from ${bucket})::float8`, kind: 'number', direction: 'asc' }],
+    lateral: null,
+  };
+}
+
+/** What `groups.ts`' `rowGroupKeys` and `compareGroupKeys` answer, in SQL. */
+export function compileGroup(spec: GroupSpec): CompiledGroup {
+  const { property } = spec;
+  const stored = sql`(${pages.properties} -> ${property.id}::text)`;
+  switch (groupKind(property)) {
+    case 'option': {
+      const option = sql`${stored} -> 'optionId'`;
+      const id = sql`(case when jsonb_typeof(${option}) = 'string' then ${asText(option)} end)`;
+      const position = sql`array_position(${textArray(orderedOptionIds(property))}, ${id})`;
+      return {
+        key: sql`(case when ${position} is not null then ${id} end)`,
+        keys: [{ expr: sql`(${position} - 1)::float8`, kind: 'number', direction: 'asc' }],
+        lateral: null,
+      };
+    }
+    case 'list_option': {
+      const ids = orderedOptionIds(property);
+      return {
+        key: GROUP_KEY,
+        keys: [
+          {
+            expr: sql`(array_position(${textArray(ids)}, ${GROUP_KEY}) - 1)::float8`,
+            kind: 'number',
+            direction: 'asc',
+          },
+        ],
+        lateral: lateralValues(sql`${stored} -> 'optionIds'`, ids),
+      };
+    }
+    case 'people':
+      return {
+        key: GROUP_KEY,
+        keys: textGroupKeys(GROUP_KEY),
+        lateral: lateralValues(sql`${stored} -> 'userIds'`, null),
+      };
+    case 'user': {
+      const user =
+        property.type === 'created_by'
+          ? sql`${pages.ownerId}`
+          : sql`coalesce(${pages.lastEditedBy}, ${pages.ownerId})`;
+      const key = sql`nullif(${user}, '')`;
+      return { key, keys: textGroupKeys(key), lateral: null };
+    }
+    case 'checkbox': {
+      const checked = truthy(sql`${stored} -> 'checked'`);
+      return {
+        key: sql`(case when ${checked} then 'true' else 'false' end)`,
+        keys: [
+          {
+            expr: sql`(case when ${checked} then 0 else 1 end)::float8`,
+            kind: 'number',
+            direction: 'asc',
+          },
+        ],
+        lateral: null,
+      };
+    }
+    case 'date':
+      if (property.type === 'created_time')
+        return dateGroup(epochMs(sql`${pages.createdAt}`), sql`true`, spec);
+      if (property.type === 'last_edited_time')
+        return dateGroup(epochMs(sql`${pages.updatedAt}`), sql`true`, spec);
+      return dateGroup(
+        dateMs(sql`${stored} -> 'start'`),
+        truthy(sql`${stored} -> 'includeTime'`),
+        spec,
+      );
+    case 'text': {
+      const accessor = accessorFor(property);
+      const key = sql`(case when ${accessor.empty} then null else ${accessor.key.expr} end)`;
+      return { key, keys: textGroupKeys(key), lateral: null };
+    }
+    default:
+      throw new Error(`A ${property.type} property has no groups`);
+  }
+}
+
+/** The rows a view reads: the database's pages, once per group for a multi-valued group. */
+function rowSource(view: CompiledView): SQL {
+  return view.group?.lateral
+    ? sql`${pages} cross join lateral ${view.group.lateral}`
+    : sql`${pages}`;
+}
+
+/**
+ * How many of a compiled view's rows each of its groups holds, and with
+ * `measure` (a number per row) its sum and average there: a grouped view's
+ * sections, a chart's points.
+ */
+export async function listViewGroups(
+  handle: PgHandle,
+  view: CompiledView,
+  measure?: SQL,
+): Promise<Map<GroupKey, { count: number; sum: number | null; average: number | null }>> {
+  const group = view.group;
+  if (!group) throw new Error('The view is not grouped');
+  const rows = await handle.execute<{
+    k: string | null;
+    count: number;
+    sum: number | null;
+    average: number | null;
+  }>(sql`select ${group.key} as k, count(*)::int as count,
+      ${measure ? sql`sum(${measure})::float8` : sql`null::float8`} as sum,
+      ${measure ? sql`avg(${measure})::float8` : sql`null::float8`} as average
+    from ${rowSource(view)} where ${view.where} group by 1`);
+  return new Map(
+    [...rows].map((r) => [
+      r.k,
+      {
+        count: Number(r.count),
+        sum: r.sum === null ? null : Number(r.sum),
+        average: r.average === null ? null : Number(r.average),
+      },
+    ]),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -378,6 +562,8 @@ export function compileView(
   databaseId: string,
   view: { filters?: Filter | null; sorts?: readonly ViewSort[] | null; search?: string },
   propertyById: Map<string, DatabaseProperty>,
+  /** Grouped, its rows come group by group (`groups.ts`), each in its view's order. */
+  groupBy: GroupSpec | null = null,
 ): CompiledView {
   const conditions: SQL[] = [
     sql`${pages.databaseId} = ${databaseId}`,
@@ -392,7 +578,8 @@ export function compileView(
   }
   // Only a group filters, as in the JS path; an empty one passes every row.
   if (view.filters?.kind === 'group') conditions.push(compileFilter(view.filters, propertyById));
-  const keys: SortKey[] = [];
+  const group = groupBy ? compileGroup(groupBy) : null;
+  const keys: SortKey[] = [...(group?.keys ?? [])];
   for (const sort of view.sorts ?? []) {
     const property = propertyById.get(sort.propertyId);
     if (!property) continue;
@@ -403,7 +590,7 @@ export function compileView(
       direction: sort.direction,
     });
   }
-  return { where: and(...conditions) ?? sql`true`, keys };
+  return { where: and(...conditions) ?? sql`true`, keys, group };
 }
 
 // ---------------------------------------------------------------------------
@@ -431,7 +618,8 @@ const entityIdSchema = z.string().refine(isLiveEntityId);
  */
 const cursorSchema = z.union([
   z.object({ after: z.array(keyValueSchema), at: instantSchema, id: entityIdSchema }).strict(),
-  z.object({ row: entityIdSchema }).strict(),
+  // A row in several groups is in the one it was last read in (`group`).
+  z.object({ row: entityIdSchema, group: z.string().max(200).nullable().optional() }).strict(),
   z.object({ offset: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER) }).strict(),
 ]);
 
@@ -511,6 +699,8 @@ function keyValues(
 
 export interface ViewRowsPage {
   rows: PageRow[];
+  /** A grouped view's: the group of each row of `rows`, in turn (a row can be in several). */
+  groupKeys: GroupKey[] | null;
   total: number;
   /** The next page's cursor; null on the last page. */
   cursor: string | null;
@@ -532,10 +722,19 @@ export async function listViewRows(
     if ('after' in page.cursor) {
       position = { values: page.cursor.after, at: page.cursor.at, id: page.cursor.id };
     } else if ('row' in page.cursor) {
-      const [row] = await handle
+      const lateral = view.group?.lateral;
+      const group = page.cursor.group ?? null;
+      const query = handle
         .select({ ...keyColumns(view.keys), at: createdAtText })
         .from(pages)
-        .where(and(eq(pages.id, page.cursor.row), eq(pages.databaseId, databaseId)));
+        .$dynamic();
+      const [row] = await (lateral ? query.crossJoinLateral(lateral) : query).where(
+        and(
+          eq(pages.id, page.cursor.row),
+          eq(pages.databaseId, databaseId),
+          lateral ? sql`${GROUP_KEY} is not distinct from ${group}::text` : undefined,
+        ),
+      );
       if (row) position = { values: keyValues(row, view.keys), at: row.at, id: page.cursor.row };
     }
     if (!position) return null;
@@ -551,13 +750,22 @@ export async function listViewRows(
     asc(pages.createdAt),
     asc(pages.id),
   ];
+  const group = view.group;
+  const query = handle
+    .select({
+      page: pages,
+      ...keyColumns(view.keys),
+      at: createdAtText,
+      groupKey: group ? sql<string | null>`${group.key}` : sql<null>`null`,
+    })
+    .from(pages)
+    .$dynamic();
   const [found, [counted]] = await Promise.all([
-    handle
-      .select({ page: pages, ...keyColumns(view.keys), at: createdAtText })
-      .from(pages)
+    (group?.lateral ? query.crossJoinLateral(group.lateral) : query)
       .where(and(view.where, after))
       .orderBy(...order)
       .limit(page.size + 1),
+    // The rows, each once, whatever groups they are in.
     handle.select({ total: sql<number>`count(*)::int` }).from(pages).where(view.where),
   ]);
 
@@ -568,7 +776,16 @@ export async function listViewRows(
     const values: RowsCursor = { after: keyValues(last, view.keys), at: last.at, id: last.page.id };
     const encoded = encodeRowsCursor(values);
     cursor =
-      encoded.length <= MAX_VALUES_CURSOR ? encoded : encodeRowsCursor({ row: last.page.id });
+      encoded.length <= MAX_VALUES_CURSOR
+        ? encoded
+        : encodeRowsCursor(
+            group?.lateral ? { row: last.page.id, group: last.groupKey } : { row: last.page.id },
+          );
   }
-  return { rows: rows.map((r) => r.page), total: counted?.total ?? 0, cursor };
+  return {
+    rows: rows.map((r) => r.page),
+    groupKeys: group ? rows.map((r) => r.groupKey) : null,
+    total: counted?.total ?? 0,
+    cursor,
+  };
 }

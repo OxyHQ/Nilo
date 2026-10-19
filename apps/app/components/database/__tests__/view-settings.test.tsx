@@ -16,6 +16,12 @@ const mockUpdateView = jest.fn();
 const mockUpdateViewAsync = jest.fn();
 const mockReorder = jest.fn();
 let mockViews: DatabaseView[] = [];
+// A group of people shows their profiles, which these tests do not read.
+jest.mock('../person-cell', () => ({ PersonChips: () => null }));
+jest.mock('@/lib/hooks/use-view-data', () => ({
+  useViewCalculations: () => ({ data: undefined }),
+  useViewChart: () => ({ data: undefined, isLoading: false }),
+}));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({
     t: (key: string, options?: { name?: string }) =>
@@ -113,7 +119,7 @@ const setting = (label: string) =>
 
 describe('view settings', () => {
   it('groups a board by an option or checkbox property only', () => {
-    render(<ViewSettings database={database} view={makeView({ type: 'board' })} canEditSchema />);
+    render(<ViewSettings database={database} view={makeView({ type: 'board' })} />);
     const groupBy = setting('databases.viewSettings.groupBy');
     expect(groupBy?.props.options.map((o: { value: string }) => o.value)).toEqual([
       'stage',
@@ -129,11 +135,7 @@ describe('view settings', () => {
 
   it('shows a hidden property again, and freezes a table up to a column', () => {
     render(
-      <ViewSettings
-        database={database}
-        view={makeView({ hiddenProperties: ['notes', 'due'] })}
-        canEditSchema
-      />,
+      <ViewSettings database={database} view={makeView({ hiddenProperties: ['notes', 'due'] })} />,
     );
     const notes = renderer.root
       .findAllByType(Switch)
@@ -159,30 +161,111 @@ describe('view settings', () => {
     );
   });
 
-  it('moves a property among the database’s, only for whoever may change its schema', () => {
-    render(<ViewSettings database={database} view={makeView()} canEditSchema />);
+  it('moves a property in the view’s own order, leaving the database’s as it is', () => {
+    render(<ViewSettings database={database} view={makeView()} />);
     const down = renderer.root.findAll(
       (n) =>
         n.props.accessibilityLabel === 'databases.viewSettings.moveDown:Stage' && n.props.onPress,
     );
     act(() => down[0]?.props.onPress());
-    expect(mockReorder).toHaveBeenCalledWith(
-      { databaseId: 'db', ids: ['name', 'kind', 'stage', 'done', 'notes', 'due'] },
+    expect(mockUpdateView).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        config: { propertyOrder: ['name', 'kind', 'stage', 'done', 'notes', 'due'] },
+      }),
+      expect.anything(),
+    );
+    expect(mockReorder).not.toHaveBeenCalled();
+    act(() => renderer.unmount());
+    // Listed as the view orders them, a property it does not name after the rest.
+    render(
+      <ViewSettings
+        database={database}
+        view={makeView({ config: { propertyOrder: ['due', 'name', 'notes'] } })}
+      />,
+    );
+    const names = renderer.root
+      .findAll(
+        (n) =>
+          typeof n.props.accessibilityLabel === 'string' &&
+          n.props.accessibilityLabel.startsWith('databases.viewSettings.moveUp:') &&
+          n.props.onPress,
+      )
+      .map((n) => String(n.props.accessibilityLabel).split(':')[1]);
+    expect([...new Set(names)]).toEqual(['Due', 'Name', 'Notes', 'Stage', 'Kind', 'Done']);
+  });
+
+  it('groups a table by any property that groups, by month for a date, hiding empty groups', () => {
+    render(<ViewSettings database={database} view={makeView()} />);
+    const groupBy = setting('databases.viewSettings.groupBy');
+    expect(groupBy?.props.options.map((o: { value: string }) => o.value)).toEqual([
+      '__none__',
+      'name',
+      'stage',
+      'kind',
+      'done',
+      'notes',
+      'due',
+    ]);
+    act(() => groupBy?.props.onChange('due'));
+    expect(mockUpdateView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ groupBy: { propertyId: 'due' } }),
       expect.anything(),
     );
     act(() => renderer.unmount());
-    render(<ViewSettings database={database} view={makeView()} canEditSchema={false} />);
-    expect(
-      renderer.root.findAll((n) =>
-        String(n.props.accessibilityLabel).startsWith('databases.viewSettings.moveDown'),
-      ),
-    ).toHaveLength(0);
+    render(
+      <ViewSettings database={database} view={makeView({ groupBy: { propertyId: 'due' } })} />,
+    );
+    act(() => setting('databases.viewSettings.granularity')?.props.onChange('month'));
+    expect(mockUpdateView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ groupBy: { propertyId: 'due', granularity: 'month' } }),
+      expect.anything(),
+    );
+    const hide = renderer.root
+      .findAllByType(Switch)
+      .find((s) => s.props.accessibilityLabel === 'databases.viewSettings.hideEmpty');
+    act(() => hide?.props.onCheckedChange(true));
+    expect(mockUpdateView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ groupBy: { propertyId: 'due', hideEmpty: true } }),
+      expect.anything(),
+    );
+  });
+
+  it('sub-groups a board, opens rows where the view says, and sets a chart’s axes', () => {
+    render(<ViewSettings database={database} view={makeView({ type: 'board' })} />);
+    act(() => setting('databases.viewSettings.subGroupBy')?.props.onChange('done'));
+    expect(mockUpdateView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ subGroupBy: { propertyId: 'done' } }),
+      expect.anything(),
+    );
+    act(() => setting('databases.viewSettings.openIn')?.props.onChange('center_peek'));
+    expect(mockUpdateView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ config: { openIn: 'center_peek' } }),
+      expect.anything(),
+    );
+    act(() => renderer.unmount());
+    render(
+      <ViewSettings
+        database={database}
+        view={makeView({ type: 'chart', config: { chart: { type: 'bar' } } })}
+      />,
+    );
+    expect(setting('databases.viewSettings.openIn')).toBeUndefined();
+    act(() => setting('databases.viewSettings.chartType')?.props.onChange('donut'));
+    expect(mockUpdateView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ config: { chart: { type: 'donut' } } }),
+      expect.anything(),
+    );
+    act(() => setting('databases.viewSettings.xAxis')?.props.onChange('stage'));
+    expect(mockUpdateView).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        config: { chart: { type: 'bar', xAxis: { propertyId: 'stage' } } },
+      }),
+      expect.anything(),
+    );
   });
 
   it('dates a calendar and a timeline, and loads a chosen number of rows', () => {
-    render(
-      <ViewSettings database={database} view={makeView({ type: 'timeline' })} canEditSchema />,
-    );
+    render(<ViewSettings database={database} view={makeView({ type: 'timeline' })} />);
     act(() => setting('databases.viewSettings.end')?.props.onChange('due'));
     expect(mockUpdateView).toHaveBeenLastCalledWith(
       expect.objectContaining({ config: { endPropertyId: 'due' } }),
@@ -190,7 +273,7 @@ describe('view settings', () => {
     );
     expect(setting('databases.viewSettings.loadLimit')).toBeUndefined();
     act(() => renderer.unmount());
-    render(<ViewSettings database={database} view={makeView({ type: 'list' })} canEditSchema />);
+    render(<ViewSettings database={database} view={makeView({ type: 'list' })} />);
     act(() => setting('databases.viewSettings.loadLimit')?.props.onChange('25'));
     expect(mockUpdateView).toHaveBeenLastCalledWith(
       expect.objectContaining({ pageSize: 25 }),

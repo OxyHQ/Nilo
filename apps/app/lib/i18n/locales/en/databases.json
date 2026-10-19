@@ -34,7 +34,8 @@
     "deleteFailed": "Could not delete the view.",
     "makeDefault": "Make default view",
     "moveLeft": "Move left",
-    "moveRight": "Move right"
+    "moveRight": "Move right",
+    "chart": "Chart"
   },
   "propertyTypes": {
     "text": "Text",
@@ -56,7 +57,8 @@
     "createdBy": "Created by",
     "lastEditedBy": "Last edited by",
     "formula": "Formula",
-    "uniqueId": "ID"
+    "uniqueId": "ID",
+    "button": "Button"
   },
   "properties": {
     "property": "Property",
@@ -80,7 +82,9 @@
     "updateFailed": "Could not update the property. Try again.",
     "changeType": "Change type",
     "changeTypeTitle": "Change to %{type}?",
-    "changeTypeDescription": "Values that fit the new type are converted; the others are cleared. Filters on this property are removed from its views."
+    "changeTypeDescription": "Values that fit the new type are converted; the others are cleared. Filters on this property are removed from its views.",
+    "moveLeft": "Move left",
+    "moveRight": "Move right"
   },
   "filters": {
     "title": "Filters",
@@ -477,7 +481,36 @@
     "properties": "Properties",
     "show": "Show %{name}",
     "moveUp": "Move %{name} up",
-    "moveDown": "Move %{name} down"
+    "moveDown": "Move %{name} down",
+    "openIn": "Open pages in",
+    "openModes": {
+      "side_peek": "Side peek",
+      "center_peek": "Center peek",
+      "full_page": "Full page"
+    },
+    "subGroupBy": "Sub-group by",
+    "granularity": "Group dates by",
+    "granularities": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "year": "Year"
+    },
+    "hideEmpty": "Hide empty groups",
+    "chartType": "Chart type",
+    "chartTypes": {
+      "bar": "Bar",
+      "line": "Line",
+      "donut": "Donut"
+    },
+    "xAxis": "X axis",
+    "yAxis": "Y axis",
+    "aggregates": {
+      "count": "Count of rows",
+      "sum": "Sum",
+      "average": "Average"
+    },
+    "yProperty": "Property to add up"
   },
   "options": {
     "color": "Color of %{name}",
@@ -539,5 +572,92 @@
       "percent_empty": "Percent empty",
       "percent_not_empty": "Percent not empty"
     }
+  },
+  "peek": {
+    "openFull": "Open as full page",
+    "close": "Close",
+    "loadFailed": "Could not open this page."
+  },
+  "groups": {
+    "none": "No %{name}",
+    "weekOf": "Week of %{date}",
+    "collapse": "Collapse %{name}",
+    "expand": "Expand %{name}",
+    "count": {
+      "one": "%{count} row",
+      "other": "%{count} rows"
+    },
+    "addRow": "New row in %{name}"
+  },
+  "calculations": {
+    "calculate": "Calculate",
+    "none": "None",
+    "pick": "Calculate %{name}",
+    "failed": "Could not calculate.",
+    "days": {
+      "one": "%{count} day",
+      "other": "%{count} days"
+    },
+    "hours": {
+      "one": "%{count} hour",
+      "other": "%{count} hours"
+    },
+    "functions": {
+      "count_all": "Count all",
+      "count_values": "Count values",
+      "count_unique": "Count unique values",
+      "count_empty": "Count empty",
+      "count_not_empty": "Count not empty",
+      "percent_empty": "Percent empty",
+      "percent_not_empty": "Percent not empty",
+      "sum": "Sum",
+      "average": "Average",
+      "median": "Median",
+      "min": "Min",
+      "max": "Max",
+      "range": "Range",
+      "earliest": "Earliest date",
+      "latest": "Latest date",
+      "date_range": "Date range",
+      "checked": "Checked",
+      "unchecked": "Unchecked",
+      "percent_checked": "Percent checked"
+    }
+  },
+  "columns": {
+    "resize": "Resize %{name}",
+    "drag": "Drag %{name} to move it"
+  },
+  "chart": {
+    "empty": "No rows to chart.",
+    "needsAxis": "Choose a property for the X axis in the view's settings.",
+    "loadFailed": "Could not load the chart.",
+    "retry": "Try again",
+    "summary": "%{type} chart by %{name}: %{points}",
+    "point": "%{label}, %{value}",
+    "other": "Other",
+    "total": "Total"
+  },
+  "button": {
+    "configure": "Edit actions",
+    "actions": "Actions",
+    "add": "Add action",
+    "remove": "Remove action %{index}",
+    "kinds": {
+      "open_url": "Open a link",
+      "set_property": "Edit a property",
+      "create_row": "Add a page"
+    },
+    "kind": "Action",
+    "url": "Link",
+    "property": "Property",
+    "value": "Value",
+    "database": "Add to",
+    "thisDatabase": "This database",
+    "title": "Title of the new page",
+    "noActions": "Add an action for this button.",
+    "invalidUrl": "Use a link that starts with http://, https:// or mailto:.",
+    "failed": "The button could not finish.",
+    "running": "Running…"
   }
 }
