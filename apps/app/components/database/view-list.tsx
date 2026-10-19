@@ -9,10 +9,13 @@ import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
-import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
+import type { Database, DatabaseRow, DatabaseView, RowGroup } from '@/lib/types/databases';
 import { useCreateRow } from '@/lib/hooks/use-database-rows';
+import { groupProperty, rowSections } from '@/lib/view-groups';
+import { orderedProperties } from '@/lib/view-properties';
 import { PropertyCell } from './property-cell';
 import { useOpenRow } from './open-row';
+import { GroupHeader, useCollapsedGroups } from './group-header';
 
 interface ViewListProps {
   database: Database;
@@ -21,11 +24,16 @@ interface ViewListProps {
   isLoading: boolean;
   readOnly?: boolean;
   onLoadMore?: () => void;
+  /** A grouped view's groups, in order (`GET …/rows`). */
+  groups?: RowGroup[];
+  /** More rows than these are to load. */
+  hasMore?: boolean;
 }
 
 /**
- * List view — vertical, minimal density. Title + a few preview props,
- * one row per line. Tapping a row navigates to its detail page.
+ * List view — vertical, minimal density. Title + a few preview props, in
+ * the view's order, one row per line. Tapping a row opens it as the view
+ * says (`open-row.tsx`). Grouped, the rows come in collapsible sections.
  */
 export function ViewList({
   database,
@@ -34,6 +42,8 @@ export function ViewList({
   isLoading,
   onLoadMore,
   readOnly = false,
+  groups,
+  hasMore = false,
 }: ViewListProps) {
   const openRow = useOpenRow();
   const { colors } = useColorScheme();
@@ -41,7 +51,7 @@ export function ViewList({
   const createRow = useCreateRow();
   const subItems = subItemProperties(database);
   const { expanded, toggleExpanded } = useExpandedRows(database.id);
-  const nestedRows = nestSubItems(rows, subItems?.parent.id, expanded);
+  const collapsedGroups = useCollapsedGroups();
   const newSubItem = (parentId: string) => {
     if (!subItems || readOnly) return;
     createRow.mutate({
@@ -51,10 +61,15 @@ export function ViewList({
   };
 
   const visibleProperties = React.useMemo(() => {
-    return database.schema.properties.filter(
+    return orderedProperties(database, view).filter(
       (p) => !view.hiddenProperties.includes(p.id) && p.id !== 'name',
     );
-  }, [database.schema.properties, view.hiddenProperties]);
+  }, [database, view]);
+  const grouping = groupProperty(database.schema.properties, view.groupBy);
+  const sections =
+    grouping && groups
+      ? rowSections(rows, groups, { hideEmpty: view.groupBy?.hideEmpty, complete: !hasMore })
+      : null;
 
   if (isLoading) {
     return (
@@ -64,58 +79,81 @@ export function ViewList({
     );
   }
 
+  const renderRows = (list: DatabaseRow[], keyPrefix: string) =>
+    nestSubItems(list, subItems?.parent.id, expanded).map((entry) => {
+      if (entry.kind === 'new')
+        return !readOnly ? (
+          <NewSubItem
+            key={`${keyPrefix}new-${entry.parentId}`}
+            depth={entry.depth}
+            disabled={createRow.isPending}
+            onPress={() => newSubItem(entry.parentId)}
+          />
+        ) : null;
+      const { row, depth } = entry;
+      return (
+        <Pressable
+          key={`${keyPrefix}${row.id}`}
+          style={{ paddingLeft: 16 + depth * 24 }}
+          accessibilityRole="link"
+          accessibilityLabel={row.title || t('databases.untitled')}
+          onPress={() => openRow(row.id)}
+          className="flex-row items-center gap-3 px-4 py-2 border-b border-border/40 hover:bg-muted/40"
+        >
+          {subItems ? (
+            <SubItemToggle
+              expanded={expanded.has(row.id)}
+              title={row.title}
+              onPress={() => toggleExpanded(row.id)}
+            />
+          ) : null}
+          <View className="flex-1">
+            <Text variant="body-medium" numberOfLines={1}>
+              {row.title || t('databases.untitled')}
+            </Text>
+          </View>
+          <View className="flex-row items-center gap-3">
+            {visibleProperties.slice(0, 3).map((property) => (
+              <View key={property.id}>
+                <PropertyCell
+                  readOnly={readOnly}
+                  property={property}
+                  value={row.properties[property.id] ?? null}
+                  variant="card"
+                  rowId={row.id}
+                  onChange={() => openRow(row.id)}
+                />
+              </View>
+            ))}
+          </View>
+          <RiArrowRightSLine width={14} height={14} fill={colors.mutedForeground} />
+        </Pressable>
+      );
+    });
+
   return (
     <RowsScrollView onLoadMore={onLoadMore}>
-      {nestedRows.map((entry) => {
-        if (entry.kind === 'new')
-          return !readOnly ? (
-            <NewSubItem
-              key={`new-${entry.parentId}`}
-              depth={entry.depth}
-              disabled={createRow.isPending}
-              onPress={() => newSubItem(entry.parentId)}
-            />
-          ) : null;
-        const { row, depth } = entry;
-        return (
-          <Pressable
-            key={row.id}
-            style={{ paddingLeft: 16 + depth * 24 }}
-            accessibilityRole="link"
-            accessibilityLabel={row.title || t('databases.untitled')}
-            onPress={() => openRow(row.id)}
-            className="flex-row items-center gap-3 px-4 py-2 border-b border-border/40 hover:bg-muted/40"
-          >
-            {subItems ? (
-              <SubItemToggle
-                expanded={expanded.has(row.id)}
-                title={row.title}
-                onPress={() => toggleExpanded(row.id)}
-              />
-            ) : null}
-            <View className="flex-1">
-              <Text variant="body-medium" numberOfLines={1}>
-                {row.title || t('databases.untitled')}
-              </Text>
-            </View>
-            <View className="flex-row items-center gap-3">
-              {visibleProperties.slice(0, 3).map((property) => (
-                <View key={property.id}>
-                  <PropertyCell
-                    readOnly={readOnly}
-                    property={property}
-                    value={row.properties[property.id] ?? null}
-                    variant="card"
-                    rowId={row.id}
-                    onChange={() => openRow(row.id)}
+      {sections && grouping
+        ? sections.map((section) => {
+            const prefix = `${section.key === null ? '\u0000' : section.key}:`;
+            const collapsed = collapsedGroups.isCollapsed(section.key);
+            return (
+              <View key={`group-${prefix}`} testID={`list-group-${section.key ?? 'none'}`}>
+                <View className="border-b border-border/40">
+                  <GroupHeader
+                    property={grouping}
+                    groupKey={section.key}
+                    granularity={view.groupBy?.granularity}
+                    count={section.count}
+                    collapsed={collapsed}
+                    onToggle={() => collapsedGroups.toggle(section.key)}
                   />
                 </View>
-              ))}
-            </View>
-            <RiArrowRightSLine width={14} height={14} fill={colors.mutedForeground} />
-          </Pressable>
-        );
-      })}
+                {collapsed ? null : renderRows(section.rows, prefix)}
+              </View>
+            );
+          })
+        : renderRows(rows, '')}
       {createRow.isError ? (
         <Text accessibilityRole="alert" className="text-sm text-destructive">
           {t('databases.subItems.failed')}

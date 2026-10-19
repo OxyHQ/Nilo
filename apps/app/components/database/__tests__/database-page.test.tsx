@@ -9,6 +9,12 @@ import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases'
 
 let mockRole: WorkspaceRole = 'viewer';
 // The cells read people, files and rows through the API client.
+jest.mock('@/lib/hooks/use-view-data', () => ({
+  useViewCalculations: () => ({ data: undefined }),
+  useViewChart: () => ({ data: undefined, isLoading: false }),
+}));
+// A row's peek holds the page editor: these views only open it.
+jest.mock('../row-peek', () => ({ RowPeek: () => null }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), post: jest.fn() },

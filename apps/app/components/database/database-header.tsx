@@ -16,6 +16,7 @@ import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiEqualizerLine } from '@oxy.so/bloom/icons/RiEqualizerLine';
 import { RiTableLine } from '@oxy.so/bloom/icons/RiTableLine';
 import { RiHistoryLine } from '@oxy.so/bloom/icons/RiHistoryLine';
+import { RiBarChartBoxLine } from '@oxy.so/bloom/icons/RiBarChartBoxLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
 import { Item } from '@oxy.so/bloom/item';
@@ -33,7 +34,6 @@ import {
   useDeleteView,
   useUpdateView,
 } from '@/lib/hooks/use-database-views';
-import { hasRole } from '@/lib/hooks/workspace-roles';
 import { movedViews, orderChanges } from '@/lib/view-order';
 import type { BloomIconComponent } from '@oxy.so/bloom/icons';
 import { CoverDisplay } from '@/components/page-chrome/cover-display';
@@ -49,6 +49,7 @@ const VIEW_ICONS: Record<DatabaseViewType, BloomIconComponent> = {
   list: RiListUnordered,
   calendar: RiCalendarLine,
   timeline: RiHistoryLine,
+  chart: RiBarChartBoxLine,
 };
 
 /** Translated at call time: the locale can change while the app runs. */
@@ -68,6 +69,8 @@ function viewTypeLabel(type: DatabaseViewType): string {
       return i18n.t('databases.views.calendar');
     case 'timeline':
       return i18n.t('databases.views.timeline');
+    case 'chart':
+      return i18n.t('databases.views.chart');
   }
 }
 
@@ -261,7 +264,6 @@ export function ViewTab({ view, database, readOnly = false }: ViewTabProps) {
     [view, linkedViews.data?.views, detail.data?.views],
   );
   const editable = !readOnly && !(database.locked && !view.blockId);
-  const canEditSchema = hasRole(detail.data?.role, 'editor') && !database.locked;
   const index = siblings.findIndex((v) => v.id === view.id);
 
   const close = () => {
@@ -461,7 +463,7 @@ export function ViewTab({ view, database, readOnly = false }: ViewTabProps) {
         {mode === 'settings' ? (
           <>
             <ScrollView style={{ maxHeight: 440 }} keyboardShouldPersistTaps="handled">
-              <ViewSettings database={database} view={view} canEditSchema={canEditSchema} />
+              <ViewSettings database={database} view={view} />
             </ScrollView>
             <View className="mt-1 flex-row justify-end">
               <Button appearance="subtle" size="sm" onPress={() => setMode('menu')}>
@@ -507,6 +509,7 @@ export function NewViewPicker({ open, onClose, onChoose, pending }: NewViewPicke
     'list',
     'calendar',
     'timeline',
+    'chart',
     'form',
   ];
 

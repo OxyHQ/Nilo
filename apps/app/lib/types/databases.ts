@@ -1,4 +1,12 @@
-import type { DatabasePropertyType } from '@oxy.so/nilo-contracts';
+import type {
+  ButtonAction,
+  CalculationFunction,
+  ChartAggregate,
+  ChartType,
+  DatabasePropertyType,
+  DateGroupGranularity,
+  OpenRowMode,
+} from '@oxy.so/nilo-contracts';
 import type { WorkspaceRole } from '../hooks/use-workspaces';
 /**
  * Shared types for Databases.
@@ -13,7 +21,15 @@ import type { WorkspaceRole } from '../hooks/use-workspaces';
  * assertion of the payload it sends — the wire shape stays JSON-clean.
  */
 
-export type { DatabasePropertyType } from '@oxy.so/nilo-contracts';
+export type {
+  ButtonAction,
+  CalculationFunction,
+  ChartAggregate,
+  ChartType,
+  DatabasePropertyType,
+  DateGroupGranularity,
+  OpenRowMode,
+} from '@oxy.so/nilo-contracts';
 
 export type SelectColor =
   | 'default'
@@ -107,6 +123,8 @@ export interface PropertyConfig {
   function?: RollupFunction;
   expression?: string;
   prefix?: string;
+  /** A button's actions, run in order when it is pressed. */
+  actions?: ButtonAction[];
 }
 
 /** The Name property's id: its value is the row's title, and its type is always text. */
@@ -156,7 +174,8 @@ export type DatabaseViewType =
   | 'list'
   | 'calendar'
   | 'timeline'
-  | 'form';
+  | 'form'
+  | 'chart';
 
 export type SortDirection = 'asc' | 'desc';
 
@@ -180,6 +199,22 @@ export interface FilterGroup {
 
 export type Filter = FilterCondition | FilterGroup;
 
+/** How a view groups its rows (a table's or a list's sections, a board's columns or sub-groups). */
+export interface ViewGroupBy {
+  propertyId: string;
+  /** A date's groups: by day (the default), week, month or year. */
+  granularity?: DateGroupGranularity;
+  /** The groups no row is in are not shown. */
+  hideEmpty?: boolean;
+}
+
+/** A chart view's chart: one point per group of `xAxis`, measuring `yAxis`. */
+export interface ViewChartConfig {
+  type: ChartType;
+  xAxis?: { propertyId: string; granularity?: DateGroupGranularity };
+  yAxis?: { aggregate: ChartAggregate; propertyId?: string };
+}
+
 export interface ViewConfig {
   description?: string;
   datePropertyId?: string;
@@ -188,6 +223,15 @@ export interface ViewConfig {
   coverSource?: 'property' | 'pageCover' | 'none';
   coverPropertyId?: string;
   fit?: 'cover' | 'contain';
+  /** Where the view opens a row; absent, in a side peek. */
+  openIn?: OpenRowMode;
+  /** A table's column widths, by property id (`name` for the title). */
+  columnWidths?: Record<string, number>;
+  /** The view's own property order; ids it misses follow in the database's order. */
+  propertyOrder?: string[];
+  /** A table's footer: what it computes over each property of all the view's rows. */
+  calculations?: Record<string, CalculationFunction>;
+  chart?: ViewChartConfig;
 }
 
 export interface DatabaseView {
@@ -199,7 +243,9 @@ export interface DatabaseView {
   isDefault: boolean;
   filters: FilterGroup;
   sorts: ViewSort[];
-  groupBy: { propertyId: string } | null;
+  groupBy: ViewGroupBy | null;
+  /** A board's sub-groups: its rows of columns. */
+  subGroupBy?: ViewGroupBy | null;
   hiddenProperties: string[];
   frozenProperties: string[];
   pageSize: number;
@@ -280,6 +326,18 @@ export interface DatabaseRow {
   properties: Record<string, PropertyValue>;
   createdAt: string;
   updatedAt: string;
+  /**
+   * A grouped view's: the group the row is listed in (an option or user id,
+   * `YYYY-MM-DD`, a text, `true`/`false`; null for the empty group). A row
+   * with several labels or people is listed in each of their groups.
+   */
+  groupKey?: string | null;
+}
+
+/** A grouped view's group, in order, with how many rows it holds. */
+export interface RowGroup {
+  key: string | null;
+  count: number;
 }
 
 export interface DatabasesListResponse {
@@ -303,6 +361,18 @@ export interface DatabaseRowsResponse {
   total: number;
   cursor: string | null;
   view: DatabaseView | null;
+  /** A grouped view's groups, in order (every option, even one no row holds). */
+  groups?: RowGroup[];
+}
+
+/** `GET /databases/:id/views/:viewId/calculations`: each footer calculation's value. */
+export interface ViewCalculationsResponse {
+  calculations: Record<string, { function: CalculationFunction; value: number | null }>;
+}
+
+/** `GET /databases/:id/views/:viewId/chart`: a point per group of the chart's axis. */
+export interface ViewChartResponse {
+  points: { key: string | null; count: number; value: number | null }[];
 }
 
 export interface DatabaseRowResponse {

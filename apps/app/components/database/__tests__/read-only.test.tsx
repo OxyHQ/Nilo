@@ -7,6 +7,12 @@ import { PropertyCell } from '../property-cell';
 import type { Database, DatabaseRow, DatabaseView, DatabaseViewType } from '@/lib/types/databases';
 
 // The cells read people, files and rows through the API client and Oxy's session.
+jest.mock('@/lib/hooks/use-view-data', () => ({
+  useViewCalculations: () => ({ data: undefined }),
+  useViewChart: () => ({ data: undefined, isLoading: false }),
+}));
+// A row's peek holds the page editor: these views only open it.
+jest.mock('../row-peek', () => ({ RowPeek: () => null }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), post: jest.fn() },

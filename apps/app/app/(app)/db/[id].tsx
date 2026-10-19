@@ -97,6 +97,8 @@ function DatabasePage({ id }: { id: string }) {
           rows={rows.data?.rows ?? []}
           isLoading={rows.isLoading}
           total={rows.data?.total}
+          groups={rows.data?.groups}
+          hasMore={rows.hasNextPage}
           isFetchingMore={rows.isFetchingNextPage}
           onLoadMore={() => {
             if (rows.hasNextPage && !rows.isFetching)

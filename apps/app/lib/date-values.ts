@@ -112,16 +112,77 @@ export function withStart(v: PropertyValue, start: string | null): PropertyValue
   };
 }
 
-/** `Oct 5, 2026`, `Oct 5, 2026 14:30`, `Oct 5, 2026 → Oct 9, 2026`; empty for no date. */
-export function formatDateValue(v: PropertyValue, locale?: string): string {
+/**
+ * How a date property shows its dates (`config.dateFormat`): `full` October
+ * 5, 2026; `short` Oct 5, 2026 (as when none is set); `month_day_year`
+ * 10/05/2026; `day_month_year` 05/10/2026; `iso` 2026-10-05; `relative` Today,
+ * Tomorrow, 3 days ago within a week, else as `short`.
+ */
+export type DateDisplayFormat =
+  | 'full'
+  | 'short'
+  | 'month_day_year'
+  | 'day_month_year'
+  | 'iso'
+  | 'relative';
+
+const DAY_MS = 86_400_000;
+
+/** The day `day` is from today (local midnight), in whole days: -1 yesterday, 2 the day after tomorrow. */
+function daysFromToday(day: Date, now: Date): number {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round(
+    (Date.UTC(day.getFullYear(), day.getMonth(), day.getDate()) -
+      Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) /
+      DAY_MS,
+  );
+}
+
+/** `day` (local midnight) as `format` writes it. */
+export function formatDay(
+  day: Date,
+  format: DateDisplayFormat | undefined,
+  locale?: string,
+  now: Date = new Date(),
+): string {
+  const ymd = [day.getFullYear(), pad(day.getMonth() + 1), pad(day.getDate())] as const;
+  switch (format) {
+    case 'full':
+      return day.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+    case 'month_day_year':
+      return `${ymd[1]}/${ymd[2]}/${ymd[0]}`;
+    case 'day_month_year':
+      return `${ymd[2]}/${ymd[1]}/${ymd[0]}`;
+    case 'iso':
+      return ymd.join('-');
+    case 'relative': {
+      const days = daysFromToday(day, now);
+      if (Math.abs(days) <= 7 && typeof Intl.RelativeTimeFormat === 'function') {
+        const phrase = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(days, 'day');
+        // "today", "tomorrow" begin a cell: capitalised as a label is, in the reader's language.
+        return phrase.charAt(0).toLocaleUpperCase(locale) + phrase.slice(1);
+      }
+      return formatDay(day, 'short', locale, now);
+    }
+    default:
+      return day.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+}
+
+/**
+ * `Oct 5, 2026`, `Oct 5, 2026 14:30`, `Oct 5, 2026 → Oct 9, 2026` — or as
+ * `format` writes the days (`DateDisplayFormat`); empty for no date.
+ */
+export function formatDateValue(
+  v: PropertyValue,
+  locale?: string,
+  format?: DateDisplayFormat,
+  now: Date = new Date(),
+): string {
   const { start, end, includeTime } = readDateValue(v);
   if (!start) return '';
   const one = (iso: string) => {
-    const day = dayOf(iso, includeTime).toLocaleDateString(locale, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    const day = formatDay(dayOf(iso, includeTime), format, locale, now);
     return includeTime ? `${day} ${timeOf(iso)}` : day;
   };
   return end ? `${one(start)} → ${one(end)}` : one(start);

@@ -2,7 +2,6 @@ import { RowsScrollView } from './rows-scroll-view';
 import { CoverDisplay } from '@/components/page-chrome/cover-display';
 import * as React from 'react';
 import { Image, Pressable, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { Loading } from '@oxy.so/bloom/loading';
@@ -11,6 +10,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 import { useCreateRow } from '@/lib/hooks/use-database-rows';
+import { orderedProperties } from '@/lib/view-properties';
+import { useOpenRow } from './open-row';
 import { PropertyCell } from './property-cell';
 
 interface ViewGalleryProps {
@@ -36,16 +37,17 @@ export function ViewGallery({
   readOnly = false,
   onLoadMore,
 }: ViewGalleryProps) {
-  const router = useRouter();
+  const openRow = useOpenRow();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const createRow = useCreateRow();
 
+  // In the view's own order.
   const visibleProperties = React.useMemo(() => {
-    return database.schema.properties.filter(
+    return orderedProperties(database, view).filter(
       (p) => !view.hiddenProperties.includes(p.id) && p.id !== 'name',
     );
-  }, [database.schema.properties, view.hiddenProperties]);
+  }, [database, view]);
 
   if (isLoading) {
     return (
@@ -65,7 +67,7 @@ export function ViewGallery({
               key={row.id}
               accessibilityRole="link"
               accessibilityLabel={row.title || t('databases.untitled')}
-              onPress={() => router.push(`/p/${row.id}`)}
+              onPress={() => openRow(row.id)}
               className="bg-card border border-border rounded-xl overflow-hidden"
               style={{ width: CARD_WIDTH }}
             >
@@ -100,7 +102,7 @@ export function ViewGallery({
                         value={row.properties[property.id] ?? null}
                         variant="card"
                         rowId={row.id}
-                        onChange={() => router.push(`/p/${row.id}`)}
+                        onChange={() => openRow(row.id)}
                       />
                     </View>
                   ))}

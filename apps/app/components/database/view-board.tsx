@@ -19,13 +19,17 @@ import type {
   DatabaseRow,
   DatabaseView,
   PropertyValue,
+  RowGroup,
   SelectOption,
 } from '@/lib/types/databases';
 import { statusGroups } from '@/lib/status-groups';
 import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
+import { groupProperty, groupValue, rowSections } from '@/lib/view-groups';
+import { orderedProperties } from '@/lib/view-properties';
 import { PropertyCell } from './property-cell';
 import { useOpenRow } from './open-row';
 import { SELECT_CHIP_HUE } from './select-color';
+import { GroupHeader, useCollapsedGroups } from './group-header';
 
 interface ViewBoardProps {
   database: Database;
@@ -36,6 +40,8 @@ interface ViewBoardProps {
   /** More rows than these: the board reads them a page at a time. */
   hasMore?: boolean;
   onLoadMore?: () => void;
+  /** A sub-grouped board's sub-groups, in order (`GET …/rows`). */
+  groups?: RowGroup[];
 }
 
 const COLUMN_WIDTH = 280;
@@ -65,6 +71,10 @@ interface Section {
  * On web a card is dragged (HTML5 DataTransfer). Everywhere, and on native
  * where nothing drags, its "Move to…" button or a long press on it opens the
  * columns to move it to.
+ *
+ * Sub-grouped (`subGroupBy`), the columns repeat in collapsible rows, one per
+ * sub-group in the API's order: a card is in the row of its sub-group (a
+ * card with two labels in both), and one added there gets it.
  */
 export function ViewBoard({
   database,
@@ -74,6 +84,7 @@ export function ViewBoard({
   readOnly = false,
   hasMore = false,
   onLoadMore,
+  groups,
 }: ViewBoardProps) {
   const openRow = useOpenRow();
   const { t } = useTranslation();
@@ -94,81 +105,92 @@ export function ViewBoard({
     );
   }, [database.schema.properties, view.groupBy?.propertyId]);
 
-  const sections = React.useMemo<Section[]>(() => {
-    if (!groupByProperty) return [];
-    if (groupByProperty.type === 'checkbox') {
-      const checked = (row: DatabaseRow) => {
+  const buildSections = React.useCallback(
+    (rows: DatabaseRow[]): Section[] => {
+      if (!groupByProperty) return [];
+      if (groupByProperty.type === 'checkbox') {
+        const checked = (row: DatabaseRow) => {
+          const value = row.properties[groupByProperty.id];
+          return Boolean(value && typeof value === 'object' && 'checked' in value && value.checked);
+        };
+        return [
+          {
+            id: 'checkbox',
+            label: null,
+            columns: [
+              {
+                option: { id: 'checked', name: t('databases.board.checked'), color: 'green' },
+                rows: rows.filter(checked),
+                value: { checked: true },
+              },
+              {
+                option: { id: 'unchecked', name: t('databases.board.unchecked'), color: 'default' },
+                rows: rows.filter((row) => !checked(row)),
+                value: { checked: false },
+              },
+            ],
+          },
+        ];
+      }
+      const options = groupByProperty.config?.options ?? [];
+      const unassigned: DatabaseRow[] = [];
+      const byOption = new Map<string, DatabaseRow[]>();
+      for (const opt of options) byOption.set(opt.id, []);
+      for (const row of rows) {
         const value = row.properties[groupByProperty.id];
-        return Boolean(value && typeof value === 'object' && 'checked' in value && value.checked);
+        const optId =
+          value && typeof value === 'object' && 'optionId' in value
+            ? typeof value.optionId === 'string'
+              ? value.optionId
+              : null
+            : null;
+        const bucket = optId ? byOption.get(optId) : undefined;
+        if (bucket) bucket.push(row);
+        else unassigned.push(row);
+      }
+      const column = (opt: SelectOption): Column => ({
+        option: opt,
+        rows: byOption.get(opt.id) ?? [],
+        value: { optionId: opt.id },
+      });
+      const none: Section = {
+        id: '__unassigned__',
+        label: null,
+        columns: [
+          {
+            option: { id: '__unassigned__', name: t('databases.board.noStatus'), color: 'default' },
+            rows: unassigned,
+            value: { optionId: null },
+          },
+        ],
       };
+      // A status grouped before groups existed shows its options as a select's.
+      if (groupByProperty.type !== 'status' || !groupByProperty.config?.groups) {
+        return [{ id: 'options', label: null, columns: options.map(column) }, none];
+      }
+      const byId = new Map(options.map((o) => [o.id, o]));
       return [
-        {
-          id: 'checkbox',
-          label: null,
-          columns: [
-            {
-              option: { id: 'checked', name: t('databases.board.checked'), color: 'green' },
-              rows: rows.filter(checked),
-              value: { checked: true },
-            },
-            {
-              option: { id: 'unchecked', name: t('databases.board.unchecked'), color: 'default' },
-              rows: rows.filter((row) => !checked(row)),
-              value: { checked: false },
-            },
-          ],
-        },
+        ...statusGroups(options, groupByProperty.config.groups).map((group) => ({
+          id: group.id,
+          label: t(`databases.statusGroups.${group.id}`),
+          columns: group.optionIds.flatMap((id) => {
+            const opt = byId.get(id);
+            return opt ? [column(opt)] : [];
+          }),
+        })),
+        none,
       ];
-    }
-    const options = groupByProperty.config?.options ?? [];
-    const unassigned: DatabaseRow[] = [];
-    const byOption = new Map<string, DatabaseRow[]>();
-    for (const opt of options) byOption.set(opt.id, []);
-    for (const row of rows) {
-      const value = row.properties[groupByProperty.id];
-      const optId =
-        value && typeof value === 'object' && 'optionId' in value
-          ? typeof value.optionId === 'string'
-            ? value.optionId
-            : null
-          : null;
-      const bucket = optId ? byOption.get(optId) : undefined;
-      if (bucket) bucket.push(row);
-      else unassigned.push(row);
-    }
-    const column = (opt: SelectOption): Column => ({
-      option: opt,
-      rows: byOption.get(opt.id) ?? [],
-      value: { optionId: opt.id },
-    });
-    const none: Section = {
-      id: '__unassigned__',
-      label: null,
-      columns: [
-        {
-          option: { id: '__unassigned__', name: t('databases.board.noStatus'), color: 'default' },
-          rows: unassigned,
-          value: { optionId: null },
-        },
-      ],
-    };
-    // A status grouped before groups existed shows its options as a select's.
-    if (groupByProperty.type !== 'status' || !groupByProperty.config?.groups) {
-      return [{ id: 'options', label: null, columns: options.map(column) }, none];
-    }
-    const byId = new Map(options.map((o) => [o.id, o]));
-    return [
-      ...statusGroups(options, groupByProperty.config.groups).map((group) => ({
-        id: group.id,
-        label: t(`databases.statusGroups.${group.id}`),
-        columns: group.optionIds.flatMap((id) => {
-          const opt = byId.get(id);
-          return opt ? [column(opt)] : [];
-        }),
-      })),
-      none,
-    ];
-  }, [groupByProperty, rows, t]);
+    },
+    [groupByProperty, t],
+  );
+  const sections = React.useMemo(() => buildSections(rows), [buildSections, rows]);
+
+  const subGroup = groupProperty(database.schema.properties, view.subGroupBy);
+  const lanes =
+    subGroup && groups
+      ? rowSections(rows, groups, { hideEmpty: view.subGroupBy?.hideEmpty, complete: !hasMore })
+      : null;
+  const collapsedLanes = useCollapsedGroups();
 
   const moveRow = React.useCallback(
     (rowId: string, value: PropertyValue) => {
@@ -182,13 +204,13 @@ export function ViewBoard({
     [database.id, groupByProperty, updateRow, readOnly],
   );
 
-  // A card shows the first properties the view does not hide.
+  // A card shows the first properties the view does not hide, in its order.
   const cardProperties = React.useMemo(() => {
     const hidden = new Set(view.hiddenProperties);
-    return database.schema.properties
+    return orderedProperties(database, view)
       .filter((p) => p.id !== 'name' && p.type !== 'rollup' && !hidden.has(p.id))
       .slice(0, 3);
-  }, [database.schema.properties, view.hiddenProperties]);
+  }, [database, view]);
 
   const startMove = (row: DatabaseRow) => {
     setMoving(row);
@@ -213,45 +235,76 @@ export function ViewBoard({
     );
   }
 
+  /** The board's columns over `list`; a card added in one is in `lane` too. */
+  const renderColumns = (list: Section[], lane: { key: string | null } | null) =>
+    list.map((section) => (
+      <View key={section.id} className="gap-1">
+        {section.label ? (
+          <Text className="px-1 text-xs font-semibold text-muted-foreground">{section.label}</Text>
+        ) : null}
+        <View className="flex-row gap-3">
+          {section.columns.map((column) => (
+            <BoardColumn
+              readOnly={readOnly}
+              key={column.option.id}
+              option={column.option}
+              rows={column.rows}
+              onAddRow={async () => {
+                const inLane = lane && subGroup ? groupValue(subGroup, lane.key) : undefined;
+                await createRow.mutateAsync({
+                  databaseId: database.id,
+                  properties: {
+                    [groupByProperty.id]: column.value,
+                    ...(subGroup && inLane !== undefined && { [subGroup.id]: inLane }),
+                  },
+                });
+              }}
+              onMoveTo={(rowId) => moveRow(rowId, column.value)}
+              renderCard={(row) => (
+                <BoardCard
+                  key={row.id}
+                  readOnly={readOnly}
+                  row={row}
+                  properties={cardProperties}
+                  onOpen={() => openRow(row.id)}
+                  onMove={() => startMove(row)}
+                />
+              )}
+            />
+          ))}
+        </View>
+      </View>
+    ));
+
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator>
-      <View className="flex-row gap-3 px-3 py-3">
-        {sections.map((section) => (
-          <View key={section.id} className="gap-1">
-            {section.label ? (
-              <Text className="px-1 text-xs font-semibold text-muted-foreground">
-                {section.label}
-              </Text>
-            ) : null}
-            <View className="flex-row gap-3">
-              {section.columns.map((column) => (
-                <BoardColumn
-                  readOnly={readOnly}
-                  key={column.option.id}
-                  option={column.option}
-                  rows={column.rows}
-                  onAddRow={async () => {
-                    await createRow.mutateAsync({
-                      databaseId: database.id,
-                      properties: { [groupByProperty.id]: column.value },
-                    });
-                  }}
-                  onMoveTo={(rowId) => moveRow(rowId, column.value)}
-                  renderCard={(row) => (
-                    <BoardCard
-                      key={row.id}
-                      readOnly={readOnly}
-                      row={row}
-                      properties={cardProperties}
-                      onOpen={() => openRow(row.id)}
-                      onMove={() => startMove(row)}
-                    />
+      <View className={lanes ? 'gap-2 px-3 py-3' : 'flex-row gap-3 px-3 py-3'}>
+        {lanes && subGroup
+          ? lanes.map((lane) => {
+              const collapsed = collapsedLanes.isCollapsed(lane.key);
+              return (
+                <View
+                  key={`lane-${lane.key === null ? '\u0000' : lane.key}`}
+                  testID={`board-lane-${lane.key ?? 'none'}`}
+                  className="gap-1"
+                >
+                  <GroupHeader
+                    property={subGroup}
+                    groupKey={lane.key}
+                    granularity={view.subGroupBy?.granularity}
+                    count={lane.count}
+                    collapsed={collapsed}
+                    onToggle={() => collapsedLanes.toggle(lane.key)}
+                  />
+                  {collapsed ? null : (
+                    <View className="flex-row gap-3">
+                      {renderColumns(buildSections(lane.rows), lane)}
+                    </View>
                   )}
-                />
-              ))}
-            </View>
-          </View>
-        ))}
+                </View>
+              );
+            })
+          : renderColumns(sections, null)}
         {hasMore && onLoadMore ? (
           <Button appearance="subtle" size="sm" className="self-start" onPress={onLoadMore}>
             {t('databases.board.loadMore')}

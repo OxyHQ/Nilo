@@ -25,6 +25,9 @@ import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { RiArrowUpSLine } from '@oxy.so/bloom/icons/RiArrowUpSLine';
 import { RiExchangeLine } from '@oxy.so/bloom/icons/RiExchangeLine';
+import { RiArrowLeftLine } from '@oxy.so/bloom/icons/RiArrowLeftLine';
+import { RiArrowRightLine } from '@oxy.so/bloom/icons/RiArrowRightLine';
+import { RiCursorLine } from '@oxy.so/bloom/icons/RiCursorLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Chip } from '@oxy.so/bloom/chip';
 import { Dialog, type DialogControlProps, useDialogControl } from '@oxy.so/bloom/dialog';
@@ -57,6 +60,7 @@ import type {
 import { NAME_PROPERTY_ID, SELECT_COLORS, STATUS_GROUP_IDS } from '@/lib/types/databases';
 import { statusGroups } from '@/lib/status-groups';
 import { DateSettings, NumberSettings, RollupSettings } from './property-settings';
+import { ButtonSettings } from './button-settings';
 import { SettingSelect } from './view-settings';
 import { SELECT_CHIP_HUE } from './select-color';
 import {
@@ -74,6 +78,8 @@ interface PropertyHeaderMenuProps {
   database: Database;
   view: DatabaseView;
   property: DatabaseProperty;
+  /** A table's column, moved left or right in the view's order (by whoever may change it). */
+  move?: { onMove: (by: -1 | 1) => void; left: boolean; right: boolean };
 }
 
 /** Translated at call time: the locale can change while the app runs. */
@@ -119,6 +125,8 @@ function propertyTypeLabel(type: DatabasePropertyType): string {
       return i18n.t('databases.propertyTypes.lastEditedBy');
     case 'formula':
       return i18n.t('databases.propertyTypes.formula');
+    case 'button':
+      return i18n.t('databases.propertyTypes.button');
   }
 }
 
@@ -143,6 +151,7 @@ const PROPERTY_TYPE_ICONS: Record<DatabasePropertyType, BloomIconComponent> = {
   created_by: RiAccountCircleLine,
   last_edited_by: RiAccountCircleLine,
   formula: RiFunctions,
+  button: RiCursorLine,
 };
 
 /** The settings each type has besides its name, by the menu item that opens them. */
@@ -156,13 +165,20 @@ const CONFIG_LABELS: Partial<Record<DatabasePropertyType, string>> = {
   number: 'databases.numberFormat.title',
   date: 'databases.dateFormat.title',
   rollup: 'databases.rollup.configure',
+  button: 'databases.button.configure',
 };
 
 /**
  * Column-header menu — rename / settings / change type / sort / hide /
  * delete, in a dialog the column header opens.
  */
-export function PropertyHeaderMenu({ control, database, view, property }: PropertyHeaderMenuProps) {
+export function PropertyHeaderMenu({
+  control,
+  database,
+  view,
+  property,
+  move,
+}: PropertyHeaderMenuProps) {
   const { colors } = useColorScheme();
   const theme = useTheme();
   const { t } = useTranslation();
@@ -316,6 +332,32 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
             title={t('databases.properties.hideInView')}
             onPress={hide}
           />
+          {move ? (
+            <>
+              <Item
+                density="compact"
+                accessibilityRole="button"
+                disabled={!move.left}
+                leading={icon(RiArrowLeftLine)}
+                title={t('databases.properties.moveLeft')}
+                onPress={() => {
+                  move.onMove(-1);
+                  close();
+                }}
+              />
+              <Item
+                density="compact"
+                accessibilityRole="button"
+                disabled={!move.right}
+                leading={icon(RiArrowRightLine)}
+                title={t('databases.properties.moveRight')}
+                onPress={() => {
+                  move.onMove(1);
+                  close();
+                }}
+              />
+            </>
+          ) : null}
           {property.id !== 'name' ? (
             <Item
               density="compact"
@@ -367,6 +409,8 @@ export function PropertyHeaderMenu({ control, database, view, property }: Proper
           <DateSettings database={database} property={property} onDone={close} />
         ) : property.type === 'rollup' ? (
           <RollupSettings database={database} property={property} onDone={close} />
+        ) : property.type === 'button' ? (
+          <ButtonSettings database={database} property={property} onDone={close} />
         ) : (
           <SelectOptionsEditor property={property} database={database} onDone={close} />
         )
@@ -735,6 +779,7 @@ const ADDABLE_TYPES: DatabasePropertyType[] = [
   'last_edited_time',
   'created_by',
   'last_edited_by',
+  'button',
 ];
 
 export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps) {

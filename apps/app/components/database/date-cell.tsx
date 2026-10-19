@@ -8,6 +8,7 @@ import { Switch } from '@oxy.so/bloom/switch';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import {
+  type DateDisplayFormat,
   type DateParts,
   dayOf,
   formatDateValue,
@@ -25,6 +26,10 @@ interface DateCellProps {
   label: string;
   variant: 'table' | 'panel' | 'card';
   onChange: (next: DateParts) => void;
+  /** The property's date format (`config.dateFormat`); absent, `Oct 5, 2026`. */
+  format?: DateDisplayFormat;
+  /** A date picked where there was none has a time (`config.includeTime`). */
+  includeTime?: boolean;
 }
 
 /**
@@ -33,10 +38,10 @@ interface DateCellProps {
  * "Include time". Bloom's own calendar and time field, on web and native.
  * Each change is written at once; editing one part keeps the others.
  */
-export function DateCell({ value, label, variant, onChange }: DateCellProps) {
+export function DateCell({ value, label, variant, onChange, format, includeTime }: DateCellProps) {
   const { t, locale } = useTranslation();
   const [open, setOpen] = React.useState(false);
-  const display = formatDateValue(value, locale);
+  const display = formatDateValue(value, locale, format);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -54,6 +59,7 @@ export function DateCell({ value, label, variant, onChange }: DateCellProps) {
         {open ? (
           <DateEditor
             value={value}
+            includeTime={includeTime}
             onChange={onChange}
             onClear={() => {
               onChange({ start: null, end: null, includeTime: false });
@@ -72,12 +78,23 @@ interface DateEditorProps {
   onChange: (next: DateParts) => void;
   onClear: () => void;
   clearLabel: string;
+  /** The first date picked has a time. */
+  includeTime?: boolean;
 }
 
 /** The popover's body; its value is the cell's, so what it shows is what was last written. */
-export function DateEditor({ value, onChange, onClear, clearLabel }: DateEditorProps) {
+export function DateEditor({
+  value,
+  onChange,
+  onClear,
+  clearLabel,
+  includeTime = false,
+}: DateEditorProps) {
   const { t, locale } = useTranslation();
   const parts = readDateValue(value);
+  // The first date of a property that holds times starts with one.
+  const pick = (next: DateParts) =>
+    onChange(!parts.start && includeTime && next.start ? withTime(next, true) : next);
   const startDay = parts.start ? dayOf(parts.start, parts.includeTime) : null;
   const endDay = parts.end ? dayOf(parts.end, parts.includeTime) : null;
   // A toggled end with no day yet: the range calendar opens on it.
@@ -90,14 +107,14 @@ export function DateEditor({ value, onChange, onClear, clearLabel }: DateEditorP
           locale={locale}
           accessibilityLabel={t('databases.dates.range')}
           value={startDay ? { start: startDay, end: endDay ?? startDay } : null}
-          onChange={(range) => onChange(withDays(value, range.start, range.end))}
+          onChange={(range) => pick(withDays(value, range.start, range.end))}
         />
       ) : (
         <Calendar
           locale={locale}
           accessibilityLabel={t('databases.dates.date')}
           value={startDay}
-          onChange={(day) => onChange(withDays(value, day, null))}
+          onChange={(day) => pick(withDays(value, day, null))}
         />
       )}
       {parts.includeTime && parts.start ? (

@@ -10,6 +10,7 @@ import { useOxy } from '@oxy.so/services/ui/client';
 import apiClient from '../api/client';
 import { API_ROUTES } from '../api/routes';
 import { queryKeys } from './query-keys';
+import { readerTimeZone } from '../time-zone';
 import { useVisibleDatesStore } from '../stores/visible-dates-store';
 import { useViewSearchStore } from '../stores/view-search-store';
 import type {
@@ -28,7 +29,7 @@ import type { Page, PageResponse } from '../types/pages';
  * on the Page type without coupling pages to databases. This helper does
  * the runtime-safe conversion in one place.
  */
-function pageToDatabaseRow(page: Page): DatabaseRow {
+export function pageToDatabaseRow(page: Page): DatabaseRow {
   return {
     id: page.id,
     workspaceId: page.workspaceId,
@@ -112,6 +113,8 @@ export function useDatabaseRows(
               ...(cursor && { cursor }),
               ...(dates && { filter: JSON.stringify(dates) }),
               ...(search && { search }),
+              // A view grouped by date groups a date with a time by its day here.
+              ...(readerTimeZone() && { timeZone: readerTimeZone() }),
             },
           },
         );
@@ -144,18 +147,19 @@ export function useDatabaseRows(
 }
 
 /**
- * The loaded pages' rows, each once. A row edited between two page requests
- * can move past the cursor and come again on a later page, and a view sorted
- * on a formula or rollup pages by offset, where a row inserted moves another
- * across the boundary.
+ * The loaded pages' rows, each once (in each of its groups, in a grouped
+ * view). A row edited between two page requests can move past the cursor and
+ * come again on a later page, and a view sorted on a formula or rollup pages
+ * by offset, where a row inserted moves another across the boundary.
  */
-function uniqueRows(pages: readonly DatabaseRowsResponse[]): DatabaseRow[] {
+export function uniqueRows(pages: readonly DatabaseRowsResponse[]): DatabaseRow[] {
   const seen = new Set<string>();
   const rows: DatabaseRow[] = [];
   for (const page of pages) {
     for (const row of page.rows) {
-      if (seen.has(row.id)) continue;
-      seen.add(row.id);
+      const key = row.groupKey === undefined ? row.id : JSON.stringify([row.id, row.groupKey]);
+      if (seen.has(key)) continue;
+      seen.add(key);
       rows.push(row);
     }
   }

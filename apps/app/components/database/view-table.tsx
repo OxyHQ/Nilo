@@ -2,11 +2,11 @@ import { nestSubItems, subItemProperties, useExpandedRows } from '@/lib/sub-item
 import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
 import { Animated, Platform, Pressable, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
+import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -17,10 +17,19 @@ import {
   type DatabaseRow,
   type DatabaseView,
   type PropertyValue,
+  type RowGroup,
 } from '@/lib/types/databases';
 import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
+import { useUpdateView } from '@/lib/hooks/use-database-views';
+import { useViewCalculations } from '@/lib/hooks/use-view-data';
+import { groupProperty, groupValue, rowSections } from '@/lib/view-groups';
+import { columnWidth, moveProperty, orderedProperties, placeProperty } from '@/lib/view-properties';
 import { PropertyCell } from './property-cell';
 import { PropertyHeaderMenu } from './property-config-modal';
+import { useOpenRow } from './open-row';
+import { CalculationCell } from './calculation-cell';
+import { ColumnResizeHandle } from './column-resize-handle';
+import { GroupHeader, useCollapsedGroups, useGroupLabel } from './group-header';
 
 interface ViewTableProps {
   database: Database;
@@ -30,15 +39,29 @@ interface ViewTableProps {
   readOnly?: boolean;
   /** The columns' menus (rename, sort, hide…) are not offered: a locked database's, a reader's. */
   schemaReadOnly?: boolean;
+  /** May change the view itself: resize and move its columns, pick its calculations. */
+  viewEditable?: boolean;
+  /** A grouped view's groups, in order (`GET …/rows`). */
+  groups?: RowGroup[];
+  /** More rows than these are to load. */
+  hasMore?: boolean;
 }
 
-const DEFAULT_COL_WIDTH = 200;
-const TITLE_COL_WIDTH = 280;
+const ADD_COLUMN_WIDTH = 60;
+/** The drag payload of a column header (web). */
+const COLUMN_DRAG_TYPE = 'application/x-nilo-column';
 
 /**
  * Table view — spreadsheet-style. Renders the row's title in a fixed
- * first column, then one column per visible property. Each cell uses the
- * shared `PropertyCell` so editing is consistent across views.
+ * first column, then one column per visible property, in the view's own
+ * order (`config.propertyOrder`) and at its widths (`config.columnWidths`).
+ * Each cell uses the shared `PropertyCell` so editing is consistent across
+ * views. Whoever may change the view drags a column's edge to resize it and
+ * its header to move it (web), or moves it from its menu (everywhere).
+ *
+ * Grouped (`groupBy`), the rows come in collapsible sections, one per group
+ * with its count, in the API's order; the footer computes each column over
+ * every row of the view (`config.calculations`).
  *
  * Frozen columns (`view.frozenProperties`: the Name and the properties up to
  * one, as the view's settings set them) come first and stay put while the
@@ -53,14 +76,18 @@ export function ViewTable({
   isLoading,
   readOnly = false,
   schemaReadOnly = readOnly,
+  viewEditable = !schemaReadOnly,
+  groups,
+  hasMore = false,
 }: ViewTableProps) {
-  const router = useRouter();
+  const openRow = useOpenRow();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const createRow = useCreateRow();
+  const updateView = useUpdateView();
   const subItems = subItemProperties(database);
   const { expanded, toggleExpanded } = useExpandedRows(database.id);
-  const nestedRows = nestSubItems(rows, subItems?.parent.id, expanded);
+  const collapsedGroups = useCollapsedGroups();
   const newSubItem = (parentId: string) => {
     if (!subItems || readOnly) return;
     createRow.mutate({
@@ -71,15 +98,60 @@ export function ViewTable({
   const updateRow = useUpdateRow();
 
   const frozen = React.useMemo(() => new Set(view.frozenProperties ?? []), [view.frozenProperties]);
-  // The frozen properties first, in the database's order, then the others.
+  // In the view's order: the frozen properties first, then the others.
+  const ordered = React.useMemo(() => orderedProperties(database, view), [database, view]);
   const visibleProperties = React.useMemo(() => {
-    const shown = database.schema.properties.filter(
+    const shown = ordered.filter(
       (p) => !view.hiddenProperties.includes(p.id) && p.id !== NAME_PROPERTY_ID,
     );
     return [...shown.filter((p) => frozen.has(p.id)), ...shown.filter((p) => !frozen.has(p.id))];
-  }, [database.schema.properties, view.hiddenProperties, frozen]);
+  }, [ordered, view.hiddenProperties, frozen]);
   const frozenCount = visibleProperties.filter((p) => frozen.has(p.id)).length;
   const titleFrozen = frozen.has(NAME_PROPERTY_ID) || frozenCount > 0;
+  const nameProperty = database.schema.properties.find((p) => p.id === NAME_PROPERTY_ID);
+
+  // A column being resized takes the width it is dragged to until the view keeps it.
+  // Held against the widths the view had: once it holds new ones, those are shown.
+  const [dragState, setDragState] = React.useState<{
+    base: DatabaseView['config']['columnWidths'];
+    widths: Record<string, number>;
+  }>({ base: view.config?.columnWidths, widths: {} });
+  const dragged = dragState.base === view.config?.columnWidths ? dragState.widths : {};
+  const setDragged = (id: string, width: number) =>
+    setDragState((prev) => ({
+      base: view.config?.columnWidths,
+      widths: {
+        ...(prev.base === view.config?.columnWidths ? prev.widths : {}),
+        [id]: width,
+      },
+    }));
+  const widthOf = (id: string) => dragged[id] ?? columnWidth(view, id);
+  const titleWidth = widthOf(NAME_PROPERTY_ID);
+  const tableWidth =
+    titleWidth + visibleProperties.reduce((sum, p) => sum + widthOf(p.id), 0) + ADD_COLUMN_WIDTH;
+
+  const saveConfig = (config: DatabaseView['config']) =>
+    updateView.mutate(
+      { databaseId: database.id, viewId: view.id, config: { ...view.config, ...config } },
+      { onError: () => toast.error(t('databases.views.updateFailed')) },
+    );
+  const commitWidth = (id: string, width: number) => {
+    setDragged(id, width);
+    saveConfig({ columnWidths: { ...(view.config?.columnWidths ?? {}), [id]: width } });
+  };
+
+  const orderIds = ordered.map((p) => p.id);
+  const visibleIds = visibleProperties.map((p) => p.id);
+  const moveColumn = (id: string, by: -1 | 1) => {
+    const next = moveProperty(orderIds, visibleIds, id, by);
+    if (next) saveConfig({ propertyOrder: next });
+  };
+  const dropColumn = (id: string, onto: string) => {
+    const side = visibleIds.indexOf(id) < visibleIds.indexOf(onto) ? 'after' : 'before';
+    const next = placeProperty(orderIds, id, onto, side);
+    if (next) saveConfig({ propertyOrder: next });
+  };
+
   const scrollX = React.useRef(new Animated.Value(0)).current;
   const onScroll = React.useMemo(
     () =>
@@ -89,10 +161,34 @@ export function ViewTable({
     [scrollX],
   );
 
+  const calculations = view.config?.calculations ?? {};
+  const hasCalculations = Object.keys(calculations).length > 0;
+  const computed = useViewCalculations(database.id, view.id, hasCalculations);
+
+  const grouping = groupProperty(database.schema.properties, view.groupBy);
+  const sections =
+    grouping && groups
+      ? rowSections(rows, groups, { hideEmpty: view.groupBy?.hideEmpty, complete: !hasMore })
+      : null;
+  const groupLabel = useGroupLabel(
+    grouping ?? (nameProperty as DatabaseProperty),
+    view.groupBy?.granularity,
+  );
+
   const handleNewRow = React.useCallback(async () => {
     if (readOnly) return;
     await createRow.mutateAsync({ databaseId: database.id });
   }, [createRow, database.id, readOnly]);
+
+  const newRowIn = (key: string | null) => {
+    if (readOnly || !grouping) return;
+    const value = groupValue(grouping, key);
+    createRow.mutate({
+      databaseId: database.id,
+      ...(grouping.id === NAME_PROPERTY_ID && key !== null && { title: key }),
+      ...(value !== undefined && { properties: { [grouping.id]: value } }),
+    });
+  };
 
   const handleCellChange = React.useCallback(
     (rowId: string, propertyId: string, value: PropertyValue) => {
@@ -126,6 +222,69 @@ export function ViewTable({
     );
   }
 
+  const renderRows = (list: DatabaseRow[], keyPrefix: string) =>
+    nestSubItems(list, subItems?.parent.id, expanded).map((entry) => {
+      if (entry.kind === 'new')
+        return !readOnly ? (
+          <NewSubItem
+            key={`${keyPrefix}new-${entry.parentId}`}
+            depth={entry.depth}
+            disabled={createRow.isPending}
+            onPress={() => newSubItem(entry.parentId)}
+          />
+        ) : null;
+      const { row, depth } = entry;
+      return (
+        <View key={`${keyPrefix}${row.id}`} className="flex-row border-b border-border/60">
+          <FrozenCell frozen={titleFrozen} last={frozenCount === 0} scrollX={scrollX}>
+            <Pressable
+              className="flex-1 px-3 py-2 border-r border-border/60 flex-row items-center"
+              style={{ width: titleWidth, paddingLeft: 12 + depth * 24 }}
+              accessibilityRole="link"
+              accessibilityLabel={row.title || t('databases.untitled')}
+              onPress={() => openRow(row.id)}
+            >
+              {subItems ? (
+                <SubItemToggle
+                  expanded={expanded.has(row.id)}
+                  title={row.title}
+                  onPress={() => toggleExpanded(row.id)}
+                />
+              ) : null}
+              <TitleCell
+                readOnly={readOnly}
+                initial={row.title}
+                onChange={(next) => handleTitleChange(row.id, next)}
+              />
+            </Pressable>
+          </FrozenCell>
+          {visibleProperties.map((property, index) => (
+            <FrozenCell
+              key={property.id}
+              frozen={index < frozenCount}
+              last={index === frozenCount - 1}
+              scrollX={scrollX}
+            >
+              <View
+                className="px-3 py-2 border-r border-border/60 justify-center flex-1"
+                style={{ width: widthOf(property.id) }}
+              >
+                <PropertyCell
+                  readOnly={readOnly}
+                  property={property}
+                  value={row.properties[property.id] ?? null}
+                  variant="table"
+                  rowId={row.id}
+                  onChange={(value) => handleCellChange(row.id, property.id, value)}
+                />
+              </View>
+            </FrozenCell>
+          ))}
+          <View style={{ width: ADD_COLUMN_WIDTH }} />
+        </View>
+      );
+    });
+
   return (
     <Animated.ScrollView
       horizontal
@@ -137,7 +296,7 @@ export function ViewTable({
         {/* header row */}
         <View
           className="flex-row border-y border-border bg-muted/30"
-          style={{ minWidth: TITLE_COL_WIDTH + visibleProperties.length * DEFAULT_COL_WIDTH + 60 }}
+          style={{ minWidth: tableWidth }}
         >
           <FrozenCell
             testID="table-title-header"
@@ -147,11 +306,19 @@ export function ViewTable({
           >
             <View
               className={`px-3 py-2 border-r border-border ${titleFrozen ? 'bg-muted/30' : ''}`}
-              style={{ width: TITLE_COL_WIDTH }}
+              style={{ width: titleWidth }}
             >
               <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {t('common.name')}
               </Text>
+              {viewEditable && Platform.OS === 'web' ? (
+                <ColumnResizeHandle
+                  width={titleWidth}
+                  label={t('databases.columns.resize', { name: t('common.name') })}
+                  onResize={(width) => setDragged(NAME_PROPERTY_ID, width)}
+                  onCommit={(width) => commitWidth(NAME_PROPERTY_ID, width)}
+                />
+              ) : null}
             </View>
           </FrozenCell>
           {visibleProperties.map((property, index) => (
@@ -164,85 +331,78 @@ export function ViewTable({
             >
               <ColumnHeader
                 readOnly={schemaReadOnly}
+                movable={viewEditable}
                 database={database}
                 view={view}
                 property={property}
+                width={widthOf(property.id)}
                 frozen={index < frozenCount}
+                onMove={(by) => moveColumn(property.id, by)}
+                canMoveLeft={index > 0}
+                canMoveRight={index < visibleProperties.length - 1}
+                onColumnDropped={(id) => dropColumn(id, property.id)}
+                onResize={(width) => setDragged(property.id, width)}
+                onCommitWidth={(width) => commitWidth(property.id, width)}
               />
             </FrozenCell>
           ))}
-          <View className="px-3 py-2 items-center justify-center" style={{ width: 60 }} />
+          <View
+            className="px-3 py-2 items-center justify-center"
+            style={{ width: ADD_COLUMN_WIDTH }}
+          />
         </View>
 
         {/* rows */}
-        {rows.length === 0 ? (
+        {rows.length === 0 && !sections?.length ? (
           <EmptyState
             // icon: Table
             variant="compact"
             title={t('databases.table.empty')}
           />
-        ) : (
-          nestedRows.map((entry) => {
-            if (entry.kind === 'new')
-              return !readOnly ? (
-                <NewSubItem
-                  key={`new-${entry.parentId}`}
-                  depth={entry.depth}
-                  disabled={createRow.isPending}
-                  onPress={() => newSubItem(entry.parentId)}
-                />
-              ) : null;
-            const { row, depth } = entry;
+        ) : sections && grouping ? (
+          sections.map((section) => {
+            const collapsed = collapsedGroups.isCollapsed(section.key);
+            const prefix = `${section.key === null ? '\u0000' : section.key}:`;
             return (
-              <View key={row.id} className="flex-row border-b border-border/60">
-                <FrozenCell frozen={titleFrozen} last={frozenCount === 0} scrollX={scrollX}>
-                  <Pressable
-                    className="flex-1 px-3 py-2 border-r border-border/60 flex-row items-center"
-                    style={{ width: TITLE_COL_WIDTH, paddingLeft: 12 + depth * 24 }}
-                    accessibilityRole="link"
-                    accessibilityLabel={row.title || t('databases.untitled')}
-                    onPress={() => router.push(`/p/${row.id}`)}
-                  >
-                    {subItems ? (
-                      <SubItemToggle
-                        expanded={expanded.has(row.id)}
-                        title={row.title}
-                        onPress={() => toggleExpanded(row.id)}
-                      />
+              <View key={`group-${prefix}`} testID={`table-group-${section.key ?? 'none'}`}>
+                <View className="border-b border-border/60" style={{ minWidth: tableWidth }}>
+                  <GroupHeader
+                    property={grouping}
+                    groupKey={section.key}
+                    granularity={view.groupBy?.granularity}
+                    count={section.count}
+                    collapsed={collapsed}
+                    onToggle={() => collapsedGroups.toggle(section.key)}
+                  />
+                </View>
+                {collapsed ? null : (
+                  <>
+                    {renderRows(section.rows, prefix)}
+                    {!readOnly &&
+                    grouping.type !== 'created_by' &&
+                    grouping.type !== 'last_edited_by' ? (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t('databases.groups.addRow', {
+                          name: groupLabel(section.key),
+                        })}
+                        disabled={createRow.isPending}
+                        onPress={() => newRowIn(section.key)}
+                        className="flex-row items-center gap-2 px-3 py-1.5 border-b border-border/60 hover:bg-muted/40"
+                      >
+                        <RiAddLine width={12} height={12} fill={colors.mutedForeground} />
+                        <Text className="text-xs text-muted-foreground">
+                          {t('databases.actions.new')}
+                        </Text>
+                      </Pressable>
                     ) : null}
-                    <TitleCell
-                      readOnly={readOnly}
-                      initial={row.title}
-                      onChange={(next) => handleTitleChange(row.id, next)}
-                    />
-                  </Pressable>
-                </FrozenCell>
-                {visibleProperties.map((property, index) => (
-                  <FrozenCell
-                    key={property.id}
-                    frozen={index < frozenCount}
-                    last={index === frozenCount - 1}
-                    scrollX={scrollX}
-                  >
-                    <View
-                      className="px-3 py-2 border-r border-border/60 justify-center flex-1"
-                      style={{ width: DEFAULT_COL_WIDTH }}
-                    >
-                      <PropertyCell
-                        readOnly={readOnly}
-                        property={property}
-                        value={row.properties[property.id] ?? null}
-                        variant="table"
-                        rowId={row.id}
-                        onChange={(value) => handleCellChange(row.id, property.id, value)}
-                      />
-                    </View>
-                  </FrozenCell>
-                ))}
-                <View style={{ width: 60 }} />
+                  </>
+                )}
               </View>
             );
           })
+        ) : (
+          renderRows(rows, '')
         )}
 
         {/* new row */}
@@ -264,6 +424,43 @@ export function ViewTable({
               {createRow.isPending ? t('databases.actions.adding') : t('databases.actions.new')}
             </Text>
           </Pressable>
+        ) : null}
+
+        {/* footer: each column calculated over all the view's rows */}
+        {viewEditable || hasCalculations ? (
+          <View className="flex-row" style={{ minWidth: tableWidth }} testID="table-footer">
+            <FrozenCell frozen={titleFrozen} last={frozenCount === 0} scrollX={scrollX}>
+              {nameProperty ? (
+                <CalculationCell
+                  database={database}
+                  view={view}
+                  property={nameProperty}
+                  value={computed.data?.calculations[NAME_PROPERTY_ID]?.value}
+                  width={titleWidth}
+                  editable={viewEditable}
+                />
+              ) : (
+                <View style={{ width: titleWidth }} />
+              )}
+            </FrozenCell>
+            {visibleProperties.map((property, index) => (
+              <FrozenCell
+                key={property.id}
+                frozen={index < frozenCount}
+                last={index === frozenCount - 1}
+                scrollX={scrollX}
+              >
+                <CalculationCell
+                  database={database}
+                  view={view}
+                  property={property}
+                  value={computed.data?.calculations[property.id]?.value}
+                  width={widthOf(property.id)}
+                  editable={viewEditable}
+                />
+              </FrozenCell>
+            ))}
+          </View>
         ) : null}
       </View>
     </Animated.ScrollView>
@@ -301,30 +498,100 @@ interface ColumnHeaderProps {
   view: DatabaseView;
   property: DatabaseProperty;
   readOnly: boolean;
+  /** May resize and move the column (the view's editors). */
+  movable: boolean;
+  width: number;
   /** Painted as the header row is, over the frozen cell's opaque background. */
   frozen?: boolean;
+  onMove: (by: -1 | 1) => void;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
+  /** Another column's header dropped on this one (web). */
+  onColumnDropped: (propertyId: string) => void;
+  onResize: (width: number) => void;
+  onCommitWidth: (width: number) => void;
 }
 
-function ColumnHeader({ database, view, property, readOnly, frozen = false }: ColumnHeaderProps) {
+function ColumnHeader({
+  database,
+  view,
+  property,
+  readOnly,
+  movable,
+  width,
+  frozen = false,
+  onMove,
+  canMoveLeft,
+  canMoveRight,
+  onColumnDropped,
+  onResize,
+  onCommitWidth,
+}: ColumnHeaderProps) {
   const menu = useDialogControl();
+  const { t } = useTranslation();
+  const web = Platform.OS === 'web' && movable;
+  // Web-only: the header's name is dragged onto another header to move its
+  // column there; its edge, not draggable, resizes it.
+  const dragSource = web
+    ? {
+        draggable: true,
+        onDragStart: (e: { dataTransfer: DataTransfer }) => {
+          e.dataTransfer.setData(COLUMN_DRAG_TYPE, property.id);
+          e.dataTransfer.effectAllowed = 'move';
+        },
+      }
+    : {};
+  const dropTarget = web
+    ? {
+        onDragOver: (e: { preventDefault: () => void; dataTransfer: DataTransfer }) => {
+          if (e.dataTransfer.types.includes(COLUMN_DRAG_TYPE)) e.preventDefault();
+        },
+        onDrop: (e: { preventDefault: () => void; dataTransfer: DataTransfer }) => {
+          const id = e.dataTransfer.getData(COLUMN_DRAG_TYPE);
+          if (!id) return;
+          e.preventDefault();
+          onColumnDropped(id);
+        },
+      }
+    : {};
   return (
     <View
       className={`px-3 py-2 border-r border-border flex-row items-center justify-between ${frozen ? 'bg-muted/30' : ''}`}
-      style={{ width: DEFAULT_COL_WIDTH }}
+      style={{ width }}
+      {...(dropTarget as Record<string, unknown>)}
     >
       <Pressable
         disabled={readOnly}
         accessibilityRole="button"
         accessibilityLabel={property.name}
+        accessibilityHint={web ? t('databases.columns.drag', { name: property.name }) : undefined}
         onPress={() => menu.open()}
         className="flex-1"
+        {...(dragSource as Record<string, unknown>)}
       >
-        <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <Text
+          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          numberOfLines={1}
+        >
           {property.name}
         </Text>
       </Pressable>
       {!readOnly ? (
-        <PropertyHeaderMenu control={menu} database={database} view={view} property={property} />
+        <PropertyHeaderMenu
+          control={menu}
+          database={database}
+          view={view}
+          property={property}
+          move={movable ? { onMove, left: canMoveLeft, right: canMoveRight } : undefined}
+        />
+      ) : null}
+      {web ? (
+        <ColumnResizeHandle
+          width={width}
+          label={t('databases.columns.resize', { name: property.name })}
+          onResize={onResize}
+          onCommit={onCommitWidth}
+        />
       ) : null}
     </View>
   );

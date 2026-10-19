@@ -11,6 +11,7 @@ import type {
   DatabaseViewsResponse,
   FilterGroup,
   ViewConfig,
+  ViewGroupBy,
   ViewSort,
 } from '../types/databases';
 
@@ -22,7 +23,8 @@ interface CreateViewInput {
   isDefault?: boolean;
   filters?: FilterGroup;
   sorts?: ViewSort[];
-  groupBy?: { propertyId: string } | null;
+  groupBy?: ViewGroupBy | null;
+  subGroupBy?: ViewGroupBy | null;
   hiddenProperties?: string[];
   frozenProperties?: string[];
   pageSize?: number;
@@ -38,7 +40,8 @@ interface UpdateViewInput {
   isDefault?: boolean;
   filters?: FilterGroup;
   sorts?: ViewSort[];
-  groupBy?: { propertyId: string } | null;
+  groupBy?: ViewGroupBy | null;
+  subGroupBy?: ViewGroupBy | null;
   hiddenProperties?: string[];
   frozenProperties?: string[];
   pageSize?: number;

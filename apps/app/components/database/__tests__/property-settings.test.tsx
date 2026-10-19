@@ -11,6 +11,7 @@ import type { Database, DatabaseProperty, DatabaseView } from '@/lib/types/datab
 const mockUpdate = jest.fn();
 const mockUpdateAsync = jest.fn();
 let mockRelated: Database | undefined;
+jest.mock('../button-settings', () => ({ ButtonSettings: () => null }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock('@oxy.so/bloom/surfaces', () => ({ confirm: jest.fn() }));
 jest.mock('@/hooks/useTranslation', () => ({
