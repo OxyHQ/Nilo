@@ -606,14 +606,14 @@ describe('PATCH /pages/:id', () => {
       expect(updated.properties.name).toEqual({ text: 'new' });
     });
 
-    it('skips a property the database schema does not declare', async () => {
+    it('refuses a property the database schema does not declare, and stores nothing', async () => {
       const res = await api('PATCH', `/pages/${rowId}`, {
-        properties: { nosuch: { text: 'ignored' } },
+        properties: { nosuch: { text: 'refused' } },
       });
-      expect(res.status).toBe(200);
-      expect(
-        (res.json.page as { properties: Record<string, unknown> }).properties,
-      ).not.toHaveProperty('nosuch');
+      expect(res.status).toBe(400);
+      expect(res.json.code).toBe('UNKNOWN_PROPERTY');
+      const [row] = await db.select().from(pages).where(eq(pages.id, rowId));
+      expect(row?.properties).not.toHaveProperty('nosuch');
     });
   });
 });

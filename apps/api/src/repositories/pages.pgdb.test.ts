@@ -111,6 +111,8 @@ describe('pages repository (real database)', () => {
       'publishedAt',
       'publishSlug',
       'publishIndexing',
+      // Written with `archived` when a page's tree goes to the trash or back.
+      'archivedWith',
       // Written by every block transaction and page edit.
       'lastEditedBy',
       'order',
@@ -125,7 +127,7 @@ describe('pages repository (real database)', () => {
       // spells. `sqlColumnName` is used below where the SQL identifier is what
       // matters — reading one for the other is the 42703 trap.
       const declared = getTableConfig(pages).columns.map((column) => column.name);
-      expect(WRITER_FIELDS.length).toBe(25);
+      expect(WRITER_FIELDS.length).toBe(26);
       for (const field of WRITER_FIELDS) expect(declared).toContain(field);
       expect(new Set(declared)).toEqual(
         new Set([...WRITER_FIELDS, 'id', 'createdAt', 'updatedAt']),
@@ -139,7 +141,7 @@ describe('pages repository (real database)', () => {
       `);
       const live = new Set(rows.map((row) => row.column_name));
       const config = getTableConfig(pages);
-      expect(config.columns.length).toBe(28);
+      expect(config.columns.length).toBe(29);
       for (const column of config.columns) expect(live).toContain(sqlColumnName(column));
       expect(live.size).toBe(config.columns.length);
     });

@@ -1409,7 +1409,7 @@ describe('rows', () => {
             .properties,
         ).total,
       );
-    expect(totalNow().then((t) => t.number)).resolves.toBe(90_000);
+    expect((await totalNow()).number).toBe(90_000);
     // The target becomes someone else's private database.
     await db
       .update(databases)
