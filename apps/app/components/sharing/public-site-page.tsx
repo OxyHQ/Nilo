@@ -104,6 +104,7 @@ export default function PublicSitePage() {
             </Text>
             <SharedBlockTree
               blocks={data.blocks}
+              synced={data.synced}
               publicSlug={slug}
               font={data.page.font}
               fileScope={{ kind: 'published', slug, pageId: data.page.id }}

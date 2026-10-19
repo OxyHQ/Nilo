@@ -154,7 +154,11 @@ export default function PublicSharePage() {
           ) : null}
           <SharedPageHeader page={data.page} token={token} />
           <View className="gap-1.5">
-            <SharedBlockTree blocks={data.blocks} fileScope={{ kind: 'share', token }} />
+            <SharedBlockTree
+              blocks={data.blocks}
+              synced={data.synced}
+              fileScope={{ kind: 'share', token }}
+            />
           </View>
         </View>
       </ScrollView>

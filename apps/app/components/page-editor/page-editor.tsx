@@ -6,24 +6,25 @@ import { usePageComments } from '@/lib/hooks/use-comments';
 import { useCreatePage, usePage } from '@/lib/hooks/use-pages';
 import { useSearchBlock } from '@/lib/hooks/use-search-block';
 import { runCommand } from '@/lib/editor/run-command';
-import {
-  BlockEditor,
-  type BlockSnapshot,
-  composeCommands,
-  type EditorStore,
-  getBlock,
-  insertSnapshot,
-  removeBlocks,
-  setProps,
-} from '@oxy.so/bloom-editor';
+import { BlockEditor, type EditorStore, setProps } from '@oxy.so/bloom-editor';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
 import { toast } from '@oxy.so/bloom/toast';
 import { router } from 'expo-router';
 import { BlockCommentsProvider, openCommentCounts } from '@/components/comments/comment-indicator';
+import { useCopyAndSync } from '@/components/editor/blocks/sync-block';
 import { IconPicker } from '@/components/page-chrome/icon-picker';
+import apiClient from '@/lib/api/client';
+import { API_ROUTES } from '@/lib/api/routes';
+import { selectionAnchor } from '@/lib/comments/anchor';
+import { insertBlockSnapshot, insertContainer } from '@/lib/editor/insert-blocks';
+import { removedOriginals, syncedReference } from '@/lib/editor/synced-blocks';
+import type { SyncedUsages } from '@/lib/hooks/use-synced-blocks';
+import type { CommentAnchor } from '@/lib/types/comments';
 import { MemberProfileCard } from './member-profile-card';
+import { EmbeddedEditorProvider, type EmbeddedEditorValue } from './embedded-editor';
+import { SyncedBlockPicker } from './synced-block-picker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -36,8 +37,6 @@ import { PageCanvas } from './page-canvas';
 import { AiDialog } from './ai-dialog';
 import { useAiAvailable } from '@/lib/ai/use-ai';
 
-const paragraph = (): BlockSnapshot => ({ type: 'paragraph', text: [] });
-
 /** An equation typed between `$$` is a mention (the page's `@`), drawn and edited as one. */
 const INLINE_EQUATIONS = { indicator: '@' } as const;
 
@@ -48,52 +47,15 @@ const REJECTION_MESSAGES: Record<string, string> = {
   DEVICE_STORE: 'editor.status.deviceStore',
 };
 
-/** Containers that arrive with their structure: two columns, a 2×2 table. */
-const CONTAINERS: Record<string, BlockSnapshot> = {
-  columns: {
-    type: 'columns',
-    props: { columnCount: 2 },
-    children: [
-      { type: 'column', children: [paragraph()] },
-      { type: 'column', children: [paragraph()] },
-    ],
-  },
-  table: {
-    type: 'table',
-    props: { rows: 2, cols: 2, withHeader: false },
-    children: [0, 1].map(() => ({
-      type: 'table_row',
-      children: [0, 1].map(() => ({ type: 'table_cell', text: [] })),
-    })),
-  },
-};
-
-/** Insert a container after `blockId`, replacing the block when it is empty. */
-function insertContainer(store: EditorStore, id: string, blockId: string): void {
-  const snapshot = CONTAINERS[id];
-  if (!snapshot) return;
-  insertBlockSnapshot(store, snapshot, blockId);
-}
-
-/**
- * Insert `snapshot` after `blockId`, replacing the block when it is empty.
- * The block gone meanwhile (a collaborator removed it while a database was
- * being made for it), the new block goes at the end of the page instead of
- * nowhere.
- */
-function insertBlockSnapshot(store: EditorStore, snapshot: BlockSnapshot, blockId: string): void {
-  const anchor = store.doc.blocks[blockId] ? blockId : null;
-  const block = anchor ? getBlock(store.doc, anchor) : null;
-  const empty =
-    block !== null &&
-    (block.text ?? []).every((segment) => !segment.text) &&
-    block.children.length === 0;
-  store.sealHistory();
-  store.run((ctx) =>
-    composeCommands(ctx, [
-      (c) => insertSnapshot(c.doc, [snapshot], anchor, c.newId, c.schema),
-      (c) => (empty && anchor ? removeBlocks(c, [anchor]) : null),
-    ]),
+/** Comment on the selected text: ⌘⇧M (Ctrl+Shift+M), as in Notion. */
+export function isCommentShortcut(
+  event: Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey'>,
+): boolean {
+  return (
+    (event.metaKey || event.ctrlKey) &&
+    event.shiftKey &&
+    !event.altKey &&
+    event.key.toLowerCase() === 'm'
   );
 }
 
@@ -109,8 +71,8 @@ export function PageEditor({
   layout?: 'document' | 'canvas';
   focusedBlockId?: string;
   readOnly?: boolean;
-  /** Open the comment panel on one block. */
-  onOpenBlockComments?: (blockId: string) => void;
+  /** Open the comment panel on one block, on a stretch of its text when `anchor` is given. */
+  onOpenBlockComments?: (blockId: string, anchor?: CommentAnchor | null) => void;
 }) {
   const { t } = useTranslation();
   const {
@@ -125,7 +87,12 @@ export function PageEditor({
     labels,
     aiTarget,
     setAiTarget,
+    setEmbeddedController,
   } = usePageEditorContext();
+  const copyAndSync = useCopyAndSync();
+  const [syncedTarget, setSyncedTarget] = useState<{ blockId: string; store: EditorStore } | null>(
+    null,
+  );
   const aiAvailable = useAiAvailable() && !readOnly;
   useSearchBlock(focusedBlockId, true);
   const page = usePage(pageId);
@@ -175,6 +142,15 @@ export function PageEditor({
   const openBlockComments = useCallback((blockId: string) => openComments.current?.(blockId), []);
   const blockActions = useMemo(
     () => [
+      ...(!readOnly && store
+        ? [
+            {
+              id: 'copySync',
+              label: t('editor.ui.copyAndSync'),
+              onPress: (id: string) => void copyAndSync(store, pageId, id),
+            },
+          ]
+        : []),
       ...(aiAvailable
         ? [
             {
@@ -189,13 +165,55 @@ export function PageEditor({
             {
               id: 'comment',
               label: t('editor.ui.comment'),
-              onPress: (id: string) => openComments.current?.(id),
+              // On the text selected in this block when there is some, as Notion does.
+              onPress: (id: string) =>
+                openComments.current?.(id, store ? selectionAnchor(store, id)?.anchor : null),
             },
           ]
         : []),
     ],
-    [aiAvailable, canComment, setAiTarget, t],
+    [aiAvailable, canComment, setAiTarget, t, readOnly, store, copyAndSync, pageId],
   );
+
+  // Web: ⌘⇧M comments on the selected text. Bloom's selection bubble takes no
+  // actions of an app's own, so the shortcut and the block's menu offer it.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !canComment || !store) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (!isCommentShortcut(event)) return;
+      const selected = selectionAnchor(store);
+      if (!selected) return;
+      event.preventDefault();
+      openComments.current?.(selected.blockId, selected.anchor);
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [canComment, store]);
+
+  // Deleting an original: the pages showing it will show "Original deleted".
+  // Bloom asks nothing before removing blocks, so it is said after, with undo.
+  useEffect(() => {
+    if (!store || readOnly) return;
+    return store.onTransaction((tx, origin) => {
+      if (origin !== 'local') return;
+      const removed = removedOriginals(tx);
+      if (removed.length === 0) return;
+      void Promise.all(
+        removed.map((id) =>
+          apiClient
+            .get<SyncedUsages>(API_ROUTES.syncedBlocks.usages(id))
+            .then(({ data }) => data.references.filter((r) => r.page.id !== pageId).length)
+            .catch(() => 0),
+        ),
+      ).then((counts) => {
+        const count = counts.reduce((sum, n) => sum + n, 0);
+        if (count === 0) return;
+        toast.warning(t('editor.blocks.syncBlock.deletedWarning', { count }), {
+          action: { label: t('editor.blocks.syncBlock.undo'), onClick: () => store.undo() },
+        });
+      });
+    });
+  }, [store, readOnly, pageId, t]);
 
   useEffect(() => {
     currentEditor.current = { store, readOnly };
@@ -212,6 +230,10 @@ export function PageEditor({
       if (!store || readOnly) return;
       if (id === 'linkedDatabase') {
         setLinkTarget({ blockId, store });
+        return;
+      }
+      if (id === 'pasteSyncedBlock') {
+        setSyncedTarget({ blockId, store });
         return;
       }
       if (id === 'childPage') {
@@ -270,6 +292,22 @@ export function PageEditor({
       }
     },
     [store, readOnly, pageId, t, createDatabaseAsync, createPageAsync, deleteDatabase.mutate],
+  );
+
+  // What a synced block's editor inside this page draws with.
+  const embedded: EmbeddedEditorValue = useMemo(
+    () => ({
+      slashItems,
+      markers,
+      theme,
+      labels,
+      mentions,
+      onOpenMention,
+      onOpenLink: openEditorLink,
+      renderersFor: createRenderers,
+      setActiveController: setEmbeddedController,
+    }),
+    [slashItems, markers, theme, labels, mentions, onOpenMention, setEmbeddedController],
   );
 
   useEffect(() => {
@@ -360,6 +398,25 @@ export function PageEditor({
           }}
         />
       ) : null}
+      {syncedTarget && page.data?.page.workspaceId && !readOnly ? (
+        <SyncedBlockPicker
+          workspaceId={page.data.page.workspaceId}
+          onClose={() => setSyncedTarget(null)}
+          onChoose={(source) => {
+            if (
+              currentEditor.current.store === syncedTarget.store &&
+              !currentEditor.current.readOnly
+            ) {
+              insertBlockSnapshot(
+                syncedTarget.store,
+                syncedReference(source),
+                syncedTarget.blockId,
+              );
+            }
+            setSyncedTarget(null);
+          }}
+        />
+      ) : null}
       {aiTarget && aiAvailable ? (
         <AiDialog
           store={store}
@@ -387,7 +444,9 @@ export function PageEditor({
         />
       )}
       <BlockCommentsProvider counts={commentCounts} open={openBlockComments}>
-        {layout === 'canvas' ? <PageCanvas {...editorProps} /> : <BlockEditor {...editorProps} />}
+        <EmbeddedEditorProvider value={embedded}>
+          {layout === 'canvas' ? <PageCanvas {...editorProps} /> : <BlockEditor {...editorProps} />}
+        </EmbeddedEditorProvider>
       </BlockCommentsProvider>
     </View>
   );

@@ -172,3 +172,55 @@ it('lays out tables and columns and shows every kind of block, none as unsupport
   // The table of contents names the page's headings.
   expect(json.split('Top').length).toBeGreaterThan(2);
 });
+
+it('reads a synced block as what it shows: its own blocks, or its original’s as sent', () => {
+  const tree = [
+    { id: 'orig', parentBlockId: null, type: 'sync_block', content: {}, order: 0 },
+    {
+      id: 'mine',
+      parentBlockId: 'orig',
+      type: 'paragraph',
+      content: { text: 'Own words' },
+      order: 0,
+    },
+    {
+      id: 'ref',
+      parentBlockId: null,
+      type: 'sync_block',
+      content: { sourceBlockId: 'far', sourcePageId: 'other' },
+      order: 1,
+    },
+    {
+      id: 'hidden',
+      parentBlockId: null,
+      type: 'sync_block',
+      content: { sourceBlockId: 'secret', sourcePageId: 'other' },
+      order: 2,
+    },
+  ];
+  const synced = {
+    far: [
+      {
+        id: 'f1',
+        parentBlockId: 'far',
+        type: 'paragraph',
+        content: { text: 'From afar' },
+        order: 0,
+      },
+      // A reference to its own original inside what it shows: drawn once.
+      {
+        id: 'f2',
+        parentBlockId: 'far',
+        type: 'sync_block',
+        content: { sourceBlockId: 'far', sourcePageId: 'other' },
+        order: 1,
+      },
+    ],
+  };
+  act(() => {
+    renderer = create(themed(<SharedBlockTree blocks={tree} synced={synced} />));
+  });
+  const json = JSON.stringify(renderer.toJSON());
+  expect(json.split('Own words')).toHaveLength(2);
+  expect(json.split('From afar')).toHaveLength(2);
+});

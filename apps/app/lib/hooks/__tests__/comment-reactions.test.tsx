@@ -18,6 +18,7 @@ const comment: Comment = {
   parentCommentId: null,
   authorId: 'other',
   content: { segments: [], plainText: '' },
+  anchor: null,
   reactions: [{ emoji: '👍', userIds: ['other'] }],
   resolvedAt: null,
   editedAt: null,

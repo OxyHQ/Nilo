@@ -316,8 +316,14 @@ const childPageContentSchema = z.object({
   ...styleFields,
 });
 
+/**
+ * A synced block. An original holds its content as its children; a reference
+ * names the original (`sourceBlockId`) and the page it lives on
+ * (`sourcePageId`) and shows that original's blocks, live, in its place.
+ */
 const syncBlockContentSchema = z.object({
   sourceBlockId: entityIdSchema.optional(),
+  sourcePageId: entityIdSchema.optional(),
   ...styleFields,
 });
 
@@ -535,4 +541,23 @@ export function defaultContent(type: BlockType): BlockContent {
 
 export function isBlockType(value: string): value is BlockType {
   return (BLOCK_TYPES as readonly string[]).includes(value);
+}
+
+/**
+ * The original a synced block shows, or null for an original (or a block of
+ * any other type). A reference needs both ids: the page is where its
+ * original's document is read.
+ */
+export function syncedSource(
+  type: string,
+  content: BlockContent,
+): { blockId: string; pageId: string } | null {
+  if (type !== 'sync_block') return null;
+  const { sourceBlockId, sourcePageId } = content as {
+    sourceBlockId?: unknown;
+    sourcePageId?: unknown;
+  };
+  return typeof sourceBlockId === 'string' && typeof sourcePageId === 'string'
+    ? { blockId: sourceBlockId, pageId: sourcePageId }
+    : null;
 }

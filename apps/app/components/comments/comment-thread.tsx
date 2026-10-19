@@ -26,6 +26,7 @@ import {
 } from '@/lib/hooks/use-comments';
 import { CommentContentView } from './comment-content';
 import { CommentComposer } from './comment-composer';
+import { CommentQuote } from './comment-quote';
 import { useTranslation } from '@/hooks/useTranslation';
 import i18n from '@/lib/i18n';
 
@@ -92,6 +93,9 @@ export function CommentThread({
 
   return (
     <View className="rounded-xl border border-border bg-card px-3 py-3 gap-2">
+      {thread.root.anchor ? (
+        <CommentQuote blockId={thread.root.blockId} anchor={thread.root.anchor} />
+      ) : null}
       <CommentRow
         comment={thread.root}
         currentUserId={canComment ? (user?.id ?? null) : null}

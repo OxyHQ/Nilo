@@ -12,6 +12,8 @@ import {
   parseInline,
   renderInline,
   type Segment,
+  syncedSource,
+  withSyncedContent,
 } from '@oxy.so/nilo-contracts';
 import { describe, expect, it } from 'vitest';
 
@@ -391,5 +393,62 @@ describe('blocks that point elsewhere, in exports', () => {
     expect(md).not.toContain('Roadmap');
     expect(md).not.toContain('Meeting');
     expect(md).not.toContain('Tasks');
+  });
+});
+
+describe('synced blocks in exports', () => {
+  const node = (type: string, content: Record<string, unknown>, children: BlockNode[] = []) =>
+    ({ type, content, children }) as unknown as BlockNode;
+  const ref = (id: string) => node('sync_block', { sourceBlockId: id, sourcePageId: 'p' });
+  const shown: Record<string, BlockNode[]> = {
+    a: [
+      node('numbered_list_item', { text: 'One' }),
+      node('numbered_list_item', { text: 'Two' }),
+      ref('a'),
+    ],
+    b: [node('paragraph', { text: 'Bee' }), ref('a')],
+  };
+  const context = { syncedBlocks: (id: string) => shown[id] };
+
+  it('reads an original as its blocks, and a reference as its original’s', () => {
+    const tree = [
+      node('sync_block', {}, [node('paragraph', { text: 'Mine' })]),
+      ref('b'),
+      ref('unknown'),
+    ];
+    const md = blocksToMarkdown(tree, undefined, context);
+    expect(md).toBe('Mine\n\nBee\n\n1. One\n2. Two\n');
+    expect(blocksToHtmlBody([ref('b')], context)).toBe(
+      '<div class="synced"><p>Bee</p>\n<div class="synced"><ol><li>One</li><li>Two</li></ol></div></div>',
+    );
+  });
+
+  it('leaves a reference out without a context, and keeps an original', () => {
+    expect(blocksToMarkdown([ref('b')])).toBe('\n');
+    expect(blocksToMarkdown([node('sync_block', {}, [node('paragraph', { text: 'Kept' })])])).toBe(
+      'Kept\n',
+    );
+  });
+
+  it('gives a tree renderer the references’ blocks, never looping', () => {
+    const [expanded] = withSyncedContent([ref('b')], context);
+    expect(expanded?.children.map((c) => c.content.text ?? c.type)).toEqual(['Bee', 'sync_block']);
+    const inner = expanded?.children[1];
+    expect(inner?.children.map((c) => c.content.text ?? c.type)).toEqual([
+      'One',
+      'Two',
+      'sync_block',
+    ]);
+    // The reference to `a` inside `a` shows nothing.
+    expect(inner?.children[2]?.children).toEqual([]);
+  });
+
+  it('names a reference’s original only with both ids', () => {
+    expect(syncedSource('sync_block', { sourceBlockId: 'x', sourcePageId: 'y' })).toEqual({
+      blockId: 'x',
+      pageId: 'y',
+    });
+    expect(syncedSource('sync_block', { sourceBlockId: 'x' })).toBeNull();
+    expect(syncedSource('paragraph', { sourceBlockId: 'x', sourcePageId: 'y' })).toBeNull();
   });
 });

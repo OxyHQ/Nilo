@@ -30,6 +30,7 @@ import { hasRole } from '@/lib/hooks/workspace-roles';
 import type { DatabaseRow, PropertyValue } from '@/lib/types/databases';
 import { cn } from '@/lib/utils';
 import type { Page } from '@/lib/types/pages';
+import type { CommentAnchor } from '@/lib/types/comments';
 
 /**
  * Page detail route. Wraps the block editor with `PageChrome` (cover + icon
@@ -90,6 +91,8 @@ function PageDetail({
   const [commentPanel, setCommentPanel] = React.useState<{
     open: boolean;
     focusedBlockId: string | null;
+    /** The text a new comment is on, when it was asked for on a selection. */
+    anchor?: CommentAnchor | null;
   }>({ open: false, focusedBlockId: null });
 
   React.useEffect(() => {
@@ -101,9 +104,12 @@ function PageDetail({
     return comments.filter((c) => c.parentCommentId === null && c.resolvedAt === null).length;
   }, [commentsData?.comments]);
 
-  const handleOpenPanel = React.useCallback((focusedBlockId: string | null = null) => {
-    setCommentPanel({ open: true, focusedBlockId });
-  }, []);
+  const handleOpenPanel = React.useCallback(
+    (focusedBlockId: string | null = null, anchor: CommentAnchor | null = null) => {
+      setCommentPanel({ open: true, focusedBlockId, anchor });
+    },
+    [],
+  );
 
   if (isLoading) {
     return (
@@ -211,10 +217,15 @@ function PageDetail({
             workspaceId={page.workspaceId}
             open={commentPanel.open}
             focusedBlockId={commentPanel.focusedBlockId}
+            anchor={commentPanel.anchor ?? null}
+            onAnchorUsed={() => setCommentPanel((panel) => ({ ...panel, anchor: null }))}
             onClose={() => setCommentPanel({ open: false, focusedBlockId: null })}
           />
         </View>
-        <PageEditorToolbar readOnly={contentReadOnly} />
+        <PageEditorToolbar
+          readOnly={contentReadOnly}
+          onComment={hasRole(role, 'commenter') ? handleOpenPanel : undefined}
+        />
       </PageChrome>
     </PageEditorProvider>
   );

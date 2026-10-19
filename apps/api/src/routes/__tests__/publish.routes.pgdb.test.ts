@@ -156,6 +156,49 @@ describe('publishing', () => {
     }
   });
 
+  it('shows a synced block’s original only from the published site', async () => {
+    const insert = (pageId: string, ops: Record<string, unknown>[]) =>
+      api(OWNER, 'POST', `/pages/${pageId}/blocks/transactions`, { ops });
+    const original = async (pageId: string, words: string) => {
+      const id = uuidv7();
+      await insert(pageId, [
+        { kind: 'insert', id, parentBlockId: null, afterId: null, type: 'sync_block' },
+        {
+          kind: 'insert',
+          id: uuidv7(),
+          parentBlockId: id,
+          afterId: null,
+          type: 'paragraph',
+          content: { text: words },
+        },
+      ]);
+      return id;
+    };
+    const site = await page('Synced site');
+    const chapter = await page('Synced chapter', site);
+    const private_ = await page('Not published');
+    const inSite = await original(chapter, 'From the chapter');
+    const outside = await original(private_, 'From elsewhere');
+    await insert(site, [
+      ...[
+        { blockId: inSite, pageId: chapter },
+        { blockId: outside, pageId: private_ },
+      ].map((source) => ({
+        kind: 'insert',
+        id: uuidv7(),
+        parentBlockId: null,
+        afterId: null,
+        type: 'sync_block',
+        content: { sourceBlockId: source.blockId, sourcePageId: source.pageId },
+      })),
+    ]);
+    const slug = (await api(OWNER, 'POST', `/pages/${site}/publish`)).json.slug as string;
+    const read = await api(null, 'GET', `/public/pages/${slug}`);
+    const synced = read.json.synced as Record<string, { content: { text: string } }[]>;
+    expect(Object.keys(synced)).toEqual([inSite]);
+    expect(synced[inSite]?.map((b) => b.content.text)).toEqual(['From the chapter']);
+  });
+
   it('keeps the address across unpublishing and publishing again, and follows the indexing choice', async () => {
     const target = await page('Notes');
     const first = (await api(OWNER, 'POST', `/pages/${target}/publish`)).json.slug as string;

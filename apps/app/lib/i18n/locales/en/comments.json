@@ -22,7 +22,9 @@
     "emptyOpen": "No open comments. Hover a block to comment, or add a page-level note below.",
     "emptyAll": "No comments yet.",
     "blockPlaceholder": "Comment on this block…",
-    "pagePlaceholder": "Add a page comment…"
+    "pagePlaceholder": "Add a page comment…",
+    "textPlaceholder": "Comment on the selected text…",
+    "cancelQuote": "Comment on the whole block instead"
   },
   "filters": {
     "open": "Open",
@@ -45,7 +47,10 @@
     "replyToThread": "Reply to thread",
     "you": "You",
     "edited": "edited",
-    "moreActions": "More actions"
+    "moreActions": "More actions",
+    "quote": "On “%{quote}”",
+    "textChanged": "Original text changed",
+    "showText": "Show the text in the page"
   },
   "mentions": {
     "header": "Mention",

@@ -147,8 +147,8 @@
     },
     "syncedBlock": {
       "label": "Synced block",
-      "description": "Reference another block (Phase 3 placeholder).",
-      "keywords": "mirror, reference"
+      "description": "Content that stays the same wherever you paste it.",
+      "keywords": "sync, synced, mirror, reuse, transclusion"
     },
     "inlineDatabase": {
       "label": "Database — Inline",
@@ -174,6 +174,11 @@
       "label": "Linked view of database",
       "description": "Show another database with views of your own.",
       "keywords": "linked, database, reference, view"
+    },
+    "pasteSyncedBlock": {
+      "label": "Paste synced block",
+      "description": "Show a synced block from another page, kept in sync.",
+      "keywords": "sync, synced, paste, mirror, reuse"
     }
   },
   "ui": {
@@ -218,7 +223,8 @@
     "textColor": "Text color",
     "copyBlockLink": "Copy link to block",
     "codeLanguage": "Language",
-    "codeLanguageSearch": "Search languages"
+    "codeLanguageSearch": "Search languages",
+    "copyAndSync": "Copy and sync"
   },
   "slashGroups": {
     "basic": "Basic blocks",
@@ -383,7 +389,40 @@
       "loading": "Loading path…"
     },
     "syncBlock": {
-      "label": "Synced block"
+      "label": "Synced block",
+      "shownOn": {
+        "one": "Shown on %{count} other page",
+        "other": "Shown on %{count} other pages"
+      },
+      "copy": "Copy and sync",
+      "copied": "Synced block copied. Use “Paste synced block” to show it anywhere.",
+      "cannotSync": "This block is part of a layout and cannot be synced on its own.",
+      "addBlock": "Add a block",
+      "empty": "Empty synced block",
+      "from": "Synced from %{title}",
+      "untitled": "Untitled",
+      "editOriginal": "Edit original",
+      "unsync": "Unsync",
+      "deleted": "Original deleted",
+      "deletedHint": "The block this one showed was deleted.",
+      "remove": "Remove",
+      "noAccess": "You don’t have access to the original of this synced block.",
+      "unavailable": "The original of this synced block cannot be opened.",
+      "loading": "Loading synced block…",
+      "loop": "This synced block is inside its own original.",
+      "deletedWarning": {
+        "one": "Original synced block deleted: %{count} other page now shows “Original deleted”.",
+        "other": "Original synced block deleted: %{count} other pages now show “Original deleted”."
+      },
+      "undo": "Undo",
+      "picker": {
+        "title": "Paste synced block",
+        "search": "Search synced blocks",
+        "copied": "Copied just now",
+        "none": "No synced blocks yet. Use “Copy and sync” on a block to make one.",
+        "loadFailed": "Synced blocks could not be loaded.",
+        "retry": "Try again"
+      }
     },
     "button": {
       "defaultLabel": "Button",

@@ -9,7 +9,7 @@
  * lists nested by indentation, quotes, callouts, fenced code, dividers,
  * images, tables and equations. HTML output escapes every piece of text.
  */
-import { type BlockContent, type BlockType, SAFE_LINK } from './blocks';
+import { type BlockContent, type BlockType, SAFE_LINK, syncedSource } from './blocks';
 import { blockFileId } from './files';
 
 /** A run of text with its marks, as block content stores it (`content.segments`). */
@@ -505,11 +505,64 @@ const LISTISH = new Set(['bulleted_list_item', 'numbered_list_item', 'todo', 'to
 export interface ExportContext {
   pageTitle?: (pageId: string) => string | undefined;
   database?: (databaseId: string) => { name: string; table: string[][] } | undefined;
+  /**
+   * A synced block's original, by its id: the blocks it holds. Without it (or
+   * when the reader may not see the original) a reference is left out.
+   */
+  syncedBlocks?: (sourceBlockId: string) => readonly BlockNode[] | undefined;
+}
+
+/**
+ * Block trees with each synced reference holding, as its children, what it
+ * shows (`syncedBlocks`) — for a renderer that reads only the tree (PDF). A
+ * reference inside the original it shows holds nothing.
+ */
+export function withSyncedContent(
+  nodes: readonly BlockNode[],
+  context: ExportContext = {},
+  syncing: ReadonlySet<string> = new Set(),
+): BlockNode[] {
+  return nodes.map((node) => {
+    const source = syncedSource(node.type, node.content);
+    if (!source) {
+      return { ...node, children: withSyncedContent(node.children, context, syncing) };
+    }
+    const shown = syncing.has(source.blockId) ? [] : (context.syncedBlocks?.(source.blockId) ?? []);
+    return {
+      ...node,
+      children: withSyncedContent(shown, context, new Set([...syncing, source.blockId])),
+    };
+  });
+}
+
+/**
+ * What a synced block shows, rendered by `render`: an original its own
+ * children, a reference its original's (`syncedBlocks`), or nothing when that
+ * is not to be seen — nor for a reference inside the very original it shows.
+ */
+function renderSynced(
+  block: BlockNode,
+  ctx: RenderContext,
+  render: (nodes: readonly BlockNode[]) => string,
+): string {
+  const source = syncedSource(block.type, block.content);
+  if (!source) return render(block.children);
+  if (ctx.syncing.has(source.blockId)) return '';
+  const nodes = ctx.syncedBlocks?.(source.blockId) ?? [];
+  if (nodes.length === 0) return '';
+  ctx.syncing.add(source.blockId);
+  try {
+    return render(nodes);
+  } finally {
+    ctx.syncing.delete(source.blockId);
+  }
 }
 
 interface RenderContext extends ExportContext {
   /** The page's headings, for a table of contents. */
   headings: readonly BlockNode[];
+  /** The originals being rendered in place, outermost first. */
+  syncing: Set<string>;
 }
 
 const HEADINGS = new Set(['heading_1', 'heading_2', 'heading_3']);
@@ -523,7 +576,7 @@ function renderContext(blocks: readonly BlockNode[], context: ExportContext = {}
     }
   };
   walk(blocks);
-  return { ...context, headings };
+  return { ...context, headings, syncing: new Set() };
 }
 
 const headingLevel = (block: BlockNode) => Number(block.type.slice('heading_'.length)) - 1;
@@ -667,8 +720,10 @@ function renderNodeMarkdown(
     case 'column':
     case 'canvas_note':
     case 'table_row':
-    case 'sync_block':
       return children;
+    case 'sync_block':
+      // Read in place, as the blocks it shows; numbered as if they were here.
+      return renderSynced(block, ctx, (nodes) => renderSequence(nodes, depth, ctx));
     default:
       line = inline ? `${indent}${inline}` : '';
   }
@@ -676,16 +731,13 @@ function renderNodeMarkdown(
   return line ? `${line}${LISTISH.has(block.type) ? '\n' : '\n\n'}${children}` : children;
 }
 
-/** Block trees → Markdown, with an optional `# title` first. */
-export function blocksToMarkdown(
-  blocks: readonly BlockNode[],
-  title?: string,
-  context?: ExportContext,
-): string {
-  const ctx = renderContext(blocks, context);
+/**
+ * Sibling blocks as Markdown: consecutive list items stay together (numbered
+ * among themselves); everything else is separated by a blank line.
+ */
+function renderSequence(blocks: readonly BlockNode[], depth: number, ctx: RenderContext): string {
   const parts: string[] = [];
   let run: string[] = [];
-  // Consecutive list items stay together; everything else is separated by a blank line.
   const flush = () => {
     if (run.length > 0) parts.push(run.join('\n'));
     run = [];
@@ -693,7 +745,7 @@ export function blocksToMarkdown(
   let numbered = 0;
   for (const block of blocks) {
     numbered = block.type === 'numbered_list_item' ? numbered + 1 : 0;
-    const rendered = renderNodeMarkdown(block, 0, Math.max(0, numbered - 1), ctx);
+    const rendered = renderNodeMarkdown(block, depth, Math.max(0, numbered - 1), ctx);
     if (!rendered) continue;
     if (LISTISH.has(block.type)) run.push(rendered);
     else {
@@ -702,7 +754,16 @@ export function blocksToMarkdown(
     }
   }
   flush();
-  const body = parts.join('\n\n');
+  return parts.join('\n\n');
+}
+
+/** Block trees → Markdown, with an optional `# title` first. */
+export function blocksToMarkdown(
+  blocks: readonly BlockNode[],
+  title?: string,
+  context?: ExportContext,
+): string {
+  const body = renderSequence(blocks, 0, renderContext(blocks, context));
   return `${title !== undefined ? `# ${escapeInline(title || 'Untitled')}\n\n` : ''}${body}\n`;
 }
 
@@ -910,6 +971,11 @@ function renderNodesHtml(blocks: readonly BlockNode[], ctx: RenderContext): stri
       case 'canvas_note':
         out.push(`<section class="note">${children}</section>`);
         break;
+      case 'sync_block': {
+        const shown = renderSynced(block, ctx, (nodes) => renderNodesHtml(nodes, ctx));
+        if (shown) out.push(`<div class="synced">${shown}</div>`);
+        break;
+      }
       default:
         if (inline || children) out.push(`${inline ? `<p>${inline}</p>` : ''}${children}`);
     }

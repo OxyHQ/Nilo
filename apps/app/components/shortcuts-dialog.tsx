@@ -42,6 +42,17 @@ function buildShortcuts(t: (key: string) => string): ShortcutGroup[] {
       ],
     },
     {
+      id: 'editing',
+      section: t('keyboardShortcuts.editing'),
+      items: [
+        {
+          id: 'comment',
+          label: t('keyboardShortcuts.commentOnSelection'),
+          keys: ['Mod', 'Shift', 'M'],
+        },
+      ],
+    },
+    {
       id: 'palette',
       section: t('keyboardShortcuts.inPalette'),
       items: [

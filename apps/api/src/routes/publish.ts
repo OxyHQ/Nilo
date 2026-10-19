@@ -17,7 +17,8 @@ import { checkPageAccess } from '../lib/page-access.js';
 import { rateLimit } from '../lib/rate-limit.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { respondWithFileUrls } from './files.js';
-import { listBlocksForPageByOrder } from '../repositories/blocks.js';
+import { type BlockRow, listBlocksForPageByOrder } from '../repositories/blocks.js';
+import { resolveSyncedBlocks } from '../lib/synced-blocks.js';
 import { findPageChain } from '../repositories/pagePermissions.js';
 import {
   findPageById,
@@ -148,6 +149,19 @@ function publicPage(page: PageRow) {
   };
 }
 
+/**
+ * The originals a published page's synced blocks show: only those on a page
+ * the public may read too (this one, or a page of the same published site).
+ */
+function publicSynced(root: PageRow, page: PageRow, blocks: readonly BlockRow[]) {
+  return resolveSyncedBlocks(
+    getDb(),
+    blocks,
+    async (pageId) =>
+      pageId === page.id || (await findPublished(root.publishSlug ?? '', pageId)) !== null,
+  );
+}
+
 async function respondWithPublicPage(
   res: Response,
   root: PageRow,
@@ -164,6 +178,7 @@ async function respondWithPublicPage(
       template: false,
     }),
   ]);
+  const synced = await publicSynced(root, page, blocks);
   if (!root.publishIndexing) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   res.json({
     page: publicPage(page),
@@ -179,6 +194,8 @@ async function respondWithPublicPage(
       .filter((c) => !c.restricted)
       .map((c) => ({ id: c.id, title: c.title, icon: c.icon })),
     breadcrumb: trail.map((p) => ({ id: p.id, title: p.title, icon: p.icon })),
+    // What each synced block shows, by its original's id (flat, as `blocks`).
+    synced: Object.fromEntries(synced),
     site: { slug: root.publishSlug, allowIndexing: root.publishIndexing },
   });
 }

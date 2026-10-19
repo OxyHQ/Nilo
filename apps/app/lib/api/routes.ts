@@ -51,6 +51,10 @@ export const API_ROUTES = {
     webhook: (pageId: string, blockId: string) => `/pages/${pageId}/blocks/${blockId}/webhook`,
     comments: (id: string) => `/blocks/${id}/comments`,
   },
+  syncedBlocks: {
+    usages: (blockId: string) => `/blocks/${blockId}/synced`,
+    list: (workspaceId: string) => `/workspaces/${workspaceId}/synced-blocks`,
+  },
   comments: {
     listForPage: (pageId: string) => `/pages/${pageId}/comments`,
     listForBlock: (blockId: string) => `/blocks/${blockId}/comments`,

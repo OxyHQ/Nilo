@@ -99,6 +99,14 @@ export const comments = pgTable(
      */
     contentSegments: jsonb().notNull().default([]),
     contentPlainText: text().notNull().default(''),
+    /**
+     * The stretch of the block's text an inline comment is on: offsets into
+     * `blockId`'s plain text when it was written, and the text itself. The
+     * text is what holds: a reader finds it again where edits moved it, and
+     * shows it as changed when it is gone. null = on the whole block (or the
+     * page). Its shape is the route's (`routes/comments.ts`).
+     */
+    anchor: jsonb().$type<{ start: number; end: number; quote: string }>(),
     /** Set when the thread is resolved. null = open. */
     resolvedAt: timestamptz(),
     /** Set on edit. null = never edited. */

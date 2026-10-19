@@ -16,5 +16,7 @@
   "moveSelection": "Move selection up / down",
   "openResult": "Open selected result",
   "openInNewTab": "Open in new tab",
-  "close": "Close"
+  "close": "Close",
+  "editing": "Editing",
+  "commentOnSelection": "Comment on the selected text"
 }

@@ -7,9 +7,9 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { queryKeys } from '@/lib/hooks/query-keys';
 import { uuidv7 } from '@/lib/ids';
 import { acquireSocket, releaseSocket } from '@/lib/realtime/socket';
-import { pageDocStore } from './doc-store';
 import { offlinePages } from './offline-pages';
-import { PageSession, type SessionSocket, type SyncStatus } from './page-session';
+import type { SyncStatus } from './page-session';
+import { holdPageSession } from './shared-sessions';
 
 export type { SyncStatus };
 
@@ -31,14 +31,29 @@ export interface PageEditorState {
   error: Error | null;
 }
 
+/** How the page is shown: as the page itself, or inside another (a synced block). */
+export interface PageEditorOptions {
+  /**
+   * Shown inside another page: its blocks are edited there, but the page is
+   * not opened — not kept as a recent page, and the room is not told where
+   * this member's caret is (the page they are on says so).
+   */
+  embedded?: boolean;
+}
+
 /**
- * A page's live editing session: its document (`page-session.ts`), shown in
- * an `EditorStore` bound to it (`@oxy.so/bloom-editor/yjs`), so every edit
- * goes into the document and every change to the document reaches the
- * editor. Who else is on the page, and which block they are in, comes from
- * the page's room.
+ * A page's live editing session: its document (`page-session.ts`, one per
+ * page on the device however many places show it: `shared-sessions.ts`),
+ * shown in an `EditorStore` bound to it (`@oxy.so/bloom-editor/yjs`), so
+ * every edit goes into the document and every change to the document reaches
+ * the editor. Who else is on the page, and which block they are in, comes
+ * from the page's room.
  */
-export function usePageEditor(pageId: string, readOnly: boolean): PageEditorState {
+export function usePageEditor(
+  pageId: string,
+  readOnly: boolean,
+  { embedded = false }: PageEditorOptions = {},
+): PageEditorState {
   const { t } = useTranslation();
   // Read when a message is needed: a new `t` must not reopen the page.
   const translate = useRef(t);
@@ -71,19 +86,17 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
       }, 1000);
     };
 
-    const session = new PageSession({
-      pageId,
-      socket: socket as unknown as SessionSocket,
-      store: pageDocStore,
+    const release = holdPageSession(pageId, {
       readOnly,
       onReady: (doc) => {
+        if (binding) return;
         const next = new EditorStore({
           document: emptyDocument(),
           schema: NILO_SCHEMA,
           newId: uuidv7,
         });
         binding = new YjsBinding(next, doc, { readOnly });
-        if (!readOnly) {
+        if (!readOnly && !embedded) {
           // Tell the room which block this member is in.
           let lastFocus: string | null = null;
           stopFocus = next.subscribe(() => {
@@ -94,9 +107,10 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
             socket.emit('page:focus', { pageId, blockId });
           });
         }
+        setError(null);
         setStore(next);
         // Opened: kept as a recent page on devices that keep pages offline.
-        void offlinePages.opened(pageId);
+        if (!embedded) void offlinePages.opened(pageId);
       },
       onStatus: setStatus,
       onRejected: (code) => {
@@ -119,7 +133,6 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
         );
       },
     });
-    void session.start();
 
     const onRemote = (event: { pageId: string }) => {
       if (event.pageId === pageId) refreshPageInfo();
@@ -139,14 +152,10 @@ export function usePageEditor(pageId: string, readOnly: boolean): PageEditorStat
       socket.off('disconnect', clearPresence);
       stopFocus?.();
       binding?.dispose();
-      void session.dispose().then(async (bytes) => {
-        // Kept for reading offline, or holding unsent work: stays. Otherwise not.
-        if (await offlinePages.keeps(pageId)) await offlinePages.saved(pageId, bytes);
-        else await pageDocStore?.remove(pageId);
-      });
+      release();
       releaseSocket();
     };
-  }, [pageId, readOnly, queryClient]);
+  }, [pageId, readOnly, embedded, queryClient]);
 
   return { store, status, rejected, collaborators, error };
 }

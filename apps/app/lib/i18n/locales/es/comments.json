@@ -22,7 +22,9 @@
     "emptyOpen": "No hay comentarios abiertos. Pasa el cursor sobre un bloque para comentar o añade una nota a la página abajo.",
     "emptyAll": "Todavía no hay comentarios.",
     "blockPlaceholder": "Comenta este bloque…",
-    "pagePlaceholder": "Añade un comentario a la página…"
+    "pagePlaceholder": "Añade un comentario a la página…",
+    "textPlaceholder": "Comenta el texto seleccionado…",
+    "cancelQuote": "Comentar todo el bloque"
   },
   "filters": {
     "open": "Abiertos",
@@ -45,7 +47,10 @@
     "replyToThread": "Responder al hilo",
     "you": "Tú",
     "edited": "editado",
-    "moreActions": "Más acciones"
+    "moreActions": "Más acciones",
+    "quote": "Sobre «%{quote}»",
+    "textChanged": "El texto original cambió",
+    "showText": "Mostrar el texto en la página"
   },
   "mentions": {
     "header": "Mencionar",

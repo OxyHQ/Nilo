@@ -1,11 +1,15 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { EditorStore } from '@oxy.so/bloom-editor/model';
+import { EditorStore, removeBlocks } from '@oxy.so/bloom-editor/model';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 import { DatabasePicker } from '../database-picker';
+import { SyncedBlockPicker } from '../synced-block-picker';
+import apiClient from '@/lib/api/client';
+import { syncedClipboard } from '@/lib/editor/synced-blocks';
+import { toast } from '@oxy.so/bloom/toast';
 import { BlockEditor } from '@oxy.so/bloom-editor';
 import { PageEditorProvider } from '../page-editor-context';
-import { PageEditor } from '../page-editor';
+import { isCommentShortcut, PageEditor } from '../page-editor';
 import type { PageFont } from '@/lib/types/pages';
 
 let mockStore: EditorStore;
@@ -31,6 +35,9 @@ let mockPage: { font: PageFont; smallText: boolean; fullWidth: boolean; workspac
 jest.mock('@/components/page-editor/page-canvas', () => ({ PageCanvas: () => null }));
 jest.mock('@/lib/ai/use-ai', () => ({ useAiAvailable: () => false }));
 jest.mock('../database-picker', () => ({ DatabasePicker: () => null }));
+jest.mock('../synced-block-picker', () => ({ SyncedBlockPicker: () => null }));
+jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => {}) }));
+const mockOpenComments = jest.fn();
 jest.mock('@oxy.so/bloom-editor', () => ({
   ...jest.requireActual('@oxy.so/bloom-editor/model'),
   BlockEditor: jest.fn(() => null),
@@ -49,7 +56,9 @@ jest.mock('@oxy.so/bloom/theme', () => ({
 jest.mock('@oxy.so/bloom/fonts', () => ({
   fontFamilies: { sans: 'Inter', display: 'BlomusModernus', mono: 'JetBrains Mono' },
 }));
-jest.mock('@oxy.so/bloom/toast', () => ({ toast: { error: jest.fn() } }));
+jest.mock('@oxy.so/bloom/toast', () => ({
+  toast: { error: jest.fn(), success: jest.fn(), warning: jest.fn() },
+}));
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ user: { id: 'owner' } }) }));
 jest.mock('@/lib/useColorScheme', () => ({
   useColorScheme: () => ({ colors: mockColors, isDarkColorScheme: false }),
@@ -60,6 +69,10 @@ jest.mock('@/lib/hooks/use-pages', () => ({
   useCreatePage: () => ({ mutateAsync: mockCreatePage }),
 }));
 jest.mock('@/lib/hooks/use-comments', () => ({ usePageComments: () => ({ data: undefined }) }));
+jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { get: jest.fn() } }));
+jest.mock('@/lib/hooks/use-synced-blocks', () => ({
+  useSyncedUsages: () => ({ data: undefined }),
+}));
 // Read when used: the factory runs before this file's constants are set.
 jest.mock('expo-router', () => ({
   get router() {
@@ -101,7 +114,7 @@ function Surface() {
   return (
     <BloomTestProviders>
       <PageEditorProvider pageId="page" readOnly={false}>
-        <PageEditor pageId="page" onOpenBlockComments={() => {}} />
+        <PageEditor pageId="page" onOpenBlockComments={mockOpenComments} />
       </PageEditorProvider>
     </BloomTestProviders>
   );
@@ -199,4 +212,129 @@ it('cancels the picker without inserting a block', async () => {
   );
   act(() => renderer.root.findByType(DatabasePicker).props.onClose());
   expect(mockStore.doc.root).toEqual(['anchor']);
+});
+
+describe('synced blocks', () => {
+  const action = (id: string) =>
+    (
+      renderer.root.findByType(BlockEditor).props.blockActions as {
+        id: string;
+        onPress: (b: string) => void;
+      }[]
+    ).find((a) => a.id === id);
+
+  it('makes an original from the slash menu, with a paragraph to write in', async () => {
+    // Two new blocks at once: ids of their own.
+    let next = 0;
+    mockStore = new EditorStore({
+      document: mockStore.doc,
+      schema: NILO_SCHEMA,
+      newId: () => {
+        next += 1;
+        return `new-${next}`;
+      },
+    });
+    act(() => renderer.update(<Surface />));
+    await act(async () =>
+      renderer.root.findByType(BlockEditor).props.onSlashAction('syncedBlock', 'anchor'),
+    );
+    const [original] = mockStore.doc.root;
+    expect(mockStore.doc.blocks[original as string]).toMatchObject({
+      type: 'sync_block',
+      props: {},
+    });
+    const [child] = mockStore.doc.blocks[original as string]?.children ?? [];
+    expect(mockStore.doc.blocks[child as string]?.type).toBe('paragraph');
+  });
+
+  it('pastes a reference chosen in the picker in place of the empty block', async () => {
+    await act(async () =>
+      renderer.root.findByType(BlockEditor).props.onSlashAction('pasteSyncedBlock', 'anchor'),
+    );
+    const picker = renderer.root.findByType(SyncedBlockPicker);
+    expect(picker.props.workspaceId).toBe('workspace');
+    act(() => picker.props.onChoose({ blockId: 'source-block', pageId: 'source-page' }));
+    expect(mockStore.doc.root).toEqual(['new-block']);
+    expect(mockStore.doc.blocks['new-block']).toMatchObject({
+      type: 'sync_block',
+      props: { sourceBlockId: 'source-block', sourcePageId: 'source-page' },
+    });
+    expect(renderer.root.findAllByType(SyncedBlockPicker)).toHaveLength(0);
+  });
+
+  it('copies and syncs a block: wrapped in an original kept for pasting', async () => {
+    await act(async () => action('copySync')?.onPress('anchor'));
+    const [original] = mockStore.doc.root;
+    expect(mockStore.doc.blocks[original as string]?.children).toEqual(['anchor']);
+    expect(syncedClipboard.get()).toEqual({ blockId: original, pageId: 'page' });
+    expect(toast.success).toHaveBeenCalled();
+  });
+
+  it('warns that the pages showing a deleted original will show it deleted, with undo', async () => {
+    (apiClient.get as jest.Mock).mockResolvedValueOnce({
+      data: {
+        original: { blockId: 'x', page: { id: 'page' } },
+        references: [
+          { blockId: 'r1', page: { id: 'other' } },
+          { blockId: 'r2', page: { id: 'page' } },
+        ],
+      },
+    });
+    await act(async () => action('copySync')?.onPress('anchor'));
+    const [original] = mockStore.doc.root as [string];
+    await act(async () => {
+      mockStore.run((c) => removeBlocks(c, [original]));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(apiClient.get).toHaveBeenCalledWith(`/blocks/${original}/synced`);
+    expect(toast.warning).toHaveBeenCalledWith(
+      'editor.blocks.syncBlock.deletedWarning',
+      expect.objectContaining({
+        action: expect.objectContaining({ onClick: expect.any(Function) }),
+      }),
+    );
+    const { action: undo } = (toast.warning as jest.Mock).mock.calls[0][1];
+    act(() => undo.onClick());
+    expect(mockStore.doc.blocks[original]).toBeDefined();
+  });
+});
+
+describe('comments on selected text', () => {
+  it('comments from the block menu on the text selected in that block', () => {
+    mockStore.run(() => ({
+      ops: [
+        {
+          kind: 'update',
+          id: 'anchor',
+          before: { text: [] },
+          after: { text: [{ text: 'Hello world' }] },
+        },
+      ],
+      selectionAfter: { kind: 'text', blockId: 'anchor', start: 6, end: 11 },
+    }));
+    const comment = (
+      renderer.root.findByType(BlockEditor).props.blockActions as {
+        id: string;
+        onPress: (b: string) => void;
+      }[]
+    ).find((a) => a.id === 'comment');
+    act(() => comment?.onPress('anchor'));
+    expect(mockOpenComments).toHaveBeenCalledWith('anchor', { start: 6, end: 11, quote: 'world' });
+  });
+
+  it('knows its shortcut', () => {
+    const key = (init: Partial<KeyboardEvent>) =>
+      ({
+        key: 'm',
+        metaKey: false,
+        ctrlKey: false,
+        shiftKey: false,
+        altKey: false,
+        ...init,
+      }) as KeyboardEvent;
+    expect(isCommentShortcut(key({ metaKey: true, shiftKey: true }))).toBe(true);
+    expect(isCommentShortcut(key({ ctrlKey: true, shiftKey: true, key: 'M' }))).toBe(true);
+    expect(isCommentShortcut(key({ metaKey: true }))).toBe(false);
+    expect(isCommentShortcut(key({ metaKey: true, shiftKey: true, altKey: true }))).toBe(false);
+  });
 });

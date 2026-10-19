@@ -45,6 +45,8 @@ export interface SharedPage {
     updatedAt: string;
   };
   blocks: SharedBlock[];
+  /** What each synced block on the page shows, by its original's id. */
+  synced?: Record<string, SharedBlock[]>;
   share: {
     scope: ShareLinkScope;
     expiresAt: string | null;
