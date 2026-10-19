@@ -1,4 +1,4 @@
-import { SHORTCUT_KEYS, shortcutFor } from '../use-keyboard-shortcuts';
+import { QUICK_FIND_KEYS, SHORTCUT_KEYS, shortcutFor } from '../use-keyboard-shortcuts';
 
 jest.mock('@/lib/stores/ui-store', () => ({ useUIStore: jest.fn() }));
 jest.mock('@/lib/stores/workspace-store', () => ({ useWorkspaceStore: jest.fn() }));
@@ -27,6 +27,13 @@ describe('app-wide shortcuts', () => {
   it('leaves Mod+N and Mod+[ to the browser', () => {
     expect(shortcutFor(press('n', { metaKey: true }, 'KeyN'), false)).toBeNull();
     expect(shortcutFor(press('[', { metaKey: true }), false)).toBeNull();
+  });
+
+  it('opens the quick find with Mod+P, in a text field too', () => {
+    expect(shortcutFor(press('p', { metaKey: true }), true)).toBe('palette');
+    expect(shortcutFor(press('P', { ctrlKey: true }), false)).toBe('palette');
+    expect(shortcutFor(press('p', { metaKey: true, shiftKey: true }), false)).toBeNull();
+    expect(QUICK_FIND_KEYS).toEqual(['Mod', 'P']);
   });
 
   it('keeps the palette, the sidebar and the shortcuts dialog', () => {

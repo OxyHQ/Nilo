@@ -43,5 +43,22 @@
     "error": "No se pudieron buscar páginas.",
     "empty": "No hay páginas coincidentes.",
     "retry": "Reintentar"
+  },
+  "filters": {
+    "titleOnly": "Solo títulos",
+    "createdBy": "Creado por",
+    "createdByValue": "De %{name}",
+    "anyone": "Cualquiera",
+    "teamspace": "Espacio de equipo",
+    "anywhere": "Cualquier lugar",
+    "private": "Privado",
+    "edited": "Fecha de edición",
+    "anytime": "Cualquier fecha",
+    "editedRange": {
+      "today": "Hoy",
+      "week": "Últimos 7 días",
+      "month": "Últimos 30 días",
+      "year": "Último año"
+    }
   }
 }

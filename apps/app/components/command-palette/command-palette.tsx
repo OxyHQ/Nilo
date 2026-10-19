@@ -18,6 +18,8 @@ import { Search } from '@oxy.so/bloom/search';
 import { Text } from '@oxy.so/bloom/typography';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useColorScheme } from '@/lib/useColorScheme';
+import { filtersFindPages, NO_SEARCH_FILTERS, type SearchFilters } from '@/lib/search-filters';
+import { SearchFilterBar } from './search-filter-bar';
 import { usePaletteData } from './use-palette-data';
 import type { AnyCommandItem, CommandItem, MemberItem, PageItem } from './types';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -43,6 +45,9 @@ interface PaletteKeyEvent {
  * description and a Bloom icon only: page icons, search snippets, the search
  * status with its retry, member avatars and Cmd+Enter are all Nilo's.
  *
+ * Under the field, Notion's search filters (`SearchFilterBar`): titles only,
+ * creator, teamspace and date edited. Cmd+P opens it too, as Quick Find.
+ *
  * On web the results are keyboard-driven from the search field: the arrows move
  * the highlight, Enter opens it, and Cmd+Enter opens a page in a new tab.
  */
@@ -53,6 +58,7 @@ export function CommandPalette() {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const [query, setQuery] = React.useState('');
+  const [filters, setFilters] = React.useState<SearchFilters>(NO_SEARCH_FILTERS);
   const [active, setActive] = React.useState(0);
 
   // Open fresh: reset on the closed-to-open flip, during render, so the old
@@ -62,12 +68,23 @@ export function CommandPalette() {
     setWasOpen(open);
     if (open) {
       setQuery('');
+      setFilters(NO_SEARCH_FILTERS);
       setActive(0);
     }
   }
 
-  const { recents, pages, members, commands, searchLoading, searchError, retrySearch } =
-    usePaletteData({ query, enabled: open });
+  const {
+    recents,
+    pages,
+    members,
+    commands,
+    searchLoading,
+    searchError,
+    retrySearch,
+    filterOptions,
+  } = usePaletteData({ query, enabled: open, filters });
+  // The results are search results: something is typed, or a filter finds pages.
+  const searching = query.trim().length > 0 || filtersFindPages(filters);
 
   const close = React.useCallback(() => setOpen(false), [setOpen]);
 
@@ -102,6 +119,10 @@ export function CommandPalette() {
 
   const changeQuery = React.useCallback((next: string) => {
     setQuery(next);
+    setActive(0);
+  }, []);
+  const changeFilters = React.useCallback((next: SearchFilters) => {
+    setFilters(next);
     setActive(0);
   }, []);
 
@@ -172,6 +193,14 @@ export function CommandPalette() {
           </View>
           <CloseButton size="sm" accessibilityLabel={t('commandPalette.close')} onPress={close} />
         </View>
+        <View className="px-3 pb-2">
+          <SearchFilterBar
+            filters={filters}
+            onChange={changeFilters}
+            people={filterOptions.people}
+            teamspaces={filterOptions.teamspaces}
+          />
+        </View>
         <Divider />
         <ScrollView
           ref={listRef}
@@ -180,7 +209,7 @@ export function CommandPalette() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {results.length === 0 && !query.trim() ? (
+          {results.length === 0 && !searching ? (
             <EmptyState
               variant="compact"
               // icon: Search
@@ -203,9 +232,9 @@ export function CommandPalette() {
             </Group>
           ) : null}
 
-          {pages.length > 0 || query.trim() ? (
+          {pages.length > 0 || searching ? (
             <Group title={t('commandPalette.groups.pages')}>
-              {query.trim() ? (
+              {searching ? (
                 <SearchStatus
                   loading={searchLoading}
                   error={searchError}

@@ -3,7 +3,7 @@ import { Platform, View } from 'react-native';
 import { Dialog } from '@oxy.so/bloom/dialog';
 import { Kbd } from '@oxy.so/bloom/kbd';
 import { Text } from '@oxy.so/bloom/typography';
-import { SHORTCUT_KEYS } from '@/lib/hooks/use-keyboard-shortcuts';
+import { QUICK_FIND_KEYS, SHORTCUT_KEYS } from '@/lib/hooks/use-keyboard-shortcuts';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -31,6 +31,7 @@ function buildShortcuts(t: (key: string) => string): ShortcutGroup[] {
       section: t('keyboardShortcuts.navigation'),
       items: [
         { id: 'palette', label: t('keyboardShortcuts.openPalette'), keys: SHORTCUT_KEYS.palette },
+        { id: 'quick-find', label: t('keyboardShortcuts.quickFind'), keys: QUICK_FIND_KEYS },
         { id: 'new-page', label: t('keyboardShortcuts.createPage'), keys: SHORTCUT_KEYS.newPage },
         { id: 'sidebar', label: t('keyboardShortcuts.toggleSidebar'), keys: SHORTCUT_KEYS.sidebar },
         {

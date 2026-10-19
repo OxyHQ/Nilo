@@ -6,6 +6,7 @@ import { CommandPalette } from '../command-palette';
 const mockPush = jest.fn();
 const mockRetry = jest.fn();
 const mockCommand = jest.fn();
+const mockPaletteArgs = jest.fn();
 let mockSearch = { searchLoading: false, searchError: false };
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
@@ -26,7 +27,8 @@ jest.mock('../use-palette-data', () => {
     snippet: [{ text: 'the plan', match: true }],
   };
   return {
-    usePaletteData: () => ({
+    usePaletteData: (args: unknown) => ({
+      ...(mockPaletteArgs(args) as object),
       recents: [page],
       pages: [page],
       members: [],
@@ -42,6 +44,10 @@ jest.mock('../use-palette-data', () => {
       ],
       ...mockSearch,
       retrySearch: mockRetry,
+      filterOptions: {
+        people: [{ id: 'ada', name: 'Ada' }],
+        teamspaces: [{ id: 'eng', name: 'Engineering' }],
+      },
     }),
   };
 });
@@ -125,4 +131,28 @@ it('retries a failed search', async () => {
       .props.onPress();
   });
   expect(mockRetry).toHaveBeenCalledTimes(1);
+});
+
+it('narrows the search with its filters, and opens without them', async () => {
+  await mount();
+  const titleOnly = () =>
+    renderer.root.findAll(
+      (node) =>
+        node.props.accessibilityLabel === 'commandPalette.filters.titleOnly' && node.props.onPress,
+    )[0];
+  expect(titleOnly().props.selected).toBe(false);
+  act(() => titleOnly().props.onPress());
+  expect(titleOnly().props.selected).toBe(true);
+  expect(mockPaletteArgs).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      enabled: true,
+      filters: expect.objectContaining({ titleOnly: true, createdBy: null }),
+    }),
+  );
+  // Closed and opened again: no filter left over.
+  await act(async () => useUIStore.getState().setCommandPaletteOpen(false));
+  await act(async () => useUIStore.getState().setCommandPaletteOpen(true));
+  expect(mockPaletteArgs).toHaveBeenLastCalledWith(
+    expect.objectContaining({ filters: expect.objectContaining({ titleOnly: false }) }),
+  );
 });

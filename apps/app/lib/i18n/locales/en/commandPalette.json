@@ -43,5 +43,22 @@
     "error": "Could not search pages.",
     "empty": "No matching pages.",
     "retry": "Try again"
+  },
+  "filters": {
+    "titleOnly": "Title only",
+    "createdBy": "Created by",
+    "createdByValue": "By %{name}",
+    "anyone": "Anyone",
+    "teamspace": "Teamspace",
+    "anywhere": "Anywhere",
+    "private": "Private",
+    "edited": "Date edited",
+    "anytime": "Any time",
+    "editedRange": {
+      "today": "Today",
+      "week": "Last 7 days",
+      "month": "Last 30 days",
+      "year": "Last year"
+    }
   }
 }
