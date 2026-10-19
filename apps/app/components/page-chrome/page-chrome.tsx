@@ -117,8 +117,8 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
 
         {!readOnly && !frozen ? (
           <>
-            <IconPicker control={iconPicker} onSelect={handleIconSelect} />
-            <CoverPicker control={coverPicker} onSelect={handleCoverSelect} />
+            <IconPicker control={iconPicker} pageId={page.id} onSelect={handleIconSelect} />
+            <CoverPicker control={coverPicker} pageId={page.id} onSelect={handleCoverSelect} />
           </>
         ) : null}
       </View>
@@ -178,10 +178,16 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
       <View className={cn('px-6 md:px-10 w-full mx-auto', !page.fullWidth && 'max-w-3xl')}>
         {contentReadOnly ? (
           page.cover ? (
-            <CoverDisplay value={page.cover} position={page.coverPosition ?? 50} height={192} />
+            <CoverDisplay
+              value={page.cover}
+              position={page.coverPosition ?? 50}
+              height={192}
+              pageId={page.id}
+            />
           ) : null
         ) : (
           <CoverArea
+            pageId={page.id}
             cover={page.cover ?? null}
             position={page.coverPosition ?? 50}
             onOpenPicker={() => state?.openCoverPicker()}
@@ -197,10 +203,14 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
       >
         {contentReadOnly ? (
           page.icon ? (
-            <IconDisplay value={page.icon} size={64} />
+            <IconDisplay value={page.icon} size={64} pageId={page.id} />
           ) : null
         ) : (
-          <IconArea icon={page.icon ?? null} onOpenPicker={() => state?.openIconPicker()} />
+          <IconArea
+            pageId={page.id}
+            icon={page.icon ?? null}
+            onOpenPicker={() => state?.openIconPicker()}
+          />
         )}
         {!contentReadOnly ? (
           <AddChromeRow
@@ -289,6 +299,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
  * ---------------------------------------------------------------- */
 
 interface CoverAreaProps {
+  pageId: string;
   cover: string | null;
   position: number;
   onOpenPicker: () => void;
@@ -297,6 +308,7 @@ interface CoverAreaProps {
   onCommitPosition: (next: number) => void;
 }
 function CoverArea({
+  pageId,
   cover,
   position,
   onOpenPicker,
@@ -350,7 +362,7 @@ function CoverArea({
         onResponderTerminate={handleEnd}
         accessibilityLabel={t('pages.header.cover')}
       >
-        <CoverDisplay value={cover} position={effectivePosition} height={192} />
+        <CoverDisplay value={cover} position={effectivePosition} height={192} pageId={pageId} />
       </View>
       <View className="absolute right-3 top-3 flex-row gap-2">
         <Button
@@ -383,10 +395,11 @@ function CoverArea({
  * ---------------------------------------------------------------- */
 
 interface IconAreaProps {
+  pageId: string;
   icon: string | null;
   onOpenPicker: () => void;
 }
-function IconArea({ icon, onOpenPicker }: IconAreaProps) {
+function IconArea({ pageId, icon, onOpenPicker }: IconAreaProps) {
   const { t } = useTranslation();
   if (!icon) return null;
   return (
@@ -395,7 +408,7 @@ function IconArea({ icon, onOpenPicker }: IconAreaProps) {
       className="self-start rounded-md p-1 hover:bg-muted"
       accessibilityLabel={t('pages.header.changeIcon')}
     >
-      <IconDisplay value={icon} size={64} />
+      <IconDisplay value={icon} size={64} pageId={pageId} />
     </Pressable>
   );
 }

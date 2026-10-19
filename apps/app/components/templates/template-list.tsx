@@ -69,7 +69,9 @@ export function TemplateList({
                 )}
                 disabled={pending}
                 onPress={() => (onOpen ? onOpen(page) : onUse(page))}
-                leading={<IconDisplay value={page.icon} size={16} showPlaceholder />}
+                leading={
+                  <IconDisplay value={page.icon} size={16} showPlaceholder pageId={page.id} />
+                }
                 title={title}
               />
             </View>

@@ -4,11 +4,13 @@
  *
  *   gradient:<index>   — a preset gradient (defined in COVER_GRADIENTS).
  *   color:<#hex>       — a solid color cover.
- *   image:<url>        — uploaded or external image URL.
+ *   image:<url>        — an image URL.
+ *   file:<fileId>      — an image uploaded to the page (`@oxy.so/nilo-contracts`).
  *   unsplash:<url>     — Unsplash image. Behaves like `image:` at render time
  *                        but kept distinct so the picker tab can preselect.
  */
 
+import { PAGE_FILE_PREFIX, pageValueFileId } from '@oxy.so/nilo-contracts';
 import i18n from '@/lib/i18n';
 
 export type CoverValue =
@@ -16,6 +18,7 @@ export type CoverValue =
   | { kind: 'color'; hex: string }
   | { kind: 'image'; url: string }
   | { kind: 'unsplash'; url: string }
+  | { kind: 'file'; fileId: string }
   | { kind: 'none' };
 
 export function parseCover(raw: string | null | undefined): CoverValue {
@@ -42,6 +45,10 @@ export function parseCover(raw: string | null | undefined): CoverValue {
     const url = trimmed.slice('unsplash:'.length);
     return url ? { kind: 'unsplash', url } : { kind: 'none' };
   }
+  if (trimmed.startsWith(PAGE_FILE_PREFIX)) {
+    const fileId = pageValueFileId(trimmed);
+    return fileId ? { kind: 'file', fileId } : { kind: 'none' };
+  }
   // Legacy: bare URL. Treat as image so pre-prefix pages still render.
   if (/^https?:\/\//u.test(trimmed)) {
     return { kind: 'image', url: trimmed };
@@ -60,6 +67,9 @@ export function encodeCoverImage(url: string): string {
 }
 export function encodeUnsplash(url: string): string {
   return `unsplash:${url}`;
+}
+export function encodeCoverFile(fileId: string): string {
+  return `${PAGE_FILE_PREFIX}${fileId}`;
 }
 
 /**

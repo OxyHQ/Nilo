@@ -13,7 +13,8 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { EMOJI_CATEGORIES, SKIN_TONES, applySkinTone, type EmojiEntry } from './emoji-data';
 import { PAGE_ICONS } from './page-icons';
-import { encodeEmoji, encodeIcon, encodeImage } from './icon-value';
+import { encodeEmoji, encodeIcon, encodeIconFile, encodeImage } from './icon-value';
+import { PageImageUpload } from './page-image-upload';
 
 type Tab = 'emoji' | 'icon' | 'upload';
 
@@ -25,18 +26,16 @@ interface IconPickerProps {
    * The caller (PageChrome) is responsible for persisting via useUpdatePage.
    */
   onSelect: (next: string | null) => void;
-  /**
-   * When the upload tab is enabled, used to lift an uploaded image URL into
-   * the picker. Web-only for now; native renders a "coming soon" message.
-   */
-  onUploadImage?: (url: string) => void;
+  /** The page whose icon this is: an uploaded image goes to it. */
+  pageId: string;
 }
 
 /**
- * Page icon picker. Tabs: Emoji (default) | Icon | Upload (web).
+ * Page icon picker. Tabs: Emoji (default) | Icon | Upload (an image file, or
+ * a link to one).
  * Layout-wise the picker fits a 672px-wide dialog.
  */
-export function IconPicker({ control, onSelect, onUploadImage }: IconPickerProps) {
+export function IconPicker({ control, onSelect, pageId }: IconPickerProps) {
   const [tab, setTab] = React.useState<Tab>('emoji');
   const [query, setQuery] = React.useState('');
   const [skinTone, setSkinTone] = React.useState<string>('');
@@ -127,10 +126,9 @@ export function IconPicker({ control, onSelect, onUploadImage }: IconPickerProps
           <IconTab query={query} onPickIcon={(name) => handleSelect(encodeIcon(name))} />
         ) : (
           <UploadTab
-            onPickImage={(url) => {
-              onUploadImage?.(url);
-              handleSelect(encodeImage(url));
-            }}
+            pageId={pageId}
+            onUploaded={(fileId) => handleSelect(encodeIconFile(fileId))}
+            onPickImage={(url) => handleSelect(encodeImage(url))}
           />
         )}
       </View>
@@ -283,22 +281,26 @@ function IconTab({ query, onPickIcon }: IconTabProps) {
  * ---------------------------------------------------------------- */
 
 interface UploadTabProps {
+  pageId: string;
+  onUploaded: (fileId: string) => void;
   onPickImage: (url: string) => void;
 }
-function UploadTab({ onPickImage }: UploadTabProps) {
+function UploadTab({ pageId, onUploaded, onPickImage }: UploadTabProps) {
   const [url, setUrl] = React.useState('');
   const { t } = useTranslation();
-  // Upload-to-S3 lives behind the More Block Types agent's infra work. Until
-  // that ships, accept a direct URL on web and show a friendly message on
-  // native so users at least have a path.
   return (
     <View className="gap-3 px-1 py-4">
-      <Text variant="body-regular">{t('pages.iconPicker.uploadHint')}</Text>
+      <PageImageUpload
+        pageId={pageId}
+        hint={t('pages.iconPicker.uploadHint')}
+        onUploaded={onUploaded}
+      />
+      <Text variant="body-regular">{t('pages.iconPicker.linkHint')}</Text>
       <TextFieldInput
         size="sm"
         value={url}
         onChangeText={setUrl}
-        label={t('pages.iconPicker.uploadHint')}
+        label={t('pages.iconPicker.linkHint')}
         placeholder="https://example.com/icon.png"
         autoCapitalize="none"
         autoCorrect={false}
