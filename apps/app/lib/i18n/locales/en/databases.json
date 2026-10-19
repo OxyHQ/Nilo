@@ -107,13 +107,20 @@
     "saveFailed": "Could not save the filters. Try again.",
     "noChoices": "Nothing to choose from",
     "searchRows": "Search rows",
-    "pickDate": "Pick a date"
+    "pickDate": "Pick a date",
+    "group": "Filter group",
+    "combinator": "Match",
+    "addGroup": "Add filter group",
+    "removeGroup": "Remove filter group",
+    "emptyGroup": "No filters in this group yet."
   },
   "sorts": {
     "title": "Sort",
     "empty": "No sorts yet. Add a property below.",
     "add": "Add sort",
-    "allAdded": "All properties added"
+    "allAdded": "All properties added",
+    "moveUp": "Move up",
+    "moveDown": "Move down"
   },
   "table": {
     "empty": "No rows yet"

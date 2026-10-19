@@ -107,13 +107,20 @@
     "saveFailed": "No se pudieron guardar los filtros. Inténtalo de nuevo.",
     "noChoices": "No hay nada que elegir",
     "searchRows": "Buscar filas",
-    "pickDate": "Elige una fecha"
+    "pickDate": "Elige una fecha",
+    "group": "Grupo de filtros",
+    "combinator": "Coincidir",
+    "addGroup": "Añadir grupo de filtros",
+    "removeGroup": "Quitar grupo de filtros",
+    "emptyGroup": "Todavía no hay filtros en este grupo."
   },
   "sorts": {
     "title": "Orden",
     "empty": "Aún no hay órdenes. Añade una propiedad abajo.",
     "add": "Añadir orden",
-    "allAdded": "Ya se añadieron todas las propiedades"
+    "allAdded": "Ya se añadieron todas las propiedades",
+    "moveUp": "Subir",
+    "moveDown": "Bajar"
   },
   "table": {
     "empty": "Aún no hay filas"

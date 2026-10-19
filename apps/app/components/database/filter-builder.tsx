@@ -45,7 +45,7 @@ import type {
   FilterCondition,
   FilterGroup,
 } from '@/lib/types/databases';
-import { useDatabaseRows } from '@/lib/hooks/use-database-rows';
+import { useRowSearch } from '@/lib/hooks/use-database-rows';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
 import { memberProfileName, useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
 
@@ -114,10 +114,44 @@ function startCondition(property: DatabaseProperty): Pick<FilterCondition, 'oper
   };
 }
 
+/** How deep groups nest under the view's own, as in Notion: a group, and a group in it. */
+export const MAX_GROUP_DEPTH = 2;
+
+/** Where a group sits in the tree: the index of each group down to it. */
+type FilterPath = readonly number[];
+
+/** `group` with the group at `path` (itself for an empty path) replaced by `change(it)`. */
+export function updateGroupAt(
+  group: FilterGroup,
+  path: FilterPath,
+  change: (group: FilterGroup) => FilterGroup,
+): FilterGroup {
+  if (path.length === 0) return change(group);
+  const [head, ...rest] = path;
+  return {
+    ...group,
+    filters: group.filters.map((filter, i) =>
+      i === head && filter.kind === 'group' ? updateGroupAt(filter, rest, change) : filter,
+    ),
+  };
+}
+
+/** `group` without the groups nested in it that hold no condition: they would filter nothing. */
+export function withoutEmptyGroups(group: FilterGroup): FilterGroup {
+  return {
+    ...group,
+    filters: group.filters.flatMap((filter): Filter[] => {
+      if (filter.kind === 'condition') return [filter];
+      const child = withoutEmptyGroups(filter);
+      return child.filters.length > 0 ? [child] : [];
+    }),
+  };
+}
+
 /**
- * The toolbar's Filter button and the dialog it opens. The dialog edits the
- * top-level conditions of the view's AND/OR tree; groups nested in it (which
- * the API takes) are kept as they are but not shown.
+ * The toolbar's Filter button and the dialog it opens: the view's AND/OR tree,
+ * each group with its own "and"/"or", its conditions and the groups nested in
+ * it (up to `MAX_GROUP_DEPTH`), each of which can be added and removed.
  */
 export function FilterBuilder({ database: sourceDatabase, view, rows }: FilterBuilderProps) {
   const database = {
@@ -145,7 +179,11 @@ export function FilterBuilder({ database: sourceDatabase, view, rows }: FilterBu
 
   const save = async (filters: FilterGroup) => {
     try {
-      await updateView.mutateAsync({ databaseId: database.id, viewId: view.id, filters });
+      await updateView.mutateAsync({
+        databaseId: database.id,
+        viewId: view.id,
+        filters: withoutEmptyGroups(filters),
+      });
       control.close();
     } catch {
       toast.error(t('databases.filters.saveFailed'));
@@ -160,37 +198,6 @@ export function FilterBuilder({ database: sourceDatabase, view, rows }: FilterBu
     };
     setDraft(empty);
     await save(empty);
-  };
-
-  const addCondition = (property: DatabaseProperty) => {
-    setDraft((prev) => ({
-      ...prev,
-      filters: [
-        ...prev.filters,
-        {
-          kind: 'condition',
-          propertyId: property.id,
-          ...startCondition(property),
-        } satisfies FilterCondition,
-      ],
-    }));
-  };
-
-  const updateCondition = (index: number, patch: Partial<FilterCondition>) => {
-    setDraft((prev) => {
-      const next = [...prev.filters];
-      const target = next[index];
-      if (target?.kind !== 'condition') return prev;
-      next[index] = { ...target, ...patch };
-      return { ...prev, filters: next };
-    });
-  };
-
-  const removeCondition = (index: number) => {
-    setDraft((prev) => ({
-      ...prev,
-      filters: prev.filters.filter((_, i) => i !== index),
-    }));
   };
 
   const label =
@@ -213,7 +220,7 @@ export function FilterBuilder({ database: sourceDatabase, view, rows }: FilterBu
       <Dialog
         control={control}
         placement={{ base: 'bottom', md: 'center' }}
-        maxWidth={520}
+        maxWidth={560}
         title={t('databases.filters.title')}
         actions={[
           {
@@ -230,50 +237,133 @@ export function FilterBuilder({ database: sourceDatabase, view, rows }: FilterBu
           { label: t('common.cancel'), color: 'cancel' },
         ]}
       >
-        <View className="gap-3 pb-4">
-          <SegmentedControl
-            type="radio"
-            size="sm"
-            className="self-start"
-            value={draft.combinator}
-            onValueChange={(combinator) => setDraft((prev) => ({ ...prev, combinator }))}
-          >
-            {(['and', 'or'] as const).map((option) => (
-              <SegmentedControlItem key={option} value={option}>
-                <SegmentedControlItemText>
-                  {option === 'and' ? t('databases.filters.and') : t('databases.filters.or')}
-                </SegmentedControlItemText>
-              </SegmentedControlItem>
-            ))}
-          </SegmentedControl>
-
-          {draft.filters.length === 0 ? (
-            <Text className="py-4 text-sm text-muted-foreground">
-              {t('databases.filters.empty')}
-            </Text>
-          ) : (
-            draft.filters.map((filter, idx) =>
-              filter.kind === 'condition' ? (
-                <ConditionRow
-                  // biome-ignore lint/suspicious/noArrayIndexKey: persisted conditions have no id, and a key derived from the condition would remount the row (closing its pickers) on every edit
-                  key={idx}
-                  database={database}
-                  filter={filter}
-                  onChange={(patch) => updateCondition(idx, patch)}
-                  onRemove={() => removeCondition(idx)}
-                />
-              ) : null,
-            )
-          )}
-
-          <PropertyMenu
-            label={t('databases.filters.add')}
-            properties={database.schema.properties}
-            onPick={addCondition}
+        <View className="pb-4">
+          <GroupEditor
+            database={database}
+            group={draft}
+            depth={0}
+            onChange={(change) => setDraft((prev) => change(prev))}
           />
         </View>
       </Dialog>
     </>
+  );
+}
+
+interface GroupEditorProps {
+  database: Database;
+  group: FilterGroup;
+  /** 0 for the view's own group. */
+  depth: number;
+  /** Applies `change` to this group in the draft. */
+  onChange: (change: (group: FilterGroup) => FilterGroup) => void;
+  onRemove?: () => void;
+}
+
+/** One group of the tree: its combinator, its filters, and what can be added to it. */
+function GroupEditor({ database, group, depth, onChange, onRemove }: GroupEditorProps) {
+  const { t } = useTranslation();
+  const first = database.schema.properties[0];
+  const condition = (property: DatabaseProperty): FilterCondition => ({
+    kind: 'condition',
+    propertyId: property.id,
+    ...startCondition(property),
+  });
+  const setFilters = (change: (filters: Filter[]) => Filter[]) =>
+    onChange((prev) => ({ ...prev, filters: change(prev.filters) }));
+
+  return (
+    <View
+      accessibilityLabel={depth > 0 ? t('databases.filters.group') : undefined}
+      className={depth > 0 ? 'gap-2 rounded-lg border border-border p-2' : 'gap-3'}
+    >
+      <View className="flex-row items-center justify-between gap-2">
+        <SegmentedControl
+          type="radio"
+          size="sm"
+          className="self-start"
+          label={t('databases.filters.combinator')}
+          value={group.combinator}
+          onValueChange={(combinator) => onChange((prev) => ({ ...prev, combinator }))}
+        >
+          {(['and', 'or'] as const).map((option) => (
+            <SegmentedControlItem key={option} value={option}>
+              <SegmentedControlItemText>
+                {option === 'and' ? t('databases.filters.and') : t('databases.filters.or')}
+              </SegmentedControlItemText>
+            </SegmentedControlItem>
+          ))}
+        </SegmentedControl>
+        {onRemove ? (
+          <Button
+            iconOnly
+            appearance="plain"
+            size="xs"
+            accessibilityLabel={t('databases.filters.removeGroup')}
+            onPress={onRemove}
+            leadingIcon={RiDeleteBin6Line}
+          />
+        ) : null}
+      </View>
+
+      {group.filters.length === 0 ? (
+        <Text className="py-2 text-sm text-muted-foreground">
+          {depth === 0 ? t('databases.filters.empty') : t('databases.filters.emptyGroup')}
+        </Text>
+      ) : (
+        group.filters.map((filter, idx) =>
+          filter.kind === 'condition' ? (
+            <ConditionRow
+              // biome-ignore lint/suspicious/noArrayIndexKey: persisted conditions have no id, and a key derived from the condition would remount the row (closing its pickers) on every edit
+              key={idx}
+              database={database}
+              filter={filter}
+              onChange={(patch) =>
+                setFilters((filters) =>
+                  filters.map((f, i) =>
+                    i === idx && f.kind === 'condition' ? { ...f, ...patch } : f,
+                  ),
+                )
+              }
+              onRemove={() => setFilters((filters) => filters.filter((_, i) => i !== idx))}
+            />
+          ) : (
+            <GroupEditor
+              // biome-ignore lint/suspicious/noArrayIndexKey: persisted groups have no id either
+              key={idx}
+              database={database}
+              group={filter}
+              depth={depth + 1}
+              onChange={(change) => onChange((prev) => updateGroupAt(prev, [idx], change))}
+              onRemove={() => setFilters((filters) => filters.filter((_, i) => i !== idx))}
+            />
+          ),
+        )
+      )}
+
+      <View className="flex-row flex-wrap gap-1">
+        <PropertyMenu
+          label={t('databases.filters.add')}
+          properties={database.schema.properties}
+          onPick={(property) => setFilters((filters) => [...filters, condition(property)])}
+        />
+        {depth < MAX_GROUP_DEPTH && first ? (
+          <Button
+            appearance="plain"
+            size="sm"
+            leadingIcon={RiAddLine}
+            onPress={() =>
+              setFilters((filters) => [
+                ...filters,
+                { kind: 'group', combinator: 'and', filters: [condition(first)] },
+              ])
+            }
+          >
+            {t('databases.filters.addGroup')}
+          </Button>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
@@ -553,7 +643,7 @@ function MemberChoice({
   );
 }
 
-/** A row of the relation's database, by page id: its first hundred, searched by title. */
+/** A row of the relation's database, by page id, searched by title in the API. */
 function RowChoice({
   databaseId,
   value,
@@ -565,11 +655,7 @@ function RowChoice({
 }) {
   const { t } = useTranslation();
   const [search, setSearch] = React.useState('');
-  const { data } = useDatabaseRows(databaseId, null);
-  const needle = search.trim().toLowerCase();
-  const rows = (data?.rows ?? []).filter(
-    (row) => !needle || row.title.toLowerCase().includes(needle),
-  );
+  const { data: rows = [] } = useRowSearch(databaseId, search);
   return (
     <View className="gap-1">
       <TextFieldInput

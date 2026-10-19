@@ -20,8 +20,8 @@ jest.mock('@/lib/hooks/use-workspace-members', () => ({
     member.user?.name?.full ?? null,
 }));
 jest.mock('@/lib/hooks/use-database-rows', () => ({
-  useDatabaseRows: (databaseId: string) => ({
-    data: { rows: databaseId === 'projects' ? [{ id: 'row-launch', title: 'Launch' }] : [] },
+  useRowSearch: (databaseId: string) => ({
+    data: databaseId === 'projects' ? [{ id: 'row-launch', title: 'Launch' }] : [],
   }),
 }));
 
