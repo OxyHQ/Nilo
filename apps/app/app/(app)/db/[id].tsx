@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
 import { useTranslation } from '@/hooks/useTranslation';
+import { apiErrorMessage } from '@/lib/api/error-message';
 import { useDatabase } from '@/lib/hooks/use-databases';
 import { useDatabaseRows } from '@/lib/hooks/use-database-rows';
 import { DatabaseHeader } from '@/components/database/database-header';
@@ -59,7 +60,7 @@ function DatabasePage({ id }: { id: string }) {
   }
 
   if (isError || !data?.database) {
-    const message = error instanceof Error ? error.message : t('pages.database.loadFailed');
+    const message = apiErrorMessage(error, t('pages.database.loadFailed'));
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <View className="w-full max-w-md">

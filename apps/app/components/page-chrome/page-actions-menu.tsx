@@ -112,7 +112,7 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
           router.replace('/(app)');
         },
         onError: (err) => {
-          toast.error(err.message || t('pages.toasts.moveToTrashFailed'));
+          toast.error(apiErrorMessage(err, t('pages.toasts.moveToTrashFailed')));
         },
       },
     );

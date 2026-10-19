@@ -39,6 +39,7 @@ import { WORKSPACE_ROLES, hasRole } from '@/lib/hooks/workspace-roles';
 import { InviteMemberModal } from './invite-member-modal';
 import { roleLabel } from './role-labels';
 import { useTranslation } from '@/hooks/useTranslation';
+import { apiErrorMessage } from '@/lib/api/error-message';
 
 const ASSIGNABLE_ROLES: WorkspaceRole[] = ['viewer', 'commenter', 'editor', 'admin'];
 
@@ -232,9 +233,7 @@ export function MembersSection() {
               <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
             </View>
           ) : isError ? (
-            <SettingsRow
-              label={error instanceof Error ? error.message : t('workspace.members.loadFailed')}
-            />
+            <SettingsRow label={apiErrorMessage(error, t('workspace.members.loadFailed'))} />
           ) : sortedMembers.length === 0 ? (
             <SettingsRow label={t('workspace.members.empty')} />
           ) : (

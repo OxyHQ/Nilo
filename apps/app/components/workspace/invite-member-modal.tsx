@@ -17,6 +17,7 @@ import { toast } from '@oxy.so/bloom/toast';
 import { useInviteMember } from '@/lib/hooks/use-workspace-members';
 import { roleDescription, roleLabel } from './role-labels';
 import { useTranslation } from '@/hooks/useTranslation';
+import { apiErrorMessage } from '@/lib/api/error-message';
 import i18n from '@/lib/i18n';
 import type { WorkspaceRole } from '@/lib/hooks/use-workspaces';
 
@@ -31,20 +32,12 @@ interface InviteMemberModalProps {
   workspaceId: string;
 }
 
+/** The server's explanation, else what its status means; never the client's own error text. */
 function extractErrorMessage(err: unknown, fallback: string): string {
-  if (axios.isAxiosError(err)) {
-    const data = err.response?.data as { message?: string; error?: string } | undefined;
-    if (data?.message) return data.message;
-    if (data?.error) return data.error;
-    if (err.response?.status === 404) {
-      return i18n.t('workspace.invite.userNotFound');
-    }
-    if (err.response?.status === 409) {
-      return i18n.t('workspace.invite.alreadyMember');
-    }
-  }
-  if (err instanceof Error && err.message) return err.message;
-  return fallback;
+  const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+  if (status === 404) return apiErrorMessage(err, i18n.t('workspace.invite.userNotFound'));
+  if (status === 409) return apiErrorMessage(err, i18n.t('workspace.invite.alreadyMember'));
+  return apiErrorMessage(err, fallback);
 }
 
 // A Bloom dialog: it opens from the settings dialog, and only a Bloom overlay

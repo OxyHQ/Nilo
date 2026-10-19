@@ -219,8 +219,7 @@ function UnsplashTab({ onSelect }: { onSelect: (url: string) => void }) {
   }
 
   const handleSubmit = () => setSubmitted(query.trim() || 'nature');
-  const errorMessage =
-    error instanceof Error ? error.message : error ? t('pages.coverPicker.searchFailed') : null;
+  const errorMessage = error ? t('pages.coverPicker.searchFailed') : null;
 
   return (
     <View className="gap-2">

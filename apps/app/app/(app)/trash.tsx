@@ -12,6 +12,7 @@ import { PageHeader } from '@oxy.so/bloom/page-header';
 import { confirm } from '@oxy.so/bloom/surfaces';
 import { toast } from '@oxy.so/bloom/toast';
 import { useTranslation } from '@/hooks/useTranslation';
+import { apiErrorMessage } from '@/lib/api/error-message';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { useWorkspace } from '@/lib/hooks/use-workspaces';
 import {
@@ -53,7 +54,7 @@ export default function TrashRoute() {
         { id: page.id, archived: false },
         {
           onSuccess: () => toast.success(t('pages.toasts.restored')),
-          onError: (err) => toast.error(err.message || t('pages.toasts.restoreFailed')),
+          onError: (err) => toast.error(apiErrorMessage(err, t('pages.toasts.restoreFailed'))),
         },
       );
     },
@@ -80,7 +81,7 @@ export default function TrashRoute() {
             toast.success(t('pages.toasts.deletedPermanently'));
           },
           onError: (err) => {
-            toast.error(err.message || t('pages.toasts.deleteFailed'));
+            toast.error(apiErrorMessage(err, t('pages.toasts.deleteFailed')));
           },
         },
       );
@@ -105,7 +106,7 @@ export default function TrashRoute() {
           toast.success(t('trash.removed', { count: result.deleted }));
         },
         onError: (err) => {
-          toast.error(err.message || t('trash.emptyFailed'));
+          toast.error(apiErrorMessage(err, t('trash.emptyFailed')));
         },
       },
     );
