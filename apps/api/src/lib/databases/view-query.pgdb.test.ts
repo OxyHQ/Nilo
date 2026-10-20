@@ -678,7 +678,9 @@ describe('a grouped view in SQL', () => {
     }
     // The groups are many: most properties split the rows several ways.
     expect(groups).toBeGreaterThan(300);
-  });
+    // Ninety-six views, each read page by page in SQL and in JS: past the
+    // suite's 30 s on a shared CI runner, not stuck.
+  }, 120_000);
 
   it('puts a row with several labels or people in each of their groups', async () => {
     for (const propertyId of ['ms', 'p1']) {
@@ -711,6 +713,16 @@ describe('a grouped view in SQL', () => {
   });
 
   it('names its row and its group in the cursor when the sort values are too long', async () => {
+    // Two rows of its own whose sort values are too long to carry, so the
+    // first page of one row always has a next one: nothing left by an
+    // earlier test, or by the seeded data, decides it.
+    for (const [i, row] of (reference.slice(0, 2) as PageRow[]).entries()) {
+      await db
+        .update(pages)
+        .set({ properties: { ...row.properties, t2: { text: 'z'.repeat(3000 - i) } } })
+        .where(eq(pages.id, row.id));
+    }
+    reference = await listDatabaseRows(db, databaseId, { archived: false, template: false });
     const view: GroupedCase = {
       spec: groupSpec('p1'),
       filters: only({ kind: 'condition', propertyId: 't2', operator: 'starts_with', value: 'z' }),
@@ -767,5 +779,6 @@ describe('calculations in SQL', () => {
     }
     expect(compared).toBeGreaterThan(300);
     expect(nonZero).toBeGreaterThan(compared * 0.6);
-  });
+    // Every function of every type, three ways each: a long test, not a stuck one.
+  }, 120_000);
 });
