@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, useWindowDimensions, View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { toast } from '@oxy.so/bloom/toast';
 import { Button } from '@oxy.so/bloom/button';
 import { Dialog, type DialogAction, useDialogControl } from '@oxy.so/bloom/dialog';
@@ -85,18 +85,13 @@ export function PageHistoryDialog({ page, onClose }: { page: Page; onClose: () =
       dismissOnBackdrop={!confirm && !restore.isPending}
       placement={{ base: 'bottom', md: 'center' }}
       maxWidth={page.fullWidth ? width : 768}
-      scrollable={false}
       title={t(confirm ? 'pages.history.confirmTitle' : 'pages.history.title')}
       description={t(confirm ? 'pages.history.confirmBody' : 'pages.history.description')}
       actions={actions}
     >
       {confirm ? null : (
         <>
-          <ScrollView
-            style={{ maxHeight: 540, flexShrink: 1 }}
-            contentContainerClassName="gap-4"
-            keyboardShouldPersistTaps="handled"
-          >
+          <View className="gap-4">
             {list.isLoading ? (
               <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
             ) : list.isError ? (
@@ -161,7 +156,7 @@ export function PageHistoryDialog({ page, onClose }: { page: Page; onClose: () =
                 ) : null}
               </View>
             ) : null}
-          </ScrollView>
+          </View>
           {!canRestore ? (
             <Text className="text-sm text-muted-foreground">{t('pages.history.noPermission')}</Text>
           ) : null}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
 import { Item } from '@oxy.so/bloom/item';
 import { Loading } from '@oxy.so/bloom/loading';
@@ -59,7 +59,7 @@ function MoveDestinations({ onOpenChange, page }: MoveToDialogProps) {
           value={query}
           onChangeText={setQuery}
         />
-        <ScrollView className="max-h-80">
+        <View>
           {role ? (
             <Item
               title={t('sidebar.sections.private')}
@@ -86,7 +86,7 @@ function MoveDestinations({ onOpenChange, page }: MoveToDialogProps) {
                 onPress={() => move(space.id)}
               />
             ))}
-        </ScrollView>
+        </View>
         {error ? (
           <Text accessibilityRole="alert" className="text-sm text-destructive">
             {apiErrorMessage(error, t('workspace.teamspaces.failed'))}
