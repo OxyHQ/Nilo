@@ -10,7 +10,11 @@ import { breadcrumbNeighborsKey } from '@/lib/hooks/use-breadcrumb-neighbors';
 import { BreadcrumbNeighbors } from '../breadcrumb-neighbors';
 
 const mockPush = jest.fn();
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
+let mockPathname = '/p/current';
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
+  usePathname: () => mockPathname,
+}));
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
 jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { get: jest.fn() } }));
 jest.mock('@/lib/realtime/use-live-updates', () => ({ useWorkspaceLive: jest.fn() }));
@@ -88,6 +92,7 @@ function press(item: ReactTestInstance | undefined) {
 }
 beforeEach(() => {
   jest.clearAllMocks();
+  mockPathname = '/p/current';
   client = new QueryClient({ defaultOptions: { queries: { retryDelay: 0, gcTime: Infinity } } });
   jest.mocked(apiClient.get).mockResolvedValue({ data: first });
 });
@@ -126,6 +131,22 @@ it('preserves real page/database hrefs and routes one activation, but not the cu
     isValidElement<{ pageId?: string; showPlaceholder?: boolean }>(pageIcon) && pageIcon.props,
   ).toMatchObject({ pageId: 'page', showPlaceholder: true });
   expect(isValidElement<{ pageId?: string }>(dbIcon) && dbIcon.props.pageId).toBeUndefined();
+});
+
+it('navigates to the ancestor anchor even though the menu marks it current', async () => {
+  mockPathname = '/p/descendant';
+  await mount();
+  expect(named('Current')?.props.current).toBe(true);
+  act(() => press(named('Current')));
+  expect(mockPush.mock.calls).toEqual([['/p/current']]);
+});
+
+it('does not push the already displayed route when it is another row in an ancestor menu', async () => {
+  mockPathname = '/p/page';
+  await mount();
+  expect(named('Page sibling')?.props.current).toBe(false);
+  act(() => press(named('Page sibling')));
+  expect(mockPush).not.toHaveBeenCalled();
 });
 
 it('keeps More open while paging, disables duplicate requests, then appends the next results', async () => {
