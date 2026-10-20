@@ -28,6 +28,17 @@ export function readDateValue(v: PropertyValue): DateParts {
   };
 }
 
+/** A local day as `YYYY-MM-DD`: a calendar's day, a date group's key, a date filter's value. */
+export function dayKey(day: Date): string {
+  return `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
+}
+
+/** The local day a `YYYY-MM-DD` key names. */
+export function fromDayKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+}
+
 /** The day `iso` falls on, as a local-midnight `Date` (what a calendar picks and shows). */
 export function dayOf(iso: string, includeTime: boolean): Date {
   const d = new Date(iso);

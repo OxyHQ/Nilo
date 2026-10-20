@@ -8,7 +8,7 @@ import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
-import { dayOf, readDateValue } from '@/lib/date-values';
+import { dayKey, dayOf, fromDayKey, readDateValue } from '@/lib/date-values';
 import { useVisibleDatesStore } from '@/lib/stores/visible-dates-store';
 import { visibleDatesFilter } from '@/lib/visible-dates';
 import { useOpenRow } from './open-row';
@@ -271,16 +271,6 @@ function CompactDay({
 }
 
 /** `YYYY-MM-DD` of a local day: what a day cell and a row's date are matched on. */
-function dayKey(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function fromDayKey(key: string): Date {
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(y as number, (m as number) - 1, d);
-}
-
 /** Short weekday names, Sunday first, in the app's current locale. */
 function weekdayLabels(locale: string): string[] {
   // 7 January 2024 was a Sunday.

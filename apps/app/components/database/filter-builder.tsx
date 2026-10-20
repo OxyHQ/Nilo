@@ -45,6 +45,7 @@ import type {
   FilterCondition,
   FilterGroup,
 } from '@/lib/types/databases';
+import { dayKey, fromDayKey } from '@/lib/date-values';
 import { useRowSearch } from '@/lib/hooks/use-database-rows';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
 import { memberProfileName, useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
@@ -661,25 +662,20 @@ function RowChoice({
   );
 }
 
-const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})/;
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}/;
 
 /** A day from a calendar, sent as `YYYY-MM-DD`: the UTC day a date filter compares. */
 function DateChoice({ value, onChange }: { value: unknown; onChange: (next: string) => void }) {
   const { t, locale } = useTranslation();
   const day = typeof value === 'string' ? ISO_DAY.exec(value) : null;
-  const selected = day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : null;
-  const pad = (n: number) => String(n).padStart(2, '0');
+  const selected = day ? fromDayKey(day[0]) : null;
   return (
     <DatePicker
       value={selected}
       locale={locale}
       accessibilityLabel={t('databases.filters.value')}
       placeholder={t('databases.filters.pickDate')}
-      onChange={(next) =>
-        onChange(
-          next ? `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}` : '',
-        )
-      }
+      onChange={(next) => onChange(next ? dayKey(next) : '')}
     />
   );
 }

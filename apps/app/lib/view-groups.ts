@@ -1,4 +1,5 @@
 import { isGroupableType } from '@oxy.so/nilo-contracts';
+import { fromDayKey } from './date-values';
 import { rankBy } from './list-order';
 import type {
   DatabaseProperty,
@@ -104,12 +105,6 @@ export function groupProperty(
   return property && isGroupableType(property.type) ? property : null;
 }
 
-/** The local day a date group's key (`YYYY-MM-DD`) names. */
-export function groupDay(key: string): Date {
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
-}
-
 /** How a date group reads: its day, the week starting on it, its month or its year. */
 export function dateGroupLabel(
   key: string,
@@ -117,7 +112,7 @@ export function dateGroupLabel(
   locale: string | undefined,
   weekOf: (date: string) => string,
 ): string {
-  const day = groupDay(key);
+  const day = fromDayKey(key);
   switch (granularity) {
     case 'year':
       return String(day.getFullYear());

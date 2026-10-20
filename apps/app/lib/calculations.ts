@@ -18,6 +18,26 @@ export interface CalculationLabels {
 }
 
 /**
+ * A number computed over a property's values (a sum, an average, a chart's
+ * measure): in the property's format when it is a number, rounded to two
+ * places when that sets no precision; to two places for any other.
+ */
+export function formatComputedNumber(
+  value: number,
+  property: Pick<DatabaseProperty, 'type' | 'config'> | undefined,
+  locale: string | undefined,
+): string {
+  if (property?.type !== 'number') {
+    return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
+  }
+  const config =
+    property.config?.precision === undefined && !Number.isInteger(value)
+      ? { ...property.config, precision: 2 }
+      : property.config;
+  return formatNumberValue(value, config, locale);
+}
+
+/**
  * A calculation's value as the footer shows it: a count, a percentage, a
  * number in its property's format (an average or a median rounded to two
  * places when it has none), a date in its property's format, a span of days
@@ -43,16 +63,8 @@ export function formatCalculation(
     case 'median':
     case 'min':
     case 'max':
-    case 'range': {
-      if (property.type !== 'number') {
-        return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
-      }
-      const config =
-        property.config?.precision === undefined && !Number.isInteger(value)
-          ? { ...property.config, precision: 2 }
-          : property.config;
-      return formatNumberValue(value, config, locale);
-    }
+    case 'range':
+      return formatComputedNumber(value, property, locale);
     case 'earliest':
     case 'latest': {
       const iso = new Date(value).toISOString();
