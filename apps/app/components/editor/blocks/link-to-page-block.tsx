@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
 import { isEntityId } from '@oxy.so/nilo-contracts';
 import { Button } from '@oxy.so/bloom/button';
 import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
@@ -9,11 +8,8 @@ import { Text } from '@oxy.so/bloom/typography';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
-import apiClient from '@/lib/api/client';
-import { API_ROUTES } from '@/lib/api/routes';
-import { queryKeys } from '@/lib/hooks/query-keys';
+import { usePage } from '@/lib/hooks/use-pages';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
-import type { PageResponse } from '@/lib/types/pages';
 import { PagePicker } from '../page-picker';
 import type { BlockComponentProps } from './types';
 
@@ -32,15 +28,7 @@ export function LinkToPageBlock({ block, onChangeContent, readOnly }: BlockCompo
   const pageId = typeof block.content.pageId === 'string' ? block.content.pageId : '';
   const isResolved = pageId !== PLACEHOLDER_ID && isEntityId(pageId);
 
-  const pageQuery = useQuery<PageResponse>({
-    queryKey: isResolved ? queryKeys.pages.detail(pageId) : ['pages', 'none'],
-    queryFn: async () => {
-      const res = await apiClient.get(API_ROUTES.pages.get(pageId));
-      return res.data;
-    },
-    enabled: isResolved,
-    staleTime: 1000 * 30,
-  });
+  const pageQuery = usePage(isResolved ? pageId : undefined);
 
   if (!isResolved) {
     return (
