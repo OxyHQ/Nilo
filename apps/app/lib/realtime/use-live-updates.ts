@@ -15,6 +15,13 @@ export function invalidateLiveQueries(client: QueryClient, kind: Kind, id: strin
   if (kind === 'workspace') {
     void client.invalidateQueries({ queryKey: queryKeys.pages.list(id) });
     void client.invalidateQueries({ queryKey: queryKeys.databases.list(id) });
+    // An ancestor can move or change its title without changing this page's editor data.
+    void client.invalidateQueries({
+      predicate: (query) =>
+        query.queryKey[0] === 'page' &&
+        query.queryKey[2] === 'breadcrumb' &&
+        query.queryKey[3] === id,
+    });
     // Favorites and page templates are derived from the workspace's pages queries.
   } else if (kind === 'database') {
     // This prefix covers detail, every view's rows, single rows and templates,

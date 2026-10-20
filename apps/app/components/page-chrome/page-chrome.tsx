@@ -101,7 +101,7 @@ export function PageChrome({
           <ScreenHeader
             presentation="bar"
             safeArea={false}
-            title={<Breadcrumb pageId={page.id} workspaceId={page.workspaceId} />}
+            title={<Breadcrumb currentPage={page} />}
             actions={
               <>
                 {!page.archived ? (

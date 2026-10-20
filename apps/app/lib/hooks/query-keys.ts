@@ -33,7 +33,8 @@ export const queryKeys = {
     permissions: (id: string) => ['page-permissions', id] as const,
     list: (workspaceId: string | null) => ['pages', workspaceId] as const,
     detail: (id: string) => ['page', id] as const,
-    breadcrumb: (id: string) => ['page', id, 'breadcrumb'] as const,
+    breadcrumb: (id: string, workspaceId: string | null | undefined) =>
+      ['page', id, 'breadcrumb', workspaceId] as const,
     archived: (workspaceId: string | null) => ['pages', workspaceId, 'archived'] as const,
   },
   blocks: {

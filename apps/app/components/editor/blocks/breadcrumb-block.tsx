@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { Breadcrumb, BreadcrumbItem } from '@oxy.so/bloom/breadcrumb';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useBreadcrumb } from '@/lib/hooks/use-pages';
+import { useBreadcrumb, usePage } from '@/lib/hooks/use-pages';
 import type { BlockComponentProps } from './types';
 
 /**
@@ -14,7 +14,8 @@ import type { BlockComponentProps } from './types';
 export function BreadcrumbBlock({ block }: BlockComponentProps) {
   const { t } = useTranslation();
   const pageId = block.pageId;
-  const { data } = useBreadcrumb(pageId);
+  const { data: page } = usePage(pageId);
+  const { data } = useBreadcrumb(pageId, page?.page.workspaceId);
   const trail = data?.breadcrumb;
 
   if (!trail) {
@@ -30,7 +31,7 @@ export function BreadcrumbBlock({ block }: BlockComponentProps) {
   return (
     <Breadcrumb style={{ marginVertical: 4 }}>
       {trail.map((p) => (
-        <BreadcrumbItem key={p.id} onPress={() => router.push(`/p/${p.id}`)}>
+        <BreadcrumbItem key={p.id} href={`/p/${p.id}`} onPress={() => router.push(`/p/${p.id}`)}>
           {p.title || t('pages.untitled')}
         </BreadcrumbItem>
       ))}

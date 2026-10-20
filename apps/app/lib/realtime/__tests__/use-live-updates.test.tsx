@@ -88,8 +88,10 @@ it('debounces matching ids, refreshes all variants, and never invalidates editor
     ['comments', 'page', 'p', true],
     ['comments', 'page', 'p', false],
     ['comments', 'block', 'b'],
+    ['page', 'p', 'breadcrumb', 'w'],
     ['page', 'p'],
     ['blocks', 'p'],
+    ['page', 'other', 'breadcrumb', 'other'],
     ['pages', 'other'],
     ['database', 'other'],
     ['comments', 'page', 'other', false],
@@ -116,9 +118,9 @@ it('debounces matching ids, refreshes all variants, and never invalidates editor
   });
   expect(invalidate).not.toHaveBeenCalled();
   act(() => jest.advanceTimersByTime(120));
-  expect(invalidate).toHaveBeenCalledTimes(5);
-  for (const key of keys.slice(0, 12)) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
-  for (const key of keys.slice(12)) expect(client.getQueryState(key)?.isInvalidated).toBe(false);
+  expect(invalidate).toHaveBeenCalledTimes(6);
+  for (const key of keys.slice(0, 13)) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+  for (const key of keys.slice(13)) expect(client.getQueryState(key)?.isInvalidated).toBe(false);
 });
 it('cancels scheduled invalidations and switches room ids', async () => {
   await mount();

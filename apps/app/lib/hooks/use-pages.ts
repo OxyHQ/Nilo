@@ -109,6 +109,7 @@ export function useUpdatePage() {
   const queryClient = useQueryClient();
 
   return useMutation<Page, Error, UpdatePageInput>({
+    mutationKey: ['page-update'],
     mutationFn: async ({ id, ...patch }) => {
       const res = await apiClient.patch<PageResponse>(API_ROUTES.pages.update(id), patch);
       return res.data.page;
@@ -130,7 +131,7 @@ export function useUpdatePage() {
         queryClient.setQueryData(queryKeys.pages.detail(id), ctx.previous);
       }
     },
-    onSettled: (page, _error, { id, parentId, teamspaceId }) => {
+    onSettled: (page, _error, { id, parentId, teamspaceId, title, icon }) => {
       if (parentId !== undefined || teamspaceId !== undefined) {
         queryClient.invalidateQueries({ queryKey: ['page'] });
         queryClient.invalidateQueries({ queryKey: ['page-permissions'] });
@@ -139,6 +140,19 @@ export function useUpdatePage() {
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.pages.detail(id) });
       if (!page) return;
+      if (title !== undefined || icon !== undefined) {
+        // A renamed ancestor appears in descendants' paths, not their detail queries.
+        queryClient.invalidateQueries({
+          predicate: (query) =>
+            query.queryKey[0] === 'page' &&
+            query.queryKey[2] === 'breadcrumb' &&
+            query.queryKey[1] !== id &&
+            query.queryKey[3] === page.workspaceId &&
+            (query.state.data as BreadcrumbResponse | undefined)?.breadcrumb.some(
+              (entry) => entry.id === id,
+            ) === true,
+        });
+      }
       if (page.databaseId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.databases.detail(page.databaseId) });
       }
@@ -222,17 +236,21 @@ export function useDuplicatePage() {
  * Fetches the breadcrumb chain for a page (root → current). Used by the
  * page-chrome breadcrumb header. Cached separately from the page detail.
  */
-export function useBreadcrumb(pageId: string | null | undefined) {
+export function useBreadcrumb(
+  pageId: string | null | undefined,
+  workspaceId: string | null | undefined,
+) {
+  useWorkspaceLive(workspaceId);
   const { isAuthenticated } = useOxy();
 
   return useQuery<BreadcrumbResponse>({
-    queryKey: pageId ? queryKeys.pages.breadcrumb(pageId) : ['page', 'none', 'breadcrumb'],
+    queryKey: queryKeys.pages.breadcrumb(pageId ?? 'none', workspaceId),
     queryFn: async () => {
       if (!pageId) throw new Error('Page id required');
       const res = await apiClient.get(API_ROUTES.pages.breadcrumb(pageId));
       return res.data;
     },
-    enabled: isAuthenticated && Boolean(pageId),
+    enabled: isAuthenticated && Boolean(pageId) && Boolean(workspaceId),
     staleTime: 1000 * 30,
   });
 }

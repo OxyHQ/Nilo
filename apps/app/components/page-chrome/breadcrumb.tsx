@@ -1,54 +1,59 @@
 import { View } from 'react-native';
+import { useIsMutating, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/hooks/query-keys';
 import { useRouter } from 'expo-router';
 import { Breadcrumb as BloomBreadcrumb, BreadcrumbItem } from '@oxy.so/bloom/breadcrumb';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useBreadcrumb } from '@/lib/hooks/use-pages';
-import { useWorkspace } from '@/lib/hooks/use-workspaces';
 import { IconDisplay } from './icon-display';
-import type { BreadcrumbEntry } from '@/lib/types/pages';
+import type { BreadcrumbEntry, Page } from '@/lib/types/pages';
 
 interface BreadcrumbProps {
-  pageId: string;
-  workspaceId: string;
+  currentPage: Pick<Page, 'id' | 'workspaceId' | 'title' | 'icon'>;
   /** Maximum middle crumbs to render before collapsing with `…`. */
   maxItems?: number;
 }
 
 /**
- * Workspace › Parent › … › Current. Each crumb is clickable (the last one
- * is the current page — disabled). Long chains collapse the middle into
+ * Parent › … › Current. Only authorized page ancestors form this path.
+ * Each ancestor is clickable; the current page is a label. Long chains collapse the middle into
  * `…` to keep the bar from overflowing on narrow viewports.
  */
-export function Breadcrumb({ pageId, workspaceId, maxItems = 4 }: BreadcrumbProps) {
+export function Breadcrumb({ currentPage, maxItems = 4 }: BreadcrumbProps) {
   const router = useRouter();
   const { t } = useTranslation();
-  const { data: crumb } = useBreadcrumb(pageId);
-  const { data: workspace } = useWorkspace(workspaceId);
+  const client = useQueryClient();
+  const { data: crumb, dataUpdatedAt } = useBreadcrumb(currentPage.id, currentPage.workspaceId);
+  const updating = useIsMutating({
+    mutationKey: ['page-update'],
+    predicate: (mutation) =>
+      (mutation.state.variables as { id?: string } | undefined)?.id === currentPage.id,
+  });
 
   const entries: BreadcrumbEntry[] = crumb?.breadcrumb ?? [];
   // Drop the trailing self entry from the clickable list; it renders as the
   // active label.
-  const ancestors = entries.slice(0, -1);
-  const current = entries[entries.length - 1];
+  const ancestors = entries.filter((entry) => entry.id !== currentPage.id);
+  // A remote rename can refresh the path without replacing the open editor's
+  // page data. Local optimistic changes win until their mutation settles.
+  const cachedCurrent = entries.find((entry) => entry.id === currentPage.id);
+  const pageUpdatedAt =
+    client.getQueryState(queryKeys.pages.detail(currentPage.id))?.dataUpdatedAt ?? 0;
+  const current =
+    !updating && cachedCurrent && dataUpdatedAt > pageUpdatedAt ? cachedCurrent : currentPage;
 
   const condensed = condenseAncestors(ancestors, maxItems);
 
   return (
     <BloomBreadcrumb>
-      <BreadcrumbItem
-        onPress={() => router.push('/(app)')}
-        accessibilityLabel={t('pages.breadcrumb.workspaceHome')}
-      >
-        {workspace?.name ?? t('pages.breadcrumb.workspace')}
-      </BreadcrumbItem>
-
       {condensed.map((entry) =>
         entry.kind === 'page' ? (
           <BreadcrumbItem
             key={`page-${entry.page.id}`}
+            href={`/p/${entry.page.id}`}
             onPress={() => router.push(`/p/${entry.page.id}`)}
-            accessibilityLabel={entry.page.title || t('pages.untitled')}
+            accessibilityLabel={entry.page.title.trim() || t('pages.untitled')}
             leading={
               entry.page.icon ? (
                 <IconDisplay value={entry.page.icon} size={14} pageId={entry.page.id} />
