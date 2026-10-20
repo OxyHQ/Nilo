@@ -16,8 +16,8 @@ export interface BlockComponentProps {
   onChangeType?: (type: BlockType) => void;
   /** True when the block was just created / clicked into. */
   autoFocus?: boolean;
-  /** Read-only render (e.g. share-link preview). */
-  readOnly?: boolean;
+  /** Read-only render (e.g. share-link preview); the editor always says which. */
+  readOnly: boolean;
   /**
    * Container-block hook — returns the rendered child blocks of the given
    * parent id (their `parentBlockId === parentId`). Editor wires this so

@@ -150,7 +150,12 @@ describe('columns in the editor', () => {
     act(() => {
       renderer = create(
         <BloomTestProviders>
-          <ColumnsBlock block={asApiBlock(block)} store={store} onChangeContent={jest.fn()} />
+          <ColumnsBlock
+            block={asApiBlock(block)}
+            store={store}
+            onChangeContent={jest.fn()}
+            readOnly={false}
+          />
         </BloomTestProviders>,
       );
     });

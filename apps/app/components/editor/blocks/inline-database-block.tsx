@@ -24,11 +24,7 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { hasRole } from '@/lib/hooks/workspace-roles';
 import type { BlockComponentProps } from './types';
 
-export function InlineDatabaseBlock({
-  block,
-  readOnly = false,
-  onChangeContent,
-}: BlockComponentProps) {
+export function InlineDatabaseBlock({ block, readOnly, onChangeContent }: BlockComponentProps) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
   const router = useRouter();

@@ -170,7 +170,7 @@ export function ImageBlock({ block, onChangeContent, readOnly }: BlockComponentP
         alt={alt}
         width={imageWidth(block.content.width)}
         alignment={imageAlignment(block.content.alignment)}
-        readOnly={readOnly === true}
+        readOnly={readOnly}
         onChange={(patch) => onChangeContent({ ...block.content, ...patch })}
       />
       <BlockCaption block={block} onChangeContent={onChangeContent} readOnly={readOnly} />

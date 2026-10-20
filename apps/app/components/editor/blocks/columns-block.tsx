@@ -66,7 +66,7 @@ export function ColumnsBlock({ block, readOnly, renderChildren, store }: BlockCo
       </View>
     );
   }
-  return <ColumnsLayout columnsId={block.id} store={store} readOnly={readOnly === true} />;
+  return <ColumnsLayout columnsId={block.id} store={store} readOnly={readOnly} />;
 }
 
 function ColumnsLayout({

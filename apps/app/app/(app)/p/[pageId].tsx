@@ -169,7 +169,7 @@ function PageDetail({
   return (
     <PageEditorProvider pageId={pageId} readOnly={contentReadOnly}>
       <PageChrome page={page} readOnly={!canEdit} rightHeader={rightHeader}>
-        {page.archived === true ? <TrashedPageBanner page={page} canEdit={canEdit} /> : null}
+        {page.archived ? <TrashedPageBanner page={page} canEdit={canEdit} /> : null}
         <View className="flex-1 flex-row">
           {page.mode === 'canvas' ? (
             // A canvas fills the page: notes are placed on it, not scrolled through.
