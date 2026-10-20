@@ -23,6 +23,8 @@ export type RateLimitScope =
   | 'share-join'
   | 'invite-link-read'
   | 'invite-link-join'
+  | 'invite-read'
+  | 'invite-accept'
   | 'page-export-pdf'
   | 'button-webhook'
   | 'export-zip';

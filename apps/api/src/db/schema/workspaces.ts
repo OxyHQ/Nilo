@@ -170,6 +170,14 @@ export const workspaceInvites = pgTable(
     expiresAt: timestamptz().notNull(),
     /** When the invitation became a membership; null while it waits. */
     acceptedAt: timestamptz(),
+    /**
+     * The secret of the invitation's link (`/invite/<token>`), which the
+     * invitation email carries: whoever opens it signed in accepts THIS
+     * invitation, with whatever Oxy email they have. Kept when the invitation is
+     * renewed, so a link already sent keeps working. Null only on invitations
+     * made before links existed, which have no link to share.
+     */
+    token: text(),
   },
   (t) => [
     // One waiting invitation per person and workspace; a new one replaces it.
@@ -178,6 +186,8 @@ export const workspaceInvites = pgTable(
       .where(sql`${t.acceptedAt} is null`),
     // "Invitations waiting for me", read when a person lists their workspaces.
     index('workspace_invites_pending_email_idx').on(t.email).where(sql`${t.acceptedAt} is null`),
+    // An invitation link resolves by its secret.
+    uniqueIndex('workspace_invites_token_key').on(t.token),
     check('workspace_invites_email_lower', sql`${t.email} = lower(${t.email})`),
     check(
       'workspace_invites_role',

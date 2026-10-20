@@ -22,6 +22,7 @@ export const workspaceAdminKeys = {
   inviteLink: (workspaceId: string) => ['workspace-invite-link', workspaceId] as const,
   guests: (workspaceId: string) => ['workspace-guests', workspaceId] as const,
   linkPreview: (token: string) => ['workspace-invite-link-preview', token] as const,
+  invitationPreview: (token: string) => ['workspace-invitation-preview', token] as const,
 } as const;
 
 export const shareLinkKeys = {

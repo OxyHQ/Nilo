@@ -26,7 +26,10 @@ and keeps the same id. Any other workspace a user needs, they create.
 - Invited by email: an Oxy account with that email becomes a member at once;
   any other email gets an invitation (`workspace_invites`, 30 days) that
   becomes a membership on the first workspace list of someone signed in with
-  that Oxy email. Admins list and revoke the invitations waiting.
+  that Oxy email, or when its own link (`/invite/<token>`) is opened by
+  anyone signed in, whatever their email: Oxy emails that link
+  (`invitations:email`), and admins can copy it. Renewing an invitation keeps
+  its link. Admins list and revoke the invitations waiting.
 - The join link (`workspace_invite_links`, one live per workspace) makes
   whoever opens it signed in a member, at most an editor. Disabling or
   regenerating it stops the old link; the members it brought stay.

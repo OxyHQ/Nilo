@@ -181,6 +181,12 @@ function InviteRow({
 }) {
   const { t } = useTranslation();
   const revoke = useRevokeInvite(workspaceId);
+  const url = invite.url;
+  const copy = async () => {
+    if (!url) return;
+    await Clipboard.setStringAsync(url);
+    toast.success(t('workspace.pendingInvites.copied', { email: invite.email }));
+  };
   return (
     <View
       className={cn(
@@ -199,6 +205,18 @@ function InviteRow({
             : t('workspace.pendingInvites.waiting', { role: roleLabel(invite.role) })}
         </Text>
       </View>
+      {url && !invite.expired ? (
+        <Button
+          appearance="plain"
+          tone="neutral"
+          size="sm"
+          leadingIcon={RiFileCopyLine}
+          accessibilityLabel={t('workspace.pendingInvites.copyFor', { email: invite.email })}
+          onPress={copy}
+        >
+          {t('workspace.pendingInvites.copy')}
+        </Button>
+      ) : null}
       <Button
         appearance="plain"
         tone="neutral"
@@ -220,7 +238,7 @@ function InviteRow({
   );
 }
 
-/** Invitations by email still waiting for someone to sign up to Oxy with that email. */
+/** Invitations by email still waiting for someone to accept them, each with its link. */
 export function PendingInvitesSection({ workspaceId }: SectionProps) {
   const { t } = useTranslation();
   const { data: invites } = usePendingInvites(workspaceId);

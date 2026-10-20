@@ -20,9 +20,14 @@ model, credential, conversation or chat-completion route.
   (`GET/POST /workspaces/:id/members`, `PATCH/DELETE …/members/:userId`),
   `POST /workspaces/:id/trash/empty`.
 - Invitations (admin+): inviting an email with no Oxy account records a
-  pending invitation (`{ pending, invite }`) that the next `GET /workspaces`
-  of someone with that email accepts; `GET /workspaces/:id/invites`,
-  `DELETE …/invites/:inviteId`. Nilo sends no mail: the inviter tells them.
+  pending invitation (`{ pending, invite, email }`, the invite with its own
+  `url`) that the next `GET /workspaces` of someone with that email accepts;
+  `GET /workspaces/:id/invites`, `DELETE …/invites/:inviteId`. Oxy emails the
+  link when invitation email is on (`email`: `sent`, `failed`, `disabled`;
+  `docs/deployment.md`); either way admins can copy it. Whoever opens the
+  link: public `GET /invites/:token`, signed in `POST /invites/:token/accept`
+  (the app's `/invite/<token>`), with any Oxy email; 404 unknown, 410
+  `reason` `expired` or `accepted`.
 - Join link (admin+): `GET/POST/PATCH/DELETE /workspaces/:id/invite-link`
   (read, enable or regenerate `{ role }`, change its role, disable); whoever
   opens it: public `GET /invite-links/:token`, signed in

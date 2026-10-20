@@ -38,7 +38,7 @@
   },
   "invite": {
     "title": "Invitar a un miembro",
-    "description": "Invita a alguien por correo. Quien aún no tenga cuenta de Oxy se une al registrarse con ese correo.",
+    "description": "Invita a alguien por correo. Quien aún no tenga cuenta de Oxy recibe un enlace de invitación para unirse.",
     "email": "Correo electrónico",
     "emailPlaceholder": "companero@ejemplo.com",
     "invalidEmail": "Introduce un correo electrónico válido.",
@@ -47,7 +47,9 @@
     "invited": "Has invitado a %{email} como %{role}",
     "failed": "No se pudo invitar al miembro",
     "alreadyMember": "Ese usuario ya es miembro de este espacio de trabajo.",
-    "pending": "Invitación guardada para %{email} como %{role}. Se unirá al registrarse en Oxy con ese correo."
+    "pending": "Invitación guardada para %{email} como %{role}. Copia su enlace en Invitaciones pendientes para compartirlo.",
+    "emailed": "Invitación enviada por correo a %{email} como %{role}.",
+    "notEmailed": "Invitación guardada para %{email} como %{role}, pero no se pudo enviar el correo. Copia su enlace en Invitaciones pendientes para compartirlo."
   },
   "members": {
     "count": {
@@ -142,13 +144,16 @@
       "one": "%{count} invitación pendiente",
       "other": "%{count} invitaciones pendientes"
     },
-    "description": "Esperando a que estas personas se registren en Oxy con el correo al que se les invitó. Avísales: Nilo no envía correos.",
+    "description": "Esperando a que estas personas acepten. Cada invitación tiene su propio enlace: cópialo para compartirlo tú.",
     "waiting": "Invitado como %{role}",
     "expired": "Caducada",
     "revoke": "Revocar",
     "revokeFor": "Revocar la invitación de %{email}",
     "revoked": "Invitación de %{email} revocada",
-    "revokeFailed": "No se pudo revocar la invitación"
+    "revokeFailed": "No se pudo revocar la invitación",
+    "copy": "Copiar enlace",
+    "copyFor": "Copiar el enlace de invitación de %{email}",
+    "copied": "Enlace de invitación de %{email} copiado"
   },
   "guests": {
     "title": {
@@ -185,6 +190,22 @@
     "disabledTitle": "Este enlace de invitación ya no funciona",
     "disabledBody": "Se desactivó o se sustituyó. Pide el enlace actual a un administrador del espacio de trabajo.",
     "failed": "No se pudo unir al espacio de trabajo",
+    "joined": "Te uniste a %{name}",
+    "alreadyMember": "Ya eres miembro de %{name}"
+  },
+  "acceptInvite": {
+    "title": "Unirse a %{name}",
+    "description": "Te invitan a unirte a %{name} como %{role}.",
+    "submit": "Aceptar invitación",
+    "signIn": "Inicia sesión en Oxy, o crea una cuenta, para aceptar esta invitación.",
+    "notFoundTitle": "No se encontró la invitación",
+    "notFoundBody": "Revisa el enlace o pide uno nuevo a quien te invitó.",
+    "expiredTitle": "Esta invitación ha caducado",
+    "expiredBody": "Pide a quien te invitó que vuelva a invitarte.",
+    "acceptedTitle": "Esta invitación ya se aceptó",
+    "acceptedBody": "Si fuiste tú, inicia sesión con la cuenta que la aceptó.",
+    "open": "Abrir Nilo",
+    "failed": "No se pudo aceptar la invitación",
     "joined": "Te uniste a %{name}",
     "alreadyMember": "Ya eres miembro de %{name}"
   }

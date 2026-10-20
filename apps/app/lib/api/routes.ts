@@ -45,6 +45,10 @@ export const API_ROUTES = {
     get: (token: string) => `/invite-links/${encodeURIComponent(token)}`,
     join: (token: string) => `/invite-links/${encodeURIComponent(token)}/join`,
   },
+  invites: {
+    get: (token: string) => `/invites/${encodeURIComponent(token)}`,
+    accept: (token: string) => `/invites/${encodeURIComponent(token)}/accept`,
+  },
   blocks: {
     // Blocks are written only through `/pages/:id/blocks/transactions` (lib/editor).
     transactions: (pageId: string) => `/pages/${pageId}/blocks/transactions`,

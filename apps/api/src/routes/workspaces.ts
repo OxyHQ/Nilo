@@ -34,6 +34,7 @@ import {
   upsertPendingInvite,
 } from '../repositories/workspaceInvites.js';
 import { generateLinkToken, publicAppUrl } from '../lib/public-links.js';
+import { inviteUrl, sendInviteEmail } from '../lib/invite-email.js';
 import { deleteArchivedPages } from '../repositories/pages.js';
 import {
   addMember,
@@ -61,7 +62,20 @@ const router = Router();
 const inviteMemberSchema = z.object({
   email: z.string().trim().email(),
   role: z.enum(INVITABLE_WORKSPACE_ROLES),
+  /** The inviter's language (BCP 47), for the invitation email. */
+  locale: z
+    .string()
+    .trim()
+    .max(35)
+    .regex(/^[A-Za-z]{2,8}(?:[-_][A-Za-z0-9]{1,8})*$/)
+    .optional(),
 });
+
+/** The first language a request's `Accept-Language` names, if any. */
+function acceptLanguage(req: Request): string | undefined {
+  const first = req.header('accept-language')?.split(',')[0]?.split(';')[0]?.trim();
+  return first && /^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/.test(first) ? first : undefined;
+}
 
 const inviteLinkSchema = z.object({ role: z.enum(WORKSPACE_LINK_ROLES).default('editor') });
 const inviteLinkRoleSchema = z.object({ role: z.enum(WORKSPACE_LINK_ROLES) });
@@ -85,6 +99,8 @@ function serializeInvite(invite: WorkspaceInviteRow, now = Date.now()) {
     createdAt: invite.createdAt,
     expiresAt: invite.expiresAt,
     expired: invite.expiresAt.getTime() <= now,
+    /** The invitation's own link, to share by hand; null for one made before links. */
+    url: inviteUrl(invite),
   };
 }
 
@@ -523,8 +539,10 @@ router.get(
  *
  * Invite someone by email. Admin role or higher. An Oxy account with that
  * email becomes a member now (201 `{ member }`); any other email gets an
- * invitation that waits for an account with it (201 `{ pending, invite }`).
- * Nilo creates no Oxy account on anyone's behalf.
+ * invitation that waits for them (201 `{ pending, invite, email }`), with a
+ * link Oxy emails them when invitation email is on (`email`: `sent`,
+ * `failed` or `disabled`; `lib/invite-email.ts`). Nilo creates no Oxy account
+ * on anyone's behalf.
  */
 router.post(
   '/:workspaceId/members',
@@ -544,7 +562,7 @@ router.post(
         return;
       }
 
-      const { email, role } = parsed.data;
+      const { email, role, locale } = parsed.data;
 
       const ws = req.workspaceDoc;
       if (ws.isPersonal) {
@@ -554,17 +572,26 @@ router.post(
 
       const invitee = await findUserByEmail(email);
       if (!invitee) {
-        // Someone without an Oxy account yet: the invitation waits for them,
-        // and their first workspace list accepts it. Nilo has no outbound
-        // mail, so whoever invited them tells them.
+        // Someone without an Oxy account yet: the invitation waits for them.
+        // Its link (in the email Oxy sends, or shared by hand) accepts it for
+        // whoever opens it signed in, and their first workspace list accepts
+        // it once they have an Oxy account with this email.
         const invite = await upsertPendingInvite(getDb(), {
           workspaceId: ws.id,
           email,
           role,
           invitedBy: req.user.id,
           expiresAt: new Date(Date.now() + WORKSPACE_INVITE_TTL_MS),
+          token: generateLinkToken(),
         });
-        res.status(201).json({ pending: true, invite: serializeInvite(invite) });
+        // After the invitation is committed, and never its failure: an email
+        // that does not leave is reported, and the link is there to share.
+        const emailed = await sendInviteEmail({
+          invite,
+          workspaceName: ws.name,
+          locale: locale ?? acceptLanguage(req),
+        });
+        res.status(201).json({ pending: true, invite: serializeInvite(invite), email: emailed });
         return;
       }
 

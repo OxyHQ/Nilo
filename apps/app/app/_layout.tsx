@@ -110,6 +110,7 @@ function AppContent() {
         <Stack.Screen name="form/[token]" options={{ headerShown: false }} />
         <Stack.Screen name="share/[token]" options={{ headerShown: false }} />
         <Stack.Screen name="join/[token]" options={{ headerShown: false }} />
+        <Stack.Screen name="invite/[token]" options={{ headerShown: false }} />
       </Stack>
     </AuthSetup>
   );

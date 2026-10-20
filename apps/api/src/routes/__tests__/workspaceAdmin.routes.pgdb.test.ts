@@ -64,6 +64,15 @@ vi.mock('../../middleware/auth.js', () => ({
   },
 }));
 vi.mock('../../socket.js', () => ({ getIO: () => null }));
+// Nilo's Oxy service identity, for the invitation email; Oxy itself is the
+// fetch interception below.
+vi.mock('../../capabilities/oxy-service.js', () => ({
+  OXY_API_URL: 'https://oxy.test',
+  oxyServiceClient: () => ({
+    serviceToken: async () => 'service-token',
+    invalidateServiceToken: () => {},
+  }),
+}));
 vi.mock('../../lib/logger.js', () => ({
   log: { general: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
 }));
@@ -76,6 +85,19 @@ let server: Server;
 let base: string;
 let previousUrl: string | undefined;
 let previousPublicUrl: string | undefined;
+
+/** What Nilo asked Oxy to email, and what Oxy answers next. */
+const oxyCalls: { headers: Record<string, string>; body: Record<string, unknown> }[] = [];
+let oxyAnswers: Response[] = [];
+const realFetch = globalThis.fetch;
+globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+  if (!String(url).startsWith('https://oxy.test/')) return realFetch(url, init);
+  oxyCalls.push({
+    headers: init?.headers as Record<string, string>,
+    body: JSON.parse(String(init?.body)),
+  });
+  return oxyAnswers.shift() ?? new Response('{}', { status: 202 });
+}) as typeof fetch;
 
 async function api(user: string | null, method: string, path: string, body?: unknown) {
   const res = await fetch(`${base}${path}`, {
@@ -142,6 +164,169 @@ afterAll(async () => {
   await closeTestDb();
   process.env.DATABASE_URL = previousUrl;
   process.env.OXYNILO_PUBLIC_URL = previousPublicUrl;
+  delete process.env.INVITE_EMAILS_ENABLED;
+  globalThis.fetch = realFetch;
+});
+
+type PendingInvite = { id: string; url: string | null; role: string };
+
+async function invitePending(workspaceId: string, email: string, role = 'editor') {
+  const res = await api(ADMIN, 'POST', `/workspaces/${workspaceId}/members`, {
+    email,
+    role,
+    locale: 'es',
+  });
+  expect(res.status, JSON.stringify(res.json)).toBe(201);
+  return { invite: res.json.invite as PendingInvite, email: res.json.email };
+}
+
+function tokenOf(invite: PendingInvite): string {
+  const token = invite.url?.split('/invite/')[1];
+  if (!token) throw new Error(`invitation ${invite.id} has no link`);
+  return token;
+}
+
+describe('the invitation email', () => {
+  it('is not sent unless invitation email is on, and the admin gets the link', async () => {
+    const id = await team('Unsent');
+    oxyCalls.length = 0;
+    const { invite, email } = await invitePending(id, `${scope}-unsent@example.test`);
+    expect(email).toBe('disabled');
+    expect(oxyCalls).toHaveLength(0);
+    expect(invite.url).toMatch(/^https:\/\/nilo\.example\.test\/invite\/[A-Za-z0-9_-]{8,}$/);
+
+    // Renewing keeps the link, so one already shared still works.
+    const renewed = await invitePending(id, `${scope}-unsent@example.test`, 'viewer');
+    expect(renewed.invite.url).toBe(invite.url);
+    expect((await api(OWNER, 'GET', `/workspaces/${id}/invites`)).json.invites).toEqual([
+      expect.objectContaining({ url: invite.url, role: 'viewer' }),
+    ]);
+  });
+
+  it('is sent through Oxy once the invitation is saved, and a refusal never fails it', async () => {
+    process.env.INVITE_EMAILS_ENABLED = 'true';
+    try {
+      const id = await team('Emailed');
+      oxyCalls.length = 0;
+      const sent = await invitePending(id, `${scope}-emailed@example.test`);
+      expect(sent.email).toBe('sent');
+      expect(oxyCalls).toHaveLength(1);
+      const [rowAfterSend] = await db
+        .select()
+        .from(workspaceInvites)
+        .where(eq(workspaceInvites.id, sent.invite.id));
+      expect(oxyCalls[0].headers['idempotency-key']).toBe(
+        `${sent.invite.id}.${rowAfterSend.createdAt.getTime()}`,
+      );
+      expect(oxyCalls[0].body).toEqual({
+        to: `${scope}-emailed@example.test`,
+        inviterUserId: ADMIN,
+        resourceName: 'Emailed',
+        acceptUrl: sent.invite.url,
+        locale: 'es',
+      });
+
+      oxyAnswers = [
+        new Response(JSON.stringify({ error: 'INVITATION_RECIPIENT_RATE_LIMITED' }), {
+          status: 429,
+        }),
+      ];
+      const refused = await invitePending(id, `${scope}-refused@example.test`);
+      expect(refused.email).toBe('failed');
+      expect((await api(OWNER, 'GET', `/workspaces/${id}/invites`)).json.invites).toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: refused.invite.id })]),
+      );
+    } finally {
+      delete process.env.INVITE_EMAILS_ENABLED;
+    }
+  });
+});
+
+describe("an invitation's link", () => {
+  it('is accepted by whoever opens it signed in, once', async () => {
+    const id = await team('Linked');
+    const { invite } = await invitePending(id, `${scope}-linked@example.test`, 'commenter');
+    const token = tokenOf(invite);
+
+    const preview = await api(null, 'GET', `/invites/${token}`);
+    expect(preview.status).toBe(200);
+    expect(preview.json).toMatchObject({ workspace: { id, name: 'Linked' }, role: 'commenter' });
+
+    expect((await api(null, 'POST', `/invites/${token}/accept`)).status).toBe(401);
+    // The stranger's Oxy email is not the invited one: the link is the proof.
+    const accepted = await api(STRANGER, 'POST', `/invites/${token}/accept`);
+    expect(accepted.status).toBe(201);
+    expect(accepted.json).toEqual({ workspaceId: id, role: 'commenter', joined: true });
+    expect(await roleOf(id, STRANGER)).toBe('commenter');
+    expect((await api(OWNER, 'GET', `/workspaces/${id}/invites`)).json.invites).toEqual([]);
+
+    // Spent: the same person is answered with their workspace, anyone else not.
+    const again = await api(STRANGER, 'POST', `/invites/${token}/accept`);
+    expect(again.status).toBe(200);
+    expect(again.json).toMatchObject({ workspaceId: id, joined: false });
+    const other = await api(GUEST, 'POST', `/invites/${token}/accept`);
+    expect(other.status).toBe(410);
+    expect(other.json.reason).toBe('accepted');
+    expect(await roleOf(id, GUEST)).toBeNull();
+    expect((await api(null, 'GET', `/invites/${token}`)).json.reason).toBe('accepted');
+  });
+
+  it('answers the workspace to someone its email already brought in', async () => {
+    const id = await team('Both ways');
+    const email = `${scope}-both@example.test`;
+    const { invite } = await invitePending(id, email, 'viewer');
+    const BOTH = `${scope}-both`;
+    accounts.set(BOTH, email);
+    await api(BOTH, 'GET', '/workspaces');
+    expect(await roleOf(id, BOTH)).toBe('viewer');
+    const res = await api(BOTH, 'POST', `/invites/${tokenOf(invite)}/accept`);
+    expect(res.status).toBe(200);
+    expect(res.json).toEqual({ workspaceId: id, role: 'viewer', joined: false });
+    accounts.delete(BOTH);
+  });
+
+  it('keeps a member their role', async () => {
+    const id = await team('Member already');
+    const { invite } = await invitePending(id, `${scope}-dup@example.test`, 'viewer');
+    const res = await api(EDITOR, 'POST', `/invites/${tokenOf(invite)}/accept`);
+    expect(res.status).toBe(200);
+    expect(res.json).toEqual({ workspaceId: id, role: 'editor', joined: false });
+  });
+
+  it('joins nobody once expired, revoked, archived or never made', async () => {
+    const id = await team('Dead links');
+    const expired = await invitePending(id, `${scope}-exp@example.test`);
+    await db
+      .update(workspaceInvites)
+      .set({ expiresAt: new Date(Date.now() - 1000) })
+      .where(eq(workspaceInvites.id, expired.invite.id));
+    const expiredToken = tokenOf(expired.invite);
+    expect((await api(null, 'GET', `/invites/${expiredToken}`)).json.reason).toBe('expired');
+    const late = await api(STRANGER, 'POST', `/invites/${expiredToken}/accept`);
+    expect(late.status).toBe(410);
+    expect(late.json.reason).toBe('expired');
+
+    const revoked = await invitePending(id, `${scope}-rev@example.test`);
+    await api(ADMIN, 'DELETE', `/workspaces/${id}/invites/${revoked.invite.id}`);
+    expect((await api(STRANGER, 'POST', `/invites/${tokenOf(revoked.invite)}/accept`)).status).toBe(
+      404,
+    );
+
+    const archivedWs = await team('Archived later');
+    const archived = await invitePending(archivedWs, `${scope}-arch@example.test`);
+    await db
+      .update(workspaces)
+      .set({ archivedAt: new Date() })
+      .where(eq(workspaces.id, archivedWs));
+    expect((await api(null, 'GET', `/invites/${tokenOf(archived.invite)}`)).status).toBe(404);
+    expect(
+      (await api(STRANGER, 'POST', `/invites/${tokenOf(archived.invite)}/accept`)).status,
+    ).toBe(404);
+
+    expect((await api(null, 'GET', '/invites/never-a-token-at-all')).status).toBe(404);
+    expect((await api(STRANGER, 'POST', '/invites/x/accept')).status).toBe(404);
+    expect(await roleOf(id, STRANGER)).toBeNull();
+  });
 });
 
 describe('inviting an email that is not an Oxy account yet', () => {
