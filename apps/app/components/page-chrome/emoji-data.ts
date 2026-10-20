@@ -6,8 +6,7 @@
  * list intentionally covers the most-used set, not every codepoint. Add
  * more if power users hit gaps.
  *
- * Skin-tone variants are generated on the fly by appending Fitzpatrick
- * codepoints; entries marked with `tone: true` opt in.
+ * Rendering, search and skin-tone variants belong to Bloom EmojiPicker.
  *
  * Labels are functions so they are translated when rendered, not when this
  * module loads (the locale can change at runtime).
@@ -29,33 +28,6 @@ export interface EmojiCategory {
   /** Translated category heading. */
   label: () => string;
   emojis: ReadonlyArray<EmojiEntry>;
-}
-
-/** Fitzpatrick skin-tone modifier codepoints. */
-export const SKIN_TONES: ReadonlyArray<{ id: string; label: () => string; modifier: string }> = [
-  { id: 'default', label: () => i18n.t('pages.iconPicker.skinTones.default'), modifier: '' },
-  { id: 'light', label: () => i18n.t('pages.iconPicker.skinTones.light'), modifier: '\u{1F3FB}' },
-  {
-    id: 'medium-light',
-    label: () => i18n.t('pages.iconPicker.skinTones.mediumLight'),
-    modifier: '\u{1F3FC}',
-  },
-  { id: 'medium', label: () => i18n.t('pages.iconPicker.skinTones.medium'), modifier: '\u{1F3FD}' },
-  {
-    id: 'medium-dark',
-    label: () => i18n.t('pages.iconPicker.skinTones.mediumDark'),
-    modifier: '\u{1F3FE}',
-  },
-  { id: 'dark', label: () => i18n.t('pages.iconPicker.skinTones.dark'), modifier: '\u{1F3FF}' },
-];
-
-/**
- * Apply a Fitzpatrick modifier to an emoji that supports skin tones. For
- * emojis that don't, returns the base emoji unchanged.
- */
-export function applySkinTone(entry: EmojiEntry, modifier: string): string {
-  if (!entry.tone || !modifier) return entry.emoji;
-  return `${entry.emoji}${modifier}`;
 }
 
 export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
