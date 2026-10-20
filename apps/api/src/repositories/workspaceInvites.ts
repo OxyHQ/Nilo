@@ -83,6 +83,20 @@ export async function findInviteByToken(
 export type InviteLinkRefusal = 'not_found' | 'expired' | 'accepted';
 
 /**
+ * Why the invitation found by its link (`findInviteByToken`) joins nobody at
+ * `now`, or null when it still does: its workspace is gone or personal, it
+ * was accepted, or it expired.
+ */
+export function inviteRefusal(
+  found: { invite: WorkspaceInviteRow; workspace: typeof workspaces.$inferSelect } | null,
+  now: Date,
+): InviteLinkRefusal | null {
+  if (!found || found.workspace.archivedAt || found.workspace.isPersonal) return 'not_found';
+  if (found.invite.acceptedAt) return 'accepted';
+  return found.invite.expiresAt.getTime() <= now.getTime() ? 'expired' : null;
+}
+
+/**
  * `userId` accepts the invitation `token` names: it becomes their membership
  * with the invitation's role, whatever Oxy email they signed in with, since
  * holding the link is what the email proved. Someone already a member keeps
@@ -108,17 +122,17 @@ export async function acceptInviteByToken(
       .where(eq(workspaceInvites.token, token))
       .limit(1)
       .for('update', { of: workspaceInvites });
-    if (!found || found.workspace.archivedAt || found.workspace.isPersonal) {
-      return { refused: 'not_found' as const };
+    const refused = inviteRefusal(found ?? null, now);
+    if (refused || !found) {
+      const member =
+        refused === 'accepted' && found
+          ? await findMembership(tx, found.invite.workspaceId, userId)
+          : undefined;
+      return member
+        ? { workspaceId: member.workspaceId, role: member.role, joined: false }
+        : { refused: refused ?? 'not_found' };
     }
     const { invite } = found;
-    if (invite.acceptedAt) {
-      const member = await findMembership(tx, invite.workspaceId, userId);
-      return member
-        ? { workspaceId: invite.workspaceId, role: member.role, joined: false }
-        : { refused: 'accepted' as const };
-    }
-    if (invite.expiresAt.getTime() <= now.getTime()) return { refused: 'expired' as const };
 
     await tx
       .update(workspaceInvites)
@@ -192,8 +206,8 @@ export async function acceptPendingInvites(
   now: Date,
 ): Promise<string[]> {
   const address = normalizeInviteEmail(email);
-  return db.transaction(async (tx) => {
-    const waiting = await tx
+  const waitingFor = (handle: PgHandle) =>
+    handle
       .select({ invite: workspaceInvites })
       .from(workspaceInvites)
       .innerJoin(workspaces, eq(workspaces.id, workspaceInvites.workspaceId))
@@ -205,8 +219,11 @@ export async function acceptPendingInvites(
           isNull(workspaces.archivedAt),
           eq(workspaces.isPersonal, false),
         ),
-      )
-      .for('update', { of: workspaceInvites, skipLocked: true });
+      );
+  // Almost every list finds nothing waiting: no transaction, no row locks then.
+  if ((await waitingFor(db).limit(1)).length === 0) return [];
+  return db.transaction(async (tx) => {
+    const waiting = await waitingFor(tx).for('update', { of: workspaceInvites, skipLocked: true });
     const joined: string[] = [];
     for (const { invite } of waiting) {
       const stamped = await tx

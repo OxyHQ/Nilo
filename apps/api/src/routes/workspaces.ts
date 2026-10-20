@@ -13,10 +13,8 @@ import {
 import { getDb } from '../db/client.js';
 import {
   INVITABLE_WORKSPACE_ROLES,
-  type InvitableWorkspaceRole,
   WORKSPACE_INVITE_TTL_MS,
   WORKSPACE_LINK_ROLES,
-  type WorkspaceLinkRole,
   type WorkspaceRole,
 } from '../db/schema/workspaces.js';
 import { deleteGrantsOfUserInWorkspace, listGuestGrants } from '../repositories/pagePermissions.js';
@@ -95,7 +93,7 @@ function serializeInvite(invite: WorkspaceInviteRow, now = Date.now()) {
   return {
     id: invite.id,
     email: invite.email,
-    role: invite.role as InvitableWorkspaceRole,
+    role: invite.role,
     invitedBy: invite.invitedBy,
     createdAt: invite.createdAt,
     expiresAt: invite.expiresAt,
@@ -110,23 +108,36 @@ function serializeInviteLink(link: WorkspaceInviteLinkRow) {
     id: link.id,
     token: link.token,
     url: publicAppUrl(`/join/${link.token}`),
-    role: link.role as WorkspaceLinkRole,
+    role: link.role,
     createdBy: link.createdBy,
     createdAt: link.createdAt,
   };
 }
 
+/** How long an email read from Oxy is reused, and for how many people at most. */
+const EMAIL_TTL_MS = 60_000;
+const MAX_CACHED_EMAILS = 1000;
+const oxyEmails = new Map<string, { email: string; until: number }>();
+
 /**
- * The caller's Oxy email: on the request when the session carried it, else
- * from their profile. Null when Oxy cannot say.
+ * The caller's email from their Oxy profile, reused for a minute: every list
+ * of workspaces asks while an invitation waits anywhere. Null when Oxy cannot
+ * say (never cached, so the next list asks again).
  */
-async function callerEmail(req: Request): Promise<string | null> {
-  const onRequest = req.user?.email;
-  if (typeof onRequest === 'string' && onRequest) return onRequest;
-  if (!req.user?.id) return null;
+async function oxyEmail(userId: string): Promise<string | null> {
+  const cached = oxyEmails.get(userId);
+  if (cached && cached.until > Date.now()) return cached.email;
   try {
-    const user = await oxyClient.users.get(req.user.id);
-    return typeof user?.email === 'string' && user.email ? user.email : null;
+    const user = await oxyClient.users.get(userId);
+    const email = typeof user?.email === 'string' && user.email ? user.email : null;
+    oxyEmails.delete(userId);
+    if (email) {
+      if (oxyEmails.size >= MAX_CACHED_EMAILS) {
+        oxyEmails.delete(oxyEmails.keys().next().value as string);
+      }
+      oxyEmails.set(userId, { email, until: Date.now() + EMAIL_TTL_MS });
+    }
+    return email;
   } catch (err: unknown) {
     log.general.warn({ err }, 'Could not read the caller email for pending invitations');
     return null;
@@ -134,10 +145,10 @@ async function callerEmail(req: Request): Promise<string | null> {
 }
 
 /**
- * Accept the invitations waiting for the caller's email (`docs/access.md`).
- * Asks Oxy for the email only while some invitation is waiting somewhere,
- * and never fails the request it runs in: an invitation not accepted now is
- * accepted on the next list.
+ * Accept the invitations waiting for the caller's email (`docs/access.md`):
+ * the session's, or — only while some invitation is waiting somewhere —
+ * their Oxy profile's. Never fails the request it runs in: an invitation not
+ * accepted now is accepted on the next list.
  */
 async function acceptInvitesForCaller(req: Request): Promise<void> {
   const userId = req.user?.id;
@@ -145,8 +156,13 @@ async function acceptInvitesForCaller(req: Request): Promise<void> {
   try {
     const db = getDb();
     const now = new Date();
-    if (!(await anyPendingInvite(db, now))) return;
-    const email = await callerEmail(req);
+    const onSession = req.user?.email;
+    const email =
+      typeof onSession === 'string' && onSession
+        ? onSession
+        : (await anyPendingInvite(db, now))
+          ? await oxyEmail(userId)
+          : null;
     if (!email) return;
     await acceptPendingInvites(db, userId, email, now);
   } catch (err: unknown) {

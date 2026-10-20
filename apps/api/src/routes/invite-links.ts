@@ -17,6 +17,7 @@ import {
   findInviteByToken,
   findInviteLinkByToken,
   type InviteLinkRefusal,
+  inviteRefusal,
   type WorkspaceInviteLinkRow,
 } from '../repositories/workspaceInvites.js';
 import {
@@ -149,20 +150,16 @@ router.get(
     try {
       const token = paramString(req.params.token);
       const found = plausibleLinkToken(token) ? await findInviteByToken(getDb(), token) : null;
-      if (!found || found.workspace.archivedAt || found.workspace.isPersonal) {
+      const refusal = inviteRefusal(found, new Date());
+      if (refusal === 'not_found' || !found) {
         res.status(404).json(INVITATION_REFUSALS.not_found);
         return;
       }
-      const { invite, workspace } = found;
-      const refusal: InviteLinkRefusal | null = invite.acceptedAt
-        ? 'accepted'
-        : invite.expiresAt.getTime() <= Date.now()
-          ? 'expired'
-          : null;
       if (refusal) {
         res.status(410).json({ error: INVITATION_REFUSALS[refusal].error, reason: refusal });
         return;
       }
+      const { invite, workspace } = found;
       res.json({
         workspace: { id: workspace.id, name: workspace.name, avatar: workspace.avatar },
         role: invite.role,
