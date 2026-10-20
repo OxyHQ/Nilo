@@ -15,9 +15,9 @@
  *   more are let go (`releaseOrphanedPageFiles`); attachments marked removed
  *   that may have come back are asked about again; applied file events Oxy can
  *   no longer redeliver are forgotten; and the `'page'` references are
- *   reconciled with `page_files` (`assets.references.reconcile`), in the mode
- *   `NILO_FILE_REFERENCES_RECONCILE` names — `dry-run` (the default: Oxy
- *   counts, changes nothing), `commit`, or `off`.
+ *   reconciled with `page_files` (`assets.references.reconcile`) and
+ *   committed — as a dry run only while an attachment names no page, whose
+ *   reference the inventory cannot list.
  */
 import { NILO_FILE_ENTITY_TYPE } from '@oxy.so/nilo-contracts';
 import { getDb, type PgHandle } from '../db/client.js';
@@ -68,22 +68,6 @@ const EVENT_MEMORY_MS = 31 * 24 * 60 * 60_000;
  * the opening has been recorded (or abandoned) well within this.
  */
 export const RECONCILE_GRACE_MS = 5 * 60_000;
-
-export const RECONCILE_MODES = ['off', 'dry-run', 'commit'] as const;
-export type ReconcileMode = (typeof RECONCILE_MODES)[number];
-
-/** `NILO_FILE_REFERENCES_RECONCILE`; anything unrecognised is `dry-run`, never `commit`. */
-export function reconcileMode(
-  value: string | undefined = process.env.NILO_FILE_REFERENCES_RECONCILE,
-): ReconcileMode {
-  if (value === undefined || value === '') return 'dry-run';
-  if ((RECONCILE_MODES as readonly string[]).includes(value)) return value as ReconcileMode;
-  log.general.error(
-    { value },
-    'NILO_FILE_REFERENCES_RECONCILE is not off, dry-run or commit; reconciling as dry-run',
-  );
-  return 'dry-run';
-}
 
 const errorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -138,7 +122,6 @@ const isInProgress = (err: unknown) => {
 };
 
 export interface DailyRunOptions {
-  mode?: ReconcileMode;
   now?: Date;
   /** For tests; see {@link RECONCILE_GRACE_MS}. */
   graceMs?: number;
@@ -149,7 +132,6 @@ export async function runDailyFileWork(
   db: PgHandle,
   options: DailyRunOptions = {},
 ): Promise<Record<string, unknown>> {
-  const mode = options.mode ?? reconcileMode();
   const now = options.now ?? new Date();
 
   let released = 0;
@@ -175,38 +157,33 @@ export async function runDailyFileWork(
   }
 
   let reconcile: Record<string, unknown>;
-  if (mode === 'off') {
-    reconcile = { mode, skipped: 'off' };
-  } else {
-    const unnamed = await countUnnamedPageFiles(db);
-    // An attachment whose reference cannot be named would be read as stale
-    // and its owner's grant removed: no commit while there is one.
-    const dryRun = mode !== 'commit' || unnamed > 0;
-    try {
-      const result = await oxyClient.assets.references.reconcile(
-        NILO_FILE_ENTITY_TYPE,
-        pageInventory(db, options.graceMs ?? RECONCILE_GRACE_MS),
-        { dryRun },
+  const unnamed = await countUnnamedPageFiles(db);
+  // An attachment whose reference cannot be named would be read as stale and
+  // its owner's grant removed: no commit while there is one.
+  const dryRun = unnamed > 0;
+  try {
+    const result = await oxyClient.assets.references.reconcile(
+      NILO_FILE_ENTITY_TYPE,
+      pageInventory(db, options.graceMs ?? RECONCILE_GRACE_MS),
+      { dryRun },
+    );
+    reconcile = {
+      dryRun,
+      unnamed,
+      added: result.added,
+      removed: result.removed,
+      unchanged: result.unchanged,
+      refused: result.refused,
+    };
+    if (dryRun) {
+      log.general.warn(
+        { unnamed },
+        'File references reconciled as a dry run: attachments without a page id (docs/files.md)',
       );
-      reconcile = {
-        mode,
-        dryRun,
-        unnamed,
-        added: result.added,
-        removed: result.removed,
-        unchanged: result.unchanged,
-        refused: result.refused,
-      };
-      if (unnamed > 0 && mode === 'commit') {
-        log.general.warn(
-          { unnamed },
-          'File references reconciled as a dry run: attachments without a page id (docs/files.md)',
-        );
-      }
-    } catch (err: unknown) {
-      if (!isInProgress(err)) throw err;
-      reconcile = { mode, dryRun, unnamed, skipped: 'in_progress' };
     }
+  } catch (err: unknown) {
+    if (!isInProgress(err)) throw err;
+    reconcile = { dryRun, unnamed, skipped: 'in_progress' };
   }
 
   const report = { released, prunedEvents, recovered, reconcile };

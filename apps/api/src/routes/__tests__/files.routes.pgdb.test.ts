@@ -126,8 +126,9 @@ const { default: shareLinksRouter } = await import('../share-links.js');
 const { default: pagesRouter } = await import('../pages.js');
 const { default: blocksRouter } = await import('../blocks.js');
 const { resetLocalFileUrls } = await import('../../lib/files.js');
-const { drainReferenceRemovals, reconcileMode, runDailyFileWork, runDailyFileWorkIfDue } =
-  await import('../../lib/file-references.js');
+const { drainReferenceRemovals, runDailyFileWork, runDailyFileWorkIfDue } = await import(
+  '../../lib/file-references.js'
+);
 const { OXY_FILE_EVENTS_PATH, oxyFileEventsHandler, rawFileEventBody } = await import(
   '../oxy-file-events.js'
 );
@@ -382,8 +383,8 @@ const statusOf = async (fileId: string) =>
 const recorded = async (fileId: string) =>
   (await db.select().from(pageFiles).where(eq(pageFiles.fileId, fileId)))[0];
 
-/** Run the daily run's sweep, with reconciliation off. */
-const sweep = () => runDailyFileWork(db, { mode: 'off', graceMs: 0 });
+/** Run the daily run (its sweep, then reconciliation against the mock). */
+const sweep = () => runDailyFileWork(db, { graceMs: 0 });
 
 describe('letting go of an attachment', () => {
   it('keeps it, and its Oxy reference, while its page is in the trash', async () => {
@@ -538,7 +539,7 @@ describe("a page's files property (Noted's attachments)", () => {
       .where(eq(pages.id, note));
     await db.delete(pageFiles).where(isNull(pageFiles.pageId));
     inventories.length = 0;
-    await runDailyFileWork(db, { mode: 'dry-run', graceMs: 0 });
+    await runDailyFileWork(db, { graceMs: 0 });
     expect(inventories[0]?.items).toContainEqual({ fileId: 'noted-d', entityId: note });
   });
 });
@@ -615,24 +616,17 @@ describe('telling Oxy', () => {
 });
 
 describe('the daily run', () => {
-  it('reconciles the page references as a dry run unless told to commit', async () => {
-    expect(reconcileMode(undefined)).toBe('dry-run');
-    expect(reconcileMode('commit')).toBe('commit');
-    expect(reconcileMode('yes')).toBe('dry-run');
-
+  it('reconciles the page references and commits', async () => {
     const target = await page('Inventory');
     const fileId = await attach(target);
     // A row naming no page (another test's) would hold the commit back.
     await db.delete(pageFiles).where(isNull(pageFiles.pageId));
 
     inventories.length = 0;
-    await runDailyFileWork(db, { mode: 'dry-run', graceMs: 0 });
-    await runDailyFileWork(db, { mode: 'commit', graceMs: 0 });
-    expect(inventories.map((run) => [run.entityType, run.dryRun])).toEqual([
-      ['page', true],
-      ['page', false],
-    ]);
-    expect(inventories[1]?.items).toContainEqual({ fileId, entityId: target });
+    const report = await runDailyFileWork(db, { graceMs: 0 });
+    expect(report.reconcile).toMatchObject({ dryRun: false, unnamed: 0 });
+    expect(inventories.map((run) => [run.entityType, run.dryRun])).toEqual([['page', false]]);
+    expect(inventories[0]?.items).toContainEqual({ fileId, entityId: target });
   });
 
   it('will not commit while an attachment names no page, nor fail on a run in progress', async () => {
@@ -641,7 +635,7 @@ describe('the daily run', () => {
     await imageBlock(target, fileId);
     await db.update(pageFiles).set({ pageId: null }).where(eq(pageFiles.fileId, fileId));
     inventories.length = 0;
-    const report = await runDailyFileWork(db, { mode: 'commit', graceMs: 0 });
+    const report = await runDailyFileWork(db, { graceMs: 0 });
     expect(report.reconcile).toMatchObject({ dryRun: true });
     expect(inventories[0]?.dryRun).toBe(true);
     expect(inventories[0]?.items.map((item) => item.fileId)).not.toContain(fileId);
@@ -650,7 +644,7 @@ describe('the daily run', () => {
 
     reconcileAnswer = 'in_progress';
     try {
-      const busy = await runDailyFileWork(db, { mode: 'commit', graceMs: 0 });
+      const busy = await runDailyFileWork(db, { graceMs: 0 });
       expect(busy.reconcile).toMatchObject({ skipped: 'in_progress' });
     } finally {
       reconcileAnswer = 'ok';
@@ -660,13 +654,11 @@ describe('the daily run', () => {
   it('runs once a day, whichever task asks', async () => {
     await db.delete(fileReferenceRuns).where(eq(fileReferenceRuns.job, 'nightly'));
     const now = new Date();
-    const first = await runDailyFileWorkIfDue(db, { mode: 'off', graceMs: 0, now });
+    const first = await runDailyFileWorkIfDue(db, { graceMs: 0, now });
     expect(first).not.toBeNull();
-    expect(await runDailyFileWorkIfDue(db, { mode: 'off', graceMs: 0, now })).toBeNull();
+    expect(await runDailyFileWorkIfDue(db, { graceMs: 0, now })).toBeNull();
     const tomorrow = new Date(now.getTime() + 25 * 60 * 60_000);
-    expect(
-      await runDailyFileWorkIfDue(db, { mode: 'off', graceMs: 0, now: tomorrow }),
-    ).not.toBeNull();
+    expect(await runDailyFileWorkIfDue(db, { graceMs: 0, now: tomorrow })).not.toBeNull();
   });
 
   it('asks Oxy again about a file marked trashed, in case its restore was never delivered', async () => {

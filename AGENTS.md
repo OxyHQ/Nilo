@@ -31,8 +31,9 @@ in issues. This file holds only rules, commands, and pointers. Budget: under
   and `pages` (`apps/api/src/db/triggers.ts`, `docs/files.md`), which
   drizzle-kit does not know: a migration that rebuilds either table recreates
   them. `page_files.page_id` names the Oxy reference and must never become a
-  foreign key again. Never let reconciliation commit without reading its
-  dry-run report: a removed owner reference cannot be recreated.
+  foreign key again. The daily reconciliation commits, and a removed owner
+  reference cannot be recreated: a reference the inventory cannot list must
+  hold the commit back, as an attachment naming no page does.
 
 ## Product vocabulary
 

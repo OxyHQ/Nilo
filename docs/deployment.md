@@ -62,8 +62,7 @@ Last verified: 2026-09-13.
   with the same token, which needs `files:references:write` on Nilo's Oxy
   application as well; until it is granted, removals wait in
   `file_reference_removals` and are sent once it is. The daily
-  reconciliation runs as `NILO_FILE_REFERENCES_RECONCILE` says: unset is
-  `dry-run`; set `commit` only after reading `file_reference_runs.report`.
+  reconciliation commits; its counts are `file_reference_runs.report`.
 - File events: set Nilo's endpoint to `https://<api origin>/webhooks/oxy/files`
   (Oxy console → Webhooks → File events, or `oxy.apps.setFilesWebhook`). Oxy
   verifies it with a challenge the API answers without a secret, and shows the
