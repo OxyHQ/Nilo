@@ -62,7 +62,7 @@ export function TableBlock({ block, readOnly, renderChildren, store }: BlockComp
       </View>
     );
   }
-  return <EditableTable tableId={block.id} store={store} readOnly={readOnly === true} />;
+  return <EditableTable tableId={block.id} store={store} readOnly={readOnly} />;
 }
 
 function EditableTable({

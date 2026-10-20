@@ -32,12 +32,6 @@ jest.mock('@oxy.so/bloom/toast', () => ({
     error: (message: string) => mockToast.error(message),
   },
 }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}:${Object.values(params).join('|')}` : key,
-  }),
-}));
 jest.mock('@/lib/i18n', () => ({
   __esModule: true,
   default: { locale: 'es-ES', t: (k: string) => k },

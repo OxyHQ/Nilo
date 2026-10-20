@@ -2,6 +2,8 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { useTranslation } from '../useTranslation';
 
+// The hook itself, not jest-setup's stand-in.
+jest.unmock('@/hooks/useTranslation');
 let mockLocale = 'en';
 jest.mock('@/lib/stores/i18n-store', () => ({
   useI18nStore: (select: (state: unknown) => unknown) =>

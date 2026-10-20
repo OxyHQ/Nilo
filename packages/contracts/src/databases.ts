@@ -105,6 +105,48 @@ export function acceptsFilterOperator(type: DatabasePropertyType, operator: stri
   return FILTER_OPERATORS_BY_TYPE[type].includes(operator);
 }
 
+/** The Name property's id: its value is the row's title, and its type is always text. */
+export const NAME_PROPERTY_ID = 'name';
+
+/**
+ * A status property's groups, as Notion's: every option is in exactly one, and
+ * they are always these three, in this order. Their names are the app's to
+ * translate, so only the id is stored.
+ */
+export const STATUS_GROUP_IDS = ['todo', 'in_progress', 'complete'] as const;
+export type StatusGroupId = (typeof STATUS_GROUP_IDS)[number];
+
+export interface StatusGroup {
+  id: StatusGroupId;
+  optionIds: string[];
+}
+
+/** How a date property shows its dates; absent, the reader's locale's default. */
+export const DATE_FORMATS = [
+  'full',
+  'short',
+  'month_day_year',
+  'day_month_year',
+  'iso',
+  'relative',
+] as const;
+export type DateFormat = (typeof DATE_FORMATS)[number];
+
+export const ROLLUP_FUNCTIONS = [
+  'count',
+  'sum',
+  'avg',
+  'min',
+  'max',
+  'earliest',
+  'latest',
+  /** The related values themselves, listed. */
+  'show_original',
+  'percent_empty',
+  'percent_not_empty',
+] as const;
+export type RollupFunction = (typeof ROLLUP_FUNCTIONS)[number];
+
 // ---------------------------------------------------------------------------
 // Grouping
 // ---------------------------------------------------------------------------
@@ -156,6 +198,103 @@ export function numberGroupCount(grouping: { from: number; to: number; step: num
   // A step that divides the span all but exactly (0.3 / 0.1) counts as dividing it.
   return Math.ceil((to - from) / step - 1e-9);
 }
+
+/**
+ * A number property's groups: `count` ranges of `step` from `from`, the last
+ * one ending at `to` — keys `0` to `count - 1` — and the numbers below `from`
+ * (`-1`) and from `to` up (`count`) in groups of their own.
+ */
+export interface NumberRanges {
+  from: number;
+  to: number;
+  step: number;
+  count: number;
+}
+
+/** The ranges a view's `numberGrouping` makes: at least one, at most `MAX_NUMBER_GROUPS`. */
+export function numberRanges(grouping: { from: number; to: number; step: number }): NumberRanges {
+  const count = Math.min(MAX_NUMBER_GROUPS, Math.max(1, numberGroupCount(grouping)));
+  return { from: grouping.from, to: grouping.to, step: grouping.step, count };
+}
+
+/** A number group's bounds: from (included) to (excluded), null where it is open. */
+export function numberGroupRange(
+  key: string,
+  ranges: NumberRanges,
+): { from: number | null; to: number | null } {
+  const i = Number(key);
+  if (i < 0) return { from: null, to: ranges.from };
+  if (i >= ranges.count) return { from: ranges.to, to: null };
+  const from = ranges.from + i * ranges.step;
+  return { from, to: Math.min(ranges.to, from + ranges.step) };
+}
+
+/**
+ * The config keys that name the groups of a view's rows: they name that
+ * property's values, so they go when the view is grouped by another.
+ */
+export const VIEW_GROUP_CONFIG_KEYS = [
+  'numberGrouping',
+  'groupOrder',
+  'collapsedGroups',
+  'hiddenGroups',
+] as const;
+
+/** `config` without the keys of its groups, or null when it has none. */
+export function withoutGroupKeys<C extends object>(config: C): C | null {
+  if (!VIEW_GROUP_CONFIG_KEYS.some((key) => key in config)) return null;
+  const out: C = { ...config };
+  for (const key of VIEW_GROUP_CONFIG_KEYS) delete (out as Record<string, unknown>)[key];
+  return out;
+}
+
+/** How a property's rows are grouped: by option, by date, by text or user id, checked, or by number range. */
+export type GroupKind =
+  | 'option'
+  | 'list_option'
+  | 'date'
+  | 'text'
+  | 'people'
+  | 'user'
+  | 'checkbox'
+  | 'number';
+
+export function groupKind(type: DatabasePropertyType): GroupKind | null {
+  if (!isGroupableType(type)) return null;
+  switch (type) {
+    case 'select':
+    case 'status':
+      return 'option';
+    case 'multi_select':
+      return 'list_option';
+    case 'person':
+      return 'people';
+    case 'created_by':
+    case 'last_edited_by':
+      return 'user';
+    case 'checkbox':
+      return 'checkbox';
+    case 'date':
+    case 'created_time':
+    case 'last_edited_time':
+      return 'date';
+    // A formula's or a rollup's numbers; a value of it that is no number is empty.
+    case 'number':
+    case 'formula':
+    case 'rollup':
+      return 'number';
+    default:
+      return 'text';
+  }
+}
+
+/** The views whose rows come in sections, one per group (`groupBy`); a board's are its sub-groups. */
+export const SECTIONED_VIEWS: ReadonlySet<string> = new Set([
+  'table',
+  'list',
+  'gallery',
+  'timeline',
+]);
 
 // ---------------------------------------------------------------------------
 // Calculations
@@ -255,6 +394,45 @@ export type ChartType = (typeof CHART_TYPES)[number];
 /** What a chart measures per group: how many rows, or the sum or average of a number. */
 export const CHART_AGGREGATES = ['count', 'sum', 'average'] as const;
 export type ChartAggregate = (typeof CHART_AGGREGATES)[number];
+
+/** The types a chart adds up or averages (`yAxis.propertyId`): stored numbers. */
+export const CHART_MEASURABLE_TYPES = [
+  'number',
+  'unique_id',
+] as const satisfies readonly DatabasePropertyType[];
+
+export function isChartMeasurable(type: DatabasePropertyType): boolean {
+  return (CHART_MEASURABLE_TYPES as readonly string[]).includes(type);
+}
+
+/** A number's groups: ranges of `step` from `from` up to `to`, those below and above apart. */
+export interface ViewNumberGrouping {
+  from: number;
+  to: number;
+  step: number;
+}
+
+/** A group named in a view's config: its key (`RowGroup.key`), null for the empty group. */
+export type ViewGroupKey = string | null;
+
+/** A chart view's chart: one point per group of `xAxis`, measuring `yAxis`. */
+export interface ViewChartConfig {
+  type: ChartType;
+  xAxis?: { propertyId: string; granularity?: DateGroupGranularity };
+  yAxis?: { aggregate: ChartAggregate; propertyId?: string };
+}
+
+/**
+ * Whether a view may be changed as far as its database goes: a locked
+ * database's own views may not (423 DATABASE_LOCKED); a linked view
+ * (`blockId`) is its block's, not the database's.
+ */
+export function viewIsEditable(
+  database: { locked?: boolean | null },
+  view: { blockId?: string | null },
+): boolean {
+  return !(database.locked && !view.blockId);
+}
 
 /** A table column's narrowest and widest, in points. */
 export const MIN_COLUMN_WIDTH = 60;

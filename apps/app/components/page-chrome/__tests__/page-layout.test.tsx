@@ -32,9 +32,6 @@ jest.mock('@oxy.so/bloom/popover', () => {
   return { Popover: View, PopoverTrigger: View, PopoverContent: View, PopoverSeparator: View };
 });
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), replace: jest.fn() }) }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock('@/lib/useColorScheme', () => ({
   useColorScheme: () => ({ colors: { foreground: 'black', mutedForeground: 'gray' } }),
 }));
@@ -57,6 +54,14 @@ jest.mock('../icon-display', () => ({ IconDisplay: () => null }));
 jest.mock('../icon-picker', () => ({ IconPicker: jest.fn(() => null) }));
 jest.mock('../cover-picker', () => ({ CoverPicker: jest.fn(() => null) }));
 jest.mock('../page-info', () => ({ PageInfo: () => null }));
+// What the page route's editor provider holds, for the page as it is cached now.
+jest.mock('@/components/page-editor/page-editor-context', () => ({
+  usePageEditorContext: () => {
+    const { data } = jest.requireActual('@/lib/hooks/use-pages').usePage('page');
+    const { pageContentReadOnly } = jest.requireActual('@/lib/hooks/page-access');
+    return { readOnly: pageContentReadOnly(data.page, data.role) };
+  },
+}));
 
 const initial: Page = {
   id: 'page',

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { NAME_PROPERTY_ID } from '@oxy.so/nilo-contracts';
 import {
   STATUS_GROUP_IDS,
   type DatabaseProperty,
@@ -19,7 +20,7 @@ import {
  *   - default views surface a recognizable label,
  *   - links to a row render with a useful preview.
  */
-export const NAME_PROPERTY_ID = 'name';
+export { NAME_PROPERTY_ID };
 export const NAME_PROPERTY_NAME = 'Name';
 
 export function buildDefaultSchema(): DatabaseSchema {

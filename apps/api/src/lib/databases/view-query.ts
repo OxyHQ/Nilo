@@ -17,13 +17,14 @@
  */
 import { and, asc, eq, or, type SQL, sql } from 'drizzle-orm';
 import { isLiveEntityId } from '@oxy.so/db';
+import { groupKind } from '@oxy.so/nilo-contracts';
 import { z } from 'zod';
 import type { PgHandle } from '../../db/client.js';
 import type { DatabaseProperty, Filter, ViewSort } from '../../db/schema/databases.js';
 import { pages } from '../../db/schema/pages.js';
 import type { PageRow } from '../../repositories/pages.js';
 import { emptyMatches } from './filters.js';
-import { type GroupKey, type GroupSpec, groupKind, orderedOptionIds } from './groups.js';
+import { type GroupKey, type GroupSpec, orderedOptionIds } from './groups.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -458,7 +459,7 @@ function numberGroup(n: SQL, spec: GroupSpec): Omit<CompiledGroup, 'shown'> {
 function groupKeys(spec: GroupSpec): Omit<CompiledGroup, 'shown'> {
   const { property } = spec;
   const stored = sql`(${pages.properties} -> ${property.id}::text)`;
-  switch (groupKind(property)) {
+  switch (groupKind(property.type)) {
     case 'option': {
       const option = sql`${stored} -> 'optionId'`;
       const id = sql`(case when jsonb_typeof(${option}) = 'string' then ${asText(option)} end)`;

@@ -37,7 +37,7 @@ export function ChildPageBlock({ block }: BlockComponentProps) {
 
   const page = query.data?.page;
   const title = page ? page.title || t('pages.untitled') : t('editor.blocks.loading');
-  const trashed = page?.archived === true;
+  const trashed = page?.archived;
   return (
     <Pressable
       accessibilityRole="link"

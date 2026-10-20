@@ -32,7 +32,6 @@ jest.mock('@/hooks/useTranslation', () => ({
   }),
 }));
 jest.mock('@/lib/i18n', () => ({ __esModule: true, default: { t: (key: string) => key } }));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/lib/hooks/use-database-views', () => ({

@@ -1,4 +1,6 @@
-import { isGroupableType, MAX_NUMBER_GROUPS, numberGroupCount } from '@oxy.so/nilo-contracts';
+import { isGroupableType } from '@oxy.so/nilo-contracts';
+import { fromDayKey } from './date-values';
+import { rankBy } from './list-order';
 import type {
   DatabaseProperty,
   DatabaseRow,
@@ -34,12 +36,8 @@ export interface RowSection {
 export function rowSections(
   rows: readonly DatabaseRow[],
   groups: readonly RowGroup[],
-  options: {
-    hideEmpty?: boolean;
-    complete: boolean;
-    order?: readonly ViewGroupKey[];
-    hidden?: readonly ViewGroupKey[];
-  },
+  config: Pick<ViewConfig, 'groupOrder' | 'hiddenGroups'>,
+  options: { hideEmpty?: boolean; complete: boolean },
 ): RowSection[] {
   const byKey = new Map<string | null, DatabaseRow[]>();
   for (const row of rows) {
@@ -48,8 +46,10 @@ export function rowSections(
     if (list) list.push(row);
     else byKey.set(key, [row]);
   }
-  const hidden = new Set(options.hidden ?? []);
-  const shown = orderGroups(groups, options.order ?? []).filter((group) => !hidden.has(group.key));
+  const hidden = new Set(config.hiddenGroups ?? []);
+  const shown = rankBy(groups, config.groupOrder ?? [], (group) => group.key).filter(
+    (group) => !hidden.has(group.key),
+  );
   let reached = -1;
   shown.forEach((group, i) => {
     if (byKey.has(group.key)) reached = i;
@@ -63,59 +63,6 @@ export function rowSections(
       rows: byKey.get(group.key) ?? [],
       ...(group.range && { range: group.range }),
     }));
-}
-
-/** `groups` with those `order` lists first, in its order; the others after, as they came. */
-export function orderGroups<G extends { key: ViewGroupKey }>(
-  groups: readonly G[],
-  order: readonly ViewGroupKey[],
-): G[] {
-  if (order.length === 0) return [...groups];
-  const at = (key: ViewGroupKey) => {
-    const i = order.indexOf(key);
-    return i < 0 ? order.length : i;
-  };
-  return groups
-    .map((group, i) => ({ group, i }))
-    .sort((a, b) => at(a.group.key) - at(b.group.key) || a.i - b.i)
-    .map(({ group }) => group);
-}
-
-/** The sections' order once `key` moved up (-1) or down (1) among them; null when it cannot. */
-export function moveGroup(
-  keys: readonly ViewGroupKey[],
-  key: ViewGroupKey,
-  by: -1 | 1,
-): ViewGroupKey[] | null {
-  const from = keys.indexOf(key);
-  const to = from + by;
-  if (from < 0 || to < 0 || to >= keys.length) return null;
-  const next = [...keys];
-  next.splice(from, 1);
-  next.splice(to, 0, key);
-  return next;
-}
-
-/** The sections' order once `key` is dropped on `onto`: where it was, `onto` moving aside. */
-export function placeGroup(
-  keys: readonly ViewGroupKey[],
-  key: ViewGroupKey,
-  onto: ViewGroupKey,
-): ViewGroupKey[] | null {
-  const from = keys.indexOf(key);
-  const to = keys.indexOf(onto);
-  if (from < 0 || to < 0 || from === to) return null;
-  const next = keys.filter((k) => k !== key);
-  next.splice(to, 0, key);
-  return next;
-}
-
-/** What of a view's config the groups of its rows are shown by: their order, those hidden. */
-export function sectionOptions(view: DatabaseView): {
-  order?: ViewGroupKey[];
-  hidden?: ViewGroupKey[];
-} {
-  return { order: view.config?.groupOrder, hidden: view.config?.hiddenGroups };
 }
 
 /**
@@ -143,30 +90,6 @@ export function numberGroupingOf(groups: readonly RowGroup[]): ViewNumberGroupin
   return { from: first.range.from, to: last.range.to, step };
 }
 
-/**
- * A range group's bounds under `grouping`, as the API gives them: its key is
- * its index, `-1` below `from` and the count of ranges from `to` up.
- */
-export function numberRangeOf(key: string, grouping: ViewNumberGrouping): GroupRange {
-  const count = Math.min(MAX_NUMBER_GROUPS, Math.max(1, numberGroupCount(grouping)));
-  const i = Number(key);
-  if (i < 0) return { from: null, to: grouping.from };
-  if (i >= count) return { from: grouping.to, to: null };
-  const from = grouping.from + i * grouping.step;
-  return { from, to: Math.min(grouping.to, from + grouping.step) };
-}
-
-/** The config keys that name a view's groups: they go when it is grouped otherwise. */
-const GROUP_KEYS = ['numberGrouping', 'groupOrder', 'collapsedGroups', 'hiddenGroups'] as const;
-
-/** `config` without the keys of its groups, or null when it has none. */
-export function withoutGroupKeys(config: ViewConfig): ViewConfig | null {
-  if (!GROUP_KEYS.some((key) => key in config)) return null;
-  const out: ViewConfig = { ...config };
-  for (const key of GROUP_KEYS) delete out[key];
-  return out;
-}
-
 /** A range's bound as it reads: the float noise of adding steps up rounded off. */
 export function formatBound(n: number, locale: string | undefined): string {
   return Number(n.toPrecision(12)).toLocaleString(locale, { maximumFractionDigits: 10 });
@@ -182,12 +105,6 @@ export function groupProperty(
   return property && isGroupableType(property.type) ? property : null;
 }
 
-/** The local day a date group's key (`YYYY-MM-DD`) names. */
-export function groupDay(key: string): Date {
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
-}
-
 /** How a date group reads: its day, the week starting on it, its month or its year. */
 export function dateGroupLabel(
   key: string,
@@ -195,7 +112,7 @@ export function dateGroupLabel(
   locale: string | undefined,
   weekOf: (date: string) => string,
 ): string {
-  const day = groupDay(key);
+  const day = fromDayKey(key);
   switch (granularity) {
     case 'year':
       return String(day.getFullYear());

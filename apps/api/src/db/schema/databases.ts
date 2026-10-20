@@ -15,12 +15,16 @@ import { createdAt, generatedId, inList, updatedAt } from '@oxy.so/db';
 import {
   type ButtonAction,
   type CalculationFunction,
-  type ChartAggregate,
-  type ChartType,
   DATABASE_PROPERTY_TYPES,
   type DatabasePropertyType,
+  type DateFormat,
   type DateGroupGranularity,
   type OpenRowMode,
+  type RollupFunction,
+  type StatusGroup,
+  type ViewChartConfig,
+  type ViewGroupKey,
+  type ViewNumberGrouping,
 } from '@oxy.so/nilo-contracts';
 import { blocks, pages } from './pages.js';
 import { workspaces } from './workspaces.js';
@@ -39,10 +43,11 @@ import { teamspaces } from './teamspaces.js';
  * schema-defaults}.ts`, which are pure functions over parsed values. They are
  * declared HERE rather than duplicated or re-exported: the jsonb columns need
  * them for `$type<>()` anyway, so this file is where they are structurally
- * required, and each has one declaration with one owner. The one exception is
- * `DATABASE_PROPERTY_TYPES`, which the app reads too, with the filter
- * operators of each type: it is declared in `@oxy.so/nilo-contracts` and
- * re-exported here, as `pages.ts` does with the block types.
+ * required, and each has one declaration with one owner. The exceptions are
+ * what the app reads too (`DATABASE_PROPERTY_TYPES` with the filter operators
+ * of each type, the status groups, date formats, rollup functions and a view's
+ * grouping and chart shapes): they are declared in `@oxy.so/nilo-contracts`
+ * and re-exported here, as `pages.ts` does with the block types.
  *
  * ## What became a CHECK and what did not
  *
@@ -60,6 +65,19 @@ import { teamspaces } from './teamspaces.js';
 
 /** Every property type, shared with the app with the filter operators each takes. */
 export { DATABASE_PROPERTY_TYPES, type DatabasePropertyType } from '@oxy.so/nilo-contracts';
+/** The shapes the app reads as the API stores them, declared once in the contract. */
+export {
+  DATE_FORMATS,
+  type DateFormat,
+  ROLLUP_FUNCTIONS,
+  type RollupFunction,
+  STATUS_GROUP_IDS,
+  type StatusGroup,
+  type StatusGroupId,
+  type ViewChartConfig,
+  type ViewGroupKey,
+  type ViewNumberGrouping,
+} from '@oxy.so/nilo-contracts';
 
 export const SELECT_COLORS = [
   'default',
@@ -95,45 +113,6 @@ export type NumberFormat =
   | 'currency:EUR'
   | 'currency:GBP'
   | 'currency:JPY';
-
-/**
- * A status property's groups, as Notion's: every option is in exactly one, and
- * they are always these three, in this order (`normalizeStatusGroups`). Their
- * names are the app's to translate, so only the id is stored.
- */
-export const STATUS_GROUP_IDS = ['todo', 'in_progress', 'complete'] as const;
-export type StatusGroupId = (typeof STATUS_GROUP_IDS)[number];
-
-export interface StatusGroup {
-  id: StatusGroupId;
-  optionIds: string[];
-}
-
-/** How a date property shows its dates; absent, the reader's locale's default. */
-export const DATE_FORMATS = [
-  'full',
-  'short',
-  'month_day_year',
-  'day_month_year',
-  'iso',
-  'relative',
-] as const;
-export type DateFormat = (typeof DATE_FORMATS)[number];
-
-export const ROLLUP_FUNCTIONS = [
-  'count',
-  'sum',
-  'avg',
-  'min',
-  'max',
-  'earliest',
-  'latest',
-  /** The related values themselves, listed. */
-  'show_original',
-  'percent_empty',
-  'percent_not_empty',
-] as const;
-export type RollupFunction = (typeof ROLLUP_FUNCTIONS)[number];
 
 export interface PropertyConfig {
   // select / multi_select / status
@@ -244,23 +223,6 @@ export interface ViewGroupBy {
   propertyId: string;
   granularity?: DateGroupGranularity;
   hideEmpty?: boolean;
-}
-
-/** A number property's groups: ranges of `step` from `from` up to `to`, those below and above apart. */
-export interface ViewNumberGrouping {
-  from: number;
-  to: number;
-  step: number;
-}
-
-/** A group's key in a view's config: its key (`GroupKey`), null for the empty group. */
-export type ViewGroupKey = string | null;
-
-/** A chart view's chart: one point per group of `xAxis`, measuring `yAxis`. */
-export interface ViewChartConfig {
-  type: ChartType;
-  xAxis?: { propertyId: string; granularity?: DateGroupGranularity };
-  yAxis?: { aggregate: ChartAggregate; propertyId?: string };
 }
 
 /**

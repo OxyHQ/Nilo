@@ -45,7 +45,7 @@ export function DatabaseActionsMenu({
   const coverPicker = useDialogControl();
   const database = data?.database;
   const subItems = database ? subItemProperties(database) : null;
-  const locked = database?.locked === true;
+  const locked = database?.locked ?? false;
   const toggleSubItems = async () => {
     try {
       if (subItems) await remove.mutateAsync({ databaseId, propertyId: subItems.children.id });

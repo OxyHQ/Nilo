@@ -14,7 +14,6 @@ jest.mock('@/hooks/useTranslation', () => ({
       options?.percent === undefined ? key : `${key}:${options.percent}`,
   }),
 }));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 
 let renderer: ReactTestRenderer;
 afterEach(() => act(() => renderer.unmount()));

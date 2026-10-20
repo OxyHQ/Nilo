@@ -35,12 +35,6 @@ jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({ isAuthenticated: mockAuthenticated, openAccountDialog: mockSignIn, user: null }),
 }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}:${Object.values(params).join('|')}` : key,
-  }),
-}));
 jest.mock('@/lib/stores/workspace-store', () => ({
   useWorkspaceStore: (select: (s: { setCurrentWorkspaceId: jest.Mock }) => unknown) =>
     select({ setCurrentWorkspaceId: mockSetWorkspace }),

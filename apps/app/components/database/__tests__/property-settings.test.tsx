@@ -22,7 +22,6 @@ jest.mock('@/hooks/useTranslation', () => ({
   }),
 }));
 jest.mock('@/lib/i18n', () => ({ __esModule: true, default: { t: (key: string) => key } }));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/lib/hooks/use-database-properties', () => ({
   useAddProperty: () => ({ mutate: jest.fn(), isPending: false }),
   useUpdateProperty: () => ({ mutate: mockUpdate, mutateAsync: mockUpdateAsync, isPending: false }),

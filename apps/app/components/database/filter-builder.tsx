@@ -45,6 +45,7 @@ import type {
   FilterCondition,
   FilterGroup,
 } from '@/lib/types/databases';
+import { dayKey, fromDayKey } from '@/lib/date-values';
 import { useRowSearch } from '@/lib/hooks/use-database-rows';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
 import { memberProfileName, useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
@@ -115,26 +116,7 @@ function startCondition(property: DatabaseProperty): Pick<FilterCondition, 'oper
 }
 
 /** How deep groups nest under the view's own, as in Notion: a group, and a group in it. */
-export const MAX_GROUP_DEPTH = 2;
-
-/** Where a group sits in the tree: the index of each group down to it. */
-type FilterPath = readonly number[];
-
-/** `group` with the group at `path` (itself for an empty path) replaced by `change(it)`. */
-export function updateGroupAt(
-  group: FilterGroup,
-  path: FilterPath,
-  change: (group: FilterGroup) => FilterGroup,
-): FilterGroup {
-  if (path.length === 0) return change(group);
-  const [head, ...rest] = path;
-  return {
-    ...group,
-    filters: group.filters.map((filter, i) =>
-      i === head && filter.kind === 'group' ? updateGroupAt(filter, rest, change) : filter,
-    ),
-  };
-}
+const MAX_GROUP_DEPTH = 2;
 
 /** `group` without the groups nested in it that hold no condition: they would filter nothing. */
 export function withoutEmptyGroups(group: FilterGroup): FilterGroup {
@@ -334,7 +316,11 @@ function GroupEditor({ database, group, depth, onChange, onRemove }: GroupEditor
               database={database}
               group={filter}
               depth={depth + 1}
-              onChange={(change) => onChange((prev) => updateGroupAt(prev, [idx], change))}
+              onChange={(change) =>
+                setFilters((filters) =>
+                  filters.map((f, i) => (i === idx && f.kind === 'group' ? change(f) : f)),
+                )
+              }
               onRemove={() => setFilters((filters) => filters.filter((_, i) => i !== idx))}
             />
           ),
@@ -676,25 +662,20 @@ function RowChoice({
   );
 }
 
-const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})/;
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}/;
 
 /** A day from a calendar, sent as `YYYY-MM-DD`: the UTC day a date filter compares. */
 function DateChoice({ value, onChange }: { value: unknown; onChange: (next: string) => void }) {
   const { t, locale } = useTranslation();
   const day = typeof value === 'string' ? ISO_DAY.exec(value) : null;
-  const selected = day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : null;
-  const pad = (n: number) => String(n).padStart(2, '0');
+  const selected = day ? fromDayKey(day[0]) : null;
   return (
     <DatePicker
       value={selected}
       locale={locale}
       accessibilityLabel={t('databases.filters.value')}
       placeholder={t('databases.filters.pickDate')}
-      onChange={(next) =>
-        onChange(
-          next ? `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}` : '',
-        )
-      }
+      onChange={(next) => onChange(next ? dayKey(next) : '')}
     />
   );
 }

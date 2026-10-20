@@ -10,9 +10,6 @@ const mockUseOfflinePage = jest.fn((..._args: unknown[]) => mockOffline);
 jest.mock('@/lib/editor/use-offline-pages', () => ({
   useOfflinePage: (...args: unknown[]) => mockUseOfflinePage(...args),
 }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 
 const page = { id: 'p', title: 'Plan', workspaceId: 'w' } as Page;
 let renderer: ReactTestRenderer;

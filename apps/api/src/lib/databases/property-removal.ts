@@ -8,13 +8,19 @@
  * that property's values: they go with it, when it changes type, and when the
  * view is grouped by another. Pure: the route writes what these return.
  */
-import { acceptsCalculation, isGroupableType } from '@oxy.so/nilo-contracts';
+import {
+  acceptsCalculation,
+  isChartMeasurable,
+  isGroupableType,
+  withoutGroupKeys,
+} from '@oxy.so/nilo-contracts';
 import type {
   DatabasePropertyType,
   DatabaseSchema,
   DatabaseViewType,
   Filter,
   FilterGroup,
+  ViewChartConfig,
   ViewConfig,
   ViewGroupBy,
   ViewSort,
@@ -32,17 +38,6 @@ export interface PropertyReferencingView {
   hiddenProperties: string[];
   frozenProperties: string[];
   config: ViewConfig;
-}
-
-/** The config keys that name the groups of a view's rows. */
-const GROUP_KEYS = ['numberGrouping', 'groupOrder', 'collapsedGroups', 'hiddenGroups'] as const;
-
-/** `config` without its groups' keys, or null when it has none. */
-function withoutGroupKeys(config: ViewConfig): ViewConfig | null {
-  if (!GROUP_KEYS.some((key) => key in config)) return null;
-  const out: ViewConfig = { ...config };
-  for (const key of GROUP_KEYS) delete out[key];
-  return out;
 }
 
 /** The property a view's group keys are of. */
@@ -93,6 +88,35 @@ function pruneFilter(filter: Filter, propertyId: string): Filter | null {
   return { ...filter, filters };
 }
 
+/** The view's filter without the conditions on `propertyId`; undefined when it had none. */
+function prunedFilters(
+  view: Pick<PropertyReferencingView, 'filters'>,
+  propertyId: string,
+): FilterGroup | undefined {
+  const filters = pruneFilter(view.filters, propertyId) as FilterGroup | null;
+  if (JSON.stringify(filters) === JSON.stringify(view.filters)) return undefined;
+  // The top-level group stays, emptied: it is the view's filter.
+  return filters ?? { ...view.filters, filters: [] };
+}
+
+/** `chart` without an axis on `propertyId`, but for those `keep` says still apply. */
+function chartWithout(
+  chart: ViewChartConfig,
+  propertyId: string,
+  keep: { x: boolean; y: boolean },
+): ViewChartConfig {
+  let next = chart;
+  if (!keep.x && next.xAxis?.propertyId === propertyId) {
+    const { xAxis: _x, ...rest } = next;
+    next = rest;
+  }
+  // Nothing left to add up: the chart counts its rows.
+  if (!keep.y && next.yAxis?.propertyId === propertyId) {
+    next = { ...next, yAxis: { aggregate: 'count' } };
+  }
+  return next;
+}
+
 /**
  * The fields of `view` that change once `propertyId` is gone, or null when it
  * named the property nowhere.
@@ -102,11 +126,8 @@ export function viewWithoutProperty(
   propertyId: string,
 ): Partial<PropertyReferencingView> | null {
   const patch: Partial<PropertyReferencingView> = {};
-  const filters = pruneFilter(view.filters, propertyId) as FilterGroup | null;
-  if (JSON.stringify(filters) !== JSON.stringify(view.filters)) {
-    // The top-level group stays, emptied: it is the view's filter.
-    patch.filters = filters ?? { ...view.filters, filters: [] };
-  }
+  const filters = prunedFilters(view, propertyId);
+  if (filters) patch.filters = filters;
   if (view.sorts.some((s) => s.propertyId === propertyId)) {
     patch.sorts = view.sorts.filter((s) => s.propertyId !== propertyId);
   }
@@ -144,14 +165,7 @@ function configWithout(view: ViewConfig, propertyId: string): ViewConfig | null 
     const { [propertyId]: _fn, ...calculations } = config.calculations;
     config.calculations = calculations;
   }
-  if (config.chart?.xAxis?.propertyId === propertyId) {
-    const { xAxis: _x, ...chart } = config.chart;
-    config.chart = chart;
-  }
-  if (config.chart?.yAxis?.propertyId === propertyId) {
-    // Nothing left to add up: the chart counts its rows.
-    config.chart = { ...config.chart, yAxis: { aggregate: 'count' } };
-  }
+  if (config.chart) config.chart = chartWithout(config.chart, propertyId, { x: false, y: false });
   return JSON.stringify(config) === JSON.stringify(view) ? null : config;
 }
 
@@ -171,10 +185,8 @@ export function viewAfterRetype(
   const patch: Partial<
     Pick<PropertyReferencingView, 'filters' | 'groupBy' | 'subGroupBy' | 'config'>
   > = {};
-  const filters = pruneFilter(view.filters, propertyId) as FilterGroup | null;
-  if (JSON.stringify(filters) !== JSON.stringify(view.filters)) {
-    patch.filters = filters ?? { ...view.filters, filters: [] };
-  }
+  const filters = prunedFilters(view, propertyId);
+  if (filters) patch.filters = filters;
   if (type && !isGroupableType(type)) {
     if (view.groupBy?.propertyId === propertyId) patch.groupBy = null;
     if (view.subGroupBy?.propertyId === propertyId) patch.subGroupBy = null;
@@ -186,16 +198,11 @@ export function viewAfterRetype(
       const { [propertyId]: _fn, ...calculations } = config.calculations;
       config.calculations = calculations;
     }
-    if (config.chart?.xAxis?.propertyId === propertyId && !isGroupableType(type)) {
-      const { xAxis: _x, ...chart } = config.chart;
-      config.chart = chart;
-    }
-    if (
-      config.chart?.yAxis?.propertyId === propertyId &&
-      type !== 'number' &&
-      type !== 'unique_id'
-    ) {
-      config.chart = { ...config.chart, yAxis: { aggregate: 'count' } };
+    if (config.chart) {
+      config.chart = chartWithout(config.chart, propertyId, {
+        x: isGroupableType(type),
+        y: isChartMeasurable(type),
+      });
     }
     const regrouped = sectionProperty(view) === propertyId ? withoutGroupKeys(config) : null;
     const next = regrouped ?? config;

@@ -36,6 +36,27 @@ export async function listBlocksForPage(db: PgHandle, pageId: string): Promise<B
 }
 
 /**
+ * The blocks of several pages in `listBlocksForPage`'s order, each page's
+ * together: what synced blocks show (`lib/synced-blocks.ts`).
+ */
+export async function listBlocksForPages(
+  db: PgHandle,
+  pageIds: readonly string[],
+): Promise<BlockRow[]> {
+  if (pageIds.length === 0) return [];
+  return db
+    .select()
+    .from(blocks)
+    .where(inArray(blocks.pageId, [...pageIds]))
+    .orderBy(
+      asc(blocks.pageId),
+      sql`${blocks.parentBlockId} asc nulls first`,
+      asc(blocks.order),
+      asc(blocks.id),
+    );
+}
+
+/**
  * `GET /api/pages/:id/export` (`routes/pages.ts:745`) and the public shared-page
  * read (`routes/share-links.ts:322`), both sorted `{ order: 1 }` alone.
  *

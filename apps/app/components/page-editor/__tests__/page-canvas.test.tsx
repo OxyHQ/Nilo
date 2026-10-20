@@ -22,10 +22,6 @@ jest.mock('@oxy.so/bloom-editor', () => {
     BlockList: ({ ids }: { ids: string[] }) => <View testID={`list:${ids.join(',')}`} />,
   };
 });
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 
 describe('the view of a canvas', () => {
   it('reads a screen point on the canvas', () => {

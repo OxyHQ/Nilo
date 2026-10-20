@@ -26,6 +26,7 @@ import type { DatabaseProperty } from '../../db/schema/databases.js';
 import { pages } from '../../db/schema/pages.js';
 import { isEmpty, readPropertyValue, valueType } from './filters.js';
 import { type GroupKey, type GroupSpec, groupRows, storedDateMs } from './groups.js';
+import { asObject, numberOf, truthy } from './json-values.js';
 import { accessorFor, type CompiledView, groupedWhere, rowSource } from './view-query.js';
 
 export type CalculationValue = number | null;
@@ -41,9 +42,6 @@ const LISTS: Partial<
   relation: 'pageIds',
   files: 'files',
 };
-
-const asObject = (value: unknown): Record<string, unknown> | null =>
-  typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
 
 /** A list's values as `count_unique` tells them apart: strings, a file by its name. */
 function listTokens(value: unknown, field: string): string[] {
@@ -78,15 +76,10 @@ function uniqueToken(property: DatabaseProperty, row: Row, value: unknown): stri
     case 'select':
     case 'status':
       return scalarToken(v?.optionId);
-    case 'date': {
-      const ms = storedDateMs(v?.start);
-      return Number.isFinite(ms) ? ms : null;
-    }
+    case 'date':
     case 'created_time':
-    case 'last_edited_time': {
-      const ms = Date.parse(String(v?.start));
-      return Number.isFinite(ms) ? ms : null;
-    }
+    case 'last_edited_time':
+      return instantOf(property, value);
     case 'created_by':
     case 'last_edited_by': {
       const id = (v?.userIds as unknown[] | undefined)?.[0];
@@ -95,12 +88,6 @@ function uniqueToken(property: DatabaseProperty, row: Row, value: unknown): stri
     default:
       return null;
   }
-}
-
-/** The number a value holds (a number, an ID, a formula's or a rollup's number). */
-function numberOf(value: unknown): number | null {
-  const n = asObject(value)?.number;
-  return typeof n === 'number' && Number.isFinite(n) ? n : null;
 }
 
 /** The instant a date holds, as a view sorts it. */
@@ -227,13 +214,6 @@ export function calculateGroups<R extends Row>(
       calculations.map(({ property, fn }) => calculate(fn, property, list)),
     ]),
   );
-}
-
-function truthy(x: unknown): boolean {
-  if (typeof x === 'string') return x !== '';
-  if (typeof x === 'number') return x !== 0;
-  if (typeof x === 'boolean') return x;
-  return typeof x === 'object' && x !== null;
 }
 
 // ---------------------------------------------------------------------------

@@ -31,6 +31,7 @@ import {
   type DatabasePropertyType,
   type SelectOption,
 } from '../../db/schema/databases.js';
+import { asObject } from './json-values.js';
 
 const SELECT_TYPES: ReadonlySet<DatabasePropertyType> = new Set([
   'select',
@@ -66,10 +67,6 @@ const MAX_LENGTH: Partial<Record<DatabasePropertyType, number>> = {
 const TRUE_WORDS = new Set(['yes', 'true', '1', 'checked', 'x', '✓']);
 
 type Obj = Record<string, unknown>;
-
-function asObject(value: unknown): Obj | null {
-  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Obj) : null;
-}
 
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];

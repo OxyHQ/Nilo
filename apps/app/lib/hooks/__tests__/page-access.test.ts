@@ -3,6 +3,7 @@ import {
   canAssignPageRole,
   canManagePageGrant,
   canRestrictPage,
+  pageContentReadOnly,
 } from '../page-access';
 import type { PageGrant, PageRole } from '../use-page-permissions';
 
@@ -44,5 +45,14 @@ describe('page sharing capabilities', () => {
     expect(canRestrictPage('admin', 'creator', 'another')).toBe(true);
     expect(canRestrictPage('owner', 'creator', 'another')).toBe(true);
     expect(canRestrictPage('viewer', 'creator', undefined)).toBe(false);
+  });
+
+  it('reads the content of a locked or trashed page, and below editor', () => {
+    const page = { locked: false, archived: false };
+    expect(pageContentReadOnly(page, 'editor')).toBe(false);
+    expect(pageContentReadOnly(page, 'commenter')).toBe(true);
+    expect(pageContentReadOnly(page, undefined)).toBe(true);
+    expect(pageContentReadOnly({ ...page, locked: true }, 'owner')).toBe(true);
+    expect(pageContentReadOnly({ ...page, archived: true }, 'owner')).toBe(true);
   });
 });

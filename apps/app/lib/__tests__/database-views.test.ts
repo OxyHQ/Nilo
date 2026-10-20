@@ -1,3 +1,4 @@
+import { numberGroupRange, numberRanges, withoutGroupKeys } from '@oxy.so/nilo-contracts';
 import { runButtonActions } from '../button-actions';
 import { formatCalculation } from '../calculations';
 import { barLayout, donutArcs, foldSlices, linePath, niceTicks } from '../chart-geometry';
@@ -9,14 +10,11 @@ import {
   formatBound,
   groupTakesRows,
   groupValue,
-  moveGroup,
   numberGroupingOf,
-  numberRangeOf,
-  placeGroup,
   rowSections,
-  withoutGroupKeys,
 } from '../view-groups';
-import { columnWidth, moveProperty, orderedProperties, placeProperty } from '../view-properties';
+import { move, place, rankBy } from '../list-order';
+import { columnWidth, moveProperty, orderedProperties } from '../view-properties';
 
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
 jest.mock('@/lib/api/client', () => ({ __esModule: true, default: {} }));
@@ -52,8 +50,8 @@ describe('a view’s property order', () => {
       'b',
     ]);
     expect(moveProperty(['name', 'a', 'b', 'c'], ['a', 'c'], 'c', 1)).toBeNull();
-    expect(placeProperty(['a', 'b', 'c'], 'a', 'c', 'after')).toEqual(['b', 'c', 'a']);
-    expect(placeProperty(['a', 'b', 'c'], 'c', 'a', 'before')).toEqual(['c', 'a', 'b']);
+    expect(place(['a', 'b', 'c'], 'a', 'c', 'after')).toEqual(['b', 'c', 'a']);
+    expect(place(['a', 'b', 'c'], 'c', 'a', 'before')).toEqual(['c', 'a', 'b']);
   });
 
   it('sizes a column as resized, within bounds, the title wider by default', () => {
@@ -75,16 +73,16 @@ describe('a grouped view’s sections', () => {
 
   it('lists the groups in order with their loaded rows, leaving those not reached yet', () => {
     const rows = [row('1', 'todo'), row('2', 'todo'), row('3', 'done')];
-    const partial = rowSections(rows, groups, { complete: false });
+    const partial = rowSections(rows, groups, {}, { complete: false });
     expect(partial.map((s) => [s.key, s.count, s.rows.map((r) => r.id)])).toEqual([
       ['todo', 2, ['1', '2']],
       ['doing', 0, []],
       ['done', 3, ['3']],
     ]);
-    const all = rowSections([...rows, row('4', null)], groups, { complete: true });
+    const all = rowSections([...rows, row('4', null)], groups, {}, { complete: true });
     expect(all.map((s) => s.key)).toEqual(['todo', 'doing', 'done', null]);
     expect(
-      rowSections(rows, groups, { complete: true, hideEmpty: true }).map((s) => s.key),
+      rowSections(rows, groups, {}, { complete: true, hideEmpty: true }).map((s) => s.key),
     ).toEqual(['todo', 'done', null]);
   });
 
@@ -118,27 +116,32 @@ describe('a grouped view’s sections', () => {
 
   it('puts the view’s own order first and leaves out its hidden groups, at once', () => {
     const rows = [row('1', 'todo'), row('3', 'done'), row('4', null)];
-    const sections = rowSections(rows, groups, {
-      complete: true,
-      order: [null, 'done'],
-      hidden: ['doing'],
-    });
+    const sections = rowSections(
+      rows,
+      groups,
+      { groupOrder: [null, 'done'], hiddenGroups: ['doing'] },
+      { complete: true },
+    );
     expect(sections.map((s) => s.key)).toEqual([null, 'done', 'todo']);
     // Not all read yet: the groups after the last one a row is in wait.
     expect(
-      rowSections([row('4', null)], groups, { complete: false, order: [null] }).map((s) => s.key),
+      rowSections([row('4', null)], groups, { groupOrder: [null] }, { complete: false }).map(
+        (s) => s.key,
+      ),
     ).toEqual([null]);
   });
 
-  it('moves a group up, down or onto another, among those shown', () => {
+  it('moves an item up, down or onto another, and ranks items by a stored order', () => {
     const keys = ['a', 'b', null];
-    expect(moveGroup(keys, 'b', -1)).toEqual(['b', 'a', null]);
-    expect(moveGroup(keys, null, -1)).toEqual(['a', null, 'b']);
-    expect(moveGroup(keys, 'a', -1)).toBeNull();
-    expect(moveGroup(keys, null, 1)).toBeNull();
-    expect(placeGroup(keys, 'a', null)).toEqual(['b', null, 'a']);
-    expect(placeGroup(keys, null, 'a')).toEqual([null, 'a', 'b']);
-    expect(placeGroup(keys, 'a', 'a')).toBeNull();
+    expect(move(keys, 1, 0)).toEqual(['b', 'a', null]);
+    expect(move(keys, 2, 1)).toEqual(['a', null, 'b']);
+    expect(move(keys, 0, -1)).toBeNull();
+    expect(move(keys, 2, 3)).toBeNull();
+    expect(place(keys, 'a', null, 'after')).toEqual(['b', null, 'a']);
+    expect(place(keys, null, 'a', 'before')).toEqual([null, 'a', 'b']);
+    expect(place(keys, 'a', 'a', 'before')).toBeNull();
+    expect(place(keys, 'gone', 'a', 'before')).toBeNull();
+    expect(rankBy(keys, [null, 'b'], (k) => k)).toEqual([null, 'b', 'a']);
   });
 
   it('reads a number’s ranges back from its groups, and names a range by its bounds', () => {
@@ -153,7 +156,9 @@ describe('a grouped view’s sections', () => {
     expect(numberGroupingOf(ranged)).toEqual({ from: 0.1, to: 0.35, step: 0.1 });
     expect(numberGroupingOf(groups)).toBeUndefined();
     const grouping = { from: 0, to: 12, step: 5 };
-    expect(['-1', '0', '2', '3'].map((key) => numberRangeOf(key, grouping))).toEqual([
+    expect(
+      ['-1', '0', '2', '3'].map((key) => numberGroupRange(key, numberRanges(grouping))),
+    ).toEqual([
       { from: null, to: 0 },
       { from: 0, to: 5 },
       { from: 10, to: 12 },

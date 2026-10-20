@@ -6,10 +6,6 @@ import { ViewCalendar } from '../view-calendar';
 import { ViewTimeline } from '../view-timeline';
 import type { Database, DatabaseView, Filter, FilterGroup } from '@/lib/types/databases';
 
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { get: jest.fn() } }));
 jest.mock('@oxy.so/services/ui/client', () => ({

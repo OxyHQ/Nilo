@@ -10,11 +10,12 @@ import {
   MAX_NUMBER_GROUPS,
   numberGroupCount,
   DATE_GROUP_GRANULARITIES,
-  isGroupableType,
+  isChartMeasurable,
   MAX_BUTTON_ACTIONS,
   MAX_COLUMN_WIDTH,
   MIN_COLUMN_WIDTH,
   OPEN_ROW_MODES,
+  viewIsEditable,
 } from '@oxy.so/nilo-contracts';
 import { z } from 'zod';
 import { getDb, type PgHandle } from '../db/client.js';
@@ -69,7 +70,6 @@ import {
   findPageById,
   findPagesByIds,
   listDatabaseRows,
-  listPages,
   nextDatabaseRowOrder,
   removePropertyFromDatabaseRows,
   writePropertyOfRows,
@@ -92,12 +92,9 @@ import {
   checkDatabaseAccess,
   checkPageAccess,
   baseRole,
-  databaseHomes,
-  loadViewer,
-  rolesForPages,
   resolveDatabaseRole,
+  visiblePagesOf,
 } from '../lib/page-access.js';
-import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
 import { listDatabasePeople } from '../lib/databases/people.js';
 import { loadMemberProfiles } from '../lib/member-profiles.js';
 import { hasRole } from '../db/schema/workspaces.js';
@@ -108,13 +105,17 @@ import {
   normalizeStatusGroups,
 } from '../lib/databases/schema-defaults.js';
 import { convertValues, isComputedType } from '../lib/databases/property-conversion.js';
-import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
+import {
+  buttonActionsRefusal,
+  filterRefusal,
+  type Refusal,
+  viewSettingsRefusal,
+} from '../lib/databases/refusals.js';
 import { invalidReference } from '../lib/databases/property-references.js';
 import {
   evaluateFilter,
   filterGroupSchema,
   filterPropertyIds,
-  invalidCondition,
   readsComputed,
 } from '../lib/databases/filters.js';
 import { compareBySorts } from '../lib/databases/sorts.js';
@@ -131,11 +132,8 @@ import {
   countGroups,
   groupRows,
   type GroupKey,
-  type GroupSections,
   type GroupSpec,
-  groupSections,
   isTimeZone,
-  needsNumberBounds,
   numberBounds,
   resolveGroupSpec,
   rowGrouping,
@@ -508,112 +506,10 @@ function handleZodError(err: unknown, res: Response): boolean {
   return false;
 }
 
-/**
- * A filter must name the database's properties with operators their types
- * take: a view's, or the one a reader narrows a view's rows with. Otherwise
- * the refusal is sent and false returned.
- */
-function checkFilter(res: Response, schema: DatabaseSchema, filter: Filter | undefined): boolean {
-  if (!filter) return true;
-  const invalid = invalidCondition(filter, new Map(schema.properties.map((p) => [p.id, p])));
-  if (!invalid) return true;
-  res.status(400).json({
-    error: `"${invalid.operator}" cannot filter that property`,
-    code: 'INVALID_FILTER',
-    propertyId: invalid.propertyId,
-    operator: invalid.operator,
-  });
-  return false;
-}
-
-/**
- * A view's grouping, calculations and chart must name properties of the
- * database that take them: a grouping a type with groups, a calculation one
- * its type offers (`CALCULATIONS_BY_TYPE`), a chart's sum or average a
- * number. Otherwise the refusal is sent and false returned.
- */
-function checkViewSettings(
-  res: Response,
-  schema: DatabaseSchema,
-  body: {
-    groupBy?: ViewGroupBy | null;
-    subGroupBy?: ViewGroupBy | null;
-    config?: ViewConfig;
-  },
-): boolean {
-  const byId = new Map(schema.properties.map((p) => [p.id, p]));
-  const refuse = (error: string, code: string, propertyId?: string) => {
-    res.status(400).json({ error, code, ...(propertyId !== undefined && { propertyId }) });
-    return false;
-  };
-  for (const grouping of [body.groupBy, body.subGroupBy]) {
-    if (!grouping) continue;
-    const property = byId.get(grouping.propertyId);
-    if (!property || !isGroupableType(property.type)) {
-      return refuse('That property cannot group rows', 'INVALID_GROUP', grouping.propertyId);
-    }
-  }
-  for (const [propertyId, fn] of Object.entries(body.config?.calculations ?? {})) {
-    const property = byId.get(propertyId);
-    if (!property || !acceptsCalculation(property.type, fn)) {
-      return refuse(
-        `"${fn}" cannot be calculated on that property`,
-        'INVALID_CALCULATION',
-        propertyId,
-      );
-    }
-  }
-  const chart = body.config?.chart;
-  if (chart?.xAxis) {
-    const property = byId.get(chart.xAxis.propertyId);
-    if (!property || !isGroupableType(property.type)) {
-      return refuse(
-        'That property cannot be a chart axis',
-        'INVALID_CHART',
-        chart.xAxis.propertyId,
-      );
-    }
-  }
-  if (chart?.yAxis && chart.yAxis.aggregate !== 'count') {
-    const property = chart.yAxis.propertyId ? byId.get(chart.yAxis.propertyId) : undefined;
-    if (!property || (property.type !== 'number' && property.type !== 'unique_id')) {
-      return refuse('A chart adds up a number property', 'INVALID_CHART', chart.yAxis.propertyId);
-    }
-  }
-  return true;
-}
-
-/**
- * A button's actions must set properties of this database that hold values
- * (not computed ones, nor another button), to a value their type stores.
- * Otherwise the refusal is sent and false returned.
- */
-function checkButtonActions(
-  res: Response,
-  schema: DatabaseSchema,
-  property: DatabaseProperty,
-): boolean {
-  if (property.type !== 'button') return true;
-  for (const action of property.config?.actions ?? []) {
-    if (action.kind !== 'set_property') continue;
-    const target = schema.properties.find((p) => p.id === action.propertyId);
-    let valid = false;
-    if (target && target.id !== property.id) {
-      try {
-        valid = parsePropertyValue(target.type, action.value) !== null;
-      } catch {
-        valid = false;
-      }
-    }
-    if (!valid) {
-      res.status(400).json({
-        error: 'A button can only set a property of its row to a value it holds',
-        code: 'INVALID_BUTTON_ACTION',
-        propertyId: action.propertyId,
-      });
-      return false;
-    }
-  }
+/** Sends `refusal` (`lib/databases/refusals.ts`) as a 400; false when there is none. */
+function refuse(res: Response, refusal: Refusal | null): boolean {
+  if (!refusal) return false;
+  res.status(400).json(refusal);
   return true;
 }
 
@@ -706,16 +602,32 @@ function serializeRow(row: PageRow, opts?: RowSerializationOpts) {
 /**
  * Server-derived properties (rollup, formula, created_time, etc.) of rows at
  * read time: row id → property id → value, merged by the caller into the row
- * payload. Rollups are read for all the rows at once (`resolveRollups`).
+ * payload. Rollups are read for all the rows at once (`resolveRollups`): those
+ * of `rollups` only, when given, the others left empty.
  */
 async function resolveDerivedForRows(
   handle: PgHandle,
   rows: readonly PageRow[],
   schema: DatabaseSchema,
   viewerId: string | null,
+  rollups?: ReadonlySet<string>,
 ): Promise<Map<string, Record<string, unknown>>> {
-  const rollups = await resolveRollups(handle, schema, rows, viewerId);
-  return new Map(rows.map((row) => [row.id, deriveRow(row, schema, rollups.get(row.id))]));
+  const values = await resolveRollups(handle, schema, rows, viewerId, rollups);
+  return new Map(rows.map((row) => [row.id, deriveRow(row, schema, values.get(row.id))]));
+}
+
+/**
+ * The rollups a view that reads `reads` (its filter, sorts, grouping, what it
+ * computes) needs over every row: those it reads; every one, undefined, when
+ * it reads a formula, which may read any of them by name.
+ */
+function rollupsRead(
+  reads: readonly string[],
+  propertyById: ReadonlyMap<string, DatabaseProperty>,
+): ReadonlySet<string> | undefined {
+  const read = reads.flatMap((id) => propertyById.get(id) ?? []);
+  if (read.some((p) => p.type === 'formula')) return undefined;
+  return new Set(read.filter((p) => p.type === 'rollup').map((p) => p.id));
 }
 
 async function resolveDerivedProperties(
@@ -828,6 +740,28 @@ function refuseLocked(res: Response, db: { locked: boolean }): boolean {
 }
 
 /**
+ * The database `id` names, once the caller may act on it as `role` and, for
+ * a change to its properties or own views (`locked`), it is not locked;
+ * otherwise the refusal (404, 401/403, 423) is sent and null returned.
+ */
+async function loadDatabase(
+  req: Request,
+  res: Response,
+  handle: PgHandle,
+  id: string,
+  { role, locked = false }: { role: 'viewer' | 'editor'; locked?: boolean },
+): Promise<DatabaseRecord | null> {
+  const db = await findDatabaseById(handle, id);
+  if (!db) {
+    res.status(404).json({ error: 'Database not found' });
+    return null;
+  }
+  if (!(await checkDatabaseAccess(req, res, handle, db, role))) return null;
+  if (locked && refuseLocked(res, db)) return null;
+  return db;
+}
+
+/**
  * What a new view of `type` starts showing when the request leaves it open: a
  * board grouped by the first status (else select, else checkbox), a calendar
  * and a timeline on the first date property, a gallery of page covers.
@@ -884,14 +818,7 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
 
     // An inline database is listed to those who can open its page; one in
     // no page, to those its place lets in.
-    const userId = req.user?.id ?? '';
-    const [all, viewer, grants, homes] = await Promise.all([
-      listPages(handle, { workspaceId }),
-      loadViewer(handle, workspaceId, userId),
-      listGrantsOfUserInWorkspace(handle, userId, workspaceId),
-      databaseHomes(handle, workspaceId),
-    ]);
-    const roles = rolesForPages(all, viewer, grants, homes);
+    const { roles, viewer } = await visiblePagesOf(handle, workspaceId, req.user?.id ?? '');
     const visible = databases.filter((d) =>
       d.parentPageId
         ? roles.has(d.parentPageId)
@@ -1034,13 +961,8 @@ router.patch('/:id', async (req: Request, res: Response) => {
     const body = updateDatabaseSchema.parse(req.body);
 
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
-    if (!ok) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'editor' });
+    if (!db) return;
     const systemError = body.archived ? systemDatabaseDeleteError(db) : null;
     if (systemError) {
       res.status(409).json({ error: systemError, code: 'SYSTEM_DATABASE' });
@@ -1081,13 +1003,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
     const hard = req.query.hard === 'true';
 
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
-    if (!ok) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'editor' });
+    if (!db) return;
     const systemError = systemDatabaseDeleteError(db);
     if (systemError) {
       res.status(409).json({ error: systemError, code: 'SYSTEM_DATABASE' });
@@ -1186,14 +1103,8 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
     const body = addPropertySchema.parse(req.body);
 
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
-    if (!ok) return;
-    if (refuseLocked(res, db)) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'editor', locked: true });
+    if (!db) return;
 
     const property: DatabaseProperty = {
       id: body.id ?? randomUUID(),
@@ -1211,7 +1122,7 @@ router.post('/:id/properties', async (req: Request, res: Response) => {
       return;
     }
     if (!(await checkRelationTarget(req, res, handle, db, property))) return;
-    if (!checkButtonActions(res, db.propertiesSchema, property)) return;
+    if (refuse(res, buttonActionsRefusal(db.propertiesSchema, property))) return;
 
     db.propertiesSchema.properties.push(property);
     normalizeSchema(db.propertiesSchema);
@@ -1258,13 +1169,8 @@ router.put('/:id/properties/order', async (req: Request, res: Response) => {
       })
       .parse(req.body);
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    if (!(await checkDatabaseAccess(req, res, handle, db, 'editor'))) return;
-    if (refuseLocked(res, db)) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'editor', locked: true });
+    if (!db) return;
 
     const rank = new Map(body.ids.map((id, i) => [id, i]));
     const properties = db.propertiesSchema.properties
@@ -1296,14 +1202,8 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
     const body = updatePropertySchema.parse(req.body);
 
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
-    if (!ok) return;
-    if (refuseLocked(res, db)) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'editor', locked: true });
+    if (!db) return;
 
     const idx = db.propertiesSchema.properties.findIndex((p) => p.id === params.propertyId);
     if (idx === -1) {
@@ -1334,7 +1234,7 @@ router.patch('/:id/properties/:propertyId', async (req: Request, res: Response) 
     const sameTarget = current.config?.targetDatabaseId === next.config?.targetDatabaseId;
     const relinks = current.type !== 'relation' || !sameTarget || (isTwoWay && !wasTwoWay);
     if (relinks && !(await checkRelationTarget(req, res, handle, db, next))) return;
-    if (!checkButtonActions(res, db.propertiesSchema, next)) return;
+    if (refuse(res, buttonActionsRefusal(db.propertiesSchema, next))) return;
     if (wasTwoWay && isTwoWay && sameTarget) {
       next.config = { ...next.config, syncedPropertyId: current.config?.syncedPropertyId };
     }
@@ -1408,14 +1308,8 @@ router.delete('/:id/properties/:propertyId', async (req: Request, res: Response)
       .parse(req.params);
 
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
-    if (!ok) return;
-    if (refuseLocked(res, db)) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'editor', locked: true });
+    if (!db) return;
 
     if (params.propertyId === NAME_PROPERTY_ID) {
       res.status(400).json({ error: 'Cannot delete the Name property' });
@@ -1481,13 +1375,8 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     const query = listRowsQuerySchema.parse(req.query);
 
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    const ok = await checkDatabaseAccess(req, res, handle, db, 'viewer');
-    if (!ok) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'viewer' });
+    if (!db) return;
 
     // Find the view (or fall back to default if none given).
     let view: DatabaseViewRecord | null = null;
@@ -1524,7 +1413,7 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
         return;
       }
       narrowed = filterGroupSchema.parse(raw);
-      if (!checkFilter(res, db.propertiesSchema, narrowed)) return;
+      if (refuse(res, filterRefusal(db.propertiesSchema, narrowed))) return;
     }
 
     // A view is filtered, sorted and paged in SQL, and only the rows of the
@@ -1541,7 +1430,6 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       : ownFilter;
     // A grouped view's rows come group by group, each row in every group it is in.
     const grouping = rowGrouping(view);
-    const sections = groupSections(view);
     const timeZone = query.timeZone ?? 'UTC';
     const viewReads = [
       ...(viewFilter ? filterPropertyIds(viewFilter) : []),
@@ -1555,29 +1443,29 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     let total: number;
     let nextCursor: string | null;
     let derivedAll: Awaited<ReturnType<typeof resolveDerivedForRows>> | null = null;
+    let readRollups: ReadonlySet<string> | undefined;
     if (readsComputed(viewReads, propertyById)) {
       if (cursor && !('offset' in cursor)) {
         res.status(400).json({ error: 'Invalid cursor' });
         return;
       }
       const rowDocs = await listDatabaseRows(handle, db.id, { archived: false, template: false });
+      // Over every row, only what the view reads; the page's rows get the rest below.
+      readRollups = rollupsRead(viewReads, propertyById);
       derivedAll = await resolveDerivedForRows(
         handle,
         rowDocs,
         db.propertiesSchema,
         req.user?.id ?? null,
+        readRollups,
       );
       let filtered = rowDocs.map((row) => ({
         ...row,
         properties: { ...row.properties, ...derivedAll?.get(row.id) },
       }));
       // A number's ranges span every row's, whatever the view shows.
-      groupSpec = resolveGroupSpec(
-        grouping,
-        propertyById,
-        timeZone,
-        sections,
-        jsNumberBounds(grouping, propertyById, sections, filtered),
+      groupSpec = resolveGroupSpec(grouping, propertyById, timeZone, view?.config, (p) =>
+        numberBounds(filtered, p),
       );
       if (query.search) {
         const needle = query.search.toLowerCase();
@@ -1605,7 +1493,9 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       nextCursor =
         offset + pageSize < entries.length ? encodeRowsCursor({ offset: offset + pageSize }) : null;
     } else {
-      groupSpec = await sqlGroupSpec(handle, db.id, grouping, propertyById, timeZone, sections);
+      groupSpec = await resolveGroupSpec(grouping, propertyById, timeZone, view?.config, (p) =>
+        numberBoundsInSql(handle, db.id, p),
+      );
       const compiled = compileView(
         db.id,
         { filters: viewFilter, sorts: view?.sorts, search: query.search },
@@ -1633,8 +1523,9 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     }
 
     const derivedSlice =
-      derivedAll ??
-      (await resolveDerivedForRows(handle, slice, db.propertiesSchema, req.user?.id ?? null));
+      derivedAll && !readRollups
+        ? derivedAll
+        : await resolveDerivedForRows(handle, slice, db.propertiesSchema, req.user?.id ?? null);
     const serializedRows = slice.map((row, i) => ({
       ...serializeRow(row, { derived: derivedSlice.get(row.id) ?? {} }),
       ...(groupKeys && { groupKey: groupKeys[i] ?? null }),
@@ -1656,34 +1547,6 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
 });
 
 /**
- * A grouping resolved for the SQL path: a stored number with no ranges of
- * the view's own spans the smallest to the largest of the database's rows.
- */
-async function sqlGroupSpec(
-  handle: PgHandle,
-  databaseId: string,
-  grouping: ViewGroupBy | null | undefined,
-  propertyById: ReadonlyMap<string, DatabaseProperty>,
-  timeZone: string,
-  sections: GroupSections = {},
-): Promise<GroupSpec | null> {
-  const numeric = needsNumberBounds(grouping, propertyById, sections);
-  const bounds = numeric ? await numberBoundsInSql(handle, databaseId, numeric) : undefined;
-  return resolveGroupSpec(grouping, propertyById, timeZone, sections, bounds);
-}
-
-/** The bounds a number (a formula's or a rollup's computed in) is grouped over in the JS path. */
-function jsNumberBounds(
-  grouping: ViewGroupBy | null | undefined,
-  propertyById: ReadonlyMap<string, DatabaseProperty>,
-  sections: GroupSections,
-  everyRow: readonly PageRow[],
-) {
-  const numeric = needsNumberBounds(grouping, propertyById, sections);
-  return numeric ? numberBounds(everyRow, numeric) : undefined;
-}
-
-/**
  * GET /databases/:id/rows/:rowId — one row (a template too) with its computed
  * values, whatever view it falls in: for the row's own page.
  */
@@ -1691,12 +1554,8 @@ router.get('/:id/rows/:rowId', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema, rowId: entityIdSchema }).parse(req.params);
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'viewer' });
+    if (!db) return;
     const row = await findPageById(handle, params.rowId);
     if (!row || row.databaseId !== db.id || row.archived) {
       res.status(404).json({ error: 'Row not found' });
@@ -1726,12 +1585,8 @@ router.get('/:id/people', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    if (!(await checkDatabaseAccess(req, res, handle, db, 'editor'))) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'editor' });
+    if (!db) return;
     const people = await listDatabasePeople(handle, db.workspaceId);
     const profiles = await loadMemberProfiles(people.map((p) => p.userId));
     res.json({
@@ -1761,12 +1616,8 @@ router.post('/:id/rows/batch', async (req: Request, res: Response) => {
       .object({ ids: z.array(entityIdSchema).min(1).max(MAX_BATCH_ROWS) })
       .parse(req.body);
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'viewer' });
+    if (!db) return;
     const found = await findPagesByIds(handle, [...new Set(body.ids)], { archived: false });
     const byId = new Map(
       found.filter((row) => row.databaseId === db.id && !row.template).map((row) => [row.id, row]),
@@ -1794,13 +1645,8 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
     const body = createRowSchema.parse(req.body);
 
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    const ok = await checkDatabaseAccess(req, res, handle, db, 'editor');
-    if (!ok) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'editor' });
+    if (!db) return;
     const userId = req.user?.id;
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
@@ -1912,6 +1758,43 @@ async function checkViewsAccess(
   return (await checkDatabaseAccess(req, res, handle, db, 'viewer')) !== null;
 }
 
+/**
+ * Whether the caller may change `db`'s views of `blockId`, the refusal sent
+ * otherwise. A linked view is its block's, not the locked database's.
+ */
+async function checkViewChange(
+  req: Request,
+  res: Response,
+  handle: ReturnType<typeof getDb>,
+  db: DatabaseRecord,
+  blockId: string | null,
+): Promise<boolean> {
+  if (!(await checkViewsAccess(req, res, handle, db, blockId, true))) return false;
+  return viewIsEditable(db, { blockId }) || !refuseLocked(res, db);
+}
+
+/** View `viewId` of database `id`, once the caller may change it (`checkViewChange`); else null. */
+async function loadViewForChange(
+  req: Request,
+  res: Response,
+  handle: ReturnType<typeof getDb>,
+  id: string,
+  viewId: string,
+): Promise<{ db: DatabaseRecord; view: DatabaseViewRecord } | null> {
+  const db = await findDatabaseById(handle, id);
+  if (!db) {
+    res.status(404).json({ error: 'Database not found' });
+    return null;
+  }
+  const view = await findViewById(handle, viewId, db.id);
+  if (!view) {
+    res.status(404).json({ error: 'View not found' });
+    return null;
+  }
+  if (!(await checkViewChange(req, res, handle, db, view.blockId))) return null;
+  return { db, view };
+}
+
 router.get('/:id/views', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
@@ -1945,14 +1828,9 @@ router.post('/:id/views', async (req: Request, res: Response) => {
       return;
     }
     const blockId = body.blockId ?? null;
-    if (!(await checkViewsAccess(req, res, handle, db, blockId, true))) return;
-    // A linked view is its block's, not the locked database's.
-    if (blockId === null && refuseLocked(res, db)) return;
-    if (!checkFilter(res, db.propertiesSchema, body.filters)) return;
-    if (
-      !checkViewSettings(res, db.propertiesSchema, body as Parameters<typeof checkViewSettings>[2])
-    )
-      return;
+    if (!(await checkViewChange(req, res, handle, db, blockId))) return;
+    if (refuse(res, filterRefusal(db.propertiesSchema, body.filters))) return;
+    if (refuse(res, viewSettingsRefusal(db.propertiesSchema, body))) return;
 
     // `??`, not `||`: `order: 0` is a legitimate explicit order.
     const nextOrder = body.order ?? (await nextViewOrder(handle, db.id, blockId));
@@ -1996,23 +1874,11 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
     const body = updateViewSchema.parse(req.body);
 
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    const view = await findViewById(handle, params.viewId, db.id);
-    if (!view) {
-      res.status(404).json({ error: 'View not found' });
-      return;
-    }
-    if (!(await checkViewsAccess(req, res, handle, db, view.blockId, true))) return;
-    if (view.blockId === null && refuseLocked(res, db)) return;
-    if (!checkFilter(res, db.propertiesSchema, body.filters)) return;
-    if (
-      !checkViewSettings(res, db.propertiesSchema, body as Parameters<typeof checkViewSettings>[2])
-    )
-      return;
+    const found = await loadViewForChange(req, res, handle, params.id, params.viewId);
+    if (!found) return;
+    const { db, view } = found;
+    if (refuse(res, filterRefusal(db.propertiesSchema, body.filters))) return;
+    if (refuse(res, viewSettingsRefusal(db.propertiesSchema, body))) return;
 
     // Promoting a view and demoting the previous default(s) commit
     // together, so a failure between the two cannot leave the database with
@@ -2061,18 +1927,9 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
     const params = z.object({ id: entityIdSchema, viewId: entityIdSchema }).parse(req.params);
 
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    const view = await findViewById(handle, params.viewId, db.id);
-    if (!view) {
-      res.status(404).json({ error: 'View not found' });
-      return;
-    }
-    if (!(await checkViewsAccess(req, res, handle, db, view.blockId, true))) return;
-    if (view.blockId === null && refuseLocked(res, db)) return;
+    const found = await loadViewForChange(req, res, handle, params.id, params.viewId);
+    if (!found) return;
+    const { db, view } = found;
 
     // Don't allow deleting the last view — promote another to default
     // if we're removing the default.
@@ -2104,7 +1961,7 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
 /**
  * A view's rows with their computed values, read and filtered in JS: what a
  * calculation or a chart over a formula or a rollup (or of a view filtering
- * on one) reads.
+ * on one) reads. Of the rollups, only those `reads` needs (`rollupsRead`).
  */
 async function computedViewRows(
   handle: PgHandle,
@@ -2112,10 +1969,17 @@ async function computedViewRows(
   filter: Filter,
   search: string | undefined,
   viewerId: string | null,
+  reads: readonly string[],
 ): Promise<{ shown: PageRow[]; every: PageRow[] }> {
   const propertyById = new Map(db.propertiesSchema.properties.map((p) => [p.id, p]));
   const rows = await listDatabaseRows(handle, db.id, { archived: false, template: false });
-  const derived = await resolveDerivedForRows(handle, rows, db.propertiesSchema, viewerId);
+  const derived = await resolveDerivedForRows(
+    handle,
+    rows,
+    db.propertiesSchema,
+    viewerId,
+    rollupsRead([...filterPropertyIds(filter), ...reads], propertyById),
+  );
   const needle = search?.toLowerCase();
   const every = rows.map((row) => ({
     ...row,
@@ -2140,12 +2004,8 @@ async function readableView(
   const params = z.object({ id: entityIdSchema, viewId: entityIdSchema }).parse(req.params);
   const query = viewRowsQuerySchema.parse(req.query);
   const handle = getDb();
-  const db = await findDatabaseById(handle, params.id);
-  if (!db) {
-    res.status(404).json({ error: 'Database not found' });
-    return null;
-  }
-  if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return null;
+  const db = await loadDatabase(req, res, handle, params.id, { role: 'viewer' });
+  if (!db) return null;
   const view = await findViewById(handle, params.viewId, db.id);
   if (!view) {
     res.status(404).json({ error: 'View not found' });
@@ -2175,7 +2035,6 @@ router.get('/:id/views/:viewId/calculations', async (req: Request, res: Response
       return property && acceptsCalculation(property.type, fn) ? [{ property, fn }] : [];
     });
     const grouping = rowGrouping(view);
-    const sections = groupSections(view);
     let values: CalculationValue[] = [];
     let byGroup: { key: GroupKey; values: CalculationValue[] }[] | null = null;
     if (requested.length > 0) {
@@ -2195,20 +2054,28 @@ router.get('/:id/views/:viewId/calculations', async (req: Request, res: Response
           }),
         );
       if (inJs) {
-        const rows = await computedViewRows(handle, db, view.filters, search, req.user?.id ?? null);
-        const spec = resolveGroupSpec(
-          grouping,
-          propertyById,
-          timeZone,
-          sections,
-          jsNumberBounds(grouping, propertyById, sections, rows.every),
+        const rows = await computedViewRows(
+          handle,
+          db,
+          view.filters,
+          search,
+          req.user?.id ?? null,
+          [
+            ...(grouping ? [grouping.propertyId] : []),
+            ...requested.map(({ property }) => property.id),
+          ],
+        );
+        const spec = resolveGroupSpec(grouping, propertyById, timeZone, view.config, (p) =>
+          numberBounds(rows.every, p),
         );
         // The footer of the rows the view shows: those in a group it does not hide.
         const shown = shownRows(rows.shown, spec);
         values = requested.map(({ property, fn }) => calculate(fn, property, shown));
         if (spec) byGroup = inGroups(spec, calculateGroups(rows.shown, spec, requested));
       } else {
-        const spec = await sqlGroupSpec(handle, db.id, grouping, propertyById, timeZone, sections);
+        const spec = await resolveGroupSpec(grouping, propertyById, timeZone, view.config, (p) =>
+          numberBoundsInSql(handle, db.id, p),
+        );
         const compiled = compileView(db.id, { filters: view.filters, search }, propertyById, spec);
         const [whole, grouped] = await Promise.all([
           calculationsInSql(handle, compiled, requested),
@@ -2263,22 +2130,15 @@ router.get('/:id/views/:viewId/chart', async (req: Request, res: Response) => {
       aggregate !== 'count' && chart?.yAxis?.propertyId
         ? propertyById.get(chart.yAxis.propertyId)
         : undefined;
-    const measure =
-      measured && (measured.type === 'number' || measured.type === 'unique_id')
-        ? measured
-        : undefined;
+    const measure = measured && isChartMeasurable(measured.type) ? measured : undefined;
 
     let byKey: Map<GroupKey, { count: number; sum: number | null; average: number | null }>;
     let spec: GroupSpec | null;
     if (readsComputed([...filterPropertyIds(view.filters), axis.propertyId], propertyById)) {
-      const rows = await computedViewRows(handle, db, view.filters, search, req.user?.id ?? null);
-      spec = resolveGroupSpec(
-        axis,
-        propertyById,
-        timeZone,
-        {},
-        jsNumberBounds(axis, propertyById, {}, rows.every),
-      );
+      const rows = await computedViewRows(handle, db, view.filters, search, req.user?.id ?? null, [
+        axis.propertyId,
+      ]);
+      spec = resolveGroupSpec(axis, propertyById, timeZone, {}, (p) => numberBounds(rows.every, p));
       const totals = new Map<GroupKey, { count: number; numbers: number[] }>();
       for (const { row, key } of spec ? groupRows(rows.shown, spec) : []) {
         const at = totals.get(key) ?? { count: 0, numbers: [] };
@@ -2296,7 +2156,9 @@ router.get('/:id/views/:viewId/chart', async (req: Request, res: Response) => {
         }),
       );
     } else {
-      spec = await sqlGroupSpec(handle, db.id, axis, propertyById, timeZone);
+      spec = await resolveGroupSpec(axis, propertyById, timeZone, {}, (p) =>
+        numberBoundsInSql(handle, db.id, p),
+      );
       const compiled = compileView(db.id, { filters: view.filters, search }, propertyById, spec);
       byKey = await listViewGroups(
         handle,
@@ -2337,12 +2199,8 @@ router.get('/:id/templates', async (req: Request, res: Response) => {
   try {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'viewer' });
+    if (!db) return;
     const templates = await listDatabaseRows(handle, db.id, { archived: false, template: true });
     const derived = await resolveDerivedForRows(
       handle,
@@ -2374,12 +2232,8 @@ router.get('/:id/export', async (req: Request, res: Response) => {
     const params = z.object({ id: entityIdSchema }).parse(req.params);
     z.object({ format: z.literal('csv').default('csv') }).parse(req.query);
     const handle = getDb();
-    const db = await findDatabaseById(handle, params.id);
-    if (!db) {
-      res.status(404).json({ error: 'Database not found' });
-      return;
-    }
-    if (!(await checkDatabaseAccess(req, res, handle, db, 'viewer'))) return;
+    const db = await loadDatabase(req, res, handle, params.id, { role: 'viewer' });
+    if (!db) return;
     const rows = await listDatabaseRows(handle, db.id, { archived: false, template: false });
     const name = db.name?.trim() || 'Untitled';
     const ascii =

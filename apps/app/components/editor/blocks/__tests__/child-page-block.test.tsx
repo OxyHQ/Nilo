@@ -11,10 +11,6 @@ jest.mock('@/lib/hooks/use-pages', () => ({
   usePage: (id: string | undefined) => (id ? mockPage : {}),
 }));
 jest.mock('@/components/page-chrome/icon-display', () => ({ IconDisplay: () => null }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 
 const block = (pageId: string): Block => ({
   id: 'b',
@@ -33,7 +29,7 @@ const mount = (pageId: string) =>
   act(() => {
     renderer = create(
       <BloomTestProviders>
-        <ChildPageBlock block={block(pageId)} onChangeContent={jest.fn()} />
+        <ChildPageBlock block={block(pageId)} onChangeContent={jest.fn()} readOnly={false} />
       </BloomTestProviders>,
     );
   });
@@ -65,7 +61,7 @@ it('waits for its page while it is being made, and says when it cannot be opened
   act(() =>
     renderer.update(
       <BloomTestProviders>
-        <ChildPageBlock block={block(child)} onChangeContent={jest.fn()} />
+        <ChildPageBlock block={block(child)} onChangeContent={jest.fn()} readOnly={false} />
       </BloomTestProviders>,
     ),
   );

@@ -28,9 +28,6 @@ jest.mock('@/lib/hooks/use-page-transfer', () => ({ useExportDatabase: () => ({}
 jest.mock('@/lib/save-export', () => ({ saveExport: jest.fn() }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
 jest.mock('@oxy.so/bloom/surfaces', () => ({ confirm: jest.fn() }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock('@/lib/i18n', () => ({ __esModule: true, default: { t: (key: string) => key } }));
 
 let renderer: ReactTestRenderer;

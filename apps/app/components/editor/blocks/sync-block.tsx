@@ -255,13 +255,13 @@ function SyncedReferenceBody({
   if (sourcePage.archived) {
     return <SyncedNotice text={t('editor.blocks.syncBlock.deleted')} action={removeAction} />;
   }
-  const editable = readOnly !== true && hasRole(page.data.role, 'editor') && !sourcePage.locked;
+  const editable = !readOnly && hasRole(page.data.role, 'editor') && !sourcePage.locked;
   return (
     <LiveReference
       referenceId={block.id}
       hostPageId={block.pageId}
       hostStore={store}
-      hostReadOnly={readOnly === true}
+      hostReadOnly={readOnly}
       source={source}
       editable={editable}
       title={sourcePage.title || t('editor.blocks.syncBlock.untitled')}

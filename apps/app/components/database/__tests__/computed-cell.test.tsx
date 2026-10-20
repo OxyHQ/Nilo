@@ -20,7 +20,6 @@ jest.mock('@/hooks/useTranslation', () => ({
     t: (key: string, params?: { message: string }) => params?.message ?? key,
   }),
 }));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 const formula: DatabaseProperty = { id: 'formula', name: 'Result', type: 'formula' };
 let renderer: ReactTestRenderer;
 afterEach(() => act(() => renderer?.unmount()));

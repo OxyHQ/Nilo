@@ -19,12 +19,18 @@ import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
 import {
   CHART_AGGREGATES,
+  CHART_MEASURABLE_TYPES,
   CHART_TYPES,
   DATE_GROUP_GRANULARITIES,
   GROUPABLE_PROPERTY_TYPES,
+  groupKind,
   MAX_NUMBER_GROUPS,
   numberGroupCount,
+  numberGroupRange,
+  numberRanges,
   OPEN_ROW_MODES,
+  SECTIONED_VIEWS,
+  withoutGroupKeys,
 } from '@oxy.so/nilo-contracts';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
@@ -44,33 +50,11 @@ import type {
   ViewNumberGrouping,
 } from '@/lib/types/databases';
 import { NAME_PROPERTY_ID } from '@/lib/types/databases';
-import { numberRangeOf, withoutGroupKeys } from '@/lib/view-groups';
 import { moveProperty, orderedProperties } from '@/lib/view-properties';
 import { useGroupLabel } from './group-label';
 
 /** What a board groups by (`view-board.tsx`). */
 export const GROUPABLE_TYPES: readonly DatabasePropertyType[] = ['status', 'select', 'checkbox'];
-
-/** What a table's or a list's rows, a board's sub-groups and a chart's axis group by. */
-const ROW_GROUPABLE: readonly DatabasePropertyType[] = GROUPABLE_PROPERTY_TYPES;
-
-/** The types grouped by ranges of numbers (a formula's or a rollup's numbers). */
-const NUMERIC: ReadonlySet<DatabasePropertyType> = new Set(['number', 'formula', 'rollup']);
-
-/** The views whose rows a grouping puts in sections (a board's sub-groups apart). */
-const SECTIONED: ReadonlySet<DatabaseView['type']> = new Set([
-  'table',
-  'list',
-  'gallery',
-  'timeline',
-]);
-
-/** The types grouped by day, week, month or year. */
-const DATED: ReadonlySet<DatabasePropertyType> = new Set([
-  'date',
-  'created_time',
-  'last_edited_time',
-]);
 
 /** The views that open rows; a form takes responses, a chart shows none. */
 const OPENS_ROWS: ReadonlySet<DatabaseView['type']> = new Set([
@@ -170,7 +154,7 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
         <SettingSelect
           label={label}
           value={current?.propertyId ?? NONE}
-          options={[none, ...choices(ofType(...ROW_GROUPABLE))]}
+          options={[none, ...choices(ofType(...GROUPABLE_PROPERTY_TYPES))]}
           onChange={(id) =>
             regroup(
               id === NONE
@@ -179,7 +163,7 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
             )
           }
         />
-        {current && property && DATED.has(property.type) ? (
+        {current && property && groupKind(property.type) === 'date' ? (
           <SettingSelect
             label={t('databases.viewSettings.granularity')}
             value={current.granularity ?? 'day'}
@@ -187,7 +171,7 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
             onChange={(g) => set({ ...current, granularity: g as DateGroupGranularity })}
           />
         ) : null}
-        {current && property && NUMERIC.has(property.type) ? (
+        {current && property && groupKind(property.type) === 'number' ? (
           <NumberRangesSetting
             key={JSON.stringify(view.config.numberGrouping ?? null)}
             value={view.config.numberGrouping}
@@ -228,7 +212,7 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
   const xAxis = chart.xAxis;
   const xProperty = xAxis ? properties.find((p) => p.id === xAxis.propertyId) : undefined;
   const yAxis = chart.yAxis;
-  const numbers = ofType('number', 'unique_id');
+  const numbers = ofType(...CHART_MEASURABLE_TYPES);
 
   return (
     <View className="gap-3">
@@ -254,7 +238,9 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
       {view.type === 'board'
         ? grouping('subGroupBy', t('databases.viewSettings.subGroupBy'))
         : null}
-      {SECTIONED.has(view.type) ? grouping('groupBy', t('databases.viewSettings.groupBy')) : null}
+      {SECTIONED_VIEWS.has(view.type)
+        ? grouping('groupBy', t('databases.viewSettings.groupBy'))
+        : null}
       {view.type === 'chart' ? (
         <>
           <SettingSelect
@@ -269,10 +255,10 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
           <SettingSelect
             label={t('databases.viewSettings.xAxis')}
             value={xAxis?.propertyId ?? ''}
-            options={choices(ofType(...ROW_GROUPABLE))}
+            options={choices(ofType(...GROUPABLE_PROPERTY_TYPES))}
             onChange={(propertyId) => setChart({ xAxis: { propertyId } })}
           />
-          {xAxis && xProperty && DATED.has(xProperty.type) ? (
+          {xAxis && xProperty && groupKind(xProperty.type) === 'date' ? (
             <SettingSelect
               label={t('databases.viewSettings.granularity')}
               value={xAxis.granularity ?? 'day'}
@@ -540,7 +526,9 @@ function HiddenGroupsSetting({
       {keys.map((key) => {
         const name = label(
           key,
-          key !== null && numberGrouping ? numberRangeOf(key, numberGrouping) : undefined,
+          key !== null && numberGrouping
+            ? numberGroupRange(key, numberRanges(numberGrouping))
+            : undefined,
         );
         return (
           <View key={key === null ? '\u0000' : `k:${key}`} className="flex-row items-center gap-1">

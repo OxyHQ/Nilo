@@ -9,10 +9,7 @@ import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
 import { RiUpload2Line } from '@oxy.so/bloom/icons/RiUpload2Line';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
-import { useOxy } from '@oxy.so/services/ui/client';
-import { useQueryClient } from '@tanstack/react-query';
 import { useFileImageSource, useFileRemoved, useFileScope } from '@/lib/files/file-urls';
-import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
 import type { ImageAlignment } from '@/lib/types/pages';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -27,7 +24,8 @@ import {
   imageWidth,
   storedWidth,
 } from './image-layout';
-import { type BlockComponentProps, blockUrl } from './types';
+import { useMediaUpload } from './media-upload';
+import type { BlockComponentProps } from './types';
 
 const ALIGN_SELF = {
   left: 'flex-start',
@@ -40,61 +38,62 @@ const ALIGN_SELF = {
  * Image block — renders a captioned image. Empty state offers two paths:
  *   1) Paste a URL into the URL field (`content.url`).
  *   2) Upload a picture: it goes to Oxy's file manager as the member's own
- *      file, attached to this page (`lib/files`), and the block keeps its id
- *      (`content.fileId`); the URL it is shown with is minted per reader.
+ *      file, attached to this page (`useMediaUpload`), and the block keeps its
+ *      id (`content.fileId`); the URL it is shown with is minted per reader.
  *
- * An editor sizes it (dragging an edge on the web, a size from its menu
- * anywhere: `content.width`), aligns it (`content.alignment`) and describes
- * it for screen readers (`content.alt`).
- *
- * Cross-platform note: web uses a `<input type=file>` (hidden) since RN doesn't
- * expose one. Native picks via `expo-image-picker` (dynamic import so the web
- * bundle doesn't include native-only deps).
+ * Once it holds one, it is `ImageView`'s to draw.
  */
-export function ImageBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
+export function ImageBlock(props: BlockComponentProps) {
+  const { block, onChangeContent, readOnly } = props;
+  const { t } = useTranslation();
+  const upload = useMediaUpload(block.pageId, 'image', (attached) =>
+    onChangeContent({ ...block.content, url: '', fileId: attached.fileId }),
+  );
+
+  if (blockFileId(block.content) || block.content.url) return <ImageView {...props} />;
+  return (
+    <View className="gap-2">
+      <UrlPrompt
+        icon={RiImageLine}
+        label={t('editor.blocks.image.label')}
+        paste={t('editor.blocks.image.paste')}
+        readOnly={readOnly}
+        onCommit={(next) => onChangeContent({ ...block.content, url: next })}
+      >
+        <Button
+          appearance="solid"
+          tone="accent"
+          size="md"
+          onPress={upload.choose}
+          disabled={upload.busy}
+          leadingIcon={RiUpload2Line}
+        >
+          {upload.busy ? t('editor.blocks.uploading') : t('editor.blocks.upload')}
+        </Button>
+      </UrlPrompt>
+      {readOnly ? null : upload.input}
+      {upload.error ? <Text className="text-xs text-destructive">{upload.error}</Text> : null}
+    </View>
+  );
+}
+
+/**
+ * An image block as it is shown: the picture (a pasted URL, or an attachment
+ * through a URL minted for this reader) and its caption. An editor sizes it
+ * (dragging an edge on the web, a size from its menu anywhere:
+ * `content.width`), aligns it (`content.alignment`) and describes it for
+ * screen readers (`content.alt`). With no picture it draws nothing: a shared
+ * page shows it as it is, without the editor's upload (`ImageBlock`).
+ */
+export function ImageView({ block, onChangeContent, readOnly }: BlockComponentProps) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
-  const { oxyServices } = useOxy();
-  const queryClient = useQueryClient();
   const fileId = blockFileId(block.content);
   const scope = useFileScope(block.pageId);
   const fileSource = useFileImageSource(scope, fileId);
   const removed = useFileRemoved(scope, fileId);
-  const pastedUrl = blockUrl(block.content.url);
-  const url = fileId ? (fileSource?.uri ?? null) : pastedUrl;
+  const url = fileId ? (fileSource?.uri ?? null) : (block.content.url ?? '');
   const alt = typeof block.content.alt === 'string' ? block.content.alt : undefined;
-  const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const attach = async (file: PickedFile) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const attached = await uploadPageFile(oxyServices, queryClient, block.pageId, file);
-      onChangeContent({ ...block.content, url: '', fileId: attached.fileId });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('editor.blocks.uploadFailed'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleNativeUpload = async () => {
-    const picker = await import('expo-image-picker');
-    const result = await picker.launchImageLibraryAsync({
-      mediaTypes: picker.MediaTypeOptions.Images,
-      quality: 0.9,
-    });
-    if (result.canceled || result.assets.length === 0) return;
-    const asset = result.assets[0];
-    await attach({
-      uri: asset.uri,
-      name: asset.fileName ?? `image-${Date.now()}.jpg`,
-      type: asset.mimeType ?? 'image/jpeg',
-      ...(asset.fileSize !== undefined && { size: asset.fileSize }),
-    });
-  };
 
   // An attachment whose URL has not arrived yet: its place, not the picker.
   // One Oxy removed (deleted, trashed by its owner, taken down) says so.
@@ -116,51 +115,7 @@ export function ImageBlock({ block, onChangeContent, readOnly }: BlockComponentP
       </View>
     );
   }
-
-  if (!url) {
-    return (
-      <View className="gap-2">
-        <UrlPrompt
-          icon={RiImageLine}
-          label={t('editor.blocks.image.label')}
-          paste={t('editor.blocks.image.paste')}
-          readOnly={readOnly}
-          onCommit={(next) => onChangeContent({ ...block.content, url: next })}
-        >
-          <Button
-            appearance="solid"
-            tone="accent"
-            size="md"
-            onPress={() => {
-              if (Platform.OS === 'web') {
-                fileInputRef.current?.click();
-              } else {
-                void handleNativeUpload();
-              }
-            }}
-            disabled={busy}
-            leadingIcon={RiUpload2Line}
-          >
-            {busy ? t('editor.blocks.uploading') : t('editor.blocks.upload')}
-          </Button>
-        </UrlPrompt>
-        {Platform.OS === 'web' && !readOnly ? (
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={(ev) => {
-              const file = ev.target.files?.[0];
-              if (file) void attach(file);
-              ev.target.value = '';
-            }}
-          />
-        ) : null}
-        {error ? <Text className="text-xs text-destructive">{error}</Text> : null}
-      </View>
-    );
-  }
+  if (!url) return null;
 
   return (
     <View className="gap-1">
@@ -170,7 +125,7 @@ export function ImageBlock({ block, onChangeContent, readOnly }: BlockComponentP
         alt={alt}
         width={imageWidth(block.content.width)}
         alignment={imageAlignment(block.content.alignment)}
-        readOnly={readOnly === true}
+        readOnly={readOnly}
         onChange={(patch) => onChangeContent({ ...block.content, ...patch })}
       />
       <BlockCaption block={block} onChangeContent={onChangeContent} readOnly={readOnly} />

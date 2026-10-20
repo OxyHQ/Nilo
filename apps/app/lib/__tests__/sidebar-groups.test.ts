@@ -62,6 +62,7 @@ function database(id: string, patch: Partial<Database> = {}): Database {
     isInline: false,
     parentPageId: null,
     archived: false,
+    locked: false,
     systemKey: null,
     createdAt: '',
     updatedAt: '',

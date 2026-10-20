@@ -11,7 +11,7 @@
  */
 import { type FlatBlock, syncedSource } from '@oxy.so/nilo-contracts';
 import type { PgHandle } from '../db/client.js';
-import { findBlocksByIds, listBlocksForPage } from '../repositories/blocks.js';
+import { findBlocksByIds, listBlocksForPages } from '../repositories/blocks.js';
 import { findPagesByIds } from '../repositories/pages.js';
 
 /** Originals read for one page, at most: a page of references cannot fan out without end. */
@@ -91,31 +91,35 @@ export async function resolveSyncedBlocks(
         )
       ).map((p) => [p.id, p]),
     );
+    // A reference names an original, never another reference.
+    const live = originals.filter(
+      (o) =>
+        o.type === 'sync_block' &&
+        !syncedSource(o.type, o.content) &&
+        pages.get(o.pageId)?.archived === false,
+    );
+    const pageIds = [...new Set(live.map((o) => o.pageId))];
+    await Promise.all(
+      pageIds
+        .filter((id) => !readable.has(id))
+        .map(async (id) => readable.set(id, await canRead(id))),
+    );
+    const unread = pageIds.filter((id) => readable.get(id) && !pageRows.has(id));
+    for (const id of unread) pageRows.set(id, []);
+    for (const row of await listBlocksForPages(db, unread)) {
+      pageRows.get(row.pageId)?.push({
+        id: row.id,
+        parentBlockId: row.parentBlockId,
+        type: row.type,
+        content: row.content as FlatBlock['content'],
+        order: row.order,
+      });
+    }
+
     const next = new Map<string, string>();
-    for (const original of originals) {
-      // A reference names an original, never another reference.
-      if (original.type !== 'sync_block' || syncedSource(original.type, original.content)) {
-        continue;
-      }
-      const page = pages.get(original.pageId);
-      if (!page || page.archived) continue;
-      let allowed = readable.get(page.id);
-      if (allowed === undefined) {
-        allowed = await canRead(page.id);
-        readable.set(page.id, allowed);
-      }
-      if (!allowed) continue;
-      let rows = pageRows.get(page.id);
-      if (!rows) {
-        rows = (await listBlocksForPage(db, page.id)).map((row) => ({
-          id: row.id,
-          parentBlockId: row.parentBlockId,
-          type: row.type,
-          content: row.content as FlatBlock['content'],
-          order: row.order,
-        }));
-        pageRows.set(page.id, rows);
-      }
+    for (const original of live) {
+      const rows = readable.get(original.pageId) ? pageRows.get(original.pageId) : undefined;
+      if (!rows) continue;
       const shown = descendantsOf(rows, original.id);
       resolved.set(original.id, shown);
       for (const [sourceId, sourcePage] of referencesIn(shown)) {

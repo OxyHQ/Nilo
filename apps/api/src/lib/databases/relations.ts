@@ -20,12 +20,11 @@ import {
   findDatabaseById,
   writeDatabaseSchema,
 } from '../../repositories/databases.js';
+import { stringsAt } from './json-values.js';
 
 /** The page ids a relation value points at. */
 export function relationIds(value: unknown): string[] {
-  if (!value || typeof value !== 'object') return [];
-  const ids = (value as { pageIds?: unknown }).pageIds;
-  return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [];
+  return stringsAt(value, 'pageIds');
 }
 
 /** A two-way relation property and where its other side is. */

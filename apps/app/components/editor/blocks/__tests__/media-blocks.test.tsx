@@ -20,10 +20,6 @@ jest.mock('@/lib/files/upload-page-file', () => ({
 }));
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ oxyServices: {} }) }));
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}) }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 
 const block = (type: 'video' | 'audio', content: Record<string, unknown>): Block => ({
   id: 'media',
@@ -55,6 +51,7 @@ describe('a video block', () => {
       <VideoBlock
         block={block('video', { url: '', fileId: 'f1', name: 'demo.mp4', source: 'upload' })}
         onChangeContent={jest.fn()}
+        readOnly={false}
       />,
     );
     const player = renderer.root.findByType(VideoPlayer);
@@ -72,6 +69,7 @@ describe('a video block', () => {
       <VideoBlock
         block={block('video', { url: '', fileId: 'f1', source: 'upload' })}
         onChangeContent={jest.fn()}
+        readOnly={false}
       />,
     );
     expect(renderer.root.findAllByType(VideoPlayer)).toHaveLength(0);
@@ -83,6 +81,7 @@ describe('a video block', () => {
       <VideoBlock
         block={block('video', { url: 'https://cdn.example/clip.mp4', source: 'other' })}
         onChangeContent={jest.fn()}
+        readOnly={false}
       />,
     );
     expect(renderer.root.findByType(VideoPlayer).props.url).toBe('https://cdn.example/clip.mp4');
@@ -92,6 +91,7 @@ describe('a video block', () => {
           <VideoBlock
             block={block('video', { url: 'https://youtu.be/abc', source: 'youtube' })}
             onChangeContent={jest.fn()}
+            readOnly={false}
           />
         </BloomTestProviders>,
       ),
@@ -106,7 +106,13 @@ describe('a video block', () => {
   // path an editor sees when it cannot open: told, and the block unchanged.
   it('offers an editor an upload, and says so when the picker cannot open', async () => {
     const onChangeContent = jest.fn();
-    mount(<VideoBlock block={block('video', { url: '' })} onChangeContent={onChangeContent} />);
+    mount(
+      <VideoBlock
+        block={block('video', { url: '' })}
+        onChangeContent={onChangeContent}
+        readOnly={false}
+      />,
+    );
     await act(async () => {
       const [button] = renderer.root.findAll(
         (node) => node.props.children === 'editor.blocks.upload' && Boolean(node.props.onPress),
@@ -143,6 +149,7 @@ describe('an audio block', () => {
       <AudioBlock
         block={block('audio', { url: '', fileId: 'f2', name: 'memo.m4a' })}
         onChangeContent={jest.fn()}
+        readOnly={false}
       />,
     );
     const player = renderer.root.findByType(AudioPlayer);
@@ -159,6 +166,7 @@ describe('an audio block', () => {
       <AudioBlock
         block={block('audio', { url: 'https://cdn.example/sounds/rain%20loop.mp3' })}
         onChangeContent={jest.fn()}
+        readOnly={false}
       />,
     );
     expect(renderer.root.findByType(AudioPlayer).props.title).toBe('rain loop.mp3');

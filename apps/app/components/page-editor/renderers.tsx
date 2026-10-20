@@ -21,7 +21,7 @@ import { PdfBlock } from '@/components/editor/blocks/pdf-block';
 import { SyncBlock } from '@/components/editor/blocks/sync-block';
 import { TableBlock } from '@/components/editor/blocks/table-block';
 import { TableRow } from '@/components/editor/blocks/table-row';
-import type { BlockComponentProps } from '@/components/editor/blocks/types';
+import { type BlockComponentProps, blockContent } from '@/components/editor/blocks/types';
 import { VideoBlock } from '@/components/editor/blocks/video-block';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
 import { Text } from '@oxy.so/bloom/typography';
@@ -33,8 +33,8 @@ import { useColorScheme } from '@/lib/useColorScheme';
 
 /**
  * Wrap one of Nilo's block components (written against the API's block
- * shape) as an editor renderer: it sees the block as the API stores it, and
- * its content edits become one undoable props change.
+ * shape) as an editor renderer: it sees the block as the API stores it
+ * (`blockContent`), and its content edits become one undoable props change.
  */
 function adapt(
   Component: ComponentType<BlockComponentProps>,
@@ -42,12 +42,13 @@ function adapt(
   store: EditorStore,
 ): BlockRenderer {
   return function Renderer({ block, readOnly, updateProps, renderChildren }: BlockRendererProps) {
+    const type = block.type as BlockType;
     const apiBlock: Block = {
       id: block.id,
       pageId,
       parentBlockId: block.parent,
-      type: block.type as BlockType,
-      content: contentOf(block),
+      type,
+      content: blockContent(type, contentOf(block)),
       order: 0,
       createdAt: '',
       updatedAt: '',

@@ -1,10 +1,13 @@
 import {
+  keepPreviousData,
   useInfiniteQuery,
   type InfiniteData,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import axios from 'axios';
 import { useOxy } from '@oxy.so/services/ui/client';
 import apiClient from '../api/client';
@@ -188,9 +191,34 @@ export function useDatabaseRow(databaseId: string | undefined, rowId: string) {
 const MAX_BATCH_ROWS = 100;
 
 /**
- * The rows `rowIds` of a database with their computed values, read in one
- * request (one per hundred): what a relation shows of the rows it points at.
- * A row missing from the result is not a live row of that database.
+ * The rows `ids` of database `databaseId` with their computed values, read in
+ * one request per hundred. A row missing from the result is not a live row of
+ * that database.
+ */
+export async function readRelatedRows(
+  databaseId: string,
+  ids: readonly string[],
+  signal?: AbortSignal,
+): Promise<DatabaseRow[]> {
+  const chunks = Array.from({ length: Math.ceil(ids.length / MAX_BATCH_ROWS) }, (_, i) =>
+    ids.slice(i * MAX_BATCH_ROWS, (i + 1) * MAX_BATCH_ROWS),
+  );
+  const responses = await Promise.all(
+    chunks.map((chunk) =>
+      apiClient.post<{ rows: DatabaseRow[] }>(
+        API_ROUTES.databases.batchRows(databaseId),
+        { ids: chunk },
+        { signal },
+      ),
+    ),
+  );
+  return responses.flatMap((res) => res.data.rows);
+}
+
+/**
+ * The rows `rowIds` of a database with their computed values, read together
+ * (`readRelatedRows`): what a relation shows of the rows it points at, where
+ * no view reads them for all its rows (`RelatedRowsProvider`).
  */
 export function useRelatedRows(databaseId: string | undefined, rowIds: readonly string[]) {
   const { isAuthenticated } = useOxy();
@@ -201,21 +229,60 @@ export function useRelatedRows(databaseId: string | undefined, rowIds: readonly 
       : ['database', 'none', 'related'],
     queryFn: async ({ signal }) => {
       if (!databaseId) throw new Error('Database id required');
-      const chunks = Array.from({ length: Math.ceil(ids.length / MAX_BATCH_ROWS) }, (_, i) =>
-        ids.slice(i * MAX_BATCH_ROWS, (i + 1) * MAX_BATCH_ROWS),
-      );
-      const responses = await Promise.all(
-        chunks.map((chunk) =>
-          apiClient.post<{ rows: DatabaseRow[] }>(
-            API_ROUTES.databases.batchRows(databaseId),
-            { ids: chunk },
-            { signal },
-          ),
-        ),
-      );
-      return responses.flatMap((res) => res.data.rows);
+      return readRelatedRows(databaseId, ids, signal);
     },
     enabled: isAuthenticated && Boolean(databaseId) && ids.length > 0,
+  });
+}
+
+/** What a view read of one database its relations point at (`useRelatedRowSets`). */
+export interface RelatedRowSet {
+  /** The ids its rows' relations name. */
+  requested: ReadonlySet<string>;
+  /** Those read so far: the last set's while a new one is read. */
+  readIds: ReadonlySet<string>;
+  rows: ReadonlyMap<string, DatabaseRow>;
+  isError: boolean;
+}
+
+/**
+ * The rows `wanted` names, read together for each database (`readRelatedRows`):
+ * every row a view's relations point at, by related database.
+ */
+export function useRelatedRowSets(
+  wanted: readonly { databaseId: string; ids: readonly string[] }[],
+): ReadonlyMap<string, RelatedRowSet> {
+  const { isAuthenticated } = useOxy();
+  const combine = useCallback(
+    (results: { data?: { ids: readonly string[]; rows: DatabaseRow[] }; isError: boolean }[]) =>
+      new Map(
+        wanted.map(({ databaseId, ids }, i): [string, RelatedRowSet] => {
+          const result = results[i];
+          return [
+            databaseId,
+            {
+              requested: new Set(ids),
+              readIds: new Set(result?.data?.ids ?? []),
+              rows: new Map((result?.data?.rows ?? []).map((row) => [row.id, row])),
+              isError: result?.isError ?? false,
+            },
+          ];
+        }),
+      ),
+    [wanted],
+  );
+  return useQueries({
+    queries: wanted.map(({ databaseId, ids }) => ({
+      queryKey: queryKeys.databases.relatedSet(databaseId, ids),
+      queryFn: async ({ signal }: { signal: AbortSignal }) => ({
+        ids,
+        rows: await readRelatedRows(databaseId, ids, signal),
+      }),
+      enabled: isAuthenticated && ids.length > 0,
+      // A row loaded or a value changed reads the set again: the titles shown stay meanwhile.
+      placeholderData: keepPreviousData,
+    })),
+    combine,
   });
 }
 

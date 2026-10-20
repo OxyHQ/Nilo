@@ -65,6 +65,9 @@ export const queryKeys = {
     /** The rows a relation points at, read together. */
     related: (id: string, rowIds: readonly string[]) =>
       ['database', id, 'related', ...rowIds] as const,
+    /** Every row a view's relations point at in one database, with the ids read. */
+    relatedSet: (id: string, rowIds: readonly string[]) =>
+      ['database', id, 'related-set', ...rowIds] as const,
     /** Rows found by title, for a relation's picker (`rows` holds a view's lists only). */
     search: (id: string, query: string) => ['database', id, 'search', query] as const,
     /** Who a person property can name. */

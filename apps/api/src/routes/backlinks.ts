@@ -11,10 +11,9 @@ import { z } from 'zod';
 import { getDb } from '../db/client.js';
 import { hasRole } from '../db/schema/workspaces.js';
 import { log } from '../lib/logger.js';
-import { checkPageAccess, databaseHomes, loadViewer, rolesForPages } from '../lib/page-access.js';
+import { checkPageAccess, visiblePagesOf } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
-import { findPageById, listPages } from '../repositories/pages.js';
+import { findPageById } from '../repositories/pages.js';
 
 const router = Router();
 
@@ -68,22 +67,14 @@ router.get('/pages/:id/backlinks', authenticateToken, async (req: Request, res: 
       order by m.page_id, place.path
     `);
 
-    const userId = req.user?.id ?? '';
-    const all = await listPages(db, { workspaceId: page.workspaceId });
-    const byId = new Map(all.map((p) => [p.id, p]));
-    const visible = rolesForPages(
-      all,
-      await loadViewer(db, page.workspaceId, userId),
-      await listGrantsOfUserInWorkspace(db, userId, page.workspaceId),
-      await databaseHomes(db, page.workspaceId),
-    );
+    const { byId, roles } = await visiblePagesOf(db, page.workspaceId, req.user?.id ?? '');
 
     const backlinks = rows
       .map((row) => ({
         pageId: String(row.page_id),
         text: typeof row.text === 'string' ? row.text : '',
       }))
-      .filter((row) => byId.has(row.pageId) && (!visible || visible.has(row.pageId)))
+      .filter((row) => byId.has(row.pageId) && roles.has(row.pageId))
       .map((row) => {
         const from = byId.get(row.pageId);
         return {

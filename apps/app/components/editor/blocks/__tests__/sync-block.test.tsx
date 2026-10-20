@@ -51,7 +51,6 @@ jest.mock('@/hooks/useTranslation', () => ({
       values ? `${key} ${JSON.stringify(values)}` : key,
   }),
 }));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => {}) }));
 // Links, pasted images and code highlighting have their own tests.
 jest.mock('@/components/page-editor/editor-extras', () => ({

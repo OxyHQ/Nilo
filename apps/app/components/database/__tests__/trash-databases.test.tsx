@@ -17,7 +17,6 @@ jest.mock('@/hooks/useTranslation', () => ({
       options?.name ? `${key}:${options.name}` : key,
   }),
 }));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/lib/stores/workspace-store', () => ({
   useWorkspaceStore: (select: (s: { currentWorkspaceId: string }) => unknown) =>
     select({ currentWorkspaceId: 'workspace' }),

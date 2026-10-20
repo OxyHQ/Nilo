@@ -12,9 +12,6 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock('@/components/page-chrome/icon-display', () => ({ IconDisplay: () => null }));
 jest.mock('../use-palette-data', () => {
   const page = {

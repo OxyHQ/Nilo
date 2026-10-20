@@ -47,6 +47,17 @@ jest.mock('expo-audio', () => {
   };
 });
 
+// A test reads the app's text by its key, in English, and its colours as none.
+// A test that needs other strings or colours mocks the module itself; one that
+// needs the real thing `jest.unmock`s it.
+jest.mock('@/hooks/useTranslation', () => ({
+  useTranslation: () => ({
+    t: (key, params) => (params ? `${key}:${Object.values(params).join('|')}` : key),
+    locale: 'en',
+  }),
+}));
+jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
+
 // AsyncStorage's native module is not in jest: its in-memory mock, for the
 // persisted stores (a reader's collapsed groups among them).
 jest.mock('@react-native-async-storage/async-storage', () =>

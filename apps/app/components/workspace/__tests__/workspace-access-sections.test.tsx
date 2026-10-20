@@ -36,12 +36,6 @@ jest.mock('@/components/page-chrome/icon-display', () => ({ IconDisplay: () => n
 jest.mock('@/components/settings/settings-provider', () => ({
   useNiloSettings: () => ({ close: jest.fn(), afterClose: (run: () => void) => run() }),
 }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}:${Object.values(params).join('|')}` : key,
-  }),
-}));
 jest.mock('@/lib/hooks/use-workspace-admin', () => ({
   INVITE_LINK_ROLES: ['editor', 'commenter', 'viewer'],
   useInviteLink: () => ({ data: mockLink, isLoading: false }),

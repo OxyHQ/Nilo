@@ -7,7 +7,6 @@ import type { DatabaseProperty } from '@/lib/types/databases';
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key, locale: 'en-US' }),
 }));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/lib/hooks/use-database-rows', () => ({ useRelatedRows: () => ({}) }));
 // The other cells of `property-cell` reach the API and the Oxy session; a number cell needs neither.
 jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { get: jest.fn() } }));

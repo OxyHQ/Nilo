@@ -1,13 +1,14 @@
 import { Platform } from 'react-native';
 
 /**
- * Resolve the public host that serves `/share/[token]` URLs.
+ * Resolve the public host that serves the app's links: `/share/[token]`,
+ * `/pub/…`, `/form/…`, and a page's own (`blockLink`).
  * Priority:
  *   1. EXPO_PUBLIC_WEB_URL (set in CI/staging/prod env)
  *   2. window.location.origin (web only)
  *   3. Production fallback `https://nilo.so`
  */
-function resolveWebOrigin(): string {
+export function resolveWebOrigin(): string {
   if (process.env.EXPO_PUBLIC_WEB_URL) {
     return process.env.EXPO_PUBLIC_WEB_URL.replace(/\/$/, '');
   }

@@ -22,10 +22,6 @@ jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ oxyServices: {
 jest.mock('@oxy.so/bloom/fonts', () => ({
   fontFamilies: { sans: 'Inter', display: 'BlomusModernus', mono: 'JetBrains Mono' },
 }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/components/page-chrome/cover-display', () => ({ CoverDisplay: () => null }));
 jest.mock('@/components/page-chrome/icon-display', () => ({ IconDisplay: () => null }));
 jest.mock('@/components/page-chrome/callout-icon', () => ({ CalloutIcon: () => null }));

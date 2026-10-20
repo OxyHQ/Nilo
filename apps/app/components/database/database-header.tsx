@@ -1,5 +1,6 @@
 import { toast } from '@oxy.so/bloom/toast';
 import { DatabaseActionsMenu } from './database-actions-menu';
+import { viewIsEditable } from '@oxy.so/nilo-contracts';
 import * as React from 'react';
 import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { RiArrowLeftSLine } from '@oxy.so/bloom/icons/RiArrowLeftSLine';
@@ -98,7 +99,7 @@ export function DatabaseHeader({
   const [newViewOpen, setNewViewOpen] = React.useState(false);
   const iconPicker = useDialogControl();
   const coverPicker = useDialogControl();
-  const locked = database.locked === true;
+  const locked = database.locked;
 
   const handleTitleBlur = () => {
     if (readOnly || titleDraft === null) return;
@@ -263,7 +264,7 @@ export function ViewTab({ view, database, readOnly = false }: ViewTabProps) {
       ),
     [view, linkedViews.data?.views, detail.data?.views],
   );
-  const editable = !readOnly && !(database.locked && !view.blockId);
+  const editable = !readOnly && viewIsEditable(database, view);
   const index = siblings.findIndex((v) => v.id === view.id);
 
   const close = () => {

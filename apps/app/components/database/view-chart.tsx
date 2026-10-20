@@ -17,7 +17,7 @@ import {
   seriesColor,
 } from '@/lib/chart-geometry';
 import { useViewChart } from '@/lib/hooks/use-view-data';
-import { formatNumberValue } from '@/lib/number-format';
+import { formatComputedNumber } from '@/lib/calculations';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseProperty, DatabaseView } from '@/lib/types/databases';
 import { useGroupLabel } from './group-label';
@@ -61,18 +61,8 @@ export function ViewChart({ database, view }: ViewChartProps) {
       ? database.schema.properties.find((p) => p.id === chart.yAxis?.propertyId)
       : undefined;
   const format = React.useCallback(
-    (value: number | null) => {
-      if (value === null) return '—';
-      if (measured?.type === 'number') {
-        const precise = measured.config?.precision === undefined && !Number.isInteger(value);
-        return formatNumberValue(
-          value,
-          precise ? { ...measured.config, precision: 2 } : measured.config,
-          locale,
-        );
-      }
-      return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
-    },
+    (value: number | null) =>
+      value === null ? '—' : formatComputedNumber(value, measured, locale),
     [measured, locale],
   );
 

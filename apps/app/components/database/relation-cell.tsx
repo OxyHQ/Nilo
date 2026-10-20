@@ -12,24 +12,76 @@ import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { useRelatedRows, useRowSearch } from '@/lib/hooks/use-database-rows';
-import type { DatabaseRow } from '@/lib/types/databases';
+import {
+  type RelatedRowSet,
+  useRelatedRows,
+  useRelatedRowSets,
+  useRowSearch,
+} from '@/lib/hooks/use-database-rows';
+import type { Database, DatabaseRow, PropertyValue } from '@/lib/types/databases';
 import { useOpenRow } from './open-row';
+
+/** The page ids a relation value points at. */
+export function readPageIds(v: PropertyValue): string[] {
+  if (v && typeof v === 'object' && 'pageIds' in v) {
+    const ids = v.pageIds;
+    if (Array.isArray(ids)) {
+      return ids.filter((id): id is string => typeof id === 'string');
+    }
+  }
+  return [];
+}
+
+const RelatedRowsContext = React.createContext<ReadonlyMap<string, RelatedRowSet> | null>(null);
+
+/**
+ * The rows the relations of a view's `rows` point at, read once per related
+ * database for all of them rather than once per cell: a cell reads its own
+ * only for a row the view did not list (a row's panel, a value just picked).
+ */
+export function RelatedRowsProvider({
+  database,
+  rows,
+  children,
+}: {
+  database: Database;
+  rows: readonly DatabaseRow[];
+  children: React.ReactNode;
+}) {
+  const wanted = React.useMemo(() => {
+    const byTarget = new Map<string, Set<string>>();
+    for (const property of database.schema.properties) {
+      const target = property.type === 'relation' ? property.config?.targetDatabaseId : undefined;
+      if (!target) continue;
+      const ids = byTarget.get(target) ?? new Set<string>();
+      byTarget.set(target, ids);
+      for (const row of rows)
+        for (const id of readPageIds(row.properties[property.id])) ids.add(id);
+    }
+    return [...byTarget].map(([databaseId, ids]) => ({ databaseId, ids: [...ids].sort() }));
+  }, [database.schema.properties, rows]);
+  const shared = useRelatedRowSets(wanted);
+  return <RelatedRowsContext.Provider value={shared}>{children}</RelatedRowsContext.Provider>;
+}
 
 /** A related row's title: its own, untitled, or why it cannot be shown. */
 function useRelatedTitles(targetDatabaseId: string | undefined, value: string[]) {
-  const { data, isError } = useRelatedRows(targetDatabaseId, value);
+  const shared = React.useContext(RelatedRowsContext)?.get(targetDatabaseId ?? '');
+  const own = shared ? value.filter((id) => !shared.requested.has(id)) : value;
+  const { data, isError } = useRelatedRows(targetDatabaseId, own);
   const { t } = useTranslation();
   const byId = new Map((data ?? []).map((row) => [row.id, row]));
   return (id: string) => {
-    const row = byId.get(id);
+    const fromView = shared?.requested.has(id) ? shared : null;
+    const row = fromView ? fromView.rows.get(id) : byId.get(id);
+    const read = fromView ? fromView.readIds.has(id) : Boolean(data);
     // Read, and not there: no longer a live row of the related database.
     return (
       row?.title ||
       t(
         row
           ? 'databases.untitled'
-          : isError || data
+          : (fromView ? fromView.isError : isError) || read
             ? 'databases.relations.unavailable'
             : 'common.loading',
       )

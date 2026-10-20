@@ -1,11 +1,15 @@
 import type {
   ButtonAction,
   CalculationFunction,
-  ChartAggregate,
-  ChartType,
   DatabasePropertyType,
+  DateFormat,
   DateGroupGranularity,
   OpenRowMode,
+  RollupFunction,
+  StatusGroup,
+  ViewChartConfig,
+  ViewGroupKey,
+  ViewNumberGrouping,
 } from '@oxy.so/nilo-contracts';
 import type { WorkspaceRole } from '../hooks/use-workspaces';
 /**
@@ -27,8 +31,21 @@ export type {
   ChartAggregate,
   ChartType,
   DatabasePropertyType,
+  DateFormat,
   DateGroupGranularity,
   OpenRowMode,
+  RollupFunction,
+  StatusGroup,
+  StatusGroupId,
+  ViewChartConfig,
+  ViewGroupKey,
+  ViewNumberGrouping,
+} from '@oxy.so/nilo-contracts';
+export {
+  DATE_FORMATS,
+  NAME_PROPERTY_ID,
+  ROLLUP_FUNCTIONS,
+  STATUS_GROUP_IDS,
 } from '@oxy.so/nilo-contracts';
 
 export type SelectColor =
@@ -73,39 +90,6 @@ export type NumberFormat =
   | 'currency:GBP'
   | 'currency:JPY';
 
-/** A status property's three groups, always in this order (the API keeps them whole). */
-export const STATUS_GROUP_IDS = ['todo', 'in_progress', 'complete'] as const;
-export type StatusGroupId = (typeof STATUS_GROUP_IDS)[number];
-
-export interface StatusGroup {
-  id: StatusGroupId;
-  optionIds: string[];
-}
-
-export const DATE_FORMATS = [
-  'full',
-  'short',
-  'month_day_year',
-  'day_month_year',
-  'iso',
-  'relative',
-] as const;
-export type DateFormat = (typeof DATE_FORMATS)[number];
-
-export const ROLLUP_FUNCTIONS = [
-  'count',
-  'sum',
-  'avg',
-  'min',
-  'max',
-  'earliest',
-  'latest',
-  'show_original',
-  'percent_empty',
-  'percent_not_empty',
-] as const;
-export type RollupFunction = (typeof ROLLUP_FUNCTIONS)[number];
-
 export interface PropertyConfig {
   options?: SelectOption[];
   /** A status property's groups; absent on one not written since groups existed. */
@@ -126,9 +110,6 @@ export interface PropertyConfig {
   /** A button's actions, run in order when it is pressed. */
   actions?: ButtonAction[];
 }
-
-/** The Name property's id: its value is the row's title, and its type is always text. */
-export const NAME_PROPERTY_ID = 'name';
 
 export interface DatabaseProperty {
   id: string;
@@ -154,7 +135,7 @@ export interface Database {
   parentPageId: string | null;
   archived: boolean;
   /** Its properties and own views are not to be changed (423 DATABASE_LOCKED); rows still are. */
-  locked?: boolean;
+  locked: boolean;
   /**
    * The app that keeps this database (Noted's notes and folders), null for
    * every other one: its own properties cannot be removed or retyped, nor the
@@ -206,23 +187,6 @@ export interface ViewGroupBy {
   granularity?: DateGroupGranularity;
   /** The groups no row is in are not shown. */
   hideEmpty?: boolean;
-}
-
-/** A number's groups: ranges of `step` from `from` up to `to`, those below and above apart. */
-export interface ViewNumberGrouping {
-  from: number;
-  to: number;
-  step: number;
-}
-
-/** A group named in a view's config: its key (`RowGroup.key`), null for the empty group. */
-export type ViewGroupKey = string | null;
-
-/** A chart view's chart: one point per group of `xAxis`, measuring `yAxis`. */
-export interface ViewChartConfig {
-  type: ChartType;
-  xAxis?: { propertyId: string; granularity?: DateGroupGranularity };
-  yAxis?: { aggregate: ChartAggregate; propertyId?: string };
 }
 
 export interface ViewConfig {

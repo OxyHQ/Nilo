@@ -2,7 +2,8 @@ import { Platform } from 'react-native';
 import { Button } from '@oxy.so/bloom/button';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
-import { moveItem, SortBuilder } from '../sort-builder';
+import { move } from '@/lib/list-order';
+import { SortBuilder } from '../sort-builder';
 import type { Database, DatabaseView, ViewSort } from '@/lib/types/databases';
 
 const mockUpdate = jest.fn();
@@ -108,7 +109,7 @@ it('drops a sort dragged on web in the place of the one it lands on', async () =
 });
 
 it('moves one item of a list to another place', () => {
-  expect(moveItem(['a', 'b', 'c'], 2, 0)).toEqual(['c', 'a', 'b']);
-  expect(moveItem(['a', 'b', 'c'], 0, 2)).toEqual(['b', 'c', 'a']);
-  expect(moveItem(['a', 'b'], 0, 5)).toEqual(['a', 'b']);
+  expect(move(['a', 'b', 'c'], 2, 0)).toEqual(['c', 'a', 'b']);
+  expect(move(['a', 'b', 'c'], 0, 2)).toEqual(['b', 'c', 'a']);
+  expect(move(['a', 'b'], 0, 5)).toBeNull();
 });

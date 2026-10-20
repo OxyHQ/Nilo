@@ -3,6 +3,7 @@ import {
   type Dispatch,
   type ReactNode,
   type SetStateAction,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -33,6 +34,8 @@ import { usePageComments } from '@/lib/hooks/use-comments';
 import { openCommentCounts } from '@/components/comments/comment-indicator';
 
 type EditorContextValue = PageEditorState & {
+  /** The page's content is read, not edited (`pageContentReadOnly`). */
+  readOnly: boolean;
   /** Null until the page's blocks have loaded (or when they failed: `error`). */
   controller: EditorController | null;
   decorations: BlockDecorations;
@@ -92,36 +95,37 @@ export function PageEditorProvider({
     [comments.data?.comments],
   );
   // Who is where, and the text open comments are on, drawn on the page's
-  // blocks, and placed again as the text changes.
+  // blocks: again whenever either changes, and as the text changes (the
+  // page's store is subscribed to once, `redrawOnChange`).
   const { collaborators, doc } = state;
   const commentList = comments.data?.comments;
-  useEffect(() => {
+  const profileById = useMemo(
+    () => new Map((profiles.data ?? []).map((profile) => [profile.id, profile])),
+    [profiles.data],
+  );
+  const draw = useCallback(() => {
     const nameOf = (id: string) =>
-      profileName(profiles.data?.find((profile) => profile.id === id)) ??
-      t('pages.info.unknownMember');
+      profileName(profileById.get(id)) ?? t('pages.info.unknownMember');
     const commentColor = theme.colors.yellow;
-    const update = () => {
-      const carets = collaboratorDecorations(
-        collaborators,
-        user?.id,
-        theme.colors,
-        nameOf,
-        previous.current,
-        (selection) => (doc ? relativeToSelection(doc, selection) : null),
-      );
-      const next = withCommentDecorations(
-        carets,
-        commentCounts,
-        commentColor?.text ?? theme.accent,
-        (count) => t('comments.indicator.count', { count }),
-        previous.current,
-        store ? commentHighlights(store, commentList ?? []) : [],
-        commentColor?.background ?? theme.selection,
-      );
-      previous.current = next;
-      decorations.set(next);
-    };
-    return redrawOnChange(store, update);
+    const carets = collaboratorDecorations(
+      collaborators,
+      user?.id,
+      theme.colors,
+      nameOf,
+      previous.current,
+      (selection) => (doc ? relativeToSelection(doc, selection) : null),
+    );
+    const next = withCommentDecorations(
+      carets,
+      commentCounts,
+      commentColor?.text ?? theme.accent,
+      (count) => t('comments.indicator.count', { count }),
+      previous.current,
+      store ? commentHighlights(store, commentList ?? []) : [],
+      commentColor?.background ?? theme.selection,
+    );
+    previous.current = next;
+    decorations.set(next);
   }, [
     collaborators,
     doc,
@@ -130,15 +134,22 @@ export function PageEditorProvider({
     theme.colors,
     theme.accent,
     theme.selection,
-    profiles.data,
+    profileById,
     t,
     decorations,
     commentCounts,
     commentList,
   ]);
+  const latestDraw = useRef(draw);
+  latestDraw.current = draw;
+  useEffect(() => redrawOnChange(store, () => latestDraw.current()), [store]);
+  useEffect(() => {
+    draw();
+  }, [draw]);
   const value = useMemo(
     () => ({
       ...state,
+      readOnly,
       controller,
       decorations,
       theme,
@@ -150,7 +161,17 @@ export function PageEditorProvider({
       embeddedController,
       setEmbeddedController,
     }),
-    [state, controller, decorations, theme, labels, toolbarHeight, aiTarget, embeddedController],
+    [
+      state,
+      readOnly,
+      controller,
+      decorations,
+      theme,
+      labels,
+      toolbarHeight,
+      aiTarget,
+      embeddedController,
+    ],
   );
   return <PageEditorContext.Provider value={value}>{children}</PageEditorContext.Provider>;
 }
@@ -166,8 +187,8 @@ export function useOptionalPageEditorContext() {
  * selected text, `page-editor.tsx`), which the toolbar shows while text is
  * selected.
  */
-export function PageEditorToolbar({ readOnly }: { readOnly: boolean }) {
-  const { controller, embeddedController, theme, labels, setToolbarHeight } =
+export function PageEditorToolbar() {
+  const { readOnly, controller, embeddedController, theme, labels, setToolbarHeight } =
     usePageEditorContext();
   if (Platform.OS === 'web' || readOnly || !controller) return null;
   // A synced block being edited has the keyboard: its editor's toolbar.
