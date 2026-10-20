@@ -1,4 +1,7 @@
-import { Children, isValidElement, type ComponentType } from 'react';
+import { Children, isValidElement, type ComponentType, type ComponentProps } from 'react';
+import { Button } from '@oxy.so/bloom/button';
+import { Popover, PopoverTrigger } from '@oxy.so/bloom/popover';
+import { AxiosError, type AxiosResponse } from 'axios';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -13,6 +16,7 @@ import { usePage, useUpdatePage } from '@/lib/hooks/use-pages';
 import { invalidateLiveQueries, useWorkspaceLive } from '@/lib/realtime/use-live-updates';
 import type { BreadcrumbEntry, BreadcrumbResponse } from '@/lib/types/pages';
 import { Breadcrumb } from '../breadcrumb';
+import { IdentityPopover } from '../identity-popover';
 
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
@@ -21,6 +25,7 @@ jest.mock('@/lib/realtime/socket', () => ({ acquireSocket: jest.fn(), releaseSoc
 jest.mock('@/lib/realtime/use-live-updates', () => ({
   ...jest.requireActual('@/lib/realtime/use-live-updates'),
   useWorkspaceLive: jest.fn(),
+  useDatabaseLive: jest.fn(),
 }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
@@ -32,11 +37,14 @@ const Item = (BreadcrumbItem as unknown as { type: ComponentType }).type;
 let client: QueryClient;
 let renderer: ReactTestRenderer;
 const page = { id: 'current', workspaceId: 'shared-workspace', title: 'Current page', icon: null };
-function tree(currentPage = page) {
+function tree(
+  currentPage: ComponentProps<typeof Breadcrumb>['currentPage'] = page,
+  actions: Pick<ComponentProps<typeof Breadcrumb>, 'onRename' | 'onChooseIcon'> = {},
+) {
   return (
     <QueryClientProvider client={client}>
       <BloomTestProviders>
-        <Breadcrumb currentPage={currentPage} />
+        <Breadcrumb currentPage={currentPage} {...actions} />
       </BloomTestProviders>
     </QueryClientProvider>
   );
@@ -134,6 +142,91 @@ it('treats a root page as the current item, and labels whitespace titles as unti
   expect(crumbs).toHaveLength(1);
   expect(crumbs[0].props.current).toBe(true);
   expect(crumbs[0].props.children).toBe('pages.untitled');
+});
+
+it('composes the current editable item with the real Bloom popover trigger only when both actions are available', async () => {
+  await mount([{ id: 'ancestor', title: 'Ancestor', icon: null }]);
+  expect(suppliedCrumbs().every((crumb) => crumb.props.trigger === undefined)).toBe(true);
+  const onRename = jest.fn().mockResolvedValue(undefined);
+  const onChooseIcon = jest.fn();
+  await act(async () => renderer.update(tree(page, { onRename })));
+  expect(renderer.root.findAllByType(IdentityPopover)).toHaveLength(0);
+  await act(async () => renderer.update(tree(page, { onRename, onChooseIcon })));
+  const entries = suppliedCrumbs();
+  expect(entries[0].props.trigger).toBeUndefined();
+  expect(isValidElement(entries[1].props.trigger) && entries[1].props.trigger.type).toBe(
+    PopoverTrigger,
+  );
+  expect(entries[1].props.href).toBeUndefined();
+  const currentButton = renderer.root
+    .findAllByType(Button)
+    .find((button) => button.props.accessibilityLabel === 'Current page');
+  expect(currentButton).toBeDefined();
+  await act(async () => currentButton?.props.onPress?.());
+  expect(renderer.root.findByType(Popover).props.open).toBe(true);
+  expect(onRename).not.toHaveBeenCalled();
+  expect(mockPush).not.toHaveBeenCalled();
+  expect(renderer.root.findByType(IdentityPopover).props.onSave).toBe(onRename);
+});
+
+it('renders a row database destination and scopes uploaded page icons only to page entries', async () => {
+  jest.mocked(apiClient.get).mockImplementation(async (url) => ({
+    data:
+      url === '/databases/db'
+        ? {
+            database: {
+              id: 'db',
+              name: 'Projects',
+              icon: null,
+              parentPageId: 'parent',
+              workspaceId: page.workspaceId,
+            },
+            views: [],
+            role: 'viewer',
+          }
+        : { breadcrumb: [{ id: 'parent', title: 'Parent', icon: null }] },
+  }));
+  await act(async () => {
+    renderer = create(tree({ ...page, databaseId: 'db' }));
+  });
+  await settleRender();
+  await settleRender();
+  const entries = suppliedCrumbs();
+  expect(entries.map((entry) => entry.props.children)).toEqual([
+    'Parent',
+    'Projects',
+    'Current page',
+  ]);
+  expect(entries.map((entry) => entry.props.href)).toEqual(['/p/parent', '/db/db', undefined]);
+  act(() => entries[1].props.onPress?.());
+  expect(mockPush).toHaveBeenCalledWith('/db/db');
+  expect(
+    entries.map((entry) => {
+      const icon = entry.props.leading;
+      return isValidElement<{ pageId?: string; showPlaceholder?: boolean }>(icon)
+        ? icon.props
+        : null;
+    }),
+  ).toEqual([
+    expect.objectContaining({ pageId: 'parent', showPlaceholder: true }),
+    expect.objectContaining({ pageId: undefined, showPlaceholder: true }),
+    expect.objectContaining({ pageId: 'current', showPlaceholder: true }),
+  ]);
+});
+
+it('never reveals a database destination to a row-only guest after a failed access check', async () => {
+  jest.mocked(apiClient.get).mockRejectedValue(
+    new AxiosError('Forbidden', undefined, undefined, undefined, {
+      status: 403,
+    } as AxiosResponse),
+  );
+  await act(async () => {
+    renderer = create(tree({ ...page, databaseId: 'private-db' }));
+  });
+  await settleRender();
+  expect(suppliedCrumbs().map((entry) => entry.props.children)).toEqual(['Current page']);
+  expect(apiClient.get).toHaveBeenCalledTimes(1);
+  expect(apiClient.get).toHaveBeenCalledWith('/databases/private-db');
 });
 
 let update!: ReturnType<typeof useUpdatePage>;

@@ -3,6 +3,8 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AxiosError, type AxiosResponse } from 'axios';
 import { Breadcrumb, type BreadcrumbItemProps } from '@oxy.so/bloom/breadcrumb';
+import { PopoverTrigger } from '@oxy.so/bloom/popover';
+import { IdentityPopover } from '@/components/page-chrome/identity-popover';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import apiClient from '@/lib/api/client';
 import { queryKeys } from '@/lib/hooks/query-keys';
@@ -31,11 +33,14 @@ const database = {
 };
 let renderer: ReactTestRenderer;
 let client: QueryClient;
-function tree(current = database) {
+function tree(
+  current = database,
+  actions: { onRename?: (title: string) => Promise<unknown>; onChooseIcon?: () => void } = {},
+) {
   return (
     <QueryClientProvider client={client}>
       <BloomTestProviders>
-        <DatabaseBreadcrumb database={current} />
+        <DatabaseBreadcrumb database={current} {...actions} />
       </BloomTestProviders>
     </QueryClientProvider>
   );
@@ -125,13 +130,11 @@ it('keeps current metadata visible during loading and failed ancestry reads', as
 it('drops cached ancestry when a permission recheck fails', async () => {
   await mount();
   expect(titles()).toEqual(['Shared parent', 'Projects']);
-  jest
-    .mocked(apiClient.get)
-    .mockRejectedValue(
-      new AxiosError('Forbidden', undefined, undefined, undefined, {
-        status: 403,
-      } as AxiosResponse),
-    );
+  jest.mocked(apiClient.get).mockRejectedValue(
+    new AxiosError('Forbidden', undefined, undefined, undefined, {
+      status: 403,
+    } as AxiosResponse),
+  );
   await act(async () => {
     await client.invalidateQueries({ queryKey: queryKeys.pages.breadcrumb('parent', 'workspace') });
   });
@@ -174,4 +177,34 @@ it('follows a changed parent key without reusing the old authorized chain', asyn
   expect(apiClient.get).toHaveBeenLastCalledWith('/pages/other-parent/breadcrumb');
   await act(async () => renderer.update(tree({ ...database, parentPageId: null })));
   expect(titles()).toEqual(['Projects']);
+});
+
+it('keeps reader navigation static and supplies a current trigger only to an editable identity', async () => {
+  await mount();
+  expect(crumbs().every((crumb) => crumb.props.trigger === undefined)).toBe(true);
+  expect(renderer.root.findAllByType(IdentityPopover)).toHaveLength(0);
+  const onRename = jest.fn().mockResolvedValue(undefined);
+  const onChooseIcon = jest.fn();
+  await act(async () => renderer.update(tree(database, { onRename, onChooseIcon })));
+  expect(crumbs()[0].props.trigger).toBeUndefined();
+  const trigger = crumbs().at(-1)?.props.trigger;
+  expect(isValidElement(trigger) && trigger.type).toBe(PopoverTrigger);
+  expect(crumbs().at(-1)?.props.href).toBeUndefined();
+  expect(renderer.root.findByType(IdentityPopover).props).toMatchObject({
+    onSave: onRename,
+    onChooseIcon,
+  });
+  await act(async () => renderer.update(tree(database, { onChooseIcon })));
+  expect(crumbs().at(-1)?.props.trigger).toBeUndefined();
+  expect(renderer.root.findAllByType(IdentityPopover)).toHaveLength(0);
+});
+
+it('uses a placeholder for an iconless database without inventing a page file scope', async () => {
+  await mount({ ...database, icon: null });
+  const icon = crumbs().at(-1)?.props.leading;
+  expect(
+    isValidElement<{ value: string | null; showPlaceholder: boolean; pageId?: string }>(icon) &&
+      icon.props,
+  ).toMatchObject({ value: null, showPlaceholder: true });
+  expect(isValidElement<{ pageId?: string }>(icon) && icon.props.pageId).toBeUndefined();
 });

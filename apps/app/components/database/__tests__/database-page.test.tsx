@@ -1,5 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Platform, TextInput } from 'react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { WorkspaceRole } from '@/lib/hooks/use-workspaces';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import DatabaseRoute from '../../../app/(app)/db/[id]';
@@ -23,6 +24,8 @@ jest.mock('@oxy.so/bloom/screen', () => {
   };
 });
 jest.mock('@/lib/hooks/use-route-workspace', () => ({ useRouteWorkspace: jest.fn() }));
+jest.mock('@/lib/realtime/socket', () => ({ acquireSocket: jest.fn(), releaseSocket: jest.fn() }));
+jest.mock('@/lib/realtime/use-live-updates', () => ({ useWorkspaceLive: jest.fn() }));
 let mockViewId: string | undefined;
 const mockSetParams = jest.fn();
 // The cells read people, files and rows through the API client.
@@ -150,14 +153,17 @@ function mockRows(): DatabaseRow[] {
 }
 
 let renderer: ReactTestRenderer;
+let client: QueryClient;
 const originalOS = Platform.OS;
 beforeEach(() => {
   jest.clearAllMocks();
   mockViewId = undefined;
+  client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
   Platform.OS = 'web';
 });
 afterEach(() => {
   act(() => renderer?.unmount());
+  client.clear();
   Platform.OS = originalOS;
 });
 
@@ -166,7 +172,9 @@ function render(role: WorkspaceRole) {
   act(() => {
     renderer = create(
       <BloomTestProviders>
-        <DatabaseRoute />
+        <QueryClientProvider client={client}>
+          <DatabaseRoute />
+        </QueryClientProvider>
       </BloomTestProviders>,
     );
   });
