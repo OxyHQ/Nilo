@@ -63,9 +63,8 @@ async function sendPresence(io: Server, pageId: string): Promise<void> {
 
 /**
  * Pages whose presence is being sent from this task, and those changed again
- * meanwhile. A selection moves as someone types: each change does not cost a
- * round of `fetchSockets` across tasks, one follows the one in flight with
- * everything changed since.
+ * meanwhile: a change does not cost another round of `fetchSockets` across
+ * tasks, one follows the one in flight with everything changed since.
  */
 const sending = new Set<string>();
 const again = new Set<string>();
@@ -131,20 +130,28 @@ export function registerPageRooms(io: Server, socket: Socket): void {
   });
 
   // Where this member is: a block, and the text selected in it (Bloom's
-  // relative selection), which must be in that block.
-  socket.on('page:focus', async (payload: unknown) => {
+  // relative selection), which must be in that block. A selection moves as
+  // someone types, so the room is told only this member's move
+  // (`page:presence:focus`), not everyone's at the cost of a `fetchSockets`
+  // across tasks; who is there is sent whole when someone joins or leaves.
+  socket.on('page:focus', (payload: unknown) => {
     const { pageId, blockId, selection } = (payload ?? {}) as {
       pageId?: unknown;
       blockId?: unknown;
       selection?: unknown;
     };
-    if (typeof pageId !== 'string' || !socket.rooms.has(pageRoom(pageId))) return;
+    if (typeof pageId !== 'string' || !socket.rooms.has(pageRoom(pageId)) || !data.userId) return;
     const block = typeof blockId === 'string' && ID_PATTERN.test(blockId) ? blockId : null;
-    data.focus = {
-      ...data.focus,
-      [pageId]: { blockId: block, selection: readPageSelection(selection, block) },
-    };
-    await broadcastPresence(io, pageId);
+    const focus: Focus = { blockId: block, selection: readPageSelection(selection, block) };
+    data.focus = { ...data.focus, [pageId]: focus };
+    // A whole list on its way may have read this socket before the move: one
+    // more follows it, with the move in it.
+    if (sending.has(pageId)) {
+      again.add(pageId);
+      return;
+    }
+    const moved: PagePresence = { userId: data.userId, ...focus };
+    socket.to(pageRoom(pageId)).emit('page:presence:focus', { pageId, ...moved });
   });
 
   socket.on('disconnecting', () => {

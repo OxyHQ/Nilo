@@ -7,6 +7,7 @@
 import type { EditorStore } from '@oxy.so/bloom-editor';
 import { type RelativeSelection, selectionToRelative } from '@oxy.so/bloom-editor/yjs';
 import type * as Y from 'yjs';
+import type { Collaborator } from './use-page-editor';
 
 /** How often at most this member's selection is told to the room while it moves. */
 export const SELECTION_BROADCAST_MS = 150;
@@ -15,6 +16,15 @@ export const SELECTION_BROADCAST_MS = 150;
 export interface Focus {
   blockId: string | null;
   selection: RelativeSelection | null;
+}
+
+/**
+ * Who is on the page once one of them has moved (`page:presence:focus`): in
+ * their place, or added when their move arrives before the list that has them.
+ */
+export function withMove(list: readonly Collaborator[], moved: Collaborator): Collaborator[] {
+  const at = list.findIndex(({ userId }) => userId === moved.userId);
+  return at === -1 ? [...list, moved] : list.map((person, i) => (i === at ? moved : person));
 }
 
 /** The block and the text selected in `store`, as positions in `doc`. */

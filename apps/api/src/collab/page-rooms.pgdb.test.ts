@@ -139,15 +139,15 @@ describe('page rooms', () => {
     const { users } = await presence;
     expect(users.map((u) => u.userId).sort()).toEqual(['alice', 'bob']);
 
-    const focused = next<{ users: { userId: string; blockId: string | null }[] }>(
-      bob,
-      'page:presence',
-      (p) => p.users.some((u) => u.blockId !== null),
-    );
+    // A move once the room is settled: only the one who moved, not the whole room.
+    const focused = next<Move>(bob, 'page:presence:focus', (p) => p.userId === 'alice');
     alice.emit('page:focus', { pageId, blockId: '0192f0c4-7d4e-7c2a-9b1e-3f5a6b7c8d9e' });
-    expect((await focused).users.find((u) => u.userId === 'alice')?.blockId).toBe(
-      '0192f0c4-7d4e-7c2a-9b1e-3f5a6b7c8d9e',
-    );
+    expect(await focused).toEqual({
+      pageId,
+      userId: 'alice',
+      blockId: '0192f0c4-7d4e-7c2a-9b1e-3f5a6b7c8d9e',
+      selection: null,
+    });
   });
 
   it('carries where in the block a member has selected, and nothing that is not a selection', async () => {
@@ -160,37 +160,67 @@ describe('page rooms', () => {
     const blockId = '0192f0c4-7d4e-7c2a-9b1e-3f5a6b7c8d9e';
     const position = { type: { client: 7, clock: 3 }, item: { client: 7, clock: 9 }, assoc: 0 };
     const selection = { blockId, start: position, end: { ...position, assoc: -1 } };
-    type Presence = {
-      users: { userId: string; blockId: string | null; selection: unknown }[];
-    };
-    const selected = next<Presence>(bob, 'page:presence', (p) =>
-      p.users.some((u) => u.selection !== null),
-    );
+    const selected = whereIs(bob, 'alice', (p) => p.selection !== null);
     alice.emit('page:focus', { pageId, blockId, selection });
-    expect((await selected).users.find((u) => u.userId === 'alice')).toEqual({
+    expect(await selected).toEqual({ userId: 'alice', blockId, selection });
+
+    // Someone joining then is told where everyone is, the move among them.
+    const later = await client('bob');
+    const told = next<Presence>(later, 'page:presence', (p) => p.users.length === 2);
+    expect((await join(later, pageId)).ok).toBe(true);
+    expect((await told).users.find((u) => u.userId === 'alice')).toEqual({
       userId: 'alice',
       blockId,
       selection,
     });
 
     // A selection in another block than the one focused, or of another shape: none.
-    const cleared = next<Presence>(bob, 'page:presence', (p) =>
-      p.users.every((u) => u.selection === null && (u.userId !== 'alice' || u.blockId !== null)),
-    );
+    const cleared = whereIs(bob, 'alice', (p) => p.selection === null && p.blockId !== null);
     alice.emit('page:focus', {
       pageId,
       blockId,
       selection: { ...selection, start: { ...position, payload: 'x'.repeat(4096) } },
     });
-    expect((await cleared).users.find((u) => u.userId === 'alice')?.blockId).toBe(blockId);
+    expect((await cleared).blockId).toBe(blockId);
 
-    const elsewhere = next<Presence>(bob, 'page:presence', (p) =>
-      p.users.some((u) => u.userId === 'alice' && u.blockId === null),
-    );
+    const elsewhere = whereIs(bob, 'alice', (p) => p.blockId === null);
     alice.emit('page:focus', { pageId, blockId: null, selection });
-    expect((await elsewhere).users.find((u) => u.userId === 'alice')?.selection).toBeNull();
+    expect((await elsewhere).selection).toBeNull();
   });
 });
+
+type Where = { userId: string; blockId: string | null; selection: unknown };
+/** Who is on the page, whole (`page:presence`). */
+type Presence = { users: Where[] };
+/** One member's move (`page:presence:focus`). */
+type Move = Where & { pageId: string };
+
+/**
+ * Where `userId` is as `socket` is told it: by their move, or, while a whole
+ * list was on its way when they moved, by the list that follows it.
+ */
+function whereIs(
+  socket: ClientSocket,
+  userId: string,
+  accept: (where: Where) => boolean,
+): Promise<Where> {
+  return new Promise((resolve) => {
+    const done = (where: Where) => {
+      socket.off('page:presence:focus', onMove);
+      socket.off('page:presence', onList);
+      resolve(where);
+    };
+    const onMove = ({ pageId: _page, ...where }: Move) => {
+      if (where.userId === userId && accept(where)) done(where);
+    };
+    const onList = ({ users }: Presence) => {
+      const where = users.find((u) => u.userId === userId);
+      if (where && accept(where)) done(where);
+    };
+    socket.on('page:presence:focus', onMove);
+    socket.on('page:presence', onList);
+  });
+}
 
 type Reply = {
   ok: boolean;

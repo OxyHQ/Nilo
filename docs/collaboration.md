@@ -86,10 +86,14 @@ The Redis adapter carries the room across the API's tasks.
 ## Who else is on the page
 
 `apps/api/src/collab/page-rooms.ts`. Each socket in a page's room tells
-where its member is, `page:focus { pageId, blockId, selection }`, and
-everyone in the room hears `page:presence { pageId, users: [{ userId,
-blockId, selection }] }` (one entry per person: the tab they are selecting
-in, else one with a caret).
+where its member is, `page:focus { pageId, blockId, selection }`. When
+someone joins or leaves, everyone in the room hears who is there,
+`page:presence { pageId, users: [{ userId, blockId, selection }] }` (one
+entry per person: the tab they are selecting in, else one with a caret);
+when someone moves, everyone else hears only that move,
+`page:presence:focus { pageId, userId, blockId, selection }`, which the
+app puts in that person's place (`withMove`). Between joins and leaves, a
+person is where their tab that moved last is.
 
 - `selection` is Bloom's `RelativeSelection` (`@oxy.so/bloom-editor/yjs`):
   the block and two Yjs relative positions in its text, so it stays on the
@@ -97,9 +101,9 @@ in, else one with a caret).
   reads it field by field into a new object (`collab/page-selection.ts`:
   the shape `relativePositionToJSON` writes, bounded numbers and names, in
   the block focused) and passes nothing else on.
-- Presence for a page is sent from one task at a time: a change while one is
-  in flight is sent once after it, with everything changed since, so a
-  selection moving as someone types does not cost a `fetchSockets` round each.
+- A move costs no `fetchSockets` round across tasks. The whole list for a
+  page is sent from one task at a time: a change while one is in flight (a
+  move among them) is sent once after it, with everything changed since.
 - The editor tells it (`apps/app/lib/editor/presence-focus.ts`) when it
   changes, at most every 150 ms while it moves, ending where it settled.
   An embedded editor (a synced block) and a reader tell nothing.
