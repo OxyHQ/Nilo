@@ -52,9 +52,12 @@ remaining space. Database pagination uses `ScreenScrollView.onEndReached`.
 The header breadcrumb represents the authorized page ancestry returned by the
 API. Do not prepend a workspace-home link: guests may only have access to the
 page, and workspace switching already belongs to the sidebar. Supply real
-`href` destinations to Bloom. Keep the current page visible while its ancestry
-loads, protect optimistic metadata during saves, and refresh affected paths
-when another session changes the hierarchy. Breadcrumb queries include their
+`href` destinations for every authorized ancestor to `Breadcrumb overflow="collapse"`.
+Bloom owns fitting, truncation and the menu for hidden ancestors; Nilo must not
+pre-filter the path, render its own ellipsis or measure header widths.
+Keep the current page visible while its ancestry loads, protect optimistic
+metadata during saves, and refresh affected paths when another session changes
+the hierarchy. Breadcrumb queries include their
 workspace scope so those events do not invalidate unrelated editor data.
 Those events refresh exact page-metadata queries in the same workspace, keeping
 title, icon, cover and lock state consistent with the header. Pending page

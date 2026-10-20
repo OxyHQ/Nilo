@@ -1,7 +1,5 @@
-import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Breadcrumb as BloomBreadcrumb, BreadcrumbItem } from '@oxy.so/bloom/breadcrumb';
-import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useBreadcrumb } from '@/lib/hooks/use-pages';
 import { IconDisplay } from './icon-display';
@@ -9,16 +7,13 @@ import type { BreadcrumbEntry, Page } from '@/lib/types/pages';
 
 interface BreadcrumbProps {
   currentPage: Pick<Page, 'id' | 'workspaceId' | 'title' | 'icon'>;
-  /** Maximum middle crumbs to render before collapsing with `…`. */
-  maxItems?: number;
 }
 
 /**
  * Parent › … › Current. Only authorized page ancestors form this path.
- * Each ancestor is clickable; the current page is a label. Long chains collapse the middle into
- * `…` to keep the bar from overflowing on narrow viewports.
+ * Bloom owns fitting and the menu for ancestors that do not fit the header.
  */
-export function Breadcrumb({ currentPage, maxItems = 4 }: BreadcrumbProps) {
+export function Breadcrumb({ currentPage }: BreadcrumbProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const { data: crumb } = useBreadcrumb(currentPage.id, currentPage.workspaceId);
@@ -30,39 +25,27 @@ export function Breadcrumb({ currentPage, maxItems = 4 }: BreadcrumbProps) {
   // Page metadata has one owner, including optimistic edits and remote refreshes.
   const current = currentPage;
 
-  const condensed = condenseAncestors(ancestors, maxItems);
-
   return (
-    <BloomBreadcrumb>
-      {condensed.map((entry) =>
-        entry.kind === 'page' ? (
-          <BreadcrumbItem
-            key={`page-${entry.page.id}`}
-            href={`/p/${entry.page.id}`}
-            onPress={() => router.push(`/p/${entry.page.id}`)}
-            accessibilityLabel={entry.page.title.trim() || t('pages.untitled')}
-            leading={
-              entry.page.icon ? (
-                <IconDisplay value={entry.page.icon} size={14} pageId={entry.page.id} />
-              ) : null
-            }
-          >
-            {entry.page.title.trim() || t('pages.untitled')}
-          </BreadcrumbItem>
-        ) : (
-          // The collapsed middle is not a destination, so it stays a plain
-          // list item rather than a pressable `BreadcrumbItem`.
-          <View key="ellipsis" role="listitem">
-            <Text className="text-xs text-muted-foreground">…</Text>
-          </View>
-        ),
-      )}
+    <BloomBreadcrumb overflow="collapse">
+      {ancestors.map((entry) => (
+        <BreadcrumbItem
+          key={entry.id}
+          href={`/p/${entry.id}`}
+          onPress={() => router.push(`/p/${entry.id}`)}
+          accessibilityLabel={entry.title.trim() || t('pages.untitled')}
+          leading={
+            entry.icon ? <IconDisplay value={entry.icon} size={16} pageId={entry.id} /> : null
+          }
+        >
+          {entry.title.trim() || t('pages.untitled')}
+        </BreadcrumbItem>
+      ))}
 
       {current ? (
         <BreadcrumbItem
           current
           leading={
-            current.icon ? <IconDisplay value={current.icon} size={14} pageId={current.id} /> : null
+            current.icon ? <IconDisplay value={current.icon} size={16} pageId={current.id} /> : null
           }
         >
           {current.title.trim() || t('pages.untitled')}
@@ -70,24 +53,4 @@ export function Breadcrumb({ currentPage, maxItems = 4 }: BreadcrumbProps) {
       ) : null}
     </BloomBreadcrumb>
   );
-}
-
-type CondensedEntry = { kind: 'page'; page: BreadcrumbEntry } | { kind: 'ellipsis' };
-
-/**
- * Notion-like middle truncation: keep the first ancestor and the last two,
- * collapse anything in between as `…`. When the chain is short, return
- * everything as-is.
- */
-function condenseAncestors(ancestors: BreadcrumbEntry[], maxItems: number): CondensedEntry[] {
-  if (ancestors.length <= maxItems) {
-    return ancestors.map((page) => ({ kind: 'page' as const, page }));
-  }
-  const head = ancestors[0];
-  const tail = ancestors.slice(-2);
-  return [
-    { kind: 'page' as const, page: head },
-    { kind: 'ellipsis' as const },
-    ...tail.map((page) => ({ kind: 'page' as const, page })),
-  ];
 }

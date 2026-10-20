@@ -1,7 +1,11 @@
-import type { ComponentType } from 'react';
+import { Children, isValidElement, type ComponentType } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BreadcrumbItem } from '@oxy.so/bloom/breadcrumb';
+import {
+  Breadcrumb as BloomBreadcrumb,
+  BreadcrumbItem,
+  type BreadcrumbItemProps,
+} from '@oxy.so/bloom/breadcrumb';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import apiClient from '@/lib/api/client';
 import { queryKeys } from '@/lib/hooks/query-keys';
@@ -23,6 +27,7 @@ jest.mock('@/lib/api/client', () => ({
   default: { get: jest.fn(), patch: jest.fn() },
 }));
 jest.mock('../icon-display', () => ({ IconDisplay: () => null }));
+const Trail = (BloomBreadcrumb as unknown as { type: ComponentType }).type;
 const Item = (BreadcrumbItem as unknown as { type: ComponentType }).type;
 let client: QueryClient;
 let renderer: ReactTestRenderer;
@@ -43,6 +48,13 @@ async function mount(ancestors: BreadcrumbEntry[] = []) {
   });
   await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
 }
+// Nilo supplies every authorized destination; Bloom owns which ones fit and
+// exposes the rest through its tested responsive menu.
+function suppliedCrumbs() {
+  return Children.toArray(renderer.root.findByType(Trail).props.children).filter(
+    isValidElement<BreadcrumbItemProps>,
+  );
+}
 beforeEach(() => {
   jest.clearAllMocks();
   client = new QueryClient({
@@ -58,16 +70,36 @@ afterEach(() => {
 });
 it('shows only the authorized guest ancestry and real ancestor destinations without a workspace request', async () => {
   await mount([{ id: 'shared-parent', title: 'Shared parent', icon: null }]);
-  const crumbs = renderer.root.findAllByType(Item);
+  const crumbs = suppliedCrumbs();
   expect(crumbs.map((crumb) => crumb.props.children)).toEqual(['Shared parent', 'Current page']);
   expect(crumbs[0].props.href).toBe('/p/shared-parent');
-  act(() => crumbs[0].props.onPress());
+  act(() => crumbs[0].props.onPress?.());
   expect(mockPush).toHaveBeenCalledWith('/p/shared-parent');
   expect(crumbs[1].props.current).toBe(true);
   expect(crumbs[1].props.onPress).toBeUndefined();
   expect(apiClient.get).toHaveBeenCalledTimes(1);
   expect(apiClient.get).toHaveBeenCalledWith('/pages/current/breadcrumb');
   expect(useWorkspaceLive).toHaveBeenCalledWith('shared-workspace');
+});
+it('delegates all authorized destinations to Bloom collapse without hiding ancestors in app code', async () => {
+  const ancestors = Array.from({ length: 12 }, (_, index) => ({
+    id: `ancestor-${index}`,
+    title: `Ancestor ${index}`,
+    icon: null,
+  }));
+  await mount(ancestors);
+  expect(renderer.root.findByType(Trail).props.overflow).toBe('collapse');
+  const crumbs = suppliedCrumbs();
+  expect(crumbs).toHaveLength(13);
+  expect(crumbs.slice(0, -1).map((crumb) => crumb.props.href)).toEqual(
+    ancestors.map((entry) => `/p/${entry.id}`),
+  );
+  for (const crumb of crumbs.slice(0, -1)) act(() => crumb.props.onPress?.());
+  expect(mockPush.mock.calls.map(([href]) => href)).toEqual(
+    ancestors.map((entry) => `/p/${entry.id}`),
+  );
+  expect(crumbs[12].props.current).toBe(true);
+  expect(crumbs[12].props.href).toBeUndefined();
 });
 it('keeps the current page visible while ancestry is loading and after a failed request', async () => {
   let reject!: (error: Error) => void;
