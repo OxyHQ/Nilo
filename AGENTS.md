@@ -40,6 +40,15 @@ in issues. This file holds only rules, commands, and pointers. Budget: under
 Use page, block, database, view, workspace, member, and collaboration. Do not
 reuse legacy chat vocabulary for workspace concepts.
 
+## UI composition
+
+Before UI work, read Bloom's [UI architecture](https://github.com/OxyHQ/Bloom/blob/main/docs/ui-architecture.mdx)
+(`../Bloom/docs/ui-architecture.mdx` locally) and `docs/onboarding.md`.
+Use actual Bloom components and its compositor; Nilo supplies product data,
+permissions and actions. Improve missing shared behavior in Bloom. Normal
+application sizing is `md`; Surface owns material and containers own scrolling.
+Preserve approved Bloom visuals while comparing Notion's behavior and appearance.
+
 ## Commands
 
 npm releases: only Actions → Release packages (`release-packages.yml`, Oxy's shared

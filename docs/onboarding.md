@@ -68,9 +68,11 @@ Page actions use `DropdownMenu` with appearance and export submenus. Their
 content must not introduce a fixed-height `ScrollView` inside the floating
 surface. Missing viewport or scroll behavior must be implemented in Bloom's
 own container. Apply the same ownership rule to other menus and popovers.
-Bloom's `docs/ui-architecture.mdx` is the shared architectural contract for
-consumer work; its adoption matrix distinguishes requirements from implemented
-coverage.
+Mixed action/form popovers use `PopoverItem` for their action rows and let
+`PopoverContent` own overflow, including when switching to view settings.
+Bloom's [UI architecture](https://github.com/OxyHQ/Bloom/blob/main/docs/ui-architecture.mdx)
+is the shared architectural contract for consumer work; its adoption matrix
+distinguishes requirements from implemented coverage.
 
 ## Setup
 
