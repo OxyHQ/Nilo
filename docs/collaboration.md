@@ -80,6 +80,12 @@ checks the person may read the page):
 - `doc:update { pageId, update }` → `{ ok }`: one change, from someone who
   may edit the page (checked again every ten seconds per page). Stored, sent
   to everyone else in the room, projected once the burst settles.
+- `page:projected { pageId }`: sent to every reader in the same authorized room,
+  including the author, after a changed projection commits metadata and history.
+  The payload is an invalidation ID only. The client refreshes that page’s
+  metadata and version list, leaving its live document and optimistic metadata
+  mutations alone. A document acknowledgement or incoming update does not imply
+  that projection has finished; neither triggers a guessed-delay refetch.
 
 The Redis adapter carries the room across the API's tasks.
 

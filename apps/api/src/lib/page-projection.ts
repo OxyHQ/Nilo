@@ -33,6 +33,8 @@ import type { z } from 'zod';
 import * as Y from 'yjs';
 import type { segmentSchema } from '@oxy.so/nilo-contracts';
 import { announceChange } from '../collab/live-rooms.js';
+import { pageRoom } from '../collab/page-rooms.js';
+import { getIO } from '../socket.js';
 import { getDb, type PgHandle } from '../db/client.js';
 import { isSystemDatabase } from './databases/system.js';
 import {
@@ -205,6 +207,10 @@ export async function projectPage(db: PgHandle, pageId: string): Promise<void> {
       .map(([userId, at]) => ({ userId, ...at }));
   });
   if (!changed) return;
+  // Projection (including metadata and history) is committed. Tell every reader,
+  // including the editing socket; doc:update's acknowledgement precedes this.
+  // This authorized room carries only an invalidation ID, never page content.
+  getIO()?.to(pageRoom(pageId)).emit('page:projected', { pageId });
   const page = await findPageById(db, pageId);
   if (!page) return;
   // An app syncing a system database (Noted's notes) hears a body edit as a

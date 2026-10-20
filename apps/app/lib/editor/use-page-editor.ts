@@ -85,16 +85,29 @@ export function usePageEditor(
     let binding: YjsBinding | null = null;
     let stopFocus: (() => void) | null = null;
 
-    // This page's own record ("edited … by …"), once changes pause.
-    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    // The projection event arrives after metadata and history commit. A document
+    // acknowledgement alone is too early, and peers' doc:update precedes it too.
     const refreshPageInfo = () => {
-      clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => {
+      if (
+        queryClient.isMutating({
+          mutationKey: ['page-update'],
+          predicate: (mutation) =>
+            (mutation.state.variables as { id?: string } | undefined)?.id === pageId,
+        }) === 0
+      ) {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.pages.detail(pageId),
           exact: true,
         });
-      }, 1000);
+      }
+    };
+    const onProjected = (event: { pageId: string }) => {
+      if (event.pageId !== pageId) return;
+      refreshPageInfo();
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.versions.list(pageId),
+        exact: true,
+      });
     };
 
     const release = holdPageSession(pageId, {
@@ -136,9 +149,6 @@ export function usePageEditor(
       },
     });
 
-    const onRemote = (event: { pageId: string }) => {
-      if (event.pageId === pageId) refreshPageInfo();
-    };
     // Who is there, whole when someone joins or leaves; one member's move in between.
     const onPresence = (event: { pageId: string; users: Collaborator[] }) => {
       if (event.pageId === pageId) setCollaborators(event.users);
@@ -149,14 +159,13 @@ export function usePageEditor(
       setCollaborators((list) => withMove(list, { userId, blockId, selection }));
     };
     const clearPresence = () => setCollaborators([]);
-    socket.on('doc:update', onRemote);
+    socket.on('page:projected', onProjected);
     socket.on('page:presence', onPresence);
     socket.on('page:presence:focus', onMove);
     socket.on('disconnect', clearPresence);
 
     return () => {
-      clearTimeout(refreshTimer);
-      socket.off('doc:update', onRemote);
+      socket.off('page:projected', onProjected);
       socket.off('page:presence', onPresence);
       socket.off('page:presence:focus', onMove);
       socket.off('disconnect', clearPresence);
