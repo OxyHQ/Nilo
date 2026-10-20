@@ -11,38 +11,82 @@ import { getDb } from '../db/client.js';
 import { log } from '../lib/logger.js';
 import { findPageById } from '../repositories/pages.js';
 import { resolvePageAccess } from '../lib/page-access.js';
+import { type PageSelection, readPageSelection } from './page-selection.js';
 
 const ID_PATTERN = /^[0-9a-f-]{24,36}$/i;
 
 export const pageRoom = (pageId: string) => `page:${pageId}`;
 
-/** One collaborator in a page: who, and which block their caret is in. */
+/**
+ * One collaborator in a page: who, which block their caret is in, and where
+ * in its text (`page-selection.ts`) when they told.
+ */
 export interface PagePresence {
   userId: string;
   blockId: string | null;
+  selection: PageSelection | null;
 }
 
 type Ack = (response: { ok: true } | { ok: false; error: string }) => void;
 
-interface SocketData {
-  userId?: string;
-  /** The focused block per joined page. */
-  focus?: Record<string, string | null>;
+/** Where a socket is in a page. */
+interface Focus {
+  blockId: string | null;
+  selection: PageSelection | null;
 }
 
-async function broadcastPresence(io: Server, pageId: string): Promise<void> {
+interface SocketData {
+  userId?: string;
+  /** Per joined page. */
+  focus?: Record<string, Focus>;
+}
+
+const NO_FOCUS: Focus = { blockId: null, selection: null };
+
+const rank = ({ blockId, selection }: Focus) => (selection ? 2 : blockId ? 1 : 0);
+
+async function sendPresence(io: Server, pageId: string): Promise<void> {
   const sockets = await io.in(pageRoom(pageId)).fetchSockets();
   const byUser = new Map<string, PagePresence>();
   for (const s of sockets) {
     const data = s.data as SocketData;
     if (!data.userId) continue;
-    const blockId = data.focus?.[pageId] ?? null;
+    const { blockId, selection } = data.focus?.[pageId] ?? NO_FOCUS;
+    // One per person: the tab they are selecting in, else one with a caret.
     const existing = byUser.get(data.userId);
-    if (!existing || (existing.blockId === null && blockId !== null)) {
-      byUser.set(data.userId, { userId: data.userId, blockId });
+    if (!existing || rank(existing) < rank({ blockId, selection })) {
+      byUser.set(data.userId, { userId: data.userId, blockId, selection });
     }
   }
   io.to(pageRoom(pageId)).emit('page:presence', { pageId, users: [...byUser.values()] });
+}
+
+/**
+ * Pages whose presence is being sent from this task, and those changed again
+ * meanwhile. A selection moves as someone types: each change does not cost a
+ * round of `fetchSockets` across tasks, one follows the one in flight with
+ * everything changed since.
+ */
+const sending = new Set<string>();
+const again = new Set<string>();
+
+async function broadcastPresence(io: Server, pageId: string): Promise<void> {
+  if (sending.has(pageId)) {
+    again.add(pageId);
+    return;
+  }
+  sending.add(pageId);
+  try {
+    do {
+      again.delete(pageId);
+      await sendPresence(io, pageId);
+    } while (again.has(pageId));
+  } catch (err: unknown) {
+    log.general.error({ err, pageId }, 'page presence failed');
+  } finally {
+    sending.delete(pageId);
+    again.delete(pageId);
+  }
 }
 
 export function registerPageRooms(io: Server, socket: Socket): void {
@@ -70,7 +114,7 @@ export function registerPageRooms(io: Server, socket: Socket): void {
         return;
       }
       await socket.join(pageRoom(pageId));
-      data.focus = { ...data.focus, [pageId]: null };
+      data.focus = { ...data.focus, [pageId]: NO_FOCUS };
       reply({ ok: true });
       await broadcastPresence(io, pageId);
     } catch (err: unknown) {
@@ -86,12 +130,19 @@ export function registerPageRooms(io: Server, socket: Socket): void {
     await broadcastPresence(io, pageId);
   });
 
+  // Where this member is: a block, and the text selected in it (Bloom's
+  // relative selection), which must be in that block.
   socket.on('page:focus', async (payload: unknown) => {
-    const { pageId, blockId } = (payload ?? {}) as { pageId?: unknown; blockId?: unknown };
+    const { pageId, blockId, selection } = (payload ?? {}) as {
+      pageId?: unknown;
+      blockId?: unknown;
+      selection?: unknown;
+    };
     if (typeof pageId !== 'string' || !socket.rooms.has(pageRoom(pageId))) return;
+    const block = typeof blockId === 'string' && ID_PATTERN.test(blockId) ? blockId : null;
     data.focus = {
       ...data.focus,
-      [pageId]: typeof blockId === 'string' && ID_PATTERN.test(blockId) ? blockId : null,
+      [pageId]: { blockId: block, selection: readPageSelection(selection, block) },
     };
     await broadcastPresence(io, pageId);
   });

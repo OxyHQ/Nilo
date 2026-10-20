@@ -101,11 +101,50 @@ export function unsyncReference(
   ]);
 }
 
-/** The originals a transaction removed (with their subtrees). */
-export function removedOriginals(tx: Transaction): string[] {
-  return tx.ops.flatMap((op) =>
-    op.kind === 'remove' ? op.blocks.filter(isSyncedOriginal).map((b) => b.id) : [],
-  );
+/**
+ * The originals removing `ids` would take: those blocks and everything inside
+ * them (a block's children go with it).
+ */
+export function originalsWithin(doc: EditorDocument, ids: readonly string[]): string[] {
+  const found: string[] = [];
+  const seen = new Set<string>();
+  const visit = (id: string) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    const block = doc.blocks[id];
+    if (!block) return;
+    if (isSyncedOriginal(block)) found.push(id);
+    for (const child of block.children) visit(child);
+  };
+  for (const id of ids) visit(id);
+  return found;
+}
+
+/** Whether `blockId` is `ancestorId` or inside it. */
+function isWithin(doc: EditorDocument, blockId: string, ancestorId: string): boolean {
+  for (let at: string | null = blockId; at; at = doc.blocks[at]?.parent ?? null) {
+    if (at === ancestorId) return true;
+  }
+  return false;
+}
+
+/**
+ * What pasting `text` into `blockId` of page `pageId` puts there when it is
+ * the link "Copy and sync" put on the clipboard (`linkOf(copied)`): a
+ * reference to that original. Null for any other text, or where the original
+ * would be shown inside itself, which is pasted as the link it is.
+ */
+export function pastedSyncedReference(
+  doc: EditorDocument,
+  pageId: string,
+  blockId: string,
+  text: string,
+  copied: SyncedRef | null,
+  linkOf: (ref: SyncedRef) => string,
+): BlockSnapshot | null {
+  if (!copied || text.trim() !== linkOf(copied)) return null;
+  if (copied.pageId === pageId && isWithin(doc, blockId, copied.blockId)) return null;
+  return syncedReference(copied);
 }
 
 /**

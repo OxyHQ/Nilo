@@ -83,6 +83,36 @@ checks the person may read the page):
 
 The Redis adapter carries the room across the API's tasks.
 
+## Who else is on the page
+
+`apps/api/src/collab/page-rooms.ts`. Each socket in a page's room tells
+where its member is, `page:focus { pageId, blockId, selection }`, and
+everyone in the room hears `page:presence { pageId, users: [{ userId,
+blockId, selection }] }` (one entry per person: the tab they are selecting
+in, else one with a caret).
+
+- `selection` is Bloom's `RelativeSelection` (`@oxy.so/bloom-editor/yjs`):
+  the block and two Yjs relative positions in its text, so it stays on the
+  same characters on every device whatever is typed meanwhile. The server
+  reads it field by field into a new object (`collab/page-selection.ts`:
+  the shape `relativePositionToJSON` writes, bounded numbers and names, in
+  the block focused) and passes nothing else on.
+- Presence for a page is sent from one task at a time: a change while one is
+  in flight is sent once after it, with everything changed since, so a
+  selection moving as someone types does not cost a `fetchSockets` round each.
+- The editor tells it (`apps/app/lib/editor/presence-focus.ts`) when it
+  changes, at most every 150 ms while it moves, ending where it settled.
+  An embedded editor (a synced block) and a reader tell nothing.
+- Each collaborator's selection is placed against the page's document as it
+  is now (`relativeToSelection`) and drawn with `BlockDecoration.ranges`
+  (`components/page-editor/presence.ts`): their colour's shade behind what
+  they selected, a caret with their name at its end, the colour the same for
+  a member everywhere. Placed again whenever the page's text changes. One
+  this device cannot place (the edits it was made after have not arrived,
+  or none was told) is the block's coloured edge instead. Bloom draws
+  ranges over a block's text on every platform, and over the input of the
+  block being edited on web; not over a native input being edited.
+
 ## The session on the device
 
 `apps/app/lib/editor/page-session.ts`, wired by `usePageEditor`:
@@ -123,10 +153,20 @@ that page's store, inside an `EditorSurface` of its own: editing there edits
 the original, live for everyone, when the reader may edit the original's
 page; read only otherwise. "Copy and sync" makes a block an original (wrapped
 where it stood) and keeps it for "Paste synced block"; "Unsync" puts a copy
-of the original's blocks in the reference's place. Deleting an original
-warns, with undo, how many other pages will show "Original deleted".
+of the original's blocks in the reference's place. Pasting (⌘V, web) the
+link "Copy and sync" put on the clipboard pastes a reference too, except
+inside the original itself (Bloom's `onPasteText`). Deleting an original
+shown on other pages asks first, saying how many will show "Original
+deleted" (Bloom's `confirmRemove`, with `GET /blocks/:id/synced`).
 Exports, share links and published pages read references on the server
 (`apps/api/src/lib/synced-blocks.ts`).
+
+On web every block row has a DOM id, `blockDomId(id, prefix)`. An original
+shown by a reference on its own page would have its rows there twice, so
+each reference's surface has a prefix of its own, per path to it
+(`lib/editor/dom-ids.ts`); what scrolls to one of the page's blocks (the
+table of contents, a search result, a comment's text) looks under the
+page's own (`pageBlockDomId`).
 
 ## Comments on text
 
@@ -134,9 +174,13 @@ A comment may be on a stretch of its block's text: `anchor { start, end,
 quote }`. Offsets drift as the block is edited, so the quote is what holds:
 the comment panel finds it again where it was, else at its nearest
 occurrence, else says the original text changed (`lib/comments/anchor.ts`).
-Bloom draws decorations on whole blocks, so the text itself is not
-highlighted: its block carries the comment edge, and pressing the quote
-selects the text.
+The text of each open comment is shaded in the page where it is found
+(`commentHighlights`, the same search, run again as the page changes), under
+any collaborator's selection there; its block keeps the comment edge, and
+pressing the quote selects that text. "Comment" is one of the editor's
+format actions: in the selection bubble on web and in the toolbar on touch
+devices (both read it from the page's `EditorController`), besides the
+block's menu and ⌘⇧M.
 
 ## On the device
 
@@ -215,7 +259,13 @@ so open editors receive it live.
   devices.
 - `apps/api/src/lib/page-docs.pgdb.test.ts`, `collab/page-rooms.pgdb.test.ts`
   — seeding, compaction, refusals; the room carrying edits, refusing a
-  viewer's, merging offline work.
+  viewer's, merging offline work, carrying a selection and refusing what is
+  not one; `collab/page-selection.test.ts` — what Bloom broadcasts passes and
+  still resolves, nothing else does.
+- `apps/app/components/page-editor/__tests__/presence.test.ts` — selections
+  and comment highlights placed and followed through edits, the edge when a
+  selection cannot be placed; `lib/editor/__tests__/presence-focus.test.ts`
+  — what is told and how often.
 - `apps/app/lib/editor/__tests__/page-session.test.ts` — the session against
   a fake room (`test-support/fake-room.ts`); `shared-sessions.test.ts` — one
   page in two places on one document and one room.

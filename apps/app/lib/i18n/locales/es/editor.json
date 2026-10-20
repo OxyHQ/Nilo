@@ -410,11 +410,13 @@
       "unavailable": "No se puede abrir el original de este bloque sincronizado.",
       "loading": "Cargando bloque sincronizado…",
       "loop": "Este bloque sincronizado está dentro de su propio original.",
-      "deletedWarning": {
-        "one": "Bloque sincronizado original eliminado: %{count} página más muestra ahora «Original eliminado».",
-        "other": "Bloque sincronizado original eliminado: %{count} páginas más muestran ahora «Original eliminado»."
+      "deleteDialog": {
+        "title": "¿Eliminar el bloque sincronizado?",
+        "description": {
+          "one": "Se muestra en %{count} página más, que mostrará «Original eliminado» en su lugar.",
+          "other": "Se muestra en %{count} páginas más, que mostrarán «Original eliminado» en su lugar."
+        }
       },
-      "undo": "Deshacer",
       "picker": {
         "title": "Pegar bloque sincronizado",
         "search": "Buscar bloques sincronizados",

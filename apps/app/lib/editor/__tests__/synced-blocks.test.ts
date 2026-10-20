@@ -1,16 +1,11 @@
-import {
-  type BlockSnapshot,
-  documentFromSnapshot,
-  EditorStore,
-  removeBlocks,
-  type Transaction,
-} from '@oxy.so/bloom-editor';
+import { type BlockSnapshot, documentFromSnapshot, EditorStore } from '@oxy.so/bloom-editor';
 import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 import {
   isSyncedOriginal,
   newSyncedOriginal,
   referenceOf,
-  removedOriginals,
+  originalsWithin,
+  pastedSyncedReference,
   syncedClipboard,
   syncedReference,
   syncedSourceFor,
@@ -110,16 +105,45 @@ describe('unsync', () => {
   });
 });
 
-it('tells which originals a change removed', () => {
+it('tells which originals removing blocks would take, inside them too', () => {
   const store = storeOf([
     { type: 'toggle', text: [{ text: 'T' }], children: [newSyncedOriginal()] },
     syncedReference({ blockId: 'x', pageId: 'p' }),
+    newSyncedOriginal(),
   ]);
-  const original = store.doc.blocks[store.doc.root[0] as string]?.children[0];
-  const seen: Transaction[] = [];
-  store.onTransaction((tx) => seen.push(tx));
-  store.run((c) => removeBlocks(c, [...store.doc.root]));
-  expect(removedOriginals(seen[0] as Transaction)).toEqual([original]);
+  const [toggle, reference, second] = store.doc.root as [string, string, string];
+  const nested = store.doc.blocks[toggle]?.children[0];
+  expect(originalsWithin(store.doc, [toggle, reference])).toEqual([nested]);
+  expect(originalsWithin(store.doc, [reference])).toEqual([]);
+  expect(originalsWithin(store.doc, [second, toggle, 'gone'])).toEqual([second, nested]);
+});
+
+describe('pasting what "Copy and sync" copied', () => {
+  const linkOf = (ref: { pageId: string; blockId: string }) =>
+    `https://nilo.test/p/${ref.pageId}?blockId=${ref.blockId}`;
+
+  it('is a reference to the original when the text is its link', () => {
+    const store = storeOf([para('Here')]);
+    const target = store.doc.root[0] as string;
+    const copied = { blockId: 'orig', pageId: 'other' };
+    expect(
+      pastedSyncedReference(store.doc, 'page', target, ` ${linkOf(copied)}\n`, copied, linkOf),
+    ).toEqual(syncedReference(copied));
+  });
+
+  it('is nothing for other text, nothing copied, or inside the original itself', () => {
+    const store = storeOf([newSyncedOriginal(), para('Outside')]);
+    const [original, outside] = store.doc.root as [string, string];
+    const inside = store.doc.blocks[original]?.children[0] as string;
+    const copied = { blockId: original, pageId: 'page' };
+    const link = linkOf(copied);
+    expect(pastedSyncedReference(store.doc, 'page', outside, 'hello', copied, linkOf)).toBeNull();
+    expect(pastedSyncedReference(store.doc, 'page', outside, link, null, linkOf)).toBeNull();
+    expect(pastedSyncedReference(store.doc, 'page', inside, link, copied, linkOf)).toBeNull();
+    expect(pastedSyncedReference(store.doc, 'page', outside, link, copied, linkOf)).toEqual(
+      syncedReference(copied),
+    );
+  });
 });
 
 it('keeps what was copied for pasting, and says when it changes', () => {

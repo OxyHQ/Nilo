@@ -149,6 +149,47 @@ describe('page rooms', () => {
       '0192f0c4-7d4e-7c2a-9b1e-3f5a6b7c8d9e',
     );
   });
+
+  it('carries where in the block a member has selected, and nothing that is not a selection', async () => {
+    // The sockets of the test before are not on the page any more.
+    for (const old of clients.splice(0)) old.disconnect();
+    const alice = await client('alice');
+    const bob = await client('bob');
+    expect((await join(alice, pageId)).ok).toBe(true);
+    expect((await join(bob, pageId)).ok).toBe(true);
+    const blockId = '0192f0c4-7d4e-7c2a-9b1e-3f5a6b7c8d9e';
+    const position = { type: { client: 7, clock: 3 }, item: { client: 7, clock: 9 }, assoc: 0 };
+    const selection = { blockId, start: position, end: { ...position, assoc: -1 } };
+    type Presence = {
+      users: { userId: string; blockId: string | null; selection: unknown }[];
+    };
+    const selected = next<Presence>(bob, 'page:presence', (p) =>
+      p.users.some((u) => u.selection !== null),
+    );
+    alice.emit('page:focus', { pageId, blockId, selection });
+    expect((await selected).users.find((u) => u.userId === 'alice')).toEqual({
+      userId: 'alice',
+      blockId,
+      selection,
+    });
+
+    // A selection in another block than the one focused, or of another shape: none.
+    const cleared = next<Presence>(bob, 'page:presence', (p) =>
+      p.users.every((u) => u.selection === null && (u.userId !== 'alice' || u.blockId !== null)),
+    );
+    alice.emit('page:focus', {
+      pageId,
+      blockId,
+      selection: { ...selection, start: { ...position, payload: 'x'.repeat(4096) } },
+    });
+    expect((await cleared).users.find((u) => u.userId === 'alice')?.blockId).toBe(blockId);
+
+    const elsewhere = next<Presence>(bob, 'page:presence', (p) =>
+      p.users.some((u) => u.userId === 'alice' && u.blockId === null),
+    );
+    alice.emit('page:focus', { pageId, blockId: null, selection });
+    expect((await elsewhere).users.find((u) => u.userId === 'alice')?.selection).toBeNull();
+  });
 });
 
 type Reply = {

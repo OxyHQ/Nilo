@@ -4,6 +4,7 @@ import { Text } from '@oxy.so/bloom/typography';
 import { useOptionalPageEditorContext } from '@/components/page-editor/page-editor-context';
 import { useTranslation } from '@/hooks/useTranslation';
 import { blockText, locateAnchor } from '@/lib/comments/anchor';
+import { pageBlockDomId } from '@/lib/editor/dom-ids';
 import type { CommentAnchor } from '@/lib/types/comments';
 import { useColorScheme } from '@/lib/useColorScheme';
 
@@ -14,9 +15,9 @@ const noop = () => () => {};
  * (`locateAnchor`): pressing it selects that text in the editor. Gone from
  * its block (or the block gone), it says the original text changed.
  *
- * Bloom draws decorations on whole blocks only, so the text is not
- * highlighted in the page: its block carries the comment edge, and the
- * quote is here.
+ * The page shades the same stretch while the comment is open
+ * (`commentHighlights`, found again the same way), so what pressing this
+ * selects is what is highlighted.
  */
 export function CommentQuote({
   blockId,
@@ -42,7 +43,7 @@ export function CommentQuote({
     const [start, end] = where.split(':').map(Number) as [number, number];
     if (Platform.OS === 'web') {
       document
-        .getElementById(`bloom-block-${blockId}`)
+        .getElementById(pageBlockDomId(blockId))
         ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     store.setSelection({ kind: 'text', blockId, start, end });

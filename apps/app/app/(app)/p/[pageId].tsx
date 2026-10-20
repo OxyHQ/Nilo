@@ -222,10 +222,7 @@ function PageDetail({
             onClose={() => setCommentPanel({ open: false, focusedBlockId: null })}
           />
         </View>
-        <PageEditorToolbar
-          readOnly={contentReadOnly}
-          onComment={hasRole(role, 'commenter') ? handleOpenPanel : undefined}
-        />
+        <PageEditorToolbar readOnly={contentReadOnly} />
       </PageChrome>
     </PageEditorProvider>
   );

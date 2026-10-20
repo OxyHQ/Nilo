@@ -1,4 +1,6 @@
-import { anchorFor, locateAnchor, MAX_QUOTE_LENGTH } from '../anchor';
+import { documentFromSnapshot, EditorStore } from '@oxy.so/bloom-editor';
+import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
+import { anchorFor, commentHighlights, locateAnchor, MAX_QUOTE_LENGTH } from '../anchor';
 
 describe('anchorFor', () => {
   it('quotes the selected text, whichever way it was selected', () => {
@@ -32,5 +34,42 @@ describe('locateAnchor', () => {
 
   it('says when the text is gone', () => {
     expect(locateAnchor('Hello there', anchor)).toBeNull();
+  });
+});
+
+describe('commentHighlights', () => {
+  it('finds the text of open comments where it is now, and nothing else', () => {
+    let next = 0;
+    const newId = () => {
+      next += 1;
+      return `b${next}`;
+    };
+    const store = new EditorStore({
+      document: documentFromSnapshot(
+        [
+          { type: 'paragraph', text: [{ text: 'Oh, hello world' }] },
+          { type: 'paragraph', text: [{ text: 'Other' }] },
+        ],
+        newId,
+        NILO_SCHEMA,
+      ),
+      schema: NILO_SCHEMA,
+      newId,
+    });
+    const [first, second] = store.doc.root as [string, string];
+    const open = { parentCommentId: null, resolvedAt: null };
+    const world = { start: 6, end: 11, quote: 'world' };
+    expect(
+      commentHighlights(store, [
+        // Moved by text typed before it: where it is now.
+        { ...open, blockId: first, anchor: world },
+        // Resolved, a reply, on the whole block, its text gone, its block gone.
+        { ...open, blockId: first, anchor: world, resolvedAt: '2026-10-20' },
+        { ...open, blockId: first, anchor: world, parentCommentId: 'c1' },
+        { ...open, blockId: first, anchor: null },
+        { ...open, blockId: second, anchor: world },
+        { ...open, blockId: 'gone', anchor: world },
+      ]),
+    ).toEqual([{ blockId: first, start: 10, end: 15 }]);
   });
 });
