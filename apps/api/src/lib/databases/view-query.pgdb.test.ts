@@ -678,7 +678,9 @@ describe('a grouped view in SQL', () => {
     }
     // The groups are many: most properties split the rows several ways.
     expect(groups).toBeGreaterThan(300);
-  });
+    // Ninety-six views, each read page by page in SQL and in JS: past the
+    // suite's 30 s on a shared CI runner, not stuck.
+  }, 120_000);
 
   it('puts a row with several labels or people in each of their groups', async () => {
     for (const propertyId of ['ms', 'p1']) {
@@ -777,5 +779,6 @@ describe('calculations in SQL', () => {
     }
     expect(compared).toBeGreaterThan(300);
     expect(nonZero).toBeGreaterThan(compared * 0.6);
-  });
+    // Every function of every type, three ways each: a long test, not a stuck one.
+  }, 120_000);
 });
