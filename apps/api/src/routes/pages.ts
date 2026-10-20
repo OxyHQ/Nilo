@@ -39,6 +39,7 @@ import { mintFileUrls } from '../lib/files.js';
 import { notifyAssigned } from '../lib/databases/assignments.js';
 import { projectNow } from '../lib/page-projection.js';
 import { blocksToPdf, type ImageLoader, imageSources } from '../lib/pdf-export.js';
+import { attachment } from '../lib/attachment.js';
 import { exportContext } from '../lib/export-context.js';
 import { ExportTooLarge, exportPagesZip, zipExports } from '../lib/export-zip.js';
 import { servableFileIds } from '../repositories/pageFiles.js';
@@ -965,20 +966,6 @@ async function exportImageLoader(
 
 /** A PDF is drawn on the server: a member gets a few a minute. */
 const pdfExports = rateLimit('page-export-pdf', { max: 10, windowMs: 60_000 });
-
-/** The headers of a file a browser saves, named for every OS and, exactly, for RFC 5987 readers. */
-function attachment(res: Response, title: string, extension: string, type: string): void {
-  const ascii =
-    title
-      .normalize('NFKD')
-      .replace(/[^a-zA-Z0-9-_]+/gu, '-')
-      .replace(/^-+|-+$/g, '') || 'page';
-  res.setHeader('Content-Type', type);
-  res.setHeader(
-    'Content-Disposition',
-    `attachment; filename="${ascii}.${extension}"; filename*=UTF-8''${encodeURIComponent(`${title}.${extension}`)}`,
-  );
-}
 
 router.get(
   '/:id/export',
