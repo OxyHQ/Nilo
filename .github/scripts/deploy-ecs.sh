@@ -31,6 +31,17 @@ RELEASE_TASK_DEFINITION=$(aws ecs register-task-definition \
 
 NETWORK=$(jq -c '.services[0].networkConfiguration.awsvpcConfiguration' <<<"$SERVICE")
 
+# The task runs where the service runs: on its capacity provider strategy when
+# it has one (oxy-cluster's EC2 capacity, whose revisions are EC2-only),
+# otherwise on its launch type. A hard-coded FARGATE would refuse an EC2-only
+# revision and fail the deploy before the rollout.
+PLACEMENT_STRATEGY=$(jq -c '.capacityProviderStrategy // []' <<<"$(jq '.services[0]' <<<"$SERVICE")")
+if [ "$PLACEMENT_STRATEGY" != "[]" ]; then
+  PLACEMENT=(--capacity-provider-strategy "$PLACEMENT_STRATEGY")
+else
+  PLACEMENT=(--launch-type "$(jq -r '.launchType // "FARGATE"' <<<"$(jq '.services[0]' <<<"$SERVICE")")")
+fi
+
 # One task with the release image and the service's network, on the given
 # command; a non-zero exit fails the deploy.
 run_oneshot() {
@@ -39,7 +50,7 @@ run_oneshot() {
   overrides=$(jq -nc --arg container "$APP" --argjson command "$command" '{
     containerOverrides: [{ name: $container, command: $command }]
   }')
-  task_arn=$(aws ecs run-task --cluster "$CLUSTER" --launch-type FARGATE \
+  task_arn=$(aws ecs run-task --cluster "$CLUSTER" "${PLACEMENT[@]}" \
     --task-definition "$RELEASE_TASK_DEFINITION" \
     --network-configuration "$(jq -nc --argjson config "$NETWORK" '{awsvpcConfiguration: $config}')" \
     --overrides "$overrides" --query 'tasks[0].taskArn' --output text)
