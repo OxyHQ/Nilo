@@ -23,14 +23,13 @@ import type {
   SelectOption,
 } from '@/lib/types/databases';
 import { statusGroups } from '@/lib/status-groups';
-import type { RowSection } from '@/lib/view-groups';
 import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
-import { groupProperty, groupValue, rowSections, sectionOptions } from '@/lib/view-groups';
+import { groupValue, type RowSection } from '@/lib/view-groups';
 import { orderedProperties } from '@/lib/view-properties';
 import { PropertyCell } from './property-cell';
 import { useOpenRow } from './open-row';
 import { SELECT_CHIP_HUE } from './select-color';
-import { GroupHeader, useViewGroups } from './group-header';
+import { GroupHeader, useGroupedSections } from './group-header';
 
 interface ViewBoardProps {
   database: Database;
@@ -189,17 +188,12 @@ export function ViewBoard({
   );
   const sections = React.useMemo(() => buildSections(rows), [buildSections, rows]);
 
-  const subGroup = groupProperty(database.schema.properties, view.subGroupBy);
-  const lanes =
-    subGroup && groups
-      ? rowSections(rows, groups, {
-          hideEmpty: view.subGroupBy?.hideEmpty,
-          complete: !hasMore,
-          ...sectionOptions(view),
-        })
-      : null;
-  const laneKeys = lanes?.map((lane) => lane.key) ?? [];
-  const viewLanes = useViewGroups(database.id, view, viewEditable, groups);
+  const {
+    grouping: subGroup,
+    sections: lanes,
+    isCollapsed,
+    headerProps,
+  } = useGroupedSections(database, view, rows, groups, hasMore, 'subGroupBy', viewEditable);
 
   const moveRow = React.useCallback(
     (rowId: string, value: PropertyValue) => {
@@ -291,23 +285,14 @@ export function ViewBoard({
       <View className={lanes ? 'gap-2 px-3 py-3' : 'flex-row gap-3 px-3 py-3'}>
         {lanes && subGroup
           ? lanes.map((lane) => {
-              const collapsed = viewLanes.isCollapsed(lane.key);
+              const collapsed = isCollapsed(lane.key);
               return (
                 <View
                   key={`lane-${lane.key === null ? '\u0000' : lane.key}`}
                   testID={`board-lane-${lane.key ?? 'none'}`}
                   className="gap-1"
                 >
-                  <GroupHeader
-                    property={subGroup}
-                    groupKey={lane.key}
-                    granularity={view.subGroupBy?.granularity}
-                    range={lane.range}
-                    count={lane.count}
-                    collapsed={collapsed}
-                    onToggle={() => viewLanes.toggle(lane.key)}
-                    actions={viewLanes.actionsFor(lane.key, laneKeys)}
-                  />
+                  <GroupHeader {...headerProps(lane)} />
                   {collapsed ? null : (
                     <View className="flex-row gap-3">
                       {renderColumns(buildSections(lane.rows), lane)}

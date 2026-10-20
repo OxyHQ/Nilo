@@ -10,9 +10,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 import type { Database, DatabaseRow, DatabaseView, RowGroup } from '@/lib/types/databases';
 import { dayOf, readDateValue } from '@/lib/date-values';
 import { useVisibleDatesStore } from '@/lib/stores/visible-dates-store';
-import { groupProperty, rowSections, sectionOptions } from '@/lib/view-groups';
 import { visibleDatesFilter } from '@/lib/visible-dates';
-import { GroupHeader, useViewGroups } from './group-header';
+import { GroupHeader, useGroupedSections } from './group-header';
 import { useOpenRow } from './open-row';
 
 interface ViewTimelineProps {
@@ -49,18 +48,13 @@ export function ViewTimeline({
   viewEditable = false,
 }: ViewTimelineProps) {
   const openRow = useOpenRow();
-  const viewGroups = useViewGroups(database.id, view, viewEditable, groups);
-  const grouping = groupProperty(database.schema.properties, view.groupBy);
   // Every row of the dates shown is read: each lane is whole.
-  const lanes =
-    grouping && groups
-      ? rowSections(rows, groups, {
-          hideEmpty: view.groupBy?.hideEmpty,
-          complete: true,
-          ...sectionOptions(view),
-        })
-      : null;
-  const laneKeys = lanes?.map((lane) => lane.key) ?? [];
+  const {
+    grouping,
+    sections: lanes,
+    isCollapsed,
+    headerProps,
+  } = useGroupedSections(database, view, rows, groups, false, 'groupBy', viewEditable);
   const { t, locale } = useTranslation();
   const { width } = useWindowDimensions();
   // A phone keeps most of its width for the bars.
@@ -245,7 +239,7 @@ export function ViewTimeline({
           ) : null}
           {lanes && grouping
             ? lanes.map((lane) => {
-                const collapsed = viewGroups.isCollapsed(lane.key);
+                const collapsed = isCollapsed(lane.key);
                 const prefix = `${lane.key === null ? '\u0000' : lane.key}:`;
                 return (
                   <View
@@ -259,16 +253,7 @@ export function ViewTimeline({
                       style={{ width: gridWidth + titleWidth }}
                     >
                       <View style={{ width: Math.min(width, gridWidth + titleWidth) }}>
-                        <GroupHeader
-                          property={grouping}
-                          groupKey={lane.key}
-                          granularity={view.groupBy?.granularity}
-                          range={lane.range}
-                          count={lane.count}
-                          collapsed={collapsed}
-                          onToggle={() => viewGroups.toggle(lane.key)}
-                          actions={viewGroups.actionsFor(lane.key, laneKeys)}
-                        />
+                        <GroupHeader {...headerProps(lane)} />
                       </View>
                     </View>
                     {collapsed ? null : renderBars(barsOf(lane.rows), prefix)}

@@ -1,3 +1,4 @@
+import { numberGroupRange, numberRanges, withoutGroupKeys } from '@oxy.so/nilo-contracts';
 import { runButtonActions } from '../button-actions';
 import { formatCalculation } from '../calculations';
 import { barLayout, donutArcs, foldSlices, linePath, niceTicks } from '../chart-geometry';
@@ -11,10 +12,8 @@ import {
   groupValue,
   moveGroup,
   numberGroupingOf,
-  numberRangeOf,
   placeGroup,
   rowSections,
-  withoutGroupKeys,
 } from '../view-groups';
 import { columnWidth, moveProperty, orderedProperties, placeProperty } from '../view-properties';
 
@@ -75,16 +74,16 @@ describe('a grouped view’s sections', () => {
 
   it('lists the groups in order with their loaded rows, leaving those not reached yet', () => {
     const rows = [row('1', 'todo'), row('2', 'todo'), row('3', 'done')];
-    const partial = rowSections(rows, groups, { complete: false });
+    const partial = rowSections(rows, groups, {}, { complete: false });
     expect(partial.map((s) => [s.key, s.count, s.rows.map((r) => r.id)])).toEqual([
       ['todo', 2, ['1', '2']],
       ['doing', 0, []],
       ['done', 3, ['3']],
     ]);
-    const all = rowSections([...rows, row('4', null)], groups, { complete: true });
+    const all = rowSections([...rows, row('4', null)], groups, {}, { complete: true });
     expect(all.map((s) => s.key)).toEqual(['todo', 'doing', 'done', null]);
     expect(
-      rowSections(rows, groups, { complete: true, hideEmpty: true }).map((s) => s.key),
+      rowSections(rows, groups, {}, { complete: true, hideEmpty: true }).map((s) => s.key),
     ).toEqual(['todo', 'done', null]);
   });
 
@@ -118,15 +117,18 @@ describe('a grouped view’s sections', () => {
 
   it('puts the view’s own order first and leaves out its hidden groups, at once', () => {
     const rows = [row('1', 'todo'), row('3', 'done'), row('4', null)];
-    const sections = rowSections(rows, groups, {
-      complete: true,
-      order: [null, 'done'],
-      hidden: ['doing'],
-    });
+    const sections = rowSections(
+      rows,
+      groups,
+      { groupOrder: [null, 'done'], hiddenGroups: ['doing'] },
+      { complete: true },
+    );
     expect(sections.map((s) => s.key)).toEqual([null, 'done', 'todo']);
     // Not all read yet: the groups after the last one a row is in wait.
     expect(
-      rowSections([row('4', null)], groups, { complete: false, order: [null] }).map((s) => s.key),
+      rowSections([row('4', null)], groups, { groupOrder: [null] }, { complete: false }).map(
+        (s) => s.key,
+      ),
     ).toEqual([null]);
   });
 
@@ -153,7 +155,9 @@ describe('a grouped view’s sections', () => {
     expect(numberGroupingOf(ranged)).toEqual({ from: 0.1, to: 0.35, step: 0.1 });
     expect(numberGroupingOf(groups)).toBeUndefined();
     const grouping = { from: 0, to: 12, step: 5 };
-    expect(['-1', '0', '2', '3'].map((key) => numberRangeOf(key, grouping))).toEqual([
+    expect(
+      ['-1', '0', '2', '3'].map((key) => numberGroupRange(key, numberRanges(grouping))),
+    ).toEqual([
       { from: null, to: 0 },
       { from: 0, to: 5 },
       { from: 10, to: 12 },

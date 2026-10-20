@@ -17,27 +17,20 @@ import {
   type DatabaseRow,
   type DatabaseView,
   type CalculationValues,
-  type GroupRange,
   type PropertyValue,
   type RowGroup,
 } from '@/lib/types/databases';
 import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
 import { useViewCalculations } from '@/lib/hooks/use-view-data';
-import {
-  groupProperty,
-  groupTakesRows,
-  groupValue,
-  rowSections,
-  sectionOptions,
-} from '@/lib/view-groups';
+import { groupTakesRows } from '@/lib/view-groups';
 import { columnWidth, moveProperty, orderedProperties, placeProperty } from '@/lib/view-properties';
 import { PropertyCell } from './property-cell';
 import { PropertyHeaderMenu } from './property-config-modal';
 import { useOpenRow } from './open-row';
 import { CalculationCell } from './calculation-cell';
 import { ColumnResizeHandle } from './column-resize-handle';
-import { GroupHeader, useViewGroups } from './group-header';
+import { GroupHeader, useGroupedSections } from './group-header';
 import { useGroupLabel } from './group-label';
 
 interface ViewTableProps {
@@ -98,7 +91,6 @@ export function ViewTable({
   const updateView = useUpdateView();
   const subItems = subItemProperties(database);
   const { expanded, toggleExpanded } = useExpandedRows(database.id);
-  const viewGroups = useViewGroups(database.id, view, viewEditable, groups);
   const newSubItem = (parentId: string) => {
     if (!subItems || readOnly) return;
     createRow.mutate({
@@ -176,16 +168,15 @@ export function ViewTable({
   const hasCalculations = Object.keys(calculations).length > 0;
   const computed = useViewCalculations(database.id, view.id, hasCalculations);
 
-  const grouping = groupProperty(database.schema.properties, view.groupBy);
-  const sections =
-    grouping && groups
-      ? rowSections(rows, groups, {
-          hideEmpty: view.groupBy?.hideEmpty,
-          complete: !hasMore,
-          ...sectionOptions(view),
-        })
-      : null;
-  const sectionKeys = sections?.map((section) => section.key) ?? [];
+  const { grouping, sections, isCollapsed, headerProps, newRowIn } = useGroupedSections(
+    database,
+    view,
+    rows,
+    groups,
+    hasMore,
+    'groupBy',
+    viewEditable,
+  );
   const groupLabel = useGroupLabel(
     grouping ?? (nameProperty as DatabaseProperty),
     view.groupBy?.granularity,
@@ -195,16 +186,6 @@ export function ViewTable({
     if (readOnly) return;
     await createRow.mutateAsync({ databaseId: database.id });
   }, [createRow, database.id, readOnly]);
-
-  const newRowIn = (key: string | null, range?: GroupRange) => {
-    if (readOnly || !grouping) return;
-    const value = groupValue(grouping, key, range);
-    createRow.mutate({
-      databaseId: database.id,
-      ...(grouping.id === NAME_PROPERTY_ID && key !== null && { title: key }),
-      ...(value !== undefined && { properties: { [grouping.id]: value } }),
-    });
-  };
 
   const handleCellChange = React.useCallback(
     (rowId: string, propertyId: string, value: PropertyValue) => {
@@ -416,21 +397,12 @@ export function ViewTable({
           />
         ) : sections && grouping ? (
           sections.map((section) => {
-            const collapsed = viewGroups.isCollapsed(section.key);
+            const collapsed = isCollapsed(section.key);
             const prefix = `${section.key === null ? '\u0000' : section.key}:`;
             return (
               <View key={`group-${prefix}`} testID={`table-group-${section.key ?? 'none'}`}>
                 <View className="border-b border-border/60" style={{ minWidth: tableWidth }}>
-                  <GroupHeader
-                    property={grouping}
-                    groupKey={section.key}
-                    granularity={view.groupBy?.granularity}
-                    range={section.range}
-                    count={section.count}
-                    collapsed={collapsed}
-                    onToggle={() => viewGroups.toggle(section.key)}
-                    actions={viewGroups.actionsFor(section.key, sectionKeys)}
-                  />
+                  <GroupHeader {...headerProps(section)} />
                 </View>
                 {collapsed ? null : (
                   <>
@@ -442,7 +414,7 @@ export function ViewTable({
                           name: groupLabel(section.key, section.range),
                         })}
                         disabled={createRow.isPending}
-                        onPress={() => newRowIn(section.key, section.range)}
+                        onPress={() => createRow.mutate(newRowIn(section))}
                         className="flex-row items-center gap-2 px-3 py-1.5 border-b border-border/60 hover:bg-muted/40"
                       >
                         <RiAddLine width={12} height={12} fill={colors.mutedForeground} />

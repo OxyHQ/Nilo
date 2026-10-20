@@ -8,23 +8,11 @@ import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
-import type {
-  Database,
-  DatabaseRow,
-  DatabaseView,
-  GroupRange,
-  RowGroup,
-} from '@/lib/types/databases';
+import type { Database, DatabaseRow, DatabaseView, RowGroup } from '@/lib/types/databases';
 import { useCreateRow } from '@/lib/hooks/use-database-rows';
-import {
-  groupProperty,
-  groupTakesRows,
-  groupValue,
-  rowSections,
-  sectionOptions,
-} from '@/lib/view-groups';
+import { groupTakesRows, type RowSection } from '@/lib/view-groups';
 import { orderedProperties } from '@/lib/view-properties';
-import { GroupHeader, useViewGroups } from './group-header';
+import { GroupHeader, useGroupedSections } from './group-header';
 import { useGroupLabel } from './group-label';
 import { useOpenRow } from './open-row';
 import { PropertyCell } from './property-cell';
@@ -67,17 +55,15 @@ export function ViewGallery({
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const createRow = useCreateRow();
-  const viewGroups = useViewGroups(database.id, view, viewEditable, groups);
-  const grouping = groupProperty(database.schema.properties, view.groupBy);
-  const sections =
-    grouping && groups
-      ? rowSections(rows, groups, {
-          hideEmpty: view.groupBy?.hideEmpty,
-          complete: !hasMore,
-          ...sectionOptions(view),
-        })
-      : null;
-  const sectionKeys = sections?.map((section) => section.key) ?? [];
+  const { grouping, sections, isCollapsed, headerProps, newRowIn } = useGroupedSections(
+    database,
+    view,
+    rows,
+    groups,
+    hasMore,
+    'groupBy',
+    viewEditable,
+  );
   const nameProperty = database.schema.properties.find((p) => p.id === 'name');
   const groupLabel = useGroupLabel(
     grouping ?? nameProperty ?? { id: 'name', name: '', type: 'text' },
@@ -100,17 +86,10 @@ export function ViewGallery({
   }
 
   /** A new card: in a group, with the group's value. */
-  const newCard = (group?: { key: string | null; range?: GroupRange }) => {
-    if (!group || !grouping) return createRow.mutate({ databaseId: database.id });
-    const value = groupValue(grouping, group.key, group.range);
-    createRow.mutate({
-      databaseId: database.id,
-      ...(grouping.id === 'name' && group.key !== null && { title: group.key }),
-      ...(value !== undefined && { properties: { [grouping.id]: value } }),
-    });
-  };
+  const newCard = (group?: RowSection) =>
+    createRow.mutate(group ? newRowIn(group) : { databaseId: database.id });
 
-  const renderCards = (list: DatabaseRow[], group?: { key: string | null; range?: GroupRange }) => (
+  const renderCards = (list: DatabaseRow[], group?: RowSection) => (
     <View className="flex-row flex-wrap gap-3 p-3">
       {list.map((row) => {
         const cover = readCover(row, view, database);
@@ -190,22 +169,13 @@ export function ViewGallery({
     <RowsScrollView onLoadMore={onLoadMore}>
       {sections && grouping
         ? sections.map((section) => {
-            const collapsed = viewGroups.isCollapsed(section.key);
+            const collapsed = isCollapsed(section.key);
             return (
               <View
                 key={`group-${section.key === null ? '\u0000' : `k:${section.key}`}`}
                 testID={`gallery-group-${section.key ?? 'none'}`}
               >
-                <GroupHeader
-                  property={grouping}
-                  groupKey={section.key}
-                  granularity={view.groupBy?.granularity}
-                  range={section.range}
-                  count={section.count}
-                  collapsed={collapsed}
-                  onToggle={() => viewGroups.toggle(section.key)}
-                  actions={viewGroups.actionsFor(section.key, sectionKeys)}
-                />
+                <GroupHeader {...headerProps(section)} />
                 {collapsed ? null : renderCards(section.rows, section)}
               </View>
             );

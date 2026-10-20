@@ -8,7 +8,7 @@
  * that property's values: they go with it, when it changes type, and when the
  * view is grouped by another. Pure: the route writes what these return.
  */
-import { acceptsCalculation, isGroupableType } from '@oxy.so/nilo-contracts';
+import { acceptsCalculation, isGroupableType, withoutGroupKeys } from '@oxy.so/nilo-contracts';
 import type {
   DatabasePropertyType,
   DatabaseSchema,
@@ -32,17 +32,6 @@ export interface PropertyReferencingView {
   hiddenProperties: string[];
   frozenProperties: string[];
   config: ViewConfig;
-}
-
-/** The config keys that name the groups of a view's rows. */
-const GROUP_KEYS = ['numberGrouping', 'groupOrder', 'collapsedGroups', 'hiddenGroups'] as const;
-
-/** `config` without its groups' keys, or null when it has none. */
-function withoutGroupKeys(config: ViewConfig): ViewConfig | null {
-  if (!GROUP_KEYS.some((key) => key in config)) return null;
-  const out: ViewConfig = { ...config };
-  for (const key of GROUP_KEYS) delete out[key];
-  return out;
 }
 
 /** The property a view's group keys are of. */

@@ -11,11 +11,10 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseRow, DatabaseView, RowGroup } from '@/lib/types/databases';
 import { useCreateRow } from '@/lib/hooks/use-database-rows';
-import { groupProperty, rowSections, sectionOptions } from '@/lib/view-groups';
 import { orderedProperties } from '@/lib/view-properties';
 import { PropertyCell } from './property-cell';
 import { useOpenRow } from './open-row';
-import { GroupHeader, useViewGroups } from './group-header';
+import { GroupHeader, useGroupedSections } from './group-header';
 
 interface ViewListProps {
   database: Database;
@@ -54,7 +53,6 @@ export function ViewList({
   const createRow = useCreateRow();
   const subItems = subItemProperties(database);
   const { expanded, toggleExpanded } = useExpandedRows(database.id);
-  const viewGroups = useViewGroups(database.id, view, viewEditable, groups);
   const newSubItem = (parentId: string) => {
     if (!subItems || readOnly) return;
     createRow.mutate({
@@ -68,16 +66,15 @@ export function ViewList({
       (p) => !view.hiddenProperties.includes(p.id) && p.id !== 'name',
     );
   }, [database, view]);
-  const grouping = groupProperty(database.schema.properties, view.groupBy);
-  const sections =
-    grouping && groups
-      ? rowSections(rows, groups, {
-          hideEmpty: view.groupBy?.hideEmpty,
-          complete: !hasMore,
-          ...sectionOptions(view),
-        })
-      : null;
-  const sectionKeys = sections?.map((section) => section.key) ?? [];
+  const { grouping, sections, isCollapsed, headerProps } = useGroupedSections(
+    database,
+    view,
+    rows,
+    groups,
+    hasMore,
+    'groupBy',
+    viewEditable,
+  );
 
   if (isLoading) {
     return (
@@ -144,20 +141,11 @@ export function ViewList({
       {sections && grouping
         ? sections.map((section) => {
             const prefix = `${section.key === null ? '\u0000' : section.key}:`;
-            const collapsed = viewGroups.isCollapsed(section.key);
+            const collapsed = isCollapsed(section.key);
             return (
               <View key={`group-${prefix}`} testID={`list-group-${section.key ?? 'none'}`}>
                 <View className="border-b border-border/40">
-                  <GroupHeader
-                    property={grouping}
-                    groupKey={section.key}
-                    granularity={view.groupBy?.granularity}
-                    range={section.range}
-                    count={section.count}
-                    collapsed={collapsed}
-                    onToggle={() => viewGroups.toggle(section.key)}
-                    actions={viewGroups.actionsFor(section.key, sectionKeys)}
-                  />
+                  <GroupHeader {...headerProps(section)} />
                 </View>
                 {collapsed ? null : renderRows(section.rows, prefix)}
               </View>

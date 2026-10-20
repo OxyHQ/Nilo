@@ -131,11 +131,8 @@ import {
   countGroups,
   groupRows,
   type GroupKey,
-  type GroupSections,
   type GroupSpec,
-  groupSections,
   isTimeZone,
-  needsNumberBounds,
   numberBounds,
   resolveGroupSpec,
   rowGrouping,
@@ -1541,7 +1538,6 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       : ownFilter;
     // A grouped view's rows come group by group, each row in every group it is in.
     const grouping = rowGrouping(view);
-    const sections = groupSections(view);
     const timeZone = query.timeZone ?? 'UTC';
     const viewReads = [
       ...(viewFilter ? filterPropertyIds(viewFilter) : []),
@@ -1572,12 +1568,8 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
         properties: { ...row.properties, ...derivedAll?.get(row.id) },
       }));
       // A number's ranges span every row's, whatever the view shows.
-      groupSpec = resolveGroupSpec(
-        grouping,
-        propertyById,
-        timeZone,
-        sections,
-        jsNumberBounds(grouping, propertyById, sections, filtered),
+      groupSpec = resolveGroupSpec(grouping, propertyById, timeZone, view?.config, (p) =>
+        numberBounds(filtered, p),
       );
       if (query.search) {
         const needle = query.search.toLowerCase();
@@ -1605,7 +1597,9 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       nextCursor =
         offset + pageSize < entries.length ? encodeRowsCursor({ offset: offset + pageSize }) : null;
     } else {
-      groupSpec = await sqlGroupSpec(handle, db.id, grouping, propertyById, timeZone, sections);
+      groupSpec = await resolveGroupSpec(grouping, propertyById, timeZone, view?.config, (p) =>
+        numberBoundsInSql(handle, db.id, p),
+      );
       const compiled = compileView(
         db.id,
         { filters: viewFilter, sorts: view?.sorts, search: query.search },
@@ -1654,34 +1648,6 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to list rows' });
   }
 });
-
-/**
- * A grouping resolved for the SQL path: a stored number with no ranges of
- * the view's own spans the smallest to the largest of the database's rows.
- */
-async function sqlGroupSpec(
-  handle: PgHandle,
-  databaseId: string,
-  grouping: ViewGroupBy | null | undefined,
-  propertyById: ReadonlyMap<string, DatabaseProperty>,
-  timeZone: string,
-  sections: GroupSections = {},
-): Promise<GroupSpec | null> {
-  const numeric = needsNumberBounds(grouping, propertyById, sections);
-  const bounds = numeric ? await numberBoundsInSql(handle, databaseId, numeric) : undefined;
-  return resolveGroupSpec(grouping, propertyById, timeZone, sections, bounds);
-}
-
-/** The bounds a number (a formula's or a rollup's computed in) is grouped over in the JS path. */
-function jsNumberBounds(
-  grouping: ViewGroupBy | null | undefined,
-  propertyById: ReadonlyMap<string, DatabaseProperty>,
-  sections: GroupSections,
-  everyRow: readonly PageRow[],
-) {
-  const numeric = needsNumberBounds(grouping, propertyById, sections);
-  return numeric ? numberBounds(everyRow, numeric) : undefined;
-}
 
 /**
  * GET /databases/:id/rows/:rowId — one row (a template too) with its computed
@@ -2175,7 +2141,6 @@ router.get('/:id/views/:viewId/calculations', async (req: Request, res: Response
       return property && acceptsCalculation(property.type, fn) ? [{ property, fn }] : [];
     });
     const grouping = rowGrouping(view);
-    const sections = groupSections(view);
     let values: CalculationValue[] = [];
     let byGroup: { key: GroupKey; values: CalculationValue[] }[] | null = null;
     if (requested.length > 0) {
@@ -2196,19 +2161,17 @@ router.get('/:id/views/:viewId/calculations', async (req: Request, res: Response
         );
       if (inJs) {
         const rows = await computedViewRows(handle, db, view.filters, search, req.user?.id ?? null);
-        const spec = resolveGroupSpec(
-          grouping,
-          propertyById,
-          timeZone,
-          sections,
-          jsNumberBounds(grouping, propertyById, sections, rows.every),
+        const spec = resolveGroupSpec(grouping, propertyById, timeZone, view.config, (p) =>
+          numberBounds(rows.every, p),
         );
         // The footer of the rows the view shows: those in a group it does not hide.
         const shown = shownRows(rows.shown, spec);
         values = requested.map(({ property, fn }) => calculate(fn, property, shown));
         if (spec) byGroup = inGroups(spec, calculateGroups(rows.shown, spec, requested));
       } else {
-        const spec = await sqlGroupSpec(handle, db.id, grouping, propertyById, timeZone, sections);
+        const spec = await resolveGroupSpec(grouping, propertyById, timeZone, view.config, (p) =>
+          numberBoundsInSql(handle, db.id, p),
+        );
         const compiled = compileView(db.id, { filters: view.filters, search }, propertyById, spec);
         const [whole, grouped] = await Promise.all([
           calculationsInSql(handle, compiled, requested),
@@ -2272,13 +2235,7 @@ router.get('/:id/views/:viewId/chart', async (req: Request, res: Response) => {
     let spec: GroupSpec | null;
     if (readsComputed([...filterPropertyIds(view.filters), axis.propertyId], propertyById)) {
       const rows = await computedViewRows(handle, db, view.filters, search, req.user?.id ?? null);
-      spec = resolveGroupSpec(
-        axis,
-        propertyById,
-        timeZone,
-        {},
-        jsNumberBounds(axis, propertyById, {}, rows.every),
-      );
+      spec = resolveGroupSpec(axis, propertyById, timeZone, {}, (p) => numberBounds(rows.every, p));
       const totals = new Map<GroupKey, { count: number; numbers: number[] }>();
       for (const { row, key } of spec ? groupRows(rows.shown, spec) : []) {
         const at = totals.get(key) ?? { count: 0, numbers: [] };
@@ -2296,7 +2253,9 @@ router.get('/:id/views/:viewId/chart', async (req: Request, res: Response) => {
         }),
       );
     } else {
-      spec = await sqlGroupSpec(handle, db.id, axis, propertyById, timeZone);
+      spec = await resolveGroupSpec(axis, propertyById, timeZone, {}, (p) =>
+        numberBoundsInSql(handle, db.id, p),
+      );
       const compiled = compileView(db.id, { filters: view.filters, search }, propertyById, spec);
       byKey = await listViewGroups(
         handle,

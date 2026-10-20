@@ -48,7 +48,6 @@ import {
   type GroupSections,
   type GroupSpec,
   groupRows,
-  needsNumberBounds,
   numberBounds,
   resolveGroupSpec,
   shownRows,
@@ -632,9 +631,9 @@ interface GroupedCase extends ViewCase {
 function groupSpec(propertyId: string, sections: GroupSections = {}): GroupSpec {
   const groupBy = { propertyId, granularity: pick(['day', 'week', 'month', 'year'] as const) };
   // A number with no ranges of the view's own spans every row's numbers.
-  const numeric = needsNumberBounds(groupBy, propertyById, sections);
-  const bounds = numeric ? numberBounds(reference, numeric) : undefined;
-  const spec = resolveGroupSpec(groupBy, propertyById, pick(ZONES), sections, bounds);
+  const spec = resolveGroupSpec(groupBy, propertyById, pick(ZONES), sections, (p) =>
+    numberBounds(reference, p),
+  );
   if (!spec) throw new Error(`${propertyId} cannot group`);
   return spec;
 }

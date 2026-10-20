@@ -20,16 +20,28 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
 import { useCollapsedGroupsStore } from '@/lib/stores/collapsed-groups-store';
 import { useColorScheme } from '@/lib/useColorScheme';
-import type {
-  DatabaseProperty,
-  DatabaseView,
-  DateGroupGranularity,
-  GroupRange,
-  RowGroup,
-  ViewConfig,
-  ViewGroupKey,
+import {
+  type Database,
+  type DatabaseProperty,
+  type DatabaseRow,
+  type DatabaseView,
+  type DateGroupGranularity,
+  type GroupRange,
+  NAME_PROPERTY_ID,
+  type PropertyValue,
+  type RowGroup,
+  type ViewConfig,
+  type ViewGroupKey,
 } from '@/lib/types/databases';
-import { moveGroup, numberGroupingOf, placeGroup } from '@/lib/view-groups';
+import {
+  groupProperty,
+  groupValue,
+  moveGroup,
+  numberGroupingOf,
+  placeGroup,
+  type RowSection,
+  rowSections,
+} from '@/lib/view-groups';
 import { useGroupLabel } from './group-label';
 import { PersonChips } from './person-cell';
 import { SELECT_CHIP_HUE } from './select-color';
@@ -77,7 +89,7 @@ export interface GroupActions {
   onDropGroup: (key: ViewGroupKey) => void;
 }
 
-interface GroupHeaderProps {
+export interface GroupHeaderProps {
   property: DatabaseProperty;
   groupKey: string | null;
   granularity?: DateGroupGranularity;
@@ -199,27 +211,92 @@ export function GroupHeader({
 const sameKeys = (a: readonly ViewGroupKey[], b: readonly ViewGroupKey[]) =>
   a.length === b.length && a.every((key, i) => key === b[i]);
 
+/** The row a section adds: in its group, with the group's value (`groupValue`). */
+export interface NewRowInput {
+  databaseId: string;
+  title?: string;
+  properties?: Record<string, PropertyValue>;
+}
+
 /**
- * A grouped view's groups as its header shows them, and what is done to
- * them: which are collapsed, toggled; moved up or down or dropped on another
- * (`config.groupOrder`); hidden (`config.hiddenGroups`). Whoever may change
- * the view (`editable`) saves all of it to the view, for every reader; a
- * reader's collapsing stays on their device (`useCollapsedGroupsStore`),
- * over the view's own. What is changed shows at once, while it is saved.
- * Numbers grouped by the ranges the API chose keep them once a group of them
- * is named (`config.numberGrouping`): a range's key is its index, which
- * would otherwise name another range once the numbers spread.
+ * A grouped view's sections (a table's, a list's, a gallery's or a
+ * timeline's by `groupBy`, a board's lanes by `subGroupBy`) and what their
+ * headers show and do: which are collapsed, toggled; moved up or down or
+ * dropped on another (`config.groupOrder`); hidden (`config.hiddenGroups`).
+ * Whoever may change the view (`editable`) saves all of it to the view, for
+ * every reader; a reader's collapsing stays on their device
+ * (`useCollapsedGroupsStore`), over the view's own. What is changed shows at
+ * once, while it is saved. Numbers grouped by the ranges the API chose keep
+ * them once a group of them is named (`config.numberGrouping`): a range's key
+ * is its index, which would otherwise name another range once the numbers
+ * spread. `sections` is null when the view is not grouped.
  */
-export function useViewGroups(
+export function useGroupedSections(
+  database: Database,
+  view: DatabaseView,
+  rows: readonly DatabaseRow[],
+  groups: readonly RowGroup[] | undefined,
+  hasMore: boolean,
+  by: 'groupBy' | 'subGroupBy',
+  editable: boolean,
+): {
+  grouping: DatabaseProperty | null;
+  sections: RowSection[] | null;
+  isCollapsed: (key: ViewGroupKey) => boolean;
+  headerProps: (section: RowSection) => GroupHeaderProps;
+  newRowIn: (section: RowSection) => NewRowInput;
+} {
+  const groupBy = view[by];
+  const grouping = groupProperty(database.schema.properties, groupBy);
+  const hideEmpty = groupBy?.hideEmpty;
+  const { groupOrder, hiddenGroups } = view.config ?? {};
+  const sections = React.useMemo(
+    () =>
+      grouping && groups
+        ? rowSections(rows, groups, { groupOrder, hiddenGroups }, { hideEmpty, complete: !hasMore })
+        : null,
+    [grouping, groups, rows, groupOrder, hiddenGroups, hideEmpty, hasMore],
+  );
+  const shown = React.useMemo(() => sections?.map((section) => section.key) ?? [], [sections]);
+  const { isCollapsed, toggle, actionsFor } = useViewGroups(
+    database.id,
+    view,
+    editable,
+    groups,
+    shown,
+  );
+  const headerProps = (section: RowSection): GroupHeaderProps => ({
+    property: grouping as DatabaseProperty,
+    groupKey: section.key,
+    granularity: groupBy?.granularity,
+    range: section.range,
+    count: section.count,
+    collapsed: isCollapsed(section.key),
+    onToggle: () => toggle(section.key),
+    actions: actionsFor(section.key),
+  });
+  const newRowIn = (section: RowSection): NewRowInput => {
+    const value = grouping ? groupValue(grouping, section.key, section.range) : undefined;
+    return {
+      databaseId: database.id,
+      ...(grouping?.id === NAME_PROPERTY_ID && section.key !== null && { title: section.key }),
+      ...(grouping && value !== undefined && { properties: { [grouping.id]: value } }),
+    };
+  };
+  return { grouping, sections, isCollapsed, headerProps, newRowIn };
+}
+
+function useViewGroups(
   databaseId: string,
   view: DatabaseView,
   editable: boolean,
-  groups?: readonly RowGroup[],
+  groups: readonly RowGroup[] | undefined,
+  shown: readonly ViewGroupKey[],
 ): {
   isCollapsed: (key: ViewGroupKey) => boolean;
   toggle: (key: ViewGroupKey) => void;
-  /** The header's actions for a group among `shown` (the sections' keys, in order). */
-  actionsFor: (key: ViewGroupKey, shown: readonly ViewGroupKey[]) => GroupActions | undefined;
+  /** The header's actions for a group among those shown, in order. */
+  actionsFor: (key: ViewGroupKey) => GroupActions | undefined;
 } {
   const { t } = useTranslation();
   const updateView = useUpdateView();
@@ -259,7 +336,7 @@ export function useViewGroups(
     save({ collapsedGroups: next });
   };
 
-  const actionsFor = (key: ViewGroupKey, shown: readonly ViewGroupKey[]) => {
+  const actionsFor = (key: ViewGroupKey) => {
     if (!editable) return undefined;
     const index = shown.indexOf(key);
     const reorder = (order: ViewGroupKey[] | null) => {
