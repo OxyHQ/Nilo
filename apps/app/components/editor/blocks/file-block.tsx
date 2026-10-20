@@ -11,7 +11,7 @@ import { freshFileUrl, isFileRemoved, useFileRemoved, useFileScope } from '@/lib
 import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { type BlockComponentProps, blockUrl } from './types';
+import type { BlockComponentProps } from './types';
 
 function formatBytes(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return '';
@@ -40,7 +40,7 @@ export function FileBlock({ block, onChangeContent, readOnly }: BlockComponentPr
   const fileId = blockFileId(block.content);
   // A file's URL is asked for only when the pill is pressed: this only listens.
   const removed = useFileRemoved(scope, fileId, { fetch: false });
-  const url = blockUrl(block.content.url);
+  const url = block.content.url ?? '';
   const name = typeof block.content.name === 'string' ? block.content.name : '';
   const size = typeof block.content.size === 'number' ? block.content.size : 0;
   const [busy, setBusy] = React.useState(false);

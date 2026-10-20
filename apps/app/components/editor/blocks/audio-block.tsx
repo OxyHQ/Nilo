@@ -10,7 +10,7 @@ import { useColorScheme } from '@/lib/useColorScheme';
 import { BlockCaption, UrlPrompt } from './block-parts';
 import { AudioPlayer } from './media-players';
 import { useMediaUpload } from './media-upload';
-import { type BlockComponentProps, blockUrl } from './types';
+import type { BlockComponentProps } from './types';
 
 /** The last part of a link's path, as a name for the sound it points at. */
 function nameFromUrl(url: string): string {
@@ -30,7 +30,7 @@ function nameFromUrl(url: string): string {
 export function AudioBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
-  const url = blockUrl(block.content.url);
+  const url = block.content.url ?? '';
   const fileId = blockFileId(block.content);
   const scope = useFileScope(block.pageId);
   const fileUrl = useMediaFileUrl(scope, fileId);

@@ -11,7 +11,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { BlockCaption, UrlPrompt } from './block-parts';
 import { VideoPlayer } from './media-players';
 import { useMediaUpload } from './media-upload';
-import { type BlockComponentProps, blockUrl } from './types';
+import type { BlockComponentProps } from './types';
 
 export function detectVideoSource(url: string): VideoSource {
   try {
@@ -84,7 +84,7 @@ export function videoEmbedUrl(url: string, source: string): string | null {
 export function VideoBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
-  const url = blockUrl(block.content.url);
+  const url = block.content.url ?? '';
   const fileId = blockFileId(block.content);
   const scope = useFileScope(block.pageId);
   const fileUrl = useMediaFileUrl(scope, fileId);

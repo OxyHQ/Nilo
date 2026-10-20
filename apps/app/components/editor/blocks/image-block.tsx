@@ -27,7 +27,7 @@ import {
   imageWidth,
   storedWidth,
 } from './image-layout';
-import { type BlockComponentProps, blockUrl } from './types';
+import type { BlockComponentProps } from './types';
 
 const ALIGN_SELF = {
   left: 'flex-start',
@@ -60,7 +60,7 @@ export function ImageBlock({ block, onChangeContent, readOnly }: BlockComponentP
   const scope = useFileScope(block.pageId);
   const fileSource = useFileImageSource(scope, fileId);
   const removed = useFileRemoved(scope, fileId);
-  const pastedUrl = blockUrl(block.content.url);
+  const pastedUrl = block.content.url ?? '';
   const url = fileId ? (fileSource?.uri ?? null) : pastedUrl;
   const alt = typeof block.content.alt === 'string' ? block.content.alt : undefined;
   const [busy, setBusy] = React.useState(false);

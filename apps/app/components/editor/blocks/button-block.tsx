@@ -19,7 +19,7 @@ import { useCreatePage, useDuplicatePage, usePage } from '@/lib/hooks/use-pages'
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import type { ButtonAction } from '@/lib/types/pages';
 import { PagePicker } from '../page-picker';
-import { type BlockComponentProps, blockUrl, typedUrl } from './types';
+import { type BlockComponentProps, typedUrl } from './types';
 import { useDraft } from './use-draft';
 
 const ACTIONS: readonly ButtonAction[] = ['navigate', 'new-page', 'duplicate-template', 'webhook'];
@@ -41,12 +41,12 @@ export function ButtonBlock({ block, onChangeContent, readOnly }: BlockComponent
   const storedLabel = typeof block.content.label === 'string' ? block.content.label : '';
   const label = storedLabel || t('editor.blocks.button.defaultLabel');
   const action: ButtonAction = (block.content.action as ButtonAction | undefined) ?? 'navigate';
-  const targetUrl = blockUrl(block.content.url);
+  const targetUrl = block.content.url ?? '';
   const templateId = typeof block.content.templateId === 'string' ? block.content.templateId : '';
   const set = (patch: Record<string, unknown>) => onChangeContent({ ...block.content, ...patch });
   const labelField = useDraft(storedLabel, (next) => set({ label: next }));
   const urlField = useDraft(targetUrl, (next) => set({ url: typedUrl(next) }));
-  const webhookField = useDraft(blockUrl(block.content.webhookUrl), (next) =>
+  const webhookField = useDraft(block.content.webhookUrl ?? '', (next) =>
     set({ webhookUrl: typedUrl(next) }),
   );
 
@@ -86,7 +86,7 @@ export function ButtonBlock({ block, onChangeContent, readOnly }: BlockComponent
           router.push(`/p/${copy.id}`);
         }
       } else if (action === 'webhook') {
-        if (!blockUrl(block.content.webhookUrl)) {
+        if (!block.content.webhookUrl) {
           setStatus(t('editor.blocks.button.setWebhook'));
         } else {
           await apiClient.post(API_ROUTES.blocks.webhook(block.pageId, block.id));

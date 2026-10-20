@@ -31,7 +31,7 @@ import {
 import { createContext, type ComponentType, useContext, useMemo, useState } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
 import type { Block, BlockType } from '@/lib/types/pages';
-import { type BlockComponentProps, blockUrl } from '@/components/editor/blocks/types';
+import { type BlockComponentProps, blockContent } from '@/components/editor/blocks/types';
 import { AudioBlock } from '@/components/editor/blocks/audio-block';
 import { BookmarkBlock } from '@/components/editor/blocks/bookmark-block';
 import { EmbedBlock } from '@/components/editor/blocks/embed-block';
@@ -61,10 +61,12 @@ const EDITOR_BLOCKS: Partial<Record<string, ComponentType<BlockComponentProps>>>
 const ignoreChange = () => {};
 
 function asEditorBlock(block: ReadOnlyBlock): Block {
+  const type = block.type as BlockType;
   return {
     ...block,
     pageId: '',
-    type: block.type as BlockType,
+    type,
+    content: blockContent(type, block.content),
     createdAt: '',
     updatedAt: '',
   };
@@ -405,7 +407,7 @@ function openLink(url: string) {
 /** A button that opens a link does so; one whose action needs an editor shows its label. */
 function SharedButton({ content }: { content: Record<string, unknown> }) {
   const { t } = useTranslation();
-  const url = content.action === 'navigate' ? blockUrl(content.url) : '';
+  const url = content.action === 'navigate' ? (blockContent('button', content).url ?? '') : '';
   const label = stringOf(content.label) || t('editor.blocks.button.defaultLabel');
   return (
     <Button

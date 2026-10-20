@@ -5,7 +5,7 @@
  */
 import type * as React from 'react';
 import type { EditorStore } from '@oxy.so/bloom-editor';
-import { isSafeUrl } from '@oxy.so/nilo-contracts';
+import { normalizeContent } from '@oxy.so/nilo-contracts';
 import type { Block, BlockContent, BlockType } from '@/lib/types/pages';
 
 export interface BlockComponentProps {
@@ -34,19 +34,28 @@ export interface BlockComponentProps {
 }
 
 /**
- * A URL a block loads or links to, or '' when there is none a reader can
- * safely follow (`isSafeUrl`). The page's Yjs document is what the editor
- * renders, so a `javascript:` URL in it is refused here, not only when the
- * server projects the page.
+ * A block's content as the contract reads it (`normalizeContent`): a URL no
+ * reader can safely follow (`javascript:`…) is none. The page's Yjs document
+ * is what the editor renders, so it is read here, not only when the server
+ * projects the page. A field the contract refuses is dropped rather than the
+ * block, so a malformed one still shows the rest.
  */
-export function blockUrl(value: unknown): string {
-  return isSafeUrl(value as string | undefined) ? (value as string).trim() : '';
+export function blockContent(type: BlockType, content: object): BlockContent {
+  try {
+    return normalizeContent(type, content) as BlockContent;
+  } catch (error) {
+    const issues = (error as { issues?: { path: PropertyKey[] }[] }).issues;
+    if (!Array.isArray(issues)) throw error;
+    const refused = new Set(issues.map((issue) => issue.path[0]));
+    const kept = Object.entries(content).filter(([key]) => !refused.has(key));
+    return normalizeContent(type, Object.fromEntries(kept)) as BlockContent;
+  }
 }
 
 /**
  * What someone typed into a block's URL field, as a URL: `example.com` is
  * `https://example.com`, as a browser's address bar reads it. A scheme they
- * typed is kept, so an unsafe one still reads as none (`blockUrl`).
+ * typed is kept, so an unsafe one still reads as none (`blockContent`).
  */
 export function typedUrl(input: string): string {
   const trimmed = input.trim();
