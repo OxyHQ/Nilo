@@ -5,7 +5,8 @@
     "hintWeb": "@ to mention · Cmd/Ctrl+Enter to send",
     "send": "Send comment",
     "posting": "Posting…",
-    "submit": "Comment"
+    "submit": "Comment",
+    "failed": "Could not send your comment. Your draft is still here; try again."
   },
   "mentionLabel": "Mention: %{name}",
   "indicator": {
@@ -24,12 +25,16 @@
     "blockPlaceholder": "Comment on this block…",
     "pagePlaceholder": "Add a page comment…",
     "textPlaceholder": "Comment on the selected text…",
-    "cancelQuote": "Comment on the whole block instead"
+    "cancelQuote": "Comment on the whole block instead",
+    "emptyPerson": "No comments from this person match the current filters.",
+    "loadFailed": "Could not load comments. Try again."
   },
   "filters": {
     "open": "Open",
     "all": "All",
-    "resolved": "Resolved"
+    "resolved": "Resolved",
+    "everyone": "Everyone",
+    "person": "Filter by person"
   },
   "time": {
     "justNow": "just now",

@@ -159,6 +159,10 @@ export function CommentComposer({
     end: initial.text.length,
   });
   const [mentionDraft, setMentionDraft] = React.useState<DraftMentionState | null>(null);
+  const [sending, setSending] = React.useState(false);
+  const [submitFailed, setSubmitFailed] = React.useState(false);
+  const sendingRef = React.useRef(false);
+  const busy = submitting || sending;
 
   const isEmpty = text.trim().length === 0 && anchored.length === 0;
 
@@ -255,13 +259,23 @@ export function CommentComposer({
   };
 
   const handleSubmit = async () => {
-    if (isEmpty || submitting) return;
+    if (isEmpty || submitting || sendingRef.current) return;
     const segments = buildSegmentsFromAnchored(text, anchored);
     if (segments.length === 0) return;
-    await onSubmit(segments);
-    setText('');
-    setAnchored([]);
-    setMentionDraft(null);
+    sendingRef.current = true;
+    setSending(true);
+    setSubmitFailed(false);
+    try {
+      await onSubmit(segments);
+      setText('');
+      setAnchored([]);
+      setMentionDraft(null);
+    } catch {
+      setSubmitFailed(true);
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
   };
 
   // The keydown listener below is attached once per mentionDraft/onCancel, so it
@@ -311,6 +325,7 @@ export function CommentComposer({
           rows={2}
           autoResize
           autoFocus={autoFocus}
+          editable={!busy}
         />
         {mentionDraft ? (
           <MentionPicker
@@ -322,6 +337,11 @@ export function CommentComposer({
           />
         ) : null}
       </View>
+      {submitFailed ? (
+        <Text accessibilityRole="alert" className="text-sm text-destructive">
+          {t('comments.composer.failed')}
+        </Text>
+      ) : null}
       <View className="flex-row items-center justify-between">
         <Text className="text-[10px] text-muted-foreground">
           {Platform.OS === 'web' ? t('comments.composer.hintWeb') : t('comments.composer.hint')}
@@ -332,7 +352,7 @@ export function CommentComposer({
               appearance="subtle"
               size="sm"
               onPress={onCancel}
-              disabled={submitting}
+              disabled={busy}
               accessibilityLabel={t('common.cancel')}
             >
               {t('common.cancel')}
@@ -343,12 +363,12 @@ export function CommentComposer({
             tone="accent"
             size="sm"
             onPress={handleSubmit}
-            disabled={isEmpty || submitting}
-            loading={submitting}
+            disabled={isEmpty || busy}
+            loading={busy}
             accessibilityLabel={t('comments.composer.send')}
             leadingIcon={RiSendPlaneLine}
           >
-            {submitting ? t('comments.composer.posting') : t('comments.composer.submit')}
+            {busy ? t('comments.composer.posting') : t('comments.composer.submit')}
           </Button>
         </View>
       </View>
