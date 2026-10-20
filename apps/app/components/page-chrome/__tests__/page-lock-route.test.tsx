@@ -1,3 +1,5 @@
+// Activity's requests and interaction are covered by page-activity.test.tsx.
+jest.mock('../page-activity', () => ({ PageActivity: () => null, PageActivityPanel: () => null }));
 import { ShareButton } from '@/components/sharing';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import type { PageHeaderProps } from '@oxy.so/bloom/page-header';

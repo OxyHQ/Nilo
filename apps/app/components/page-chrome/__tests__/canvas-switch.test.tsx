@@ -1,3 +1,5 @@
+// Activity's requests and interaction are covered by page-activity.test.tsx.
+jest.mock('../page-activity', () => ({ PageActivity: () => null, PageActivityPanel: () => null }));
 // This suite checks the page mutation; Bloom tests the menu's interaction contract.
 jest.mock('@oxy.so/bloom/dropdown-menu', () => ({
   DropdownMenuCheckboxItem: (props: Record<string, unknown>) =>

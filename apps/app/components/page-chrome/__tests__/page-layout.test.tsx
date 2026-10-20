@@ -1,3 +1,5 @@
+// Activity's requests and interaction are covered by page-activity.test.tsx.
+jest.mock('../page-activity', () => ({ PageActivity: () => null, PageActivityPanel: () => null }));
 jest.mock('@/components/page-chrome/canvas-switch', () => ({ CanvasSwitch: () => null }));
 jest.mock('@/components/page-chrome/ai-page-action', () => ({ AiPageAction: () => null }));
 jest.mock('@/lib/realtime/use-live-updates', () => ({
