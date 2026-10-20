@@ -1,5 +1,7 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Animated, Platform } from 'react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { CoverHeader, CoverImage, CoverFill } from '@oxy.so/bloom/cover-header';
 import { Button } from '@oxy.so/bloom/button';
 import { Switch } from '@oxy.so/bloom/switch';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
@@ -12,14 +14,29 @@ import { ViewSearch } from '../view-search';
 import { ViewGallery } from '../view-gallery';
 import { PropertyCell } from '../property-cell';
 import { CoverDisplay } from '@/components/page-chrome/cover-display';
+import { useFileImageSource } from '@/lib/files/file-urls';
 import { useViewSearchStore } from '@/lib/stores/view-search-store';
 import type { Database, DatabaseView } from '@/lib/types/databases';
 
+const Cover = (CoverHeader as unknown as { type: React.ComponentType }).type;
 const mockUpdateView = jest.fn();
 const mockUpdateRow = jest.fn();
 const mockUpdateViewAsync = jest.fn();
 const mockReorder = jest.fn();
 let mockViews: DatabaseView[] = [];
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
+jest.mock('@/lib/api/client', () => ({
+  __esModule: true,
+  default: { get: jest.fn(), post: jest.fn() },
+}));
+jest.mock('@/lib/realtime/socket', () => ({ acquireSocket: jest.fn(), releaseSocket: jest.fn() }));
+jest.mock('@/lib/realtime/use-live-updates', () => ({ useWorkspaceLive: jest.fn() }));
+jest.mock('@/lib/files/file-urls', () => ({
+  ...jest.requireActual('@/lib/files/file-urls'),
+  useFileImageSource: jest.fn((_scope, fileId) =>
+    fileId ? { uri: `https://files.test/${fileId}`, cacheKey: fileId } : null,
+  ),
+}));
 // A group of people shows their profiles, which these tests do not read.
 jest.mock('../person-cell', () => ({ PersonChips: () => null }));
 jest.mock('@/lib/hooks/use-view-data', () => ({
@@ -61,12 +78,13 @@ jest.mock('../property-cell', () => ({ PropertyCell: () => null }));
 jest.mock('../property-config-modal', () => ({ PropertyHeaderMenu: () => null }));
 jest.mock('../database-actions-menu', () => ({ DatabaseActionsMenu: () => null }));
 jest.mock('../database-chrome', () => ({ DatabaseChromePickers: () => null }));
-// The header draws the database's cover and icon, which resolve uploaded files through the API.
-jest.mock('@/components/page-chrome/cover-display', () => ({ CoverDisplay: () => null }));
+// Keep cover parsing and Bloom's cover renderers real; only media resolution is stubbed above.
 jest.mock('@/components/page-chrome/icon-display', () => ({ IconDisplay: () => null }));
 
 const database = {
   id: 'db',
+  workspaceId: 'workspace',
+  parentPageId: null,
   systemKey: null,
   locked: false,
   name: 'Tasks',
@@ -106,15 +124,24 @@ function makeView(overrides: Partial<DatabaseView> = {}): DatabaseView {
 }
 
 let renderer: ReactTestRenderer;
+let client: QueryClient;
 beforeEach(() => {
   jest.clearAllMocks();
   mockViews = [];
+  client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
 });
-afterEach(() => act(() => renderer?.unmount()));
+afterEach(() => {
+  act(() => renderer?.unmount());
+  client.clear();
+});
 
 function render(node: React.ReactNode) {
   act(() => {
-    renderer = create(<BloomTestProviders>{node}</BloomTestProviders>);
+    renderer = create(
+      <BloomTestProviders>
+        <QueryClientProvider client={client}>{node}</QueryClientProvider>
+      </BloomTestProviders>,
+    );
   });
 }
 const text = () => JSON.stringify(renderer.toJSON());
@@ -453,6 +480,28 @@ describe('view tabs', () => {
     ).toHaveLength(0);
     expect(JSON.stringify(renderer.toJSON())).toContain('databases.lock.badge');
   });
+
+  it.each([false, true])(
+    'renders a real database cover with change action governed by readOnly=%s',
+    (readOnly) => {
+      render(
+        <DatabaseHeader
+          database={{ ...database, cover: 'image:https://covers.test/tasks.jpg' }}
+          views={views}
+          activeViewId="a"
+          onSelectView={jest.fn()}
+          readOnly={readOnly}
+        />,
+      );
+      const cover = renderer.root.findByType(Cover);
+      expect(cover.props.coverSource).toBe('https://covers.test/tasks.jpg');
+      expect(cover.props.coverHeight).toBe(160);
+      expect(typeof cover.props.onChangeCover).toBe(readOnly ? 'undefined' : 'function');
+      expect(renderer.root.findByType(CoverImage).props.source).toBe(
+        'https://covers.test/tasks.jpg',
+      );
+    },
+  );
 });
 
 describe('a table’s frozen columns', () => {
@@ -584,6 +633,14 @@ describe('a gallery’s cards', () => {
       pageId: 'row',
       fit: 'contain',
     });
+    expect(useFileImageSource).toHaveBeenCalledWith(
+      { kind: 'page', pageId: 'row' },
+      'private-file',
+    );
+    expect(renderer.root.findByType(CoverImage).props).toMatchObject({
+      source: { uri: 'https://files.test/private-file', cacheKey: 'private-file' },
+      contentFit: 'contain',
+    });
   });
 
   it('show a page’s cover as its page does, a file fitted if asked, or nothing', () => {
@@ -596,6 +653,7 @@ describe('a gallery’s cards', () => {
       />,
     );
     expect(renderer.root.findAllByType(CoverDisplay)[0]?.props.value).toBe('gradient:1');
+    expect(renderer.root.findAllByType(CoverFill)).toHaveLength(1);
     act(() => renderer.unmount());
     render(
       <ViewGallery
@@ -615,6 +673,10 @@ describe('a gallery’s cards', () => {
       pageId: 'row',
       fit: 'contain',
     });
+    expect(renderer.root.findByType(CoverImage).props).toMatchObject({
+      source: 'https://x.test/a.png',
+      contentFit: 'contain',
+    });
     act(() => renderer.unmount());
     render(
       <ViewGallery
@@ -625,5 +687,6 @@ describe('a gallery’s cards', () => {
       />,
     );
     expect(renderer.root.findAllByType(CoverDisplay)).toHaveLength(0);
+    expect(renderer.root.findAllByType(CoverImage)).toHaveLength(0);
   });
 });
