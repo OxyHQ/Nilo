@@ -132,13 +132,35 @@ export async function findPageById(db: PgHandle, id: string): Promise<PageRow | 
 export interface FindPagesByIdsFilter {
   /** `routes/comments.ts:177` scopes the lookup to the mentioning workspace. */
   workspaceId?: string;
-  /** `lib/databases/rollups.ts:45` reads only live rows. */
+  /** Only live pages, or only archived ones. */
   archived?: boolean;
 }
 
+/** What a rollup reads of a related row. */
+export type RowValues = Pick<PageRow, 'id' | 'databaseId' | 'title' | 'properties'>;
+
 /**
- * `routes/comments.ts:177` (verifying mentioned pages belong to the workspace)
- * and `lib/databases/rollups.ts:45` (loading a relation's target rows).
+ * The live rows of `ids`, with only what `lib/databases/rollups.ts` reads of
+ * them: every rollup of a view's rows is read from one such query.
+ */
+export async function findRowValuesByIds(
+  db: PgHandle,
+  ids: readonly string[],
+): Promise<RowValues[]> {
+  if (ids.length === 0) return [];
+  return db
+    .select({
+      id: pages.id,
+      databaseId: pages.databaseId,
+      title: pages.title,
+      properties: pages.properties,
+    })
+    .from(pages)
+    .where(and(inArray(pages.id, [...ids]), eq(pages.archived, false)));
+}
+
+/**
+ * `routes/comments.ts:177` (verifying mentioned pages belong to the workspace).
  *
  * The empty-input early return is a saved round trip, not a guard:
  * `inArray(col, [])` renders as the literal `false`, so the query would

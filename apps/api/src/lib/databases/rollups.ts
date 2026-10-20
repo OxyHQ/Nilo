@@ -2,7 +2,7 @@ import type { PgHandle } from '../../db/client.js';
 import type { DatabaseProperty, DatabaseSchema } from '../../db/schema/databases.js';
 import type { PageProperties } from '../../db/schema/pages.js';
 import { findDatabaseById } from '../../repositories/databases.js';
-import { findPagesByIds } from '../../repositories/pages.js';
+import { findRowValuesByIds } from '../../repositories/pages.js';
 import { resolveDatabaseRole } from '../page-access.js';
 import { isEmptyValue, valueText } from './property-conversion.js';
 import { NAME_PROPERTY_ID } from './schema-defaults.js';
@@ -27,10 +27,11 @@ import { NAME_PROPERTY_ID } from './schema-defaults.js';
  * and only when `viewerId` can open it: a rollup must not show what is read
  * from a database its reader has no access to.
  *
- * Batched: per rollup property, the related rows of every row are read in one
- * query and the target database once — a view of a thousand rows used to read
- * them row by row. This module is NOT one of the pure `lib/databases/*`
- * evaluators: it reads, so it takes a handle like any repository caller.
+ * Batched: the related rows of every rollup of every row are read in one
+ * query (only what a rollup reads of them), and each target database once — a
+ * view of a thousand rows used to read them row by row. This module is NOT one
+ * of the pure `lib/databases/*` evaluators: it reads, so it takes a handle like
+ * any repository caller.
  */
 export type RollupValue = number | string | null;
 
@@ -100,12 +101,16 @@ function computeRollup(
   }
 }
 
-/** Every rollup of `schema` for every row: row id → property id → value. */
+/**
+ * Every rollup of `schema` (those of `only`, when given) for every row:
+ * row id → property id → value.
+ */
 export async function resolveRollups(
   handle: PgHandle,
   schema: DatabaseSchema,
   rows: readonly RowLike[],
   viewerId: string | null,
+  only?: ReadonlySet<string>,
 ): Promise<Map<string, Map<string, RollupValue>>> {
   const out = new Map<string, Map<string, RollupValue>>(rows.map((r) => [r.id, new Map()]));
   // A target database is read, and its access checked, once per call.
@@ -119,10 +124,16 @@ export async function resolveRollups(
     }
     return targets.get(id) ?? null;
   };
+  const resolvable: {
+    property: DatabaseProperty;
+    fn: string;
+    relationId: string;
+    targetDbId: string;
+    target: DatabaseProperty | undefined;
+  }[] = [];
   for (const property of schema.properties) {
-    if (property.type !== 'rollup') continue;
+    if (property.type !== 'rollup' || (only && !only.has(property.id))) continue;
     const config = property.config;
-    const set = (rowId: string, value: RollupValue) => out.get(rowId)?.set(property.id, value);
     const relation = schema.properties.find(
       (p) => p.id === config?.relationPropertyId && p.type === 'relation',
     );
@@ -133,26 +144,48 @@ export async function resolveRollups(
       (p) => p.id === config?.targetPropertyId,
     );
     if (!config?.function || !relation || !targetDb || (needsTarget && !target)) {
-      for (const row of rows) set(row.id, null);
+      for (const row of rows) out.get(row.id)?.set(property.id, null);
       continue;
     }
-    const idsByRow = new Map(rows.map((r) => [r.id, relatedIds(r, relation.id)]));
-    const wanted = [...new Set([...idsByRow.values()].flatMap((ids) => ids ?? []))];
-    const related =
-      wanted.length > 0 ? await findPagesByIds(handle, wanted, { archived: false }) : [];
-    const byId = new Map(related.map((r) => [r.id, r]));
+    resolvable.push({
+      property,
+      fn: config.function,
+      relationId: relation.id,
+      targetDbId: targetDb.id,
+      target,
+    });
+  }
+  // The related rows of every rollup, of every row, in one query.
+  const idsByRelation = new Map(
+    [...new Set(resolvable.map((r) => r.relationId))].map((relationId) => [
+      relationId,
+      new Map(rows.map((r) => [r.id, relatedIds(r, relationId)])),
+    ]),
+  );
+  const wanted = new Set<string>();
+  for (const idsByRow of idsByRelation.values())
+    for (const ids of idsByRow.values()) for (const id of ids ?? []) wanted.add(id);
+  const byId = new Map(
+    (await findRowValuesByIds(handle, [...wanted])).map((r) => [r.id, r] as const),
+  );
+  for (const { property, fn, relationId, targetDbId, target } of resolvable) {
+    const idsByRow = idsByRelation.get(relationId);
     for (const row of rows) {
-      const ids = idsByRow.get(row.id);
+      const ids = idsByRow?.get(row.id);
       // `count` counts the live related rows, as every other function reads them.
       const rowRelated = (ids ?? []).flatMap((id) => {
         const found = byId.get(id);
-        return found && found.databaseId === targetDb.id ? [found] : [];
+        return found && found.databaseId === targetDbId ? [found] : [];
       });
-      if (config.function === 'count') {
-        set(row.id, ids === null || ids === undefined ? null : rowRelated.length);
-      } else {
-        set(row.id, target ? computeRollup(config.function, target, rowRelated) : null);
-      }
+      const value =
+        fn === 'count'
+          ? ids === null || ids === undefined
+            ? null
+            : rowRelated.length
+          : target
+            ? computeRollup(fn, target, rowRelated)
+            : null;
+      out.get(row.id)?.set(property.id, value);
     }
   }
   return out;

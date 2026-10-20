@@ -606,16 +606,32 @@ function serializeRow(row: PageRow, opts?: RowSerializationOpts) {
 /**
  * Server-derived properties (rollup, formula, created_time, etc.) of rows at
  * read time: row id → property id → value, merged by the caller into the row
- * payload. Rollups are read for all the rows at once (`resolveRollups`).
+ * payload. Rollups are read for all the rows at once (`resolveRollups`): those
+ * of `rollups` only, when given, the others left empty.
  */
 async function resolveDerivedForRows(
   handle: PgHandle,
   rows: readonly PageRow[],
   schema: DatabaseSchema,
   viewerId: string | null,
+  rollups?: ReadonlySet<string>,
 ): Promise<Map<string, Record<string, unknown>>> {
-  const rollups = await resolveRollups(handle, schema, rows, viewerId);
-  return new Map(rows.map((row) => [row.id, deriveRow(row, schema, rollups.get(row.id))]));
+  const values = await resolveRollups(handle, schema, rows, viewerId, rollups);
+  return new Map(rows.map((row) => [row.id, deriveRow(row, schema, values.get(row.id))]));
+}
+
+/**
+ * The rollups a view that reads `reads` (its filter, sorts, grouping, what it
+ * computes) needs over every row: those it reads; every one, undefined, when
+ * it reads a formula, which may read any of them by name.
+ */
+function rollupsRead(
+  reads: readonly string[],
+  propertyById: ReadonlyMap<string, DatabaseProperty>,
+): ReadonlySet<string> | undefined {
+  const read = reads.flatMap((id) => propertyById.get(id) ?? []);
+  if (read.some((p) => p.type === 'formula')) return undefined;
+  return new Set(read.filter((p) => p.type === 'rollup').map((p) => p.id));
 }
 
 async function resolveDerivedProperties(
@@ -1438,17 +1454,21 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     let total: number;
     let nextCursor: string | null;
     let derivedAll: Awaited<ReturnType<typeof resolveDerivedForRows>> | null = null;
+    let readRollups: ReadonlySet<string> | undefined;
     if (readsComputed(viewReads, propertyById)) {
       if (cursor && !('offset' in cursor)) {
         res.status(400).json({ error: 'Invalid cursor' });
         return;
       }
       const rowDocs = await listDatabaseRows(handle, db.id, { archived: false, template: false });
+      // Over every row, only what the view reads; the page's rows get the rest below.
+      readRollups = rollupsRead(viewReads, propertyById);
       derivedAll = await resolveDerivedForRows(
         handle,
         rowDocs,
         db.propertiesSchema,
         req.user?.id ?? null,
+        readRollups,
       );
       let filtered = rowDocs.map((row) => ({
         ...row,
@@ -1514,8 +1534,9 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
     }
 
     const derivedSlice =
-      derivedAll ??
-      (await resolveDerivedForRows(handle, slice, db.propertiesSchema, req.user?.id ?? null));
+      derivedAll && !readRollups
+        ? derivedAll
+        : await resolveDerivedForRows(handle, slice, db.propertiesSchema, req.user?.id ?? null);
     const serializedRows = slice.map((row, i) => ({
       ...serializeRow(row, { derived: derivedSlice.get(row.id) ?? {} }),
       ...(groupKeys && { groupKey: groupKeys[i] ?? null }),
@@ -1951,7 +1972,7 @@ router.delete('/:id/views/:viewId', async (req: Request, res: Response) => {
 /**
  * A view's rows with their computed values, read and filtered in JS: what a
  * calculation or a chart over a formula or a rollup (or of a view filtering
- * on one) reads.
+ * on one) reads. Of the rollups, only those `reads` needs (`rollupsRead`).
  */
 async function computedViewRows(
   handle: PgHandle,
@@ -1959,10 +1980,17 @@ async function computedViewRows(
   filter: Filter,
   search: string | undefined,
   viewerId: string | null,
+  reads: readonly string[],
 ): Promise<{ shown: PageRow[]; every: PageRow[] }> {
   const propertyById = new Map(db.propertiesSchema.properties.map((p) => [p.id, p]));
   const rows = await listDatabaseRows(handle, db.id, { archived: false, template: false });
-  const derived = await resolveDerivedForRows(handle, rows, db.propertiesSchema, viewerId);
+  const derived = await resolveDerivedForRows(
+    handle,
+    rows,
+    db.propertiesSchema,
+    viewerId,
+    rollupsRead([...filterPropertyIds(filter), ...reads], propertyById),
+  );
   const needle = search?.toLowerCase();
   const every = rows.map((row) => ({
     ...row,
@@ -2037,7 +2065,17 @@ router.get('/:id/views/:viewId/calculations', async (req: Request, res: Response
           }),
         );
       if (inJs) {
-        const rows = await computedViewRows(handle, db, view.filters, search, req.user?.id ?? null);
+        const rows = await computedViewRows(
+          handle,
+          db,
+          view.filters,
+          search,
+          req.user?.id ?? null,
+          [
+            ...(grouping ? [grouping.propertyId] : []),
+            ...requested.map(({ property }) => property.id),
+          ],
+        );
         const spec = resolveGroupSpec(grouping, propertyById, timeZone, view.config, (p) =>
           numberBounds(rows.every, p),
         );
@@ -2108,7 +2146,9 @@ router.get('/:id/views/:viewId/chart', async (req: Request, res: Response) => {
     let byKey: Map<GroupKey, { count: number; sum: number | null; average: number | null }>;
     let spec: GroupSpec | null;
     if (readsComputed([...filterPropertyIds(view.filters), axis.propertyId], propertyById)) {
-      const rows = await computedViewRows(handle, db, view.filters, search, req.user?.id ?? null);
+      const rows = await computedViewRows(handle, db, view.filters, search, req.user?.id ?? null, [
+        axis.propertyId,
+      ]);
       spec = resolveGroupSpec(axis, propertyById, timeZone, {}, (p) => numberBounds(rows.every, p));
       const totals = new Map<GroupKey, { count: number; numbers: number[] }>();
       for (const { row, key } of spec ? groupRows(rows.shown, spec) : []) {
