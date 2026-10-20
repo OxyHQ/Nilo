@@ -7,7 +7,8 @@
  *   at once; without one, the last app it loaded (`/`, every route is the
  *   same single-page app).
  * - The app's bundles (`/_expo/static/*`): named by their content, so once
- *   kept they never change; kept the first time they are loaded.
+ *   kept they never change; kept the first time they are loaded. Those the
+ *   app a deploy replaced loaded go once the new one's are kept (`prune`).
  * - The app's icons and manifest: the network first, the copy without one.
  * - Anything else — the API, another origin, a published page — is not
  *   touched: what a member reads offline is the app's own copy of pages
@@ -18,6 +19,8 @@ const CACHE = 'nilo-app-v1';
 const SHELL = '/';
 const STATIC = /^\/_expo\/static\//;
 const ASSETS = /^\/(icon-\d+\.png|manifest\.json|canvaskit\.wasm)$/;
+/** Where the shell the kept bundles were last pruned for is kept. */
+const PRUNED = '/_sw/pruned';
 
 /** How a request is answered: 'shell', 'immutable', 'asset', or null to leave it alone. */
 function strategyFor(request, origin) {
@@ -30,6 +33,59 @@ function strategyFor(request, origin) {
   if (STATIC.test(url.pathname)) return 'immutable';
   if (ASSETS.test(url.pathname)) return 'asset';
   return null;
+}
+
+/** The bundles `text` names: a shell its first ones, a bundle the ones it loads. */
+function bundlesNamed(text) {
+  return text.match(/\/_expo\/static\/[\w./-]+/g) ?? [];
+}
+
+/**
+ * The kept bundles `shell` can no longer load: named neither by it nor by a
+ * kept bundle it loads, however deep. A bundle is loaded only once the one
+ * naming it was, and kept before it is answered, so what is not reached
+ * through kept bundles is no use offline. Null while a bundle the shell names
+ * is not kept yet (it is still loading): keep everything until it is; and for
+ * a page that names none, which is not the app's.
+ * `kept` holds each kept bundle's text by its path.
+ */
+function staleBundles(shell, kept) {
+  const roots = bundlesNamed(shell);
+  if (roots.length === 0 || roots.some((path) => !kept.has(path))) return null;
+  const reached = new Set();
+  const todo = [...roots];
+  while (todo.length > 0) {
+    const path = todo.pop();
+    if (reached.has(path)) continue;
+    reached.add(path);
+    const text = kept.get(path);
+    if (text !== undefined) todo.push(...bundlesNamed(text));
+  }
+  return [...kept.keys()].filter((path) => !reached.has(path));
+}
+
+/**
+ * Drop the bundles of an app the kept shell replaced, once per shell: the
+ * cache would otherwise grow with every deploy.
+ */
+async function prune() {
+  const cache = await caches.open(CACHE);
+  const kept = await cache.match(SHELL);
+  if (!kept) return;
+  const shellText = await kept.text();
+  const pruned = await cache.match(PRUNED);
+  if (pruned && (await pruned.text()) === shellText) return;
+  const bundles = new Map();
+  for (const request of await cache.keys()) {
+    const path = new URL(request.url).pathname;
+    if (!STATIC.test(path)) continue;
+    const response = await cache.match(request);
+    if (response) bundles.set(path, await response.text());
+  }
+  const stale = staleBundles(shellText, bundles);
+  if (!stale) return;
+  await Promise.all(stale.map((path) => cache.delete(path)));
+  await cache.put(PRUNED, new Response(shellText));
 }
 
 async function shell(request) {
@@ -81,20 +137,28 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  // Caches of an earlier version of this worker go, and open tabs are served now.
+  // Caches of an earlier version of this worker go, as do bundles of an app
+  // that was replaced, and open tabs are served now.
   event.waitUntil(
     caches
       .keys()
       .then((keys) =>
         Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
       )
+      .then(prune)
+      .catch(() => undefined)
       .then(() => self.clients.claim()),
   );
 });
 
 self.addEventListener('fetch', (event) => {
   const strategy = strategyFor(event.request, self.location.origin);
-  if (strategy) event.respondWith(HANDLERS[strategy](event.request));
+  if (!strategy) return;
+  const answered = HANDLERS[strategy](event.request);
+  event.respondWith(answered);
+  // A shell from the network may be a new app's: once its bundles are kept,
+  // the old app's go (on a later launch, when they are).
+  if (strategy === 'shell') event.waitUntil(answered.then(prune).catch(() => undefined));
 });
 
 self.addEventListener('push', (event) => {
@@ -141,4 +205,4 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // For `scripts/service-worker.test.ts`, which loads this file outside a browser.
-if (typeof module !== 'undefined') module.exports = { strategyFor };
+if (typeof module !== 'undefined') module.exports = { strategyFor, staleBundles };
