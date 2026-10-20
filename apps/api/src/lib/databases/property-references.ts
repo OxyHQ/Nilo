@@ -15,6 +15,7 @@ import type { DatabaseSchema } from '../../db/schema/databases.js';
 import { type PageProperties, pages } from '../../db/schema/pages.js';
 import { listUsersWithGrantsInWorkspace } from '../../repositories/pagePermissions.js';
 import { listMembershipsForUsers } from '../../repositories/workspaces.js';
+import { asObject, stringsAt } from './json-values.js';
 
 export interface InvalidReference {
   propertyId: string;
@@ -24,10 +25,8 @@ export interface InvalidReference {
 
 /** The ids of `field` (a string or a list of strings) in a stored value. */
 function idsOf(value: unknown, field: 'optionId' | 'optionIds' | 'userIds' | 'pageIds'): string[] {
-  if (!value || typeof value !== 'object') return [];
-  const raw = (value as Record<string, unknown>)[field];
-  if (typeof raw === 'string') return [raw];
-  return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string') : [];
+  const raw = asObject(value)?.[field];
+  return typeof raw === 'string' ? [raw] : stringsAt(value, field);
 }
 
 /**

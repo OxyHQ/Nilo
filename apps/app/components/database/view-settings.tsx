@@ -19,6 +19,7 @@ import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
 import {
   CHART_AGGREGATES,
+  CHART_MEASURABLE_TYPES,
   CHART_TYPES,
   DATE_GROUP_GRANULARITIES,
   GROUPABLE_PROPERTY_TYPES,
@@ -211,7 +212,7 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
   const xAxis = chart.xAxis;
   const xProperty = xAxis ? properties.find((p) => p.id === xAxis.propertyId) : undefined;
   const yAxis = chart.yAxis;
-  const numbers = ofType('number', 'unique_id');
+  const numbers = ofType(...CHART_MEASURABLE_TYPES);
 
   return (
     <View className="gap-3">

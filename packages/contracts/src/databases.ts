@@ -395,6 +395,16 @@ export type ChartType = (typeof CHART_TYPES)[number];
 export const CHART_AGGREGATES = ['count', 'sum', 'average'] as const;
 export type ChartAggregate = (typeof CHART_AGGREGATES)[number];
 
+/** The types a chart adds up or averages (`yAxis.propertyId`): stored numbers. */
+export const CHART_MEASURABLE_TYPES = [
+  'number',
+  'unique_id',
+] as const satisfies readonly DatabasePropertyType[];
+
+export function isChartMeasurable(type: DatabasePropertyType): boolean {
+  return (CHART_MEASURABLE_TYPES as readonly string[]).includes(type);
+}
+
 /** A number's groups: ranges of `step` from `from` up to `to`, those below and above apart. */
 export interface ViewNumberGrouping {
   from: number;

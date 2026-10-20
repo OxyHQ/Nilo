@@ -30,6 +30,7 @@ import type {
   ViewGroupBy,
 } from '../../db/schema/databases.js';
 import { readPropertyValue } from './filters.js';
+import { asObject, numberOf, truthy } from './json-values.js';
 import { normalizeStatusGroups } from './schema-defaults.js';
 import { compareText } from './sorts.js';
 
@@ -196,11 +197,6 @@ export function numberBounds(rows: readonly Row[], property: DatabaseProperty): 
   return { min, max };
 }
 
-function numberOf(value: unknown): number | null {
-  const n = asObject(value)?.number;
-  return typeof n === 'number' && Number.isFinite(n) ? n : null;
-}
-
 /** A select's options in the order they are listed; a status's in the order of its groups. */
 export function orderedOptionIds(property: DatabaseProperty): string[] {
   const options = property.config?.options ?? [];
@@ -287,9 +283,6 @@ export function dateGroupKey(
 
 type Row = Parameters<typeof readPropertyValue>[0];
 
-const asObject = (value: unknown): Record<string, unknown> | null =>
-  typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
-
 /** The groups a row is in: one for most properties, each of its values' for a multi-valued one. */
 export function rowGroupKeys(row: Row, spec: GroupSpec): GroupKey[] {
   const { property } = spec;
@@ -345,14 +338,6 @@ export function rowGroupKeys(row: Row, spec: GroupSpec): GroupKey[] {
     default:
       return [null];
   }
-}
-
-/** JavaScript truthiness, as `view-query.ts`' `truthy` reads a JSON value. */
-function truthy(x: unknown): boolean {
-  if (typeof x === 'string') return x !== '';
-  if (typeof x === 'number') return x !== 0;
-  if (typeof x === 'boolean') return x;
-  return typeof x === 'object' && x !== null;
 }
 
 /** A JSON scalar as PostgreSQL's `#>> '{}'` writes it. */

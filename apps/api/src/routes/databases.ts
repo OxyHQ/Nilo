@@ -10,6 +10,7 @@ import {
   MAX_NUMBER_GROUPS,
   numberGroupCount,
   DATE_GROUP_GRANULARITIES,
+  isChartMeasurable,
   isGroupableType,
   MAX_BUTTON_ACTIONS,
   MAX_COLUMN_WIDTH,
@@ -573,7 +574,7 @@ function checkViewSettings(
   }
   if (chart?.yAxis && chart.yAxis.aggregate !== 'count') {
     const property = chart.yAxis.propertyId ? byId.get(chart.yAxis.propertyId) : undefined;
-    if (!property || (property.type !== 'number' && property.type !== 'unique_id')) {
+    if (!property || !isChartMeasurable(property.type)) {
       return refuse('A chart adds up a number property', 'INVALID_CHART', chart.yAxis.propertyId);
     }
   }
@@ -2226,10 +2227,7 @@ router.get('/:id/views/:viewId/chart', async (req: Request, res: Response) => {
       aggregate !== 'count' && chart?.yAxis?.propertyId
         ? propertyById.get(chart.yAxis.propertyId)
         : undefined;
-    const measure =
-      measured && (measured.type === 'number' || measured.type === 'unique_id')
-        ? measured
-        : undefined;
+    const measure = measured && isChartMeasurable(measured.type) ? measured : undefined;
 
     let byKey: Map<GroupKey, { count: number; sum: number | null; average: number | null }>;
     let spec: GroupSpec | null;
