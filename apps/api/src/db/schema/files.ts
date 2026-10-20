@@ -90,8 +90,7 @@ export type FileReferenceJob = (typeof FILE_REFERENCE_JOBS)[number];
 /**
  * When each scheduled file job last ran and what it found. Every API task
  * ticks; the one that takes the lease runs the job, so it runs once a day
- * however many tasks there are. `report` is what an operator reads before
- * switching reconciliation from `dry-run` to `commit`.
+ * however many tasks there are. `report` is what it found and changed.
  */
 export const fileReferenceRuns = pgTable(
   'file_reference_runs',

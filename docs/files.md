@@ -129,14 +129,13 @@ Once a day one task (by lease, `file_reference_runs`) runs `lib/file-references.
 3. forgets file events older than Oxy's 30-day redelivery window;
 4. reconciles Nilo's `page` references with what Nilo holds
    (`assets.references.reconcile`, ADR 0043 D6): every `page_files` row with
-   its page, and every file a page's properties list. The mode is
-   `NILO_FILE_REFERENCES_RECONCILE`: `dry-run` (the default — Oxy counts what
-   it would add and remove and changes nothing), `commit`, or `off`. Its
-   report is `file_reference_runs.report`.
+   its page, and every file a page's properties list. It commits; its report
+   is `file_reference_runs.report`.
 
 Reconciliation removes a reference Nilo no longer holds — including the
-owner's grant, which nothing can recreate — so it is set to `commit` only
-after the dry-run reports have been read. Two guards: the inventory is read 5
+owner's grant, which nothing can recreate. It began as a dry run, and commits
+since its reports were read (2026-10-19: nothing to add, remove or refuse).
+Two guards: the inventory is read 5
 minutes after the reconciliation opens, because the app links a file a moment
 before it records it and Oxy keeps only references made after the opening;
 and it never commits while an attachment names no page (rows recorded before
