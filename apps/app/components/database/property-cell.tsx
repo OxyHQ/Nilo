@@ -6,7 +6,7 @@ import { ButtonCell } from './button-cell';
 import { FilesCell, FilesChips } from './files-cell';
 import { PersonCell, PersonChips } from './person-cell';
 import * as React from 'react';
-import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Platform, Pressable, TextInput, View } from 'react-native';
 import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
 import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
@@ -618,35 +618,33 @@ function SelectPicker({
           value={query}
           onChangeText={setQuery}
         />
-        <ScrollView style={{ maxHeight: 280 }} keyboardShouldPersistTaps="handled">
-          {filtered.length === 0 ? (
-            <EmptyState
-              // icon: ListTodo
-              variant="compact"
-              title={t('databases.properties.noOptions')}
-            />
-          ) : (
-            filtered.map((o) => {
-              const selected = selectedIds.includes(o.id);
-              return (
-                <Item
-                  key={o.id}
-                  density="compact"
-                  role={multi ? 'checkbox' : 'option'}
-                  selected={selected}
-                  accessibilityLabel={o.name}
-                  title={<SelectChip option={o} />}
-                  trailing={
-                    selected ? (
-                      <RiCheckLine width={14} height={14} fill={colors.foreground} />
-                    ) : null
-                  }
-                  onPress={() => onSelect(o.id)}
-                />
-              );
-            })
-          )}
-        </ScrollView>
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            // icon: ListTodo
+            variant="compact"
+            title={t('databases.properties.noOptions')}
+          />
+        ) : (
+          filtered.map((o) => {
+            const selected = selectedIds.includes(o.id);
+            return (
+              <Item
+                key={o.id}
+                density="compact"
+                role={multi ? 'checkbox' : 'option'}
+                selected={selected}
+                accessibilityLabel={o.name}
+                title={<SelectChip option={o} />}
+                trailing={
+                  selected ? <RiCheckLine width={14} height={14} fill={colors.foreground} /> : null
+                }
+                onPress={() => onSelect(o.id)}
+              />
+            );
+          })
+        )}
+
         {selectedIds.length > 0 ? (
           <Button
             appearance="plain"

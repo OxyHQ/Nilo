@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { RiArrowRightUpLine } from '@oxy.so/bloom/icons/RiArrowRightUpLine';
 import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
 import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
@@ -228,37 +228,34 @@ function RelationPicker({
         value={query}
         onChangeText={setQuery}
       />
-      <ScrollView style={{ maxHeight: 260 }} keyboardShouldPersistTaps="handled">
-        {found.isPending ? (
-          <Text className="py-2 text-sm text-muted-foreground">{t('common.loading')}</Text>
-        ) : rows.length === 0 ? (
-          <EmptyState
-            variant="compact"
-            title={t(
-              found.isError ? 'databases.relations.searchFailed' : 'databases.relations.none',
-            )}
-          />
-        ) : (
-          rows.map((row) => {
-            const selected = value.includes(row.id);
-            const title = row.title || t('databases.untitled');
-            return (
-              <Item
-                key={row.id}
-                density="compact"
-                role="checkbox"
-                selected={selected}
-                accessibilityLabel={title}
-                title={title}
-                trailing={
-                  selected ? <RiCheckLine width={14} height={14} fill={colors.foreground} /> : null
-                }
-                onPress={() => toggle(row.id)}
-              />
-            );
-          })
-        )}
-      </ScrollView>
+
+      {found.isPending ? (
+        <Text className="py-2 text-sm text-muted-foreground">{t('common.loading')}</Text>
+      ) : rows.length === 0 ? (
+        <EmptyState
+          variant="compact"
+          title={t(found.isError ? 'databases.relations.searchFailed' : 'databases.relations.none')}
+        />
+      ) : (
+        rows.map((row) => {
+          const selected = value.includes(row.id);
+          const title = row.title || t('databases.untitled');
+          return (
+            <Item
+              key={row.id}
+              density="compact"
+              role="checkbox"
+              selected={selected}
+              accessibilityLabel={title}
+              title={title}
+              trailing={
+                selected ? <RiCheckLine width={14} height={14} fill={colors.foreground} /> : null
+              }
+              onPress={() => toggle(row.id)}
+            />
+          );
+        })
+      )}
     </>
   );
 }

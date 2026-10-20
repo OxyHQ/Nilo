@@ -3,7 +3,7 @@ import { RelationSettings } from './relation-settings';
 import { FormulaEditor } from './formula-editor';
 import { UniqueIdEditor } from './unique-id-editor';
 import * as React from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { RiSortAlphabetAsc } from '@oxy.so/bloom/icons/RiSortAlphabetAsc';
 import { RiSortAlphabetDesc } from '@oxy.so/bloom/icons/RiSortAlphabetDesc';
 import { RiEyeOffLine } from '@oxy.so/bloom/icons/RiEyeOffLine';
@@ -421,21 +421,21 @@ export function PropertyHeaderMenu({
           <Text className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">
             {t('databases.properties.changeType')}
           </Text>
-          <ScrollView style={{ maxHeight: 360 }}>
-            {ADDABLE_TYPES.filter((type) => type !== property.type && type !== 'relation').map(
-              (type) => (
-                <Item
-                  key={type}
-                  density="compact"
-                  accessibilityRole="button"
-                  disabled={updateProperty.isPending}
-                  leading={icon(PROPERTY_TYPE_ICONS[type])}
-                  title={propertyTypeLabel(type)}
-                  onPress={() => void retype(type)}
-                />
-              ),
-            )}
-          </ScrollView>
+
+          {ADDABLE_TYPES.filter((type) => type !== property.type && type !== 'relation').map(
+            (type) => (
+              <Item
+                key={type}
+                density="compact"
+                accessibilityRole="button"
+                disabled={updateProperty.isPending}
+                leading={icon(PROPERTY_TYPE_ICONS[type])}
+                title={propertyTypeLabel(type)}
+                onPress={() => void retype(type)}
+              />
+            ),
+          )}
+
           <View className="mt-2 flex-row justify-end">
             <Button appearance="subtle" size="sm" onPress={() => setMode('menu')}>
               {t('common.back')}
@@ -549,26 +549,26 @@ function SelectOptionsEditor({ property, database, onDone }: SelectOptionsEditor
       <Text className="text-xs uppercase tracking-wider text-muted-foreground">
         {t('databases.properties.options')}
       </Text>
-      <ScrollView style={{ maxHeight: 320 }}>
-        {isStatus
-          ? groups.map((group) => (
-              <View key={group.id} className="mb-2">
-                <Text className="text-xs font-semibold text-muted-foreground">
-                  {t(`databases.statusGroups.${group.id}`)}
-                </Text>
-                {group.optionIds.flatMap((id) => {
-                  const option = byId.get(id);
-                  return option ? [row(option, group.optionIds)] : [];
-                })}
-              </View>
-            ))
-          : options.map((o) =>
-              row(
-                o,
-                options.map((x) => x.id),
-              ),
-            )}
-      </ScrollView>
+
+      {isStatus
+        ? groups.map((group) => (
+            <View key={group.id} className="mb-2">
+              <Text className="text-xs font-semibold text-muted-foreground">
+                {t(`databases.statusGroups.${group.id}`)}
+              </Text>
+              {group.optionIds.flatMap((id) => {
+                const option = byId.get(id);
+                return option ? [row(option, group.optionIds)] : [];
+              })}
+            </View>
+          ))
+        : options.map((o) =>
+            row(
+              o,
+              options.map((x) => x.id),
+            ),
+          )}
+
       <View className="mt-1 flex-row items-center gap-2">
         <View className="flex-1">
           <TextFieldInput
@@ -802,32 +802,31 @@ export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps)
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" label={t('databases.properties.add')}>
           <DropdownMenuLabel>{t('databases.properties.add')}</DropdownMenuLabel>
-          <ScrollView style={{ maxHeight: 360 }}>
-            {ADDABLE_TYPES.map((type) => {
-              const Icon = PROPERTY_TYPE_ICONS[type];
-              return (
-                <DropdownMenuItem
-                  key={type}
-                  // The menu stays open until the property is added.
-                  keepOpen={type !== 'relation'}
-                  leading={<Icon width={14} height={14} fill={colors.foreground} />}
-                  onPress={() => {
-                    if (type === 'relation') {
-                      relation.open();
-                      return;
-                    }
-                    addProperty({
-                      databaseId: database.id,
-                      name: propertyTypeLabel(type),
-                      type,
-                    });
-                  }}
-                >
-                  {propertyTypeLabel(type)}
-                </DropdownMenuItem>
-              );
-            })}
-          </ScrollView>
+
+          {ADDABLE_TYPES.map((type) => {
+            const Icon = PROPERTY_TYPE_ICONS[type];
+            return (
+              <DropdownMenuItem
+                key={type}
+                // The menu stays open until the property is added.
+                keepOpen={type !== 'relation'}
+                leading={<Icon width={14} height={14} fill={colors.foreground} />}
+                onPress={() => {
+                  if (type === 'relation') {
+                    relation.open();
+                    return;
+                  }
+                  addProperty({
+                    databaseId: database.id,
+                    name: propertyTypeLabel(type),
+                    type,
+                  });
+                }}
+              >
+                {propertyTypeLabel(type)}
+              </DropdownMenuItem>
+            );
+          })}
         </DropdownMenuContent>
       </DropdownMenu>
       <Dialog

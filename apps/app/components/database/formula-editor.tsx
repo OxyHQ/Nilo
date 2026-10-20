@@ -1,6 +1,6 @@
 import { MONO_FONT_FAMILY } from '@/lib/fonts';
 import * as React from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { Button } from '@oxy.so/bloom/button';
 import { Item } from '@oxy.so/bloom/item';
 import { Textarea } from '@oxy.so/bloom/textarea';
@@ -67,96 +67,90 @@ export function FormulaEditor({
     }
   };
   return (
-    <ScrollView style={{ maxHeight: 480, flexShrink: 1 }} keyboardShouldPersistTaps="handled">
-      <View className="gap-3">
-        <Text variant="headline-semibold">{t('databases.formula.edit')}</Text>
-        <Textarea
-          maxLength={2000}
-          rows={4}
-          inputStyle={{ fontFamily: MONO_FONT_FAMILY }}
-          value={expression}
-          editable={!saving}
-          accessibilityLabel={t('databases.formula.expression')}
-          autoCapitalize="none"
-          autoCorrect={false}
-          selection={selection}
-          onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
-          onChangeText={setExpression}
-        />
-        <Text className="text-xs text-muted-foreground">{t('databases.formula.operators')}</Text>
-        <Text variant="body-medium">{t('databases.formula.properties')}</Text>
-        <View className="flex-row flex-wrap gap-1">
-          {database.schema.properties.map((p) => (
-            <Button
-              key={p.id}
-              disabled={saving}
-              size="sm"
-              appearance="outline"
-              accessibilityLabel={t('databases.formula.insert', { name: p.name })}
-              onPress={() => insert(propertyExpression(p.name))}
-            >
-              {p.name}
-            </Button>
-          ))}
-        </View>
-        <Text variant="body-medium">{t('databases.formula.functions')}</Text>
-        <ScrollView
-          style={{ maxHeight: 160 }}
-          nestedScrollEnabled
-          keyboardShouldPersistTaps="handled"
-        >
-          {FORMULA_FUNCTIONS.map((name) => (
-            <Item
-              key={name}
-              density="compact"
-              disabled={saving}
-              accessibilityRole="button"
-              accessibilityLabel={t('databases.formula.insert', { name })}
-              onPress={() => insert(t(`databases.formula.help.${name}.example`))}
-            >
-              <Text variant="body-regular" style={{ fontFamily: MONO_FONT_FAMILY }}>
-                {name}
-              </Text>
-              <Text className="text-xs text-muted-foreground">
-                {t(`databases.formula.help.${name}.description`)}
-              </Text>
-              <Text variant="caption-1-regular" style={{ fontFamily: MONO_FONT_FAMILY }}>
-                {t(`databases.formula.help.${name}.example`)}
-              </Text>
-            </Item>
-          ))}
-        </ScrollView>
-        {error ? (
-          <Text accessibilityRole="alert" className="text-sm text-destructive">
-            {error}
-          </Text>
-        ) : null}
-        {preview && preview.expression === expression ? (
-          <View className="gap-2 rounded bg-muted p-3" accessibilityLiveRegion="polite">
-            <Text className="text-xs text-muted-foreground">{t('databases.formula.preview')}</Text>
-            {preview.value === null ? (
-              <Text variant="body-regular">{t('databases.formula.empty')}</Text>
-            ) : (
-              <ComputedCell property={property} value={preview.value} />
-            )}
-          </View>
-        ) : null}
-        <View className="flex-row justify-end gap-2">
-          <Button appearance="outline" onPress={onDone} disabled={saving}>
-            {t('common.done')}
-          </Button>
+    <View className="gap-3">
+      <Text variant="headline-semibold">{t('databases.formula.edit')}</Text>
+      <Textarea
+        maxLength={2000}
+        rows={4}
+        inputStyle={{ fontFamily: MONO_FONT_FAMILY }}
+        value={expression}
+        editable={!saving}
+        accessibilityLabel={t('databases.formula.expression')}
+        autoCapitalize="none"
+        autoCorrect={false}
+        selection={selection}
+        onSelectionChange={(event) => setSelection(event.nativeEvent.selection)}
+        onChangeText={setExpression}
+      />
+      <Text className="text-xs text-muted-foreground">{t('databases.formula.operators')}</Text>
+      <Text variant="body-medium">{t('databases.formula.properties')}</Text>
+      <View className="flex-row flex-wrap gap-1">
+        {database.schema.properties.map((p) => (
           <Button
-            appearance="solid"
-            tone="accent"
-            onPress={() => {
-              void save();
-            }}
+            key={p.id}
             disabled={saving}
+            size="sm"
+            appearance="outline"
+            accessibilityLabel={t('databases.formula.insert', { name: p.name })}
+            onPress={() => insert(propertyExpression(p.name))}
           >
-            {t('common.save')}
+            {p.name}
           </Button>
-        </View>
+        ))}
       </View>
-    </ScrollView>
+      <Text variant="body-medium">{t('databases.formula.functions')}</Text>
+
+      {FORMULA_FUNCTIONS.map((name) => (
+        <Item
+          key={name}
+          density="compact"
+          disabled={saving}
+          accessibilityRole="button"
+          accessibilityLabel={t('databases.formula.insert', { name })}
+          onPress={() => insert(t(`databases.formula.help.${name}.example`))}
+        >
+          <Text variant="body-regular" style={{ fontFamily: MONO_FONT_FAMILY }}>
+            {name}
+          </Text>
+          <Text className="text-xs text-muted-foreground">
+            {t(`databases.formula.help.${name}.description`)}
+          </Text>
+          <Text variant="caption-1-regular" style={{ fontFamily: MONO_FONT_FAMILY }}>
+            {t(`databases.formula.help.${name}.example`)}
+          </Text>
+        </Item>
+      ))}
+
+      {error ? (
+        <Text accessibilityRole="alert" className="text-sm text-destructive">
+          {error}
+        </Text>
+      ) : null}
+      {preview && preview.expression === expression ? (
+        <View className="gap-2 rounded bg-muted p-3" accessibilityLiveRegion="polite">
+          <Text className="text-xs text-muted-foreground">{t('databases.formula.preview')}</Text>
+          {preview.value === null ? (
+            <Text variant="body-regular">{t('databases.formula.empty')}</Text>
+          ) : (
+            <ComputedCell property={property} value={preview.value} />
+          )}
+        </View>
+      ) : null}
+      <View className="flex-row justify-end gap-2">
+        <Button appearance="outline" onPress={onDone} disabled={saving}>
+          {t('common.done')}
+        </Button>
+        <Button
+          appearance="solid"
+          tone="accent"
+          onPress={() => {
+            void save();
+          }}
+          disabled={saving}
+        >
+          {t('common.save')}
+        </Button>
+      </View>
+    </View>
   );
 }
