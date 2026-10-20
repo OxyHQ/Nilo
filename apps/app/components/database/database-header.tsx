@@ -4,7 +4,7 @@ import { viewIsEditable } from '@oxy.so/nilo-contracts';
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import { PageHeader, PageHeaderTitleInput } from '@oxy.so/bloom/page-header';
-import { Toolbar, ScrollArea } from '@oxy.so/bloom/layout';
+import { Toolbar } from '@oxy.so/bloom/layout';
 import { RiArrowLeftSLine } from '@oxy.so/bloom/icons/RiArrowLeftSLine';
 import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { RiCalendarLine } from '@oxy.so/bloom/icons/RiCalendarLine';
@@ -23,7 +23,13 @@ import { RiBarChartBoxLine } from '@oxy.so/bloom/icons/RiBarChartBoxLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
 import { Item } from '@oxy.so/bloom/item';
-import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@oxy.so/bloom/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTitle,
+  PopoverTrigger,
+  PopoverItem,
+} from '@oxy.so/bloom/popover';
 import { Tabs, TabsTrigger } from '@oxy.so/bloom/tabs';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -371,65 +377,47 @@ export function ViewTab({ view, database, readOnly = false }: ViewTabProps) {
         <Button
           iconOnly
           appearance="plain"
-          size="xs"
           accessibilityLabel={t('databases.views.settings', { name: view.name })}
           leadingIcon={RiEqualizerLine}
         />
       </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        minWidth={mode === 'settings' ? 300 : 240}
-        label={view.name}
-        className="gap-2"
-      >
+      <PopoverContent align="start" minWidth={mode === 'settings' ? 300 : 240} label={view.name}>
         <PopoverTitle tone="secondary">{view.name}</PopoverTitle>
         {mode === 'menu' ? (
           <>
-            <Item
-              density="compact"
-              accessibilityRole="button"
+            <PopoverItem
               title={t('databases.views.rename')}
               onPress={() => {
                 setRenameDraft(view.name);
                 setMode('rename');
               }}
             />
-            <Item
-              density="compact"
-              accessibilityRole="button"
+            <PopoverItem
               leading={<RiSettings3Line width={14} height={14} fill={colors.foreground} />}
               title={t('databases.viewSettings.title')}
               onPress={() => setMode('settings')}
             />
             {!view.isDefault ? (
-              <Item
-                density="compact"
-                accessibilityRole="button"
+              <PopoverItem
                 leading={<RiStarLine width={14} height={14} fill={colors.foreground} />}
                 title={t('databases.views.makeDefault')}
                 disabled={updateView.isPending}
                 onPress={() => void makeDefault()}
               />
             ) : null}
-            <Item
-              density="compact"
-              accessibilityRole="button"
+            <PopoverItem
               leading={<RiArrowLeftSLine width={14} height={14} fill={colors.foreground} />}
               title={t('databases.views.moveLeft')}
               disabled={index <= 0 || updateView.isPending}
               onPress={() => void moveTo(view.id, index - 1)}
             />
-            <Item
-              density="compact"
-              accessibilityRole="button"
+            <PopoverItem
               leading={<RiArrowRightSLine width={14} height={14} fill={colors.foreground} />}
               title={t('databases.views.moveRight')}
               disabled={index === -1 || index >= siblings.length - 1 || updateView.isPending}
               onPress={() => void moveTo(view.id, index + 1)}
             />
-            <Item
-              density="compact"
-              accessibilityRole="button"
+            <PopoverItem
               destructive
               title={t('databases.views.delete')}
               disabled={deleteView.isPending}
@@ -451,7 +439,6 @@ export function ViewTab({ view, database, readOnly = false }: ViewTabProps) {
         {mode === 'rename' ? (
           <>
             <TextFieldInput
-              size="sm"
               label={t('databases.views.namePlaceholder')}
               value={renameDraft}
               onChangeText={setRenameDraft}
@@ -459,13 +446,12 @@ export function ViewTab({ view, database, readOnly = false }: ViewTabProps) {
               onSubmitEditing={commitRename}
             />
             <View className="mt-1 flex-row justify-end gap-2">
-              <Button appearance="subtle" size="sm" onPress={close}>
+              <Button appearance="subtle" onPress={close}>
                 {t('common.cancel')}
               </Button>
               <Button
                 appearance="solid"
                 tone="accent"
-                size="sm"
                 disabled={updateView.isPending || !renameDraft.trim()}
                 onPress={commitRename}
               >
@@ -476,11 +462,9 @@ export function ViewTab({ view, database, readOnly = false }: ViewTabProps) {
         ) : null}
         {mode === 'settings' ? (
           <>
-            <ScrollArea style={{ maxHeight: 440 }} keyboardShouldPersistTaps="handled">
-              <ViewSettings database={database} view={view} />
-            </ScrollArea>
+            <ViewSettings database={database} view={view} />
             <View className="mt-1 flex-row justify-end">
-              <Button appearance="subtle" size="sm" onPress={() => setMode('menu')}>
+              <Button appearance="subtle" onPress={() => setMode('menu')}>
                 {t('common.back')}
               </Button>
             </View>
