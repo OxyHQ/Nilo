@@ -120,6 +120,7 @@ export function useCreateDatabase() {
 export function useUpdateDatabase() {
   const queryClient = useQueryClient();
   return useMutation<Database, Error, UpdateDatabaseInput>({
+    mutationKey: ['database-update'],
     mutationFn: async ({ id, ...patch }) => {
       const res = await apiClient.patch<DatabaseResponse>(API_ROUTES.databases.update(id), patch);
       return res.data.database;
@@ -150,13 +151,15 @@ export function useUpdateDatabase() {
         queryClient.setQueryData(queryKeys.databases.detail(id), ctx.previous);
       }
     },
-    onSettled: (database) => {
+    onSettled: (database, _error, { id }) => {
+      // Workspace events defer to pending optimistic writes; always revalidate
+      // their detail after settlement, including a failed write and rollback.
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.databases.detail(id),
+      });
       if (!database) return;
       queryClient.invalidateQueries({
         queryKey: queryKeys.databases.list(database.workspaceId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.databases.detail(database.id),
       });
     },
   });

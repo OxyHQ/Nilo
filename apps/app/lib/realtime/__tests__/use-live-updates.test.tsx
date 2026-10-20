@@ -126,7 +126,7 @@ it('refreshes matching workspace metadata and paths without invalidating editor 
   });
   expect(invalidate).not.toHaveBeenCalled();
   act(() => jest.advanceTimersByTime(120));
-  expect(invalidate).toHaveBeenCalledTimes(7);
+  expect(invalidate).toHaveBeenCalledTimes(8);
   for (const key of keys.slice(0, 14)) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
   for (const key of keys.slice(14)) expect(client.getQueryState(key)?.isInvalidated).toBe(false);
 });
