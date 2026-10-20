@@ -30,5 +30,9 @@
   "databasesComingSoon": "Databases coming soon.",
   "templatesHint": "Save a page as a template to reuse it later.",
   "loadPagesFailed": "Couldn’t load pages.",
-  "noPrivatePages": "No private pages yet."
+  "noPrivatePages": "No private pages yet.",
+  "noPagesInside": "No pages inside",
+  "navigation": "Sidebar",
+  "openNavigation": "Open navigation",
+  "closeNavigation": "Close navigation"
 }
