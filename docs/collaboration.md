@@ -193,11 +193,19 @@ to the device — SQLite on iOS and Android, IndexedDB in a browser. A page is
 `dirty` while it holds a change of the device's the server has not
 confirmed; nothing removes a dirty page but signing out.
 
-What stays once a page is closed: on iOS and Android, the pages kept for
-reading offline (`offline-pages.ts`: pinned, or among the last 20 opened) and
-dirty ones; in a browser, dirty ones only. Pinned pages are brought up to date
+What stays once a page is closed: the pages kept for reading offline
+(`offline-pages.ts`: pinned, or among the last 20 opened) and dirty ones,
+on native devices and browsers with IndexedDB. Pinned pages are brought up to date
 in the background through `POST /pages/:id/doc` (the handshake over HTTP).
 Signing out, or another account signing in, removes every document stored.
+
+Settings' **Remove all downloads** removes download choices and clean closed
+documents through `OfflinePages.removeDownloads`. It preserves unsent document
+updates, including their file references. Open sessions also retain their base
+document so subsequent offline deltas remain recoverable before the editor
+closes. Closing the last session removes its clean copy when no download reason
+remains. The account boundary continues to use `clear`, which purges all local
+documents, including pending work.
 
 Yjs reads `crypto.getRandomValues` the moment it loads: the app installs it
 from `expo-crypto` (`expo-standard-web-crypto`) first thing at its entry, and

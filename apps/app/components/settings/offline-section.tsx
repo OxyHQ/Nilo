@@ -6,6 +6,7 @@ import { confirm } from '@oxy.so/bloom/surfaces';
 import { useTranslation } from '@/hooks/useTranslation';
 import { type OfflineEntry, offlinePages } from '@/lib/editor/offline-pages';
 import { useOfflinePageList } from '@/lib/editor/use-offline-pages';
+import { isPageSessionOpen } from '@/lib/editor/shared-sessions';
 import { useNiloSettings } from './settings-provider';
 
 /** A size in bytes the way people read one: 820 KB, 3.4 MB. */
@@ -37,7 +38,7 @@ export function OfflineSection() {
       cancelLabel: t('common.cancel'),
       destructive: true,
     });
-    if (confirmed) await offlinePages.clear();
+    if (confirmed) await offlinePages.removeDownloads(isPageSessionOpen);
   };
 
   return (

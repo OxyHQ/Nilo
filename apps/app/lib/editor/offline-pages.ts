@@ -185,6 +185,22 @@ export class OfflinePages {
     });
   }
 
+  /**
+   * Remove download choices, retaining unsent work and the base of open editors.
+   * An open editor releases its clean document when its last session closes.
+   * `remove` checks dirty state in the store's deletion transaction; checking it
+   * here first would race an edit arriving while the downloads are removed.
+   */
+  async removeDownloads(isPageOpen: (pageId: string) => boolean): Promise<void> {
+    await this.serial(async (files) => {
+      const index = await this.readIndex(files);
+      for (const pageId of Object.keys(index.pages)) {
+        if (!isPageOpen(pageId)) await this.docs?.remove(pageId);
+      }
+      await this.writeIndex(files, { pages: {} });
+    });
+  }
+
   /** Forget every page kept on this device, and every document stored. */
   async clear(): Promise<void> {
     await this.docs?.clear();

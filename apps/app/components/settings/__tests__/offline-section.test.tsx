@@ -8,14 +8,19 @@ const mockClose = jest.fn();
 const mockConfirm = jest.fn(async (_options: unknown) => true);
 const mockStore = {
   setPinned: jest.fn(async (_id: string, _pinned: boolean) => undefined),
-  clear: jest.fn(async () => undefined),
+  removeDownloads: jest.fn(async (_isPageOpen: (pageId: string) => boolean) => undefined),
 };
+const mockIsPageOpen = jest.fn((_pageId: string) => false);
+jest.mock('@/lib/editor/shared-sessions', () => ({
+  isPageSessionOpen: (pageId: string) => mockIsPageOpen(pageId),
+}));
 let mockList: { supported: boolean; pages: OfflineEntry[] } = { supported: true, pages: [] };
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('@/lib/editor/offline-pages', () => ({
   offlinePages: {
     setPinned: (...args: [string, boolean]) => mockStore.setPinned(...args),
-    clear: () => mockStore.clear(),
+    removeDownloads: (isPageOpen: (pageId: string) => boolean) =>
+      mockStore.removeDownloads(isPageOpen),
   },
 }));
 jest.mock('@/lib/editor/use-offline-pages', () => ({ useOfflinePageList: () => mockList }));
@@ -108,9 +113,11 @@ it('removes every page only after confirming', async () => {
   expect(mockConfirm).toHaveBeenCalledWith(
     expect.objectContaining({ title: 'settings.offline.removeAllTitle', destructive: true }),
   );
-  expect(mockStore.clear).not.toHaveBeenCalled();
+  expect(mockStore.removeDownloads).not.toHaveBeenCalled();
   await act(async () => button('settings.offline.removeAll').props.onPress());
-  expect(mockStore.clear).toHaveBeenCalled();
+  expect(mockStore.removeDownloads).toHaveBeenCalledWith(expect.any(Function));
+  mockStore.removeDownloads.mock.calls[0][0]('Plan');
+  expect(mockIsPageOpen).toHaveBeenCalledWith('Plan');
 });
 
 it('says where pages are kept when this device keeps none', () => {

@@ -144,6 +144,11 @@ export function holdPageSession(
   };
 }
 
+/** Download removal must retain the base document until the last editor closes. */
+export function isPageSessionOpen(pageId: string): boolean {
+  return (entries.get(pageId)?.holders.size ?? 0) > 0;
+}
+
 /** For tests: how many places hold `pageId` open. */
 export function holdersOf(pageId: string): number {
   return entries.get(pageId)?.holders.size ?? 0;

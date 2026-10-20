@@ -10,7 +10,13 @@ import * as Y from 'yjs';
 import { FakeServer, FakeSocket, settle } from '@/test-support/fake-room';
 import { MemoryPageDocStore } from '../doc-store-types';
 import type { SessionSocket } from '../page-session';
-import { type SessionDeps, holdersOf, holdPageSession } from '../shared-sessions';
+import {
+  type SessionDeps,
+  holdersOf,
+  holdPageSession,
+  isPageSessionOpen,
+} from '../shared-sessions';
+import { OfflinePages } from '../offline-pages';
 
 jest.mock('expo-sqlite', () => ({}));
 // The app's socket is the default; these tests hand the session their own.
@@ -71,7 +77,7 @@ function device(server: FakeServer) {
       },
     };
   };
-  return { socket, closed, hold, sockets: () => sockets };
+  return { socket, closed, hold, deps, sockets: () => sockets };
 }
 
 const texts = (store: EditorStore | null) =>
@@ -168,4 +174,69 @@ it('opens again after the last place closed it', async () => {
   expect(phone.socket.sent.filter((e) => e === 'page:join')).toHaveLength(2);
   again.release();
   await settle();
+});
+
+it('keeps an open document base and file references when downloads are removed before another offline edit', async () => {
+  const server = new FakeServer();
+  const phone = device(server);
+  const files = new Map<string, string>();
+  const docs = phone.deps.store as MemoryPageDocStore;
+  const pages = new OfflinePages(
+    {
+      read: async (name) => files.get(name) ?? null,
+      write: async (name, text) => void files.set(name, text),
+      remove: async (name) => void files.delete(name),
+      clear: async () => files.clear(),
+    },
+    docs,
+  );
+  phone.deps.closed = async (pageId, bytes) => {
+    if (await pages.keeps(pageId)) await pages.saved(pageId, bytes);
+    else await docs.remove(pageId);
+  };
+  await pages.setPinned('page', true);
+  const editor = phone.hold();
+  await settle();
+  try {
+    const store = editor.held.store as EditorStore;
+    store.run((c) => insertBlockAfter(c, null, 'image', { props: { fileId: 'kept-file' } }));
+    await settle();
+    expect(await docs.isDirty('page')).toBe(false);
+    expect(isPageSessionOpen('page')).toBe(true);
+    phone.socket.disconnect();
+
+    await pages.removeDownloads(isPageSessionOpen);
+    expect(await pages.keeps('page')).toBe(false);
+    expect(await docs.load('page')).not.toBeNull();
+    store.run((c) =>
+      insertBlockAfter(c, store.doc.root[0], 'paragraph', { text: [{ text: 'Unsent' }] }),
+    );
+    await settle();
+
+    // Recover only persisted updates, before closing/compacting the live session:
+    // an offline crash at this point must preserve both the base and its delta.
+    const persisted = await docs.load('page');
+    expect(persisted?.dirty).toBe(true);
+    const recovered = new Y.Doc();
+    Y.applyUpdate(recovered, Y.mergeUpdates(persisted?.updates ?? []));
+    const recoveredStore = new EditorStore({
+      document: emptyDocument(),
+      schema: NILO_SCHEMA,
+      newId,
+    });
+    const binding = new YjsBinding(recoveredStore, recovered, { readOnly: true });
+    expect(recoveredStore.doc).toEqual(store.doc);
+    expect(
+      Object.values(recoveredStore.doc.blocks).some((block) => block.props.fileId === 'kept-file'),
+    ).toBe(true);
+    binding.dispose();
+    recovered.destroy();
+  } finally {
+    editor.release();
+    await settle();
+  }
+  expect(isPageSessionOpen('page')).toBe(false);
+  expect(await docs.isDirty('page')).toBe(true);
+  await pages.clear();
+  expect(await docs.load('page')).toBeNull();
 });
