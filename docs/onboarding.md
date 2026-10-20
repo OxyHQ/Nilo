@@ -49,6 +49,16 @@ Opening or closing discussions must preserve the mounted document editor.
 Boards and canvases use `Screen scroll="none"` so their own viewport fills the
 remaining space. Database pagination uses `ScreenScrollView.onEndReached`.
 
+The header breadcrumb represents the authorized page ancestry returned by the
+API. Do not prepend a workspace-home link: guests may only have access to the
+page, and workspace switching already belongs to the sidebar. Supply real
+`href` destinations to Bloom. Keep the current page visible while its ancestry
+loads, protect optimistic metadata during saves, and refresh affected paths
+when another session changes the hierarchy. Breadcrumb queries include their
+workspace scope so those events do not invalidate unrelated editor data.
+Header actions should leave room for navigation; comments use Bloom's normal
+icon-only button with an accessible unresolved-discussion count.
+
 The editor supplies its toolbar through `Screen.bottomBar` with
 `bottomBarKeyboardBehavior="follow"`. Bloom coordinates keyboard avoidance,
 focused inputs and toolbar clearance; Nilo does not measure the toolbar or
