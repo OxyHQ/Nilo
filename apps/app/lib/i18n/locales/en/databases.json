@@ -510,7 +510,18 @@
       "sum": "Sum",
       "average": "Average"
     },
-    "yProperty": "Property to add up"
+    "yProperty": "Property to add up",
+    "hiddenGroups": "Hidden groups",
+    "showGroup": "Show",
+    "ranges": {
+      "title": "Number ranges",
+      "from": "From",
+      "to": "To",
+      "step": "Range size",
+      "apply": "Apply ranges",
+      "reset": "Fit to the numbers",
+      "invalid": "From must be below To, in at most %{count} ranges."
+    }
   },
   "options": {
     "color": "Color of %{name}",
@@ -587,7 +598,16 @@
       "one": "%{count} row",
       "other": "%{count} rows"
     },
-    "addRow": "New row in %{name}"
+    "addRow": "New row in %{name}",
+    "range": "%{from} – %{to}",
+    "below": "Under %{to}",
+    "above": "%{from} or more",
+    "options": "Options for %{name}",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "hide": "Hide group",
+    "show": "Show %{name}",
+    "drag": "Drag onto another group to move %{name} there"
   },
   "calculations": {
     "calculate": "Calculate",

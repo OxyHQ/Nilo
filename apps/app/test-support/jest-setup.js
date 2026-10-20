@@ -46,3 +46,9 @@ jest.mock('expo-audio', () => {
     setAudioModeAsync: jest.fn(() => Promise.resolve()),
   };
 });
+
+// AsyncStorage's native module is not in jest: its in-memory mock, for the
+// persisted stores (a reader's collapsed groups among them).
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);

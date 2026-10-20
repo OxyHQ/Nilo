@@ -7,6 +7,8 @@ import {
   CALCULATION_FUNCTIONS,
   CHART_AGGREGATES,
   CHART_TYPES,
+  MAX_NUMBER_GROUPS,
+  numberGroupCount,
   DATE_GROUP_GRANULARITIES,
   isGroupableType,
   MAX_BUTTON_ACTIONS,
@@ -34,6 +36,7 @@ import {
   type SelectOption,
   type ViewConfig,
   type ViewGroupBy,
+  type ViewNumberGrouping,
   type ViewSort,
 } from '../db/schema/databases.js';
 import type { PageRow } from '../repositories/pages.js';
@@ -122,27 +125,37 @@ import {
   encodeRowsCursor,
   listViewGroups,
   listViewRows,
+  numberBoundsInSql,
 } from '../lib/databases/view-query.js';
 import {
   countGroups,
   groupRows,
   type GroupKey,
+  type GroupSections,
   type GroupSpec,
+  groupSections,
   isTimeZone,
+  needsNumberBounds,
+  numberBounds,
   resolveGroupSpec,
+  rowGrouping,
+  shownRows,
   summarizeGroups,
 } from '../lib/databases/groups.js';
 import {
   calculableInSql,
   calculate,
+  calculateGroups,
   calculationsInSql,
   type CalculationValue,
+  groupCalculationsInSql,
 } from '../lib/databases/calculations.js';
 import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js';
 import { rowFormulaContext } from '../lib/databases/row-values.js';
 import { linkTwoWay, syncRelations, unlinkTwoWay } from '../lib/databases/relations.js';
 import { resolveRollups } from '../lib/databases/rollups.js';
 import {
+  configAfterRegroup,
   schemaWithoutProperty,
   viewAfterRetype,
   viewWithoutProperty,
@@ -339,7 +352,30 @@ const groupBySchema = z.union([
 ]);
 
 const MAX_VIEW_PROPERTIES = 500;
-const uniqueIds = (ids: readonly string[]) => new Set(ids).size === ids.length;
+const uniqueIds = (ids: readonly (string | null)[]) => new Set(ids).size === ids.length;
+
+/** The most groups a view's config names (ordered first, collapsed, hidden). */
+const MAX_NAMED_GROUPS = 1000;
+
+/** A list of group keys (`ViewGroupKey`): each once, null for the empty group. */
+const groupKeysSchema = z
+  .array(z.string().max(2000).nullable())
+  .max(MAX_NAMED_GROUPS)
+  .refine(uniqueIds, 'Each group once');
+
+/** A number's ranges: of `step`, from `from` up to `to`, at most `MAX_NUMBER_GROUPS` of them. */
+const numberGroupingSchema = z
+  .object({
+    from: z.number().finite(),
+    to: z.number().finite(),
+    step: z.number().finite().positive(),
+  })
+  .strict()
+  .refine((g) => g.to > g.from, 'A range ends above where it starts')
+  .refine(
+    (g) => numberGroupCount(g as ViewNumberGrouping) <= MAX_NUMBER_GROUPS,
+    `At most ${MAX_NUMBER_GROUPS} ranges`,
+  );
 
 /** A view's `config` (`ViewConfig`): a key it does not name is dropped, so each is listed. */
 const viewConfigSchema = z.object({
@@ -379,6 +415,10 @@ const viewConfigSchema = z.object({
     })
     .strict()
     .optional(),
+  numberGrouping: numberGroupingSchema.optional(),
+  groupOrder: groupKeysSchema.optional(),
+  collapsedGroups: groupKeysSchema.optional(),
+  hiddenGroups: groupKeysSchema.optional(),
 });
 
 const updateViewSchema = z
@@ -1499,12 +1539,16 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
           filters: ownFilter ? [ownFilter, narrowed] : [narrowed],
         }
       : ownFilter;
+    // A grouped view's rows come group by group, each row in every group it is in.
+    const grouping = rowGrouping(view);
+    const sections = groupSections(view);
+    const timeZone = query.timeZone ?? 'UTC';
     const viewReads = [
       ...(viewFilter ? filterPropertyIds(viewFilter) : []),
       ...(view?.sorts ?? []).map((s) => s.propertyId),
+      ...(grouping ? [grouping.propertyId] : []),
     ];
-    // A grouped view's rows come group by group, each row in every group it is in.
-    const groupSpec = resolveGroupSpec(rowGrouping(view), propertyById, query.timeZone ?? 'UTC');
+    let groupSpec: GroupSpec | null = null;
     let slice: PageRow[];
     let groupKeys: GroupKey[] | null = null;
     let groups: ReturnType<typeof summarizeGroups> | null = null;
@@ -1527,6 +1571,14 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
         ...row,
         properties: { ...row.properties, ...derivedAll?.get(row.id) },
       }));
+      // A number's ranges span every row's, whatever the view shows.
+      groupSpec = resolveGroupSpec(
+        grouping,
+        propertyById,
+        timeZone,
+        sections,
+        jsNumberBounds(grouping, propertyById, sections, filtered),
+      );
       if (query.search) {
         const needle = query.search.toLowerCase();
         filtered = filtered.filter((r) => r.title.toLowerCase().includes(needle));
@@ -1548,10 +1600,12 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
       const page = entries.slice(offset, offset + pageSize);
       slice = page.flatMap((e) => byId.get(e.row.id) ?? []);
       if (groupSpec) groupKeys = page.map((e) => e.key);
-      total = filtered.length;
+      // The rows in a group the view shows, each once.
+      total = shownRows(filtered, groupSpec).length;
       nextCursor =
         offset + pageSize < entries.length ? encodeRowsCursor({ offset: offset + pageSize }) : null;
     } else {
+      groupSpec = await sqlGroupSpec(handle, db.id, grouping, propertyById, timeZone, sections);
       const compiled = compileView(
         db.id,
         { filters: viewFilter, sorts: view?.sorts, search: query.search },
@@ -1602,14 +1656,31 @@ router.get('/:id/rows', async (req: Request, res: Response) => {
 });
 
 /**
- * What a view's rows are grouped by: a table's or a list's sections, a
- * board's sub-groups (its columns are its own, grouped as it shows them).
+ * A grouping resolved for the SQL path: a stored number with no ranges of
+ * the view's own spans the smallest to the largest of the database's rows.
  */
-function rowGrouping(view: DatabaseViewRecord | null): ViewGroupBy | null {
-  if (!view) return null;
-  if (view.type === 'board') return view.subGroupBy;
-  if (view.type === 'table' || view.type === 'list') return view.groupBy;
-  return null;
+async function sqlGroupSpec(
+  handle: PgHandle,
+  databaseId: string,
+  grouping: ViewGroupBy | null | undefined,
+  propertyById: ReadonlyMap<string, DatabaseProperty>,
+  timeZone: string,
+  sections: GroupSections = {},
+): Promise<GroupSpec | null> {
+  const numeric = needsNumberBounds(grouping, propertyById, sections);
+  const bounds = numeric ? await numberBoundsInSql(handle, databaseId, numeric) : undefined;
+  return resolveGroupSpec(grouping, propertyById, timeZone, sections, bounds);
+}
+
+/** The bounds a number (a formula's or a rollup's computed in) is grouped over in the JS path. */
+function jsNumberBounds(
+  grouping: ViewGroupBy | null | undefined,
+  propertyById: ReadonlyMap<string, DatabaseProperty>,
+  sections: GroupSections,
+  everyRow: readonly PageRow[],
+) {
+  const numeric = needsNumberBounds(grouping, propertyById, sections);
+  return numeric ? numberBounds(everyRow, numeric) : undefined;
 }
 
 /**
@@ -1961,7 +2032,13 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
         hiddenProperties: body.hiddenProperties,
         frozenProperties: body.frozenProperties,
         pageSize: body.pageSize,
-        config: body.config as ViewConfig | undefined,
+        // Grouped by another property, its groups' order, collapsing and ranges go.
+        config: configAfterRegroup(view, {
+          type: body.type,
+          groupBy: body.groupBy as ViewGroupBy | null | undefined,
+          subGroupBy: body.subGroupBy as ViewGroupBy | null | undefined,
+          config: body.config as ViewConfig | undefined,
+        }),
         order: body.order,
       });
     });
@@ -2035,15 +2112,19 @@ async function computedViewRows(
   filter: Filter,
   search: string | undefined,
   viewerId: string | null,
-): Promise<PageRow[]> {
+): Promise<{ shown: PageRow[]; every: PageRow[] }> {
   const propertyById = new Map(db.propertiesSchema.properties.map((p) => [p.id, p]));
   const rows = await listDatabaseRows(handle, db.id, { archived: false, template: false });
   const derived = await resolveDerivedForRows(handle, rows, db.propertiesSchema, viewerId);
   const needle = search?.toLowerCase();
-  return rows
-    .map((row) => ({ ...row, properties: { ...row.properties, ...derived.get(row.id) } }))
+  const every = rows.map((row) => ({
+    ...row,
+    properties: { ...row.properties, ...derived.get(row.id) },
+  }));
+  const shown = every
     .filter((row) => !needle || row.title.toLowerCase().includes(needle))
     .filter((row) => filter.kind !== 'group' || evaluateFilter(filter, row, propertyById));
+  return { shown, every };
 }
 
 /** The database and one of its views, for a reader of the database; else the refusal is sent. */
@@ -2074,42 +2155,81 @@ async function readableView(
 }
 
 /**
- * GET /databases/:id/views/:viewId/calculations?search= — the view's footer
- * (`config.calculations`) over every row it shows, searched as it is, not
- * only the page loaded: `{ calculations: { [propertyId]: { function, value } } }`
- * (`lib/databases/calculations.ts`). In SQL, but for formulas and rollups.
+ * GET /databases/:id/views/:viewId/calculations?search=&timeZone= — the
+ * view's footer (`config.calculations`) over every row it shows, searched as
+ * it is, not only the page loaded:
+ * `{ calculations: { [propertyId]: { function, value } } }`
+ * (`lib/databases/calculations.ts`). A grouped view's for each of its groups
+ * too, in their order: `groups: [{ key, calculations }]`, every group's in
+ * one query grouped by its key. In SQL, but for formulas and rollups.
  */
 router.get('/:id/views/:viewId/calculations', async (req: Request, res: Response) => {
   try {
     const found = await readableView(req, res);
     if (!found) return;
-    const { db, view, search } = found;
+    const { db, view, search, timeZone } = found;
     const handle = getDb();
     const propertyById = new Map(db.propertiesSchema.properties.map((p) => [p.id, p]));
     const requested = Object.entries(view.config.calculations ?? {}).flatMap(([id, fn]) => {
       const property = propertyById.get(id);
       return property && acceptsCalculation(property.type, fn) ? [{ property, fn }] : [];
     });
+    const grouping = rowGrouping(view);
+    const sections = groupSections(view);
     let values: CalculationValue[] = [];
+    let byGroup: { key: GroupKey; values: CalculationValue[] }[] | null = null;
     if (requested.length > 0) {
       const inJs =
-        readsComputed(filterPropertyIds(view.filters), propertyById) ||
-        requested.some(({ property }) => !calculableInSql(property));
+        readsComputed(
+          [...filterPropertyIds(view.filters), ...(grouping ? [grouping.propertyId] : [])],
+          propertyById,
+        ) || requested.some(({ property }) => !calculableInSql(property));
+      // Every group of the view in its order (an option no row holds, a range of
+      // no numbers too), with what its rows come to; one with none, to nothing.
+      const inGroups = (spec: GroupSpec, computed: Map<GroupKey, CalculationValue[]>) =>
+        summarizeGroups(new Map([...computed.keys()].map((key) => [key, 1])), spec).map(
+          ({ key }) => ({
+            key,
+            values:
+              computed.get(key) ?? requested.map(({ property, fn }) => calculate(fn, property, [])),
+          }),
+        );
       if (inJs) {
         const rows = await computedViewRows(handle, db, view.filters, search, req.user?.id ?? null);
-        values = requested.map(({ property, fn }) => calculate(fn, property, rows));
+        const spec = resolveGroupSpec(
+          grouping,
+          propertyById,
+          timeZone,
+          sections,
+          jsNumberBounds(grouping, propertyById, sections, rows.every),
+        );
+        // The footer of the rows the view shows: those in a group it does not hide.
+        const shown = shownRows(rows.shown, spec);
+        values = requested.map(({ property, fn }) => calculate(fn, property, shown));
+        if (spec) byGroup = inGroups(spec, calculateGroups(rows.shown, spec, requested));
       } else {
-        const compiled = compileView(db.id, { filters: view.filters, search }, propertyById);
-        values = await calculationsInSql(handle, compiled, requested);
+        const spec = await sqlGroupSpec(handle, db.id, grouping, propertyById, timeZone, sections);
+        const compiled = compileView(db.id, { filters: view.filters, search }, propertyById, spec);
+        const [whole, grouped] = await Promise.all([
+          calculationsInSql(handle, compiled, requested),
+          spec ? groupCalculationsInSql(handle, compiled, requested) : null,
+        ]);
+        values = whole;
+        if (spec && grouped) byGroup = inGroups(spec, grouped);
       }
     }
-    res.json({
-      calculations: Object.fromEntries(
+    const named = (list: readonly CalculationValue[]) =>
+      Object.fromEntries(
         requested.map(({ property, fn }, i) => [
           property.id,
-          { function: fn, value: values[i] ?? null },
+          { function: fn, value: list[i] ?? null },
         ]),
-      ),
+      );
+    res.json({
+      calculations: named(values),
+      ...(byGroup && {
+        groups: byGroup.map(({ key, values: list }) => ({ key, calculations: named(list) })),
+      }),
     });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
@@ -2133,10 +2253,8 @@ router.get('/:id/views/:viewId/chart', async (req: Request, res: Response) => {
     const handle = getDb();
     const propertyById = new Map(db.propertiesSchema.properties.map((p) => [p.id, p]));
     const chart = view.config.chart;
-    const spec: GroupSpec | null = chart?.xAxis
-      ? resolveGroupSpec(chart.xAxis, propertyById, timeZone)
-      : null;
-    if (!spec) {
+    const axis = chart?.xAxis ?? null;
+    if (!axis || !resolveGroupSpec(axis, propertyById, timeZone)) {
       res.json({ points: [] });
       return;
     }
@@ -2151,10 +2269,18 @@ router.get('/:id/views/:viewId/chart', async (req: Request, res: Response) => {
         : undefined;
 
     let byKey: Map<GroupKey, { count: number; sum: number | null; average: number | null }>;
-    if (readsComputed(filterPropertyIds(view.filters), propertyById)) {
+    let spec: GroupSpec | null;
+    if (readsComputed([...filterPropertyIds(view.filters), axis.propertyId], propertyById)) {
       const rows = await computedViewRows(handle, db, view.filters, search, req.user?.id ?? null);
+      spec = resolveGroupSpec(
+        axis,
+        propertyById,
+        timeZone,
+        {},
+        jsNumberBounds(axis, propertyById, {}, rows.every),
+      );
       const totals = new Map<GroupKey, { count: number; numbers: number[] }>();
-      for (const { row, key } of groupRows(rows, spec)) {
+      for (const { row, key } of spec ? groupRows(rows.shown, spec) : []) {
         const at = totals.get(key) ?? { count: 0, numbers: [] };
         at.count += 1;
         const held = measure
@@ -2170,6 +2296,7 @@ router.get('/:id/views/:viewId/chart', async (req: Request, res: Response) => {
         }),
       );
     } else {
+      spec = await sqlGroupSpec(handle, db.id, axis, propertyById, timeZone);
       const compiled = compileView(db.id, { filters: view.filters, search }, propertyById, spec);
       byKey = await listViewGroups(
         handle,
@@ -2177,10 +2304,14 @@ router.get('/:id/views/:viewId/chart', async (req: Request, res: Response) => {
         measure ? accessorFor(measure).key.expr : undefined,
       );
     }
+    if (!spec) {
+      res.json({ points: [] });
+      return;
+    }
     const points = summarizeGroups(
       new Map([...byKey].map(([key, { count }]) => [key, count])),
       spec,
-    ).map(({ key, count }) => {
+    ).map(({ key, count, range }) => {
       const at = byKey.get(key);
       const value =
         aggregate === 'count' || !measure
@@ -2188,7 +2319,7 @@ router.get('/:id/views/:viewId/chart', async (req: Request, res: Response) => {
           : aggregate === 'sum'
             ? (at?.sum ?? 0)
             : (at?.average ?? null);
-      return { key, count, value };
+      return { key, count, value, ...(range && { range }) };
     });
     res.json({ points });
   } catch (error: unknown) {

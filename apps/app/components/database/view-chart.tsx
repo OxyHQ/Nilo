@@ -20,7 +20,7 @@ import { useViewChart } from '@/lib/hooks/use-view-data';
 import { formatNumberValue } from '@/lib/number-format';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseProperty, DatabaseView } from '@/lib/types/databases';
-import { useGroupLabel } from './group-header';
+import { useGroupLabel } from './group-label';
 
 interface ViewChartProps {
   database: Database;
@@ -98,7 +98,7 @@ export function ViewChart({ database, view }: ViewChartProps) {
   const hideEmpty = chart.type === 'donut';
   const points: Point[] = data.data.points
     .filter((p) => !hideEmpty || (p.value ?? 0) > 0)
-    .map((p) => ({ key: p.key, label: label(p.key), value: p.value }));
+    .map((p) => ({ key: p.key, label: label(p.key, p.range), value: p.value }));
   if (points.every((p) => !p.value)) {
     return <EmptyState variant="compact" title={t('databases.chart.empty')} />;
   }

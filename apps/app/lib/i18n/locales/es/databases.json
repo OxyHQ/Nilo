@@ -510,7 +510,18 @@
       "sum": "Suma",
       "average": "Promedio"
     },
-    "yProperty": "Propiedad a sumar"
+    "yProperty": "Propiedad a sumar",
+    "hiddenGroups": "Grupos ocultos",
+    "showGroup": "Mostrar",
+    "ranges": {
+      "title": "Rangos de números",
+      "from": "Desde",
+      "to": "Hasta",
+      "step": "Tamaño de cada rango",
+      "apply": "Aplicar rangos",
+      "reset": "Ajustar a los números",
+      "invalid": "Desde debe ser menor que Hasta, en %{count} rangos como mucho."
+    }
   },
   "options": {
     "color": "Color de %{name}",
@@ -587,7 +598,16 @@
       "one": "%{count} fila",
       "other": "%{count} filas"
     },
-    "addRow": "Nueva fila en %{name}"
+    "addRow": "Nueva fila en %{name}",
+    "range": "%{from} – %{to}",
+    "below": "Menos de %{to}",
+    "above": "%{from} o más",
+    "options": "Opciones de %{name}",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "hide": "Ocultar grupo",
+    "show": "Mostrar %{name}",
+    "drag": "Arrastra sobre otro grupo para mover %{name} allí"
   },
   "calculations": {
     "calculate": "Calcular",

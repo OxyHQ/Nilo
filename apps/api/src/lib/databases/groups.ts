@@ -1,22 +1,48 @@
 /**
- * A view's groups: the sections of a table or a list (`groupBy`), a board's
- * sub-groups (`subGroupBy`), a chart's points. Each row falls in the group of
- * its value — an option, a person, the day, week, month or year of a date
- * (in the reader's time zone when it has a time), a text, checked or not —
- * or in the empty group (`null`) when it has none. A multi-select or a person
- * property with several values puts its row in each of their groups.
+ * A view's groups: the sections of a table, a list, a gallery or a timeline
+ * (`groupBy`), a board's sub-groups (`subGroupBy`), a chart's points. Each row
+ * falls in the group of its value — an option, a person, the day, week, month
+ * or year of a date (in the reader's time zone when it has a time), a text,
+ * checked or not, the range a number is in — or in the empty group (`null`)
+ * when it has none. A multi-select or a person property with several values
+ * puts its row in each of their groups.
  *
  * This is the JS reference: `view-query.ts` groups the same rows in SQL with
  * the same keys and order, and `view-query.pgdb.test.ts` holds the two to each
  * other. The groups come in a fixed order — options as listed (a status's in
  * the order of its groups), checked before unchecked, dates oldest first,
- * text and people in `compareText`'s order — the empty group last.
+ * numbers' ranges lowest first, text and people in `compareText`'s order — the
+ * empty group last; the groups a view lists first (`config.groupOrder`) come
+ * before the others, and those it hides (`config.hiddenGroups`) not at all.
  */
-import { type DateGroupGranularity, isGroupableType } from '@oxy.so/nilo-contracts';
-import type { DatabaseProperty, ViewGroupBy } from '../../db/schema/databases.js';
+import {
+  type DateGroupGranularity,
+  isGroupableType,
+  MAX_NUMBER_GROUPS,
+  numberGroupCount,
+} from '@oxy.so/nilo-contracts';
+import type {
+  DatabaseProperty,
+  DatabaseViewType,
+  ViewConfig,
+  ViewGroupBy,
+  ViewNumberGrouping,
+} from '../../db/schema/databases.js';
 import { readPropertyValue } from './filters.js';
 import { normalizeStatusGroups } from './schema-defaults.js';
 import { compareText } from './sorts.js';
+
+/**
+ * A number property's groups: `count` ranges of `step` from `from`, the last
+ * one ending at `to` — keys `0` to `count - 1` — and the numbers below `from`
+ * (`-1`) and from `to` up (`count`) in groups of their own.
+ */
+export interface NumberRanges {
+  from: number;
+  to: number;
+  step: number;
+  count: number;
+}
 
 /** What a view groups by, resolved against its schema. */
 export interface GroupSpec {
@@ -24,19 +50,35 @@ export interface GroupSpec {
   granularity: DateGroupGranularity;
   /** The IANA zone a date with a time is grouped in. */
   timeZone: string;
+  /** A number's ranges; set for a number, a formula or a rollup. */
+  numbers?: NumberRanges;
+  /** The groups that come first, in this order (`config.groupOrder`). */
+  order?: readonly GroupKey[];
+  /** The groups left out, and their rows (`config.hiddenGroups`). */
+  hidden?: readonly GroupKey[];
 }
 
-/** A group's key: an option or user id, `YYYY-MM-DD`, a text, `true`/`false`; null for the empty group. */
+/** A group's key: an option or user id, `YYYY-MM-DD`, a text, `true`/`false`, a range's index; null for the empty group. */
 export type GroupKey = string | null;
 
 export interface GroupSummary {
   key: GroupKey;
   /** The rows in it (a row with several values counts in each of their groups). */
   count: number;
+  /** A number range's bounds: from (included) to (excluded), open below or above. */
+  range?: { from: number | null; to: number | null };
 }
 
-/** How a group property is grouped: by option, by date, by text or user id, or checked. */
-export type GroupKind = 'option' | 'list_option' | 'date' | 'text' | 'people' | 'user' | 'checkbox';
+/** How a group property is grouped: by option, by date, by text or user id, checked, or by number range. */
+export type GroupKind =
+  | 'option'
+  | 'list_option'
+  | 'date'
+  | 'text'
+  | 'people'
+  | 'user'
+  | 'checkbox'
+  | 'number';
 
 export function groupKind(property: DatabaseProperty): GroupKind | null {
   if (!isGroupableType(property.type)) return null;
@@ -57,6 +99,11 @@ export function groupKind(property: DatabaseProperty): GroupKind | null {
     case 'created_time':
     case 'last_edited_time':
       return 'date';
+    // A formula's or a rollup's numbers; a value of it that is no number is empty.
+    case 'number':
+    case 'formula':
+    case 'rollup':
+      return 'number';
     default:
       return 'text';
   }
@@ -73,20 +120,166 @@ export function isTimeZone(timeZone: string): boolean {
   }
 }
 
+/** The views whose rows come in sections, one per group (`groupBy`). */
+const SECTIONED_VIEWS: ReadonlySet<DatabaseViewType> = new Set([
+  'table',
+  'list',
+  'gallery',
+  'timeline',
+]);
+
+/**
+ * What a view's rows are grouped by: a table's, a list's or a gallery's
+ * sections, a timeline's swimlanes, a board's sub-groups (its columns are its
+ * own, grouped as it shows them). A calendar does not group, nor a form; a
+ * chart's axis is its own (`config.chart`). What `config`'s group keys
+ * (`groupOrder`, `collapsedGroups`, `hiddenGroups`, `numberGrouping`) are of.
+ */
+export function rowGrouping(
+  view: {
+    type: DatabaseViewType;
+    groupBy?: ViewGroupBy | null;
+    subGroupBy?: ViewGroupBy | null;
+  } | null,
+): ViewGroupBy | null {
+  if (!view) return null;
+  if (view.type === 'board') return view.subGroupBy ?? null;
+  if (SECTIONED_VIEWS.has(view.type)) return view.groupBy ?? null;
+  return null;
+}
+
+/** What of a view's config shapes the groups of its rows. */
+export type GroupSections = Pick<ViewConfig, 'numberGrouping' | 'groupOrder' | 'hiddenGroups'>;
+
+/** What of a view's config orders, hides and ranges its groups. */
+export function groupSections(view: { config?: ViewConfig } | null): GroupSections {
+  const config = view?.config ?? {};
+  return {
+    numberGrouping: config.numberGrouping,
+    groupOrder: config.groupOrder,
+    hiddenGroups: config.hiddenGroups,
+  };
+}
+
+/** The smallest and largest number of a property in the database's rows, null for none. */
+export interface NumberBounds {
+  min: number | null;
+  max: number | null;
+}
+
 /**
  * What `groupBy` groups by in `properties`, or null when the view is not
  * grouped by anything this schema can group: no grouping, a property gone,
- * or one of a type that has no groups.
+ * or one of a type that has no groups. Its sections (`config`) order and
+ * hide groups and set a number's ranges; without ranges, a number is grouped
+ * over `bounds`, which `needsNumberBounds` says to read first.
  */
 export function resolveGroupSpec(
   groupBy: ViewGroupBy | null | undefined,
   propertyById: ReadonlyMap<string, DatabaseProperty>,
   timeZone = 'UTC',
+  sections: GroupSections = {},
+  bounds: NumberBounds = { min: null, max: null },
 ): GroupSpec | null {
   if (!groupBy) return null;
   const property = propertyById.get(groupBy.propertyId);
-  if (!property || !groupKind(property)) return null;
-  return { property, granularity: groupBy.granularity ?? 'day', timeZone };
+  const kind = property ? groupKind(property) : null;
+  if (!property || !kind) return null;
+  return {
+    property,
+    granularity: groupBy.granularity ?? 'day',
+    timeZone,
+    ...(kind === 'number' && {
+      numbers: sections.numberGrouping
+        ? rangesOf(sections.numberGrouping)
+        : defaultNumberRanges(bounds),
+    }),
+    ...(sections.groupOrder?.length && { order: sections.groupOrder }),
+    ...(sections.hiddenGroups?.length && { hidden: sections.hiddenGroups }),
+  };
+}
+
+/**
+ * The property whose numbers' bounds grouping by `groupBy` reads first: a
+ * number (a formula, a rollup) the view sets no ranges for; else null.
+ */
+export function needsNumberBounds(
+  groupBy: ViewGroupBy | null | undefined,
+  propertyById: ReadonlyMap<string, DatabaseProperty>,
+  sections: GroupSections = {},
+): DatabaseProperty | null {
+  const property = groupBy ? propertyById.get(groupBy.propertyId) : undefined;
+  if (!property || sections.numberGrouping) return null;
+  return groupKind(property) === 'number' ? property : null;
+}
+
+// ---------------------------------------------------------------------------
+// Number ranges
+// ---------------------------------------------------------------------------
+
+function rangesOf(grouping: ViewNumberGrouping): NumberRanges {
+  const count = Math.min(MAX_NUMBER_GROUPS, Math.max(1, numberGroupCount(grouping)));
+  return { from: grouping.from, to: grouping.to, step: grouping.step, count };
+}
+
+/** 1, 2 or 5 times a power of ten: the smallest one at least `x`. */
+function roundStep(x: number): number {
+  if (!(x > 0) || !Number.isFinite(x)) return 1;
+  const power = 10 ** Math.floor(Math.log10(x));
+  for (const m of [1, 2, 5]) if (m * power >= x) return m * power;
+  return 10 * power;
+}
+
+/**
+ * The ranges of a view that sets none: about ten of a round size, from a
+ * multiple of it at or below the smallest number to one above the largest.
+ */
+export function defaultNumberRanges({ min, max }: NumberBounds): NumberRanges {
+  if (min === null || max === null) return { from: 0, to: 100, step: 10, count: 10 };
+  const span = max - min;
+  const step = roundStep(span > 0 ? span / 10 : Math.max(Math.abs(min), 1) / 10);
+  let from = Math.floor(min / step) * step;
+  if (from > min) from -= step;
+  let to = (Math.floor(max / step) + 1) * step;
+  if (to <= max) to += step;
+  return rangesOf({ from, to, step });
+}
+
+/** The group of `n`: its range's index, `-1` below them, `count` from `to` up. */
+export function numberGroupKey(n: number, ranges: NumberRanges): string {
+  if (n < ranges.from) return '-1';
+  if (n >= ranges.to) return String(ranges.count);
+  return String(Math.min(ranges.count - 1, Math.floor((n - ranges.from) / ranges.step)));
+}
+
+/** A number group's bounds: from (included) to (excluded), null where it is open. */
+export function numberGroupRange(
+  key: string,
+  ranges: NumberRanges,
+): { from: number | null; to: number | null } {
+  const i = Number(key);
+  if (i < 0) return { from: null, to: ranges.from };
+  if (i >= ranges.count) return { from: ranges.to, to: null };
+  const from = ranges.from + i * ranges.step;
+  return { from, to: Math.min(ranges.to, from + ranges.step) };
+}
+
+/** The smallest and largest number `property` holds in `rows` (computed values merged in). */
+export function numberBounds(rows: readonly Row[], property: DatabaseProperty): NumberBounds {
+  let min: number | null = null;
+  let max: number | null = null;
+  for (const row of rows) {
+    const n = numberOf(readPropertyValue(row, property));
+    if (n === null) continue;
+    if (min === null || n < min) min = n;
+    if (max === null || n > max) max = n;
+  }
+  return { min, max };
+}
+
+function numberOf(value: unknown): number | null {
+  const n = asObject(value)?.number;
+  return typeof n === 'number' && Number.isFinite(n) ? n : null;
 }
 
 /** A select's options in the order they are listed; a status's in the order of its groups. */
@@ -208,6 +401,10 @@ export function rowGroupKeys(row: Row, spec: GroupSpec): GroupKey[] {
     }
     case 'checkbox':
       return [truthy(value?.checked) ? 'true' : 'false'];
+    case 'number': {
+      const n = numberOf(raw);
+      return [n === null || !spec.numbers ? null : numberGroupKey(n, spec.numbers)];
+    }
     case 'date': {
       if (!value) return [null];
       const instant = property.type !== 'date';
@@ -257,8 +454,28 @@ function compareBytes(a: string, b: string): number {
   return Buffer.compare(x, y);
 }
 
-/** The order of a group property's groups, the empty one last. */
+/**
+ * The order of a view's groups: those it lists first (`order`) in that
+ * order, then the others in their property's order, the empty one last.
+ */
 export function compareGroupKeys(spec: GroupSpec): (a: GroupKey, b: GroupKey) => number {
+  const natural = naturalOrder(spec);
+  const order = spec.order ?? [];
+  if (order.length === 0) return natural;
+  const at = (key: GroupKey) => {
+    const i = order.indexOf(key);
+    return i < 0 ? order.length : i;
+  };
+  return (a, b) => at(a) - at(b) || natural(a, b);
+}
+
+/** Whether a view shows the group of `key`: it is not one it hides. */
+export function isShownGroup(spec: GroupSpec, key: GroupKey): boolean {
+  return !(spec.hidden ?? []).includes(key);
+}
+
+/** The order of a group property's groups, the empty one last. */
+function naturalOrder(spec: GroupSpec): (a: GroupKey, b: GroupKey) => number {
   const kind = groupKind(spec.property);
   const position =
     kind === 'option' || kind === 'list_option'
@@ -271,6 +488,7 @@ export function compareGroupKeys(spec: GroupSpec): (a: GroupKey, b: GroupKey) =>
     if (position) return (position.get(a) ?? 0) - (position.get(b) ?? 0);
     if (kind === 'checkbox') return a === 'true' ? -1 : 1;
     if (kind === 'date') return a < b ? -1 : 1;
+    if (kind === 'number') return Number(a) - Number(b);
     // Texts and people: as a sort orders them, then strings it cannot tell apart by their bytes.
     return compareText(a, b) || compareBytes(a, b);
   };
@@ -278,7 +496,8 @@ export function compareGroupKeys(spec: GroupSpec): (a: GroupKey, b: GroupKey) =>
 
 /**
  * Each row once per group it is in, in the order of the groups, and within a
- * group in the order the rows came (their view's sort).
+ * group in the order the rows came (their view's sort); none in a group the
+ * view hides.
  */
 export function groupRows<R extends Row>(
   rows: readonly R[],
@@ -286,7 +505,9 @@ export function groupRows<R extends Row>(
 ): { row: R; key: GroupKey }[] {
   const compare = compareGroupKeys(spec);
   const entries = rows.flatMap((row, index) =>
-    rowGroupKeys(row, spec).map((key) => ({ row, key, index })),
+    rowGroupKeys(row, spec)
+      .filter((key) => isShownGroup(spec, key))
+      .map((key) => ({ row, key, index })),
   );
   entries.sort((a, b) => compare(a.key, b.key) || a.index - b.index);
   return entries.map(({ row, key }) => ({ row, key }));
@@ -294,8 +515,9 @@ export function groupRows<R extends Row>(
 
 /**
  * The view's groups, in order, with their rows' count: every option of an
- * option property (and checked and unchecked) even when no row holds it, the
- * other groups as the rows have them, the empty group when a row is in it.
+ * option property (and checked and unchecked, and each range of numbers)
+ * even when no row holds it, the other groups as the rows have them, the
+ * empty group when a row is in it — but none the view hides.
  */
 export function summarizeGroups(
   counts: ReadonlyMap<GroupKey, number>,
@@ -310,9 +532,22 @@ export function summarizeGroups(
     keys.add('true');
     keys.add('false');
   }
+  const numbers = kind === 'number' ? spec.numbers : undefined;
+  if (numbers) for (let i = 0; i < numbers.count; i += 1) keys.add(String(i));
   return [...keys]
+    .filter((key) => isShownGroup(spec, key))
     .sort(compareGroupKeys(spec))
-    .map((key) => ({ key, count: counts.get(key) ?? 0 }));
+    .map((key) => ({
+      key,
+      count: counts.get(key) ?? 0,
+      ...(numbers && key !== null && { range: numberGroupRange(key, numbers) }),
+    }));
+}
+
+/** The rows a view grouped by `spec` shows: each in some group it does not hide. */
+export function shownRows<R extends Row>(rows: readonly R[], spec: GroupSpec | null): R[] {
+  if (!spec?.hidden?.length) return [...rows];
+  return rows.filter((row) => rowGroupKeys(row, spec).some((key) => isShownGroup(spec, key)));
 }
 
 /** How many of `entries` each group holds. */

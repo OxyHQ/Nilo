@@ -23,13 +23,14 @@ import type {
   SelectOption,
 } from '@/lib/types/databases';
 import { statusGroups } from '@/lib/status-groups';
+import type { RowSection } from '@/lib/view-groups';
 import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
-import { groupProperty, groupValue, rowSections } from '@/lib/view-groups';
+import { groupProperty, groupValue, rowSections, sectionOptions } from '@/lib/view-groups';
 import { orderedProperties } from '@/lib/view-properties';
 import { PropertyCell } from './property-cell';
 import { useOpenRow } from './open-row';
 import { SELECT_CHIP_HUE } from './select-color';
-import { GroupHeader, useCollapsedGroups } from './group-header';
+import { GroupHeader, useViewGroups } from './group-header';
 
 interface ViewBoardProps {
   database: Database;
@@ -42,6 +43,8 @@ interface ViewBoardProps {
   onLoadMore?: () => void;
   /** A sub-grouped board's sub-groups, in order (`GET …/rows`). */
   groups?: RowGroup[];
+  /** May change the view: move, hide and collapse its sub-groups for every reader. */
+  viewEditable?: boolean;
 }
 
 const COLUMN_WIDTH = 280;
@@ -85,6 +88,7 @@ export function ViewBoard({
   hasMore = false,
   onLoadMore,
   groups,
+  viewEditable = false,
 }: ViewBoardProps) {
   const openRow = useOpenRow();
   const { t } = useTranslation();
@@ -188,9 +192,14 @@ export function ViewBoard({
   const subGroup = groupProperty(database.schema.properties, view.subGroupBy);
   const lanes =
     subGroup && groups
-      ? rowSections(rows, groups, { hideEmpty: view.subGroupBy?.hideEmpty, complete: !hasMore })
+      ? rowSections(rows, groups, {
+          hideEmpty: view.subGroupBy?.hideEmpty,
+          complete: !hasMore,
+          ...sectionOptions(view),
+        })
       : null;
-  const collapsedLanes = useCollapsedGroups();
+  const laneKeys = lanes?.map((lane) => lane.key) ?? [];
+  const viewLanes = useViewGroups(database.id, view, viewEditable, groups);
 
   const moveRow = React.useCallback(
     (rowId: string, value: PropertyValue) => {
@@ -236,7 +245,7 @@ export function ViewBoard({
   }
 
   /** The board's columns over `list`; a card added in one is in `lane` too. */
-  const renderColumns = (list: Section[], lane: { key: string | null } | null) =>
+  const renderColumns = (list: Section[], lane: RowSection | null) =>
     list.map((section) => (
       <View key={section.id} className="gap-1">
         {section.label ? (
@@ -250,7 +259,8 @@ export function ViewBoard({
               option={column.option}
               rows={column.rows}
               onAddRow={async () => {
-                const inLane = lane && subGroup ? groupValue(subGroup, lane.key) : undefined;
+                const inLane =
+                  lane && subGroup ? groupValue(subGroup, lane.key, lane.range) : undefined;
                 await createRow.mutateAsync({
                   databaseId: database.id,
                   properties: {
@@ -281,7 +291,7 @@ export function ViewBoard({
       <View className={lanes ? 'gap-2 px-3 py-3' : 'flex-row gap-3 px-3 py-3'}>
         {lanes && subGroup
           ? lanes.map((lane) => {
-              const collapsed = collapsedLanes.isCollapsed(lane.key);
+              const collapsed = viewLanes.isCollapsed(lane.key);
               return (
                 <View
                   key={`lane-${lane.key === null ? '\u0000' : lane.key}`}
@@ -292,9 +302,11 @@ export function ViewBoard({
                     property={subGroup}
                     groupKey={lane.key}
                     granularity={view.subGroupBy?.granularity}
+                    range={lane.range}
                     count={lane.count}
                     collapsed={collapsed}
-                    onToggle={() => collapsedLanes.toggle(lane.key)}
+                    onToggle={() => viewLanes.toggle(lane.key)}
+                    actions={viewLanes.actionsFor(lane.key, laneKeys)}
                   />
                   {collapsed ? null : (
                     <View className="flex-row gap-3">

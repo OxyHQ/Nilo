@@ -3,21 +3,28 @@
  * sorts, filters, grouping, hidden and frozen lists and config, and a rollup
  * names its relation and the property it reads. Left alone, a removed id
  * keeps filtering and sorting on nothing, and a filter naming it can no longer
- * be saved (`invalidCondition`). Pure: the route writes what these return.
+ * be saved (`invalidCondition`). The keys of the groups of its rows
+ * (`groupOrder`, `collapsedGroups`, `hiddenGroups`, `numberGrouping`) name
+ * that property's values: they go with it, when it changes type, and when the
+ * view is grouped by another. Pure: the route writes what these return.
  */
 import { acceptsCalculation, isGroupableType } from '@oxy.so/nilo-contracts';
 import type {
   DatabasePropertyType,
   DatabaseSchema,
+  DatabaseViewType,
   Filter,
   FilterGroup,
   ViewConfig,
   ViewGroupBy,
   ViewSort,
 } from '../../db/schema/databases.js';
+import { rowGrouping } from './groups.js';
 
 /** The view fields a property can appear in. */
 export interface PropertyReferencingView {
+  /** Which grouping its group keys are of (`rowGrouping`); a table's when absent. */
+  type?: DatabaseViewType;
   filters: FilterGroup;
   sorts: ViewSort[];
   groupBy: ViewGroupBy | null;
@@ -25,6 +32,46 @@ export interface PropertyReferencingView {
   hiddenProperties: string[];
   frozenProperties: string[];
   config: ViewConfig;
+}
+
+/** The config keys that name the groups of a view's rows. */
+const GROUP_KEYS = ['numberGrouping', 'groupOrder', 'collapsedGroups', 'hiddenGroups'] as const;
+
+/** `config` without its groups' keys, or null when it has none. */
+function withoutGroupKeys(config: ViewConfig): ViewConfig | null {
+  if (!GROUP_KEYS.some((key) => key in config)) return null;
+  const out: ViewConfig = { ...config };
+  for (const key of GROUP_KEYS) delete out[key];
+  return out;
+}
+
+/** The property a view's group keys are of. */
+const sectionProperty = (view: Pick<PropertyReferencingView, 'type' | 'groupBy' | 'subGroupBy'>) =>
+  rowGrouping({ ...view, type: view.type ?? 'table' })?.propertyId;
+
+/**
+ * The config a view is written with when `patch` changes it: as `patch`
+ * gives it, but grouped by another property (or no longer grouped) with no
+ * config given, without the old groups' keys. Undefined when the config
+ * stays as it is.
+ */
+export function configAfterRegroup(
+  view: Pick<PropertyReferencingView, 'type' | 'groupBy' | 'subGroupBy' | 'config'>,
+  patch: {
+    type?: DatabaseViewType;
+    groupBy?: ViewGroupBy | null;
+    subGroupBy?: ViewGroupBy | null;
+    config?: ViewConfig;
+  },
+): ViewConfig | undefined {
+  if (patch.config) return patch.config;
+  const after = {
+    type: patch.type ?? view.type,
+    groupBy: patch.groupBy === undefined ? view.groupBy : patch.groupBy,
+    subGroupBy: patch.subGroupBy === undefined ? view.subGroupBy : patch.subGroupBy,
+  };
+  if (sectionProperty(after) === sectionProperty(view)) return undefined;
+  return withoutGroupKeys(view.config) ?? undefined;
 }
 
 const CONFIG_PROPERTY_KEYS = [
@@ -71,7 +118,9 @@ export function viewWithoutProperty(
     patch.frozenProperties = view.frozenProperties.filter((id) => id !== propertyId);
   }
   if (view.subGroupBy?.propertyId === propertyId) patch.subGroupBy = null;
-  const config = configWithout(view.config, propertyId);
+  let config = configWithout(view.config, propertyId);
+  if (sectionProperty(view) === propertyId)
+    config = withoutGroupKeys(config ?? view.config) ?? config;
   if (config) patch.config = config;
   return Object.keys(patch).length > 0 ? patch : null;
 }
@@ -110,8 +159,9 @@ function configWithout(view: ViewConfig, propertyId: string): ViewConfig | null 
  * What of `view` changes once `propertyId` became a `type`, or null when
  * nothing does: its conditions go, as their operators and values were the
  * old type's (a select's option ids mean nothing to a text), and so do a
- * grouping, a calculation or a chart axis the new type does not take. Its
- * sorts and the rest still apply to the new type and stay.
+ * grouping, a calculation or a chart axis the new type does not take, and
+ * the keys of the groups it grouped the rows in. Its sorts and the rest still
+ * apply to the new type and stay.
  */
 export function viewAfterRetype(
   view: PropertyReferencingView,
@@ -147,7 +197,9 @@ export function viewAfterRetype(
     ) {
       config.chart = { ...config.chart, yAxis: { aggregate: 'count' } };
     }
-    if (JSON.stringify(config) !== JSON.stringify(view.config)) patch.config = config;
+    const regrouped = sectionProperty(view) === propertyId ? withoutGroupKeys(config) : null;
+    const next = regrouped ?? config;
+    if (JSON.stringify(next) !== JSON.stringify(view.config)) patch.config = next;
   }
   return Object.keys(patch).length > 0 ? patch : null;
 }

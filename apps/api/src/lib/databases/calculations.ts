@@ -10,6 +10,10 @@
  * (`calculate`), which is also the reference the SQL is held to
  * (`view-query.pgdb.test.ts`).
  *
+ * A grouped view computes them for each of its groups too
+ * (`groupCalculationsInSql`, `calculateGroups`): one query grouped by the
+ * group's key, not one per group.
+ *
  * A value is a number: a count, a percentage (0–100), a sum or an average of
  * numbers, an instant (milliseconds since the epoch) for the earliest or the
  * latest date, a duration in milliseconds for a date range. `null` when there
@@ -21,8 +25,8 @@ import type { PgHandle } from '../../db/client.js';
 import type { DatabaseProperty } from '../../db/schema/databases.js';
 import { pages } from '../../db/schema/pages.js';
 import { isEmpty, readPropertyValue, valueType } from './filters.js';
-import { storedDateMs } from './groups.js';
-import { accessorFor, type CompiledView } from './view-query.js';
+import { type GroupKey, type GroupSpec, groupRows, storedDateMs } from './groups.js';
+import { accessorFor, type CompiledView, groupedWhere, rowSource } from './view-query.js';
 
 export type CalculationValue = number | null;
 
@@ -200,6 +204,31 @@ export function calculate(
   }
 }
 
+/**
+ * Each of `calculations` over the rows of each group of `spec` they are in
+ * (a row with several labels in each of theirs), by group key: the JS path,
+ * and the reference `groupCalculationsInSql` is held to. A group no row is in
+ * has none: it comes to `calculate` over no rows.
+ */
+export function calculateGroups<R extends Row>(
+  rows: readonly R[],
+  spec: GroupSpec,
+  calculations: readonly { property: DatabaseProperty; fn: CalculationFunction }[],
+): Map<GroupKey, CalculationValue[]> {
+  const byKey = new Map<GroupKey, R[]>();
+  for (const { row, key } of groupRows(rows, spec)) {
+    const list = byKey.get(key);
+    if (list) list.push(row);
+    else byKey.set(key, [row]);
+  }
+  return new Map(
+    [...byKey].map(([key, list]) => [
+      key,
+      calculations.map(({ property, fn }) => calculate(fn, property, list)),
+    ]),
+  );
+}
+
 function truthy(x: unknown): boolean {
   if (typeof x === 'string') return x !== '';
   if (typeof x === 'number') return x !== 0;
@@ -321,4 +350,66 @@ export async function calculationsInSql(
       return percent(v ?? 0, Number(row?.n ?? 0));
     }),
   );
+}
+
+/**
+ * Each of `calculations` over the rows of each group of a grouped `view`, in
+ * PostgreSQL: one query grouped by the group's key for every calculation but
+ * a list's unique values, which reads its values in one of its own. A group
+ * no row is in is missing: it comes to `calculate` over no rows. Every
+ * property must be `calculableInSql`, and every function one its type takes.
+ */
+export async function groupCalculationsInSql(
+  handle: PgHandle,
+  view: CompiledView,
+  calculations: readonly { property: DatabaseProperty; fn: CalculationFunction }[],
+): Promise<Map<GroupKey, CalculationValue[]>> {
+  const group = view.group;
+  if (!group) throw new Error('The view is not grouped');
+  const compiled = calculations.map(({ property, fn }) =>
+    acceptsCalculation(property.type, fn) ? aggregate(fn, property) : null,
+  );
+  const where = groupedWhere(view);
+  const plain = compiled.flatMap((c, i) => (c && !c.lateral ? [{ c, i }] : []));
+  const columns = plain.map(
+    ({ c }, j) => sql`, (${c.value})::float8 as ${sql.identifier(`v${j}`)}`,
+  );
+  type Read = Record<string, number | string | null> & { k: string | null };
+  const [base, ...listed] = await Promise.all([
+    handle.execute<Read>(
+      sql`select ${group.key} as k, count(distinct ${pages.id})::int as n${sql.join(columns, sql``)}
+        from ${rowSource(view)} where ${where} group by 1`,
+    ),
+    ...compiled.flatMap((c, i) =>
+      c?.lateral
+        ? [
+            handle
+              .execute<Read>(
+                sql`select ${group.key} as k, (${c.value})::float8 as v
+                  from ${rowSource(view)} ${c.lateral} where ${where} group by 1`,
+              )
+              .then((rows) => ({ i, rows })),
+          ]
+        : [],
+    ),
+  ]);
+  const number = (x: unknown) => (x === null || x === undefined ? null : Number(x));
+  const out = new Map<GroupKey, CalculationValue[]>();
+  for (const row of base) {
+    const values: CalculationValue[] = calculations.map(({ property, fn }) =>
+      calculate(fn, property, []),
+    );
+    plain.forEach(({ c, i }, j) => {
+      const v = number(row[`v${j}`]);
+      values[i] = c.percentOf ? percent(v ?? 0, Number(row.n ?? 0)) : v;
+    });
+    out.set(row.k, values);
+  }
+  for (const { i, rows } of listed) {
+    for (const row of rows) {
+      const values = out.get(row.k);
+      if (values) values[i] = number(row.v);
+    }
+  }
+  return out;
 }

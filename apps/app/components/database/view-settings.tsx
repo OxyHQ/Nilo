@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { View } from 'react-native';
 import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { RiArrowUpSLine } from '@oxy.so/bloom/icons/RiArrowUpSLine';
@@ -13,6 +14,7 @@ import {
   SelectValue,
 } from '@oxy.so/bloom/select';
 import { Switch } from '@oxy.so/bloom/switch';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
 import {
@@ -20,6 +22,8 @@ import {
   CHART_TYPES,
   DATE_GROUP_GRANULARITIES,
   GROUPABLE_PROPERTY_TYPES,
+  MAX_NUMBER_GROUPS,
+  numberGroupCount,
   OPEN_ROW_MODES,
 } from '@oxy.so/nilo-contracts';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -36,15 +40,30 @@ import type {
   ViewChartConfig,
   ViewConfig,
   ViewGroupBy,
+  ViewGroupKey,
+  ViewNumberGrouping,
 } from '@/lib/types/databases';
 import { NAME_PROPERTY_ID } from '@/lib/types/databases';
+import { numberRangeOf, withoutGroupKeys } from '@/lib/view-groups';
 import { moveProperty, orderedProperties } from '@/lib/view-properties';
+import { useGroupLabel } from './group-label';
 
 /** What a board groups by (`view-board.tsx`). */
 export const GROUPABLE_TYPES: readonly DatabasePropertyType[] = ['status', 'select', 'checkbox'];
 
 /** What a table's or a list's rows, a board's sub-groups and a chart's axis group by. */
 const ROW_GROUPABLE: readonly DatabasePropertyType[] = GROUPABLE_PROPERTY_TYPES;
+
+/** The types grouped by ranges of numbers (a formula's or a rollup's numbers). */
+const NUMERIC: ReadonlySet<DatabasePropertyType> = new Set(['number', 'formula', 'rollup']);
+
+/** The views whose rows a grouping puts in sections (a board's sub-groups apart). */
+const SECTIONED: ReadonlySet<DatabaseView['type']> = new Set([
+  'table',
+  'list',
+  'gallery',
+  'timeline',
+]);
 
 /** The types grouped by day, week, month or year. */
 const DATED: ReadonlySet<DatabasePropertyType> = new Set([
@@ -81,8 +100,9 @@ interface ViewSettingsProps {
 
 /**
  * A view's settings, as Notion's view options: what its layout is built from
- * (a board's grouping and sub-grouping, a table's or a list's groups, a
- * calendar's or a timeline's dates, a gallery's cards, a table's frozen
+ * (a board's grouping and sub-grouping, a table's, a list's, a gallery's or
+ * a timeline's groups — a number's ranges, the groups hidden — a calendar's
+ * or a timeline's dates, a gallery's cards, a table's frozen
  * columns, a chart's axes), where it opens rows, how many it loads, and which
  * properties it shows, in its own order (`config.propertyOrder`). Every
  * change is saved as it is made.
@@ -131,11 +151,20 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
     if (propertyOrder) setConfig({ propertyOrder });
   };
 
-  /** A grouping (a table's or a list's groups, a board's sub-groups), its dates' unit, and empty groups. */
+  /**
+   * A grouping (a table's, a list's, a gallery's or a timeline's groups, a
+   * board's sub-groups), its dates' unit or its numbers' ranges, empty groups
+   * and the groups hidden. Grouped by another property, or by other ranges,
+   * the old groups' order, collapsing and hiding go: they named its groups.
+   */
   const grouping = (key: 'groupBy' | 'subGroupBy', label: string) => {
     const current = view[key] ?? null;
     const property = current ? properties.find((p) => p.id === current.propertyId) : undefined;
     const set = (next: ViewGroupBy | null) => update({ [key]: next });
+    const regroup = (next: ViewGroupBy | null) => {
+      const config = withoutGroupKeys(view.config);
+      update({ [key]: next, ...(config && { config }) });
+    };
     return (
       <>
         <SettingSelect
@@ -143,7 +172,7 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
           value={current?.propertyId ?? NONE}
           options={[none, ...choices(ofType(...ROW_GROUPABLE))]}
           onChange={(id) =>
-            set(
+            regroup(
               id === NONE
                 ? null
                 : { propertyId: id, ...(current?.hideEmpty && { hideEmpty: true }) },
@@ -158,11 +187,35 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
             onChange={(g) => set({ ...current, granularity: g as DateGroupGranularity })}
           />
         ) : null}
+        {current && property && NUMERIC.has(property.type) ? (
+          <NumberRangesSetting
+            key={JSON.stringify(view.config.numberGrouping ?? null)}
+            value={view.config.numberGrouping}
+            onChange={(numberGrouping) =>
+              update({
+                config: { ...(withoutGroupKeys(view.config) ?? view.config), numberGrouping },
+              })
+            }
+            onReset={() => update({ config: withoutGroupKeys(view.config) ?? view.config })}
+          />
+        ) : null}
         {current ? (
           <SettingSwitch
             label={t('databases.viewSettings.hideEmpty')}
             checked={current.hideEmpty === true}
             onChange={(hideEmpty) => set({ ...current, hideEmpty })}
+          />
+        ) : null}
+        {current && property && (view.config.hiddenGroups?.length ?? 0) > 0 ? (
+          <HiddenGroupsSetting
+            property={property}
+            granularity={current.granularity}
+            keys={view.config.hiddenGroups ?? []}
+            numberGrouping={view.config.numberGrouping}
+            onShow={(shown) => {
+              const hiddenGroups = (view.config.hiddenGroups ?? []).filter((k) => k !== shown);
+              setConfig({ hiddenGroups: hiddenGroups.length > 0 ? hiddenGroups : undefined });
+            }}
           />
         ) : null}
       </>
@@ -201,9 +254,7 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
       {view.type === 'board'
         ? grouping('subGroupBy', t('databases.viewSettings.subGroupBy'))
         : null}
-      {view.type === 'table' || view.type === 'list'
-        ? grouping('groupBy', t('databases.viewSettings.groupBy'))
-        : null}
+      {SECTIONED.has(view.type) ? grouping('groupBy', t('databases.viewSettings.groupBy')) : null}
       {view.type === 'chart' ? (
         <>
           <SettingSelect
@@ -383,6 +434,130 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
           );
         })}
       </View>
+    </View>
+  );
+}
+
+/**
+ * A number's ranges (`config.numberGrouping`): from, to, and each range's
+ * size, saved once they make at most `MAX_NUMBER_GROUPS` ranges; reset,
+ * the ranges spanning the rows' numbers.
+ */
+function NumberRangesSetting({
+  value,
+  onChange,
+  onReset,
+}: {
+  value: ViewNumberGrouping | undefined;
+  onChange: (grouping: ViewNumberGrouping) => void;
+  onReset: () => void;
+}) {
+  const { t } = useTranslation();
+  const [draft, setDraft] = React.useState({
+    from: value ? String(value.from) : '',
+    to: value ? String(value.to) : '',
+    step: value ? String(value.step) : '',
+  });
+  const parsed = {
+    from: Number(draft.from.replace(',', '.')),
+    to: Number(draft.to.replace(',', '.')),
+    step: Number(draft.step.replace(',', '.')),
+  };
+  const filled = draft.from.trim() !== '' && draft.to.trim() !== '' && draft.step.trim() !== '';
+  const valid =
+    filled &&
+    [parsed.from, parsed.to, parsed.step].every(Number.isFinite) &&
+    parsed.step > 0 &&
+    parsed.to > parsed.from &&
+    numberGroupCount(parsed) <= MAX_NUMBER_GROUPS;
+  const field = (name: 'from' | 'to' | 'step') => (
+    <View className="flex-1">
+      <TextFieldInput
+        size="sm"
+        label={t(`databases.viewSettings.ranges.${name}`)}
+        placeholder={t(`databases.viewSettings.ranges.${name}`)}
+        keyboardType="numeric"
+        value={draft[name]}
+        onChangeText={(text) => setDraft((prev) => ({ ...prev, [name]: text }))}
+      />
+    </View>
+  );
+  return (
+    <View className="gap-1">
+      <Text className="text-xs uppercase tracking-wider text-muted-foreground">
+        {t('databases.viewSettings.ranges.title')}
+      </Text>
+      <View className="flex-row gap-2">
+        {field('from')}
+        {field('to')}
+        {field('step')}
+      </View>
+      {filled && !valid ? (
+        <Text accessibilityRole="alert" className="text-xs text-destructive">
+          {t('databases.viewSettings.ranges.invalid', { count: MAX_NUMBER_GROUPS })}
+        </Text>
+      ) : null}
+      <View className="flex-row gap-2">
+        <Button
+          size="xs"
+          appearance="solid"
+          disabled={!valid}
+          onPress={() => onChange({ from: parsed.from, to: parsed.to, step: parsed.step })}
+        >
+          {t('databases.viewSettings.ranges.apply')}
+        </Button>
+        {value ? (
+          <Button size="xs" appearance="plain" onPress={onReset}>
+            {t('databases.viewSettings.ranges.reset')}
+          </Button>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+/** The groups a view hides (`config.hiddenGroups`), each shown again from here. */
+function HiddenGroupsSetting({
+  property,
+  granularity,
+  keys,
+  numberGrouping,
+  onShow,
+}: {
+  property: DatabaseProperty;
+  granularity?: DateGroupGranularity;
+  keys: readonly ViewGroupKey[];
+  numberGrouping: ViewNumberGrouping | undefined;
+  onShow: (key: ViewGroupKey) => void;
+}) {
+  const { t } = useTranslation();
+  const label = useGroupLabel(property, granularity);
+  return (
+    <View className="gap-1">
+      <Text className="text-xs uppercase tracking-wider text-muted-foreground">
+        {t('databases.viewSettings.hiddenGroups')}
+      </Text>
+      {keys.map((key) => {
+        const name = label(
+          key,
+          key !== null && numberGrouping ? numberRangeOf(key, numberGrouping) : undefined,
+        );
+        return (
+          <View key={key === null ? '\u0000' : `k:${key}`} className="flex-row items-center gap-1">
+            <Text variant="body-regular" numberOfLines={1} className="flex-1">
+              {name}
+            </Text>
+            <Button
+              size="xs"
+              appearance="plain"
+              accessibilityLabel={t('databases.groups.show', { name })}
+              onPress={() => onShow(key)}
+            >
+              {t('databases.viewSettings.showGroup')}
+            </Button>
+          </View>
+        );
+      })}
     </View>
   );
 }

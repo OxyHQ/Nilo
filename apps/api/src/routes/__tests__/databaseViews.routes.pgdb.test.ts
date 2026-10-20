@@ -247,15 +247,23 @@ describe("a view's layout", () => {
     const view = await createView(databaseId, {
       type: 'table',
       groupBy: { propertyId: 'notes' },
-      config: { calculations: { notes: 'count_unique', points: 'sum' } },
+      config: {
+        calculations: { notes: 'count_unique', points: 'sum' },
+        groupOrder: ['b', null],
+        collapsedGroups: ['a'],
+        hiddenGroups: ['c'],
+      },
     });
     const retyped = await api('PATCH', `/databases/${databaseId}/properties/notes`, {
       type: 'number',
     });
     expect(retyped.status).toBe(200);
     let [stored] = await db.select().from(databaseViews).where(eq(databaseViews.id, view.id));
-    // A number counts its unique values too, and no longer groups.
-    expect(stored.config.calculations).toEqual({ notes: 'count_unique', points: 'sum' });
+    // A number counts its unique values too, and groups by ranges: the texts' groups go.
+    expect(stored.config).toEqual({ calculations: { notes: 'count_unique', points: 'sum' } });
+    expect(stored.groupBy).toEqual({ propertyId: 'notes' });
+    await api('PATCH', `/databases/${databaseId}/properties/notes`, { type: 'files' });
+    [stored] = await db.select().from(databaseViews).where(eq(databaseViews.id, view.id));
     expect(stored.groupBy).toBeNull();
     await api('PATCH', `/databases/${databaseId}/properties/points`, { type: 'checkbox' });
     [stored] = await db.select().from(databaseViews).where(eq(databaseViews.id, view.id));
@@ -371,8 +379,13 @@ describe('a grouped table', () => {
       { key: 'true', count: 1 },
       { key: 'false', count: 1 },
     ]);
+    await api('POST', `/databases/${databaseId}/properties`, {
+      id: 'files',
+      name: 'Files',
+      type: 'files',
+    });
     const refused = await api('PATCH', `/databases/${databaseId}/views/${board.id}`, {
-      subGroupBy: { propertyId: 'points' },
+      subGroupBy: { propertyId: 'files' },
     });
     expect(refused.status).toBe(400);
     expect(refused.json.code).toBe('INVALID_GROUP');
@@ -565,5 +578,278 @@ describe('a button property', () => {
         .find((p) => p.id === 'finish')
         ?.config?.actions?.map((a) => a.kind),
     ).toEqual(['open_url', 'create_row']);
+  });
+});
+
+describe("a view's groups", () => {
+  /** The rows of a grouped view as `[groupKey, title]`, every page walked. */
+  const entries = async (databaseId: string, viewId: string, query = '') =>
+    (await allPages(databaseId, viewId, query)).flatMap((p) =>
+      p.rows.map((r) => [r.groupKey, r.title]),
+    );
+
+  it('groups numbers by the ranges a view sets, or by round ones spanning its rows', async () => {
+    const databaseId = await createDatabase();
+    for (const [title, points] of [
+      ['low', -2],
+      ['one', 1],
+      ['four', 4.5],
+      ['ten', 10],
+      ['top', 25],
+      ['none', null],
+    ] as const) {
+      await addRow(databaseId, title, points === null ? {} : { points: { number: points } });
+    }
+    const view = await createView(databaseId, {
+      type: 'table',
+      groupBy: { propertyId: 'points' },
+      config: { numberGrouping: { from: 0, to: 20, step: 5 } },
+    });
+    expect(await entries(databaseId, view.id)).toEqual([
+      ['-1', 'low'],
+      ['0', 'one'],
+      ['0', 'four'],
+      ['2', 'ten'],
+      ['4', 'top'],
+      [null, 'none'],
+    ]);
+    const [page] = await allPages(databaseId, view.id);
+    // Every range, even one no row is in, lowest first; below and above apart, the empty last.
+    expect(page?.groups).toEqual([
+      { key: '-1', count: 1, range: { from: null, to: 0 } },
+      { key: '0', count: 2, range: { from: 0, to: 5 } },
+      { key: '1', count: 0, range: { from: 5, to: 10 } },
+      { key: '2', count: 1, range: { from: 10, to: 15 } },
+      { key: '3', count: 0, range: { from: 15, to: 20 } },
+      { key: '4', count: 1, range: { from: 20, to: null } },
+      { key: null, count: 1 },
+    ]);
+
+    // Without ranges: steps of 5 from -5, past the largest number.
+    await api('PATCH', `/databases/${databaseId}/views/${view.id}`, { config: {} });
+    const [plain] = await allPages(databaseId, view.id);
+    expect(plain?.groups?.map((g) => [g.key, g.count])).toEqual([
+      ['0', 1],
+      ['1', 2],
+      ['2', 0],
+      ['3', 1],
+      ['4', 0],
+      ['5', 0],
+      ['6', 1],
+      [null, 1],
+    ]);
+    expect(plain?.groups?.[0]).toEqual({ key: '0', count: 1, range: { from: -5, to: 0 } });
+
+    for (const numberGrouping of [
+      { from: 5, to: 5, step: 1 },
+      { from: 0, to: 1000, step: 1 },
+      { from: 0, to: 10, step: 0 },
+    ]) {
+      const refused = await api('PATCH', `/databases/${databaseId}/views/${view.id}`, {
+        config: { numberGrouping },
+      });
+      expect(refused.status).toBe(400);
+    }
+  });
+
+  it('groups a formula’s numbers in JS, as the stored ones', async () => {
+    const databaseId = await createDatabase();
+    await api('POST', `/databases/${databaseId}/properties`, {
+      id: 'double',
+      name: 'Double',
+      type: 'formula',
+      config: { expression: 'prop("Points") * 2' },
+    });
+    await addRow(databaseId, 'a', { points: { number: 1 } });
+    await addRow(databaseId, 'b', { points: { number: 4 } });
+    await addRow(databaseId, 'c');
+    const view = await createView(databaseId, {
+      type: 'list',
+      groupBy: { propertyId: 'double' },
+      config: { numberGrouping: { from: 0, to: 10, step: 5 }, calculations: { points: 'sum' } },
+    });
+    // No points doubles to 0.
+    expect(await entries(databaseId, view.id)).toEqual([
+      ['0', 'a'],
+      ['0', 'c'],
+      ['1', 'b'],
+    ]);
+    const calculated = await api('GET', `/databases/${databaseId}/views/${view.id}/calculations`);
+    expect(calculated.json.groups).toEqual([
+      { key: '0', calculations: { points: { function: 'sum', value: 1 } } },
+      { key: '1', calculations: { points: { function: 'sum', value: 4 } } },
+    ]);
+  });
+
+  it('orders the groups a view lists first, and leaves out the rows of those it hides', async () => {
+    const databaseId = await createDatabase();
+    await addRow(databaseId, 'a', { stage: { optionId: 'todo' }, tags: { optionIds: ['red'] } });
+    await addRow(databaseId, 'b', {
+      stage: { optionId: 'done' },
+      tags: { optionIds: ['red', 'blue'] },
+    });
+    await addRow(databaseId, 'c', { tags: { optionIds: ['blue'] } });
+    const view = await createView(databaseId, {
+      type: 'table',
+      groupBy: { propertyId: 'stage' },
+      config: { groupOrder: [null, 'done'], hiddenGroups: ['todo'], collapsedGroups: ['done'] },
+    });
+    expect(view.config.collapsedGroups).toEqual(['done']);
+    const pages = await allPages(databaseId, view.id);
+    expect(pages.flatMap((p) => p.rows.map((r) => [r.groupKey, r.title]))).toEqual([
+      [null, 'c'],
+      ['done', 'b'],
+    ]);
+    expect(pages[0]?.total).toBe(2);
+    expect(pages[0]?.groups).toEqual([
+      { key: null, count: 1 },
+      { key: 'done', count: 1 },
+      { key: 'doing', count: 0 },
+    ]);
+
+    // A row with two labels is shown while one of its groups is.
+    await api('PATCH', `/databases/${databaseId}/views/${view.id}`, {
+      groupBy: { propertyId: 'tags' },
+      config: { hiddenGroups: ['red'], calculations: { name: 'count_all' } },
+    });
+    const tagged = await allPages(databaseId, view.id);
+    expect(tagged.flatMap((p) => p.rows.map((r) => [r.groupKey, r.title]))).toEqual([
+      ['blue', 'b'],
+      ['blue', 'c'],
+    ]);
+    expect(tagged[0]?.total).toBe(2);
+    const calculated = await api('GET', `/databases/${databaseId}/views/${view.id}/calculations`);
+    expect(calculated.json.calculations).toEqual({ name: { function: 'count_all', value: 2 } });
+    expect(calculated.json.groups).toEqual([
+      { key: 'blue', calculations: { name: { function: 'count_all', value: 2 } } },
+    ]);
+
+    for (const config of [
+      { groupOrder: ['a', 'a'] },
+      { hiddenGroups: [null, null] },
+      { collapsedGroups: [3] },
+    ]) {
+      const refused = await api('PATCH', `/databases/${databaseId}/views/${view.id}`, { config });
+      expect(refused.status).toBe(400);
+    }
+  });
+
+  it('computes each group’s footer, every group in its order, an empty one to nothing', async () => {
+    const databaseId = await createDatabase();
+    for (const [stage, points, due] of [
+      ['todo', 1, '2026-03-01T00:00:00.000Z'],
+      ['todo', 2, '2026-03-04T00:00:00.000Z'],
+      ['done', 4, null],
+      [null, 8, null],
+    ] as const) {
+      await addRow(databaseId, 'r', {
+        ...(stage && { stage: { optionId: stage } }),
+        points: { number: points },
+        ...(due && { due: { start: due } }),
+      });
+    }
+    const view = await createView(databaseId, {
+      type: 'table',
+      groupBy: { propertyId: 'stage' },
+      config: { calculations: { points: 'sum', due: 'date_range', stage: 'percent_empty' } },
+    });
+    const res = await api('GET', `/databases/${databaseId}/views/${view.id}/calculations`);
+    expect(res.status).toBe(200);
+    expect(res.json.calculations).toEqual({
+      points: { function: 'sum', value: 15 },
+      due: { function: 'date_range', value: 3 * 86_400_000 },
+      stage: { function: 'percent_empty', value: 25 },
+    });
+    const sums = (res.json.groups as { key: string | null; calculations: Json }[]).map((g) => [
+      g.key,
+      (g.calculations.points as { value: number }).value,
+      (g.calculations.due as { value: number | null }).value,
+      (g.calculations.stage as { value: number | null }).value,
+    ]);
+    expect(sums).toEqual([
+      ['todo', 3, 3 * 86_400_000, 0],
+      ['doing', 0, null, null],
+      ['done', 4, null, 0],
+      [null, 8, null, 100],
+    ]);
+    // Ungrouped, the footer is the view's alone.
+    await api('PATCH', `/databases/${databaseId}/views/${view.id}`, { groupBy: null });
+    const ungrouped = await api('GET', `/databases/${databaseId}/views/${view.id}/calculations`);
+    expect(ungrouped.json.groups).toBeUndefined();
+  });
+
+  it('groups a gallery’s cards and a timeline’s lanes, but not a calendar', async () => {
+    const databaseId = await createDatabase();
+    await addRow(databaseId, 'x', {
+      stage: { optionId: 'done' },
+      due: { start: '2026-03-01T00:00:00.000Z' },
+    });
+    await addRow(databaseId, 'y', { due: { start: '2026-03-02T00:00:00.000Z' } });
+    for (const type of ['gallery', 'timeline']) {
+      const view = await createView(databaseId, { type, groupBy: { propertyId: 'stage' } });
+      expect(await entries(databaseId, view.id)).toEqual([
+        ['done', 'x'],
+        [null, 'y'],
+      ]);
+    }
+    const calendar = await createView(databaseId, {
+      type: 'calendar',
+      groupBy: { propertyId: 'stage' },
+    });
+    const [page] = await allPages(databaseId, calendar.id);
+    expect(page?.groups).toBeUndefined();
+    expect(page?.rows.every((r) => r.groupKey === undefined)).toBe(true);
+  });
+
+  it('charts numbers by ranges spanning its rows', async () => {
+    const databaseId = await createDatabase();
+    for (const points of [1, 3, 12]) await addRow(databaseId, 'r', { points: { number: points } });
+    const chart = await createView(databaseId, {
+      type: 'chart',
+      config: { chart: { type: 'bar', xAxis: { propertyId: 'points' } } },
+    });
+    const res = await api('GET', `/databases/${databaseId}/views/${chart.id}/chart`);
+    expect((res.json.points as unknown[]).slice(0, 2)).toEqual([
+      { key: '0', count: 1, value: 1, range: { from: 0, to: 2 } },
+      { key: '1', count: 1, value: 1, range: { from: 2, to: 4 } },
+    ]);
+  });
+
+  it('forgets its groups’ keys with their property, or grouped by another', async () => {
+    const databaseId = await createDatabase();
+    const keys = {
+      groupOrder: ['done'],
+      collapsedGroups: [null],
+      hiddenGroups: ['todo'],
+      numberGrouping: { from: 0, to: 10, step: 1 },
+    };
+    const table = await createView(databaseId, {
+      type: 'table',
+      groupBy: { propertyId: 'stage' },
+      config: { ...keys, openIn: 'full_page' },
+    });
+    // A board's keys are of its sub-groups, not its columns.
+    const board = await createView(databaseId, {
+      type: 'board',
+      groupBy: { propertyId: 'stage' },
+      subGroupBy: { propertyId: 'done' },
+      config: keys,
+    });
+    expect((await api('DELETE', `/databases/${databaseId}/properties/stage`)).status).toBe(200);
+    const stored = async (id: string) =>
+      (await db.select().from(databaseViews).where(eq(databaseViews.id, id)))[0];
+    expect((await stored(table.id))?.config).toEqual({ openIn: 'full_page' });
+    expect((await stored(board.id))?.config).toEqual(keys);
+
+    // Grouped by another property, its keys go; given with the grouping, they are kept.
+    await api('PATCH', `/databases/${databaseId}/views/${board.id}`, {
+      subGroupBy: { propertyId: 'tags' },
+    });
+    expect((await stored(board.id))?.config).toEqual({});
+    await api('PATCH', `/databases/${databaseId}/views/${board.id}`, {
+      subGroupBy: { propertyId: 'done' },
+      config: { hiddenGroups: ['true'] },
+    });
+    expect((await stored(board.id))?.config).toEqual({ hiddenGroups: ['true'] });
   });
 });
