@@ -360,7 +360,10 @@
     "editedBy": "Edited by %{name}",
     "createdBy": "Created by %{name}",
     "savedBy": "Version saved by %{name}",
-    "versionDetails": "%{time} · %{count} blocks",
+    "versionDetails": {
+      "one": "%{time} · %{count} block",
+      "other": "%{time} · %{count} blocks"
+    },
     "versionHint": "Saved content versions. Choose one to view or restore it."
   },
   "navigation": {

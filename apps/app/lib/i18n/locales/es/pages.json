@@ -360,7 +360,10 @@
     "editedBy": "Editado por %{name}",
     "createdBy": "Creado por %{name}",
     "savedBy": "Versión guardada por %{name}",
-    "versionDetails": "%{time} · %{count} bloques",
+    "versionDetails": {
+      "one": "%{time} · %{count} bloque",
+      "other": "%{time} · %{count} bloques"
+    },
     "versionHint": "Versiones guardadas del contenido. Elige una para verla o restaurarla."
   },
   "navigation": {
