@@ -21,10 +21,6 @@ jest.mock('@oxy.so/bloom-editor', () => {
     BlockList: ({ ids }: { ids: string[] }) => <MockView testID={`list:${ids.join(',')}`} />,
   };
 });
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 
 let n = 0;
 const newId = () => `b${++n}`;

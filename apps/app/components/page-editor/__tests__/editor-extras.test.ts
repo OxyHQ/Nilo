@@ -1,6 +1,3 @@
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ oxyServices: {} }) }));
 jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { post: jest.fn() } }));
 import { blockLink } from '../editor-extras';

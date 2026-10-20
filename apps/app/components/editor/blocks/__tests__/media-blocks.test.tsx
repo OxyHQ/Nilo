@@ -20,10 +20,6 @@ jest.mock('@/lib/files/upload-page-file', () => ({
 }));
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ oxyServices: {} }) }));
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({}) }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 
 const block = (type: 'video' | 'audio', content: Record<string, unknown>): Block => ({
   id: 'media',

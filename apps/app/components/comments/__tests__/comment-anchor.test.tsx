@@ -5,10 +5,6 @@ import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { CommentQuote } from '../comment-quote';
 import { CommentPanel } from '../comment-panel';
 
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 let mockEditor: { store: EditorStore; controller: { refocus: jest.Mock } } | null = null;
 jest.mock('@/components/page-editor/page-editor-context', () => ({
   useOptionalPageEditorContext: () => mockEditor,

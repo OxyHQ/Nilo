@@ -4,9 +4,6 @@ import apiClient from '@/lib/api/client';
 import { useEditorMentions } from '../use-editor-mentions';
 
 jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { get: jest.fn() } }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock('@/lib/hooks/use-pages', () => ({
   usePages: () => ({
     data: {

@@ -11,10 +11,6 @@ jest.mock('@/lib/hooks/use-pages', () => ({
   usePage: (id: string | undefined) => (id ? mockPage : {}),
 }));
 jest.mock('@/components/page-chrome/icon-display', () => ({ IconDisplay: () => null }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 
 const block = (pageId: string): Block => ({
   id: 'b',

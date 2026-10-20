@@ -32,9 +32,6 @@ jest.mock('@oxy.so/bloom/popover', () => {
   return { Popover: View, PopoverTrigger: View, PopoverContent: View, PopoverSeparator: View };
 });
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), replace: jest.fn() }) }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock('@/lib/useColorScheme', () => ({
   useColorScheme: () => ({ colors: { foreground: 'black', mutedForeground: 'gray' } }),
 }));

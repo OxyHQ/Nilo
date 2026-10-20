@@ -19,9 +19,6 @@ jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({ isAuthenticated: true, user: { id: 'me' } }),
 }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
-}));
 jest.mock('@/lib/hooks/use-workspaces', () => ({ useWorkspaceRole: () => 'editor' }));
 jest.mock('@/lib/stores/workspace-store', () => ({ useWorkspaceStore: () => 'w' }));
 jest.mock('@/lib/api/client', () => ({

@@ -15,10 +15,6 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ pageId: 'page' }),
   useRouter: () => ({}),
 }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/lib/hooks/use-pages', () => ({
   usePage: () => ({
     data: {

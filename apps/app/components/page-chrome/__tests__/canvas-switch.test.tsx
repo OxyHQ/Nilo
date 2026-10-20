@@ -17,9 +17,6 @@ jest.mock('@/lib/hooks/use-pages', () => ({
   useUpdatePage: () => ({ mutate: mockMutate, isPending: false }),
 }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { error: (m: string) => mockToastError(m) } }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 
 let n = 0;
 const newId = () => `b${++n}`;

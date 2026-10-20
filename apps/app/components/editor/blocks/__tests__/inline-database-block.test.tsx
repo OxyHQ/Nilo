@@ -24,10 +24,6 @@ jest.mock('@/components/database/database-actions-menu', () => ({
   DatabaseActionsMenu: () => null,
 }));
 jest.mock('@/components/database/database-view', () => ({ DatabaseViewContainer: () => null }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() },
