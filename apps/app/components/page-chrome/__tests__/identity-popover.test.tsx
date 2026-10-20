@@ -94,6 +94,27 @@ it('keeps a failed draft open and retries, including an optimistic prop update',
   expect(popover().props.open).toBe(false);
 });
 
+it('preserves the failed draft when rollback and refetch arrive after the save rejection', async () => {
+  const request = deferredSave();
+  edit('Unsaved local rename');
+  await act(async () => popover().props.onOpenChange(false));
+  act(() => renderer.update(tree('Unsaved local rename')));
+  await act(async () => request.reject(new Error('HTTP 500')));
+  expect(popover().props.open).toBe(true);
+  expect(input().props.value).toBe('Unsaved local rename');
+  // Metadata rollback occurs in a later render, after failure cleared pending.
+  await act(async () => renderer.update(tree('Original')));
+  expect(input().props.value).toBe('Unsaved local rename');
+  expect(JSON.stringify(renderer.toJSON())).toContain('pages.header.renameFailed');
+  await act(async () => renderer.update(tree('Latest server title')));
+  expect(input().props.value).toBe('Unsaved local rename');
+  onSave.mockResolvedValue(undefined);
+  await act(async () => input().props.onSubmitEditing());
+  expect(onSave).toHaveBeenCalledTimes(2);
+  expect(onSave).toHaveBeenLastCalledWith('Unsaved local rename');
+  expect(popover().props.open).toBe(false);
+});
+
 it('cancels on Escape without saving or bubbling into overlay dismissal', () => {
   edit();
   const event = {
