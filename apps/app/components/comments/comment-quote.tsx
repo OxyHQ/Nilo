@@ -14,9 +14,9 @@ const noop = () => () => {};
  * (`locateAnchor`): pressing it selects that text in the editor. Gone from
  * its block (or the block gone), it says the original text changed.
  *
- * Bloom draws decorations on whole blocks only, so the text is not
- * highlighted in the page: its block carries the comment edge, and the
- * quote is here.
+ * The page shades the same stretch while the comment is open
+ * (`commentHighlights`, found again the same way), so what pressing this
+ * selects is what is highlighted.
  */
 export function CommentQuote({
   blockId,

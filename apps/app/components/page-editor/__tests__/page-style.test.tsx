@@ -104,6 +104,10 @@ jest.mock('../renderers', () => ({ createRenderers: () => ({}), createMarkers: (
 jest.mock('../presence', () => ({
   collaboratorDecorations: () => new Map(),
   withCommentDecorations: () => new Map(),
+  redrawOnChange: (_store: unknown, draw: () => void) => {
+    draw();
+    return () => {};
+  },
 }));
 jest.mock('../presence-avatars', () => ({ PresenceAvatars: () => null }));
 jest.mock('react-native-keyboard-controller', () => ({
@@ -320,6 +324,30 @@ describe('comments on selected text', () => {
     ).find((a) => a.id === 'comment');
     act(() => comment?.onPress('anchor'));
     expect(mockOpenComments).toHaveBeenCalledWith('anchor', { start: 6, end: 11, quote: 'world' });
+  });
+
+  it('comments from the selection bubble and toolbar on the text selected', () => {
+    mockStore.run(() => ({
+      ops: [
+        {
+          kind: 'update',
+          id: 'anchor',
+          before: { text: [] },
+          after: { text: [{ text: 'Hello world' }] },
+        },
+      ],
+    }));
+    const actions = renderer.root.findByType(BlockEditor).props.formatActions as {
+      id: string;
+      onPress: (selection: { blockId: string; start: number; end: number }) => void;
+    }[];
+    expect(actions.map((a) => a.id)).toEqual(['comment']);
+    act(() => actions[0]?.onPress({ blockId: 'anchor', start: 0, end: 5 }));
+    expect(mockOpenComments).toHaveBeenCalledWith('anchor', { start: 0, end: 5, quote: 'Hello' });
+    // Nothing worth quoting: no comment.
+    mockOpenComments.mockClear();
+    act(() => actions[0]?.onPress({ blockId: 'anchor', start: 5, end: 6 }));
+    expect(mockOpenComments).not.toHaveBeenCalled();
   });
 
   it('knows its shortcut', () => {

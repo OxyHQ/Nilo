@@ -6,7 +6,8 @@ import { usePageComments } from '@/lib/hooks/use-comments';
 import { useCreatePage, usePage } from '@/lib/hooks/use-pages';
 import { useSearchBlock } from '@/lib/hooks/use-search-block';
 import { runCommand } from '@/lib/editor/run-command';
-import { BlockEditor, type EditorStore, setProps } from '@oxy.so/bloom-editor';
+import { BlockEditor, type EditorStore, type FormatAction, setProps } from '@oxy.so/bloom-editor';
+import { RiChat3Line } from '@oxy.so/bloom/icons/RiChat3Line';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
 import { toast } from '@oxy.so/bloom/toast';
 import { router } from 'expo-router';
@@ -15,7 +16,7 @@ import { useCopyAndSync } from '@/components/editor/blocks/sync-block';
 import { IconPicker } from '@/components/page-chrome/icon-picker';
 import apiClient from '@/lib/api/client';
 import { API_ROUTES } from '@/lib/api/routes';
-import { selectionAnchor } from '@/lib/comments/anchor';
+import { anchorFor, blockText, selectionAnchor } from '@/lib/comments/anchor';
 import { insertBlockSnapshot, insertContainer } from '@/lib/editor/insert-blocks';
 import { removedOriginals, syncedReference } from '@/lib/editor/synced-blocks';
 import type { SyncedUsages } from '@/lib/hooks/use-synced-blocks';
@@ -175,8 +176,28 @@ export function PageEditor({
     [aiAvailable, canComment, setAiTarget, t, readOnly, store, copyAndSync, pageId],
   );
 
-  // Web: ⌘⇧M comments on the selected text. Bloom's selection bubble takes no
-  // actions of an app's own, so the shortcut and the block's menu offer it.
+  // "Comment" on the selected text: in the selection bubble on the web and in
+  // the toolbar on touch devices (it reads them from the shared controller).
+  const formatActions = useMemo<readonly FormatAction[]>(
+    () =>
+      canComment && store
+        ? [
+            {
+              id: 'comment',
+              label: t('editor.ui.comment'),
+              icon: ({ color, size }) => <RiChat3Line width={size} height={size} fill={color} />,
+              onPress: ({ blockId, start, end }) => {
+                const text = blockText(store, blockId);
+                const anchor = text === null ? null : anchorFor(text, start, end);
+                if (anchor) openComments.current?.(blockId, anchor);
+              },
+            },
+          ]
+        : [],
+    [canComment, store, t],
+  );
+
+  // Web: ⌘⇧M comments on the selected text too, as in Notion.
   useEffect(() => {
     if (Platform.OS !== 'web' || !canComment || !store) return;
     const onKey = (event: KeyboardEvent) => {
@@ -342,6 +363,7 @@ export function PageEditor({
     renderers,
     markers,
     blockActions,
+    formatActions,
     theme,
     labels,
     readOnly,

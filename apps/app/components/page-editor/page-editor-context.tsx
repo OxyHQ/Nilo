@@ -8,12 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react';
-import { Button } from '@oxy.so/bloom/button';
-import { RiChat3Line } from '@oxy.so/bloom/icons/RiChat3Line';
-import { selectionAnchor } from '@/lib/comments/anchor';
-import type { CommentAnchor } from '@/lib/types/comments';
 import { Platform, View } from 'react-native';
 import {
   BlockDecorations,
@@ -31,7 +26,9 @@ import { usePageEditor, type PageEditorState } from '@/lib/editor/use-page-edito
 import { profileName, useMemberProfiles } from '@/lib/hooks/use-member-profiles';
 import { useEditorTheme, useEditorLabels } from './editor-presentation';
 import type { AiTarget } from './ai-dialog';
-import { collaboratorDecorations, withCommentDecorations } from './presence';
+import { collaboratorDecorations, redrawOnChange, withCommentDecorations } from './presence';
+import { commentHighlights } from '@/lib/comments/anchor';
+import { relativeToSelection } from '@oxy.so/bloom-editor/yjs';
 import { usePageComments } from '@/lib/hooks/use-comments';
 import { openCommentCounts } from '@/components/comments/comment-indicator';
 
@@ -94,34 +91,50 @@ export function PageEditorProvider({
     () => openCommentCounts(comments.data?.comments ?? []),
     [comments.data?.comments],
   );
+  // Who is where, and the text open comments are on, drawn on the page's
+  // blocks, and placed again as the text changes.
+  const { collaborators, doc } = state;
+  const commentList = comments.data?.comments;
   useEffect(() => {
-    const carets = collaboratorDecorations(
-      state.collaborators,
-      user?.id,
-      theme.colors,
-      (id) =>
-        profileName(profiles.data?.find((profile) => profile.id === id)) ??
-        t('pages.info.unknownMember'),
-      previous.current,
-    );
-    const next = withCommentDecorations(
-      carets,
-      commentCounts,
-      theme.colors.yellow?.text ?? theme.accent,
-      (count) => t('comments.indicator.count', { count }),
-      previous.current,
-    );
-    previous.current = next;
-    decorations.set(next);
+    const nameOf = (id: string) =>
+      profileName(profiles.data?.find((profile) => profile.id === id)) ??
+      t('pages.info.unknownMember');
+    const commentColor = theme.colors.yellow;
+    const update = () => {
+      const carets = collaboratorDecorations(
+        collaborators,
+        user?.id,
+        theme.colors,
+        nameOf,
+        previous.current,
+        (selection) => (doc ? relativeToSelection(doc, selection) : null),
+      );
+      const next = withCommentDecorations(
+        carets,
+        commentCounts,
+        commentColor?.text ?? theme.accent,
+        (count) => t('comments.indicator.count', { count }),
+        previous.current,
+        store ? commentHighlights(store, commentList ?? []) : [],
+        commentColor?.background ?? theme.selection,
+      );
+      previous.current = next;
+      decorations.set(next);
+    };
+    return redrawOnChange(store, update);
   }, [
-    state.collaborators,
+    collaborators,
+    doc,
+    store,
     user?.id,
     theme.colors,
     theme.accent,
+    theme.selection,
     profiles.data,
     t,
     decorations,
     commentCounts,
+    commentList,
   ]);
   const value = useMemo(
     () => ({
@@ -147,14 +160,13 @@ export function useOptionalPageEditorContext() {
   return useContext(PageEditorContext);
 }
 
-export function PageEditorToolbar({
-  readOnly,
-  onComment,
-}: {
-  readOnly: boolean;
-  /** Comment on the selected text; without it the toolbar offers no comment. */
-  onComment?: (blockId: string, anchor: CommentAnchor) => void;
-}) {
+/**
+ * Touch devices: Bloom's toolbar over the keyboard, for the editor that has
+ * it. The page's own controller carries its format actions ("Comment" on the
+ * selected text, `page-editor.tsx`), which the toolbar shows while text is
+ * selected.
+ */
+export function PageEditorToolbar({ readOnly }: { readOnly: boolean }) {
   const { controller, embeddedController, theme, labels, setToolbarHeight } =
     usePageEditorContext();
   if (Platform.OS === 'web' || readOnly || !controller) return null;
@@ -163,49 +175,8 @@ export function PageEditorToolbar({
   return (
     <KeyboardStickyView style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
       <View onLayout={(event) => setToolbarHeight(event.nativeEvent.layout.height)}>
-        {onComment && active === controller ? (
-          <CommentOnSelection controller={controller} onComment={onComment} />
-        ) : null}
         <EditorToolbar controller={active} theme={theme} labels={labels} mentionIndicator="@" />
       </View>
     </KeyboardStickyView>
-  );
-}
-
-/**
- * Touch devices: "Comment" over the toolbar while text is selected (the web
- * has the shortcut and the block's menu). Bloom's toolbar takes no actions of
- * an app's own, so it is drawn beside it.
- */
-function CommentOnSelection({
-  controller,
-  onComment,
-}: {
-  controller: EditorController;
-  onComment: (blockId: string, anchor: CommentAnchor) => void;
-}) {
-  const { t } = useTranslation();
-  const focused = useSyncExternalStore(controller.ui.subscribe, () => controller.ui.get().focused);
-  const key = useSyncExternalStore(controller.store.subscribe, () => {
-    const selection = controller.textSelection;
-    return selection && selection.start !== selection.end
-      ? `${selection.blockId}:${selection.start}:${selection.end}`
-      : null;
-  });
-  if (!focused || !key) return null;
-  return (
-    <View className="flex-row justify-end border-t border-border bg-background px-2 py-1">
-      <Button
-        appearance="subtle"
-        size="sm"
-        leadingIcon={RiChat3Line}
-        onPress={() => {
-          const selected = selectionAnchor(controller.store);
-          if (selected) onComment(selected.blockId, selected.anchor);
-        }}
-      >
-        {t('editor.ui.comment')}
-      </Button>
-    </View>
   );
 }

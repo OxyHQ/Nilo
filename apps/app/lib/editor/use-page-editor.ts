@@ -1,26 +1,35 @@
 import { EditorStore, emptyDocument } from '@oxy.so/bloom-editor/model';
-import { YjsBinding } from '@oxy.so/bloom-editor/yjs';
+import { type RelativeSelection, YjsBinding } from '@oxy.so/bloom-editor/yjs';
 import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import type * as Y from 'yjs';
 import { useTranslation } from '@/hooks/useTranslation';
 import { queryKeys } from '@/lib/hooks/query-keys';
 import { uuidv7 } from '@/lib/ids';
 import { acquireSocket, releaseSocket } from '@/lib/realtime/socket';
 import { offlinePages } from './offline-pages';
 import type { SyncStatus } from './page-session';
+import { tellFocus } from './presence-focus';
 import { holdPageSession } from './shared-sessions';
 
 export type { SyncStatus };
 
-/** Someone else on the page, and the block their caret is in. */
+/**
+ * Someone else on the page, the block their caret is in, and what they have
+ * selected in its text as positions in the page's document (Bloom's
+ * `RelativeSelection`, read back with `relativeToSelection`).
+ */
 export interface Collaborator {
   userId: string;
   blockId: string | null;
+  selection?: RelativeSelection | null;
 }
 
 export interface PageEditorState {
   store: EditorStore | null;
+  /** The page's document the store is bound to; collaborators' selections are in it. */
+  doc: Y.Doc | null;
   status: SyncStatus;
   /**
    * The server's last refusal of this person's change and why (read-only,
@@ -60,6 +69,7 @@ export function usePageEditor(
   translate.current = t;
   const queryClient = useQueryClient();
   const [store, setStore] = useState<EditorStore | null>(null);
+  const [doc, setDoc] = useState<Y.Doc | null>(null);
   const [status, setStatus] = useState<SyncStatus>('saved');
   const [rejected, setRejected] = useState<{ count: number; code: string } | null>(null);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -67,6 +77,7 @@ export function usePageEditor(
 
   useEffect(() => {
     setStore(null);
+    setDoc(null);
     setError(null);
     setStatus('saved');
     setCollaborators([]);
@@ -88,26 +99,17 @@ export function usePageEditor(
 
     const release = holdPageSession(pageId, {
       readOnly,
-      onReady: (doc) => {
+      onReady: (ydoc) => {
         if (binding) return;
         const next = new EditorStore({
           document: emptyDocument(),
           schema: NILO_SCHEMA,
           newId: uuidv7,
         });
-        binding = new YjsBinding(next, doc, { readOnly });
-        if (!readOnly && !embedded) {
-          // Tell the room which block this member is in.
-          let lastFocus: string | null = null;
-          stopFocus = next.subscribe(() => {
-            const selection = next.selection;
-            const blockId = selection?.kind === 'text' ? selection.blockId : null;
-            if (blockId === lastFocus) return;
-            lastFocus = blockId;
-            socket.emit('page:focus', { pageId, blockId });
-          });
-        }
+        binding = new YjsBinding(next, ydoc, { readOnly });
+        if (!readOnly && !embedded) stopFocus = tellFocus(socket, pageId, next, ydoc);
         setError(null);
+        setDoc(ydoc);
         setStore(next);
         // Opened: kept as a recent page on devices that keep pages offline.
         if (!embedded) void offlinePages.opened(pageId);
@@ -157,5 +159,5 @@ export function usePageEditor(
     };
   }, [pageId, readOnly, embedded, queryClient]);
 
-  return { store, status, rejected, collaborators, error };
+  return { store, doc, status, rejected, collaborators, error };
 }

@@ -6,7 +6,7 @@
  */
 import type { EditorStore } from '@oxy.so/bloom-editor';
 import { segmentsToPlainText } from '@oxy.so/bloom-text/model';
-import type { CommentAnchor } from '@/lib/types/comments';
+import type { Comment, CommentAnchor } from '@/lib/types/comments';
 
 /** The most text a comment may quote (the API's limit). */
 export const MAX_QUOTE_LENGTH = 2000;
@@ -55,4 +55,25 @@ export function selectionAnchor(
   const text = blockText(store, selection.blockId);
   const anchor = text === null ? null : anchorFor(text, selection.start, selection.end);
   return anchor ? { blockId: selection.blockId, anchor } : null;
+}
+
+/**
+ * Where the text of each open comment on a stretch of text is now: top-level
+ * comments not resolved, with an anchor, found again in their block. A
+ * comment whose text is gone is not shown in the page (its thread says so).
+ */
+export function commentHighlights(
+  store: EditorStore,
+  comments: readonly Pick<Comment, 'blockId' | 'anchor' | 'parentCommentId' | 'resolvedAt'>[],
+): { blockId: string; start: number; end: number }[] {
+  const found: { blockId: string; start: number; end: number }[] = [];
+  const texts = new Map<string, string | null>();
+  for (const { blockId, anchor, parentCommentId, resolvedAt } of comments) {
+    if (!blockId || !anchor || parentCommentId !== null || resolvedAt !== null) continue;
+    if (!texts.has(blockId)) texts.set(blockId, blockText(store, blockId));
+    const text = texts.get(blockId);
+    const at = text == null ? null : locateAnchor(text, anchor);
+    if (at) found.push({ blockId, ...at });
+  }
+  return found;
 }
