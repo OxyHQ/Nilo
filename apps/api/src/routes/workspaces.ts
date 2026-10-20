@@ -51,6 +51,7 @@ import {
   updateWorkspace,
 } from '../repositories/workspaces.js';
 import { log } from '../lib/logger.js';
+import { attachment } from '../lib/attachment.js';
 import { ExportTooLarge, exportPagesZip, fileName, zipExports } from '../lib/export-zip.js';
 import { findUserByEmail, loadMemberProfiles } from '../lib/member-profiles.js';
 import { createWorkspaceSchema, updateWorkspaceSchema } from '../lib/workspace-input.js';
@@ -816,15 +817,10 @@ router.get(
         format: format === 'html' ? 'html' : 'md',
       });
       const name = req.workspaceDoc.name?.trim() || 'Workspace';
-      const ascii =
-        fileName(name)
-          .replace(/[^a-zA-Z0-9-_]+/gu, '-')
-          .replace(/^-+|-+$/g, '') || 'workspace';
-      res.setHeader('Content-Type', 'application/zip');
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename="${ascii}.zip"; filename*=UTF-8''${encodeURIComponent(`${name}.zip`)}`,
-      );
+      attachment(res, name, 'zip', 'application/zip', {
+        ascii: fileName(name),
+        fallback: 'workspace',
+      });
       res.send(Buffer.from(zip.bytes));
     } catch (error: unknown) {
       if (error instanceof z.ZodError) {
