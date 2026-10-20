@@ -1,6 +1,4 @@
 import { View } from 'react-native';
-import { useIsMutating, useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/hooks/query-keys';
 import { useRouter } from 'expo-router';
 import { Breadcrumb as BloomBreadcrumb, BreadcrumbItem } from '@oxy.so/bloom/breadcrumb';
 import { Text } from '@oxy.so/bloom/typography';
@@ -23,25 +21,14 @@ interface BreadcrumbProps {
 export function Breadcrumb({ currentPage, maxItems = 4 }: BreadcrumbProps) {
   const router = useRouter();
   const { t } = useTranslation();
-  const client = useQueryClient();
-  const { data: crumb, dataUpdatedAt } = useBreadcrumb(currentPage.id, currentPage.workspaceId);
-  const updating = useIsMutating({
-    mutationKey: ['page-update'],
-    predicate: (mutation) =>
-      (mutation.state.variables as { id?: string } | undefined)?.id === currentPage.id,
-  });
+  const { data: crumb } = useBreadcrumb(currentPage.id, currentPage.workspaceId);
 
   const entries: BreadcrumbEntry[] = crumb?.breadcrumb ?? [];
   // Drop the trailing self entry from the clickable list; it renders as the
   // active label.
   const ancestors = entries.filter((entry) => entry.id !== currentPage.id);
-  // A remote rename can refresh the path without replacing the open editor's
-  // page data. Local optimistic changes win until their mutation settles.
-  const cachedCurrent = entries.find((entry) => entry.id === currentPage.id);
-  const pageUpdatedAt =
-    client.getQueryState(queryKeys.pages.detail(currentPage.id))?.dataUpdatedAt ?? 0;
-  const current =
-    !updating && cachedCurrent && dataUpdatedAt > pageUpdatedAt ? cachedCurrent : currentPage;
+  // Page metadata has one owner, including optimistic edits and remote refreshes.
+  const current = currentPage;
 
   const condensed = condenseAncestors(ancestors, maxItems);
 

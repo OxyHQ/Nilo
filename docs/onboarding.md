@@ -56,6 +56,9 @@ page, and workspace switching already belongs to the sidebar. Supply real
 loads, protect optimistic metadata during saves, and refresh affected paths
 when another session changes the hierarchy. Breadcrumb queries include their
 workspace scope so those events do not invalidate unrelated editor data.
+Those events refresh exact page-metadata queries in the same workspace, keeping
+title, icon, cover and lock state consistent with the header. Pending page
+mutations defer that refresh until settlement; blocks and Yjs remain untouched.
 Header actions should leave room for navigation; comments use Bloom's normal
 icon-only button with an accessible unresolved-discussion count.
 

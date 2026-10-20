@@ -3,6 +3,7 @@ import { useOxy } from '@oxy.so/services/ui/client';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { acquireSocket, releaseSocket } from './socket';
 import { queryKeys } from '../hooks/query-keys';
+import type { PageResponse } from '../types/pages';
 import type { CommentsListResponse } from '../types/comments';
 
 type Kind = 'workspace' | 'database' | 'comments';
@@ -15,12 +16,25 @@ export function invalidateLiveQueries(client: QueryClient, kind: Kind, id: strin
   if (kind === 'workspace') {
     void client.invalidateQueries({ queryKey: queryKeys.pages.list(id) });
     void client.invalidateQueries({ queryKey: queryKeys.databases.list(id) });
-    // An ancestor can move or change its title without changing this page's editor data.
+    // An ancestor can move or change its title independently of this page's metadata.
     void client.invalidateQueries({
       predicate: (query) =>
         query.queryKey[0] === 'page' &&
         query.queryKey[2] === 'breadcrumb' &&
         query.queryKey[3] === id,
+    });
+    // Metadata belongs to PageResponse, not the editor's Yjs/blocks. A pending
+    // page mutation already refreshes this query on settle; don't overwrite it.
+    void client.invalidateQueries({
+      predicate: (query) =>
+        query.queryKey.length === 2 &&
+        query.queryKey[0] === 'page' &&
+        (query.state.data as PageResponse | undefined)?.page?.workspaceId === id &&
+        client.isMutating({
+          mutationKey: ['page-update'],
+          predicate: (mutation) =>
+            (mutation.state.variables as { id?: string } | undefined)?.id === query.queryKey[1],
+        }) === 0,
     });
     // Favorites and page templates are derived from the workspace's pages queries.
   } else if (kind === 'database') {

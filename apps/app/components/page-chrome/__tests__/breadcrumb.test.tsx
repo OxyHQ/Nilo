@@ -6,14 +6,18 @@ import { BloomTestProviders } from '@/test-support/bloom-providers';
 import apiClient from '@/lib/api/client';
 import { queryKeys } from '@/lib/hooks/query-keys';
 import { usePage, useUpdatePage } from '@/lib/hooks/use-pages';
-import { useWorkspaceLive } from '@/lib/realtime/use-live-updates';
+import { invalidateLiveQueries, useWorkspaceLive } from '@/lib/realtime/use-live-updates';
 import type { BreadcrumbEntry, BreadcrumbResponse } from '@/lib/types/pages';
 import { Breadcrumb } from '../breadcrumb';
 
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
-jest.mock('@/lib/realtime/use-live-updates', () => ({ useWorkspaceLive: jest.fn() }));
+jest.mock('@/lib/realtime/socket', () => ({ acquireSocket: jest.fn(), releaseSocket: jest.fn() }));
+jest.mock('@/lib/realtime/use-live-updates', () => ({
+  ...jest.requireActual('@/lib/realtime/use-live-updates'),
+  useWorkspaceLive: jest.fn(),
+}));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), patch: jest.fn() },
@@ -88,21 +92,11 @@ it('keeps the current page visible while ancestry is loading and after a failed 
 });
 it('renders optimistic current-page changes without waiting for the ancestry cache to refresh', async () => {
   await mount();
-  client.setQueryData(
-    queryKeys.pages.detail(page.id),
-    { page: { ...page, title: 'Renamed immediately' } },
-    { updatedAt: Date.now() + 1 },
-  );
   await act(async () => renderer.update(tree({ ...page, title: 'Renamed immediately' })));
   expect(renderer.root.findByType(Item).props.children).toBe('Renamed immediately');
 });
 it('treats a root page as the current item, and labels whitespace titles as untitled', async () => {
   await mount();
-  client.setQueryData(
-    queryKeys.pages.detail(page.id),
-    { page: { ...page, title: '  ' } },
-    { updatedAt: Date.now() + 1 },
-  );
   await act(async () => renderer.update(tree({ ...page, title: '  ' })));
   const crumbs = renderer.root.findAllByType(Item);
   expect(crumbs).toHaveLength(1);
@@ -110,19 +104,16 @@ it('treats a root page as the current item, and labels whitespace titles as unti
   expect(crumbs[0].props.children).toBe('pages.untitled');
 });
 
-it('accepts a newer remote current-page title, protects an in-flight optimistic rename, and restores on error', async () => {
-  let update!: ReturnType<typeof useUpdatePage>;
-  function PageRoute() {
-    const detail = usePage(page.id);
-    update = useUpdatePage();
-    return <Breadcrumb currentPage={detail.data?.page ?? page} />;
-  }
-  client.setQueryData(queryKeys.pages.detail(page.id), { page }, { updatedAt: Date.now() - 1_000 });
-  jest.mocked(apiClient.get).mockImplementation(async (url) => ({
-    data: url.endsWith('/breadcrumb')
-      ? { breadcrumb: [{ ...page, title: 'Remote rename' }] }
-      : { page },
-  }));
+let update!: ReturnType<typeof useUpdatePage>;
+function PageRoute() {
+  const detail = usePage(page.id);
+  update = useUpdatePage();
+  return <Breadcrumb currentPage={detail.data?.page ?? page} />;
+}
+async function settleRender() {
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+}
+async function mountRoute() {
   await act(async () => {
     renderer = create(
       <QueryClientProvider client={client}>
@@ -132,16 +123,20 @@ it('accepts a newer remote current-page title, protects an in-flight optimistic 
       </QueryClientProvider>,
     );
   });
-  await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
-  // A workspace event refetch can be newer than the still-mounted page detail.
-  await act(async () => {
-    client.setQueryData(
-      queryKeys.pages.breadcrumb(page.id, page.workspaceId),
-      { breadcrumb: [{ ...page, title: 'Remote rename' }] },
-      { updatedAt: Date.now() + 1 },
-    );
-  });
-  await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+  await settleRender();
+}
+async function workspaceChanged() {
+  await act(async () => invalidateLiveQueries(client, 'workspace', page.workspaceId));
+  await settleRender();
+}
+it('refreshes metadata from its page owner and protects a pending rename until rollback refetches', async () => {
+  let serverPage = page;
+  jest.mocked(apiClient.get).mockImplementation(async (url) => ({
+    data: url.endsWith('/breadcrumb') ? { breadcrumb: [serverPage] } : { page: serverPage },
+  }));
+  await mountRoute();
+  serverPage = { ...page, title: 'Remote rename' };
+  await workspaceChanged();
   expect(renderer.root.findByType(Item).props.children).toBe('Remote rename');
   let reject!: (error: Error) => void;
   jest.mocked(apiClient.patch).mockReturnValue(
@@ -153,23 +148,102 @@ it('accepts a newer remote current-page title, protects an in-flight optimistic 
   await act(async () => {
     mutation = update.mutateAsync({ id: page.id, title: 'Typing locally' }).catch(() => undefined);
   });
-  await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+  await settleRender();
   expect(renderer.root.findByType(Item).props.children).toBe('Typing locally');
-  // A workspace event can refetch stale server metadata before PATCH commits.
-  await act(async () => {
-    await client.refetchQueries({
-      queryKey: queryKeys.pages.breadcrumb(page.id, page.workspaceId),
-    });
-  });
-  await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+  jest.mocked(apiClient.get).mockClear();
+  await workspaceChanged();
+  expect(apiClient.get).toHaveBeenCalledWith('/pages/current/breadcrumb');
+  expect(apiClient.get).not.toHaveBeenCalledWith('/pages/current');
   expect(renderer.root.findByType(Item).props.children).toBe('Typing locally');
-  jest.mocked(apiClient.get).mockImplementation(async (url) => ({
-    data: url.endsWith('/breadcrumb') ? { breadcrumb: [page] } : { page },
-  }));
   await act(async () => {
     reject(new Error('Save failed'));
     await mutation;
   });
-  await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
-  expect(renderer.root.findByType(Item).props.children).toBe('Current page');
+  await settleRender();
+  expect(renderer.root.findByType(Item).props.children).toBe('Remote rename');
+  expect(apiClient.get).toHaveBeenCalledWith('/pages/current');
+});
+it.each(['success', 'failure'] as const)(
+  'keeps remote metadata while toggling a favorite and refreshes changes deferred until %s',
+  async (result) => {
+    let serverPage = { ...page, favorited: false, locked: false, cover: null as string | null };
+    jest.mocked(apiClient.get).mockImplementation(async (url) => ({
+      data: url.endsWith('/breadcrumb') ? { breadcrumb: [serverPage] } : { page: serverPage },
+    }));
+    client.setQueryData(['blocks', page.id], { blocks: [{ id: 'editing' }] });
+    await mountRoute();
+    serverPage = { ...serverPage, title: 'Remote title', locked: true, cover: 'cover-id' };
+    await workspaceChanged();
+    expect(renderer.root.findByType(Item).props.children).toBe('Remote title');
+    let resolve!: (value: unknown) => void;
+    let reject!: (error: Error) => void;
+    jest.mocked(apiClient.patch).mockReturnValue(
+      new Promise((accept, refuse) => {
+        resolve = accept;
+        reject = refuse;
+      }),
+    );
+    let mutation!: Promise<unknown>;
+    await act(async () => {
+      mutation = update.mutateAsync({ id: page.id, favorited: true }).catch(() => undefined);
+    });
+    await settleRender();
+    expect(renderer.root.findByType(Item).props.children).toBe('Remote title');
+    serverPage = { ...serverPage, title: 'Updated while saving', locked: false };
+    jest.mocked(apiClient.get).mockClear();
+    await workspaceChanged();
+    expect(apiClient.get).not.toHaveBeenCalledWith('/pages/current');
+    expect(renderer.root.findByType(Item).props.children).toBe('Remote title');
+    if (result === 'success') serverPage = { ...serverPage, favorited: true };
+    await act(async () => {
+      if (result === 'success') resolve({ data: { page: serverPage } });
+      else reject(new Error('Save failed'));
+      await mutation;
+    });
+    await settleRender();
+    expect(renderer.root.findByType(Item).props.children).toBe('Updated while saving');
+    expect(client.getQueryData(queryKeys.pages.detail(page.id))).toEqual({ page: serverPage });
+    expect(client.getQueryState(['blocks', page.id])?.isInvalidated).toBe(false);
+  },
+);
+it('ignores a metadata response cancelled when a local rename starts', async () => {
+  let serverPage = page;
+  jest.mocked(apiClient.get).mockImplementation(async (url) => ({
+    data: url.endsWith('/breadcrumb') ? { breadcrumb: [serverPage] } : { page: serverPage },
+  }));
+  await mountRoute();
+  let resolveRead!: (value: unknown) => void;
+  jest.mocked(apiClient.get).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolveRead = resolve;
+      }),
+  );
+  let fetch!: Promise<void>;
+  await act(async () => {
+    fetch = client.refetchQueries({ queryKey: queryKeys.pages.detail(page.id), exact: true });
+  });
+  let resolvePatch!: (value: unknown) => void;
+  jest.mocked(apiClient.patch).mockReturnValue(
+    new Promise((resolve) => {
+      resolvePatch = resolve;
+    }),
+  );
+  let mutation!: Promise<unknown>;
+  await act(async () => {
+    mutation = update.mutateAsync({ id: page.id, title: 'Typing locally' });
+  });
+  await act(async () => {
+    resolveRead({ data: { page: { ...page, title: 'Old in-flight response' } } });
+    await fetch;
+  });
+  await settleRender();
+  expect(renderer.root.findByType(Item).props.children).toBe('Typing locally');
+  serverPage = { ...page, title: 'Typing locally' };
+  await act(async () => {
+    resolvePatch({ data: { page: serverPage } });
+    await mutation;
+  });
+  await settleRender();
+  expect(renderer.root.findByType(Item).props.children).toBe('Typing locally');
 });
