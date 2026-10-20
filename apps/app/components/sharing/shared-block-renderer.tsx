@@ -1,19 +1,12 @@
 import { BlockText, blockTextSegments, PublicMentionContext } from './block-text';
-import { blockFileId, type FileUrlScope, isEntityId, syncedSource } from '@oxy.so/nilo-contracts';
+import { type FileUrlScope, isEntityId, syncedSource } from '@oxy.so/nilo-contracts';
 import { Button } from '@oxy.so/bloom/button';
 import { router } from 'expo-router';
 import { Checkbox } from '@oxy.so/bloom/checkbox';
 import { Divider } from '@oxy.so/bloom/divider';
 import { Text } from '@oxy.so/bloom/typography';
-import { useQueryClient } from '@tanstack/react-query';
 import { Platform, Pressable, type TextStyle, View } from 'react-native';
-import {
-  FileScopeProvider,
-  freshFileUrl,
-  useFileImageSource,
-  useFileRemoved,
-  useFileScope,
-} from '@/lib/files/file-urls';
+import { FileScopeProvider } from '@/lib/files/file-urls';
 import { CalloutIcon } from '@/components/page-chrome/callout-icon';
 import type { PageFont } from '@/lib/types/pages';
 import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
@@ -40,8 +33,8 @@ import { MermaidBlock } from '@/components/editor/blocks/mermaid-block';
 import { PdfBlock } from '@/components/editor/blocks/pdf-block';
 import { VideoBlock } from '@/components/editor/blocks/video-block';
 import { CodeView } from '@/components/editor/blocks/code-view';
-import { SizedImage } from '@/components/editor/blocks/image-block';
-import { imageAlignment, imageWidth } from '@/components/editor/blocks/image-layout';
+import { ImageView } from '@/components/editor/blocks/image-block';
+import { FileView } from '@/components/editor/blocks/file-block';
 import { columnShares } from '@/lib/editor/columns';
 
 /**
@@ -49,6 +42,8 @@ import { columnShares } from '@/lib/editor/columns';
  * same way it is edited: one rendering of each, not a second copy here.
  */
 const EDITOR_BLOCKS: Partial<Record<string, ComponentType<BlockComponentProps>>> = {
+  image: ImageView,
+  file: FileView,
   video: VideoBlock,
   audio: AudioBlock,
   pdf: PdfBlock,
@@ -254,80 +249,6 @@ function CalloutBlock({ content, textStyle }: BlockProps) {
 
 const stringOf = (value: unknown) => (typeof value === 'string' ? value : '');
 
-/** An image: a pasted URL, or an attachment through a URL minted for this reader. */
-function SharedImage({ content }: { content: Record<string, unknown> }) {
-  const fileId = blockFileId(content);
-  const { t } = useTranslation();
-  const scope = useFileScope(undefined);
-  const fileSource = useFileImageSource(scope, fileId);
-  const removed = useFileRemoved(scope, fileId);
-  const url = fileId ? (fileSource?.uri ?? null) : stringOf(content.url);
-  const caption = stringOf(content.caption);
-  if (!url) {
-    return fileId ? (
-      <View
-        className="items-center justify-center rounded-lg bg-muted/40"
-        style={{ width: '100%', aspectRatio: 16 / 9 }}
-      >
-        {removed ? (
-          <Text className="text-sm text-muted-foreground">{t('sharing.blocks.fileRemoved')}</Text>
-        ) : null}
-      </View>
-    ) : null;
-  }
-  return (
-    <View className="gap-1">
-      <SizedImage
-        source={fileSource ?? { uri: url }}
-        alt={stringOf(content.alt) || caption || undefined}
-        width={imageWidth(content.width)}
-        alignment={imageAlignment(content.alignment)}
-        readOnly
-      />
-      {caption ? <Text className="text-xs text-muted-foreground">{caption}</Text> : null}
-    </View>
-  );
-}
-
-/** A file: opened through a URL that works now. */
-function SharedFile({ content }: { content: Record<string, unknown> }) {
-  const { colors } = useColorScheme();
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const scope = useFileScope(undefined);
-  const fileId = blockFileId(content);
-  const url = stringOf(content.url);
-  const [failed, setFailed] = useState(false);
-  const removed = useFileRemoved(scope, fileId, { fetch: false });
-  if (!fileId && !url) return null;
-  const name = stringOf(content.name) || url.split('/').pop() || 'file';
-  const open = async () => {
-    setFailed(false);
-    const target = fileId && scope ? await freshFileUrl(queryClient, scope, fileId) : url;
-    if (!target) return setFailed(true);
-    if (Platform.OS === 'web') window.open(target, '_blank', 'noopener,noreferrer');
-    else await (await import('expo-web-browser')).openBrowserAsync(target);
-  };
-  return (
-    <View className="gap-1">
-      <Pressable
-        accessibilityRole="link"
-        accessibilityLabel={name}
-        onPress={() => void open().catch(() => setFailed(true))}
-        className="flex-row items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
-      >
-        <RiFileLine width={18} height={18} fill={colors.foreground} />
-        <Text className="flex-1 text-sm text-foreground">{name}</Text>
-      </Pressable>
-      {removed ? (
-        <Text className="text-xs text-muted-foreground">{t('sharing.blocks.fileRemoved')}</Text>
-      ) : failed ? (
-        <Text className="text-xs text-destructive">{t('sharing.blocks.fileUnavailable')}</Text>
-      ) : null}
-    </View>
-  );
-}
-
 export function SharedBlockRenderer({ block, listIndex = 1, textStyle }: SharedBlockRendererProps) {
   const { t } = useTranslation();
   const { content } = block;
@@ -381,10 +302,6 @@ export function SharedBlockRenderer({ block, listIndex = 1, textStyle }: SharedB
       return <CodeBlock content={content} textStyle={textStyle} />;
     case 'callout':
       return <CalloutBlock content={content} textStyle={textStyle} />;
-    case 'image':
-      return <SharedImage content={content} />;
-    case 'file':
-      return <SharedFile content={content} />;
     default: {
       const EditorBlock = EDITOR_BLOCKS[block.type];
       if (EditorBlock) {
