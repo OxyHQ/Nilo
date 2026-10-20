@@ -422,6 +422,18 @@ export interface ViewChartConfig {
   yAxis?: { aggregate: ChartAggregate; propertyId?: string };
 }
 
+/**
+ * Whether a view may be changed as far as its database goes: a locked
+ * database's own views may not (423 DATABASE_LOCKED); a linked view
+ * (`blockId`) is its block's, not the database's.
+ */
+export function viewIsEditable(
+  database: { locked?: boolean | null },
+  view: { blockId?: string | null },
+): boolean {
+  return !(database.locked && !view.blockId);
+}
+
 /** A table column's narrowest and widest, in points. */
 export const MIN_COLUMN_WIDTH = 60;
 export const MAX_COLUMN_WIDTH = 1200;

@@ -74,6 +74,7 @@ export {
   type ViewChartConfig,
   type ViewGroupKey,
   type ViewNumberGrouping,
+  viewIsEditable,
 } from './databases';
 export { isEntityId } from './ids';
 export { compareOrder, MIN_ORDER_GAP, placeAfter, type Sibling } from './order';

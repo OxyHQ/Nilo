@@ -1,5 +1,6 @@
 import { RowsScrollView } from './rows-scroll-view';
 import { ViewForm } from './view-form';
+import { viewIsEditable } from '@oxy.so/nilo-contracts';
 import { ScrollView, View } from 'react-native';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -58,7 +59,7 @@ export function DatabaseViewContainer({
 }: DatabaseViewContainerProps) {
   const { t } = useTranslation();
   const locked = database.locked === true;
-  const viewEditable = !viewsReadOnly && !(locked && !view.blockId);
+  const viewEditable = !viewsReadOnly && viewIsEditable(database, view);
   const schemaEditable = !readOnly && !locked;
 
   if (view.type === 'form') return <ViewForm database={database} view={view} readOnly={readOnly} />;
