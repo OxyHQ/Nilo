@@ -19,7 +19,7 @@ import { strToU8, zipSync } from 'fflate';
 import type { PgHandle } from '../db/client.js';
 import { listBlocksForPage } from '../repositories/blocks.js';
 import type { PageAccessRow } from '../repositories/pages.js';
-import { exportContext } from './export-context.js';
+import { type ExportOptions, exportContext } from './export-context.js';
 import { rateLimit } from './rate-limit.js';
 import { visiblePagesOf } from './page-access.js';
 
@@ -59,9 +59,16 @@ export async function exportPagesZip(
   },
 ): Promise<{ bytes: Uint8Array; pages: number }> {
   const { viewerId, workspaceId, format } = input;
-  const { pages: all, roles } = await visiblePagesOf(db, workspaceId, viewerId, {
-    archived: false,
-  });
+  const {
+    pages: all,
+    byId: live,
+    roles,
+  } = await visiblePagesOf(db, workspaceId, viewerId, { archived: false });
+  // What every page's links and databases are checked against: read once.
+  const shared: ExportOptions = {
+    access: { byId: live, canOpen: (id) => roles.has(id) },
+    tables: new Map(),
+  };
   const visible = all.filter((p) => roles.has(p.id) && !p.template && !p.databaseId);
   const byId = new Map(visible.map((p) => [p.id, p]));
   const children = new Map<string, PageAccessRow[]>();
@@ -95,7 +102,7 @@ export async function exportPagesZip(
       if (count > MAX_EXPORTED_PAGES) throw new ExportTooLarge();
       const title = page.title?.trim() ? page.title : 'Untitled';
       const tree = inReadingOrder(blocksToTree(await listBlocksForPage(db, page.id)));
-      const context = await exportContext(db, viewerId, page, tree);
+      const context = await exportContext(db, viewerId, page, tree, shared);
       const body =
         format === 'html'
           ? blocksToHtml(tree, title, context)
