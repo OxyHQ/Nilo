@@ -1,6 +1,8 @@
 /**
  * Where a page dropped in the sidebar goes: the `PATCH /pages/:id` writes
- * that put it there (`components/sidebar-sections/sidebar-page-tree.tsx`).
+ * that put it there. Bloom's `Sidebar` reports the drop (`onTreeItemDrop`:
+ * before, after or inside a row, or on a section); `components/sidebar/`
+ * turns it into these writes.
  */
 import { placeAfter } from '@oxy.so/nilo-contracts';
 import type { Page } from './types/pages';
@@ -10,43 +12,6 @@ export type DropPosition = 'before' | 'after' | 'inside';
 export interface PageMove {
   id: string;
   patch: { order: number; parentId?: string | null; teamspaceId?: string | null };
-}
-
-/**
- * Where on a row a drop lands, by how far down it the pointer is (0 at its
- * top, 1 at its bottom): the top quarter before it, the bottom quarter after
- * it, the middle inside it.
- */
-export function dropPositionAt(ratio: number): DropPosition {
-  if (ratio < 0.25) return 'before';
-  if (ratio > 0.75) return 'after';
-  return 'inside';
-}
-
-/** A sidebar row's frame on screen, for the native drag's hit test. */
-export interface RowRect {
-  id: string;
-  y: number;
-  height: number;
-}
-
-export interface DropTarget {
-  targetId: string;
-  position: DropPosition;
-}
-
-/**
- * The row under `y` and where on it a drop would land; null over no row, or
- * over the row being dragged (a drop there changes nothing).
- */
-export function dropTargetAt(
-  rows: readonly RowRect[],
-  y: number,
-  sourceId: string,
-): DropTarget | null {
-  const row = rows.find((r) => r.height > 0 && y >= r.y && y < r.y + r.height);
-  if (!row || row.id === sourceId) return null;
-  return { targetId: row.id, position: dropPositionAt((y - row.y) / row.height) };
 }
 
 /** The tree's own sibling order (`buildPageTree`): by order, the latest update first on a tie. */
@@ -117,4 +82,27 @@ export function planSidebarDrop({
     },
   });
   return moves;
+}
+
+/**
+ * The writes that put `sourceId` at the end of a tree's top level — dropped on
+ * its section's label, or on a teamspace's row — in `place`.
+ */
+export function planSectionDrop({
+  pages,
+  sourceId,
+  place,
+}: {
+  pages: readonly Page[];
+  sourceId: string;
+  place: { teamspaceId: string | null };
+}): PageMove[] | null {
+  const roots = pages
+    .filter((page) => page.parentId === null && page.id !== sourceId && !page.template)
+    .sort(displayOrder);
+  const last = roots.at(-1);
+  if (last)
+    return planSidebarDrop({ pages, sourceId, targetId: last.id, position: 'after', place });
+  const { order } = placeAfter([], null);
+  return [{ id: sourceId, patch: { order, parentId: null, teamspaceId: place.teamspaceId } }];
 }

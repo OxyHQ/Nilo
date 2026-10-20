@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Platform } from 'react-native';
 import { useUIStore } from '@/lib/stores/ui-store';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
+import { SIDEBAR_IN_FLOW_FROM } from '@/lib/sidebar-layout';
 
 export type Shortcut = 'palette' | 'newPage' | 'sidebar' | 'shortcuts';
 
@@ -60,6 +61,7 @@ function isEditing(e: KeyboardEvent): boolean {
 export function useKeyboardShortcuts() {
   const setCommandPaletteOpen = useUIStore((s) => s.setCommandPaletteOpen);
   const toggleSidebarCollapsed = useUIStore((s) => s.toggleSidebarCollapsed);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const toggleShortcutsDialog = useUIStore((s) => s.toggleShortcutsDialog);
   const currentWorkspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const openNewPage = useNewPageStore((s) => s.open);
@@ -68,6 +70,7 @@ export function useKeyboardShortcuts() {
   const handlersRef = React.useRef({
     setCommandPaletteOpen,
     toggleSidebarCollapsed,
+    toggleSidebar,
     toggleShortcutsDialog,
     currentWorkspaceId,
     openNewPage,
@@ -75,6 +78,7 @@ export function useKeyboardShortcuts() {
   handlersRef.current = {
     setCommandPaletteOpen,
     toggleSidebarCollapsed,
+    toggleSidebar,
     toggleShortcutsDialog,
     currentWorkspaceId,
     openNewPage,
@@ -90,8 +94,11 @@ export function useKeyboardShortcuts() {
       e.preventDefault();
       const handlers = handlersRef.current;
       if (shortcut === 'palette') handlers.setCommandPaletteOpen(true);
-      else if (shortcut === 'sidebar') handlers.toggleSidebarCollapsed();
-      else if (shortcut === 'shortcuts') handlers.toggleShortcutsDialog();
+      else if (shortcut === 'sidebar') {
+        // Beside the page the sidebar collapses; on a narrow window it is a drawer.
+        if (window.innerWidth >= SIDEBAR_IN_FLOW_FROM) handlers.toggleSidebarCollapsed();
+        else handlers.toggleSidebar();
+      } else if (shortcut === 'shortcuts') handlers.toggleShortcutsDialog();
       else if (handlers.currentWorkspaceId) {
         handlers.openNewPage({ workspaceId: handlers.currentWorkspaceId, parentId: null });
       }

@@ -7,8 +7,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { NewPageDialog } from '@/components/templates/new-page-dialog';
 import { MoveToDialog } from '@/components/page-chrome/move-to-dialog';
-import { PlacementSections } from '@/components/sidebar-sections/placement-sections';
-import { SidebarSection } from '@/components/sidebar-sections/sidebar-section';
 import { TemplateList } from '@/components/templates/template-list';
 import { ImportPagesDialog } from '@/components/page-chrome/import-pages-dialog';
 import { useNewPageStore } from '@/lib/stores/new-page-store';
@@ -54,12 +52,6 @@ jest.mock('@oxy.so/bloom/dialog', () => {
   }
   return { ...jest.requireActual('@oxy.so/bloom/dialog'), Dialog };
 });
-jest.mock('@/components/sidebar-sections/sidebar-section', () => ({
-  SidebarSection: ({ children }: { children: React.ReactNode }) => children,
-}));
-jest.mock('@/components/sidebar-sections/sidebar-page-tree', () => ({
-  SidebarPageTree: () => null,
-}));
 jest.mock('@/components/teamspaces/teamspace-dialog', () => ({ TeamspaceDialog: () => null }));
 jest.mock('@/components/templates/template-list', () => ({ TemplateList: () => null }));
 jest.mock('@/components/page-chrome/import-pages-dialog', () => ({
@@ -138,35 +130,6 @@ afterEach(() => {
     useNewPageStore.getState().close();
   });
   client.clear();
-});
-
-it.each([
-  ['teamspace:joined', 'joined'],
-  ['private', null],
-])('creates from the %s section with explicit placement', async (sectionKey, teamspaceId) => {
-  await mount(
-    <>
-      <PlacementSections />
-      <NewPageDialog />
-    </>,
-  );
-  const section = renderer.root
-    .findAllByType(SidebarSection)
-    .find((s) => s.props.sectionKey === sectionKey);
-  expect(section).toBeDefined();
-  await act(async () => section?.props.onAdd());
-  expect(useNewPageStore.getState().destination).toEqual({
-    workspaceId: 'w',
-    parentId: null,
-    teamspaceId,
-  });
-  await press('pages.templates.blank');
-  expect(apiClient.post).toHaveBeenCalledWith('/pages', {
-    workspaceId: 'w',
-    parentId: null,
-    teamspaceId,
-    title: '',
-  });
 });
 
 it.each(['joined', null, undefined])(

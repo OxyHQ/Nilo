@@ -1,4 +1,4 @@
-import { dropPositionAt, dropTargetAt, planSidebarDrop } from '../sidebar-drop';
+import { planSectionDrop, planSidebarDrop } from '../sidebar-drop';
 import type { Page } from '../types/pages';
 
 const page = (id: string, order: number, patch: Partial<Page> = {}) =>
@@ -90,25 +90,24 @@ describe('dropping a page in the sidebar', () => {
   });
 });
 
-describe('the row under a finger dragging a page (native)', () => {
-  const rows = [
-    { id: 'a', y: 100, height: 28 },
-    { id: 'b', y: 128, height: 28 },
-    { id: 'gone', y: 156, height: 0 },
-  ];
-
-  it('lands before, inside or after a row by how far down it the finger is', () => {
-    expect(dropPositionAt(0.1)).toBe('before');
-    expect(dropPositionAt(0.5)).toBe('inside');
-    expect(dropPositionAt(0.9)).toBe('after');
-    expect(dropTargetAt(rows, 130, 'a')).toEqual({ targetId: 'b', position: 'before' });
-    expect(dropTargetAt(rows, 142, 'a')).toEqual({ targetId: 'b', position: 'inside' });
-    expect(dropTargetAt(rows, 155, 'a')).toEqual({ targetId: 'b', position: 'after' });
+describe('dropping a page on a section or a teamspace', () => {
+  it('goes last at the top level, moving into the place', () => {
+    const tree = [page('a', 1), page('b', 2), page('child', 1, { parentId: 'a' })];
+    expect(
+      planSectionDrop({ pages: tree, sourceId: 'child', place: { teamspaceId: 't' } }),
+    ).toEqual([{ id: 'child', patch: { order: 3, parentId: null, teamspaceId: 't' } }]);
   });
 
-  it('lands nowhere over the dragged row itself, between rows or over a hidden one', () => {
-    expect(dropTargetAt(rows, 110, 'a')).toBeNull();
-    expect(dropTargetAt(rows, 90, 'a')).toBeNull();
-    expect(dropTargetAt(rows, 156, 'a')).toBeNull();
+  it('starts an empty place at the first order', () => {
+    expect(planSectionDrop({ pages: [], sourceId: 'x', place: { teamspaceId: null } })).toEqual([
+      { id: 'x', patch: { order: 1, parentId: null, teamspaceId: null } },
+    ]);
+  });
+
+  it('never counts the page itself among the rows it goes after', () => {
+    const tree = [page('a', 1), page('b', 2)];
+    expect(planSectionDrop({ pages: tree, sourceId: 'b', place: { teamspaceId: null } })).toEqual([
+      { id: 'b', patch: { order: 2, parentId: null, teamspaceId: null } },
+    ]);
   });
 });

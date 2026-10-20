@@ -38,7 +38,6 @@ interface UIState {
   toggleShortcutsDialog: () => void;
   setCommandPaletteOpen: (open: boolean) => void;
   toggleCommandPalette: () => void;
-  toggleSection: (key: SidebarSectionKey) => void;
   setSectionCollapsed: (key: SidebarSectionKey, collapsed: boolean) => void;
   addRecentPage: (pageId: string) => void;
   removeRecentPage: (pageId: string) => void;
@@ -80,14 +79,6 @@ export const useUIStore = create<UIState>()(
 
       toggleCommandPalette: () =>
         set((state) => ({ commandPaletteOpen: !state.commandPaletteOpen })),
-
-      toggleSection: (key) =>
-        set((state) => ({
-          sectionCollapsed: {
-            ...state.sectionCollapsed,
-            [key]: !state.sectionCollapsed[key],
-          },
-        })),
 
       setSectionCollapsed: (key, collapsed) =>
         set((state) => ({

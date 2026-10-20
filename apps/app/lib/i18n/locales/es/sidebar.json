@@ -30,5 +30,9 @@
   "databasesComingSoon": "Las bases de datos llegarán pronto.",
   "templatesHint": "Guarda una página como plantilla para reutilizarla más adelante.",
   "loadPagesFailed": "No se pudieron cargar las páginas.",
-  "noPrivatePages": "Todavía no hay páginas privadas."
+  "noPrivatePages": "Todavía no hay páginas privadas.",
+  "noPagesInside": "No hay páginas dentro",
+  "navigation": "Barra lateral",
+  "openNavigation": "Abrir navegación",
+  "closeNavigation": "Cerrar navegación"
 }
