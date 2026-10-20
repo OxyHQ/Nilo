@@ -1,4 +1,4 @@
-import { Children, isValidElement, type ComponentType } from 'react';
+import { Children, isValidElement, type ComponentProps, type ComponentType } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AxiosError, type AxiosResponse } from 'axios';
@@ -11,6 +11,7 @@ import { queryKeys } from '@/lib/hooks/query-keys';
 import { invalidateLiveQueries, useWorkspaceLive } from '@/lib/realtime/use-live-updates';
 import type { BreadcrumbEntry, BreadcrumbResponse } from '@/lib/types/pages';
 import { DatabaseBreadcrumb } from '../database-breadcrumb';
+import { BreadcrumbNeighbors } from '@/components/page-chrome/breadcrumb-neighbors';
 
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
@@ -207,4 +208,33 @@ it('uses a placeholder for an iconless database without inventing a page file sc
       icon.props,
   ).toMatchObject({ value: null, showPlaceholder: true });
   expect(isValidElement<{ pageId?: string }>(icon) && icon.props.pageId).toBeUndefined();
+});
+
+it('provides lazy authorized parent and database neighbor slots without changing primary navigation', async () => {
+  await mount();
+  const entries = crumbs();
+  for (const [index, entry] of entries.entries()) {
+    const content = entry.props.hoverMenu?.content;
+    if (typeof content !== 'function') throw new Error('Expected lazy neighbors');
+    const closed = content({ open: false });
+    const opened = content({ open: true });
+    expect(isValidElement(closed) && closed.type).toBe(BreadcrumbNeighbors);
+    expect(
+      isValidElement<ComponentProps<typeof BreadcrumbNeighbors>>(closed) && closed.props,
+    ).toMatchObject({
+      enabled: false,
+      anchor: {
+        kind: index === 0 ? 'page' : 'database',
+        id: index === 0 ? 'parent' : 'database',
+        workspaceId: database.workspaceId,
+      },
+      parentTitle: index === 0 ? undefined : 'Shared parent',
+    });
+    expect(
+      isValidElement<ComponentProps<typeof BreadcrumbNeighbors>>(opened) && opened.props.enabled,
+    ).toBe(true);
+  }
+  expect(apiClient.get).toHaveBeenCalledTimes(1);
+  expect(entries[0].props.href).toBe('/p/parent');
+  expect(entries[1].props.current).toBe(true);
 });

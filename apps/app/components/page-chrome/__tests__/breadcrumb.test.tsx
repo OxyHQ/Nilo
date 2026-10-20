@@ -16,6 +16,7 @@ import { usePage, useUpdatePage } from '@/lib/hooks/use-pages';
 import { invalidateLiveQueries, useWorkspaceLive } from '@/lib/realtime/use-live-updates';
 import type { BreadcrumbEntry, BreadcrumbResponse } from '@/lib/types/pages';
 import { Breadcrumb } from '../breadcrumb';
+import { BreadcrumbNeighbors } from '../breadcrumb-neighbors';
 import { IdentityPopover } from '../identity-popover';
 
 const mockPush = jest.fn();
@@ -198,6 +199,18 @@ it('renders a row database destination and scopes uploaded page icons only to pa
     'Current page',
   ]);
   expect(entries.map((entry) => entry.props.href)).toEqual(['/p/parent', '/db/db', undefined]);
+  const databaseMenu = entries[1].props.hoverMenu?.content;
+  if (typeof databaseMenu !== 'function') throw new Error('Expected database neighbors');
+  const databaseContent = databaseMenu({ open: true });
+  expect(
+    isValidElement<ComponentProps<typeof BreadcrumbNeighbors>>(databaseContent) &&
+      databaseContent.props,
+  ).toMatchObject({
+    enabled: true,
+    anchor: { kind: 'database', id: 'db', workspaceId: page.workspaceId },
+    parentTitle: 'Parent',
+  });
+
   act(() => entries[1].props.onPress?.());
   expect(mockPush).toHaveBeenCalledWith('/db/db');
   expect(
@@ -380,4 +393,34 @@ it('ignores a metadata response cancelled when a local rename starts', async () 
   });
   await settleRender();
   expect(renderer.root.findByType(Item).props.children).toBe('Typing locally');
+});
+
+it('supplies lazy neighbor menus for the current page and every authorized ancestor', async () => {
+  await mount([{ id: 'parent', title: 'Parent', icon: null }]);
+  const crumbs = suppliedCrumbs();
+  for (const [index, crumb] of crumbs.entries()) {
+    const content = crumb.props.hoverMenu?.content;
+    if (typeof content !== 'function') throw new Error('Expected lazy neighbor content');
+    const closed = content({ open: false });
+    const opened = content({ open: true });
+    expect(isValidElement(closed) && closed.type).toBe(BreadcrumbNeighbors);
+    expect(
+      isValidElement<ComponentProps<typeof BreadcrumbNeighbors>>(closed) && closed.props,
+    ).toMatchObject({
+      enabled: false,
+      anchor: {
+        kind: 'page',
+        id: index === 0 ? 'parent' : 'current',
+        workspaceId: page.workspaceId,
+      },
+      parentTitle: index === 0 ? undefined : 'Parent',
+    });
+    expect(
+      isValidElement<ComponentProps<typeof BreadcrumbNeighbors>>(opened) && opened.props.enabled,
+    ).toBe(true);
+  }
+  // Preparing hover slots must not load any sibling list or change the primary action.
+  expect(apiClient.get).toHaveBeenCalledTimes(1);
+  expect(crumbs[0].props.href).toBe('/p/parent');
+  expect(crumbs[1].props.current).toBe(true);
 });
