@@ -3,6 +3,7 @@ import {
   type Dispatch,
   type ReactNode,
   type SetStateAction,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -94,36 +95,37 @@ export function PageEditorProvider({
     [comments.data?.comments],
   );
   // Who is where, and the text open comments are on, drawn on the page's
-  // blocks, and placed again as the text changes.
+  // blocks: again whenever either changes, and as the text changes (the
+  // page's store is subscribed to once, `redrawOnChange`).
   const { collaborators, doc } = state;
   const commentList = comments.data?.comments;
-  useEffect(() => {
+  const profileById = useMemo(
+    () => new Map((profiles.data ?? []).map((profile) => [profile.id, profile])),
+    [profiles.data],
+  );
+  const draw = useCallback(() => {
     const nameOf = (id: string) =>
-      profileName(profiles.data?.find((profile) => profile.id === id)) ??
-      t('pages.info.unknownMember');
+      profileName(profileById.get(id)) ?? t('pages.info.unknownMember');
     const commentColor = theme.colors.yellow;
-    const update = () => {
-      const carets = collaboratorDecorations(
-        collaborators,
-        user?.id,
-        theme.colors,
-        nameOf,
-        previous.current,
-        (selection) => (doc ? relativeToSelection(doc, selection) : null),
-      );
-      const next = withCommentDecorations(
-        carets,
-        commentCounts,
-        commentColor?.text ?? theme.accent,
-        (count) => t('comments.indicator.count', { count }),
-        previous.current,
-        store ? commentHighlights(store, commentList ?? []) : [],
-        commentColor?.background ?? theme.selection,
-      );
-      previous.current = next;
-      decorations.set(next);
-    };
-    return redrawOnChange(store, update);
+    const carets = collaboratorDecorations(
+      collaborators,
+      user?.id,
+      theme.colors,
+      nameOf,
+      previous.current,
+      (selection) => (doc ? relativeToSelection(doc, selection) : null),
+    );
+    const next = withCommentDecorations(
+      carets,
+      commentCounts,
+      commentColor?.text ?? theme.accent,
+      (count) => t('comments.indicator.count', { count }),
+      previous.current,
+      store ? commentHighlights(store, commentList ?? []) : [],
+      commentColor?.background ?? theme.selection,
+    );
+    previous.current = next;
+    decorations.set(next);
   }, [
     collaborators,
     doc,
@@ -132,12 +134,18 @@ export function PageEditorProvider({
     theme.colors,
     theme.accent,
     theme.selection,
-    profiles.data,
+    profileById,
     t,
     decorations,
     commentCounts,
     commentList,
   ]);
+  const latestDraw = useRef(draw);
+  latestDraw.current = draw;
+  useEffect(() => redrawOnChange(store, () => latestDraw.current()), [store]);
+  useEffect(() => {
+    draw();
+  }, [draw]);
   const value = useMemo(
     () => ({
       ...state,

@@ -5,7 +5,7 @@
  * nearest place it is, else it is gone ("original text changed").
  */
 import type { EditorStore } from '@oxy.so/bloom-editor';
-import { segmentsToPlainText } from '@oxy.so/bloom-text/model';
+import { type Segment, segmentsToPlainText } from '@oxy.so/bloom-text/model';
 import type { Comment, CommentAnchor } from '@/lib/types/comments';
 
 /** The most text a comment may quote (the API's limit). */
@@ -34,10 +34,23 @@ export function locateAnchor(
   return best === null ? null : { start: best, end: best + quote.length };
 }
 
+/**
+ * Each block text's plain text, by the segments it is made of: the editor's
+ * document is immutable, so a block's `text` is a new array once it changes,
+ * and the page is redrawn far more often than its text changes.
+ */
+const plainTexts = new WeakMap<readonly Segment[], string>();
+
 /** A block's text as offsets count it (the editor's own measure). */
 export function blockText(store: EditorStore, blockId: string): string | null {
-  const block = store.doc.blocks[blockId];
-  return block?.text ? segmentsToPlainText(block.text) : null;
+  const text = store.doc.blocks[blockId]?.text;
+  if (!text) return null;
+  let plain = plainTexts.get(text);
+  if (plain === undefined) {
+    plain = segmentsToPlainText(text);
+    plainTexts.set(text, plain);
+  }
+  return plain;
 }
 
 /**
