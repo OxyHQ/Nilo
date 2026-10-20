@@ -5,6 +5,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { usePageBreadcrumbPath } from '@/lib/hooks/use-page-breadcrumb-path';
 import { IconDisplay } from './icon-display';
 import { IdentityPopover } from './identity-popover';
+import { BreadcrumbNeighbors } from './breadcrumb-neighbors';
 import type { Page } from '@/lib/types/pages';
 
 interface BreadcrumbProps {
@@ -25,7 +26,7 @@ export function Breadcrumb({ currentPage, onRename, onChooseIcon }: BreadcrumbPr
   const editable = Boolean(onRename && onChooseIcon);
   const trail = (
     <BloomBreadcrumb overflow="collapse" separator="/">
-      {entries.map((entry) => (
+      {entries.map((entry, index) => (
         <BreadcrumbItem
           key={`${entry.kind}:${entry.id}`}
           href={entry.href}
@@ -36,6 +37,16 @@ export function Breadcrumb({ currentPage, onRename, onChooseIcon }: BreadcrumbPr
           }
           current={entry.current}
           trigger={entry.current && editable ? <PopoverTrigger asChild /> : undefined}
+          hoverMenu={{
+            label: t('pages.navigation.neighbors'),
+            content: ({ open }) => (
+              <BreadcrumbNeighbors
+                anchor={{ kind: entry.kind, id: entry.id, workspaceId: currentPage.workspaceId }}
+                enabled={open}
+                parentTitle={entries[index - 1]?.title}
+              />
+            ),
+          }}
           accessibilityLabel={entry.title.trim() || t('pages.untitled')}
           leading={
             <IconDisplay

@@ -16,6 +16,7 @@ import {
 import { PageEditor } from '@/components/page-editor/page-editor';
 import { ShareButton } from '@/components/sharing';
 import { CommentPanel } from '@/components/comments/comment-panel';
+import { PageActivityPanel } from '@/components/page-chrome/page-activity';
 import { PageChrome, PageHeader, TrashedPageBanner } from '@/components/page-chrome';
 import { RowPropertiesPanel } from '@/components/database/row-properties-panel';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -93,9 +94,13 @@ function PageDetail({
     /** The text a new comment is on, when it was asked for on a selection. */
     anchor?: CommentAnchor | null;
   }>({ open: false, focusedBlockId: null });
+  const [activityOpen, setActivityOpen] = React.useState(false);
 
   React.useEffect(() => {
-    if (openComments) setCommentPanel({ open: true, focusedBlockId: blockId ?? null });
+    if (openComments) {
+      setActivityOpen(false);
+      setCommentPanel({ open: true, focusedBlockId: blockId ?? null });
+    }
   }, [openComments, blockId]);
 
   const openCommentCount = React.useMemo(() => {
@@ -105,10 +110,15 @@ function PageDetail({
 
   const handleOpenPanel = React.useCallback(
     (focusedBlockId: string | null = null, anchor: CommentAnchor | null = null) => {
+      setActivityOpen(false);
       setCommentPanel({ open: true, focusedBlockId, anchor });
     },
     [],
   );
+  const openActivity = React.useCallback(() => {
+    setCommentPanel({ open: false, focusedBlockId: null });
+    setActivityOpen(true);
+  }, []);
 
   if (isLoading) {
     return (
@@ -166,6 +176,7 @@ function PageDetail({
       page={page}
       readOnly={!canEdit}
       rightHeader={rightHeader}
+      onOpenActivity={openActivity}
       scroll={page.mode === 'canvas' ? 'none' : 'auto'}
       bottomBar={<PageEditorToolbar />}
     >
@@ -221,7 +232,7 @@ function PageDetail({
               maxWidth: 480,
               visible: commentPanel.open,
               floating: {
-                below: 'xl',
+                below: 'lg',
                 open: commentPanel.open,
                 onOpenChange: (open) => {
                   if (!open) closeComments();
@@ -238,6 +249,26 @@ function PageDetail({
                   anchor={commentPanel.anchor ?? null}
                   onAnchorUsed={() => setCommentPanel((panel) => ({ ...panel, anchor: null }))}
                   onClose={closeComments}
+                />
+              ),
+            },
+            {
+              id: 'activity',
+              width: 360,
+              minWidth: 280,
+              maxWidth: 480,
+              visible: activityOpen,
+              floating: {
+                below: 'lg',
+                open: activityOpen,
+                onOpenChange: setActivityOpen,
+                label: t('pages.activity.title'),
+              },
+              content: (
+                <PageActivityPanel
+                  page={page}
+                  open={activityOpen}
+                  onClose={() => setActivityOpen(false)}
                 />
               ),
             },

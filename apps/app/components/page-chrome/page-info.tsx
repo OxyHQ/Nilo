@@ -1,44 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useUserById } from '@oxy.so/services/ui/client';
 import { Button } from '@oxy.so/bloom/button';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
-import { profileName } from '@/lib/hooks/use-member-profiles';
 import { useAuthQuery } from '@/lib/hooks/create-query';
 import { queryKeys } from '@/lib/hooks/query-keys';
 import type { Page } from '@/lib/types/pages';
 import { IconDisplay } from './icon-display';
 
-export function relativeEditTime(iso: string, locale: string, now = Date.now()) {
-  const seconds = Math.min(0, Math.round((Date.parse(iso) - now) / 1000));
-  if (!Number.isFinite(seconds)) return '';
-  const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-  if (seconds > -60) return format.format(seconds, 'second');
-  if (seconds > -3600) return format.format(Math.round(seconds / 60), 'minute');
-  if (seconds > -86400) return format.format(Math.round(seconds / 3600), 'hour');
-  return format.format(Math.round(seconds / 86400), 'day');
-}
 export function PageInfo({ page }: { page: Page }) {
-  const { t, locale } = useTranslation();
-  const profile = useUserById(page.lastEditedBy ?? null);
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
-  return (
-    <View className="gap-2 py-3">
-      <Text className="text-xs text-muted-foreground">
-        {t(page.lastEditedBy ? 'pages.info.editedBy' : 'pages.info.edited', {
-          time: relativeEditTime(page.updatedAt, locale, now),
-          name: profileName(profile.data) ?? t('pages.info.unknownMember'),
-        })}
-      </Text>
-      <Backlinks key={page.id} pageId={page.id} />
-    </View>
-  );
+  return <Backlinks key={page.id} pageId={page.id} />;
 }
 function Backlinks({ pageId }: { pageId: string }) {
   const { t } = useTranslation();
@@ -64,9 +36,10 @@ function Backlinks({ pageId }: { pageId: string }) {
       </Button>
     );
   const backlinks = query.data?.backlinks ?? [];
+  if (!backlinks.length) return null;
   const label = t('pages.backlinks.count', { count: backlinks.length });
   return (
-    <View className="gap-2">
+    <View className="gap-2 py-3">
       <Button
         appearance="plain"
         tone="neutral"

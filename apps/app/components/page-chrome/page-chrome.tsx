@@ -33,6 +33,7 @@ import { IconPicker } from './icon-picker';
 import { useRouter } from 'expo-router';
 import { usePageEditorContext } from '@/components/page-editor/page-editor-context';
 import { PageActionsMenu } from './page-actions-menu';
+import { PageActivity } from './page-activity';
 
 interface PageChromeProps {
   page: Page;
@@ -44,6 +45,7 @@ interface PageChromeProps {
   rightHeader?: PageHeaderProps['actions'];
   bottomBar?: React.ReactNode;
   scroll?: ScreenProps['scroll'];
+  onOpenActivity?: () => void;
 }
 
 interface PageChromeState {
@@ -63,6 +65,7 @@ export function PageChrome({
   bottomBar,
   scroll = 'auto',
   readOnly = false,
+  onOpenActivity,
 }: PageChromeProps) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
@@ -120,6 +123,9 @@ export function PageChrome({
             }
             actions={(state) => (
               <>
+                {state.spacious && onOpenActivity ? (
+                  <PageActivity page={page} onOpen={onOpenActivity} />
+                ) : null}
                 {page.publishedAt ? (
                   <View
                     accessible
@@ -134,7 +140,7 @@ export function PageChrome({
                 {!state.compact && !page.archived ? (
                   <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
                 ) : null}
-                <PageActionsMenu page={page} readOnly={readOnly} />
+                <PageActionsMenu page={page} readOnly={readOnly} onOpenActivity={onOpenActivity} />
               </>
             )}
           />

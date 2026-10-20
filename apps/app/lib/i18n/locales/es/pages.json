@@ -352,5 +352,23 @@
     "uploading": "Subiendo…",
     "failed": "No se pudo subir la imagen.",
     "tooLarge": "Esta imagen es demasiado grande."
+  },
+  "activity": {
+    "title": "Actividad",
+    "open": "Abrir actividad de la página",
+    "close": "Cerrar actividad",
+    "editedBy": "Editado por %{name}",
+    "createdBy": "Creado por %{name}",
+    "savedBy": "Versión guardada por %{name}",
+    "versionDetails": "%{time} · %{count} bloques",
+    "versionHint": "Versiones guardadas del contenido. Elige una para verla o restaurarla."
+  },
+  "navigation": {
+    "neighbors": "Otras páginas",
+    "neighborsIn": "Otras páginas en %{name}",
+    "more": "Más páginas",
+    "retry": "No se pudieron cargar las páginas. Reintentar",
+    "empty": "No hay otras páginas",
+    "current": "%{name}, página actual"
   }
 }

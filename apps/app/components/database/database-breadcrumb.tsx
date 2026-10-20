@@ -6,6 +6,7 @@ import { useBreadcrumb } from '@/lib/hooks/use-pages';
 import type { Database } from '@/lib/types/databases';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { IdentityPopover } from '@/components/page-chrome/identity-popover';
+import { BreadcrumbNeighbors } from '@/components/page-chrome/breadcrumb-neighbors';
 
 interface DatabaseBreadcrumbProps {
   database: Pick<Database, 'id' | 'workspaceId' | 'parentPageId' | 'name' | 'icon'>;
@@ -23,12 +24,22 @@ export function DatabaseBreadcrumb({ database, onRename, onChooseIcon }: Databas
 
   const trail = (
     <Breadcrumb overflow="collapse" separator="/">
-      {ancestors.map((page) => (
+      {ancestors.map((page, index) => (
         <BreadcrumbItem
           key={page.id}
           href={`/p/${page.id}`}
           onPress={() => router.push(`/p/${page.id}`)}
           accessibilityLabel={page.title.trim() || t('pages.untitled')}
+          hoverMenu={{
+            label: t('pages.navigation.neighbors'),
+            content: ({ open }) => (
+              <BreadcrumbNeighbors
+                anchor={{ kind: 'page', id: page.id, workspaceId: database.workspaceId }}
+                enabled={open}
+                parentTitle={ancestors[index - 1]?.title}
+              />
+            ),
+          }}
           leading={page.icon ? <IconDisplay value={page.icon} size={16} pageId={page.id} /> : null}
         >
           {page.title.trim() || t('pages.untitled')}
@@ -37,6 +48,16 @@ export function DatabaseBreadcrumb({ database, onRename, onChooseIcon }: Databas
       <BreadcrumbItem
         current
         trigger={onRename && onChooseIcon ? <PopoverTrigger asChild /> : undefined}
+        hoverMenu={{
+          label: t('pages.navigation.neighbors'),
+          content: ({ open }) => (
+            <BreadcrumbNeighbors
+              anchor={{ kind: 'database', id: database.id, workspaceId: database.workspaceId }}
+              enabled={open}
+              parentTitle={ancestors.at(-1)?.title}
+            />
+          ),
+        }}
         leading={<IconDisplay value={database.icon} size={16} showPlaceholder />}
       >
         {database.name.trim() || t('databases.untitledDatabase')}

@@ -24,10 +24,18 @@ function relativeTime(iso: string, locale: string) {
   return format.format(Math.round(seconds / 86400), 'day');
 }
 
-export function PageHistoryDialog({ page, onClose }: { page: Page; onClose: () => void }) {
+export function PageHistoryDialog({
+  page,
+  onClose,
+  initialVersionId,
+}: {
+  page: Page;
+  onClose: () => void;
+  initialVersionId?: string;
+}) {
   const { t, locale } = useTranslation();
   const list = usePageVersions(page.id);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialVersionId ?? null);
   const selectedId = selected ?? list.data?.versions[0]?.id ?? '';
   const preview = usePageVersion(page.id, selectedId);
   const members = useWorkspaceMembers(page.workspaceId);

@@ -73,12 +73,27 @@ The editable current item uses `BreadcrumbItem.trigger` with Bloom's
 `IdentityPopover` supplies only name/icon mutation behavior: Enter or outside
 dismissal saves, Escape cancels, and a failed save retains the draft for retry.
 Opening the existing icon picker waits for a successful name save.
+Each breadcrumb also supplies `hoverMenu.content({ open })` to Bloom. Its
+DropdownMenu owns hover intent, keyboard navigation, primary-click coexistence,
+the current-destination marker and scrolling. `BreadcrumbNeighbors` requests only
+the hovered resource's authorized neighbors while open; it must not derive
+siblings from cached workspace lists. See [navigation neighbors](navigation-neighbors.md)
+for pagination, access and cursor semantics. Neighbor queries are memory-only and
+recheck access before exposing a cached response on reopening.
 Header actions use Bloom's `PageHeader.actions` callback and its `compact` state.
 Nilo forwards that state to sharing and keeps favorites in the page actions menu
 when the direct star is hidden. Bloom owns the header-width decision; Nilo must
 not measure it or duplicate its breakpoint. Keep the actions tree stable so
 changing presentation preserves an open sharing dialog and the editor.
 Comments use Bloom's normal icon-only button with an accessible unresolved count.
+The header's `spacious` state controls the edited-time shortcut, without a second
+viewport calculation in Nilo. Its HoverCard shows creation/edit metadata and its
+primary action opens an activity panel declared beside the document in the same
+compositor. The actions menu keeps activity reachable at narrower sizes.
+Comments and activity are mutually exclusive; switching them preserves the
+document editor. The activity panel shows actual metadata and saved content
+versions, reusing the existing version preview/restore dialog and access checks.
+It is not a complete property-change audit log or analytics implementation.
 
 The editor supplies its toolbar through `Screen.bottomBar` with
 `bottomBarKeyboardBehavior="follow"`. Bloom coordinates keyboard avoidance,

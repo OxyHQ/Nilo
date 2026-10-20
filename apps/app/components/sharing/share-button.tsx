@@ -31,6 +31,7 @@ export function ShareButton({ pageId, compact = false, restricted = false }: Sha
         iconOnly={compact}
         onPress={control.open}
         accessibilityLabel={t('sharing.button.label')}
+        accessibilityHint={restricted ? t('pages.restricted') : undefined}
         leadingIcon={restricted ? RiLockLine : RiShareLine}
       >
         {compact ? undefined : t('sharing.button.share')}

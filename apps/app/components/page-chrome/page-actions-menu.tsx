@@ -37,6 +37,7 @@ import { useTrashedPageActions } from './trashed-page';
 interface PageActionsMenuProps {
   page: Page;
   readOnly?: boolean;
+  onOpenActivity?: () => void;
 }
 
 /**
@@ -50,7 +51,7 @@ const EXPORT_LABELS: Record<ExportFormat, string> = {
   pdf: 'pages.export.pdf',
 };
 
-export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps) {
+export function PageActionsMenu({ page, readOnly = false, onOpenActivity }: PageActionsMenuProps) {
   const router = useRouter();
   const follow = usePageFollow(page.id);
   const setFollow = useSetPageFollow(page.id);
@@ -161,6 +162,11 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
             </>
           ) : null}
           <DropdownMenuSeparator />
+          {onOpenActivity ? (
+            <DropdownMenuItem onPress={onOpenActivity}>
+              {t('pages.activity.title')}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem onPress={() => setHistoryOpen(true)}>
             {t('pages.history.title')}
           </DropdownMenuItem>

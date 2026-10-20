@@ -352,5 +352,23 @@
     "uploading": "Uploading…",
     "failed": "The image couldn’t be uploaded.",
     "tooLarge": "This image is too large."
+  },
+  "activity": {
+    "title": "Activity",
+    "open": "Open page activity",
+    "close": "Close activity",
+    "editedBy": "Edited by %{name}",
+    "createdBy": "Created by %{name}",
+    "savedBy": "Version saved by %{name}",
+    "versionDetails": "%{time} · %{count} blocks",
+    "versionHint": "Saved content versions. Choose one to view or restore it."
+  },
+  "navigation": {
+    "neighbors": "Other pages",
+    "neighborsIn": "Other pages in %{name}",
+    "more": "More pages",
+    "retry": "Could not load pages. Retry",
+    "empty": "No other pages",
+    "current": "%{name}, current page"
   }
 }
