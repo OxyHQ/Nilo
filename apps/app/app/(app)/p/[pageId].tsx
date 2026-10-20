@@ -121,7 +121,11 @@ function PageDetail({
     );
   }
 
-  if (isError || !data?.page) {
+  const deniedOrMissing =
+    isError && axios.isAxiosError(error) && [401, 403, 404].includes(error.response?.status ?? 0);
+  // A failed background read must not dispose an open editor or its title draft.
+  // Access/session revocation and deletion still remove even cached content.
+  if (deniedOrMissing || !data?.page) {
     const noAccess =
       axios.isAxiosError(error) &&
       error.response?.status === 403 &&

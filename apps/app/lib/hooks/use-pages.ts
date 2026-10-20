@@ -80,7 +80,7 @@ export function usePage(id: string | undefined) {
       return res.data;
     },
     retry: (count, error) => {
-      if (axios.isAxiosError(error) && [403, 404].includes(error.response?.status ?? 0))
+      if (axios.isAxiosError(error) && [401, 403, 404].includes(error.response?.status ?? 0))
         return false;
       return count < 2;
     },

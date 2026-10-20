@@ -118,6 +118,7 @@ function AppContent() {
 }
 
 function RootLayout() {
+  const locale = useI18nStore((state) => state.locale);
   const [queryClient] = useState(() => {
     const client = new QueryClient({
       defaultOptions: {
@@ -138,6 +139,7 @@ function RootLayout() {
           sits ABOVE the error boundary because the boundary's fallback reads
           the theme. */}
       <BloomProvider
+        locale={locale}
         defaultMode="system"
         defaultColorPreset="yellow"
         persistKey={BLOOM_THEME_PERSIST_KEY}
