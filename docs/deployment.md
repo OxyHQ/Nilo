@@ -70,6 +70,17 @@ Last verified: 2026-09-13.
   secret once: store it as `OXY_FILES_WEBHOOK_SECRET` (`/oxy/nilo/`,
   SecureString) in the task definition. Until it is set the API answers events
   503 and Oxy keeps retrying them.
+- Invitation email (`apps/api/src/lib/invite-email.ts`): someone invited who
+  has no Oxy account is emailed the invitation's link by Oxy
+  (`POST /apps/invitations/email` on `OXY_API_URL`) with the same
+  workload-identity token, which needs the `invitations:email` scope on Nilo's
+  Oxy application AND on its workload binding (`oxy-nilo-task`). Off until
+  `INVITE_EMAILS_ENABLED=true` is set in the task definition (a plain
+  environment value, no secret); set it only once both grants are in place.
+  The link is on `OXYNILO_PUBLIC_URL`, which must be an origin registered for
+  Nilo's application (`https://nilo.so`), or Oxy refuses it. Without the
+  email the invitation is still made, and admins copy its link from Settings ›
+  Members.
 - The live task definition is the source of truth: `deploy-ecs.sh` copies it,
   so a secret added to it stays across deploys.
 - Nilo deployment configuration contains no provider credentials, provider

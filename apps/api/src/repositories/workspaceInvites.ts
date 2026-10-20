@@ -9,11 +9,12 @@ import type { PgHandle } from '../db/client.js';
 import {
   type InvitableWorkspaceRole,
   type WorkspaceLinkRole,
+  type WorkspaceRole,
   workspaceInviteLinks,
   workspaceInvites,
   workspaces,
 } from '../db/schema/workspaces.js';
-import { addMemberIfAbsent } from './workspaces.js';
+import { addMemberIfAbsent, findMembership } from './workspaces.js';
 
 export type WorkspaceInviteRow = typeof workspaceInvites.$inferSelect;
 export type WorkspaceInviteLinkRow = typeof workspaceInviteLinks.$inferSelect;
@@ -27,6 +28,10 @@ export function normalizeInviteEmail(email: string): string {
  * Invite `email` to the workspace, or renew the invitation already waiting
  * for them there (its role, inviter and expiry are the new ones).
  *
+ * `token` is the new invitation's link secret. A renewal keeps the link it
+ * already has, so an email sent for it still works; one made before links
+ * existed takes this one.
+ *
  * The conflict target is the PARTIAL unique index, so its predicate is the
  * arbiter's `where` (an accepted invitation never conflicts).
  */
@@ -38,6 +43,7 @@ export async function upsertPendingInvite(
     role: InvitableWorkspaceRole;
     invitedBy: string;
     expiresAt: Date;
+    token: string;
   },
 ): Promise<WorkspaceInviteRow> {
   const email = normalizeInviteEmail(values.email);
@@ -52,10 +58,82 @@ export async function upsertPendingInvite(
         invitedBy: values.invitedBy,
         expiresAt: values.expiresAt,
         createdAt: sql`date_trunc('milliseconds', now())`,
+        token: sql`coalesce(${workspaceInvites.token}, excluded.token)`,
       },
     })
     .returning();
   return row as WorkspaceInviteRow;
+}
+
+/** An invitation by its link's secret, with the workspace it is to. */
+export async function findInviteByToken(
+  db: PgHandle,
+  token: string,
+): Promise<{ invite: WorkspaceInviteRow; workspace: typeof workspaces.$inferSelect } | null> {
+  const [row] = await db
+    .select({ invite: workspaceInvites, workspace: workspaces })
+    .from(workspaceInvites)
+    .innerJoin(workspaces, eq(workspaces.id, workspaceInvites.workspaceId))
+    .where(eq(workspaceInvites.token, token))
+    .limit(1);
+  return row ?? null;
+}
+
+/** Why an invitation link joins nobody. */
+export type InviteLinkRefusal = 'not_found' | 'expired' | 'accepted';
+
+/**
+ * `userId` accepts the invitation `token` names: it becomes their membership
+ * with the invitation's role, whatever Oxy email they signed in with, since
+ * holding the link is what the email proved. Someone already a member keeps
+ * their role; the invitation is spent all the same.
+ *
+ * An invitation already accepted answers its workspace again to someone who is
+ * now a member of it (they signed up with the invited email, and their first
+ * workspace list accepted it), and `accepted` to anyone else.
+ */
+export async function acceptInviteByToken(
+  db: PgHandle,
+  token: string,
+  userId: string,
+  now: Date,
+): Promise<
+  { workspaceId: string; role: WorkspaceRole; joined: boolean } | { refused: InviteLinkRefusal }
+> {
+  return db.transaction(async (tx) => {
+    const [found] = await tx
+      .select({ invite: workspaceInvites, workspace: workspaces })
+      .from(workspaceInvites)
+      .innerJoin(workspaces, eq(workspaces.id, workspaceInvites.workspaceId))
+      .where(eq(workspaceInvites.token, token))
+      .limit(1)
+      .for('update', { of: workspaceInvites });
+    if (!found || found.workspace.archivedAt || found.workspace.isPersonal) {
+      return { refused: 'not_found' as const };
+    }
+    const { invite } = found;
+    if (invite.acceptedAt) {
+      const member = await findMembership(tx, invite.workspaceId, userId);
+      return member
+        ? { workspaceId: invite.workspaceId, role: member.role, joined: false }
+        : { refused: 'accepted' as const };
+    }
+    if (invite.expiresAt.getTime() <= now.getTime()) return { refused: 'expired' as const };
+
+    await tx
+      .update(workspaceInvites)
+      .set({ acceptedAt: now })
+      .where(eq(workspaceInvites.id, invite.id));
+    const added = await addMemberIfAbsent(tx, {
+      workspaceId: invite.workspaceId,
+      userId,
+      role: invite.role,
+      invitedBy: invite.invitedBy,
+    });
+    const role = added?.role ?? (await findMembership(tx, invite.workspaceId, userId))?.role;
+    if (!role) throw new Error('An accepted invitation left no membership');
+    return { workspaceId: invite.workspaceId, role, joined: Boolean(added) };
+  });
 }
 
 /** The invitations of a workspace still waiting for someone, the oldest first. */

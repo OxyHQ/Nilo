@@ -134,6 +134,7 @@ describe('pending invitations', () => {
         createdAt: '2026-10-20T00:00:00Z',
         expiresAt: '2026-11-19T00:00:00Z',
         expired: false,
+        url: 'https://nilo.so/invite/tok-new',
       },
       {
         id: 'i2',
@@ -143,6 +144,7 @@ describe('pending invitations', () => {
         createdAt: '2026-09-01T00:00:00Z',
         expiresAt: '2026-10-01T00:00:00Z',
         expired: true,
+        url: 'https://nilo.so/invite/tok-late',
       },
     ];
     mount(<PendingInvitesSection workspaceId="w" />);
@@ -150,6 +152,48 @@ describe('pending invitations', () => {
     expect(text()).toContain('workspace.pendingInvites.expired');
     act(() => pressable('workspace.pendingInvites.revokeFor:new@example.com').props.onPress());
     expect(mockMutations.revoke).toHaveBeenCalledWith('i1', expect.anything());
+  });
+
+  it('each copy their own link, but an expired one or one with no link offers none', async () => {
+    mockInvites = [
+      {
+        id: 'i1',
+        email: 'new@example.com',
+        role: 'editor',
+        invitedBy: 'me',
+        createdAt: '2026-10-20T00:00:00Z',
+        expiresAt: '2026-11-19T00:00:00Z',
+        expired: false,
+        url: 'https://nilo.so/invite/tok-new',
+      },
+      {
+        id: 'i2',
+        email: 'late@example.com',
+        role: 'viewer',
+        invitedBy: 'me',
+        createdAt: '2026-09-01T00:00:00Z',
+        expiresAt: '2026-10-01T00:00:00Z',
+        expired: true,
+        url: 'https://nilo.so/invite/tok-late',
+      },
+      {
+        id: 'i3',
+        email: 'old@example.com',
+        role: 'viewer',
+        invitedBy: 'me',
+        createdAt: '2026-10-10T00:00:00Z',
+        expiresAt: '2026-11-09T00:00:00Z',
+        expired: false,
+        url: null,
+      },
+    ];
+    mount(<PendingInvitesSection workspaceId="w" />);
+    await act(async () => {
+      await pressable('workspace.pendingInvites.copyFor:new@example.com').props.onPress();
+    });
+    expect(mockCopy).toHaveBeenCalledWith('https://nilo.so/invite/tok-new');
+    expect(() => pressable('workspace.pendingInvites.copyFor:late@example.com')).toThrow();
+    expect(() => pressable('workspace.pendingInvites.copyFor:old@example.com')).toThrow();
   });
 });
 

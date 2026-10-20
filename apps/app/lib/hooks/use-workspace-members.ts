@@ -46,6 +46,8 @@ export function memberProfileName(member: Pick<WorkspaceMember, 'user'>): string
 export interface InviteMemberInput {
   email: string;
   role: WorkspaceRole;
+  /** The inviter's language, which the invitation email is written in. */
+  locale?: string;
 }
 
 export interface UpdateMemberRoleInput {
@@ -84,7 +86,12 @@ export function useWorkspaceMembers(
  */
 export type InviteMemberResult =
   | { pending?: false; member: WorkspaceMember }
-  | { pending: true; invite: { id: string; email: string; role: WorkspaceRole } };
+  | {
+      pending: true;
+      invite: { id: string; email: string; role: WorkspaceRole; url: string | null };
+      /** Whether Oxy took the invitation email: `failed` and `disabled` mean share the link. */
+      email: 'sent' | 'failed' | 'disabled';
+    };
 
 export function useInviteMember(workspaceId: string) {
   const queryClient = useQueryClient();

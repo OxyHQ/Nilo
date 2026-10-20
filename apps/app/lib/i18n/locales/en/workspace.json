@@ -38,7 +38,7 @@
   },
   "invite": {
     "title": "Invite a member",
-    "description": "Invite someone by email. Someone without an Oxy account yet joins when they sign up with that email.",
+    "description": "Invite someone by email. Someone without an Oxy account yet gets an invitation link to join with.",
     "email": "Email",
     "emailPlaceholder": "teammate@example.com",
     "invalidEmail": "Enter a valid email address.",
@@ -47,7 +47,9 @@
     "invited": "Invited %{email} as %{role}",
     "failed": "Failed to invite member",
     "alreadyMember": "That user is already a member of this workspace.",
-    "pending": "Invitation saved for %{email} as %{role}. They join when they sign up to Oxy with that email."
+    "pending": "Invitation saved for %{email} as %{role}. Copy its link from Pending invitations to share it.",
+    "emailed": "Invitation emailed to %{email} as %{role}.",
+    "notEmailed": "Invitation saved for %{email} as %{role}, but the email couldn't be sent. Copy its link from Pending invitations to share it."
   },
   "members": {
     "count": {
@@ -142,13 +144,16 @@
       "one": "%{count} pending invitation",
       "other": "%{count} pending invitations"
     },
-    "description": "Waiting for these people to sign up to Oxy with the email they were invited with. Let them know: Nilo sends no email.",
+    "description": "Waiting for these people to accept. Each invitation has its own link: copy it to share it yourself.",
     "waiting": "Invited as %{role}",
     "expired": "Expired",
     "revoke": "Revoke",
     "revokeFor": "Revoke the invitation for %{email}",
     "revoked": "Invitation for %{email} revoked",
-    "revokeFailed": "Could not revoke the invitation"
+    "revokeFailed": "Could not revoke the invitation",
+    "copy": "Copy link",
+    "copyFor": "Copy the invitation link for %{email}",
+    "copied": "Invitation link for %{email} copied"
   },
   "guests": {
     "title": {
@@ -185,6 +190,22 @@
     "disabledTitle": "This invite link no longer works",
     "disabledBody": "It was disabled or replaced. Ask a workspace admin for the current link.",
     "failed": "Could not join the workspace",
+    "joined": "You joined %{name}",
+    "alreadyMember": "You are already a member of %{name}"
+  },
+  "acceptInvite": {
+    "title": "Join %{name}",
+    "description": "You are invited to join %{name} as %{role}.",
+    "submit": "Accept invitation",
+    "signIn": "Sign in to Oxy, or create an account, to accept this invitation.",
+    "notFoundTitle": "Invitation not found",
+    "notFoundBody": "Check the link, or ask whoever invited you for a new one.",
+    "expiredTitle": "This invitation has expired",
+    "expiredBody": "Ask whoever invited you to invite you again.",
+    "acceptedTitle": "This invitation was already accepted",
+    "acceptedBody": "If it was you, sign in with the account that accepted it.",
+    "open": "Open Nilo",
+    "failed": "Could not accept the invitation",
     "joined": "You joined %{name}",
     "alreadyMember": "You are already a member of %{name}"
   }

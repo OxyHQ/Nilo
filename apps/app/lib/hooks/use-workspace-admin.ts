@@ -11,7 +11,7 @@ import type { WorkspaceMemberUser } from './use-workspace-members';
 import type { WorkspaceRole } from './use-workspaces';
 import { workspaceAdminKeys, workspaceKeys, workspaceMemberKeys } from './workspace-keys';
 
-/** An invitation by email still waiting for someone to sign up with it. */
+/** An invitation by email still waiting for someone to accept it. */
 export interface WorkspaceInvite {
   id: string;
   email: string;
@@ -20,6 +20,8 @@ export interface WorkspaceInvite {
   createdAt: string;
   expiresAt: string;
   expired: boolean;
+  /** Its own link (`/invite/<token>`), to share by hand; null for one made before links. */
+  url: string | null;
 }
 
 /** The roles a join link can give. */
@@ -152,6 +154,33 @@ export function useRemoveGuest(workspaceId: string) {
       await apiClient.delete(API_ROUTES.workspaces.guest(workspaceId, userId));
     },
     onSuccess: () => client.invalidateQueries({ queryKey: workspaceAdminKeys.guests(workspaceId) }),
+  });
+}
+
+/** What an invitation's link leads to, read before accepting. */
+export interface InvitationPreview {
+  workspace: { id: string; name: string; avatar: string | null };
+  role: WorkspaceRole;
+}
+
+export function useInvitationPreview(token: string | null) {
+  return useQuery<InvitationPreview>({
+    queryKey: workspaceAdminKeys.invitationPreview(token ?? ''),
+    queryFn: async ({ signal }) =>
+      (await apiClient.get<InvitationPreview>(API_ROUTES.invites.get(token ?? ''), { signal }))
+        .data,
+    enabled: Boolean(token),
+    retry: false,
+  });
+}
+
+/** Accept an invitation by its link: the signed-in account joins with its role. */
+export function useAcceptInvitation() {
+  const client = useQueryClient();
+  return useMutation<JoinWorkspaceResponse, Error, string>({
+    mutationFn: async (token) =>
+      (await apiClient.post<JoinWorkspaceResponse>(API_ROUTES.invites.accept(token))).data,
+    onSuccess: () => client.invalidateQueries({ queryKey: workspaceKeys.list }),
   });
 }
 
