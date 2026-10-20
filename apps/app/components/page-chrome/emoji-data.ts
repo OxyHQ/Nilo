@@ -6,8 +6,7 @@
  * list intentionally covers the most-used set, not every codepoint. Add
  * more if power users hit gaps.
  *
- * Skin-tone variants are generated on the fly by appending Fitzpatrick
- * codepoints; entries marked with `tone: true` opt in.
+ * Bloom EmojiPicker owns skin-tone application and selection.
  *
  * Labels are functions so they are translated when rendered, not when this
  * module loads (the locale can change at runtime).
@@ -20,8 +19,6 @@ export interface EmojiEntry {
   emoji: string;
   /** Lowercased search keywords joined by spaces. */
   keywords: string;
-  /** Emoji supports skin-tone modifiers. */
-  tone?: boolean;
 }
 
 export interface EmojiCategory {
@@ -31,32 +28,15 @@ export interface EmojiCategory {
   emojis: ReadonlyArray<EmojiEntry>;
 }
 
-/** Fitzpatrick skin-tone modifier codepoints. */
-export const SKIN_TONES: ReadonlyArray<{ id: string; label: () => string; modifier: string }> = [
-  { id: 'default', label: () => i18n.t('pages.iconPicker.skinTones.default'), modifier: '' },
-  { id: 'light', label: () => i18n.t('pages.iconPicker.skinTones.light'), modifier: '\u{1F3FB}' },
-  {
-    id: 'medium-light',
-    label: () => i18n.t('pages.iconPicker.skinTones.mediumLight'),
-    modifier: '\u{1F3FC}',
-  },
-  { id: 'medium', label: () => i18n.t('pages.iconPicker.skinTones.medium'), modifier: '\u{1F3FD}' },
-  {
-    id: 'medium-dark',
-    label: () => i18n.t('pages.iconPicker.skinTones.mediumDark'),
-    modifier: '\u{1F3FE}',
-  },
-  { id: 'dark', label: () => i18n.t('pages.iconPicker.skinTones.dark'), modifier: '\u{1F3FF}' },
-];
-
-/**
- * Apply a Fitzpatrick modifier to an emoji that supports skin tones. For
- * emojis that don't, returns the base emoji unchanged.
- */
-export function applySkinTone(entry: EmojiEntry, modifier: string): string {
-  if (!entry.tone || !modifier) return entry.emoji;
-  return `${entry.emoji}${modifier}`;
-}
+/** Localized names indexed by Bloom's tone value (0–5). */
+export const SKIN_TONE_LABELS = [
+  () => i18n.t('pages.iconPicker.skinTones.default'),
+  () => i18n.t('pages.iconPicker.skinTones.light'),
+  () => i18n.t('pages.iconPicker.skinTones.mediumLight'),
+  () => i18n.t('pages.iconPicker.skinTones.medium'),
+  () => i18n.t('pages.iconPicker.skinTones.mediumDark'),
+  () => i18n.t('pages.iconPicker.skinTones.dark'),
+] as const;
 
 export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
   {
@@ -159,21 +139,21 @@ export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
       { emoji: '👻', keywords: 'ghost spooky' },
       { emoji: '👽', keywords: 'alien ufo' },
       { emoji: '🤖', keywords: 'robot face' },
-      { emoji: '👋', keywords: 'wave hand hello', tone: true },
-      { emoji: '👍', keywords: 'thumbs up like', tone: true },
-      { emoji: '👎', keywords: 'thumbs down dislike', tone: true },
-      { emoji: '👏', keywords: 'clap hands applause', tone: true },
-      { emoji: '🙌', keywords: 'raising hands praise', tone: true },
-      { emoji: '🙏', keywords: 'praying hands thanks', tone: true },
-      { emoji: '💪', keywords: 'muscle strong', tone: true },
-      { emoji: '✌️', keywords: 'victory peace', tone: true },
-      { emoji: '🤘', keywords: 'rock hand horns', tone: true },
-      { emoji: '👌', keywords: 'ok hand', tone: true },
-      { emoji: '🤞', keywords: 'fingers crossed luck', tone: true },
-      { emoji: '👈', keywords: 'point left', tone: true },
-      { emoji: '👉', keywords: 'point right', tone: true },
-      { emoji: '👆', keywords: 'point up', tone: true },
-      { emoji: '👇', keywords: 'point down', tone: true },
+      { emoji: '👋', keywords: 'wave hand hello' },
+      { emoji: '👍', keywords: 'thumbs up like' },
+      { emoji: '👎', keywords: 'thumbs down dislike' },
+      { emoji: '👏', keywords: 'clap hands applause' },
+      { emoji: '🙌', keywords: 'raising hands praise' },
+      { emoji: '🙏', keywords: 'praying hands thanks' },
+      { emoji: '💪', keywords: 'muscle strong' },
+      { emoji: '✌️', keywords: 'victory peace' },
+      { emoji: '🤘', keywords: 'rock hand horns' },
+      { emoji: '👌', keywords: 'ok hand' },
+      { emoji: '🤞', keywords: 'fingers crossed luck' },
+      { emoji: '👈', keywords: 'point left' },
+      { emoji: '👉', keywords: 'point right' },
+      { emoji: '👆', keywords: 'point up' },
+      { emoji: '👇', keywords: 'point down' },
     ],
   },
   {
@@ -378,21 +358,21 @@ export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
       { emoji: '⛷️', keywords: 'skier' },
       { emoji: '🏂', keywords: 'snowboarder' },
       { emoji: '🪂', keywords: 'parachute' },
-      { emoji: '🏋️', keywords: 'weight lifting', tone: true },
+      { emoji: '🏋️', keywords: 'weight lifting' },
       { emoji: '🤼', keywords: 'wrestlers' },
-      { emoji: '🤸', keywords: 'person cartwheeling', tone: true },
-      { emoji: '⛹️', keywords: 'person bouncing ball', tone: true },
+      { emoji: '🤸', keywords: 'person cartwheeling' },
+      { emoji: '⛹️', keywords: 'person bouncing ball' },
       { emoji: '🤺', keywords: 'fencing' },
-      { emoji: '🤾', keywords: 'handball', tone: true },
-      { emoji: '🏌️', keywords: 'golfer', tone: true },
-      { emoji: '🏇', keywords: 'horse racing', tone: true },
-      { emoji: '🧘', keywords: 'yoga lotus', tone: true },
-      { emoji: '🏄', keywords: 'surfer', tone: true },
-      { emoji: '🏊', keywords: 'swimmer', tone: true },
-      { emoji: '🤽', keywords: 'water polo', tone: true },
-      { emoji: '🚣', keywords: 'rowing boat', tone: true },
-      { emoji: '🚴', keywords: 'biking', tone: true },
-      { emoji: '🚵', keywords: 'mountain biking', tone: true },
+      { emoji: '🤾', keywords: 'handball' },
+      { emoji: '🏌️', keywords: 'golfer' },
+      { emoji: '🏇', keywords: 'horse racing' },
+      { emoji: '🧘', keywords: 'yoga lotus' },
+      { emoji: '🏄', keywords: 'surfer' },
+      { emoji: '🏊', keywords: 'swimmer' },
+      { emoji: '🤽', keywords: 'water polo' },
+      { emoji: '🚣', keywords: 'rowing boat' },
+      { emoji: '🚴', keywords: 'biking' },
+      { emoji: '🚵', keywords: 'mountain biking' },
       { emoji: '🎭', keywords: 'performing arts theatre' },
       { emoji: '🎨', keywords: 'artist palette art' },
       { emoji: '🎬', keywords: 'clapper board movie' },
@@ -629,7 +609,7 @@ export const EMOJI_CATEGORIES: ReadonlyArray<EmojiCategory> = [
       { emoji: '🪑', keywords: 'chair' },
       { emoji: '🛋️', keywords: 'couch and lamp' },
       { emoji: '🛏️', keywords: 'bed' },
-      { emoji: '🛌', keywords: 'person in bed', tone: true },
+      { emoji: '🛌', keywords: 'person in bed' },
       { emoji: '🚪', keywords: 'door' },
       { emoji: '🪟', keywords: 'window' },
       { emoji: '🪞', keywords: 'mirror' },
