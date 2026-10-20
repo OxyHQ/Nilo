@@ -249,7 +249,7 @@ describe('sharing with a guest', () => {
   });
 
   it("shows a shared personal workspace with its owner's avatar until it has its own", async () => {
-    const owner = 'share-personal-owner';
+    const owner = testScope('share-personal-owner');
     const [personal] = await db
       .insert(workspaces)
       .values({ name: testScope('personal'), ownerId: owner, isPersonal: true })
