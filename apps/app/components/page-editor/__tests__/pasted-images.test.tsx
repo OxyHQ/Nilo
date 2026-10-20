@@ -48,7 +48,7 @@ afterEach(() => {
 async function paste() {
   await act(async () => {
     extras.onPasteImages(
-      [{ uri: 'file:///temporary-image.png', type: 'image/png' }],
+      [{ uri: 'file:///temporary-image.png', type: 'image/png', width: 640, height: 480 }],
       store.doc.root[0] as string,
     );
   });
