@@ -89,6 +89,10 @@ and returns the save promise so a failure stays visible in Bloom's editor.
 The cover picker composes Bloom's `Dialog`, `ResponsiveGrid` and pressable
 `Card` options. Its gallery uses the dialog's scroll owner, including on narrow
 screens; do not add fixed-height scrollers around individual tabs.
+Import, move and page-history dialogs also delegate their content scrolling to
+`Dialog`. Keep result lists and history previews in its content region, with
+confirmation and mutation actions in its action slot. A long result list is
+not a reason to introduce a second fixed-height scroller.
 
 ## Setup
 
