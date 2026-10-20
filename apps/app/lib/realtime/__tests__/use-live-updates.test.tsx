@@ -126,7 +126,9 @@ it('refreshes matching workspace metadata and paths without invalidating editor 
   });
   expect(invalidate).not.toHaveBeenCalled();
   act(() => jest.advanceTimersByTime(120));
-  expect(invalidate).toHaveBeenCalledTimes(8);
+  expect(invalidate).toHaveBeenCalledTimes(10);
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['breadcrumb-neighbors', 'w'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['breadcrumb-neighbors'] });
   for (const key of keys.slice(0, 14)) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
   for (const key of keys.slice(14)) expect(client.getQueryState(key)?.isInvalidated).toBe(false);
 });

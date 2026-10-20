@@ -15,6 +15,7 @@ const subscriptions = new WeakMap<
 
 export function invalidateLiveQueries(client: QueryClient, kind: Kind, id: string) {
   if (kind === 'workspace') {
+    void client.invalidateQueries({ queryKey: queryKeys.breadcrumbNeighbors.workspace(id) });
     void client.invalidateQueries({ queryKey: queryKeys.pages.list(id) });
     void client.invalidateQueries({ queryKey: queryKeys.databases.list(id) });
     // A parent page can move or disappear without a database-room event. Refresh
@@ -52,6 +53,10 @@ export function invalidateLiveQueries(client: QueryClient, kind: Kind, id: strin
     });
     // Favorites and page templates are derived from the workspace's pages queries.
   } else if (kind === 'database') {
+    // Row anchors deliberately do not infer access or a database id from private
+    // cached metadata. Revalidate open neighbor menus on a database-room change;
+    // disabled menus merely become stale and will load on their next opening.
+    void client.invalidateQueries({ queryKey: queryKeys.breadcrumbNeighbors.all });
     // This prefix covers detail, every view's rows, single rows and templates,
     // but never the page or blocks currently held by the editor.
     void client.invalidateQueries({ queryKey: queryKeys.databases.detail(id) });

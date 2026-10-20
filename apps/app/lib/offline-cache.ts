@@ -27,6 +27,7 @@ export const SHELL_ROOTS = [
 
 /** The account's, but never written to the device: blocks, comments, search, AI output… */
 export const MEMORY_ONLY_ROOTS = [
+  'breadcrumb-neighbors',
   'ai',
   'blocks',
   'comment-reaction',

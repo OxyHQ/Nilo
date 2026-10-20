@@ -1,4 +1,10 @@
 export const queryKeys = {
+  breadcrumbNeighbors: {
+    all: ['breadcrumb-neighbors'] as const,
+    workspace: (workspaceId: string) => ['breadcrumb-neighbors', workspaceId] as const,
+    anchor: (workspaceId: string, kind: 'page' | 'database', id: string) =>
+      ['breadcrumb-neighbors', workspaceId, kind, id] as const,
+  },
   forms: {
     all: ['forms'] as const,
     link: (id: string, viewId: string) => ['form-link', id, viewId] as const,
