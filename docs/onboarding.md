@@ -93,6 +93,12 @@ compositor. The actions menu keeps activity reachable at narrower sizes.
 Comments and activity are mutually exclusive; switching them preserves the
 document editor. The activity panel shows actual metadata and saved content
 versions, reusing the existing version preview/restore dialog and access checks.
+Content edits refresh that metadata and history on `page:projected`, emitted to
+the authorized document room after PostgreSQL commits the projection. A document
+update acknowledgement confirms storage of the update, not completion of the
+projection; do not substitute a guessed timeout or an optimistic edit date.
+Floating panels use the compositor's dismiss control; consult `useAppShellPanel`
+before supplying a second close action in a panel's own header.
 It is not a complete property-change audit log or analytics implementation.
 
 The editor supplies its toolbar through `Screen.bottomBar` with
