@@ -184,6 +184,48 @@ afterEach(() => {
   client.clear();
 });
 
+it('persists Bloom cover coordinates and exposes save failures to its editor', async () => {
+  await mount({ ...initial, cover: 'image:https://example.test/cover.jpg' });
+  let pending = Promise.resolve();
+  await act(async () => {
+    pending = renderer.root
+      .findByProps({ testID: 'page-cover' })
+      .props.onCoverPositionCommit({ x: 0.5, y: 0.314 });
+  });
+  expect(apiClient.patch).toHaveBeenCalledWith('/pages/page', { coverPosition: 31 });
+  await settle({ coverPosition: 31 });
+  await pending;
+  expect(renderer.root.findByProps({ testID: 'page-cover' }).props.coverPosition).toEqual({
+    x: 0.5,
+    y: 0.31,
+  });
+  let failure: Promise<unknown>;
+  await act(async () => {
+    failure = renderer.root
+      .findByProps({ testID: 'page-cover' })
+      .props.onCoverPositionCommit({ x: 0.5, y: 0.6 })
+      .catch((error: unknown) => error);
+  });
+  const error = new Error('offline');
+  await act(async () => {
+    rejectPatch(error);
+    expect(await failure).toBe(error);
+  });
+  expect(cached().coverPosition).toBe(31);
+});
+
+it.each([{ locked: true }, { archived: true }])(
+  'keeps the cover readable but disables mutation for %j',
+  async (state) => {
+    await mount({ ...initial, ...state, cover: 'image:https://example.test/cover.jpg' });
+    const cover = renderer.root.findByProps({ testID: 'page-cover' });
+    expect(cover.props.repositionable).toBe(false);
+    expect(cover.props.onChangeCover).toBeUndefined();
+    await act(async () => cover.props.onCoverPositionCommit({ x: 0.5, y: 0.1 }));
+    expect(apiClient.patch).not.toHaveBeenCalled();
+  },
+);
+
 it.each(['default', 'serif', 'mono'] as const)(
   'applies %s immediately and PATCHes its font',
   async (font) => {

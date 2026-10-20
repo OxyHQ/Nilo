@@ -182,12 +182,14 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
               <DropdownMenuSubContent label={t('pages.style.title')}>
                 <DropdownMenuRadioGroup
                   value={page.font ?? 'default'}
-                  onValueChange={(font) =>
-                    updatePage.mutate(
-                      { id: page.id, font },
-                      { onError: () => toast.error(t('pages.style.updateFailed')) },
-                    )
-                  }
+                  onValueChange={(font) => {
+                    if (font === 'default' || font === 'serif' || font === 'mono') {
+                      updatePage.mutate(
+                        { id: page.id, font },
+                        { onError: () => toast.error(t('pages.style.updateFailed')) },
+                      );
+                    }
+                  }}
                 >
                   {(['default', 'serif', 'mono'] as const).map((font) => (
                     <DropdownMenuRadioItem

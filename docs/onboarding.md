@@ -39,6 +39,10 @@ Bloom owns the workspace layout. `NiloShell` supplies navigation and workspace
 actions to `AppShell` and `Sidebar`; individual routes compose their surfaces
 with `AppShellPanels` and `Screen`. Do not put a surface around the entire
 router outlet: a document and its comments are sibling panels.
+Comments use the compositor's `separated` appearance. Their desktop surface,
+gutter and responsive floating presentation belong to `AppShellPanels`;
+`CommentPanel` supplies its own `Screen` header, scroll content and footer.
+Opening or closing discussions must preserve the mounted document editor.
 
 `PageHeader` owns header placement and measures its accessory (view tabs and
 `Toolbar`). `ScreenScrollView` binds content to that screen's scroll owner.
@@ -73,6 +77,15 @@ Mixed action/form popovers use `PopoverItem` for their action rows and let
 Bloom's [UI architecture](https://github.com/OxyHQ/Bloom/blob/main/docs/ui-architecture.mdx)
 is the shared architectural contract for consumer work; its adoption matrix
 distinguishes requirements from implemented coverage.
+
+Page covers use `CoverHeader`, including its own change-cover and reposition
+actions. Nilo resolves authorized media and supplies picker and persistence
+callbacks; it does not wrap these buttons in another painted container.
+`CoverFill` represents colors and gradients, and read-only cover displays use
+the same renderer. Cover width is independent of the document's text column.
+Bloom owns crop geometry, drag/keyboard interaction, draft position and
+save/cancel. Nilo converts the normalized position to its persisted 0–100 scale
+and returns the save promise so a failure stays visible in Bloom's editor.
 
 ## Setup
 

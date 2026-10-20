@@ -215,7 +215,7 @@ function PageDetail({
         layout={{
           mode: 'split',
           flow: 'bounded',
-          appearance: 'joined',
+          appearance: 'separated',
           activePanel: 'document',
           panels: [
             { id: 'document', span: 1, content },

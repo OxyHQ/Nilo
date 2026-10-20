@@ -3,11 +3,10 @@ import { cn } from '@/lib/utils';
 import { toast } from '@oxy.so/bloom/toast';
 import { PageInfo } from './page-info';
 import * as React from 'react';
-import { Pressable, View, type GestureResponderEvent } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { RiGlobalLine } from '@oxy.so/bloom/icons/RiGlobalLine';
 import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
 import { RiLockLine } from '@oxy.so/bloom/icons/RiLockLine';
-import { RiDragMove2Line } from '@oxy.so/bloom/icons/RiDragMove2Line';
 import { RiEmotionHappyLine } from '@oxy.so/bloom/icons/RiEmotionHappyLine';
 import { Badge } from '@oxy.so/bloom/badge';
 import { Button } from '@oxy.so/bloom/button';
@@ -20,7 +19,8 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import { Breadcrumb } from './breadcrumb';
-import { CoverDisplay } from './cover-display';
+import { CoverHeader } from '@oxy.so/bloom/cover-header';
+import { useCoverMedia } from './use-cover-media';
 import { CoverPicker } from './cover-picker';
 import { FavoriteButton } from './favorite-button';
 import { IconDisplay } from './icon-display';
@@ -44,7 +44,6 @@ interface PageChromeProps {
 interface PageChromeState {
   openIconPicker: () => void;
   openCoverPicker: () => void;
-  setRepositioning: (next: boolean | ((prev: boolean) => boolean)) => void;
 }
 const StateContext = React.createContext<PageChromeState | null>(null);
 
@@ -65,7 +64,6 @@ export function PageChrome({
   const updatePage = useUpdatePage();
   const iconPicker = useDialogControl();
   const coverPicker = useDialogControl();
-  const [repositioning, setRepositioning] = React.useState(false);
   // A locked page, or one in the trash, keeps its icon and cover as they are.
   const { readOnly: contentReadOnly } = usePageEditorContext();
 
@@ -88,7 +86,6 @@ export function PageChrome({
     () => ({
       openIconPicker: () => iconPicker.open(),
       openCoverPicker: () => coverPicker.open(),
-      setRepositioning,
     }),
     [iconPicker, coverPicker],
   );
@@ -126,9 +123,7 @@ export function PageChrome({
           />
         }
       >
-        <RepositioningContext.Provider value={repositioning}>
-          {children}
-        </RepositioningContext.Provider>
+        {children}
       </Screen>
       {!contentReadOnly ? (
         <>
@@ -139,8 +134,6 @@ export function PageChrome({
     </StateContext.Provider>
   );
 }
-
-const RepositioningContext = React.createContext<boolean>(false);
 
 /**
  * `PageHeader` — cover + icon + title. Designed to live INSIDE the route's
@@ -153,7 +146,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
   const { t } = useTranslation();
   const { colors } = useColorScheme();
   const state = React.useContext(StateContext);
-  const repositioning = React.useContext(RepositioningContext);
+  const media = useCoverMedia(page.cover, page.id);
   const updatePage = useUpdatePage();
   const [titleDraft, setTitleDraft] = React.useState<string | null>(null);
 
@@ -179,42 +172,34 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
   }, [contentReadOnly, titleDraft, page.title, page.id, updatePage]);
 
   const handleCommitReposition = React.useCallback(
-    (nextPosition: number) => {
+    async (nextPosition: number) => {
       if (contentReadOnly) return;
       const clamped = Math.min(100, Math.max(0, Math.round(nextPosition)));
       if (clamped === (page.coverPosition ?? 50)) return;
-      updatePage.mutate({ id: page.id, coverPosition: clamped });
+      await updatePage.mutateAsync({ id: page.id, coverPosition: clamped });
     },
     [contentReadOnly, page.id, page.coverPosition, updatePage],
   );
 
   return (
-    <View>
-      <View className={cn('px-6 md:px-10 w-full mx-auto', !page.fullWidth && 'max-w-3xl')}>
-        {contentReadOnly ? (
-          page.cover ? (
-            <CoverDisplay
-              value={page.cover}
-              position={page.coverPosition ?? 50}
-              height={192}
-              pageId={page.id}
-            />
-          ) : null
-        ) : (
-          <CoverArea
-            pageId={page.id}
-            cover={page.cover ?? null}
-            position={page.coverPosition ?? 50}
-            onOpenPicker={() => state?.openCoverPicker()}
-            repositioning={repositioning}
-            onToggleReposition={() => state?.setRepositioning((v) => !v)}
-            onCommitPosition={handleCommitReposition}
-          />
-        )}
-      </View>
+    <CoverHeader
+      key={page.id}
+      coverSource={media.coverSource}
+      cover={media.cover}
+      coverPosition={{ x: 0.5, y: (page.coverPosition ?? 50) / 100 }}
+      coverHeight={media.hasCover ? 280 : 0}
+      overlap={media.hasCover && page.icon ? 32 : 0}
+      repositionable={!contentReadOnly}
+      repositionAxes="vertical"
+      onCoverPositionCommit={({ y }) => handleCommitReposition(y * 100)}
+      onChangeCover={
+        !contentReadOnly && media.hasCover ? () => state?.openCoverPicker() : undefined
+      }
+      testID="page-cover"
+    >
       <View
         className={cn('px-6 md:px-10 w-full mx-auto', !page.fullWidth && 'max-w-3xl')}
-        style={{ marginTop: page.cover ? -32 : 24 }}
+        style={{ paddingTop: media.hasCover && page.icon ? 0 : 24 }}
       >
         {contentReadOnly ? (
           page.icon ? (
@@ -305,103 +290,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
         ) : null}
         <PageInfo page={page} />
       </View>
-    </View>
-  );
-}
-
-/* ---------------------------------------------------------------- *
- * Cover area
- * ---------------------------------------------------------------- */
-
-interface CoverAreaProps {
-  pageId: string;
-  cover: string | null;
-  position: number;
-  onOpenPicker: () => void;
-  repositioning: boolean;
-  onToggleReposition: () => void;
-  onCommitPosition: (next: number) => void;
-}
-function CoverArea({
-  pageId,
-  cover,
-  position,
-  onOpenPicker,
-  repositioning,
-  onToggleReposition,
-  onCommitPosition,
-}: CoverAreaProps) {
-  const { t } = useTranslation();
-  const [localPosition, setLocalPosition] = React.useState<number | null>(null);
-  const startY = React.useRef<number | null>(null);
-  const startPos = React.useRef<number>(position);
-
-  const effectivePosition = localPosition ?? position;
-
-  const handleStart = React.useCallback(
-    (e: GestureResponderEvent) => {
-      if (!repositioning) return;
-      startY.current = e.nativeEvent.pageY;
-      startPos.current = effectivePosition;
-    },
-    [repositioning, effectivePosition],
-  );
-  const handleMove = React.useCallback(
-    (e: GestureResponderEvent) => {
-      if (!repositioning || startY.current === null) return;
-      const delta = e.nativeEvent.pageY - startY.current;
-      // 200px cover height → roughly 100% range. ~2px per percent.
-      const next = startPos.current + delta / 2;
-      setLocalPosition(Math.min(100, Math.max(0, next)));
-    },
-    [repositioning],
-  );
-  const handleEnd = React.useCallback(() => {
-    if (!repositioning) return;
-    if (localPosition !== null) onCommitPosition(localPosition);
-    setLocalPosition(null);
-    startY.current = null;
-    onToggleReposition();
-  }, [repositioning, localPosition, onCommitPosition, onToggleReposition]);
-
-  if (!cover) return <View className="h-2" />;
-
-  return (
-    <View className="relative">
-      <View
-        onStartShouldSetResponder={() => repositioning}
-        onMoveShouldSetResponder={() => repositioning}
-        onResponderGrant={handleStart}
-        onResponderMove={handleMove}
-        onResponderRelease={handleEnd}
-        onResponderTerminate={handleEnd}
-        accessibilityLabel={t('pages.header.cover')}
-      >
-        <CoverDisplay value={cover} position={effectivePosition} height={192} pageId={pageId} />
-      </View>
-      <View className="absolute right-3 top-3 flex-row gap-2">
-        <Button
-          appearance={repositioning ? 'solid' : 'subtle'}
-          tone={repositioning ? 'accent' : 'neutral'}
-          size="sm"
-          onPress={onToggleReposition}
-          accessibilityLabel={t('pages.header.repositionCover')}
-          leadingIcon={RiDragMove2Line}
-        >
-          {repositioning ? t('pages.header.savePosition') : t('pages.header.reposition')}
-        </Button>
-        <Button
-          appearance="subtle"
-          tone="neutral"
-          size="sm"
-          onPress={onOpenPicker}
-          accessibilityLabel={t('pages.header.changeCover')}
-          leadingIcon={RiImageLine}
-        >
-          {t('pages.header.changeCover')}
-        </Button>
-      </View>
-    </View>
+    </CoverHeader>
   );
 }
 
