@@ -86,6 +86,9 @@ the same renderer. Cover width is independent of the document's text column.
 Bloom owns crop geometry, drag/keyboard interaction, draft position and
 save/cancel. Nilo converts the normalized position to its persisted 0–100 scale
 and returns the save promise so a failure stays visible in Bloom's editor.
+The cover picker composes Bloom's `Dialog`, `ResponsiveGrid` and pressable
+`Card` options. Its gallery uses the dialog's scroll owner, including on narrow
+screens; do not add fixed-height scrollers around individual tabs.
 
 ## Setup
 
