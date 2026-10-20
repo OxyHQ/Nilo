@@ -185,7 +185,10 @@ it('refreshes metadata from its page owner and protects a pending rename until r
   jest.mocked(apiClient.get).mockClear();
   await workspaceChanged();
   expect(apiClient.get).toHaveBeenCalledWith('/pages/current/breadcrumb');
-  expect(apiClient.get).not.toHaveBeenCalledWith('/pages/current');
+  expect(apiClient.get).not.toHaveBeenCalledWith(
+    '/pages/current',
+    expect.objectContaining({ signal: expect.anything() }),
+  );
   expect(renderer.root.findByType(Item).props.children).toBe('Typing locally');
   await act(async () => {
     reject(new Error('Save failed'));
@@ -193,7 +196,10 @@ it('refreshes metadata from its page owner and protects a pending rename until r
   });
   await settleRender();
   expect(renderer.root.findByType(Item).props.children).toBe('Remote rename');
-  expect(apiClient.get).toHaveBeenCalledWith('/pages/current');
+  expect(apiClient.get).toHaveBeenCalledWith(
+    '/pages/current',
+    expect.objectContaining({ signal: expect.anything() }),
+  );
 });
 it.each(['success', 'failure'] as const)(
   'keeps remote metadata while toggling a favorite and refreshes changes deferred until %s',
@@ -224,7 +230,10 @@ it.each(['success', 'failure'] as const)(
     serverPage = { ...serverPage, title: 'Updated while saving', locked: false };
     jest.mocked(apiClient.get).mockClear();
     await workspaceChanged();
-    expect(apiClient.get).not.toHaveBeenCalledWith('/pages/current');
+    expect(apiClient.get).not.toHaveBeenCalledWith(
+      '/pages/current',
+      expect.objectContaining({ signal: expect.anything() }),
+    );
     expect(renderer.root.findByType(Item).props.children).toBe('Remote title');
     if (result === 'success') serverPage = { ...serverPage, favorited: true };
     await act(async () => {

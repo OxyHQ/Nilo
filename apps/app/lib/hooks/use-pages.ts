@@ -69,19 +69,36 @@ export function useTemplates(workspaceId: string | null) {
   );
 }
 
+/** A cached page is not readable once its resource or access is gone. */
+function pageUnavailable(error: unknown): boolean {
+  return axios.isAxiosError(error) && [401, 403, 404].includes(error.response?.status ?? 0);
+}
+
 export function usePage(id: string | undefined) {
   const { isAuthenticated } = useOxy();
+  const client = useQueryClient();
+  const key = id ? queryKeys.pages.detail(id) : ['page', 'none'];
 
-  return useQuery<PageResponse>({
-    queryKey: id ? queryKeys.pages.detail(id) : ['page', 'none'],
-    queryFn: async () => {
+  return useQuery<PageResponse | null, Error, PageResponse | undefined>({
+    queryKey: key,
+    queryFn: async ({ signal }) => {
       if (!id) throw new Error('Page id required');
-      const res = await apiClient.get(API_ROUTES.pages.get(id));
-      return res.data;
+      try {
+        const res = await apiClient.get(API_ROUTES.pages.get(id), { signal });
+        return res.data;
+      } catch (error) {
+        // Retire the cached resource too: a later network failure must never
+        // expose a page whose access was already revoked. Cancelled reads no
+        // longer own this query and cannot erase a newer accepted response.
+        if (!signal.aborted && pageUnavailable(error)) client.setQueryData(key, null);
+        throw error;
+      }
     },
+    // Null records a known-unavailable page in this same cache. Consumers see
+    // no data until another successful read; recoverable errors keep metadata.
+    select: (data) => data ?? undefined,
     retry: (count, error) => {
-      if (axios.isAxiosError(error) && [401, 403, 404].includes(error.response?.status ?? 0))
-        return false;
+      if (pageUnavailable(error)) return false;
       return count < 2;
     },
     enabled: isAuthenticated && Boolean(id),
@@ -128,7 +145,11 @@ export function useUpdatePage() {
     onError: (_err, { id }, context) => {
       const ctx = context as { previous?: PageResponse } | undefined;
       if (ctx?.previous) {
-        queryClient.setQueryData(queryKeys.pages.detail(id), ctx.previous);
+        // A terminal read owns access: an older failed mutation must not
+        // restore metadata that the page query has already retired.
+        queryClient.setQueryData<PageResponse | null>(queryKeys.pages.detail(id), (current) =>
+          current === null ? null : ctx.previous,
+        );
       }
     },
     onSettled: (page, _error, { id, parentId, teamspaceId, title, icon }) => {

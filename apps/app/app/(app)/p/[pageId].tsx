@@ -84,7 +84,7 @@ function PageDetail({
   const router = useRouter();
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const { data, isLoading, isError, error } = usePage(pageId);
+  const { data, isLoading, error } = usePage(pageId);
   useRouteWorkspace(data?.page.workspaceId);
   const { data: commentsData } = usePageComments(pageId, false);
   const role = data?.role;
@@ -121,11 +121,7 @@ function PageDetail({
     );
   }
 
-  const deniedOrMissing =
-    isError && axios.isAxiosError(error) && [401, 403, 404].includes(error.response?.status ?? 0);
-  // A failed background read must not dispose an open editor or its title draft.
-  // Access/session revocation and deletion still remove even cached content.
-  if (deniedOrMissing || !data?.page) {
+  if (!data?.page) {
     const noAccess =
       axios.isAxiosError(error) &&
       error.response?.status === 403 &&

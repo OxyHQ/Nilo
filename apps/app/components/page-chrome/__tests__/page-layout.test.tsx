@@ -281,7 +281,10 @@ it('rolls back a failed setting and refetches the page', async () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
   });
   expect(cached().fullWidth).toBe(false);
-  expect(apiClient.get).toHaveBeenCalledWith('/pages/page');
+  expect(apiClient.get).toHaveBeenCalledWith(
+    '/pages/page',
+    expect.objectContaining({ signal: expect.anything() }),
+  );
 });
 it('locks title/icon/cover, shows the banner, and unlocks optimistically for editors', async () => {
   await mount({ ...initial, locked: true });
