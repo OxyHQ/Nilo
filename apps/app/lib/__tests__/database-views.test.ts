@@ -2,8 +2,20 @@ import { runButtonActions } from '../button-actions';
 import { formatCalculation } from '../calculations';
 import { barLayout, donutArcs, foldSlices, linePath, niceTicks } from '../chart-geometry';
 import { uniqueRows } from '../hooks/use-database-rows';
+import { useCollapsedGroupsStore } from '../stores/collapsed-groups-store';
 import type { DatabaseProperty, DatabaseRow, DatabaseRowsResponse } from '../types/databases';
-import { dateGroupLabel, groupValue, rowSections } from '../view-groups';
+import {
+  dateGroupLabel,
+  formatBound,
+  groupTakesRows,
+  groupValue,
+  moveGroup,
+  numberGroupingOf,
+  numberRangeOf,
+  placeGroup,
+  rowSections,
+  withoutGroupKeys,
+} from '../view-groups';
 import { columnWidth, moveProperty, orderedProperties, placeProperty } from '../view-properties';
 
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
@@ -102,6 +114,71 @@ describe('a grouped view’s sections', () => {
     expect(dateGroupLabel('2026-10-05', 'week', 'en-US', weekOf)).toBe('week of Oct 5, 2026');
     expect(dateGroupLabel('2026-01-01', 'year', 'en-US', weekOf)).toBe('2026');
     expect(dateGroupLabel('2026-10-05', 'day', 'en-US', weekOf)).toBe('October 5, 2026');
+  });
+
+  it('puts the view’s own order first and leaves out its hidden groups, at once', () => {
+    const rows = [row('1', 'todo'), row('3', 'done'), row('4', null)];
+    const sections = rowSections(rows, groups, {
+      complete: true,
+      order: [null, 'done'],
+      hidden: ['doing'],
+    });
+    expect(sections.map((s) => s.key)).toEqual([null, 'done', 'todo']);
+    // Not all read yet: the groups after the last one a row is in wait.
+    expect(
+      rowSections([row('4', null)], groups, { complete: false, order: [null] }).map((s) => s.key),
+    ).toEqual([null]);
+  });
+
+  it('moves a group up, down or onto another, among those shown', () => {
+    const keys = ['a', 'b', null];
+    expect(moveGroup(keys, 'b', -1)).toEqual(['b', 'a', null]);
+    expect(moveGroup(keys, null, -1)).toEqual(['a', null, 'b']);
+    expect(moveGroup(keys, 'a', -1)).toBeNull();
+    expect(moveGroup(keys, null, 1)).toBeNull();
+    expect(placeGroup(keys, 'a', null)).toEqual(['b', null, 'a']);
+    expect(placeGroup(keys, null, 'a')).toEqual([null, 'a', 'b']);
+    expect(placeGroup(keys, 'a', 'a')).toBeNull();
+  });
+
+  it('reads a number’s ranges back from its groups, and names a range by its bounds', () => {
+    const ranged = [
+      { key: '-1', count: 1, range: { from: null, to: 0.1 } },
+      { key: '0', count: 0, range: { from: 0.1, to: 0.2 } },
+      { key: '1', count: 2, range: { from: 0.2, to: 0.30000000000000004 } },
+      { key: '2', count: 2, range: { from: 0.30000000000000004, to: 0.35 } },
+      { key: '3', count: 1, range: { from: 0.35, to: null } },
+      { key: null, count: 1 },
+    ];
+    expect(numberGroupingOf(ranged)).toEqual({ from: 0.1, to: 0.35, step: 0.1 });
+    expect(numberGroupingOf(groups)).toBeUndefined();
+    const grouping = { from: 0, to: 12, step: 5 };
+    expect(['-1', '0', '2', '3'].map((key) => numberRangeOf(key, grouping))).toEqual([
+      { from: null, to: 0 },
+      { from: 0, to: 5 },
+      { from: 10, to: 12 },
+      { from: 12, to: null },
+    ]);
+    expect(formatBound(0.30000000000000004, 'en-US')).toBe('0.3');
+    expect(formatBound(1234.5, 'en-US')).toBe('1,234.5');
+    // A row added in a range starts at its bound; none below, nor for a formula.
+    expect(groupValue(property('n', 'number'), '1', { from: 5, to: 10 })).toEqual({ number: 5 });
+    expect(groupValue(property('n', 'number'), '-1', { from: null, to: 0 })).toBeUndefined();
+    expect(groupTakesRows(property('f', 'formula'))).toBe(false);
+    expect(groupTakesRows(property('n', 'number'))).toBe(true);
+  });
+
+  it('forgets the groups’ keys when the view groups otherwise', () => {
+    expect(
+      withoutGroupKeys({
+        openIn: 'full_page',
+        groupOrder: ['a'],
+        collapsedGroups: [null],
+        hiddenGroups: ['b'],
+        numberGrouping: { from: 0, to: 1, step: 1 },
+      }),
+    ).toEqual({ openIn: 'full_page' });
+    expect(withoutGroupKeys({ openIn: 'full_page' })).toBeNull();
   });
 });
 
@@ -207,5 +284,20 @@ describe('a chart’s geometry', () => {
     expect(arcs[1]).toBeNull();
     expect(arcs.filter(Boolean)).toHaveLength(2);
     expect(donutArcs([0, 0], 50, 50, 40, 20)).toEqual([null, null]);
+  });
+});
+
+describe('a reader’s collapsed groups', () => {
+  it('are kept per view on the device, the most recent two hundred views', () => {
+    const { setCollapsed } = useCollapsedGroupsStore.getState();
+    for (let i = 0; i < 205; i += 1) setCollapsed(`view-${i}`, [String(i)]);
+    setCollapsed('view-10', ['a', null]);
+    const { byView } = useCollapsedGroupsStore.getState();
+    expect(Object.keys(byView)).toHaveLength(200);
+    expect(byView['view-10']).toEqual(['a', null]);
+    expect(Object.keys(byView).at(-1)).toBe('view-10');
+    expect(byView['view-4']).toBeUndefined();
+    expect(byView['view-5']).toEqual(['5']);
+    expect(byView['view-204']).toEqual(['204']);
   });
 });

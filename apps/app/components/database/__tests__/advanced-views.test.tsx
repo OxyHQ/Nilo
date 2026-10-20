@@ -8,7 +8,15 @@ import { PropertyCell } from '../property-cell';
 import { DatabaseCellScopeProvider } from '../cell-scope';
 import { ViewChart } from '../view-chart';
 import { ColumnResizeHandle } from '../column-resize-handle';
-import type { Database, DatabaseRow, DatabaseView, RowGroup } from '@/lib/types/databases';
+import { type GroupActions, GroupHeader } from '../group-header';
+import { useCollapsedGroupsStore } from '@/lib/stores/collapsed-groups-store';
+import type {
+  CalculationValues,
+  Database,
+  DatabaseRow,
+  DatabaseView,
+  RowGroup,
+} from '@/lib/types/databases';
 
 const mockPeek = jest.fn((_props: { rowId: string; mode: string; open: boolean }) => null);
 const mockPush = jest.fn();
@@ -18,12 +26,15 @@ const mockCreateRowAsync = jest.fn(async () => undefined);
 const mockHeaderMenu = jest.fn((_props: { move?: { onMove: (by: -1 | 1) => void } }) => null);
 let mockCalculations: Record<string, { function: string; value: number | null }> = {};
 let mockPoints: { key: string | null; count: number; value: number | null }[] = [];
+let mockCalculationGroups: { key: string | null; calculations: CalculationValues }[] | undefined;
 
 jest.mock('../row-peek', () => ({
   RowPeek: (props: { rowId: string; mode: string; open: boolean }) => mockPeek(props),
 }));
 jest.mock('@/lib/hooks/use-view-data', () => ({
-  useViewCalculations: () => ({ data: { calculations: mockCalculations } }),
+  useViewCalculations: () => ({
+    data: { calculations: mockCalculations, groups: mockCalculationGroups },
+  }),
   useViewChart: () => ({ data: { points: mockPoints }, isLoading: false, isError: false }),
 }));
 jest.mock('@/lib/api/client', () => ({
@@ -145,7 +156,9 @@ const originalOS = Platform.OS;
 beforeEach(() => {
   jest.clearAllMocks();
   mockCalculations = {};
+  mockCalculationGroups = undefined;
   mockPoints = [];
+  useCollapsedGroupsStore.setState({ byView: {} });
 });
 afterEach(() => {
   act(() => renderer?.unmount());
@@ -500,5 +513,197 @@ describe('cells', () => {
       />,
     );
     expect(text()).toContain('October 5, 2026');
+  });
+});
+
+describe('a view’s own groups', () => {
+  const groups: RowGroup[] = [
+    { key: '0', count: 1, range: { from: 0, to: 5 } },
+    { key: '1', count: 1, range: { from: 5, to: 10 } },
+    { key: null, count: 1 },
+  ];
+  const rows = [
+    row('1', { points: { number: 1 } }, '0'),
+    row('2', { points: { number: 7 } }, '1'),
+    row('3', {}, null),
+  ];
+  const view: DatabaseView = {
+    ...baseView,
+    groupBy: { propertyId: 'points' },
+    config: { calculations: { points: 'sum' } },
+  };
+  const range0 = 'databases.groups.range:{"from":"0","to":"5"}';
+  const renderTable = (props: Partial<React.ComponentProps<typeof DatabaseViewContainer>> = {}) =>
+    render(
+      <DatabaseViewContainer
+        database={database}
+        view={view}
+        rows={rows}
+        groups={groups}
+        hasMore={false}
+        isLoading={false}
+        {...props}
+      />,
+    );
+  /** The header actions of a group (its menu's Move up, Move down and Hide group). */
+  const actionsOf = (key: string | null) =>
+    renderer.root.findAllByType(GroupHeader).find((n) => n.props.groupKey === key)?.props.actions as
+      | GroupActions
+      | undefined;
+  const lastConfig = () => mockUpdateView.mock.lastCall?.[0]?.config;
+
+  it('names numbers’ groups by their ranges, and gives each group its own footer', () => {
+    mockCalculations = { points: { function: 'sum', value: 8 } };
+    mockCalculationGroups = [
+      { key: '0', calculations: { points: { function: 'sum', value: 1 } } },
+      { key: '1', calculations: { points: { function: 'sum', value: 7 } } },
+      { key: null, calculations: { points: { function: 'sum', value: 0 } } },
+    ];
+    renderTable();
+    expect(text()).toContain(range0.replace(/"/g, '\\"'));
+    const footer = (testID: string) =>
+      renderer.root
+        .findAll((n) => n.props.testID === testID)[0]
+        ?.findAll((n) => typeof n.props.children === 'string')
+        .map((n) => n.props.children)
+        .join(' ');
+    expect(footer('table-group-footer-0')).toMatch(/ 1$/);
+    expect(footer('table-group-footer-1')).toMatch(/ 7$/);
+    expect(footer('table-footer')).toMatch(/ 8$/);
+  });
+
+  it('moves, hides and collapses a group for every reader, keeping the ranges that name it', () => {
+    renderTable();
+    // Its menu, which every editor's header has.
+    expect(
+      renderer.root.findAll(
+        (n) =>
+          n.props.accessibilityLabel ===
+          `databases.groups.options:${JSON.stringify({ name: range0 })}`,
+      ).length,
+    ).toBeGreaterThan(0);
+    act(() => actionsOf('0')?.onMove(1));
+    // The ranges the API chose are kept: a range's key is its index.
+    expect(lastConfig()).toEqual({
+      calculations: { points: 'sum' },
+      numberGrouping: { from: 0, to: 10, step: 5 },
+      groupOrder: ['1', '0', null],
+    });
+    expect(actionsOf('0')?.canMoveUp).toBe(false);
+    expect(actionsOf(null)?.canMoveDown).toBe(false);
+    act(() => actionsOf('1')?.onHide());
+    expect(lastConfig()).toEqual(expect.objectContaining({ hiddenGroups: ['1'] }));
+    const collapse = renderer.root.find(
+      (n) =>
+        n.props.accessibilityLabel ===
+          `databases.groups.collapse:${JSON.stringify({ name: range0 })}` && n.props.onPress,
+    );
+    act(() => collapse.props.onPress());
+    expect(lastConfig()).toEqual(expect.objectContaining({ collapsedGroups: ['0'] }));
+    // Collapsed at once, while the view saves it.
+    expect(text()).not.toContain('Row 1');
+    expect(text()).toContain('Row 2');
+  });
+
+  it('shows the view’s order and hidden groups at once, and drags a header onto another (web)', () => {
+    Platform.OS = 'web';
+    renderTable({ view: { ...view, config: { groupOrder: [null], hiddenGroups: ['1'] } } });
+    const sections = renderer.root
+      .findAll(
+        (n) =>
+          typeof n.props.testID === 'string' &&
+          n.props.testID.startsWith('table-group-') &&
+          !n.props.testID.startsWith('table-group-footer') &&
+          typeof n.type === 'string',
+      )
+      .map((n) => n.props.testID);
+    expect(sections).toEqual(['table-group-none', 'table-group-0']);
+    const target = renderer.root.findAll(
+      (n) =>
+        typeof n.props.onDrop === 'function' &&
+        n.findAll(
+          (c) =>
+            c.props.accessibilityLabel ===
+            `databases.groups.collapse:${JSON.stringify({ name: 'databases.groups.none:{"name":"Points"}' })}`,
+        ).length > 0,
+    )[0];
+    act(() =>
+      target?.props.onDrop({
+        preventDefault: jest.fn(),
+        dataTransfer: { getData: () => JSON.stringify('0'), types: [] },
+      }),
+    );
+    expect(lastConfig()).toEqual(expect.objectContaining({ groupOrder: ['0', null] }));
+  });
+
+  it('keeps a reader’s collapsing on their device, and offers them no moving', () => {
+    renderTable({ readOnly: true, view: { ...view, config: { collapsedGroups: ['1'] } } });
+    // The view's own collapsing until the reader collapses one.
+    expect(text()).not.toContain('Row 2');
+    expect(
+      renderer.root.findAll((n) =>
+        String(n.props.accessibilityLabel).startsWith('databases.groups.options'),
+      ),
+    ).toHaveLength(0);
+    const collapse = renderer.root.find(
+      (n) =>
+        n.props.accessibilityLabel ===
+          `databases.groups.collapse:${JSON.stringify({ name: range0 })}` && n.props.onPress,
+    );
+    act(() => collapse.props.onPress());
+    expect(mockUpdateView).not.toHaveBeenCalled();
+    expect(useCollapsedGroupsStore.getState().byView.view).toEqual(['1', '0']);
+    expect(text()).not.toContain('Row 1');
+  });
+
+  it('groups a gallery’s cards in sections and a timeline’s bars in swimlanes', () => {
+    const stageGroups: RowGroup[] = [
+      { key: 'todo', count: 1 },
+      { key: 'done', count: 1 },
+    ];
+    const today = new Date();
+    const due = { start: today.toISOString(), includeTime: true };
+    const staged = [
+      row('1', { stage: { optionId: 'todo' }, due }, 'todo'),
+      row('2', { stage: { optionId: 'done' }, due }, 'done'),
+    ];
+    const dated = {
+      ...database,
+      schema: {
+        properties: [...database.schema.properties, { id: 'due', name: 'Due', type: 'date' }],
+      },
+    } as Database;
+    const ids = (prefix: string) =>
+      renderer.root
+        .findAll(
+          (n) =>
+            typeof n.props.testID === 'string' &&
+            n.props.testID.startsWith(prefix) &&
+            typeof n.type === 'string',
+        )
+        .map((n) => n.props.testID);
+    for (const type of ['gallery', 'timeline'] as const) {
+      render(
+        <DatabaseViewContainer
+          database={dated}
+          view={{ ...baseView, type, groupBy: { propertyId: 'stage' } }}
+          rows={staged}
+          groups={stageGroups}
+          hasMore={false}
+          isLoading={false}
+        />,
+      );
+      const prefix = type === 'gallery' ? 'gallery-group-' : 'timeline-lane-';
+      expect(ids(prefix)).toEqual([`${prefix}todo`, `${prefix}done`]);
+      expect(text()).toContain('Row 2');
+      const collapse = renderer.root.find(
+        (n) =>
+          n.props.accessibilityLabel ===
+            `databases.groups.collapse:${JSON.stringify({ name: 'Done' })}` && n.props.onPress,
+      );
+      act(() => collapse.props.onPress());
+      expect(text()).not.toContain('Row 2');
+      act(() => renderer.unmount());
+    }
   });
 });

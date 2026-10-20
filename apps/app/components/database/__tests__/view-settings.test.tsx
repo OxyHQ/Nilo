@@ -1,6 +1,8 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Animated, Image, Platform } from 'react-native';
+import { Button } from '@oxy.so/bloom/button';
 import { Switch } from '@oxy.so/bloom/switch';
+import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Tabs } from '@oxy.so/bloom/tabs';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { SettingSelect, ViewSettings } from '../view-settings';
@@ -114,6 +116,7 @@ function render(node: React.ReactNode) {
     renderer = create(<BloomTestProviders>{node}</BloomTestProviders>);
   });
 }
+const text = () => JSON.stringify(renderer.toJSON());
 const setting = (label: string) =>
   renderer.root.findAllByType(SettingSelect).find((s) => s.props.label === label);
 
@@ -277,6 +280,95 @@ describe('view settings', () => {
     act(() => setting('databases.viewSettings.loadLimit')?.props.onChange('25'));
     expect(mockUpdateView).toHaveBeenLastCalledWith(
       expect.objectContaining({ pageSize: 25 }),
+      expect.anything(),
+    );
+  });
+
+  it('groups a gallery and a timeline, but not a calendar', () => {
+    for (const type of ['gallery', 'timeline'] as const) {
+      render(<ViewSettings database={database} view={makeView({ type })} />);
+      act(() => setting('databases.viewSettings.groupBy')?.props.onChange('kind'));
+      expect(mockUpdateView).toHaveBeenLastCalledWith(
+        expect.objectContaining({ groupBy: { propertyId: 'kind' } }),
+        expect.anything(),
+      );
+      act(() => renderer.unmount());
+    }
+    render(<ViewSettings database={database} view={makeView({ type: 'calendar' })} />);
+    expect(setting('databases.viewSettings.groupBy')).toBeUndefined();
+  });
+
+  it('sets a number’s ranges, shows a hidden group again, and forgets the old groups when regrouped', () => {
+    const numbers = {
+      ...database,
+      schema: {
+        properties: [
+          ...database.schema.properties,
+          { id: 'points', name: 'Points', type: 'number' },
+          { id: 'double', name: 'Double', type: 'formula', config: { expression: '1' } },
+        ],
+      },
+    } as Database;
+    const grouped = makeView({
+      groupBy: { propertyId: 'points' },
+      config: {
+        openIn: 'full_page',
+        numberGrouping: { from: 0, to: 100, step: 10 },
+        hiddenGroups: ['2', null],
+        collapsedGroups: ['1'],
+      },
+    });
+    render(<ViewSettings database={numbers} view={grouped} />);
+    // A formula's numbers group too.
+    expect(
+      setting('databases.viewSettings.groupBy')?.props.options.map(
+        (o: { value: string }) => o.value,
+      ),
+    ).toContain('double');
+    const fields = ['from', 'to', 'step'].map(
+      (name) =>
+        renderer.root
+          .findAllByType(TextFieldInput)
+          .find((f) => f.props.label === `databases.viewSettings.ranges.${name}`) ?? null,
+    );
+    expect(fields.map((f) => f?.props.value)).toEqual(['0', '100', '10']);
+    const apply = () =>
+      renderer.root
+        .findAllByType(Button)
+        .find((b) => b.props.children === 'databases.viewSettings.ranges.apply');
+    // A thousand ranges are too many: nothing is saved.
+    act(() => fields[2]?.props.onChangeText('0.1'));
+    expect(apply()?.props.disabled).toBe(true);
+    expect(text()).toContain('databases.viewSettings.ranges.invalid');
+    act(() => fields[2]?.props.onChangeText('25'));
+    act(() => apply()?.props.onPress());
+    // Other ranges name other groups: the old ones' keys go.
+    expect(mockUpdateView).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        config: { openIn: 'full_page', numberGrouping: { from: 0, to: 100, step: 25 } },
+      }),
+      expect.anything(),
+    );
+
+    // The hidden groups, named by their ranges, each shown again.
+    const show = renderer.root
+      .findAllByType(Button)
+      .filter((b) => String(b.props.accessibilityLabel).startsWith('databases.groups.show'));
+    expect(show.map((b) => b.props.accessibilityLabel)).toEqual([
+      'databases.groups.show:databases.groups.range',
+      'databases.groups.show:databases.groups.none:Points',
+    ]);
+    act(() => show[0]?.props.onPress());
+    expect(mockUpdateView).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({ hiddenGroups: [null], collapsedGroups: ['1'] }),
+      }),
+      expect.anything(),
+    );
+
+    act(() => setting('databases.viewSettings.groupBy')?.props.onChange('kind'));
+    expect(mockUpdateView).toHaveBeenLastCalledWith(
+      expect.objectContaining({ groupBy: { propertyId: 'kind' }, config: { openIn: 'full_page' } }),
       expect.anything(),
     );
   });

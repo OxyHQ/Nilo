@@ -7,10 +7,12 @@ import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
+import type { Database, DatabaseRow, DatabaseView, RowGroup } from '@/lib/types/databases';
 import { dayOf, readDateValue } from '@/lib/date-values';
 import { useVisibleDatesStore } from '@/lib/stores/visible-dates-store';
+import { groupProperty, rowSections, sectionOptions } from '@/lib/view-groups';
 import { visibleDatesFilter } from '@/lib/visible-dates';
+import { GroupHeader, useViewGroups } from './group-header';
 import { useOpenRow } from './open-row';
 
 interface ViewTimelineProps {
@@ -18,6 +20,10 @@ interface ViewTimelineProps {
   view: DatabaseView;
   rows: DatabaseRow[];
   isLoading: boolean;
+  /** A grouped timeline's groups, its swimlanes, in order (`GET …/rows`). */
+  groups?: RowGroup[];
+  /** May change the view: move, hide and collapse its swimlanes for every reader. */
+  viewEditable?: boolean;
 }
 
 const DAY_WIDTH = 28;
@@ -31,10 +37,30 @@ const DAY_MS = 86_400_000;
  * (and optional `endPropertyId`) date property and lays out a bar per row
  * over `DAYS_WINDOW` days, scrolled sideways; the arrows move the window and
  * only the rows whose bar meets it are read (`useVisibleDatesStore`). A
- * date's own end, with no end property, ends its bar.
+ * date's own end, with no end property, ends its bar. Grouped (`groupBy`),
+ * the bars come in collapsible swimlanes, one per group with its count.
  */
-export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelineProps) {
+export function ViewTimeline({
+  database,
+  view,
+  rows,
+  isLoading,
+  groups,
+  viewEditable = false,
+}: ViewTimelineProps) {
   const openRow = useOpenRow();
+  const viewGroups = useViewGroups(database.id, view, viewEditable, groups);
+  const grouping = groupProperty(database.schema.properties, view.groupBy);
+  // Every row of the dates shown is read: each lane is whole.
+  const lanes =
+    grouping && groups
+      ? rowSections(rows, groups, {
+          hideEmpty: view.groupBy?.hideEmpty,
+          complete: true,
+          ...sectionOptions(view),
+        })
+      : null;
+  const laneKeys = lanes?.map((lane) => lane.key) ?? [];
   const { t, locale } = useTranslation();
   const { width } = useWindowDimensions();
   // A phone keeps most of its width for the bars.
@@ -96,17 +122,62 @@ export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelinePr
   }
 
   const gridWidth = DAY_WIDTH * DAYS_WINDOW;
-  const bars = rows.flatMap((row) => {
-    const span = rowSpan(row, startProperty.id, endProperty?.id ?? null);
-    if (!span || span.end < windowStart || span.start > windowEnd) return [];
-    const offsetDays = Math.max(0, Math.round((span.start.getTime() - windowTime) / DAY_MS));
-    // Cut where the window ends, as where it starts.
-    const lastDay = Math.min(
-      DAYS_WINDOW - 1,
-      Math.round((span.end.getTime() - windowTime) / DAY_MS),
-    );
-    return [{ row, offsetDays, spanDays: Math.max(1, lastDay - offsetDays + 1) }];
-  });
+  const barsOf = (list: readonly DatabaseRow[]) =>
+    list.flatMap((row) => {
+      const span = rowSpan(row, startProperty.id, endProperty?.id ?? null);
+      if (!span || span.end < windowStart || span.start > windowEnd) return [];
+      const offsetDays = Math.max(0, Math.round((span.start.getTime() - windowTime) / DAY_MS));
+      // Cut where the window ends, as where it starts.
+      const lastDay = Math.min(
+        DAYS_WINDOW - 1,
+        Math.round((span.end.getTime() - windowTime) / DAY_MS),
+      );
+      return [{ row, offsetDays, spanDays: Math.max(1, lastDay - offsetDays + 1) }];
+    });
+  const bars = barsOf(rows);
+
+  const renderBars = (list: ReturnType<typeof barsOf>, keyPrefix: string) =>
+    list.map(({ row, offsetDays, spanDays }) => {
+      const title = row.title || t('databases.untitled');
+      return (
+        <View
+          key={`${keyPrefix}${row.id}`}
+          className="flex-row border-b border-border/60"
+          style={{ height: 36, minWidth: gridWidth + titleWidth }}
+        >
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={title}
+            onPress={() => openRow(row.id)}
+            style={{ width: titleWidth }}
+            className="px-3 justify-center border-r border-border/60"
+          >
+            <Text variant="body-regular" numberOfLines={1}>
+              {title}
+            </Text>
+          </Pressable>
+          <View style={{ width: gridWidth, height: 36 }}>
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={title}
+              onPress={() => openRow(row.id)}
+              style={{
+                position: 'absolute',
+                left: offsetDays * DAY_WIDTH + 2,
+                top: 6,
+                width: spanDays * DAY_WIDTH - 4,
+                height: 24,
+              }}
+              className="bg-primary/20 border border-primary/50 rounded-md justify-center px-2"
+            >
+              <Text className="text-[11px] text-primary" numberOfLines={1}>
+                {title}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      );
+    });
 
   return (
     <View>
@@ -172,47 +243,39 @@ export function ViewTimeline({ database, view, rows, isLoading }: ViewTimelinePr
               </Text>
             </View>
           ) : null}
-          {bars.map(({ row, offsetDays, spanDays }) => {
-            const title = row.title || t('databases.untitled');
-            return (
-              <View
-                key={row.id}
-                className="flex-row border-b border-border/60"
-                style={{ height: 36, minWidth: gridWidth + titleWidth }}
-              >
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel={title}
-                  onPress={() => openRow(row.id)}
-                  style={{ width: titleWidth }}
-                  className="px-3 justify-center border-r border-border/60"
-                >
-                  <Text variant="body-regular" numberOfLines={1}>
-                    {title}
-                  </Text>
-                </Pressable>
-                <View style={{ width: gridWidth, height: 36 }}>
-                  <Pressable
-                    accessibilityRole="link"
-                    accessibilityLabel={title}
-                    onPress={() => openRow(row.id)}
-                    style={{
-                      position: 'absolute',
-                      left: offsetDays * DAY_WIDTH + 2,
-                      top: 6,
-                      width: spanDays * DAY_WIDTH - 4,
-                      height: 24,
-                    }}
-                    className="bg-primary/20 border border-primary/50 rounded-md justify-center px-2"
+          {lanes && grouping
+            ? lanes.map((lane) => {
+                const collapsed = viewGroups.isCollapsed(lane.key);
+                const prefix = `${lane.key === null ? '\u0000' : lane.key}:`;
+                return (
+                  <View
+                    key={`lane-${prefix}`}
+                    testID={`timeline-lane-${lane.key ?? 'none'}`}
+                    style={{ minWidth: gridWidth + titleWidth }}
                   >
-                    <Text className="text-[11px] text-primary" numberOfLines={1}>
-                      {title}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            );
-          })}
+                    {/* Its menu within the screen's width, in reach before scrolling. */}
+                    <View
+                      className="border-b border-border/60 bg-muted/20"
+                      style={{ width: gridWidth + titleWidth }}
+                    >
+                      <View style={{ width: Math.min(width, gridWidth + titleWidth) }}>
+                        <GroupHeader
+                          property={grouping}
+                          groupKey={lane.key}
+                          granularity={view.groupBy?.granularity}
+                          range={lane.range}
+                          count={lane.count}
+                          collapsed={collapsed}
+                          onToggle={() => viewGroups.toggle(lane.key)}
+                          actions={viewGroups.actionsFor(lane.key, laneKeys)}
+                        />
+                      </View>
+                    </View>
+                    {collapsed ? null : renderBars(barsOf(lane.rows), prefix)}
+                  </View>
+                );
+              })
+            : renderBars(bars, '')}
         </View>
       </ScrollView>
     </View>

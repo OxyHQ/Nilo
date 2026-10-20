@@ -16,6 +16,10 @@ jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
 }));
 jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
+// A view's groups are saved with it (collapsed, moved, hidden).
+jest.mock('@/lib/hooks/use-database-views', () => ({
+  useUpdateView: () => ({ mutate: jest.fn(), isPending: false }),
+}));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 const mockUpdateRow = jest.fn();
 jest.mock('@/lib/hooks/use-database-rows', () => ({

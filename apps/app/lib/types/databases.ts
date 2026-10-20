@@ -208,6 +208,16 @@ export interface ViewGroupBy {
   hideEmpty?: boolean;
 }
 
+/** A number's groups: ranges of `step` from `from` up to `to`, those below and above apart. */
+export interface ViewNumberGrouping {
+  from: number;
+  to: number;
+  step: number;
+}
+
+/** A group named in a view's config: its key (`RowGroup.key`), null for the empty group. */
+export type ViewGroupKey = string | null;
+
 /** A chart view's chart: one point per group of `xAxis`, measuring `yAxis`. */
 export interface ViewChartConfig {
   type: ChartType;
@@ -232,6 +242,16 @@ export interface ViewConfig {
   /** A table's footer: what it computes over each property of all the view's rows. */
   calculations?: Record<string, CalculationFunction>;
   chart?: ViewChartConfig;
+  /**
+   * The groups of the view's rows (`groupBy`, a board's `subGroupBy`): a
+   * number's ranges (absent, round ones spanning the rows' numbers), the
+   * groups first and in this order, those shown collapsed to every reader,
+   * those not shown (nor their rows).
+   */
+  numberGrouping?: ViewNumberGrouping;
+  groupOrder?: ViewGroupKey[];
+  collapsedGroups?: ViewGroupKey[];
+  hiddenGroups?: ViewGroupKey[];
 }
 
 export interface DatabaseView {
@@ -334,10 +354,18 @@ export interface DatabaseRow {
   groupKey?: string | null;
 }
 
+/** A number range's bounds: from (included) to (excluded), null where it is open. */
+export interface GroupRange {
+  from: number | null;
+  to: number | null;
+}
+
 /** A grouped view's group, in order, with how many rows it holds. */
 export interface RowGroup {
   key: string | null;
   count: number;
+  /** A number range's group: its bounds (its key is its index). */
+  range?: GroupRange;
 }
 
 export interface DatabasesListResponse {
@@ -365,14 +393,22 @@ export interface DatabaseRowsResponse {
   groups?: RowGroup[];
 }
 
+/** Each footer calculation's value, by property id. */
+export type CalculationValues = Record<
+  string,
+  { function: CalculationFunction; value: number | null }
+>;
+
 /** `GET /databases/:id/views/:viewId/calculations`: each footer calculation's value. */
 export interface ViewCalculationsResponse {
-  calculations: Record<string, { function: CalculationFunction; value: number | null }>;
+  calculations: CalculationValues;
+  /** A grouped view's: each group's, in the groups' order. */
+  groups?: { key: string | null; calculations: CalculationValues }[];
 }
 
 /** `GET /databases/:id/views/:viewId/chart`: a point per group of the chart's axis. */
 export interface ViewChartResponse {
-  points: { key: string | null; count: number; value: number | null }[];
+  points: { key: string | null; count: number; value: number | null; range?: GroupRange }[];
 }
 
 export interface DatabaseRowResponse {

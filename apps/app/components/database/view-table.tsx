@@ -16,20 +16,29 @@ import {
   type DatabaseProperty,
   type DatabaseRow,
   type DatabaseView,
+  type CalculationValues,
+  type GroupRange,
   type PropertyValue,
   type RowGroup,
 } from '@/lib/types/databases';
 import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
 import { useViewCalculations } from '@/lib/hooks/use-view-data';
-import { groupProperty, groupValue, rowSections } from '@/lib/view-groups';
+import {
+  groupProperty,
+  groupTakesRows,
+  groupValue,
+  rowSections,
+  sectionOptions,
+} from '@/lib/view-groups';
 import { columnWidth, moveProperty, orderedProperties, placeProperty } from '@/lib/view-properties';
 import { PropertyCell } from './property-cell';
 import { PropertyHeaderMenu } from './property-config-modal';
 import { useOpenRow } from './open-row';
 import { CalculationCell } from './calculation-cell';
 import { ColumnResizeHandle } from './column-resize-handle';
-import { GroupHeader, useCollapsedGroups, useGroupLabel } from './group-header';
+import { GroupHeader, useViewGroups } from './group-header';
+import { useGroupLabel } from './group-label';
 
 interface ViewTableProps {
   database: Database;
@@ -60,8 +69,10 @@ const COLUMN_DRAG_TYPE = 'application/x-nilo-column';
  * its header to move it (web), or moves it from its menu (everywhere).
  *
  * Grouped (`groupBy`), the rows come in collapsible sections, one per group
- * with its count, in the API's order; the footer computes each column over
- * every row of the view (`config.calculations`).
+ * with its count, in the API's order (the view's own first), each with its
+ * own footer; the view's footer computes each column over every row of the
+ * view (`config.calculations`). Whoever may change the view moves, hides
+ * and collapses groups for every reader (`useViewGroups`).
  *
  * Frozen columns (`view.frozenProperties`: the Name and the properties up to
  * one, as the view's settings set them) come first and stay put while the
@@ -87,7 +98,7 @@ export function ViewTable({
   const updateView = useUpdateView();
   const subItems = subItemProperties(database);
   const { expanded, toggleExpanded } = useExpandedRows(database.id);
-  const collapsedGroups = useCollapsedGroups();
+  const viewGroups = useViewGroups(database.id, view, viewEditable, groups);
   const newSubItem = (parentId: string) => {
     if (!subItems || readOnly) return;
     createRow.mutate({
@@ -168,8 +179,13 @@ export function ViewTable({
   const grouping = groupProperty(database.schema.properties, view.groupBy);
   const sections =
     grouping && groups
-      ? rowSections(rows, groups, { hideEmpty: view.groupBy?.hideEmpty, complete: !hasMore })
+      ? rowSections(rows, groups, {
+          hideEmpty: view.groupBy?.hideEmpty,
+          complete: !hasMore,
+          ...sectionOptions(view),
+        })
       : null;
+  const sectionKeys = sections?.map((section) => section.key) ?? [];
   const groupLabel = useGroupLabel(
     grouping ?? (nameProperty as DatabaseProperty),
     view.groupBy?.granularity,
@@ -180,9 +196,9 @@ export function ViewTable({
     await createRow.mutateAsync({ databaseId: database.id });
   }, [createRow, database.id, readOnly]);
 
-  const newRowIn = (key: string | null) => {
+  const newRowIn = (key: string | null, range?: GroupRange) => {
     if (readOnly || !grouping) return;
-    const value = groupValue(grouping, key);
+    const value = groupValue(grouping, key, range);
     createRow.mutate({
       databaseId: database.id,
       ...(grouping.id === NAME_PROPERTY_ID && key !== null && { title: key }),
@@ -221,6 +237,45 @@ export function ViewTable({
       </View>
     );
   }
+
+  /** A footer: each column's calculation over `values`' rows (the view's, or a group's). */
+  const renderFooter = (values: CalculationValues | undefined, testID: string) => (
+    <View className="flex-row" style={{ minWidth: tableWidth }} testID={testID}>
+      <FrozenCell frozen={titleFrozen} last={frozenCount === 0} scrollX={scrollX}>
+        {nameProperty ? (
+          <CalculationCell
+            database={database}
+            view={view}
+            property={nameProperty}
+            value={values?.[NAME_PROPERTY_ID]?.value}
+            width={titleWidth}
+            editable={viewEditable}
+          />
+        ) : (
+          <View style={{ width: titleWidth }} />
+        )}
+      </FrozenCell>
+      {visibleProperties.map((property, index) => (
+        <FrozenCell
+          key={property.id}
+          frozen={index < frozenCount}
+          last={index === frozenCount - 1}
+          scrollX={scrollX}
+        >
+          <CalculationCell
+            database={database}
+            view={view}
+            property={property}
+            value={values?.[property.id]?.value}
+            width={widthOf(property.id)}
+            editable={viewEditable}
+          />
+        </FrozenCell>
+      ))}
+    </View>
+  );
+  const groupCalculations = (key: string | null) =>
+    computed.data?.groups?.find((group) => group.key === key)?.calculations;
 
   const renderRows = (list: DatabaseRow[], keyPrefix: string) =>
     nestSubItems(list, subItems?.parent.id, expanded).map((entry) => {
@@ -361,7 +416,7 @@ export function ViewTable({
           />
         ) : sections && grouping ? (
           sections.map((section) => {
-            const collapsed = collapsedGroups.isCollapsed(section.key);
+            const collapsed = viewGroups.isCollapsed(section.key);
             const prefix = `${section.key === null ? '\u0000' : section.key}:`;
             return (
               <View key={`group-${prefix}`} testID={`table-group-${section.key ?? 'none'}`}>
@@ -370,24 +425,24 @@ export function ViewTable({
                     property={grouping}
                     groupKey={section.key}
                     granularity={view.groupBy?.granularity}
+                    range={section.range}
                     count={section.count}
                     collapsed={collapsed}
-                    onToggle={() => collapsedGroups.toggle(section.key)}
+                    onToggle={() => viewGroups.toggle(section.key)}
+                    actions={viewGroups.actionsFor(section.key, sectionKeys)}
                   />
                 </View>
                 {collapsed ? null : (
                   <>
                     {renderRows(section.rows, prefix)}
-                    {!readOnly &&
-                    grouping.type !== 'created_by' &&
-                    grouping.type !== 'last_edited_by' ? (
+                    {!readOnly && groupTakesRows(grouping) ? (
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel={t('databases.groups.addRow', {
-                          name: groupLabel(section.key),
+                          name: groupLabel(section.key, section.range),
                         })}
                         disabled={createRow.isPending}
-                        onPress={() => newRowIn(section.key)}
+                        onPress={() => newRowIn(section.key, section.range)}
                         className="flex-row items-center gap-2 px-3 py-1.5 border-b border-border/60 hover:bg-muted/40"
                       >
                         <RiAddLine width={12} height={12} fill={colors.mutedForeground} />
@@ -396,6 +451,13 @@ export function ViewTable({
                         </Text>
                       </Pressable>
                     ) : null}
+                    {/* The group's own footer, over all its rows. */}
+                    {hasCalculations
+                      ? renderFooter(
+                          groupCalculations(section.key),
+                          `table-group-footer-${section.key ?? 'none'}`,
+                        )
+                      : null}
                   </>
                 )}
               </View>
@@ -427,41 +489,9 @@ export function ViewTable({
         ) : null}
 
         {/* footer: each column calculated over all the view's rows */}
-        {viewEditable || hasCalculations ? (
-          <View className="flex-row" style={{ minWidth: tableWidth }} testID="table-footer">
-            <FrozenCell frozen={titleFrozen} last={frozenCount === 0} scrollX={scrollX}>
-              {nameProperty ? (
-                <CalculationCell
-                  database={database}
-                  view={view}
-                  property={nameProperty}
-                  value={computed.data?.calculations[NAME_PROPERTY_ID]?.value}
-                  width={titleWidth}
-                  editable={viewEditable}
-                />
-              ) : (
-                <View style={{ width: titleWidth }} />
-              )}
-            </FrozenCell>
-            {visibleProperties.map((property, index) => (
-              <FrozenCell
-                key={property.id}
-                frozen={index < frozenCount}
-                last={index === frozenCount - 1}
-                scrollX={scrollX}
-              >
-                <CalculationCell
-                  database={database}
-                  view={view}
-                  property={property}
-                  value={computed.data?.calculations[property.id]?.value}
-                  width={widthOf(property.id)}
-                  editable={viewEditable}
-                />
-              </FrozenCell>
-            ))}
-          </View>
-        ) : null}
+        {viewEditable || hasCalculations
+          ? renderFooter(computed.data?.calculations, 'table-footer')
+          : null}
       </View>
     </Animated.ScrollView>
   );

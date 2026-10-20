@@ -117,6 +117,7 @@ export function DatabaseViewContainer({
                 hasMore={hasMore}
                 onLoadMore={onLoadMore}
                 groups={groups}
+                viewEditable={viewEditable}
               />
             ) : null}
             {view.type === 'gallery' ? (
@@ -127,6 +128,9 @@ export function DatabaseViewContainer({
                 view={view}
                 rows={rows}
                 isLoading={isLoading}
+                groups={groups}
+                hasMore={hasMore}
+                viewEditable={viewEditable}
               />
             ) : null}
             {view.type === 'list' ? (
@@ -139,6 +143,7 @@ export function DatabaseViewContainer({
                 isLoading={isLoading}
                 groups={groups}
                 hasMore={hasMore}
+                viewEditable={viewEditable}
               />
             ) : null}
             {view.type === 'calendar' ? (
@@ -148,7 +153,14 @@ export function DatabaseViewContainer({
             ) : null}
             {view.type === 'timeline' ? (
               <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
-                <ViewTimeline database={database} view={view} rows={rows} isLoading={isLoading} />
+                <ViewTimeline
+                  database={database}
+                  view={view}
+                  rows={rows}
+                  isLoading={isLoading}
+                  groups={groups}
+                  viewEditable={viewEditable}
+                />
               </ScrollView>
             ) : null}
             {view.type === 'chart' ? (

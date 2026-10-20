@@ -11,6 +11,14 @@ jest.mock('@/hooks/useTranslation', () => ({
 }));
 jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { get: jest.fn() } }));
+jest.mock('@oxy.so/services/ui/client', () => ({
+  useOxy: () => ({ isAuthenticated: false, oxyServices: {} }),
+}));
+// A view's groups are saved with it (collapsed, moved, hidden).
+jest.mock('@/lib/hooks/use-database-views', () => ({
+  useUpdateView: () => ({ mutate: jest.fn(), isPending: false }),
+}));
 
 const database = {
   id: 'db',
