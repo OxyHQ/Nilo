@@ -15,13 +15,12 @@ import { isLiveEntityId } from '@oxy.so/db';
 import { syncedSource } from '@oxy.so/nilo-contracts';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { getDb, type PgHandle } from '../db/client.js';
+import { getDb } from '../db/client.js';
 import { log } from '../lib/logger.js';
-import { checkPageAccess, databaseHomes, loadViewer, rolesForPages } from '../lib/page-access.js';
+import { checkPageAccess, visiblePagesOf } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { findBlockById } from '../repositories/blocks.js';
-import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
-import { findPageById, listPages, type PageRow } from '../repositories/pages.js';
+import { findPageById, type PageAccessRow, type PageRow } from '../repositories/pages.js';
 
 const router = Router();
 
@@ -30,23 +29,11 @@ const idSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 const MAX_LISTED = 100;
 const PREVIEW_LENGTH = 160;
 
-/** A workspace's pages, and which of them the caller reaches. */
-async function visiblePages(
-  db: PgHandle,
-  workspaceId: string,
-  userId: string,
-): Promise<{ byId: Map<string, PageRow>; visible: Map<string, unknown> }> {
-  const all = await listPages(db, { workspaceId });
-  const visible = rolesForPages(
-    all,
-    await loadViewer(db, workspaceId, userId),
-    await listGrantsOfUserInWorkspace(db, userId, workspaceId),
-    await databaseHomes(db, workspaceId),
-  );
-  return { byId: new Map(all.map((p) => [p.id, p])), visible };
-}
-
-const pageRef = (page: PageRow) => ({ id: page.id, title: page.title, icon: page.icon ?? null });
+const pageRef = (page: Pick<PageRow, 'id' | 'title' | 'icon'>) => ({
+  id: page.id,
+  title: page.title,
+  icon: page.icon ?? null,
+});
 
 function failed(res: Response, error: unknown, what: string): void {
   if (error instanceof z.ZodError) {
@@ -83,11 +70,14 @@ router.get('/blocks/:id/synced', authenticateToken, async (req: Request, res: Re
         and not p.archived
       order by p.updated_at desc, b.id
     `);
-    const { byId, visible } = await visiblePages(db, page.workspaceId, req.user?.id ?? '');
+    const { byId, roles } = await visiblePagesOf(db, page.workspaceId, req.user?.id ?? '');
     const references = rows
       .map((row) => ({ blockId: String(row.id), pageId: String(row.page_id) }))
-      .filter((row) => visible.has(row.pageId) && byId.has(row.pageId))
-      .map((row) => ({ blockId: row.blockId, page: pageRef(byId.get(row.pageId) as PageRow) }));
+      .filter((row) => roles.has(row.pageId) && byId.has(row.pageId))
+      .map((row) => ({
+        blockId: row.blockId,
+        page: pageRef(byId.get(row.pageId) as PageAccessRow),
+      }));
     res.json({ original: { blockId: original.id, page: pageRef(page) }, references });
   } catch (error: unknown) {
     failed(res, error, 'list where a synced block is shown');
@@ -118,18 +108,18 @@ router.get(
         order by p.updated_at desc, b.id
         limit ${MAX_LISTED * 4}
       `);
-      const { byId, visible } = await visiblePages(db, workspaceId, req.user?.id ?? '');
+      const { byId, roles } = await visiblePagesOf(db, workspaceId, req.user?.id ?? '');
       const syncedBlocks = rows
         .map((row) => ({
           blockId: String(row.id),
           pageId: String(row.page_id),
           preview: typeof row.preview === 'string' ? row.preview : '',
         }))
-        .filter((row) => visible.has(row.pageId) && byId.has(row.pageId))
+        .filter((row) => roles.has(row.pageId) && byId.has(row.pageId))
         .slice(0, MAX_LISTED)
         .map((row) => ({
           blockId: row.blockId,
-          page: pageRef(byId.get(row.pageId) as PageRow),
+          page: pageRef(byId.get(row.pageId) as PageAccessRow),
           preview: row.preview.replace(/\s+/g, ' ').trim().slice(0, PREVIEW_LENGTH),
         }));
       res.json({ syncedBlocks });

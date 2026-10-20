@@ -111,6 +111,41 @@ export async function listPages(db: PgHandle, filter: ListPagesFilter): Promise<
     .orderBy(asc(pages.order), asc(pages.createdAt), asc(pages.id));
 }
 
+/** What `rolesForPages` reads of a page, and what its callers list of one. */
+const accessColumns = {
+  id: pages.id,
+  workspaceId: pages.workspaceId,
+  parentId: pages.parentId,
+  databaseId: pages.databaseId,
+  restricted: pages.restricted,
+  teamspaceId: pages.teamspaceId,
+  ownerId: pages.ownerId,
+  title: pages.title,
+  icon: pages.icon,
+  template: pages.template,
+  archived: pages.archived,
+};
+
+export type PageAccessRow = Pick<PageRow, keyof typeof accessColumns>;
+
+/**
+ * A workspace's pages for `visiblePagesOf` (`lib/page-access.ts`), in
+ * `listPages`' order: the access columns only, since it reads every page of
+ * the workspace and never their content.
+ */
+export async function listPagesForAccess(
+  db: PgHandle,
+  filter: Pick<ListPagesFilter, 'workspaceId' | 'archived'>,
+): Promise<PageAccessRow[]> {
+  const predicates = [eq(pages.workspaceId, filter.workspaceId)];
+  if (filter.archived !== undefined) predicates.push(eq(pages.archived, filter.archived));
+  return db
+    .select(accessColumns)
+    .from(pages)
+    .where(and(...predicates))
+    .orderBy(asc(pages.order), asc(pages.createdAt), asc(pages.id));
+}
+
 /**
  * `GET /api/pages/:id` — `routes/pages.ts:253`, and the workspace-resolution
  * lookup every `:id` route performs before checking membership
@@ -409,6 +444,8 @@ export interface ListDatabaseRowsFilter {
   archived?: boolean;
   /** `true` — the database's row templates only; `false` — rows proper; absent — both. */
   template?: boolean;
+  /** The first rows only: an export's table (`lib/export-context.ts`). */
+  limit?: number;
 }
 
 /**
@@ -424,11 +461,12 @@ export async function listDatabaseRows(
   const predicates = [eq(pages.databaseId, databaseId)];
   if (filter.archived !== undefined) predicates.push(eq(pages.archived, filter.archived));
   if (filter.template !== undefined) predicates.push(eq(pages.template, filter.template));
-  return db
+  const query = db
     .select()
     .from(pages)
     .where(and(...predicates))
     .orderBy(asc(pages.createdAt), asc(pages.id));
+  return filter.limit === undefined ? query : query.limit(filter.limit);
 }
 
 /**

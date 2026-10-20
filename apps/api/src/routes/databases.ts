@@ -69,7 +69,6 @@ import {
   findPageById,
   findPagesByIds,
   listDatabaseRows,
-  listPages,
   nextDatabaseRowOrder,
   removePropertyFromDatabaseRows,
   writePropertyOfRows,
@@ -92,12 +91,9 @@ import {
   checkDatabaseAccess,
   checkPageAccess,
   baseRole,
-  databaseHomes,
-  loadViewer,
-  rolesForPages,
   resolveDatabaseRole,
+  visiblePagesOf,
 } from '../lib/page-access.js';
-import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
 import { listDatabasePeople } from '../lib/databases/people.js';
 import { loadMemberProfiles } from '../lib/member-profiles.js';
 import { hasRole } from '../db/schema/workspaces.js';
@@ -884,14 +880,7 @@ router.get('/', requireWorkspaceMember, async (req: Request, res: Response) => {
 
     // An inline database is listed to those who can open its page; one in
     // no page, to those its place lets in.
-    const userId = req.user?.id ?? '';
-    const [all, viewer, grants, homes] = await Promise.all([
-      listPages(handle, { workspaceId }),
-      loadViewer(handle, workspaceId, userId),
-      listGrantsOfUserInWorkspace(handle, userId, workspaceId),
-      databaseHomes(handle, workspaceId),
-    ]);
-    const roles = rolesForPages(all, viewer, grants, homes);
+    const { roles, viewer } = await visiblePagesOf(handle, workspaceId, req.user?.id ?? '');
     const visible = databases.filter((d) =>
       d.parentPageId
         ? roles.has(d.parentPageId)

@@ -18,11 +18,10 @@ import {
 import { strToU8, zipSync } from 'fflate';
 import type { PgHandle } from '../db/client.js';
 import { listBlocksForPage } from '../repositories/blocks.js';
-import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
-import { listPages, type PageRow } from '../repositories/pages.js';
+import type { PageAccessRow } from '../repositories/pages.js';
 import { exportContext } from './export-context.js';
 import { rateLimit } from './rate-limit.js';
-import { databaseHomes, loadViewer, rolesForPages } from './page-access.js';
+import { visiblePagesOf } from './page-access.js';
 
 export const MAX_EXPORTED_PAGES = 500;
 
@@ -60,16 +59,12 @@ export async function exportPagesZip(
   },
 ): Promise<{ bytes: Uint8Array; pages: number }> {
   const { viewerId, workspaceId, format } = input;
-  const [all, viewer, grants, homes] = await Promise.all([
-    listPages(db, { workspaceId, archived: false }),
-    loadViewer(db, workspaceId, viewerId),
-    listGrantsOfUserInWorkspace(db, viewerId, workspaceId),
-    databaseHomes(db, workspaceId),
-  ]);
-  const roles = rolesForPages(all, viewer, grants, homes);
+  const { pages: all, roles } = await visiblePagesOf(db, workspaceId, viewerId, {
+    archived: false,
+  });
   const visible = all.filter((p) => roles.has(p.id) && !p.template && !p.databaseId);
   const byId = new Map(visible.map((p) => [p.id, p]));
-  const children = new Map<string, PageRow[]>();
+  const children = new Map<string, PageAccessRow[]>();
   for (const page of visible) {
     if (!page.parentId || !byId.has(page.parentId)) continue;
     const list = children.get(page.parentId) ?? [];
@@ -91,7 +86,7 @@ export async function exportPagesZip(
     taken.add(candidate.toLowerCase());
     return `${folder}${candidate}`;
   };
-  const add = async (pages: readonly PageRow[], folder: string, seen: Set<string>) => {
+  const add = async (pages: readonly PageAccessRow[], folder: string, seen: Set<string>) => {
     const taken = new Set<string>();
     for (const page of pages) {
       if (seen.has(page.id)) continue;

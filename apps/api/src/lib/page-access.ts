@@ -33,7 +33,9 @@ import {
   type ChainLink,
   findGrantsForUser,
   findPageChain,
+  listGrantsOfUserInWorkspace,
 } from '../repositories/pagePermissions.js';
+import { listPagesForAccess, type PageAccessRow } from '../repositories/pages.js';
 import { findMembership } from '../repositories/workspaces.js';
 
 export interface Grant {
@@ -371,6 +373,40 @@ export function rolesForPages(
     if (sharedOnly && !effectivePageRole({ base, chain, grants: [] })) sharedOnly.add(page.id);
   }
   return out;
+}
+
+/** A workspace's pages and which of them the caller reaches (`visiblePagesOf`). */
+export interface VisiblePages {
+  pages: PageAccessRow[];
+  byId: Map<string, PageAccessRow>;
+  roles: Map<string, WorkspaceRole>;
+  viewer: Viewer;
+  grants: Grant[];
+}
+
+/**
+ * `rolesForPages` over a whole workspace, its four reads at once. `archived`
+ * filters the pages read, as `listPages` does: absent, the trash counts too.
+ */
+export async function visiblePagesOf(
+  db: PgHandle,
+  workspaceId: string,
+  userId: string,
+  filter: { archived?: boolean } = {},
+): Promise<VisiblePages> {
+  const [pages, viewer, grants, homes] = await Promise.all([
+    listPagesForAccess(db, { workspaceId, archived: filter.archived }),
+    loadViewer(db, workspaceId, userId),
+    listGrantsOfUserInWorkspace(db, userId, workspaceId),
+    databaseHomes(db, workspaceId),
+  ]);
+  return {
+    pages,
+    byId: new Map(pages.map((p) => [p.id, p])),
+    roles: rolesForPages(pages, viewer, grants, homes),
+    viewer,
+    grants,
+  };
 }
 
 /**

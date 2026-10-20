@@ -11,10 +11,9 @@ import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
 import { log } from '../lib/logger.js';
-import { checkPageAccess, databaseHomes, loadViewer, rolesForPages } from '../lib/page-access.js';
+import { checkPageAccess, visiblePagesOf } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js';
-import { findPageById, listPages } from '../repositories/pages.js';
+import { findPageById } from '../repositories/pages.js';
 import { listRecentVisits, recordVisit } from '../repositories/pageVisits.js';
 import { findLiveWorkspaceById } from '../repositories/workspaces.js';
 
@@ -36,10 +35,11 @@ router.get('/pages/recent', authenticateToken, async (req: Request, res: Respons
     const { workspaceId, limit } = recentQuerySchema.parse(req.query);
     const userId = req.user?.id ?? '';
     const db = getDb();
-    const [workspace, viewer, grants] = await Promise.all([
+    // More than `limit`: some may be closed to the caller since.
+    const [workspace, { viewer, grants, byId, roles }, visits] = await Promise.all([
       findLiveWorkspaceById(db, workspaceId),
-      loadViewer(db, workspaceId, userId),
-      listGrantsOfUserInWorkspace(db, userId, workspaceId),
+      visiblePagesOf(db, workspaceId, userId, { archived: false }),
+      listRecentVisits(db, userId, workspaceId, limit * 2),
     ]);
     if (!workspace) {
       res.status(404).json({ error: 'Workspace not found' });
@@ -49,14 +49,6 @@ router.get('/pages/recent', authenticateToken, async (req: Request, res: Respons
       res.status(403).json({ error: 'Forbidden: nothing in this workspace is shared with you' });
       return;
     }
-    // More than `limit`: some may be closed to the caller since.
-    const [visits, all, homes] = await Promise.all([
-      listRecentVisits(db, userId, workspaceId, limit * 2),
-      listPages(db, { workspaceId, archived: false }),
-      databaseHomes(db, workspaceId),
-    ]);
-    const roles = rolesForPages(all, viewer, grants, homes);
-    const byId = new Map(all.map((page) => [page.id, page]));
     const recent = [];
     for (const visit of visits) {
       const page = byId.get(visit.pageId);
