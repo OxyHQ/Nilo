@@ -94,6 +94,8 @@ surface. Missing viewport or scroll behavior must be implemented in Bloom's
 own container. Apply the same ownership rule to other menus and popovers.
 Mixed action/form popovers use `PopoverItem` for their action rows and let
 `PopoverContent` own overflow, including when switching to view settings.
+Comment mention suggestions also use the popover's scroll owner; keep typing
+in the non-modal composer instead of wrapping the suggestions in a second scroller.
 Bloom's [UI architecture](https://github.com/OxyHQ/Bloom/blob/main/docs/ui-architecture.mdx)
 is the shared architectural contract for consumer work; its adoption matrix
 distinguishes requirements from implemented coverage.

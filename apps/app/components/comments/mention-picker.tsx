@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { RiCalendarLine } from '@oxy.so/bloom/icons/RiCalendarLine';
 import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { RiUserLine } from '@oxy.so/bloom/icons/RiUserLine';
@@ -168,30 +168,25 @@ export function MentionPicker({ open, query, workspaceId, onSelect, onClose }: M
         className={Platform.OS === 'web' ? 'w-72' : undefined}
       >
         <PopoverTitle tone="secondary">{t('comments.mentions.header')}</PopoverTitle>
-        <ScrollView className="max-h-72" keyboardShouldPersistTaps="handled">
-          {items.length === 0 ? (
-            <EmptyState
-              variant="compact"
-              description={t('comments.mentions.noMatches', { query })}
+        {items.length === 0 ? (
+          <EmptyState variant="compact" description={t('comments.mentions.noMatches', { query })} />
+        ) : (
+          items.map((item) => (
+            <Item
+              key={item.key}
+              role="option"
+              density="compact"
+              onPress={() => onSelect(item.build())}
+              leading={
+                <View className="h-8 w-8 items-center justify-center rounded-md bg-muted">
+                  {renderIcon(item.kind)}
+                </View>
+              }
+              title={item.label}
+              subtitle={item.detail}
             />
-          ) : (
-            items.map((item) => (
-              <Item
-                key={item.key}
-                role="option"
-                density="compact"
-                onPress={() => onSelect(item.build())}
-                leading={
-                  <View className="h-8 w-8 items-center justify-center rounded-md bg-muted">
-                    {renderIcon(item.kind)}
-                  </View>
-                }
-                title={item.label}
-                subtitle={item.detail}
-              />
-            ))
-          )}
-        </ScrollView>
+          ))
+        )}
       </PopoverContent>
     </Popover>
   );
