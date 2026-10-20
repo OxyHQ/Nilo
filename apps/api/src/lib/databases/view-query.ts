@@ -46,6 +46,8 @@ export interface CompiledGroup {
   key: SQL;
   keys: SortKey[];
   lateral: SQL | null;
+  /** Whether a row's group (`key`) is one the view shows; null when it hides none. */
+  shown: SQL | null;
 }
 
 /** A view compiled to SQL: which rows it shows and the order it shows them in. */
@@ -369,7 +371,7 @@ export function accessorFor(property: DatabaseProperty): Accessor {
 // Groups
 // ---------------------------------------------------------------------------
 
-const textArray = (values: readonly string[]) =>
+const textArray = (values: readonly (string | null)[]) =>
   sql`array[${sql.join(
     values.map((v) => sql`${v}::text`),
     sql`, `,
@@ -399,7 +401,7 @@ function lateralValues(list: SQL, listed: readonly string[] | null): SQL {
 }
 
 /** The day, week, month or year a date falls in, as `groups.ts`' `dateGroupKey`. */
-function dateGroup(ms: SQL, includeTime: SQL, spec: GroupSpec): CompiledGroup {
+function dateGroup(ms: SQL, includeTime: SQL, spec: GroupSpec): Omit<CompiledGroup, 'shown'> {
   const at = sql`to_timestamp(${ms} / 1000.0)`;
   const local = sql`(case when ${includeTime} then (${at} at time zone ${spec.timeZone}::text) else (${at} at time zone 'UTC') end)`;
   const bucket = sql`date_trunc(${spec.granularity}::text, ${local})`;
@@ -410,8 +412,50 @@ function dateGroup(ms: SQL, includeTime: SQL, spec: GroupSpec): CompiledGroup {
   };
 }
 
-/** What `groups.ts`' `rowGroupKeys` and `compareGroupKeys` answer, in SQL. */
+/**
+ * What `groups.ts`' `rowGroupKeys` and `compareGroupKeys` answer, in SQL: the
+ * groups the view lists first (`order`) before the others, and whether a
+ * group is one it shows (`hidden`).
+ */
 export function compileGroup(spec: GroupSpec): CompiledGroup {
+  const group = groupKeys(spec);
+  const order = spec.order ?? [];
+  const hidden = spec.hidden ?? [];
+  return {
+    ...group,
+    keys: order.length
+      ? [
+          {
+            expr: sql`coalesce(array_position(${textArray(order)}, ${group.key}) - 1, ${order.length}::int)::float8`,
+            kind: 'number',
+            direction: 'asc',
+          },
+          ...group.keys,
+        ]
+      : group.keys,
+    shown: hidden.length ? sql`(array_position(${textArray(hidden)}, ${group.key}) is null)` : null,
+  };
+}
+
+/** A number's range (`groups.ts`' `numberGroupKey`): its index, -1 below, `count` from `to` up. */
+function numberGroup(n: SQL, spec: GroupSpec): Omit<CompiledGroup, 'shown'> {
+  const ranges = spec.numbers;
+  if (!ranges) throw new Error('A number is grouped by its ranges');
+  const from = float(ranges.from);
+  const index = sql`(case
+    when ${n} is null then null
+    when ${n} < ${from} then (-1)::float8
+    when ${n} >= ${float(ranges.to)} then ${float(ranges.count)}
+    else least(${float(ranges.count - 1)}, floor((${n} - ${from}) / ${float(ranges.step)}))
+  end)`;
+  return {
+    key: sql`((${index})::int)::text`,
+    keys: [{ expr: index, kind: 'number', direction: 'asc' }],
+    lateral: null,
+  };
+}
+
+function groupKeys(spec: GroupSpec): Omit<CompiledGroup, 'shown'> {
   const { property } = spec;
   const stored = sql`(${pages.properties} -> ${property.id}::text)`;
   switch (groupKind(property)) {
@@ -482,16 +526,48 @@ export function compileGroup(spec: GroupSpec): CompiledGroup {
       const key = sql`(case when ${accessor.empty} then null else ${accessor.key.expr} end)`;
       return { key, keys: textGroupKeys(key), lateral: null };
     }
+    // A stored number: a formula's or a rollup's is computed, and grouped, in JS.
+    case 'number':
+      return numberGroup(accessorFor(property).key.expr, spec);
     default:
       throw new Error(`A ${property.type} property has no groups`);
   }
 }
 
 /** The rows a view reads: the database's pages, once per group for a multi-valued group. */
-function rowSource(view: CompiledView): SQL {
+export function rowSource(view: CompiledView): SQL {
   return view.group?.lateral
     ? sql`${pages} cross join lateral ${view.group.lateral}`
     : sql`${pages}`;
+}
+
+/**
+ * What a view's grouped rows (`rowSource`) are read with: its rows, and of a
+ * row in several groups only its entries in groups the view shows.
+ */
+export function groupedWhere(view: CompiledView): SQL {
+  const group = view.group;
+  return group?.lateral && group.shown ? sql`(${view.where} and ${group.shown})` : view.where;
+}
+
+/**
+ * The smallest and largest number of a stored number property in the
+ * database's rows (`groups.ts`' `numberBounds`): what a view grouped by it
+ * with no ranges of its own spans.
+ */
+export async function numberBoundsInSql(
+  handle: PgHandle,
+  databaseId: string,
+  property: DatabaseProperty,
+): Promise<{ min: number | null; max: number | null }> {
+  const n = accessorFor(property).key.expr;
+  const [row] = await handle.execute<{ min: number | string | null; max: number | string | null }>(
+    sql`select min(${n}) as min, max(${n}) as max from ${pages}
+      where ${pages.databaseId} = ${databaseId} and ${pages.archived} = false and ${pages.template} = false`,
+  );
+  const read = (x: number | string | null | undefined) =>
+    x === null || x === undefined ? null : Number(x);
+  return { min: read(row?.min), max: read(row?.max) };
 }
 
 /**
@@ -514,7 +590,7 @@ export async function listViewGroups(
   }>(sql`select ${group.key} as k, count(*)::int as count,
       ${measure ? sql`sum(${measure})::float8` : sql`null::float8`} as sum,
       ${measure ? sql`avg(${measure})::float8` : sql`null::float8`} as average
-    from ${rowSource(view)} where ${view.where} group by 1`);
+    from ${rowSource(view)} where ${groupedWhere(view)} group by 1`);
   return new Map(
     [...rows].map((r) => [
       r.k,
@@ -579,6 +655,14 @@ export function compileView(
   // Only a group filters, as in the JS path; an empty one passes every row.
   if (view.filters?.kind === 'group') conditions.push(compileFilter(view.filters, propertyById));
   const group = groupBy ? compileGroup(groupBy) : null;
+  // A view shows the rows in a group it does not hide: one in several, in any.
+  if (group?.shown) {
+    conditions.push(
+      group.lateral
+        ? sql`exists (select 1 from ${group.lateral} where ${group.shown})`
+        : group.shown,
+    );
+  }
   const keys: SortKey[] = [...(group?.keys ?? [])];
   for (const sort of view.sorts ?? []) {
     const property = propertyById.get(sort.propertyId);
@@ -762,7 +846,7 @@ export async function listViewRows(
     .$dynamic();
   const [found, [counted]] = await Promise.all([
     (group?.lateral ? query.crossJoinLateral(group.lateral) : query)
-      .where(and(view.where, after))
+      .where(and(groupedWhere(view), after))
       .orderBy(...order)
       .limit(page.size + 1),
     // The rows, each once, whatever groups they are in.

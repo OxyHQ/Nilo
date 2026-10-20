@@ -110,9 +110,10 @@ export function acceptsFilterOperator(type: DatabasePropertyType, operator: stri
 // ---------------------------------------------------------------------------
 
 /**
- * The types a table's or a list's rows can be grouped by (a board's
- * sub-groups too): one group per option, person, day, week, month or year,
- * text, or checked and not.
+ * The types a view's rows can be grouped by (a table's, a list's, a
+ * gallery's or a timeline's sections, a board's sub-groups, a chart's axis):
+ * one group per option, person, day, week, month or year, text, checked and
+ * not, or range of numbers — a formula's or a rollup's numbers too.
  */
 export const GROUPABLE_PROPERTY_TYPES = [
   'select',
@@ -129,6 +130,9 @@ export const GROUPABLE_PROPERTY_TYPES = [
   'url',
   'email',
   'phone',
+  'number',
+  'formula',
+  'rollup',
 ] as const satisfies readonly DatabasePropertyType[];
 
 export function isGroupableType(type: DatabasePropertyType): boolean {
@@ -138,6 +142,20 @@ export function isGroupableType(type: DatabasePropertyType): boolean {
 /** How dates are grouped: by the day, the week (from Monday), the month or the year they fall in. */
 export const DATE_GROUP_GRANULARITIES = ['day', 'week', 'month', 'year'] as const;
 export type DateGroupGranularity = (typeof DATE_GROUP_GRANULARITIES)[number];
+
+/**
+ * The most ranges a view's numbers are grouped into (`config.numberGrouping`:
+ * from, to and the size of each range), besides those below and above.
+ */
+export const MAX_NUMBER_GROUPS = 100;
+
+/** How many ranges of `step` from `from` up to `to` make: the last one may be cut short. */
+export function numberGroupCount(grouping: { from: number; to: number; step: number }): number {
+  const { from, to, step } = grouping;
+  if (!(step > 0) || !(to > from)) return 0;
+  // A step that divides the span all but exactly (0.3 / 0.1) counts as dividing it.
+  return Math.ceil((to - from) / step - 1e-9);
+}
 
 // ---------------------------------------------------------------------------
 // Calculations

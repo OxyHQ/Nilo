@@ -88,22 +88,40 @@ sorts on one computes them for every row and filters and sorts in JS
 alike: `view-query.pgdb.test.ts` checks the SQL against the JS on random
 views over every stored property type.
 
-**Groups.** A table or a list grouped (`groupBy`), and a board sub-grouped
-(`subGroupBy`, its rows of columns), page group by group: the group's order
+**Groups.** A table, a list or a gallery grouped (`groupBy`, its sections),
+a timeline (its swimlanes) and a board sub-grouped (`subGroupBy`, its rows of
+columns) page group by group; a calendar does not group. The group's order
 is the keyset's first key (options as listed, a status's in its groups'
 order; checked before unchecked; dates by day, week, month or year, in the
-reader's `?timeZone=` when they have a time; text and people as text sorts),
-the empty group last. A row with several labels or people comes once per
-group (a lateral join), each row carries its `groupKey`, and the response
-the `groups` with their counts — every option, even one no row holds
-(`hideEmpty` is the app's). `groups.ts` is the JS reference.
+reader's `?timeZone=` when they have a time; numbers by range, lowest first;
+text and people as text sorts), the empty group last. A row with several
+labels or people comes once per group (a lateral join), each row carries its
+`groupKey`, and the response the `groups` with their counts — every option
+and range, even one no row holds (`hideEmpty` is the app's). `groups.ts` is
+the JS reference.
+
+A number (a formula's or a rollup's numbers too, grouped in JS) groups by
+range: `config.numberGrouping` (`{ from, to, step }`, at most
+`MAX_NUMBER_GROUPS` ranges), else about ten round ranges spanning the
+database's numbers. A range's key is its index (`-1` below `from`, `count`
+from `to` up) and its group carries its bounds (`range`). The view's config
+names groups by key, null for the empty one: `groupOrder` (those first, in
+that order, the others after in theirs — the keyset's first key),
+`hiddenGroups` (left out, and their rows: a row with several labels while one
+of its groups shows), `collapsedGroups` (the app's; a reader's own
+collapsing stays on their device). These keys are of the grouping's
+property: they go when it is removed or retyped, and when the view is
+grouped by another without new ones.
 
 **Calculations and charts.** A table's footer (`config.calculations`) and a
 chart view (`config.chart`: bars, a line or a donut; an x-axis grouped as
 above; a count, sum or average) are computed over every row the view shows,
 searched, not the page loaded (`GET …/views/:viewId/calculations`,
 `…/chart`), in SQL but for formulas and rollups (`calculations.ts`); the
-functions each type takes are the contracts' `CALCULATIONS_BY_TYPE`.
+functions each type takes are the contracts' `CALCULATIONS_BY_TYPE`. A
+grouped view's footer comes for each group too (`groups`, in their order),
+in one query grouped by the group's key (a list's unique values in one of
+their own), not one per group.
 `view-query.pgdb.test.ts` holds both SQL paths to their JS on random views.
 
 **Layout.** A view keeps where it opens rows (`openIn`: a side or centre

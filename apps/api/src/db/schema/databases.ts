@@ -246,6 +246,16 @@ export interface ViewGroupBy {
   hideEmpty?: boolean;
 }
 
+/** A number property's groups: ranges of `step` from `from` up to `to`, those below and above apart. */
+export interface ViewNumberGrouping {
+  from: number;
+  to: number;
+  step: number;
+}
+
+/** A group's key in a view's config: its key (`GroupKey`), null for the empty group. */
+export type ViewGroupKey = string | null;
+
 /** A chart view's chart: one point per group of `xAxis`, measuring `yAxis`. */
 export interface ViewChartConfig {
   type: ChartType;
@@ -263,6 +273,8 @@ export interface ViewChartConfig {
  *   - form:     { description? }, shown above its fields
  *   - table:    { columnWidths?, calculations? }
  *   - chart:    { chart }
+ *   - grouped:  { numberGrouping?, groupOrder?, collapsedGroups?, hiddenGroups? },
+ *               of the groups its rows are in (`groupBy`, a board's `subGroupBy`)
  *   - any:      { openIn?, propertyOrder? }
  */
 export interface ViewConfig {
@@ -283,6 +295,14 @@ export interface ViewConfig {
   calculations?: Record<string, CalculationFunction>;
   /** A chart view's chart. */
   chart?: ViewChartConfig;
+  /** Grouped by a number: its ranges; absent, ranges spanning the rows' numbers. */
+  numberGrouping?: ViewNumberGrouping;
+  /** The groups first, in this order; the others follow in theirs. */
+  groupOrder?: ViewGroupKey[];
+  /** The groups shown collapsed, for every reader (a reader's own collapsing stays theirs). */
+  collapsedGroups?: ViewGroupKey[];
+  /** The groups not shown, nor their rows. */
+  hiddenGroups?: ViewGroupKey[];
 }
 
 /** The default a view is created with when the caller supplies no filter. */

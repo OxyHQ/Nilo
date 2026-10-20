@@ -9,8 +9,10 @@
  * through the cursor, and the ids in order must be exactly what
  * `evaluateFilter` and a stable `compareBySorts` give over the same rows, with
  * `total` on every page. Grouped, each row once per group it is in, in the
- * order and with the counts `groups.ts` gives; and every footer calculation
- * of every type, as `calculations.ts` computes it in JS.
+ * order and with the counts `groups.ts` gives — by every groupable type,
+ * numbers by ranges, groups ordered first and hidden; and every footer
+ * calculation of every type, over the whole view and per group, as
+ * `calculations.ts` computes it in JS.
  */
 import { eq } from 'drizzle-orm';
 import {
@@ -33,18 +35,33 @@ import {
 } from '../../db/schema/databases.js';
 import { pages } from '../../db/schema/pages.js';
 import { listDatabaseRows, type PageRow } from '../../repositories/pages.js';
-import { calculate, calculationsInSql } from './calculations.js';
+import {
+  calculate,
+  calculateGroups,
+  calculationsInSql,
+  groupCalculationsInSql,
+} from './calculations.js';
 import { evaluateFilter, valueType } from './filters.js';
 import {
   countGroups,
   type GroupKey,
+  type GroupSections,
   type GroupSpec,
   groupRows,
+  needsNumberBounds,
+  numberBounds,
   resolveGroupSpec,
+  shownRows,
   summarizeGroups,
 } from './groups.js';
 import { compareBySorts } from './sorts.js';
-import { compileView, decodeRowsCursor, listViewGroups, listViewRows } from './view-query.js';
+import {
+  compileView,
+  decodeRowsCursor,
+  listViewGroups,
+  listViewRows,
+  numberBoundsInSql,
+} from './view-query.js';
 
 /** mulberry32: a small seeded generator, so a failure replays. */
 function generator(seed: number) {
@@ -589,7 +606,22 @@ describe('a view in SQL', () => {
 // Groups
 // ---------------------------------------------------------------------------
 
-const GROUPABLE = ['s1', 'st', 'ms', 'p1', 'c1', 'd1', 'd2', `t'1 "x"`, 'name', 'u1', 'cb', 'eb'];
+const GROUPABLE = [
+  's1',
+  'st',
+  'ms',
+  'p1',
+  'c1',
+  'd1',
+  'd2',
+  `t'1 "x"`,
+  'name',
+  'u1',
+  'cb',
+  'eb',
+  'n1',
+  'n2',
+];
 const DATED = ['d1', 'd2', 'ct', 'et'];
 const ZONES = ['UTC', 'America/New_York', 'Asia/Kathmandu', 'Pacific/Kiritimati'];
 
@@ -597,18 +629,45 @@ interface GroupedCase extends ViewCase {
   spec: GroupSpec;
 }
 
-function groupSpec(propertyId: string): GroupSpec {
-  const spec = resolveGroupSpec(
-    { propertyId, granularity: pick(['day', 'week', 'month', 'year'] as const) },
-    propertyById,
-    pick(ZONES),
-  );
+function groupSpec(propertyId: string, sections: GroupSections = {}): GroupSpec {
+  const groupBy = { propertyId, granularity: pick(['day', 'week', 'month', 'year'] as const) };
+  // A number with no ranges of the view's own spans every row's numbers.
+  const numeric = needsNumberBounds(groupBy, propertyById, sections);
+  const bounds = numeric ? numberBounds(reference, numeric) : undefined;
+  const spec = resolveGroupSpec(groupBy, propertyById, pick(ZONES), sections, bounds);
   if (!spec) throw new Error(`${propertyId} cannot group`);
   return spec;
 }
 
-/** The (row, group) entries the JS path gives, in its order. */
-function expectedGroups(view: GroupedCase): { id: string; key: GroupKey }[] {
+/** Ranges of a number a view might set: aligned or not, wide or narrow, with values outside. */
+function numberGrouping(): GroupSections['numberGrouping'] {
+  const from = pick([-1, 0, 0.1, 2, -0.5, 3]);
+  const step = pick([0.1, 0.5, 1, 2.5, 3, 0.3]);
+  const to = from + pick([step * between(1, 30), between(1, 40) * 0.37, 1e21]);
+  return { from, to, step };
+}
+
+/**
+ * A grouping of `propertyId` with the sections a view might set: some of its
+ * groups first in some order, some hidden (the empty one among them, or a key
+ * no group has), a number's ranges.
+ */
+function sectionedSpec(propertyId: string): GroupSpec {
+  const plain = groupSpec(propertyId);
+  const keys = summarizeGroups(countGroups(groupRows(reference, plain)), plain).map((g) => g.key);
+  const shuffled = [...keys, 'no-such-group'].sort(() => random() - 0.5);
+  const sections: GroupSections = {
+    ...(chance(0.6) && { groupOrder: shuffled.slice(0, between(1, shuffled.length)) }),
+    ...(chance(0.6) && { hiddenGroups: some(shuffled, Math.min(3, shuffled.length)) }),
+    ...(plain.numbers && chance(0.6) && { numberGrouping: numberGrouping() }),
+  };
+  // Each group once, as the API keeps them.
+  if (sections.hiddenGroups) sections.hiddenGroups = [...new Set(sections.hiddenGroups)];
+  return groupSpec(propertyId, sections);
+}
+
+/** The rows a view shows before grouping (filtered, searched, sorted), as the JS path has them. */
+function viewRows(view: ViewCase): PageRow[] {
   let rows = reference;
   if (view.search) {
     const needle = view.search.toLowerCase();
@@ -618,13 +677,19 @@ function expectedGroups(view: GroupedCase): { id: string; key: GroupKey }[] {
     rows = rows.filter((r) => evaluateFilter(view.filters, r, propertyById));
   }
   if (view.sorts.length > 0) rows = [...rows].sort(compareBySorts(view.sorts, propertyById));
-  return groupRows(rows, view.spec).map(({ row, key }) => ({ id: row.id, key }));
+  return rows;
+}
+
+/** The (row, group) entries the JS path gives, in its order. */
+function expectedGroups(view: GroupedCase): { id: string; key: GroupKey }[] {
+  return groupRows(viewRows(view), view.spec).map(({ row, key }) => ({ id: row.id, key }));
 }
 
 async function checkGrouped(view: GroupedCase): Promise<number> {
   const want = expectedGroups(view);
   const compiled = compileView(databaseId, view, propertyById, view.spec);
   const got: { id: string; key: GroupKey }[] = [];
+  const totals = new Set<number>();
   let cursor: string | null = null;
   for (let pageNo = 0; pageNo < 2000; pageNo += 1) {
     const page = await listViewRows(db, databaseId, compiled, {
@@ -635,9 +700,12 @@ async function checkGrouped(view: GroupedCase): Promise<number> {
     page.rows.forEach((row, i) => {
       got.push({ id: row.id, key: page.groupKeys?.[i] ?? null });
     });
+    totals.add(page.total);
     cursor = page.cursor;
     if (!cursor) break;
   }
+  // The rows shown, each once: those in some group the view does not hide.
+  expect([...totals]).toEqual([shownRows(viewRows(view), view.spec).length]);
   if (JSON.stringify(got) !== JSON.stringify(want)) {
     const at = got.findIndex((e, i) => JSON.stringify(e) !== JSON.stringify(want[i]));
     throw new Error(
@@ -696,6 +764,55 @@ describe('a grouped view in SQL', () => {
       await checkGrouped(view);
     }
   });
+
+  it('groups numbers by ranges, the bounds of a view that sets none read in SQL as in JS', async () => {
+    for (const propertyId of ['n1', 'n2']) {
+      const property = propertyById.get(propertyId) as DatabaseProperty;
+      expect(await numberBoundsInSql(db, databaseId, property)).toEqual(
+        numberBounds(reference, property),
+      );
+      for (let i = 0; i < 12; i += 1) {
+        const sections: GroupSections = i < 2 ? {} : { numberGrouping: numberGrouping() };
+        const spec = groupSpec(propertyId, sections);
+        expect(spec.numbers).toBeDefined();
+        await checkGrouped({
+          spec,
+          filters: chance(0.5) ? only(group(1)) : { kind: 'group', combinator: 'and', filters: [] },
+          sorts: sorts(),
+          search: search(),
+          pageSize: pick([1, 7, 41, 500]),
+        });
+      }
+    }
+    // A range a value sits at the edge of: [0.1, 0.4) holds 0.30000000000000004, not 0.4.
+    const spec = groupSpec('n1', { numberGrouping: { from: 0.1, to: 0.4, step: 0.1 } });
+    const groups = summarizeGroups(countGroups(groupRows(reference, spec)), spec);
+    expect(groups.slice(0, 4).map((g) => [g.key, g.range])).toEqual([
+      ['-1', { from: null, to: 0.1 }],
+      ['0', { from: 0.1, to: 0.2 }],
+      ['1', { from: 0.2, to: 0.30000000000000004 }],
+      ['2', { from: 0.30000000000000004, to: 0.4 }],
+    ]);
+  }, 120_000);
+
+  it('puts the groups a view orders first before the others, and leaves out those it hides', async () => {
+    let hidden = 0;
+    for (const propertyId of [...GROUPABLE, ...DATED]) {
+      for (let i = 0; i < 3; i += 1) {
+        const spec = sectionedSpec(propertyId);
+        hidden += spec.hidden?.length ?? 0;
+        await checkGrouped({
+          spec,
+          filters: chance(0.5) ? only(group(1)) : { kind: 'group', combinator: 'and', filters: [] },
+          sorts: sorts(),
+          search: search(),
+          pageSize: pick([1, 7, 41, 500]),
+        });
+      }
+    }
+    expect(hidden).toBeGreaterThan(20);
+    // Fifty-four views read page by page: a long test on a shared CI runner, not a stuck one.
+  }, 120_000);
 
   it('lists every option, even one no row holds, the empty group last', async () => {
     const spec = groupSpec('s1');
@@ -780,5 +897,56 @@ describe('calculations in SQL', () => {
     expect(compared).toBeGreaterThan(300);
     expect(nonZero).toBeGreaterThan(compared * 0.6);
     // Every function of every type, three ways each: a long test, not a stuck one.
+  }, 120_000);
+
+  it('compute every function of every stored type per group, in one query, as the JS path does', async () => {
+    const every = PROPERTIES.flatMap((property) =>
+      CALCULATIONS_BY_TYPE[property.type].map((fn) => ({ property, fn })),
+    );
+    let groupsCompared = 0;
+    for (const propertyId of [...GROUPABLE, ...DATED]) {
+      for (let i = 0; i < 2; i += 1) {
+        const spec = i === 0 ? groupSpec(propertyId) : sectionedSpec(propertyId);
+        const view: ViewCase = {
+          filters: i === 0 ? { kind: 'group', combinator: 'and', filters: [] } : group(1),
+          sorts: [],
+          search: chance(0.3) ? search() : undefined,
+          pageSize: 1,
+        };
+        const compiled = compileView(databaseId, view, propertyById, spec);
+        const [got, whole] = await Promise.all([
+          groupCalculationsInSql(db, compiled, every),
+          calculationsInSql(db, compiled, every),
+        ]);
+        const rows = viewRows(view);
+        const want = calculateGroups(rows, spec, every);
+        const describe = () =>
+          JSON.stringify({ ...view, spec: { ...spec, property: spec.property.id } });
+        expect([...got.keys()].sort()).toEqual([...want.keys()].sort());
+        for (const [key, values] of want) {
+          every.forEach(({ property, fn }, c) => {
+            const sqlValue = got.get(key)?.[c] ?? null;
+            if (!close(sqlValue, values[c] ?? null)) {
+              throw new Error(
+                `${fn} of ${property.id} in group ${key}: SQL ${sqlValue}, JS ${values[c]} for ${describe()}`,
+              );
+            }
+          });
+          groupsCompared += 1;
+        }
+        // The whole footer: the rows in a group the view shows.
+        const shown = shownRows(rows, spec);
+        every.forEach(({ property, fn }, c) => {
+          const wantValue = calculate(fn, property, shown);
+          if (!close(whole[c] ?? null, wantValue)) {
+            throw new Error(
+              `${fn} of ${property.id}: SQL ${whole[c]}, JS ${wantValue} for ${describe()}`,
+            );
+          }
+        });
+      }
+    }
+    expect(groupsCompared).toBeGreaterThan(150);
+    // Every calculation of every group of thirty-six views: long on a CI runner, not stuck.
   }, 120_000);
 });

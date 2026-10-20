@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { DatabaseSchema, Filter } from '../../db/schema/databases.js';
 import {
+  configAfterRegroup,
   type PropertyReferencingView,
   schemaWithoutProperty,
+  viewAfterRetype,
   viewWithoutProperty,
 } from './property-removal.js';
 
@@ -85,6 +87,69 @@ describe('viewWithoutProperty', () => {
         'gone',
       ),
     ).toEqual({ filters: { kind: 'group', combinator: 'or', filters: [] } });
+  });
+});
+
+describe('the keys of a view’s groups', () => {
+  const keys = {
+    groupOrder: ['b', null],
+    collapsedGroups: ['a'],
+    hiddenGroups: [null],
+    numberGrouping: { from: 0, to: 10, step: 1 },
+  };
+
+  it('go with the property its rows are grouped by, a board’s sub-groups’ alone', () => {
+    expect(
+      viewWithoutProperty(
+        view({ groupBy: { propertyId: 'gone' }, config: { ...keys, openIn: 'full_page' } }),
+        'gone',
+      ),
+    ).toEqual({ groupBy: null, config: { openIn: 'full_page' } });
+    // A board's columns are no groups of its rows: its sub-groups' keys stay.
+    expect(
+      viewWithoutProperty(
+        view({
+          type: 'board',
+          groupBy: { propertyId: 'gone' },
+          subGroupBy: { propertyId: 'kept' },
+          config: keys,
+        }),
+        'gone',
+      ),
+    ).toEqual({ groupBy: null });
+    expect(
+      viewWithoutProperty(
+        view({ type: 'board', subGroupBy: { propertyId: 'gone' }, config: keys }),
+        'gone',
+      ),
+    ).toEqual({ subGroupBy: null, config: {} });
+  });
+
+  it('go when the property changes type, its values no longer theirs', () => {
+    expect(
+      viewAfterRetype(view({ groupBy: { propertyId: 'p' }, config: keys }), 'p', 'number'),
+    ).toEqual({ config: {} });
+    expect(
+      viewAfterRetype(view({ groupBy: { propertyId: 'other' }, config: keys }), 'p', 'number'),
+    ).toBeNull();
+  });
+
+  it('go when the view is grouped by another property, unless the change gives its config', () => {
+    const grouped = view({ type: 'list', groupBy: { propertyId: 'a' }, config: keys });
+    expect(configAfterRegroup(grouped, { groupBy: { propertyId: 'b' } })).toEqual({});
+    expect(configAfterRegroup(grouped, { groupBy: null })).toEqual({});
+    // Its date's unit or its empty groups changing keeps the property and its keys.
+    expect(
+      configAfterRegroup(grouped, { groupBy: { propertyId: 'a', hideEmpty: true } }),
+    ).toBeUndefined();
+    // A calendar does not group its rows.
+    expect(configAfterRegroup(grouped, { type: 'calendar' })).toEqual({});
+    expect(
+      configAfterRegroup(grouped, {
+        groupBy: { propertyId: 'b' },
+        config: { hiddenGroups: ['x'] },
+      }),
+    ).toEqual({ hiddenGroups: ['x'] });
   });
 });
 
