@@ -123,13 +123,22 @@ function reanchor(prevText: string, prevAnchored: Anchored[], nextText: string):
   return result;
 }
 
-const MENTION_TRIGGER = '@';
-
 interface DraftMentionState {
   /** Index in `text` where the `@` lives. */
   triggerIndex: number;
   /** Query string between `@` and the caret. */
   query: string;
+}
+
+/** Resolve the token at a collapsed caret, regardless of native event order. */
+function mentionAtCaret(
+  text: string,
+  selection: { start: number; end: number },
+): DraftMentionState | null {
+  if (selection.start !== selection.end || selection.start > text.length) return null;
+  const match = /(?:^|[ \n])@([^@ \n]*)$/.exec(text.slice(0, selection.start));
+  if (!match) return null;
+  return { triggerIndex: selection.start - match[1].length - 1, query: match[1] };
 }
 
 /**
@@ -153,6 +162,9 @@ export function CommentComposer({
     [initialSegments],
   );
   const [text, setText] = React.useState<string>(initial.text);
+  // Selection may arrive in the same batch as text, before React renders it.
+  const textRef = React.useRef(initial.text);
+  const dismissedTriggerRef = React.useRef<number | null>(null);
   const [anchored, setAnchored] = React.useState<Anchored[]>(initial.anchored);
   const selectionRef = React.useRef<{ start: number; end: number }>({
     start: initial.text.length,
@@ -166,61 +178,38 @@ export function CommentComposer({
 
   const isEmpty = text.trim().length === 0 && anchored.length === 0;
 
+  const updateMentionDraft = (nextText: string, nextAnchored = anchored) => {
+    const caret = selectionRef.current.start;
+    const insideMention = nextAnchored.some(
+      (mention) => caret > mention.start && caret <= mention.end,
+    );
+    const draft = insideMention ? null : mentionAtCaret(nextText, selectionRef.current);
+    setMentionDraft(draft?.triggerIndex === dismissedTriggerRef.current ? null : draft);
+  };
+
+  const dismissMention = () => {
+    dismissedTriggerRef.current = mentionDraft?.triggerIndex ?? null;
+    setMentionDraft(null);
+  };
+
   const handleSelectionChange = (e: TextInputSelectionChangeEvent) => {
     selectionRef.current = e.nativeEvent.selection;
-    // Recompute mention draft state from caret position.
-    if (mentionDraft) {
-      const caret = e.nativeEvent.selection.start;
-      const triggerStillThere = text[mentionDraft.triggerIndex] === MENTION_TRIGGER;
-      if (!triggerStillThere || caret <= mentionDraft.triggerIndex) {
-        setMentionDraft(null);
-        return;
-      }
-      const next = text.slice(mentionDraft.triggerIndex + 1, caret);
-      if (next.includes(' ') || next.includes('\n')) {
-        setMentionDraft(null);
-        return;
-      }
-      setMentionDraft({ triggerIndex: mentionDraft.triggerIndex, query: next });
-    }
+    updateMentionDraft(textRef.current);
   };
 
   const handleChangeText = (nextText: string) => {
-    const nextAnchored = reanchor(text, anchored, nextText);
+    const nextAnchored = reanchor(textRef.current, anchored, nextText);
+    textRef.current = nextText;
+    dismissedTriggerRef.current = null;
     setText(nextText);
     setAnchored(nextAnchored);
-
-    // Detect mention trigger relative to caret.
-    const caret = selectionRef.current.start;
-    if (mentionDraft) {
-      const triggerStillThere = nextText[mentionDraft.triggerIndex] === MENTION_TRIGGER;
-      if (!triggerStillThere || caret <= mentionDraft.triggerIndex) {
-        setMentionDraft(null);
-        return;
-      }
-      const q = nextText.slice(mentionDraft.triggerIndex + 1, caret);
-      if (q.includes(' ') || q.includes('\n')) {
-        setMentionDraft(null);
-        return;
-      }
-      setMentionDraft({ triggerIndex: mentionDraft.triggerIndex, query: q });
-      return;
-    }
-    // Start a new mention draft when the last typed char is `@` and the char
-    // before it is start-of-input or whitespace.
-    const idx = caret - 1;
-    if (idx >= 0 && nextText[idx] === MENTION_TRIGGER) {
-      const prev = idx > 0 ? nextText[idx - 1] : '';
-      if (idx === 0 || prev === ' ' || prev === '\n') {
-        setMentionDraft({ triggerIndex: idx, query: '' });
-      }
-    }
+    updateMentionDraft(nextText, nextAnchored);
   };
 
   const handleKeyPress = (e: TextInputKeyPressEvent) => {
     const key = e.nativeEvent.key;
     if (key === 'Escape' && mentionDraft) {
-      setMentionDraft(null);
+      dismissMention();
     }
   };
 
@@ -245,6 +234,7 @@ export function CommentComposer({
         return a;
       });
     const next = [...shifted, { start: insertStart, end: insertEnd, mention }];
+    textRef.current = nextText;
     setText(nextText);
     setAnchored(next);
     setMentionDraft(null);
@@ -267,6 +257,8 @@ export function CommentComposer({
     setSubmitFailed(false);
     try {
       await onSubmit(segments);
+      textRef.current = '';
+      dismissedTriggerRef.current = null;
       setText('');
       setAnchored([]);
       setMentionDraft(null);
@@ -299,6 +291,7 @@ export function CommentComposer({
       if (e.key === 'Escape') {
         if (mentionDraft) {
           e.preventDefault();
+          dismissedTriggerRef.current = mentionDraft.triggerIndex;
           setMentionDraft(null);
           return;
         }
@@ -333,7 +326,7 @@ export function CommentComposer({
             workspaceId={workspaceId}
             query={mentionDraft.query}
             onSelect={handlePickMention}
-            onClose={() => setMentionDraft(null)}
+            onClose={dismissMention}
           />
         ) : null}
       </View>
