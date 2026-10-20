@@ -12,7 +12,11 @@ import { Badge } from '@oxy.so/bloom/badge';
 import { Button } from '@oxy.so/bloom/button';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
 import { Text } from '@oxy.so/bloom/typography';
-import { PageHeader as ScreenHeader, PageHeaderTitleInput } from '@oxy.so/bloom/page-header';
+import {
+  PageHeader as ScreenHeader,
+  PageHeaderTitleInput,
+  type PageHeaderProps,
+} from '@oxy.so/bloom/page-header';
 import { Screen, type ScreenProps } from '@oxy.so/bloom/screen';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -36,7 +40,7 @@ interface PageChromeProps {
   /** Editor (or any body content) rendered below the page header. */
   children?: React.ReactNode;
   /** Right-side header content (ShareButton lives here in the page route). */
-  rightHeader?: React.ReactNode;
+  rightHeader?: PageHeaderProps['actions'];
   bottomBar?: React.ReactNode;
   scroll?: ScreenProps['scroll'];
 }
@@ -102,9 +106,9 @@ export function PageChrome({
             presentation="bar"
             safeArea={false}
             title={<Breadcrumb currentPage={page} />}
-            actions={
+            actions={(state) => (
               <>
-                {!page.archived ? (
+                {!state.compact && !page.archived ? (
                   <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
                 ) : null}
                 {page.publishedAt ? (
@@ -116,10 +120,10 @@ export function PageChrome({
                     <RiGlobalLine width={14} height={14} fill={colors.mutedForeground} />
                   </View>
                 ) : null}
-                {rightHeader}
+                {typeof rightHeader === 'function' ? rightHeader(state) : rightHeader}
                 <PageActionsMenu page={page} readOnly={readOnly} />
               </>
-            }
+            )}
           />
         }
       >

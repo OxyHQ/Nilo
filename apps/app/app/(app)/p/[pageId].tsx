@@ -9,6 +9,7 @@ import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
 import { AppShellPanels } from '@oxy.so/bloom/app-shell';
 import { ScreenScrollView } from '@oxy.so/bloom/screen';
+import type { PageHeaderProps } from '@oxy.so/bloom/page-header';
 import {
   PageEditorProvider,
   PageEditorToolbar,
@@ -147,7 +148,7 @@ function PageDetail({
   const contentReadOnly = pageContentReadOnly(page, role);
   const commentsLabel = t('pages.comments.openCount', { count: openCommentCount });
 
-  const rightHeader = (
+  const rightHeader: PageHeaderProps['actions'] = ({ compact }) => (
     <View className="flex-row items-center gap-2">
       {page.restricted ? (
         <View accessible accessibilityLabel={t('pages.restricted')}>
@@ -163,7 +164,7 @@ function PageDetail({
         aria-expanded={commentPanel.open}
         leadingIcon={RiChat3Line}
       />
-      <ShareButton pageId={page.id} />
+      <ShareButton pageId={page.id} compact={compact} />
     </View>
   );
 

@@ -1,3 +1,6 @@
+import { ShareButton } from '@/components/sharing';
+import { BloomTestProviders } from '@/test-support/bloom-providers';
+import type { PageHeaderProps } from '@oxy.so/bloom/page-header';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import PageDetailRoute from '@/app/(app)/p/[pageId]';
 import { PageEditor } from '@/components/page-editor/page-editor';
@@ -11,6 +14,7 @@ import { PageChrome } from '@/components/page-chrome';
 import { AppShellPanels } from '@oxy.so/bloom/app-shell';
 
 let mockLocked = true;
+let mockCompact = false;
 jest.mock('@/lib/hooks/use-route-workspace', () => ({ useRouteWorkspace: jest.fn() }));
 let mockRole = 'editor';
 jest.mock('expo-router', () => ({
@@ -45,10 +49,18 @@ jest.mock('@/components/page-chrome', () => ({
   PageChrome: ({
     children,
     bottomBar,
+    rightHeader,
   }: {
     children: React.ReactNode;
     bottomBar: React.ReactNode;
-  }) => [children, bottomBar],
+    rightHeader: PageHeaderProps['actions'];
+  }) => (
+    <>
+      {typeof rightHeader === 'function' ? rightHeader({ compact: mockCompact }) : rightHeader}
+      {children}
+      {bottomBar}
+    </>
+  ),
   PageHeader: () => null,
 }));
 // The route owns permissions and descriptors; Bloom tests layout and chrome.
@@ -67,6 +79,7 @@ jest.mock('@oxy.so/bloom/app-shell', () => ({
     ),
 }));
 jest.mock('@oxy.so/bloom/screen', () => ({
+  ...jest.requireActual('@oxy.so/bloom/screen'),
   ScreenScrollView: require('react-native').View,
 }));
 jest.mock('@/components/sharing', () => ({ ShareButton: () => null }));
@@ -81,6 +94,16 @@ jest.mock('react-native-keyboard-controller', () => ({
 }));
 
 let renderer: ReactTestRenderer;
+beforeEach(() => {
+  mockCompact = false;
+});
+function route() {
+  return (
+    <BloomTestProviders>
+      <PageDetailRoute />
+    </BloomTestProviders>
+  );
+}
 afterEach(() => act(() => renderer.unmount()));
 it.each(['editor', 'commenter', 'viewer'])(
   'honors the lock and preserves %s comment permissions',
@@ -88,7 +111,7 @@ it.each(['editor', 'commenter', 'viewer'])(
     mockLocked = true;
     mockRole = role;
     act(() => {
-      renderer = create(<PageDetailRoute />);
+      renderer = create(route());
     });
     expect(renderer.root.findByType(PageEditor).props.readOnly).toBe(true);
     expect(renderer.root.findByType(PageEditorProvider).props.readOnly).toBe(true);
@@ -103,11 +126,11 @@ it('responds to remote unlock without remounting the page editor', () => {
   mockRole = 'editor';
   mockLocked = true;
   act(() => {
-    renderer = create(<PageDetailRoute />);
+    renderer = create(route());
   });
   const editor = renderer.root.findByType(PageEditor);
   mockLocked = false;
-  act(() => renderer.update(<PageDetailRoute />));
+  act(() => renderer.update(route()));
   expect(renderer.root.findByType(PageEditor)).toBe(editor);
   expect(editor.props.readOnly).toBe(false);
   expect(renderer.root.findByType(RowPropertiesPanel).props.readOnly).toBe(false);
@@ -117,7 +140,7 @@ it('opens comments through the panel compositor and keeps the document editor mo
   mockRole = 'editor';
   mockLocked = false;
   act(() => {
-    renderer = create(<PageDetailRoute />);
+    renderer = create(route());
   });
   const editor = renderer.root.findByType(PageEditor);
   const panels = () => renderer.root.findByType(AppShellPanels).props.layout.panels;
@@ -131,4 +154,22 @@ it('opens comments through the panel compositor and keeps the document editor mo
   act(() => comments.floating.onOpenChange(false));
   expect(panels().find((panel: { id: string }) => panel.id === 'comments').visible).toBe(false);
   expect(renderer.root.findByType(PageEditor)).toBe(editor);
+});
+
+it('passes Bloom compact presentation to sharing while keeping the editor mounted', () => {
+  mockRole = 'editor';
+  mockLocked = false;
+  act(() => {
+    renderer = create(route());
+  });
+  const editor = renderer.root.findByType(PageEditor);
+  const share = renderer.root.findByType(ShareButton);
+  for (const compact of [true, false]) {
+    mockCompact = compact;
+    act(() => renderer.update(route()));
+    expect(renderer.root.findByType(ShareButton)).toBe(share);
+    expect(share.props.compact).toBe(compact);
+    expect(share.props.pageId).toBe('page');
+    expect(renderer.root.findByType(PageEditor)).toBe(editor);
+  }
 });

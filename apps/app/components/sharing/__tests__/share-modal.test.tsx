@@ -1,6 +1,7 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { ShareButton } from '../share-button';
+import { ShareModal } from '../share-modal';
 
 const mockCreateLink = jest.fn();
 const mockInvite = jest.fn();
@@ -121,4 +122,27 @@ it('opens the share dialog with people, general access and the public link', asy
     { scope: 'read', expiresAt: null },
     expect.anything(),
   );
+});
+
+it('keeps the open share dialog and invitation draft when the header changes presentation', async () => {
+  await act(async () => byLabel('sharing.button.label', 'onPress').props.onPress());
+  await act(async () =>
+    byLabel('sharing.people.email', 'onChangeText').props.onChangeText('draft@example.test'),
+  );
+  const share = renderer.root.findByType(ShareButton);
+  const modal = renderer.root.findByType(ShareModal);
+  for (const compact of [true, false]) {
+    await act(async () =>
+      renderer.update(
+        <BloomTestProviders>
+          <ShareButton pageId="page" compact={compact} />
+        </BloomTestProviders>,
+      ),
+    );
+    expect(renderer.root.findByType(ShareButton)).toBe(share);
+    expect(renderer.root.findByType(ShareModal)).toBe(modal);
+    expect(byLabel('sharing.button.label', 'onPress').props.iconOnly).toBe(compact);
+    expect(byLabel('sharing.people.email', 'onChangeText').props.value).toBe('draft@example.test');
+    expect(text()).toContain('sharing.people.title');
+  }
 });

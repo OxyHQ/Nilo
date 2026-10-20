@@ -62,8 +62,12 @@ workspace scope so those events do not invalidate unrelated editor data.
 Those events refresh exact page-metadata queries in the same workspace, keeping
 title, icon, cover and lock state consistent with the header. Pending page
 mutations defer that refresh until settlement; blocks and Yjs remain untouched.
-Header actions should leave room for navigation; comments use Bloom's normal
-icon-only button with an accessible unresolved-discussion count.
+Header actions use Bloom's `PageHeader.actions` callback and its `compact` state.
+Nilo forwards that state to sharing and keeps favorites in the page actions menu
+when the direct star is hidden. Bloom owns the header-width decision; Nilo must
+not measure it or duplicate its breakpoint. Keep the actions tree stable so
+changing presentation preserves an open sharing dialog and the editor.
+Comments use Bloom's normal icon-only button with an accessible unresolved count.
 
 The editor supplies its toolbar through `Screen.bottomBar` with
 `bottomBarKeyboardBehavior="follow"`. Bloom coordinates keyboard avoidance,

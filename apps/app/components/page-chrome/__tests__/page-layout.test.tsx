@@ -4,12 +4,19 @@ jest.mock('@/lib/realtime/use-live-updates', () => ({
   useWorkspaceLive: jest.fn(),
   useDatabaseLive: jest.fn(),
 }));
+import { Children, isValidElement } from 'react';
+import type { PageHeaderProps } from '@oxy.so/bloom/page-header';
+import { FavoriteButton } from '../favorite-button';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { StyleSheet, TextInput } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PageActionsMenu } from '../page-actions-menu';
 import { PageChrome, PageHeader } from '../page-chrome';
-import { DropdownMenuCheckboxItem, DropdownMenuRadioGroup } from '@oxy.so/bloom/dropdown-menu';
+import {
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+} from '@oxy.so/bloom/dropdown-menu';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import apiClient from '@/lib/api/client';
 import { usePage } from '@/lib/hooks/use-pages';
@@ -113,16 +120,22 @@ let renderer: ReactTestRenderer;
 let serverPage: Page;
 let resolvePatch: (value: unknown) => void;
 let rejectPatch: (reason: Error) => void;
-function Surface({ readOnly = false }: { readOnly?: boolean }) {
+function Surface({
+  readOnly = false,
+  rightHeader,
+}: {
+  readOnly?: boolean;
+  rightHeader?: PageHeaderProps['actions'];
+}) {
   const { data } = usePage('page');
   if (!data) return null;
   return (
-    <PageChrome page={data.page} readOnly={readOnly}>
+    <PageChrome page={data.page} readOnly={readOnly} rightHeader={rightHeader}>
       <PageHeader page={data.page} readOnly={readOnly} />
     </PageChrome>
   );
 }
-async function mount(page = initial, readOnly = false) {
+async function mount(page = initial, readOnly = false, rightHeader?: PageHeaderProps['actions']) {
   serverPage = { ...page };
   client.setQueryData(queryKeys.pages.detail('page'), {
     page,
@@ -132,7 +145,7 @@ async function mount(page = initial, readOnly = false) {
     renderer = create(
       <BloomTestProviders>
         <QueryClientProvider client={client}>
-          <Surface readOnly={readOnly} />
+          <Surface readOnly={readOnly} rightHeader={rightHeader} />
         </QueryClientProvider>
       </BloomTestProviders>,
     );
@@ -297,3 +310,31 @@ it('shows the lock banner to viewers without settings or unlock controls', async
   ).toEqual(['pages.follow.follow', 'pages.offline.available']);
   expect(renderer.root.findByType(PageActionsMenu).props.readOnly).toBe(true);
 });
+
+it.each([false, true])(
+  'delegates compact header actions and retains favorites in the menu for readOnly=%s',
+  async (readOnly) => {
+    const rightHeader = jest.fn(() => null);
+    await mount(initial, readOnly, rightHeader);
+    const header = renderer.root.findAll(
+      (node) => node.props.presentation === 'bar' && typeof node.props.actions === 'function',
+    )[0];
+    const full = Children.toArray(header.props.actions({ compact: false }).props.children).filter(
+      isValidElement,
+    );
+    const compact = Children.toArray(header.props.actions({ compact: true }).props.children).filter(
+      isValidElement,
+    );
+    expect(full.some((child) => child.type === FavoriteButton)).toBe(true);
+    expect(compact.some((child) => child.type === FavoriteButton)).toBe(false);
+    expect(compact.some((child) => child.type === PageActionsMenu)).toBe(true);
+    expect(rightHeader).toHaveBeenCalledWith({ compact: true });
+    const favorite = renderer.root
+      .findAllByType(DropdownMenuItem)
+      .find((node) => node.props.children === 'pages.actions.addToFavorites');
+    expect(favorite).toBeDefined();
+    await act(async () => favorite?.props.onPress());
+    expect(apiClient.patch).toHaveBeenCalledWith('/pages/page', { favorited: true });
+    await settle({ favorited: true });
+  },
+);
