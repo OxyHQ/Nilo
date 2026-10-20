@@ -24,7 +24,8 @@ import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
 import { useViewCalculations } from '@/lib/hooks/use-view-data';
 import { groupTakesRows } from '@/lib/view-groups';
-import { columnWidth, moveProperty, orderedProperties, placeProperty } from '@/lib/view-properties';
+import { place } from '@/lib/list-order';
+import { columnWidth, moveProperty, orderedProperties } from '@/lib/view-properties';
 import { PropertyCell } from './property-cell';
 import { PropertyHeaderMenu } from './property-config-modal';
 import { useOpenRow } from './open-row';
@@ -151,7 +152,7 @@ export function ViewTable({
   };
   const dropColumn = (id: string, onto: string) => {
     const side = visibleIds.indexOf(id) < visibleIds.indexOf(onto) ? 'after' : 'before';
-    const next = placeProperty(orderIds, id, onto, side);
+    const next = place(orderIds, id, onto, side);
     if (next) saveConfig({ propertyOrder: next });
   };
 

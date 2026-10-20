@@ -1,4 +1,5 @@
 import { MAX_COLUMN_WIDTH, MIN_COLUMN_WIDTH } from '@oxy.so/nilo-contracts';
+import { place, rankBy } from './list-order';
 import type { Database, DatabaseProperty, DatabaseView } from './types/databases';
 
 /** A table's columns before they are resized: the title wider than the others. */
@@ -17,11 +18,7 @@ export function orderedProperties(
   const order = view.config?.propertyOrder;
   const properties = database.schema.properties;
   if (!order || order.length === 0) return properties;
-  const rank = new Map(order.map((id, i) => [id, i]));
-  return properties
-    .map((property, i) => ({ property, key: rank.get(property.id) ?? order.length + i }))
-    .sort((a, b) => a.key - b.key)
-    .map(({ property }) => property);
+  return rankBy(properties, order, (property) => property.id);
 }
 
 /**
@@ -39,22 +36,7 @@ export function moveProperty(
   const from = among.indexOf(id);
   const to = from + by;
   if (from === -1 || to < 0 || to >= among.length || by === 0) return null;
-  return placeProperty(ordered, id, among[to] as string, by > 0 ? 'after' : 'before');
-}
-
-/** The view's order with `id` placed before or after `target`. */
-export function placeProperty(
-  ordered: readonly string[],
-  id: string,
-  target: string,
-  side: 'before' | 'after',
-): string[] | null {
-  if (id === target) return null;
-  const rest = ordered.filter((x) => x !== id);
-  const at = rest.indexOf(target);
-  if (at === -1) return null;
-  rest.splice(side === 'before' ? at : at + 1, 0, id);
-  return rest;
+  return place(ordered, id, among[to] as string, by > 0 ? 'after' : 'before');
 }
 
 /** A column's width in a view: as resized, clamped, or the default. */

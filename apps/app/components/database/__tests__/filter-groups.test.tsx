@@ -2,7 +2,7 @@ import { DATABASE_PROPERTY_TYPES, FILTER_OPERATORS_BY_TYPE } from '@oxy.so/nilo-
 import { Button } from '@oxy.so/bloom/button';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
-import { FilterBuilder, updateGroupAt, withoutEmptyGroups } from '../filter-builder';
+import { FilterBuilder, withoutEmptyGroups } from '../filter-builder';
 import type {
   Database,
   DatabaseProperty,
@@ -164,10 +164,7 @@ it('takes no value for an emptiness test and a count of days for in the last', (
   expect(fields[0]?.props.value).toBe('7');
 });
 
-it('changes and prunes the tree by path', () => {
+it('prunes the groups that hold no condition', () => {
   const tree = group('and', condition('a', 'x'), group('or', group('and')));
-  expect(updateGroupAt(tree, [1, 0], (g) => ({ ...g, combinator: 'or' }))).toEqual(
-    group('and', condition('a', 'x'), group('or', group('or'))),
-  );
   expect(withoutEmptyGroups(tree)).toEqual(group('and', condition('a', 'x')));
 });

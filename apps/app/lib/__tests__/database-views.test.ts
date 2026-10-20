@@ -10,12 +10,11 @@ import {
   formatBound,
   groupTakesRows,
   groupValue,
-  moveGroup,
   numberGroupingOf,
-  placeGroup,
   rowSections,
 } from '../view-groups';
-import { columnWidth, moveProperty, orderedProperties, placeProperty } from '../view-properties';
+import { move, place, rankBy } from '../list-order';
+import { columnWidth, moveProperty, orderedProperties } from '../view-properties';
 
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
 jest.mock('@/lib/api/client', () => ({ __esModule: true, default: {} }));
@@ -51,8 +50,8 @@ describe('a view’s property order', () => {
       'b',
     ]);
     expect(moveProperty(['name', 'a', 'b', 'c'], ['a', 'c'], 'c', 1)).toBeNull();
-    expect(placeProperty(['a', 'b', 'c'], 'a', 'c', 'after')).toEqual(['b', 'c', 'a']);
-    expect(placeProperty(['a', 'b', 'c'], 'c', 'a', 'before')).toEqual(['c', 'a', 'b']);
+    expect(place(['a', 'b', 'c'], 'a', 'c', 'after')).toEqual(['b', 'c', 'a']);
+    expect(place(['a', 'b', 'c'], 'c', 'a', 'before')).toEqual(['c', 'a', 'b']);
   });
 
   it('sizes a column as resized, within bounds, the title wider by default', () => {
@@ -132,15 +131,17 @@ describe('a grouped view’s sections', () => {
     ).toEqual([null]);
   });
 
-  it('moves a group up, down or onto another, among those shown', () => {
+  it('moves an item up, down or onto another, and ranks items by a stored order', () => {
     const keys = ['a', 'b', null];
-    expect(moveGroup(keys, 'b', -1)).toEqual(['b', 'a', null]);
-    expect(moveGroup(keys, null, -1)).toEqual(['a', null, 'b']);
-    expect(moveGroup(keys, 'a', -1)).toBeNull();
-    expect(moveGroup(keys, null, 1)).toBeNull();
-    expect(placeGroup(keys, 'a', null)).toEqual(['b', null, 'a']);
-    expect(placeGroup(keys, null, 'a')).toEqual([null, 'a', 'b']);
-    expect(placeGroup(keys, 'a', 'a')).toBeNull();
+    expect(move(keys, 1, 0)).toEqual(['b', 'a', null]);
+    expect(move(keys, 2, 1)).toEqual(['a', null, 'b']);
+    expect(move(keys, 0, -1)).toBeNull();
+    expect(move(keys, 2, 3)).toBeNull();
+    expect(place(keys, 'a', null, 'after')).toEqual(['b', null, 'a']);
+    expect(place(keys, null, 'a', 'before')).toEqual([null, 'a', 'b']);
+    expect(place(keys, 'a', 'a', 'before')).toBeNull();
+    expect(place(keys, 'gone', 'a', 'before')).toBeNull();
+    expect(rankBy(keys, [null, 'b'], (k) => k)).toEqual([null, 'b', 'a']);
   });
 
   it('reads a number’s ranges back from its groups, and names a range by its bounds', () => {

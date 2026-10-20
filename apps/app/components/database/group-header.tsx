@@ -18,6 +18,7 @@ import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
+import { move, place } from '@/lib/list-order';
 import { useCollapsedGroupsStore } from '@/lib/stores/collapsed-groups-store';
 import { useColorScheme } from '@/lib/useColorScheme';
 import {
@@ -36,9 +37,7 @@ import {
 import {
   groupProperty,
   groupValue,
-  moveGroup,
   numberGroupingOf,
-  placeGroup,
   type RowSection,
   rowSections,
 } from '@/lib/view-groups';
@@ -345,8 +344,10 @@ function useViewGroups(
     return {
       canMoveUp: index > 0,
       canMoveDown: index >= 0 && index < shown.length - 1,
-      onMove: (by: -1 | 1) => reorder(moveGroup(shown, key, by)),
-      onDropGroup: (dropped: ViewGroupKey) => reorder(placeGroup(shown, dropped, key)),
+      onMove: (by: -1 | 1) => reorder(move(shown, index, index + by)),
+      // Dropped where this one was, this one moving aside.
+      onDropGroup: (dropped: ViewGroupKey) =>
+        reorder(place(shown, dropped, key, shown.indexOf(dropped) < index ? 'after' : 'before')),
       onHide: () =>
         save({ hiddenGroups: [...new Set([...(view.config?.hiddenGroups ?? []), key])] }),
     };

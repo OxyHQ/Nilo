@@ -4,7 +4,14 @@ import { viewIsEditable } from '@oxy.so/nilo-contracts';
 import { ScrollView, View } from 'react-native';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
-import type { Database, DatabaseRow, DatabaseView, RowGroup } from '@/lib/types/databases';
+import type * as React from 'react';
+import type {
+  Database,
+  DatabaseRow,
+  DatabaseView,
+  DatabaseViewType,
+  RowGroup,
+} from '@/lib/types/databases';
 import { NewRowMenu } from './new-row-menu';
 import { ViewTable } from './view-table';
 import { ViewBoard } from './view-board';
@@ -35,6 +42,62 @@ interface DatabaseViewContainerProps {
   /** More rows than those loaded. */
   hasMore?: boolean;
 }
+
+/** What every view's body is drawn from. */
+interface ViewBodyProps {
+  database: Database;
+  view: DatabaseView;
+  rows: DatabaseRow[];
+  isLoading: boolean;
+  readOnly: boolean;
+  schemaReadOnly: boolean;
+  viewEditable: boolean;
+  groups?: RowGroup[];
+  hasMore: boolean;
+  onLoadMore?: () => void;
+}
+
+/** Each view's body, by its type; a form is drawn on its own, without the tools bar. */
+const VIEW_BODIES: Record<
+  Exclude<DatabaseViewType, 'form'>,
+  (props: ViewBodyProps) => React.ReactNode
+> = {
+  table: ({ onLoadMore, ...props }) => (
+    <RowsScrollView onLoadMore={onLoadMore}>
+      <ViewTable {...props} />
+    </RowsScrollView>
+  ),
+  board: ({ schemaReadOnly: _schemaReadOnly, ...props }) => <ViewBoard {...props} />,
+  gallery: ({ schemaReadOnly: _schemaReadOnly, ...props }) => <ViewGallery {...props} />,
+  list: ({ schemaReadOnly: _schemaReadOnly, ...props }) => <ViewList {...props} />,
+  calendar: (props) => (
+    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+      <ViewCalendar
+        database={props.database}
+        view={props.view}
+        rows={props.rows}
+        isLoading={props.isLoading}
+      />
+    </ScrollView>
+  ),
+  timeline: (props) => (
+    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+      <ViewTimeline
+        database={props.database}
+        view={props.view}
+        rows={props.rows}
+        isLoading={props.isLoading}
+        groups={props.groups}
+        viewEditable={props.viewEditable}
+      />
+    </ScrollView>
+  ),
+  chart: (props) => (
+    <ScrollView nestedScrollEnabled>
+      <ViewChart database={props.database} view={props.view} />
+    </ScrollView>
+  ),
+};
 
 /**
  * Wraps the active view with the shared "tools" bar — search, filter, sort,
@@ -93,82 +156,18 @@ export function DatabaseViewContainer({
             </Text>
           ) : null}
           <View className="flex-1">
-            {view.type === 'table' ? (
-              <RowsScrollView onLoadMore={onLoadMore}>
-                <ViewTable
-                  readOnly={readOnly}
-                  schemaReadOnly={!schemaEditable || !viewEditable}
-                  viewEditable={viewEditable}
-                  database={database}
-                  view={view}
-                  rows={rows}
-                  isLoading={isLoading}
-                  groups={groups}
-                  hasMore={hasMore}
-                />
-              </RowsScrollView>
-            ) : null}
-            {view.type === 'board' ? (
-              <ViewBoard
-                readOnly={readOnly}
-                database={database}
-                view={view}
-                rows={rows}
-                isLoading={isLoading}
-                hasMore={hasMore}
-                onLoadMore={onLoadMore}
-                groups={groups}
-                viewEditable={viewEditable}
-              />
-            ) : null}
-            {view.type === 'gallery' ? (
-              <ViewGallery
-                onLoadMore={onLoadMore}
-                readOnly={readOnly}
-                database={database}
-                view={view}
-                rows={rows}
-                isLoading={isLoading}
-                groups={groups}
-                hasMore={hasMore}
-                viewEditable={viewEditable}
-              />
-            ) : null}
-            {view.type === 'list' ? (
-              <ViewList
-                onLoadMore={onLoadMore}
-                readOnly={readOnly}
-                database={database}
-                view={view}
-                rows={rows}
-                isLoading={isLoading}
-                groups={groups}
-                hasMore={hasMore}
-                viewEditable={viewEditable}
-              />
-            ) : null}
-            {view.type === 'calendar' ? (
-              <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
-                <ViewCalendar database={database} view={view} rows={rows} isLoading={isLoading} />
-              </ScrollView>
-            ) : null}
-            {view.type === 'timeline' ? (
-              <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
-                <ViewTimeline
-                  database={database}
-                  view={view}
-                  rows={rows}
-                  isLoading={isLoading}
-                  groups={groups}
-                  viewEditable={viewEditable}
-                />
-              </ScrollView>
-            ) : null}
-            {view.type === 'chart' ? (
-              <ScrollView nestedScrollEnabled>
-                <ViewChart database={database} view={view} />
-              </ScrollView>
-            ) : null}
+            {VIEW_BODIES[view.type]({
+              database,
+              view,
+              rows,
+              isLoading,
+              readOnly,
+              schemaReadOnly: !schemaEditable || !viewEditable,
+              viewEditable,
+              groups,
+              hasMore,
+              onLoadMore,
+            })}
           </View>
         </View>
       </OpenRowProvider>

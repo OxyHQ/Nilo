@@ -1,4 +1,5 @@
 import { isGroupableType } from '@oxy.so/nilo-contracts';
+import { rankBy } from './list-order';
 import type {
   DatabaseProperty,
   DatabaseRow,
@@ -45,7 +46,7 @@ export function rowSections(
     else byKey.set(key, [row]);
   }
   const hidden = new Set(config.hiddenGroups ?? []);
-  const shown = orderGroups(groups, config.groupOrder ?? []).filter(
+  const shown = rankBy(groups, config.groupOrder ?? [], (group) => group.key).filter(
     (group) => !hidden.has(group.key),
   );
   let reached = -1;
@@ -61,51 +62,6 @@ export function rowSections(
       rows: byKey.get(group.key) ?? [],
       ...(group.range && { range: group.range }),
     }));
-}
-
-/** `groups` with those `order` lists first, in its order; the others after, as they came. */
-export function orderGroups<G extends { key: ViewGroupKey }>(
-  groups: readonly G[],
-  order: readonly ViewGroupKey[],
-): G[] {
-  if (order.length === 0) return [...groups];
-  const at = (key: ViewGroupKey) => {
-    const i = order.indexOf(key);
-    return i < 0 ? order.length : i;
-  };
-  return groups
-    .map((group, i) => ({ group, i }))
-    .sort((a, b) => at(a.group.key) - at(b.group.key) || a.i - b.i)
-    .map(({ group }) => group);
-}
-
-/** The sections' order once `key` moved up (-1) or down (1) among them; null when it cannot. */
-export function moveGroup(
-  keys: readonly ViewGroupKey[],
-  key: ViewGroupKey,
-  by: -1 | 1,
-): ViewGroupKey[] | null {
-  const from = keys.indexOf(key);
-  const to = from + by;
-  if (from < 0 || to < 0 || to >= keys.length) return null;
-  const next = [...keys];
-  next.splice(from, 1);
-  next.splice(to, 0, key);
-  return next;
-}
-
-/** The sections' order once `key` is dropped on `onto`: where it was, `onto` moving aside. */
-export function placeGroup(
-  keys: readonly ViewGroupKey[],
-  key: ViewGroupKey,
-  onto: ViewGroupKey,
-): ViewGroupKey[] | null {
-  const from = keys.indexOf(key);
-  const to = keys.indexOf(onto);
-  if (from < 0 || to < 0 || from === to) return null;
-  const next = keys.filter((k) => k !== key);
-  next.splice(to, 0, key);
-  return next;
 }
 
 /**

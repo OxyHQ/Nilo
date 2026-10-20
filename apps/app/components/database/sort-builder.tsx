@@ -32,21 +32,11 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseView, ViewSort } from '@/lib/types/databases';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
+import { move } from '@/lib/list-order';
 
 interface SortBuilderProps {
   database: Database;
   view: DatabaseView;
-}
-
-/** `list` with the item at `from` moved to `to`, the others keeping their order. */
-export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
-  if (from === to || from < 0 || from >= list.length || to < 0 || to >= list.length) {
-    return [...list];
-  }
-  const next = [...list];
-  const [item] = next.splice(from, 1);
-  next.splice(to, 0, item as T);
-  return next;
 }
 
 /**
@@ -136,8 +126,8 @@ export function SortBuilder({ database, view }: SortBuilderProps) {
                 sort={sort}
                 index={idx}
                 count={draft.length}
-                onMove={(to) => setDraft((prev) => moveItem(prev, idx, to))}
-                onDropHere={(from) => setDraft((prev) => moveItem(prev, from, idx))}
+                onMove={(to) => setDraft((prev) => move(prev, idx, to) ?? prev)}
+                onDropHere={(from) => setDraft((prev) => move(prev, from, idx) ?? prev)}
                 onChange={(patch) =>
                   setDraft((prev) => {
                     const next = [...prev];

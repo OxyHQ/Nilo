@@ -115,26 +115,7 @@ function startCondition(property: DatabaseProperty): Pick<FilterCondition, 'oper
 }
 
 /** How deep groups nest under the view's own, as in Notion: a group, and a group in it. */
-export const MAX_GROUP_DEPTH = 2;
-
-/** Where a group sits in the tree: the index of each group down to it. */
-type FilterPath = readonly number[];
-
-/** `group` with the group at `path` (itself for an empty path) replaced by `change(it)`. */
-export function updateGroupAt(
-  group: FilterGroup,
-  path: FilterPath,
-  change: (group: FilterGroup) => FilterGroup,
-): FilterGroup {
-  if (path.length === 0) return change(group);
-  const [head, ...rest] = path;
-  return {
-    ...group,
-    filters: group.filters.map((filter, i) =>
-      i === head && filter.kind === 'group' ? updateGroupAt(filter, rest, change) : filter,
-    ),
-  };
-}
+const MAX_GROUP_DEPTH = 2;
 
 /** `group` without the groups nested in it that hold no condition: they would filter nothing. */
 export function withoutEmptyGroups(group: FilterGroup): FilterGroup {
@@ -334,7 +315,11 @@ function GroupEditor({ database, group, depth, onChange, onRemove }: GroupEditor
               database={database}
               group={filter}
               depth={depth + 1}
-              onChange={(change) => onChange((prev) => updateGroupAt(prev, [idx], change))}
+              onChange={(change) =>
+                setFilters((filters) =>
+                  filters.map((f, i) => (i === idx && f.kind === 'group' ? change(f) : f)),
+                )
+              }
               onRemove={() => setFilters((filters) => filters.filter((_, i) => i !== idx))}
             />
           ),
