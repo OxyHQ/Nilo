@@ -153,6 +153,29 @@ Import, move and page-history dialogs also delegate their content scrolling to
 confirmation and mutation actions in its action slot. A long result list is
 not a reason to introduce a second fixed-height scroller.
 
+## Reference behavior
+
+Compare interactions as well as screenshots. Review the authenticated reference
+in Windows Chrome when working in WSL, including hover, click, keyboard, touch,
+loading, failed saves and resize while an overlay is open. Use disposable Nilo
+fixtures for mutations; do not change the reference workspace. Product parity
+status belongs in [issue #132](https://github.com/OxyHQ/Nilo/issues/132), not in
+an assumption that adopting a shared visual component supplies its persistence.
+
+These official references guide behavior; the Nilo requirements below define
+what an implementation must preserve rather than claim every feature is present.
+
+| Area | Reference and Nilo integration contract |
+| --- | --- |
+| Navigation and views | [Database views](https://www.notion.com/help/views-filters-and-sorts) distinguish view settings, filters, sorting and grouping. Keep authorized page/database ancestry separate from workspace navigation; changing a view must not invent a new database or discard row content. |
+| Boards | [Boards](https://www.notion.com/help/boards) support moving cards within and across columns. Use Bloom's existing interaction engine. Persistent manual ordering needs an explicit relationship to view sorts, filters, multi-value groups and pagination; sorting only the currently loaded cards is insufficient. |
+| Search | [Workspace search](https://www.notion.com/help/search) supports quoted phrases. Preserve the query's intended terms and order. Apply canonical access rules before the final result limit; inaccessible higher-ranked matches must not crowd out accessible results. |
+| Activity | [Page analytics](https://www.notion.com/help/page-analytics) and [version history](https://www.notion.com/help/duplicate-delete-and-restore-content) describe different capabilities. Creation/edit timestamps, saved block versions, property-change events and view analytics must remain truthful about which records exist. |
+| Recovery | [Deleted properties and version restore](https://www.notion.com/help/duplicate-delete-and-restore-content) require distinct recovery paths. A block snapshot is not a schema/value backup. A future property restore must preserve property identity and row values transactionally, and respect concurrent schema changes. |
+| Collaboration | [Comments and mentions](https://www.notion.com/help/comments-mentions-and-reminders) cover page discussions, anchored threads and reopening resolved threads. Bloom owns presentation; Nilo owns anchors, membership, notifications and permission checks. |
+| Export | [Content export](https://www.notion.com/help/export-your-content) distinguishes database CSV data from page bodies and included subpages. An archive must traverse the authorized hierarchy, retain row-page content and usable local links, and reject limits explicitly rather than silently omit content. Signed remote attachment URLs are not bundled offline files. |
+| Offline | [Offline behavior](https://www.notion.com/help/guides/working-offline-in-notion-everything-you-need-to-know) includes reconnecting and syncing local edits. Keep the existing document/session owner and distinguish locally retained edits from server-confirmed persistence; a closed editor must not be the only way pending work can eventually synchronize. |
+
 ## Setup
 
 ```bash

@@ -14,15 +14,7 @@ import { usePage } from '@/lib/hooks/use-pages';
 import { hasRole } from '@/lib/hooks/workspace-roles';
 import { memberProfileName, useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
 import type { Page } from '@/lib/types/pages';
-
-function relativeTime(iso: string, locale: string) {
-  const seconds = Math.min(0, Math.round((new Date(iso).getTime() - Date.now()) / 1000));
-  const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-  if (seconds > -60) return format.format(seconds, 'second');
-  if (seconds > -3600) return format.format(Math.round(seconds / 60), 'minute');
-  if (seconds > -86400) return format.format(Math.round(seconds / 3600), 'hour');
-  return format.format(Math.round(seconds / 86400), 'day');
-}
+import { relativeEditTime, usePageClock } from './page-time';
 
 export function PageHistoryDialog({
   page,
@@ -34,6 +26,7 @@ export function PageHistoryDialog({
   initialVersionId?: string;
 }) {
   const { t, locale } = useTranslation();
+  const now = usePageClock();
   const list = usePageVersions(page.id);
   const [selected, setSelected] = useState<string | null>(initialVersionId ?? null);
   const selectedId = selected ?? list.data?.versions[0]?.id ?? '';
@@ -122,7 +115,7 @@ export function PageHistoryDialog({
                     version.createdBy ||
                     t('notifications.someone');
                   const label = t('pages.history.entry', {
-                    time: relativeTime(version.createdAt, locale),
+                    time: relativeEditTime(version.createdAt, locale, now),
                     name,
                     count: version.blockCount,
                   });
