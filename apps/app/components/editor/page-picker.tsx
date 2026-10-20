@@ -1,11 +1,7 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
-import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
-import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Item } from '@oxy.so/bloom/item';
-import { Loading } from '@oxy.so/bloom/loading';
-import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
+import { matchesSearch, SearchPickerDialog } from '@/components/page-editor/search-picker-dialog';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePages, useTemplates } from '@/lib/hooks/use-pages';
 import { useSearch } from '@/lib/hooks/use-search';
@@ -35,14 +31,12 @@ export function PagePicker({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const control = useDialogControl();
   const [query, setQuery] = useState('');
   const typed = query.trim().length > 0;
   const pages = usePages(templates ? null : workspaceId);
   const templateList = useTemplates(templates ? workspaceId : null);
   const search = useSearch(workspaceId, query, typed && !templates);
   const listed = (templates ? templateList.data?.pages : pages.data?.pages) ?? [];
-  const lower = query.trim().toLowerCase();
   const matches: PickedPage[] =
     typed && !templates
       ? (search.data?.results ?? []).map((r) => r.page)
@@ -51,42 +45,31 @@ export function PagePicker({
             !page.archived &&
             !page.databaseId &&
             (templates || !page.template) &&
-            (!lower || page.title.toLowerCase().includes(lower)),
+            matchesSearch(page.title, query),
         );
   const loading = templates ? templateList.isLoading : typed ? search.isSearching : pages.isLoading;
   return (
-    <Dialog
-      control={control}
-      startOpen
-      onClose={onClose}
-      placement={{ base: 'bottom', md: 'center' }}
+    <SearchPickerDialog
       title={title}
+      searchLabel={t('editor.blocks.linkToPage.search')}
+      search={query}
+      onSearch={setQuery}
+      loading={loading}
+      empty={!loading && matches.length === 0 ? t('editor.blocks.linkToPage.noResults') : null}
+      onClose={onClose}
     >
-      <View className="gap-3">
-        <TextFieldInput
-          value={query}
-          onChangeText={setQuery}
-          autoFocus
-          label={t('editor.blocks.linkToPage.search')}
-          placeholder={t('editor.blocks.linkToPage.search')}
-        />
-        {loading ? <Loading variant="inline" text={t('common.loading')} /> : null}
-        <ScrollView keyboardShouldPersistTaps="handled">
-          {matches.map((page) => (
-            <Item
-              key={page.id}
-              title={page.title || t('pages.untitled')}
-              density="compact"
-              leading={<IconDisplay value={page.icon} size={16} />}
-              accessibilityLabel={page.title || t('pages.untitled')}
-              onPress={() => control.close(() => onChoose(page))}
-            />
-          ))}
-          {!loading && matches.length === 0 ? (
-            <EmptyState variant="compact" title={t('editor.blocks.linkToPage.noResults')} />
-          ) : null}
-        </ScrollView>
-      </View>
-    </Dialog>
+      {(choose) =>
+        matches.map((page) => (
+          <Item
+            key={page.id}
+            title={page.title || t('pages.untitled')}
+            density="compact"
+            leading={<IconDisplay value={page.icon} size={16} />}
+            accessibilityLabel={page.title || t('pages.untitled')}
+            onPress={() => choose(() => onChoose(page))}
+          />
+        ))
+      }
+    </SearchPickerDialog>
   );
 }
