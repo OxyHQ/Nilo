@@ -8,35 +8,11 @@
  */
 import { type CodeToken, type CodeTokenKind, tokenizeCode } from '@oxy.so/bloom/code';
 
-/** The languages a code block offers, in the order its picker lists them. */
-export const CODE_LANGUAGES = [
-  'plain',
-  'javascript',
-  'typescript',
-  'json',
-  'python',
-  'bash',
-  'sql',
-  'css',
-  'html',
-  'markdown',
-  'yaml',
-  'go',
-  'rust',
-  'java',
-  'c',
-  'cpp',
-  'csharp',
-  'php',
-  'ruby',
-  'swift',
-  'kotlin',
-] as const;
-
-export type CodeLanguageId = (typeof CODE_LANGUAGES)[number];
-
-/** What each language is called in its picker; the same in every language. */
-export const CODE_LANGUAGE_NAMES: Record<Exclude<CodeLanguageId, 'plain'>, string> = {
+/**
+ * What each language a code block offers is called in its picker, in the
+ * order the picker lists them; the same in every language.
+ */
+export const CODE_LANGUAGE_NAMES = {
   javascript: 'JavaScript',
   typescript: 'TypeScript',
   json: 'JSON',
@@ -58,6 +34,14 @@ export const CODE_LANGUAGE_NAMES: Record<Exclude<CodeLanguageId, 'plain'>, strin
   swift: 'Swift',
   kotlin: 'Kotlin',
 };
+
+export type CodeLanguageId = 'plain' | keyof typeof CODE_LANGUAGE_NAMES;
+
+/** The languages a code block offers, in the order its picker lists them: plain text first. */
+export const CODE_LANGUAGES: readonly CodeLanguageId[] = [
+  'plain',
+  ...(Object.keys(CODE_LANGUAGE_NAMES) as (keyof typeof CODE_LANGUAGE_NAMES)[]),
+];
 
 const ALIASES: Record<string, CodeLanguageId> = {
   js: 'javascript',

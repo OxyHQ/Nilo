@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Pressable, Text as NativeText, View } from 'react-native';
-import { type CodePalette, type CodeTokenKind, useCodePalette } from '@oxy.so/bloom/code';
+import { tokenColor, useCodePalette } from '@oxy.so/bloom/code';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -18,30 +18,6 @@ import {
 } from '@/lib/code-highlight';
 import { MONO_FONT_FAMILY } from '@/lib/fonts';
 
-/** A token kind's colour; comments in the palette's quietest tone, set apart from strings. */
-function colorOf(kind: CodeTokenKind, palette: CodePalette): string {
-  switch (kind) {
-    case 'keyword':
-    case 'operator':
-      return palette.keyword;
-    case 'string':
-    case 'attrValue':
-      return palette.string;
-    case 'comment':
-      return palette.lineNumber;
-    case 'punctuation':
-      return palette.punctuation;
-    case 'className':
-    case 'function':
-    case 'attrName':
-      return palette.className;
-    case 'constant':
-      return palette.constant;
-    default:
-      return palette.plain;
-  }
-}
-
 /** A language's name in the picker and over a code block. */
 export function useLanguageName(): (language: CodeLanguageId) => string {
   const { t } = useTranslation();
@@ -51,7 +27,8 @@ export function useLanguageName(): (language: CodeLanguageId) => string {
 
 /**
  * A code block as it is read: its language, and its text highlighted for it,
- * drawn as native text runs (selectable on the web).
+ * drawn as native text runs (selectable on the web), coloured as the editor
+ * colours it (`tokenColor`, `editor-extras.ts`).
  */
 export function CodeView({
   code,
@@ -92,7 +69,7 @@ export function CodeView({
                 key={j}
                 style={{
                   fontFamily: MONO_FONT_FAMILY,
-                  color: colorOf(token.kind, palette),
+                  color: tokenColor(token.kind, palette),
                   fontStyle: token.kind === 'comment' ? 'italic' : 'normal',
                 }}
               >
