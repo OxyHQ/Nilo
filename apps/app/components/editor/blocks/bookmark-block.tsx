@@ -7,7 +7,7 @@ import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { fetchEmbedPreview } from '@/lib/embed-preview';
 import { UrlPrompt } from './block-parts';
-import { type BlockComponentProps, blockUrl } from './types';
+import type { BlockComponentProps } from './types';
 
 /**
  * Bookmark block — once a URL is set, fetches OG metadata from
@@ -17,12 +17,12 @@ import { type BlockComponentProps, blockUrl } from './types';
  */
 export function BookmarkBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
   const { t } = useTranslation();
-  const url = blockUrl(block.content.url);
+  const url = block.content.url ?? '';
   const title = typeof block.content.title === 'string' ? block.content.title : '';
   const description =
     typeof block.content.description === 'string' ? block.content.description : '';
-  const image = blockUrl(block.content.image);
-  const favicon = blockUrl(block.content.favicon);
+  const image = block.content.image ?? '';
+  const favicon = block.content.favicon ?? '';
 
   const hasMetadata = Boolean(title || description || image);
   const preview = useQuery({

@@ -11,9 +11,6 @@ jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({ isAuthenticated: false, user: null, openAccountDialog: mockOpenAccountDialog }),
 }));
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({ token: 'token' }) }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), post: jest.fn() },

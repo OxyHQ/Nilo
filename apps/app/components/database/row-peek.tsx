@@ -16,7 +16,7 @@ import {
 import { useDatabase } from '@/lib/hooks/use-databases';
 import { pageToDatabaseRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { usePage } from '@/lib/hooks/use-pages';
-import { hasRole } from '@/lib/hooks/workspace-roles';
+import { pageContentReadOnly } from '@/lib/hooks/page-access';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Page } from '@/lib/types/pages';
 import { RowPropertiesPanel } from './row-properties-panel';
@@ -75,7 +75,10 @@ export function RowPeek({ rowId, open, mode, onClose, onOpenFullPage }: RowPeekP
           <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
         </View>
       ) : page.data ? (
-        <PeekBody page={page.data.page} canEdit={hasRole(page.data.role, 'editor')} />
+        <PeekBody
+          page={page.data.page}
+          readOnly={pageContentReadOnly(page.data.page, page.data.role)}
+        />
       ) : (
         <EmptyState variant="compact" title={t('databases.peek.loadFailed')} />
       )}
@@ -83,11 +86,9 @@ export function RowPeek({ rowId, open, mode, onClose, onOpenFullPage }: RowPeekP
   );
 }
 
-function PeekBody({ page, canEdit }: { page: Page; canEdit: boolean }) {
+function PeekBody({ page, readOnly }: { page: Page; readOnly: boolean }) {
   const databaseId = typeof page.databaseId === 'string' ? page.databaseId : undefined;
   const { data } = useDatabase(databaseId);
-  // A page in the trash is read there; a locked one is read only.
-  const readOnly = !canEdit || page.locked || page.archived === true;
   return (
     <PageEditorProvider pageId={page.id} readOnly={readOnly}>
       <View className="gap-4">
@@ -107,7 +108,7 @@ function PeekBody({ page, canEdit }: { page: Page; canEdit: boolean }) {
           layout={page.mode === 'canvas' ? 'canvas' : 'document'}
         />
       </View>
-      <PageEditorToolbar readOnly={readOnly} />
+      <PageEditorToolbar />
     </PageEditorProvider>
   );
 }

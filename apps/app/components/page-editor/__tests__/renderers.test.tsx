@@ -24,10 +24,6 @@ jest.mock('@/components/editor/blocks/bookmark-block', () => ({ BookmarkBlock: (
 jest.mock('@/components/editor/blocks/embed-block', () => ({ EmbedBlock: () => null }));
 jest.mock('@/components/editor/blocks/mermaid-block', () => ({ MermaidBlock: () => null }));
 jest.mock('@/components/editor/blocks/equation-block', () => ({ EquationBlock: () => null }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/components/page-chrome/callout-icon', () => ({ CalloutIcon: () => null }));
 
 const store = new EditorStore({

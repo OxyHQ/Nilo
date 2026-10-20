@@ -30,9 +30,6 @@ const mockMutate = jest.fn((_input: unknown, options?: { onError?: (error: unkno
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ user: { id: 'me' } }) }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock('@/lib/stores/workspace-store', () => ({
   useWorkspaceStore: (select: (s: { currentWorkspaceId: string }) => unknown) =>
     select({ currentWorkspaceId: 'w' }),

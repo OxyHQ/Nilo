@@ -24,10 +24,12 @@ import { FavoriteButton } from './favorite-button';
 import { IconDisplay } from './icon-display';
 import { IconPicker } from './icon-picker';
 import { useRouter } from 'expo-router';
+import { usePageEditorContext } from '@/components/page-editor/page-editor-context';
 import { PageActionsMenu } from './page-actions-menu';
 
 interface PageChromeProps {
   page: Page;
+  /** Below editor: the page's settings are not this member's to change. */
   readOnly?: boolean;
   /** Editor (or any body content) rendered below the page header. */
   children?: React.ReactNode;
@@ -63,21 +65,21 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
   const coverPicker = useDialogControl();
   const [repositioning, setRepositioning] = React.useState(false);
   // A locked page, or one in the trash, keeps its icon and cover as they are.
-  const frozen = page.locked || page.archived === true;
+  const { readOnly: contentReadOnly } = usePageEditorContext();
 
   const handleIconSelect = React.useCallback(
     (next: string | null) => {
-      if (readOnly || frozen) return;
+      if (contentReadOnly) return;
       updatePage.mutate({ id: page.id, icon: next });
     },
-    [page.id, frozen, readOnly, updatePage],
+    [page.id, contentReadOnly, updatePage],
   );
   const handleCoverSelect = React.useCallback(
     (next: string | null) => {
-      if (readOnly || frozen) return;
+      if (contentReadOnly) return;
       updatePage.mutate({ id: page.id, cover: next, coverPosition: 50 });
     },
-    [page.id, frozen, readOnly, updatePage],
+    [page.id, contentReadOnly, updatePage],
   );
 
   const stateValue = React.useMemo<PageChromeState>(
@@ -115,7 +117,7 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
           {children}
         </RepositioningContext.Provider>
 
-        {!readOnly && !frozen ? (
+        {!contentReadOnly ? (
           <>
             <IconPicker control={iconPicker} pageId={page.id} onSelect={handleIconSelect} />
             <CoverPicker control={coverPicker} pageId={page.id} onSelect={handleCoverSelect} />
@@ -131,7 +133,8 @@ const RepositioningContext = React.createContext<boolean>(false);
 /**
  * `PageHeader` — cover + icon + title. Designed to live INSIDE the route's
  * ScrollView so it scrolls with the page content. Reads picker state from
- * the surrounding `<PageChrome>` via context.
+ * the surrounding `<PageChrome>` via context. `readOnly` is `PageChrome`'s:
+ * the page's settings (its lock) are not this member's to change.
  */
 export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: boolean }) {
   const router = useRouter();
@@ -142,7 +145,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
   const updatePage = useUpdatePage();
   const [titleDraft, setTitleDraft] = React.useState<string | null>(null);
 
-  const contentReadOnly = readOnly || page.locked;
+  const { readOnly: contentReadOnly } = usePageEditorContext();
   const title = titleDraft ?? page.title;
   const titleStyle = {
     fontFamily: PAGE_FONT_FAMILIES[page.font ?? 'default'],
@@ -267,7 +270,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
             <Text className="flex-1 text-sm text-muted-foreground" accessibilityLiveRegion="polite">
               {t('pages.lock.banner')}
             </Text>
-            {!readOnly ? (
+            {!readOnly && !page.archived ? (
               <Button
                 appearance="subtle"
                 tone="neutral"

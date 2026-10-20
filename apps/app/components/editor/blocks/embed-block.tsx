@@ -4,7 +4,7 @@ import { RiCodeSSlashLine } from '@oxy.so/bloom/icons/RiCodeSSlashLine';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { UrlPrompt } from './block-parts';
-import { type BlockComponentProps, blockUrl } from './types';
+import type { BlockComponentProps } from './types';
 
 interface EmbedDescriptor {
   src: string;
@@ -111,7 +111,7 @@ function buildEmbed(url: string): EmbedDescriptor | null {
  */
 export function EmbedBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
   const { t } = useTranslation();
-  const url = blockUrl(block.content.url);
+  const url = block.content.url ?? '';
   const descriptor = React.useMemo(() => (url ? buildEmbed(url) : null), [url]);
 
   if (!url) {

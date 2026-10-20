@@ -4,20 +4,20 @@ import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { UrlPrompt } from './block-parts';
-import { type BlockComponentProps, blockUrl } from './types';
+import type { BlockComponentProps } from './types';
 
 /**
  * PDF block — embeds the PDF in an iframe on web, links out on native.
  * Falls back to a download pill if the iframe load fails (we can't tell
  * from JS whether the iframe succeeded, so we always show a small "Open in
  * new tab" link alongside it). The iframe is not sandboxed: Chrome refuses
- * to show a PDF in a sandboxed frame, and `blockUrl` already keeps out any
+ * to show a PDF in a sandboxed frame, and `blockContent` already keeps out any
  * URL that is not a page's to load.
  */
 export function PdfBlock({ block, onChangeContent, readOnly }: BlockComponentProps) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
-  const url = blockUrl(block.content.url);
+  const url = block.content.url ?? '';
 
   if (!url) {
     return (

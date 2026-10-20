@@ -9,15 +9,14 @@ import { Chip } from '@oxy.so/bloom/chip';
 import { Popover, PopoverContent, PopoverTrigger } from '@oxy.so/bloom/popover';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
-import { useOxy } from '@oxy.so/services/ui/client';
-import * as DocumentPicker from 'expo-document-picker';
 import * as WebBrowser from 'expo-web-browser';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import type { FileUrlScope } from '@oxy.so/nilo-contracts';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { freshFileUrl, isFileRemoved, useFileScope } from '@/lib/files/file-urls';
-import { FileTooLargeError, type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
+import { FileTooLargeError } from '@/lib/files/upload-page-file';
+import { useMediaUpload } from '@/components/editor/blocks/media-upload';
 import type { FileEntry } from '@/lib/types/databases';
 
 /** Where `file` opens: a link as it is, a file in Oxy storage through a URL minted now. */
@@ -172,48 +171,27 @@ function FilesEditor({
 }) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
-  const { oxyServices } = useOxy();
-  const queryClient = useQueryClient();
   const { open, error: openError } = useOpenFile(rowId);
   const [link, setLink] = React.useState('');
-  const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   // The value as the last write left it: two uploads in a row both stay.
   const latest = React.useRef(value);
   latest.current = value;
 
-  const attach = async (file: PickedFile) => {
-    if (!rowId) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const attached = await uploadPageFile(oxyServices, queryClient, rowId, file);
+  const upload = useMediaUpload(
+    rowId,
+    'file',
+    (attached) => {
       const next = [...latest.current, { fileId: attached.fileId, name: attached.name }];
       latest.current = next;
       onChange(next);
-    } catch (err) {
-      setError(
-        err instanceof FileTooLargeError
-          ? t('databases.files.tooLarge')
-          : t('editor.blocks.uploadFailed'),
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const pickNative = async () => {
-    const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
-    if (result.canceled || result.assets.length === 0) return;
-    const asset = result.assets[0];
-    await attach({
-      uri: asset.uri,
-      name: asset.name ?? `file-${Date.now()}`,
-      type: asset.mimeType ?? 'application/octet-stream',
-      ...(asset.size !== undefined && { size: asset.size }),
-    });
-  };
+    },
+    (err) =>
+      err instanceof FileTooLargeError
+        ? t('databases.files.tooLarge')
+        : t('editor.blocks.uploadFailed'),
+  );
+  // A link's error shows where an upload's does, the last one replacing the one before.
+  const { error, setError } = upload;
 
   const addLink = () => {
     const url = normalizeLink(link);
@@ -260,28 +238,14 @@ function FilesEditor({
           appearance="subtle"
           size="sm"
           className="self-start"
-          disabled={busy}
-          onPress={() => {
-            if (Platform.OS === 'web') fileInputRef.current?.click();
-            else void pickNative();
-          }}
+          disabled={upload.busy}
+          onPress={upload.choose}
           leadingIcon={RiUpload2Line}
         >
-          {busy ? t('editor.blocks.uploading') : t('databases.files.upload')}
+          {upload.busy ? t('editor.blocks.uploading') : t('databases.files.upload')}
         </Button>
       ) : null}
-      {Platform.OS === 'web' && rowId ? (
-        <input
-          ref={fileInputRef}
-          type="file"
-          style={{ display: 'none' }}
-          onChange={(ev) => {
-            const file = ev.target.files?.[0];
-            if (file) void attach(file);
-            ev.target.value = '';
-          }}
-        />
-      ) : null}
+      {rowId ? upload.input : null}
       <View className="flex-row items-end gap-2">
         <View className="flex-1">
           <TextFieldInput

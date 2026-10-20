@@ -4,9 +4,6 @@ import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { DatabasePicker } from '../database-picker';
 const mockDatabases = jest.fn();
 jest.mock('@/lib/hooks/use-databases', () => ({ useDatabases: (id: string) => mockDatabases(id) }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 // The dialog's body renders in place; closing it settles at once, running the
 // close callback and then `onClose`, as Bloom's does once its exit has run.
 jest.mock('@oxy.so/bloom/dialog', () => {

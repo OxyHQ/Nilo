@@ -10,7 +10,7 @@ import { uuidv7 } from '@/lib/ids';
 import { acquireSocket, releaseSocket } from '@/lib/realtime/socket';
 import { offlinePages } from './offline-pages';
 import type { SyncStatus } from './page-session';
-import { tellFocus } from './presence-focus';
+import { tellFocus, withMove } from './presence-focus';
 import { holdPageSession } from './shared-sessions';
 
 export type { SyncStatus };
@@ -139,18 +139,26 @@ export function usePageEditor(
     const onRemote = (event: { pageId: string }) => {
       if (event.pageId === pageId) refreshPageInfo();
     };
+    // Who is there, whole when someone joins or leaves; one member's move in between.
     const onPresence = (event: { pageId: string; users: Collaborator[] }) => {
       if (event.pageId === pageId) setCollaborators(event.users);
+    };
+    const onMove = (event: { pageId: string } & Collaborator) => {
+      if (event.pageId !== pageId) return;
+      const { userId, blockId, selection } = event;
+      setCollaborators((list) => withMove(list, { userId, blockId, selection }));
     };
     const clearPresence = () => setCollaborators([]);
     socket.on('doc:update', onRemote);
     socket.on('page:presence', onPresence);
+    socket.on('page:presence:focus', onMove);
     socket.on('disconnect', clearPresence);
 
     return () => {
       clearTimeout(refreshTimer);
       socket.off('doc:update', onRemote);
       socket.off('page:presence', onPresence);
+      socket.off('page:presence:focus', onMove);
       socket.off('disconnect', clearPresence);
       stopFocus?.();
       binding?.dispose();
