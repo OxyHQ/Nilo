@@ -124,3 +124,4 @@ export {
   type NoteWrite,
   noteWriteSchema,
 } from './notes';
+export type { NavigationNeighbor, NavigationNeighbors } from './navigation';
