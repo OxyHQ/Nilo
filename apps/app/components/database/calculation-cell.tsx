@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { type DimensionValue, Pressable, ScrollView, View } from 'react-native';
 import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
 import {
   DropdownMenu,
@@ -27,7 +27,7 @@ interface CalculationCellProps {
   property: DatabaseProperty;
   /** The value the API computed over every row of the view; undefined while it is read. */
   value: number | null | undefined;
-  width: number;
+  width: DimensionValue;
   /** May choose the calculation (the view's editors). */
   editable: boolean;
 }

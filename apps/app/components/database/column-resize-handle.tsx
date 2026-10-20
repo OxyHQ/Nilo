@@ -3,8 +3,8 @@ import { PanResponder, View } from 'react-native';
 import { clampWidth } from '@/lib/view-properties';
 
 interface ColumnResizeHandleProps {
-  /** The column's width when the drag starts. */
-  width: number;
+  /** The column's width now: a drag starts from it. */
+  width: () => number;
   label: string;
   /** While dragging: the width the column takes. */
   onResize: (width: number) => void;
@@ -18,7 +18,7 @@ interface ColumnResizeHandleProps {
  * column may be, and is kept when released.
  */
 export function ColumnResizeHandle({ width, label, onResize, onCommit }: ColumnResizeHandleProps) {
-  const start = React.useRef(width);
+  const start = React.useRef(0);
   const latest = React.useRef({ width, onResize, onCommit });
   latest.current = { width, onResize, onCommit };
   const responder = React.useMemo(
@@ -28,7 +28,7 @@ export function ColumnResizeHandle({ width, label, onResize, onCommit }: ColumnR
         onMoveShouldSetPanResponder: () => true,
         onPanResponderTerminationRequest: () => false,
         onPanResponderGrant: () => {
-          start.current = latest.current.width;
+          start.current = latest.current.width();
         },
         onPanResponderMove: (_event, gesture) => {
           latest.current.onResize(clampWidth(start.current + gesture.dx));

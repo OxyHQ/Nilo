@@ -1,4 +1,4 @@
-import { nestSubItems, subItemProperties, useExpandedRows } from '@/lib/sub-items';
+import { type NestedRow, nestSubItems, subItemProperties, useExpandedRows } from '@/lib/sub-items';
 import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
 import { Animated, Platform, Pressable, View } from 'react-native';
@@ -114,25 +114,19 @@ export function ViewTable({
   const titleFrozen = frozen.has(NAME_PROPERTY_ID) || frozenCount > 0;
   const nameProperty = database.schema.properties.find((p) => p.id === NAME_PROPERTY_ID);
 
-  // A column being resized takes the width it is dragged to until the view keeps it.
-  // Held against the widths the view had: once it holds new ones, those are shown.
-  const [dragState, setDragState] = React.useState<{
-    base: DatabaseView['config']['columnWidths'];
-    widths: Record<string, number>;
-  }>({ base: view.config?.columnWidths, widths: {} });
-  const dragged = dragState.base === view.config?.columnWidths ? dragState.widths : {};
-  const setDragged = (id: string, width: number) =>
-    setDragState((prev) => ({
-      base: view.config?.columnWidths,
-      widths: {
-        ...(prev.base === view.config?.columnWidths ? prev.widths : {}),
-        [id]: width,
-      },
-    }));
-  const widthOf = (id: string) => dragged[id] ?? columnWidth(view, id);
+  const widths = useColumnWidths(view);
+  const widthOf = widths.of;
   const titleWidth = widthOf(NAME_PROPERTY_ID);
-  const tableWidth =
-    titleWidth + visibleProperties.reduce((sum, p) => sum + widthOf(p.id), 0) + ADD_COLUMN_WIDTH;
+  const visibleKey = visibleProperties.map((p) => p.id).join('\u0000');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the sum changes with the columns shown, named by `visibleKey`; each column's value is the same object for good
+  const tableWidth = React.useMemo(
+    () =>
+      visibleProperties.reduce<Animated.AnimatedAddition | Animated.Value>(
+        (sum, p) => Animated.add(sum, widthOf(p.id)),
+        Animated.add(titleWidth, ADD_COLUMN_WIDTH),
+      ),
+    [visibleKey],
+  );
 
   const saveConfig = (config: DatabaseView['config']) =>
     updateView.mutate(
@@ -140,7 +134,7 @@ export function ViewTable({
       { onError: () => toast.error(t('databases.views.updateFailed')) },
     );
   const commitWidth = (id: string, width: number) => {
-    setDragged(id, width);
+    widths.set(id, width);
     saveConfig({ columnWidths: { ...(view.config?.columnWidths ?? {}), [id]: width } });
   };
 
@@ -182,22 +176,38 @@ export function ViewTable({
     grouping ?? (nameProperty as DatabaseProperty),
     view.groupBy?.granularity,
   );
+  // Each section's rows with their sub-items, nested once per change rather than per render.
+  const parentPropertyId = subItems?.parent.id;
+  const nested = React.useMemo(
+    () =>
+      new Map<string | null | typeof UNGROUPED, NestedRow[]>(
+        sections
+          ? sections.map((section) => [
+              section.key,
+              nestSubItems(section.rows, parentPropertyId, expanded),
+            ])
+          : [[UNGROUPED, nestSubItems(rows, parentPropertyId, expanded)]],
+      ),
+    [sections, rows, parentPropertyId, expanded],
+  );
 
   const handleNewRow = React.useCallback(async () => {
     if (readOnly) return;
     await createRow.mutateAsync({ databaseId: database.id });
   }, [createRow, database.id, readOnly]);
 
+  // `mutate` is the same function for the mutation's life, so the cells' memo holds.
+  const updateRowNow = updateRow.mutate;
   const handleCellChange = React.useCallback(
     (rowId: string, propertyId: string, value: PropertyValue) => {
       if (readOnly) return;
-      updateRow.mutate({
+      updateRowNow({
         databaseId: database.id,
         rowId,
         properties: { [propertyId]: value },
       });
     },
-    [database.id, updateRow, readOnly],
+    [database.id, updateRowNow, readOnly],
   );
 
   const handleTitleChange = React.useCallback(
@@ -222,45 +232,49 @@ export function ViewTable({
 
   /** A footer: each column's calculation over `values`' rows (the view's, or a group's). */
   const renderFooter = (values: CalculationValues | undefined, testID: string) => (
-    <View className="flex-row" style={{ minWidth: tableWidth }} testID={testID}>
-      <FrozenCell frozen={titleFrozen} last={frozenCount === 0} scrollX={scrollX}>
-        {nameProperty ? (
-          <CalculationCell
-            database={database}
-            view={view}
-            property={nameProperty}
-            value={values?.[NAME_PROPERTY_ID]?.value}
-            width={titleWidth}
-            editable={viewEditable}
-          />
-        ) : (
-          <View style={{ width: titleWidth }} />
-        )}
-      </FrozenCell>
-      {visibleProperties.map((property, index) => (
-        <FrozenCell
-          key={property.id}
-          frozen={index < frozenCount}
-          last={index === frozenCount - 1}
-          scrollX={scrollX}
-        >
-          <CalculationCell
-            database={database}
-            view={view}
-            property={property}
-            value={values?.[property.id]?.value}
-            width={widthOf(property.id)}
-            editable={viewEditable}
-          />
+    <Animated.View style={{ minWidth: tableWidth }}>
+      <View className="flex-row" testID={testID}>
+        <FrozenCell frozen={titleFrozen} last={frozenCount === 0} scrollX={scrollX}>
+          <Animated.View style={{ width: titleWidth }}>
+            {nameProperty ? (
+              <CalculationCell
+                database={database}
+                view={view}
+                property={nameProperty}
+                value={values?.[NAME_PROPERTY_ID]?.value}
+                width="100%"
+                editable={viewEditable}
+              />
+            ) : null}
+          </Animated.View>
         </FrozenCell>
-      ))}
-    </View>
+        {visibleProperties.map((property, index) => (
+          <FrozenCell
+            key={property.id}
+            frozen={index < frozenCount}
+            last={index === frozenCount - 1}
+            scrollX={scrollX}
+          >
+            <Animated.View style={{ width: widthOf(property.id) }}>
+              <CalculationCell
+                database={database}
+                view={view}
+                property={property}
+                value={values?.[property.id]?.value}
+                width="100%"
+                editable={viewEditable}
+              />
+            </Animated.View>
+          </FrozenCell>
+        ))}
+      </View>
+    </Animated.View>
   );
   const groupCalculations = (key: string | null) =>
     computed.data?.groups?.find((group) => group.key === key)?.calculations;
 
-  const renderRows = (list: DatabaseRow[], keyPrefix: string) =>
-    nestSubItems(list, subItems?.parent.id, expanded).map((entry) => {
+  const renderRows = (list: readonly NestedRow[], keyPrefix: string) =>
+    list.map((entry) => {
       if (entry.kind === 'new')
         return !readOnly ? (
           <NewSubItem
@@ -274,26 +288,28 @@ export function ViewTable({
       return (
         <View key={`${keyPrefix}${row.id}`} className="flex-row border-b border-border/60">
           <FrozenCell frozen={titleFrozen} last={frozenCount === 0} scrollX={scrollX}>
-            <Pressable
-              className="flex-1 px-3 py-2 border-r border-border/60 flex-row items-center"
-              style={{ width: titleWidth, paddingLeft: 12 + depth * 24 }}
-              accessibilityRole="link"
-              accessibilityLabel={row.title || t('databases.untitled')}
-              onPress={() => openRow(row.id)}
-            >
-              {subItems ? (
-                <SubItemToggle
-                  expanded={expanded.has(row.id)}
-                  title={row.title}
-                  onPress={() => toggleExpanded(row.id)}
+            <Animated.View style={{ width: titleWidth, flex: 1 }}>
+              <Pressable
+                className="flex-1 px-3 py-2 border-r border-border/60 flex-row items-center"
+                style={{ paddingLeft: 12 + depth * 24 }}
+                accessibilityRole="link"
+                accessibilityLabel={row.title || t('databases.untitled')}
+                onPress={() => openRow(row.id)}
+              >
+                {subItems ? (
+                  <SubItemToggle
+                    expanded={expanded.has(row.id)}
+                    title={row.title}
+                    onPress={() => toggleExpanded(row.id)}
+                  />
+                ) : null}
+                <TitleCell
+                  readOnly={readOnly}
+                  initial={row.title}
+                  onChange={(next) => handleTitleChange(row.id, next)}
                 />
-              ) : null}
-              <TitleCell
-                readOnly={readOnly}
-                initial={row.title}
-                onChange={(next) => handleTitleChange(row.id, next)}
-              />
-            </Pressable>
+              </Pressable>
+            </Animated.View>
           </FrozenCell>
           {visibleProperties.map((property, index) => (
             <FrozenCell
@@ -302,19 +318,17 @@ export function ViewTable({
               last={index === frozenCount - 1}
               scrollX={scrollX}
             >
-              <View
-                className="px-3 py-2 border-r border-border/60 justify-center flex-1"
-                style={{ width: widthOf(property.id) }}
-              >
-                <PropertyCell
-                  readOnly={readOnly}
-                  property={property}
-                  value={row.properties[property.id] ?? null}
-                  variant="table"
-                  rowId={row.id}
-                  onChange={(value) => handleCellChange(row.id, property.id, value)}
-                />
-              </View>
+              <Animated.View style={{ width: widthOf(property.id), flex: 1 }}>
+                <View className="px-3 py-2 border-r border-border/60 justify-center flex-1">
+                  <TableCell
+                    readOnly={readOnly}
+                    property={property}
+                    value={row.properties[property.id] ?? null}
+                    rowId={row.id}
+                    onCellChange={handleCellChange}
+                  />
+                </View>
+              </Animated.View>
             </FrozenCell>
           ))}
           <View style={{ width: ADD_COLUMN_WIDTH }} />
@@ -331,63 +345,64 @@ export function ViewTable({
     >
       <View>
         {/* header row */}
-        <View
-          className="flex-row border-y border-border bg-muted/30"
-          style={{ minWidth: tableWidth }}
-        >
-          <FrozenCell
-            testID="table-title-header"
-            frozen={titleFrozen}
-            last={frozenCount === 0}
-            scrollX={scrollX}
-          >
-            <View
-              className={`px-3 py-2 border-r border-border ${titleFrozen ? 'bg-muted/30' : ''}`}
-              style={{ width: titleWidth }}
-            >
-              <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {t('common.name')}
-              </Text>
-              {viewEditable && Platform.OS === 'web' ? (
-                <ColumnResizeHandle
-                  width={titleWidth}
-                  label={t('databases.columns.resize', { name: t('common.name') })}
-                  onResize={(width) => setDragged(NAME_PROPERTY_ID, width)}
-                  onCommit={(width) => commitWidth(NAME_PROPERTY_ID, width)}
-                />
-              ) : null}
-            </View>
-          </FrozenCell>
-          {visibleProperties.map((property, index) => (
+        <Animated.View style={{ minWidth: tableWidth }}>
+          <View className="flex-row border-y border-border bg-muted/30">
             <FrozenCell
-              key={property.id}
-              testID={`table-header-${property.id}`}
-              frozen={index < frozenCount}
-              last={index === frozenCount - 1}
+              testID="table-title-header"
+              frozen={titleFrozen}
+              last={frozenCount === 0}
               scrollX={scrollX}
             >
-              <ColumnHeader
-                readOnly={schemaReadOnly}
-                movable={viewEditable}
-                database={database}
-                view={view}
-                property={property}
-                width={widthOf(property.id)}
-                frozen={index < frozenCount}
-                onMove={(by) => moveColumn(property.id, by)}
-                canMoveLeft={index > 0}
-                canMoveRight={index < visibleProperties.length - 1}
-                onColumnDropped={(id) => dropColumn(id, property.id)}
-                onResize={(width) => setDragged(property.id, width)}
-                onCommitWidth={(width) => commitWidth(property.id, width)}
-              />
+              <Animated.View style={{ width: titleWidth }}>
+                <View
+                  className={`px-3 py-2 border-r border-border ${titleFrozen ? 'bg-muted/30' : ''}`}
+                >
+                  <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {t('common.name')}
+                  </Text>
+                  {viewEditable && Platform.OS === 'web' ? (
+                    <ColumnResizeHandle
+                      width={() => widths.now(NAME_PROPERTY_ID)}
+                      label={t('databases.columns.resize', { name: t('common.name') })}
+                      onResize={(width) => widths.set(NAME_PROPERTY_ID, width)}
+                      onCommit={(width) => commitWidth(NAME_PROPERTY_ID, width)}
+                    />
+                  ) : null}
+                </View>
+              </Animated.View>
             </FrozenCell>
-          ))}
-          <View
-            className="px-3 py-2 items-center justify-center"
-            style={{ width: ADD_COLUMN_WIDTH }}
-          />
-        </View>
+            {visibleProperties.map((property, index) => (
+              <FrozenCell
+                key={property.id}
+                testID={`table-header-${property.id}`}
+                frozen={index < frozenCount}
+                last={index === frozenCount - 1}
+                scrollX={scrollX}
+              >
+                <ColumnHeader
+                  readOnly={schemaReadOnly}
+                  movable={viewEditable}
+                  database={database}
+                  view={view}
+                  property={property}
+                  width={widthOf(property.id)}
+                  widthNow={() => widths.now(property.id)}
+                  frozen={index < frozenCount}
+                  onMove={(by) => moveColumn(property.id, by)}
+                  canMoveLeft={index > 0}
+                  canMoveRight={index < visibleProperties.length - 1}
+                  onColumnDropped={(id) => dropColumn(id, property.id)}
+                  onResize={(width) => widths.set(property.id, width)}
+                  onCommitWidth={(width) => commitWidth(property.id, width)}
+                />
+              </FrozenCell>
+            ))}
+            <View
+              className="px-3 py-2 items-center justify-center"
+              style={{ width: ADD_COLUMN_WIDTH }}
+            />
+          </View>
+        </Animated.View>
 
         {/* rows */}
         {rows.length === 0 && !sections?.length ? (
@@ -402,12 +417,14 @@ export function ViewTable({
             const prefix = `${section.key === null ? '\u0000' : section.key}:`;
             return (
               <View key={`group-${prefix}`} testID={`table-group-${section.key ?? 'none'}`}>
-                <View className="border-b border-border/60" style={{ minWidth: tableWidth }}>
-                  <GroupHeader {...headerProps(section)} />
-                </View>
+                <Animated.View style={{ minWidth: tableWidth }}>
+                  <View className="border-b border-border/60">
+                    <GroupHeader {...headerProps(section)} />
+                  </View>
+                </Animated.View>
                 {collapsed ? null : (
                   <>
-                    {renderRows(section.rows, prefix)}
+                    {renderRows(nested.get(section.key) ?? [], prefix)}
                     {!readOnly && groupTakesRows(grouping) ? (
                       <Pressable
                         accessibilityRole="button"
@@ -437,7 +454,7 @@ export function ViewTable({
             );
           })
         ) : (
-          renderRows(rows, '')
+          renderRows(nested.get(UNGROUPED) ?? [], '')
         )}
 
         {/* new row */}
@@ -483,6 +500,72 @@ interface FrozenCellProps {
  * A cell of a frozen column: moved back as far as the table scrolled, opaque
  * and above the cells passing under it. Any other cell is laid out as is.
  */
+/** The ungrouped table's rows, in `nested`. */
+const UNGROUPED = Symbol('ungrouped');
+
+/**
+ * A table's column widths as they are drawn: an animated value per column,
+ * so one being dragged moves its column without a render of every row.
+ * Released, it is saved; once the view holds new widths (saved, or changed
+ * elsewhere), those are shown.
+ */
+function useColumnWidths(view: DatabaseView) {
+  const anims = React.useRef(new Map<string, Animated.Value>()).current;
+  const current = React.useRef(new Map<string, number>()).current;
+  const columnWidths = view.config?.columnWidths;
+  const of = (id: string): Animated.Value => {
+    let anim = anims.get(id);
+    if (!anim) {
+      const width = columnWidth(view, id);
+      anim = new Animated.Value(width);
+      anims.set(id, anim);
+      current.set(id, width);
+    }
+    return anim;
+  };
+  const set = (id: string, width: number) => {
+    of(id).setValue(width);
+    current.set(id, width);
+  };
+  React.useEffect(() => {
+    for (const [id, anim] of anims) {
+      const width = columnWidth({ config: { columnWidths } }, id);
+      anim.setValue(width);
+      current.set(id, width);
+    }
+  }, [anims, current, columnWidths]);
+  return { of, set, now: (id: string) => current.get(id) ?? columnWidth(view, id) };
+}
+
+/**
+ * A row's cell, drawn again only when its value, its property or what it may
+ * do changes: a table's other rows are not redrawn when one cell is edited.
+ */
+const TableCell = React.memo(function TableCell({
+  readOnly,
+  property,
+  value,
+  rowId,
+  onCellChange,
+}: {
+  readOnly: boolean;
+  property: DatabaseProperty;
+  value: PropertyValue;
+  rowId: string;
+  onCellChange: (rowId: string, propertyId: string, value: PropertyValue) => void;
+}) {
+  return (
+    <PropertyCell
+      readOnly={readOnly}
+      property={property}
+      value={value}
+      variant="table"
+      rowId={rowId}
+      onChange={(next) => onCellChange(rowId, property.id, next)}
+    />
+  );
+});
+
 function FrozenCell({ frozen, last, scrollX, testID, children }: FrozenCellProps) {
   if (!frozen) return <View testID={testID}>{children}</View>;
   return (
@@ -503,7 +586,9 @@ interface ColumnHeaderProps {
   readOnly: boolean;
   /** May resize and move the column (the view's editors). */
   movable: boolean;
-  width: number;
+  width: Animated.Value;
+  /** Its width now, as a resize starts from it. */
+  widthNow: () => number;
   /** Painted as the header row is, over the frozen cell's opaque background. */
   frozen?: boolean;
   onMove: (by: -1 | 1) => void;
@@ -522,6 +607,7 @@ function ColumnHeader({
   readOnly,
   movable,
   width,
+  widthNow,
   frozen = false,
   onMove,
   canMoveLeft,
@@ -558,45 +644,46 @@ function ColumnHeader({
       }
     : {};
   return (
-    <View
-      className={`px-3 py-2 border-r border-border flex-row items-center justify-between ${frozen ? 'bg-muted/30' : ''}`}
-      style={{ width }}
-      {...(dropTarget as Record<string, unknown>)}
-    >
-      <Pressable
-        disabled={readOnly}
-        accessibilityRole="button"
-        accessibilityLabel={property.name}
-        accessibilityHint={web ? t('databases.columns.drag', { name: property.name }) : undefined}
-        onPress={() => menu.open()}
-        className="flex-1"
-        {...(dragSource as Record<string, unknown>)}
+    <Animated.View style={{ width }}>
+      <View
+        className={`px-3 py-2 border-r border-border flex-row items-center justify-between ${frozen ? 'bg-muted/30' : ''}`}
+        {...(dropTarget as Record<string, unknown>)}
       >
-        <Text
-          className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-          numberOfLines={1}
+        <Pressable
+          disabled={readOnly}
+          accessibilityRole="button"
+          accessibilityLabel={property.name}
+          accessibilityHint={web ? t('databases.columns.drag', { name: property.name }) : undefined}
+          onPress={() => menu.open()}
+          className="flex-1"
+          {...(dragSource as Record<string, unknown>)}
         >
-          {property.name}
-        </Text>
-      </Pressable>
-      {!readOnly ? (
-        <PropertyHeaderMenu
-          control={menu}
-          database={database}
-          view={view}
-          property={property}
-          move={movable ? { onMove, left: canMoveLeft, right: canMoveRight } : undefined}
-        />
-      ) : null}
-      {web ? (
-        <ColumnResizeHandle
-          width={width}
-          label={t('databases.columns.resize', { name: property.name })}
-          onResize={onResize}
-          onCommit={onCommitWidth}
-        />
-      ) : null}
-    </View>
+          <Text
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            numberOfLines={1}
+          >
+            {property.name}
+          </Text>
+        </Pressable>
+        {!readOnly ? (
+          <PropertyHeaderMenu
+            control={menu}
+            database={database}
+            view={view}
+            property={property}
+            move={movable ? { onMove, left: canMoveLeft, right: canMoveRight } : undefined}
+          />
+        ) : null}
+        {web ? (
+          <ColumnResizeHandle
+            width={widthNow}
+            label={t('databases.columns.resize', { name: property.name })}
+            onResize={onResize}
+            onCommit={onCommitWidth}
+          />
+        ) : null}
+      </View>
+    </Animated.View>
   );
 }
 
