@@ -9,19 +9,13 @@ import { tokenColor, useCodePalette } from '@oxy.so/bloom/code';
 import { toast } from '@oxy.so/bloom/toast';
 import { useOxy } from '@oxy.so/services/ui/client';
 import { useTranslation } from '@/hooks/useTranslation';
+import { resolveWebOrigin } from '@/components/sharing/build-share-url';
 import { CODE_LANGUAGE_NAMES, CODE_LANGUAGES, highlightCode } from '@/lib/code-highlight';
 import { type PickedFile, uploadPageFile } from '@/lib/files/upload-page-file';
 
-/** Where the app is served: the link to a block is one a member opens. */
-function appOrigin(): string {
-  return Platform.OS === 'web' && typeof window !== 'undefined'
-    ? window.location.origin
-    : 'https://nilo.so';
-}
-
 /** The link to one block of a page, which opens the page scrolled to it. */
 export function blockLink(pageId: string, blockId: string): string {
-  return `${appOrigin()}/p/${pageId}?blockId=${encodeURIComponent(blockId)}`;
+  return `${resolveWebOrigin()}/p/${pageId}?blockId=${encodeURIComponent(blockId)}`;
 }
 
 /** A pasted image as the upload takes it: a File in a browser, its URI on a device. */
