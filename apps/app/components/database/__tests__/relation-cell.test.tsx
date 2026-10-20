@@ -2,8 +2,9 @@ import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { PropertyCell } from '../property-cell';
+import { RelatedRowsProvider } from '../relation-cell';
 import { RowPropertiesPanel } from '../row-properties-panel';
-import { useDatabaseRow, useRelatedRows } from '@/lib/hooks/use-database-rows';
+import { useDatabaseRow, useRelatedRowSets, useRelatedRows } from '@/lib/hooks/use-database-rows';
 import type { Database, DatabaseRow } from '@/lib/types/databases';
 const mockPush = jest.fn();
 // The cells read people, files and rows through the API client and Oxy's session.
@@ -22,6 +23,7 @@ jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }
 jest.mock('@/lib/hooks/use-database-rows', () => ({
   useDatabaseRow: jest.fn(),
   useRelatedRows: jest.fn(),
+  useRelatedRowSets: jest.fn(),
   useUpdateRow: () => ({ mutate: jest.fn() }),
 }));
 let renderer: ReactTestRenderer;
@@ -141,4 +143,65 @@ it('the row page uses fresh row-query properties without reloading the editor pa
   expect(useRelatedRows).toHaveBeenCalledWith('target', ['new']);
   expect(useRelatedRows).not.toHaveBeenCalledWith('target', ['old']);
   expect(JSON.stringify(renderer.toJSON())).toContain('New relation');
+});
+
+it('reads the related rows of every row of a view once, a cell reading only what it lists apart', () => {
+  const property = {
+    id: 'rel',
+    name: 'Rel',
+    type: 'relation',
+    config: { targetDatabaseId: 't' },
+  } as const;
+  const database = { id: 'db', schema: { properties: [property] } } as unknown as Database;
+  const rows = [
+    { id: 'r1', properties: { rel: { pageIds: ['b', 'a'] } } },
+    { id: 'r2', properties: { rel: { pageIds: ['a', 'c'] } } },
+  ] as unknown as DatabaseRow[];
+  jest.mocked(useRelatedRowSets).mockReturnValue(
+    new Map([
+      [
+        't',
+        {
+          requested: new Set(['a', 'b', 'c']),
+          // The set is being read again: `c` is not read yet.
+          readIds: new Set(['a', 'b']),
+          rows: new Map([['a', { id: 'a', title: 'Alpha' } as DatabaseRow]]),
+          isError: false,
+        },
+      ],
+    ]),
+  );
+  jest
+    .mocked(useRelatedRows)
+    .mockImplementation(
+      (_db, ids) =>
+        ({ data: ids.map((id) => ({ id, title: `Own ${id}` })) }) as ReturnType<
+          typeof useRelatedRows
+        >,
+    );
+  act(() => {
+    renderer = create(
+      <BloomTestProviders>
+        <RelatedRowsProvider database={database} rows={rows}>
+          <PropertyCell
+            property={property}
+            value={{ pageIds: ['a', 'b', 'c', 'd'] }}
+            readOnly
+            onChange={jest.fn()}
+          />
+        </RelatedRowsProvider>
+      </BloomTestProviders>,
+    );
+  });
+  expect(useRelatedRowSets).toHaveBeenCalledWith([{ databaseId: 't', ids: ['a', 'b', 'c'] }]);
+  expect(useRelatedRows).toHaveBeenCalledWith('t', ['d']);
+  const labels = renderer.root
+    .findAll((node) => node.props?.stopPropagation === true && node.props.onPress)
+    .map((node) => node.props.accessibilityLabel);
+  expect([...new Set(labels)]).toEqual([
+    'Alpha',
+    'databases.relations.unavailable',
+    'common.loading',
+    'Own d',
+  ]);
 });

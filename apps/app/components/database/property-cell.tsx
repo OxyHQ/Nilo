@@ -1,4 +1,4 @@
-import { RelationCell } from './relation-cell';
+import { RelationCell, readPageIds } from './relation-cell';
 import { ComputedCell } from './computed-cell';
 import { ContactCell, ContactLink } from './contact-cell';
 import { DateCell } from './date-cell';
@@ -326,15 +326,6 @@ function readFiles(v: PropertyValue): FileEntry[] {
         const { name, url, fileId } = f as { name?: unknown; url?: unknown; fileId?: unknown };
         return typeof name === 'string' && (typeof url === 'string' || typeof fileId === 'string');
       });
-    }
-  }
-  return [];
-}
-function readPageIds(v: PropertyValue): string[] {
-  if (v && typeof v === 'object' && 'pageIds' in v) {
-    const ids = v.pageIds;
-    if (Array.isArray(ids)) {
-      return ids.filter((id): id is string => typeof id === 'string');
     }
   }
   return [];

@@ -74,6 +74,7 @@ jest.mock('@/lib/hooks/use-database-rows', () => ({
     isPending: false,
   }),
   useUpdateRow: () => ({ mutate: jest.fn(), mutateAsync: mockUpdateRowAsync }),
+  useRelatedRowSets: () => new Map(),
 }));
 jest.mock('../property-config-modal', () => ({
   AddPropertyButton: () => null,

@@ -26,6 +26,7 @@ import { DatabaseCellScopeProvider } from './cell-scope';
 import { ViewSearch } from './view-search';
 import { ViewChart } from './view-chart';
 import { OpenRowProvider } from './row-peek-provider';
+import { RelatedRowsProvider } from './relation-cell';
 
 interface DatabaseViewContainerProps {
   database: Database;
@@ -156,18 +157,20 @@ export function DatabaseViewContainer({
             </Text>
           ) : null}
           <View className="flex-1">
-            {VIEW_BODIES[view.type]({
-              database,
-              view,
-              rows,
-              isLoading,
-              readOnly,
-              schemaReadOnly: !schemaEditable || !viewEditable,
-              viewEditable,
-              groups,
-              hasMore,
-              onLoadMore,
-            })}
+            <RelatedRowsProvider database={database} rows={rows}>
+              {VIEW_BODIES[view.type]({
+                database,
+                view,
+                rows,
+                isLoading,
+                readOnly,
+                schemaReadOnly: !schemaEditable || !viewEditable,
+                viewEditable,
+                groups,
+                hasMore,
+                onLoadMore,
+              })}
+            </RelatedRowsProvider>
           </View>
         </View>
       </OpenRowProvider>

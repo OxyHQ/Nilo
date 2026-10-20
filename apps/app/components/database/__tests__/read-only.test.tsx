@@ -39,6 +39,7 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/lib/hooks/use-database-rows', () => ({
   useCreateRow: () => ({ mutate: jest.fn(), mutateAsync: jest.fn(), isPending: false }),
   useUpdateRow: () => ({ mutate: jest.fn() }),
+  useRelatedRowSets: () => new Map(),
 }));
 jest.mock('../property-config-modal', () => ({
   AddPropertyButton: () => null,

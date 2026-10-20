@@ -45,6 +45,7 @@ jest.mock('@/lib/hooks/use-database-rows', () => ({
   useDatabaseRows: () => ({ data: { rows: mockRows(), total: 1 }, isLoading: false }),
   useCreateRow: () => ({ mutate: jest.fn(), mutateAsync: jest.fn(), isPending: false }),
   useUpdateRow: () => ({ mutate: jest.fn() }),
+  useRelatedRowSets: () => new Map(),
 }));
 jest.mock('@/lib/hooks/use-database-properties', () => ({
   useReorderProperties: () => ({ mutate: jest.fn(), isPending: false }),
