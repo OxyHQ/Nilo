@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
+import { pageBlockDomId } from '@/lib/editor/dom-ids';
 
 /** Wait for the editor to mount its blocks, including a delayed web render. */
 export function useSearchBlock(blockId: string | undefined, ready: boolean) {
@@ -7,7 +8,7 @@ export function useSearchBlock(blockId: string | undefined, ready: boolean) {
     if (Platform.OS !== 'web' || !blockId || !ready) return;
     let observer: MutationObserver | undefined;
     const scroll = () => {
-      const block = document.getElementById(`bloom-block-${blockId}`);
+      const block = document.getElementById(pageBlockDomId(blockId));
       if (!block) return false;
       block.scrollIntoView({ behavior: 'smooth', block: 'center' });
       observer?.disconnect();

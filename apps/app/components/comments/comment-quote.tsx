@@ -4,6 +4,7 @@ import { Text } from '@oxy.so/bloom/typography';
 import { useOptionalPageEditorContext } from '@/components/page-editor/page-editor-context';
 import { useTranslation } from '@/hooks/useTranslation';
 import { blockText, locateAnchor } from '@/lib/comments/anchor';
+import { pageBlockDomId } from '@/lib/editor/dom-ids';
 import type { CommentAnchor } from '@/lib/types/comments';
 import { useColorScheme } from '@/lib/useColorScheme';
 
@@ -42,7 +43,7 @@ export function CommentQuote({
     const [start, end] = where.split(':').map(Number) as [number, number];
     if (Platform.OS === 'web') {
       document
-        .getElementById(`bloom-block-${blockId}`)
+        .getElementById(pageBlockDomId(blockId))
         ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     store.setSelection({ kind: 'text', blockId, start, end });

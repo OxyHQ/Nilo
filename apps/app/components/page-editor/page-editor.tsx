@@ -6,8 +6,16 @@ import { usePageComments } from '@/lib/hooks/use-comments';
 import { useCreatePage, usePage } from '@/lib/hooks/use-pages';
 import { useSearchBlock } from '@/lib/hooks/use-search-block';
 import { runCommand } from '@/lib/editor/run-command';
-import { BlockEditor, type EditorStore, type FormatAction, setProps } from '@oxy.so/bloom-editor';
+import {
+  BlockEditor,
+  type ConfirmRemove,
+  type EditorStore,
+  type FormatAction,
+  type PasteTextInput,
+  setProps,
+} from '@oxy.so/bloom-editor';
 import { RiChat3Line } from '@oxy.so/bloom/icons/RiChat3Line';
+import { confirm } from '@oxy.so/bloom/surfaces';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
 import { toast } from '@oxy.so/bloom/toast';
 import { router } from 'expo-router';
@@ -17,8 +25,14 @@ import { IconPicker } from '@/components/page-chrome/icon-picker';
 import apiClient from '@/lib/api/client';
 import { API_ROUTES } from '@/lib/api/routes';
 import { anchorFor, blockText, selectionAnchor } from '@/lib/comments/anchor';
+import { PAGE_DOM_PREFIX } from '@/lib/editor/dom-ids';
 import { insertBlockSnapshot, insertContainer } from '@/lib/editor/insert-blocks';
-import { removedOriginals, syncedReference } from '@/lib/editor/synced-blocks';
+import {
+  originalsWithin,
+  pastedSyncedReference,
+  syncedClipboard,
+  syncedReference,
+} from '@/lib/editor/synced-blocks';
 import type { SyncedUsages } from '@/lib/hooks/use-synced-blocks';
 import type { CommentAnchor } from '@/lib/types/comments';
 import { MemberProfileCard } from './member-profile-card';
@@ -32,6 +46,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { usePageEditorContext } from './page-editor-context';
 import { useEditorMentions } from './use-editor-mentions';
 import { useOpenEditorMention, openEditorLink } from './open-target';
+import { blockLink } from './editor-extras';
 import { createMarkers, createRenderers } from './renderers';
 import { useEditorExtras } from './editor-extras';
 import { PageCanvas } from './page-canvas';
@@ -211,30 +226,55 @@ export function PageEditor({
     return () => window.removeEventListener('keydown', onKey, true);
   }, [canComment, store]);
 
-  // Deleting an original: the pages showing it will show "Original deleted".
-  // Bloom asks nothing before removing blocks, so it is said after, with undo.
-  useEffect(() => {
-    if (!store || readOnly) return;
-    return store.onTransaction((tx, origin) => {
-      if (origin !== 'local') return;
-      const removed = removedOriginals(tx);
-      if (removed.length === 0) return;
-      void Promise.all(
-        removed.map((id) =>
+  // Deleting an original shown on other pages leaves them "Original
+  // deleted": asked first. Removing anything else is not asked about.
+  const confirmRemove = useCallback<ConfirmRemove>(
+    (ids) => {
+      if (!store) return true;
+      const originals = originalsWithin(store.doc, ids);
+      if (originals.length === 0) return true;
+      return Promise.all(
+        originals.map((id) =>
           apiClient
             .get<SyncedUsages>(API_ROUTES.syncedBlocks.usages(id))
             .then(({ data }) => data.references.filter((r) => r.page.id !== pageId).length)
+            // Not known (offline, not projected yet): nothing to warn of.
             .catch(() => 0),
         ),
       ).then((counts) => {
         const count = counts.reduce((sum, n) => sum + n, 0);
-        if (count === 0) return;
-        toast.warning(t('editor.blocks.syncBlock.deletedWarning', { count }), {
-          action: { label: t('editor.blocks.syncBlock.undo'), onClick: () => store.undo() },
+        if (count === 0) return true;
+        return confirm({
+          title: t('editor.blocks.syncBlock.deleteDialog.title'),
+          description: t('editor.blocks.syncBlock.deleteDialog.description', { count }),
+          confirmLabel: t('common.delete'),
+          cancelLabel: t('common.cancel'),
+          destructive: true,
         });
       });
-    });
-  }, [store, readOnly, pageId, t]);
+    },
+    [store, pageId, t],
+  );
+
+  // Pasting the link "Copy and sync" put on the clipboard shows the original
+  // here (a reference), as Notion does; any other paste is Bloom's.
+  const onPasteText = useCallback(
+    ({ text, blockId }: PasteTextInput) => {
+      if (!store || readOnly) return false;
+      const reference = pastedSyncedReference(
+        store.doc,
+        pageId,
+        blockId,
+        text,
+        syncedClipboard.get(),
+        (ref) => blockLink(ref.pageId, ref.blockId),
+      );
+      if (!reference) return false;
+      insertBlockSnapshot(store, reference, blockId);
+      return true;
+    },
+    [store, readOnly, pageId],
+  );
 
   useEffect(() => {
     currentEditor.current = { store, readOnly };
@@ -364,6 +404,9 @@ export function PageEditor({
     markers,
     blockActions,
     formatActions,
+    onPasteText,
+    confirmRemove,
+    domIdPrefix: PAGE_DOM_PREFIX,
     theme,
     labels,
     readOnly,

@@ -1,5 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { EditorStore, removeBlocks } from '@oxy.so/bloom-editor/model';
+import { EditorStore } from '@oxy.so/bloom-editor/model';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
 import { DatabasePicker } from '../database-picker';
@@ -7,6 +7,7 @@ import { SyncedBlockPicker } from '../synced-block-picker';
 import apiClient from '@/lib/api/client';
 import { syncedClipboard } from '@/lib/editor/synced-blocks';
 import { toast } from '@oxy.so/bloom/toast';
+import { confirm } from '@oxy.so/bloom/surfaces';
 import { BlockEditor } from '@oxy.so/bloom-editor';
 import { PageEditorProvider } from '../page-editor-context';
 import { isCommentShortcut, PageEditor } from '../page-editor';
@@ -47,6 +48,8 @@ jest.mock('@oxy.so/bloom-editor', () => ({
     set() {}
   },
   blockColors: () => ({}),
+  BLOCK_DOM_PREFIX: 'bloom-block-',
+  blockDomId: (id: string, prefix = 'bloom-block-') => `${prefix}${id}`,
 }));
 jest.mock('@oxy.so/bloom/theme', () => ({
   ...jest.requireActual('@oxy.so/bloom/theme'),
@@ -87,7 +90,12 @@ jest.mock('@/lib/hooks/use-databases', () => ({
 jest.mock('@/lib/hooks/use-search-block', () => ({ useSearchBlock: jest.fn() }));
 // Uploads and the clipboard are the extras' own; one stable object, as a memoised hook gives.
 const mockExtras = {};
-jest.mock('../editor-extras', () => ({ useEditorExtras: () => mockExtras }));
+jest.mock('../editor-extras', () => ({
+  useEditorExtras: () => mockExtras,
+  blockLink: (pageId: string, blockId: string) =>
+    `https://nilo.test/p/${pageId}?blockId=${blockId}`,
+}));
+jest.mock('@oxy.so/bloom/surfaces', () => ({ confirm: jest.fn() }));
 jest.mock('@/lib/hooks/use-member-profiles', () => ({
   useMemberProfiles: () => ({}),
   profileName: jest.fn(),
@@ -274,7 +282,20 @@ describe('synced blocks', () => {
     expect(toast.success).toHaveBeenCalled();
   });
 
-  it('warns that the pages showing a deleted original will show it deleted, with undo', async () => {
+  beforeEach(() => {
+    (apiClient.get as jest.Mock).mockClear();
+    (confirm as jest.Mock).mockClear();
+  });
+  const confirmRemove = (ids: string[]) =>
+    renderer.root.findByType(BlockEditor).props.confirmRemove(ids) as boolean | Promise<boolean>;
+
+  it('removes blocks holding no original without asking', () => {
+    expect(confirmRemove(['anchor'])).toBe(true);
+    expect(apiClient.get).not.toHaveBeenCalled();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('asks before removing an original shown on other pages, and removes nothing on no', async () => {
     (apiClient.get as jest.Mock).mockResolvedValueOnce({
       data: {
         original: { blockId: 'x', page: { id: 'page' } },
@@ -284,22 +305,55 @@ describe('synced blocks', () => {
         ],
       },
     });
+    (confirm as jest.Mock).mockResolvedValueOnce(false);
     await act(async () => action('copySync')?.onPress('anchor'));
     const [original] = mockStore.doc.root as [string];
+    let answer: boolean | undefined;
     await act(async () => {
-      mockStore.run((c) => removeBlocks(c, [original]));
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      answer = await confirmRemove([original]);
     });
     expect(apiClient.get).toHaveBeenCalledWith(`/blocks/${original}/synced`);
-    expect(toast.warning).toHaveBeenCalledWith(
-      'editor.blocks.syncBlock.deletedWarning',
+    expect(confirm).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: expect.objectContaining({ onClick: expect.any(Function) }),
+        title: 'editor.blocks.syncBlock.deleteDialog.title',
+        description: 'editor.blocks.syncBlock.deleteDialog.description',
+        destructive: true,
       }),
     );
-    const { action: undo } = (toast.warning as jest.Mock).mock.calls[0][1];
-    act(() => undo.onClick());
-    expect(mockStore.doc.blocks[original]).toBeDefined();
+    expect(answer).toBe(false);
+  });
+
+  it('removes an original shown nowhere else, or when where it is shown cannot be read', async () => {
+    await act(async () => action('copySync')?.onPress('anchor'));
+    const [original] = mockStore.doc.root as [string];
+    (apiClient.get as jest.Mock).mockResolvedValueOnce({
+      data: { original: { blockId: original, page: { id: 'page' } }, references: [] },
+    });
+    await expect(confirmRemove([original])).resolves.toBe(true);
+    (apiClient.get as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+    await expect(confirmRemove([original])).resolves.toBe(true);
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('pastes the link "Copy and sync" copied as a reference, and leaves other text to Bloom', async () => {
+    syncedClipboard.set({ blockId: 'source-block', pageId: 'source-page' });
+    const paste = (text: string) =>
+      renderer.root
+        .findByType(BlockEditor)
+        .props.onPasteText({ text, blockId: 'anchor' }) as boolean;
+    expect(paste('https://nilo.test/p/other?blockId=x')).toBe(false);
+    expect(mockStore.doc.root).toEqual(['anchor']);
+    let taken = false;
+    act(() => {
+      taken = paste('https://nilo.test/p/source-page?blockId=source-block');
+    });
+    expect(taken).toBe(true);
+    expect(mockStore.doc.root).toEqual(['new-block']);
+    expect(mockStore.doc.blocks['new-block']).toMatchObject({
+      type: 'sync_block',
+      props: { sourceBlockId: 'source-block', sourcePageId: 'source-page' },
+    });
+    syncedClipboard.set(null);
   });
 });
 

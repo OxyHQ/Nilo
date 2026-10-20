@@ -410,11 +410,13 @@
       "unavailable": "The original of this synced block cannot be opened.",
       "loading": "Loading synced block…",
       "loop": "This synced block is inside its own original.",
-      "deletedWarning": {
-        "one": "Original synced block deleted: %{count} other page now shows “Original deleted”.",
-        "other": "Original synced block deleted: %{count} other pages now show “Original deleted”."
+      "deleteDialog": {
+        "title": "Delete synced block?",
+        "description": {
+          "one": "It is shown on %{count} other page, which will show “Original deleted” instead.",
+          "other": "It is shown on %{count} other pages, which will show “Original deleted” instead."
+        }
       },
-      "undo": "Undo",
       "picker": {
         "title": "Paste synced block",
         "search": "Search synced blocks",

@@ -44,6 +44,7 @@ import {
   useEmbeddedEditor,
 } from '@/components/page-editor/embedded-editor';
 import { useTranslation } from '@/hooks/useTranslation';
+import { PAGE_DOM_PREFIX, syncedSurfacePrefix } from '@/lib/editor/dom-ids';
 import { insertContainer } from '@/lib/editor/insert-blocks';
 import {
   isSyncedOriginal,
@@ -61,6 +62,9 @@ import type { BlockComponentProps } from './types';
 
 /** The originals shown around a block: a reference inside its own original shows nothing. */
 const SyncedPathContext = createContext<ReadonlySet<string>>(new Set());
+
+/** The DOM id prefix of the surface a block is drawn in (`lib/editor/dom-ids.ts`). */
+const SurfacePrefixContext = createContext<string>(PAGE_DOM_PREFIX);
 
 const noop = () => () => {};
 
@@ -295,6 +299,8 @@ function LiveReference({
   useActiveEmbeddedController(editable ? controller : null);
   const path = useContext(SyncedPathContext);
   const inner = useMemo(() => new Set([...path, source.blockId]), [path, source.blockId]);
+  // Its own block ids on web: the original's blocks may be on this page too.
+  const domIdPrefix = syncedSurfacePrefix(useContext(SurfacePrefixContext), referenceId);
   const original = useSyncExternalStore(
     store?.subscribe ?? noop,
     () => store?.getSnapshot().doc.blocks[source.blockId],
@@ -365,23 +371,26 @@ function LiveReference({
       }
     >
       <SyncedPathContext.Provider value={inner}>
-        <EditorSurface
-          {...extras}
-          store={store}
-          controller={controller}
-          slashItems={slashItems}
-          onSlashAction={onSlashAction}
-          renderers={renderers}
-          markers={embedded.markers}
-          theme={embedded.theme}
-          labels={embedded.labels}
-          mentions={embedded.mentions}
-          onOpenMention={embedded.onOpenMention}
-          onOpenLink={embedded.onOpenLink}
-          readOnly={!editable}
-        >
-          <BlockList ids={original?.children ?? []} depth={0} />
-        </EditorSurface>
+        <SurfacePrefixContext.Provider value={domIdPrefix}>
+          <EditorSurface
+            {...extras}
+            store={store}
+            controller={controller}
+            slashItems={slashItems}
+            onSlashAction={onSlashAction}
+            renderers={renderers}
+            markers={embedded.markers}
+            theme={embedded.theme}
+            labels={embedded.labels}
+            mentions={embedded.mentions}
+            onOpenMention={embedded.onOpenMention}
+            onOpenLink={embedded.onOpenLink}
+            readOnly={!editable}
+            domIdPrefix={domIdPrefix}
+          >
+            <BlockList ids={original?.children ?? []} depth={0} />
+          </EditorSurface>
+        </SurfacePrefixContext.Provider>
       </SyncedPathContext.Provider>
       {original?.children.length === 0 ? (
         editable ? (

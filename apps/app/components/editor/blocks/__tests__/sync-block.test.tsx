@@ -18,11 +18,18 @@ import type { Block, BlockType } from '@/lib/types/pages';
 import { SyncBlock } from '../sync-block';
 
 // The original's blocks are the editor's own rows; here, which store and ids they are.
-const mockSurfaces: { store: unknown; readOnly: boolean; slashItems: { id: string }[] }[] = [];
+const mockSurfaces: {
+  store: unknown;
+  readOnly: boolean;
+  slashItems: { id: string }[];
+  domIdPrefix?: string;
+}[] = [];
 jest.mock('@oxy.so/bloom-editor', () => {
   const { View: MockView } = require('react-native');
   return {
     ...jest.requireActual('@oxy.so/bloom-editor/model'),
+    BLOCK_DOM_PREFIX: 'bloom-block-',
+    blockDomId: (id: string, prefix = 'bloom-block-') => `${prefix}${id}`,
     EditorController: class {
       ui = { get: () => ({ focused: null, linking: null }), subscribe: () => () => {} };
     },
@@ -213,11 +220,14 @@ describe('a reference', () => {
       data: { page: { title: 'Source', locked: false, archived: false }, role: 'editor' },
     };
     mockSource = { store: source, error: null };
-    mountReference(reference());
+    const host = reference();
+    mountReference(host);
     expect(mockOpened.at(-1)).toEqual({ pageId: 'source', readOnly: false, embedded: true });
     const surface = mockSurfaces.at(-1);
     expect(surface?.store).toBe(source);
     expect(surface?.readOnly).toBe(false);
+    // Its rows have ids of their own: the original's blocks may be on this page too.
+    expect(surface?.domIdPrefix).toBe(`nilo-synced-${host.doc.root[1]}-`);
     // What needs the page around it is not offered inside a synced block.
     expect(surface?.slashItems.map((item) => item.id)).toEqual(['paragraph', 'columns']);
     const [first, second] = getBlock(source.doc, originalId).children;

@@ -28,6 +28,7 @@ import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { contentOf, fieldsFromContent } from '@oxy.so/nilo-contracts/editor';
 import type { Block, BlockType } from '@/lib/types/pages';
+import { pageBlockDomId } from '@/lib/editor/dom-ids';
 import { useColorScheme } from '@/lib/useColorScheme';
 
 /**
@@ -111,7 +112,7 @@ function TableOfContents({ store }: { store: EditorStore }) {
           onPress={() => {
             if (Platform.OS === 'web') {
               document
-                .getElementById(`bloom-block-${heading.id}`)
+                .getElementById(pageBlockDomId(heading.id))
                 ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
             store.setSelection({ kind: 'text', blockId: heading.id, start: 0, end: 0 });
