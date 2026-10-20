@@ -535,34 +535,9 @@ export function withSyncedContent(
   });
 }
 
-/**
- * What a synced block shows, rendered by `render`: an original its own
- * children, a reference its original's (`syncedBlocks`), or nothing when that
- * is not to be seen — nor for a reference inside the very original it shows.
- */
-function renderSynced(
-  block: BlockNode,
-  ctx: RenderContext,
-  render: (nodes: readonly BlockNode[]) => string,
-): string {
-  const source = syncedSource(block.type, block.content);
-  if (!source) return render(block.children);
-  if (ctx.syncing.has(source.blockId)) return '';
-  const nodes = ctx.syncedBlocks?.(source.blockId) ?? [];
-  if (nodes.length === 0) return '';
-  ctx.syncing.add(source.blockId);
-  try {
-    return render(nodes);
-  } finally {
-    ctx.syncing.delete(source.blockId);
-  }
-}
-
 interface RenderContext extends ExportContext {
   /** The page's headings, for a table of contents. */
   headings: readonly BlockNode[];
-  /** The originals being rendered in place, outermost first. */
-  syncing: Set<string>;
 }
 
 const HEADINGS = new Set(['heading_1', 'heading_2', 'heading_3']);
@@ -576,7 +551,7 @@ function renderContext(blocks: readonly BlockNode[], context: ExportContext = {}
     }
   };
   walk(blocks);
-  return { ...context, headings, syncing: new Set() };
+  return { ...context, headings };
 }
 
 const headingLevel = (block: BlockNode) => Number(block.type.slice('heading_'.length)) - 1;
@@ -603,6 +578,25 @@ function fenced(text: string, language: string): string {
 }
 
 const targetId = (block: BlockNode, key: string) => stringOf(block.content[key]);
+
+/** A linked page's title as an export shows it; undefined when the reader may not see it. */
+const exportedPageTitle = (block: BlockNode, ctx: RenderContext) => {
+  const title = ctx.pageTitle?.(targetId(block, 'pageId'));
+  return title === undefined ? undefined : title || 'Untitled';
+};
+
+/** A button an export keeps: one that opens a safe link. */
+function exportedButton(block: BlockNode): { label: string; url: string } | null {
+  const url = stringOf(block.content.url);
+  if (block.content.action !== 'navigate' || !SAFE_LINK.test(url)) return null;
+  return { label: stringOf(block.content.label) || 'Button', url };
+}
+
+/** An inline database as an export shows it; undefined when the reader may not see it. */
+const exportedDatabase = (block: BlockNode, ctx: RenderContext) => {
+  const database = ctx.database?.(targetId(block, 'databaseId'));
+  return database && { name: database.name || 'Untitled', table: database.table };
+};
 
 function renderNodeMarkdown(
   block: BlockNode,
@@ -663,20 +657,19 @@ function renderNodeMarkdown(
       break;
     case 'link_to_page':
     case 'child_page': {
-      const title = ctx.pageTitle?.(targetId(block, 'pageId'));
-      line = title === undefined ? '' : `${indent}→ ${escapeInline(title || 'Untitled')}`;
+      const title = exportedPageTitle(block, ctx);
+      line = title === undefined ? '' : `${indent}→ ${escapeInline(title)}`;
       break;
     }
     case 'button': {
-      const url = stringOf(block.content.url);
-      const label = escapeInline(stringOf(block.content.label) || 'Button');
-      line = block.content.action === 'navigate' && SAFE_LINK.test(url) ? `[${label}](${url})` : '';
+      const button = exportedButton(block);
+      line = button ? `[${escapeInline(button.label)}](${button.url})` : '';
       break;
     }
     case 'inline_database': {
-      const database = ctx.database?.(targetId(block, 'databaseId'));
+      const database = exportedDatabase(block, ctx);
       line = database
-        ? `**${escapeInline(database.name || 'Untitled')}**\n\n${pipeTable(database.table.map((row) => row.map(escapeInline)))}`
+        ? `**${escapeInline(database.name)}**\n\n${pipeTable(database.table.map((row) => row.map(escapeInline)))}`
         : '';
       break;
     }
@@ -723,7 +716,7 @@ function renderNodeMarkdown(
       return children;
     case 'sync_block':
       // Read in place, as the blocks it shows; numbered as if they were here.
-      return renderSynced(block, ctx, (nodes) => renderSequence(nodes, depth, ctx));
+      return renderSequence(block.children, depth, ctx);
     default:
       line = inline ? `${indent}${inline}` : '';
   }
@@ -763,7 +756,11 @@ export function blocksToMarkdown(
   title?: string,
   context?: ExportContext,
 ): string {
-  const body = renderSequence(blocks, 0, renderContext(blocks, context));
+  const body = renderSequence(
+    withSyncedContent(blocks, context),
+    0,
+    renderContext(blocks, context),
+  );
   return `${title !== undefined ? `# ${escapeInline(title || 'Untitled')}\n\n` : ''}${body}\n`;
 }
 
@@ -888,24 +885,23 @@ function renderNodesHtml(blocks: readonly BlockNode[], ctx: RenderContext): stri
         break;
       case 'link_to_page':
       case 'child_page': {
-        const title = ctx.pageTitle?.(targetId(block, 'pageId'));
-        if (title !== undefined)
-          out.push(`<p class="page-link">→ ${escapeHtml(title || 'Untitled')}</p>`);
+        const title = exportedPageTitle(block, ctx);
+        if (title !== undefined) out.push(`<p class="page-link">→ ${escapeHtml(title)}</p>`);
         break;
       }
       case 'button': {
-        const url = stringOf(block.content.url);
-        if (block.content.action === 'navigate' && SAFE_LINK.test(url))
+        const button = exportedButton(block);
+        if (button)
           out.push(
-            `<p><a class="button" href="${safeUrl(url)}" rel="noopener noreferrer">${escapeHtml(stringOf(block.content.label) || 'Button')}</a></p>`,
+            `<p><a class="button" href="${safeUrl(button.url)}" rel="noopener noreferrer">${escapeHtml(button.label)}</a></p>`,
           );
         break;
       }
       case 'inline_database': {
-        const database = ctx.database?.(targetId(block, 'databaseId'));
+        const database = exportedDatabase(block, ctx);
         if (database)
           out.push(
-            `<figure class="database"><figcaption>${escapeHtml(database.name || 'Untitled')}</figcaption>${htmlTable(
+            `<figure class="database"><figcaption>${escapeHtml(database.name)}</figcaption>${htmlTable(
               database.table.map((row) => row.map(escapeHtml)),
               true,
             )}</figure>`,
@@ -971,11 +967,9 @@ function renderNodesHtml(blocks: readonly BlockNode[], ctx: RenderContext): stri
       case 'canvas_note':
         out.push(`<section class="note">${children}</section>`);
         break;
-      case 'sync_block': {
-        const shown = renderSynced(block, ctx, (nodes) => renderNodesHtml(nodes, ctx));
-        if (shown) out.push(`<div class="synced">${shown}</div>`);
+      case 'sync_block':
+        if (children) out.push(`<div class="synced">${children}</div>`);
         break;
-      }
       default:
         if (inline || children) out.push(`${inline ? `<p>${inline}</p>` : ''}${children}`);
     }
@@ -1003,7 +997,7 @@ export function inReadingOrder(nodes: readonly BlockNode[]): BlockNode[] {
 
 /** Block trees → the HTML of their content alone, escaped as in `blocksToHtml`. */
 export function blocksToHtmlBody(blocks: readonly BlockNode[], context?: ExportContext): string {
-  return renderNodesHtml(blocks, renderContext(blocks, context));
+  return renderNodesHtml(withSyncedContent(blocks, context), renderContext(blocks, context));
 }
 
 /** The text of block trees in reading order, one space between blocks, cut at `limit` characters. */
