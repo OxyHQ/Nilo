@@ -34,10 +34,26 @@ function dateOf(year: number, month: number, day: number): Date | null {
 const isTime = (time: string | undefined): time is string =>
   typeof time === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(time);
 
+/** One formatter per locale and use: a page draws every date mention it holds on each render. */
+function formatterOf(
+  cache: Map<string, Intl.DateTimeFormat>,
+  locale: string,
+  options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat {
+  let format = cache.get(locale);
+  if (!format) {
+    format = new Intl.DateTimeFormat(locale, options);
+    cache.set(locale, format);
+  }
+  return format;
+}
+const dayFormats = new Map<string, Intl.DateTimeFormat>();
+const clockFormats = new Map<string, Intl.DateTimeFormat>();
+
 export function formatMentionDate(iso: string, locale: string, time?: string): string | null {
   const date = calendarDate(iso);
   if (!date) return null;
-  const day = new Intl.DateTimeFormat(locale, {
+  const day = formatterOf(dayFormats, locale, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -45,7 +61,7 @@ export function formatMentionDate(iso: string, locale: string, time?: string): s
   if (!isTime(time)) return day;
   const [hours, minutes] = time.split(':').map(Number);
   date.setHours(hours as number, minutes as number, 0, 0);
-  const clock = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(
+  const clock = formatterOf(clockFormats, locale, { hour: 'numeric', minute: '2-digit' }).format(
     date,
   );
   return `${day} ${clock}`;
@@ -87,6 +103,12 @@ const months = [
 ];
 const monthIndex = (name: string) => months.findIndex((names) => names.includes(name));
 const MONTH = months.flat().join('|');
+// Day and month, either way round, with an optional year: "3 mar", "3 de marzo de 2027",
+// "march 3rd", "mar 3, 2027".
+const DAY_MONTH = new RegExp(
+  `^(\\d{1,2})(?:st|nd|rd|th)?(?: de)? (${MONTH})\\.?(?:,?(?: de)? (\\d{4}))?$`,
+);
+const MONTH_DAY = new RegExp(`^(${MONTH})\\.? (\\d{1,2})(?:st|nd|rd|th)?(?:,? (\\d{4}))?$`);
 
 const normalize = (text: string) =>
   text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim().replace(/\s+/g, ' ');
@@ -161,14 +183,9 @@ function parseDay(query: string, now: Date): string | null {
   const weekday = weekdays.findIndex((names) => names.includes(name));
   if (weekday >= 0) return shifted(now, (weekday - now.getDay() + 7) % 7 || 7);
 
-  // Day and month, either way round, with an optional year: "3 mar", "3 de marzo de 2027",
-  // "march 3rd", "mar 3, 2027".
-  const dayMonth = new RegExp(
-    `^(\\d{1,2})(?:st|nd|rd|th)?(?: de)? (${MONTH})\\.?(?:,?(?: de)? (\\d{4}))?$`,
-  ).exec(query);
-  const monthDay = new RegExp(`^(${MONTH})\\.? (\\d{1,2})(?:st|nd|rd|th)?(?:,? (\\d{4}))?$`).exec(
-    query,
-  );
+  // Day and month, either way round (`DAY_MONTH`, `MONTH_DAY`).
+  const dayMonth = DAY_MONTH.exec(query);
+  const monthDay = MONTH_DAY.exec(query);
   if (dayMonth || monthDay) {
     const day = Number(dayMonth ? dayMonth[1] : monthDay?.[2]);
     const month = monthIndex((dayMonth ? dayMonth[2] : monthDay?.[1]) as string);
@@ -214,19 +231,20 @@ export function parseMentionDate(text: string, now = new Date()): string | null 
   return parseMentionDateTime(text, now)?.date ?? null;
 }
 
+/** Every day a name says, to offer those starting with what was typed. */
+const NAMED_DAYS = [
+  ...Object.keys(relativeDays),
+  ...weekdays.flat(),
+  ...weekdays.flat().flatMap((day) => [`next ${day}`, `proximo ${day}`]),
+];
+
 /** Dates to offer for what has been typed so far: the one it names, or names that start with it. */
 export function dateMentionMatches(text: string, now = new Date()): MentionDate[] {
   const parsed = parseMentionDateTime(text, now);
   if (parsed) return [parsed];
   const query = normalize(text);
   if (/\d/.test(query)) return [];
-  const candidates = query
-    ? [
-        ...Object.keys(relativeDays),
-        ...weekdays.flat(),
-        ...weekdays.flat().flatMap((day) => [`next ${day}`, `proximo ${day}`]),
-      ]
-    : ['today', 'tomorrow', 'yesterday'];
+  const candidates = query ? NAMED_DAYS : ['today', 'tomorrow', 'yesterday'];
   const seen = new Set<string>();
   const found: MentionDate[] = [];
   for (const name of candidates) {
