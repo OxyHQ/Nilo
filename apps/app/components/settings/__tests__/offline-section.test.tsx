@@ -1,6 +1,8 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import type { OfflineEntry } from '@/lib/editor/offline-pages';
+import { toast } from '@oxy.so/bloom/toast';
+import type { PageDocStore } from '@/lib/editor/doc-store-types';
 import { formatSize, OfflineSection } from '../offline-section';
 
 const mockPush = jest.fn();
@@ -8,19 +10,25 @@ const mockClose = jest.fn();
 const mockConfirm = jest.fn(async (_options: unknown) => true);
 const mockStore = {
   setPinned: jest.fn(async (_id: string, _pinned: boolean) => undefined),
-  removeDownloads: jest.fn(async (_isPageOpen: (pageId: string) => boolean) => undefined),
+  removeDownloads: jest.fn(
+    async (_removeClosed: (pageId: string, store: PageDocStore | null) => Promise<void>) =>
+      undefined,
+  ),
 };
-const mockIsPageOpen = jest.fn((_pageId: string) => false);
+const mockRemoveClosed = jest.fn(async (_pageId: string, _store: PageDocStore | null) => undefined);
+jest.mock('@oxy.so/bloom/toast', () => ({ toast: { error: jest.fn() } }));
 jest.mock('@/lib/editor/shared-sessions', () => ({
-  isPageSessionOpen: (pageId: string) => mockIsPageOpen(pageId),
+  removeClosedPageDocument: (pageId: string, store: PageDocStore | null) =>
+    mockRemoveClosed(pageId, store),
 }));
 let mockList: { supported: boolean; pages: OfflineEntry[] } = { supported: true, pages: [] };
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('@/lib/editor/offline-pages', () => ({
   offlinePages: {
     setPinned: (...args: [string, boolean]) => mockStore.setPinned(...args),
-    removeDownloads: (isPageOpen: (pageId: string) => boolean) =>
-      mockStore.removeDownloads(isPageOpen),
+    removeDownloads: (
+      removeClosed: (pageId: string, store: PageDocStore | null) => Promise<void>,
+    ) => mockStore.removeDownloads(removeClosed),
   },
 }));
 jest.mock('@/lib/editor/use-offline-pages', () => ({ useOfflinePageList: () => mockList }));
@@ -116,12 +124,21 @@ it('removes every page only after confirming', async () => {
   expect(mockStore.removeDownloads).not.toHaveBeenCalled();
   await act(async () => button('settings.offline.removeAll').props.onPress());
   expect(mockStore.removeDownloads).toHaveBeenCalledWith(expect.any(Function));
-  mockStore.removeDownloads.mock.calls[0][0]('Plan');
-  expect(mockIsPageOpen).toHaveBeenCalledWith('Plan');
+  await mockStore.removeDownloads.mock.calls[0][0]('Plan', null);
+  expect(mockRemoveClosed).toHaveBeenCalledWith('Plan', null);
 });
 
 it('says where pages are kept when this device keeps none', () => {
   mockList = { supported: false, pages: [] };
   mount();
   expect(text()).toContain('settings.offline.webOnly');
+});
+
+it('reports a failed removal instead of claiming downloads were removed', async () => {
+  mockList.pages = [entry('Plan')];
+  mount();
+  mockStore.removeDownloads.mockRejectedValueOnce(new Error('disk failure'));
+  await act(async () => button('settings.offline.removeAll').props.onPress());
+  expect(toast.error).toHaveBeenCalledWith('common.error');
+  expect(text()).toContain('Plan');
 });

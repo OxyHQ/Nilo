@@ -154,7 +154,7 @@ it('removes downloads and clean documents, preserving pending work even outside 
   const heard = jest.fn();
   const stop = pages.subscribe(heard);
 
-  await pages.removeDownloads(() => false);
+  await pages.removeDownloads((id) => docs.remove(id));
 
   expect(await pages.list()).toEqual([]);
   expect(await docs.load('clean')).toBeNull();
@@ -178,7 +178,7 @@ it('does not lose an edit that arrives while a clean download is being removed',
     await remove(id, options);
   });
 
-  await pages.removeDownloads(() => false);
+  await pages.removeDownloads((id) => docs.remove(id));
 
   expect(await docs.load('page')).toEqual({ updates: [update, local], dirty: true });
   expect(await pages.list()).toEqual([]);
@@ -201,7 +201,7 @@ it('serializes a new download after removal so the later choice survives', async
     await paused;
     await remove(id, options);
   });
-  const removal = pages.removeDownloads(() => false);
+  const removal = pages.removeDownloads((id) => docs.remove(id));
   await removing;
   const pinned = pages.setPinned('new', true);
   release();
@@ -209,4 +209,21 @@ it('serializes a new download after removal so the later choice survives', async
 
   expect((await pages.list()).map((entry) => entry.pageId)).toEqual(['new']);
   expect(await docs.load('old')).toBeNull();
+});
+
+it('reports a failed download removal, keeps the index, and allows a later retry', async () => {
+  await pages.setPinned('page', true);
+  const heard = jest.fn();
+  const stop = pages.subscribe(heard);
+  await expect(
+    pages.removeDownloads(async () => {
+      throw new Error('Storage failed');
+    }),
+  ).rejects.toThrow('Storage failed');
+  expect(await pages.keeps('page')).toBe(true);
+  expect(heard).not.toHaveBeenCalled();
+  await pages.removeDownloads((id) => docs.remove(id));
+  expect(await pages.list()).toEqual([]);
+  expect(heard).toHaveBeenCalledTimes(1);
+  stop();
 });

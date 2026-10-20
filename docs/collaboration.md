@@ -204,8 +204,13 @@ documents through `OfflinePages.removeDownloads`. It preserves unsent document
 updates, including their file references. Open sessions also retain their base
 document so subsequent offline deltas remain recoverable before the editor
 closes. Closing the last session removes its clean copy when no download reason
-remains. The account boundary continues to use `clear`, which purges all local
-documents, including pending work.
+remains. The session owner serializes a new opening behind an in-flight
+download removal, so it cannot read a base that is about to be deleted.
+Cancelled openings do not start later; failed removals release that guard and
+report the failure without clearing the download index. Page records used by
+the route remain in the account's separate shell-query cache; removing download
+choices does not clear that cache. The account boundary continues to use
+`clear`, which purges all local documents, including pending work.
 
 Yjs reads `crypto.getRandomValues` the moment it loads: the app installs it
 from `expo-crypto` (`expo-standard-web-crypto`) first thing at its entry, and

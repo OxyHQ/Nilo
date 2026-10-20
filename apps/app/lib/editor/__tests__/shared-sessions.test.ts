@@ -15,6 +15,7 @@ import {
   holdersOf,
   holdPageSession,
   isPageSessionOpen,
+  removeClosedPageDocument,
 } from '../shared-sessions';
 import { OfflinePages } from '../offline-pages';
 
@@ -205,7 +206,7 @@ it('keeps an open document base and file references when downloads are removed b
     expect(isPageSessionOpen('page')).toBe(true);
     phone.socket.disconnect();
 
-    await pages.removeDownloads(isPageSessionOpen);
+    await pages.removeDownloads(removeClosedPageDocument);
     expect(await pages.keeps('page')).toBe(false);
     expect(await docs.load('page')).not.toBeNull();
     store.run((c) =>
@@ -237,6 +238,121 @@ it('keeps an open document base and file references when downloads are removed b
   }
   expect(isPageSessionOpen('page')).toBe(false);
   expect(await docs.isDirty('page')).toBe(true);
+  // Reopen the same page offline after its download index entry was removed.
+  const reopened = phone.hold();
+  await settle();
+  try {
+    expect(texts(reopened.held.store)).toEqual(['image', 'paragraph']);
+    expect(
+      Object.values(reopened.held.store?.doc.blocks ?? {}).some(
+        (block) => block.props.fileId === 'kept-file',
+      ),
+    ).toBe(true);
+    expect(
+      Object.values(reopened.held.store?.doc.blocks ?? {}).some((block) =>
+        block.text?.some((span) => span.text === 'Unsent'),
+      ),
+    ).toBe(true);
+  } finally {
+    reopened.release();
+    await settle();
+  }
   await pages.clear();
+  expect(await docs.load('page')).toBeNull();
+});
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+it('waits for an in-flight removal before loading a newly opened page', async () => {
+  const server = new FakeServer();
+  server.doc.getText('base').insert(0, 'Existing base');
+  const phone = device(server);
+  const docs = phone.deps.store as MemoryPageDocStore;
+  await docs.append('page', Y.encodeStateAsUpdate(server.doc), false);
+  const paused = deferred();
+  const remove = docs.remove.bind(docs);
+  jest.spyOn(docs, 'remove').mockImplementationOnce(async (id) => {
+    await paused.promise;
+    await remove(id);
+  });
+  const load = jest.spyOn(docs, 'load');
+  const removing = removeClosedPageDocument('page', docs);
+  const editor = phone.hold();
+  try {
+    await Promise.resolve();
+    expect(load).not.toHaveBeenCalled();
+    expect(editor.held.store).toBeNull();
+    paused.resolve();
+    await removing;
+    await settle();
+    expect(editor.held.store).not.toBeNull();
+    phone.socket.disconnect();
+    (editor.held.store as EditorStore).run((c) =>
+      insertBlockAfter(c, null, 'paragraph', { text: [{ text: 'Later edit' }] }),
+    );
+    await settle();
+    const recovered = new Y.Doc();
+    Y.applyUpdate(recovered, Y.mergeUpdates((await docs.load('page'))?.updates ?? []));
+    expect(recovered.getText('base').toString()).toBe('Existing base');
+    expect(recovered.getMap('blocks').size).toBe(1);
+    recovered.destroy();
+  } finally {
+    paused.resolve();
+    editor.release();
+    await settle();
+  }
+});
+
+it('does not start or compact an opening cancelled while removal is pending', async () => {
+  const phone = device(new FakeServer());
+  const docs = phone.deps.store as MemoryPageDocStore;
+  const paused = deferred();
+  jest.spyOn(docs, 'remove').mockImplementationOnce(() => paused.promise);
+  const load = jest.spyOn(docs, 'load');
+  const compact = jest.spyOn(docs, 'compact');
+  const removing = removeClosedPageDocument('page', docs);
+  const editor = phone.hold();
+  editor.release();
+  paused.resolve();
+  await removing;
+  await settle();
+
+  expect(load).not.toHaveBeenCalled();
+  expect(compact).not.toHaveBeenCalled();
+  expect(phone.socket.sent).not.toContain('page:join');
+  expect(phone.sockets()).toBe(0);
+  expect(editor.held.store).toBeNull();
+});
+
+it('reports a removal failure and releases the guard for waiting and future openings', async () => {
+  const server = new FakeServer();
+  const phone = device(server);
+  const docs = phone.deps.store as MemoryPageDocStore;
+  await docs.append('page', Y.encodeStateAsUpdate(server.doc), false);
+  const paused = deferred();
+  jest.spyOn(docs, 'remove').mockImplementationOnce(async () => {
+    await paused.promise;
+    throw new Error('Storage failed');
+  });
+  const removing = removeClosedPageDocument('page', docs);
+  const failure = expect(removing).rejects.toThrow('Storage failed');
+  const editor = phone.hold();
+  paused.resolve();
+  await failure;
+  try {
+    await settle();
+    expect(editor.held.store).not.toBeNull();
+  } finally {
+    editor.release();
+    await settle();
+  }
+  // No rejected promise remains installed as a permanent deletion guard.
+  await removeClosedPageDocument('page', docs);
   expect(await docs.load('page')).toBeNull();
 });

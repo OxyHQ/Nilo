@@ -62,6 +62,8 @@ interface Entry {
 }
 
 const entries = new Map<string, Entry>();
+/** A new session must not read a base document while it is being deleted. */
+const removals = new Map<string, Promise<void>>();
 
 function sendsChanges(entry: Entry): boolean {
   for (const holder of entry.holders) if (!holder.readOnly) return true;
@@ -113,7 +115,14 @@ export function holdPageSession(
     entry = created;
     entries.set(pageId, created);
     holders.add(holder);
-    void created.session.start();
+    const removal = removals.get(pageId);
+    if (removal) {
+      // A failed removal leaves the copy available. The caller receives the
+      // failure, while an editor may still open the document afterward.
+      void removal.catch(() => {}).then(() => created.session.start());
+    } else {
+      void created.session.start();
+    }
   } else {
     entry.holders.add(holder);
     entry.session.setReadOnly(!sendsChanges(entry));
@@ -147,6 +156,23 @@ export function holdPageSession(
 /** Download removal must retain the base document until the last editor closes. */
 export function isPageSessionOpen(pageId: string): boolean {
   return (entries.get(pageId)?.holders.size ?? 0) > 0;
+}
+
+/** Remove a closed clean copy; starts arriving during deletion wait for it. */
+export async function removeClosedPageDocument(
+  pageId: string,
+  store: PageDocStore | null,
+): Promise<void> {
+  if (isPageSessionOpen(pageId) || !store) return;
+  const pending = removals.get(pageId);
+  if (pending) return pending;
+  const removal = Promise.resolve().then(() => store.remove(pageId));
+  removals.set(pageId, removal);
+  try {
+    await removal;
+  } finally {
+    if (removals.get(pageId) === removal) removals.delete(pageId);
+  }
 }
 
 /** For tests: how many places hold `pageId` open. */

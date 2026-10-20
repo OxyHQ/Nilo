@@ -101,6 +101,7 @@ export class PageSession {
 
   /** Open the page: the device's copy, then the server whenever the socket is connected. */
   async start(): Promise<void> {
+    if (this.disposed) return;
     const { store, pageId, socket } = this.options;
     const kept = await store?.load(pageId).catch((err: unknown) => {
       this.storeFailure(err);
@@ -133,7 +134,8 @@ export class PageSession {
     socket.emit('page:leave', pageId);
     const state = Y.encodeStateAsUpdate(this.doc);
     this.doc.destroy();
-    if (!store) return Promise.resolve(0);
+    // A deferred/cancelled opening has no loaded base to compact.
+    if (!store || !this.ready) return Promise.resolve(0);
     return store.compact(pageId, state).then(
       () => state.byteLength,
       () => 0,
