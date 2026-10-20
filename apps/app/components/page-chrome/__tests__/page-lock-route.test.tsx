@@ -58,7 +58,9 @@ jest.mock('@/components/page-chrome', () => ({
     rightHeader: PageHeaderProps['actions'];
   }) => (
     <>
-      {typeof rightHeader === 'function' ? rightHeader({ compact: mockCompact }) : rightHeader}
+      {typeof rightHeader === 'function'
+        ? rightHeader({ compact: mockCompact, spacious: !mockCompact })
+        : rightHeader}
       {children}
       {bottomBar}
     </>
