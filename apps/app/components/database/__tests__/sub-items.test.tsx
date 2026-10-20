@@ -23,10 +23,6 @@ jest.mock('@/lib/hooks/use-database-views', () => ({
 }));
 jest.mock('../property-cell', () => ({ PropertyCell: () => null }));
 jest.mock('../property-config-modal', () => ({ PropertyHeaderMenu: () => null }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 const database = {
   id: 'db',

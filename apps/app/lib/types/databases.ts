@@ -135,7 +135,7 @@ export interface Database {
   parentPageId: string | null;
   archived: boolean;
   /** Its properties and own views are not to be changed (423 DATABASE_LOCKED); rows still are. */
-  locked?: boolean;
+  locked: boolean;
   /**
    * The app that keeps this database (Noted's notes and folders), null for
    * every other one: its own properties cannot be removed or retyped, nor the

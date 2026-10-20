@@ -122,7 +122,7 @@ export function DatabaseViewContainer({
   hasMore = total !== undefined && rows.length < total,
 }: DatabaseViewContainerProps) {
   const { t } = useTranslation();
-  const locked = database.locked === true;
+  const locked = database.locked;
   const viewEditable = !viewsReadOnly && viewIsEditable(database, view);
   const schemaEditable = !readOnly && !locked;
 

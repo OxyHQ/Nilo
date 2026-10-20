@@ -13,10 +13,6 @@ import type {
 
 const mockUpdate = jest.fn();
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/lib/hooks/use-database-views', () => ({
   useUpdateView: () => ({ mutateAsync: mockUpdate }),
 }));

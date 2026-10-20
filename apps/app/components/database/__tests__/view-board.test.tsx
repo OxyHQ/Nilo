@@ -12,10 +12,6 @@ jest.mock('@/lib/api/client', () => ({
 jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({ isAuthenticated: false, oxyServices: {} }),
 }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 // A view's groups are saved with it (collapsed, moved, hidden).
 jest.mock('@/lib/hooks/use-database-views', () => ({
   useUpdateView: () => ({ mutate: jest.fn(), isPending: false }),

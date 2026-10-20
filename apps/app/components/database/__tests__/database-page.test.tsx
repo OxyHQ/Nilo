@@ -29,10 +29,6 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: 'db' }),
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
 }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/lib/hooks/use-databases', () => ({
   useDatabase: () => ({
     data: { database: mockDatabase(), views: [mockView()], role: mockRole },
@@ -81,6 +77,7 @@ function mockDatabase(): Database {
     isInline: false,
     parentPageId: null,
     archived: false,
+    locked: false,
     systemKey: null,
     createdAt: '',
     updatedAt: '',

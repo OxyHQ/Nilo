@@ -17,9 +17,6 @@ jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { post: jest.fn(), patch: jest.fn(), delete: jest.fn() },
 }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
 jest.mock('@oxy.so/bloom/surfaces', () => ({ confirm: jest.fn() }));
 /** Holds the confirm surface open until the test answers it. */
 function pendingConfirm() {

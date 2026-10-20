@@ -31,10 +31,6 @@ jest.mock('@/lib/hooks/use-row-templates', () => ({
 }));
 jest.mock('@/lib/hooks/use-database-views', () => ({ useUpdateView: jest.fn() }));
 
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 jest.mock('@/lib/hooks/use-database-rows', () => ({
   useCreateRow: () => ({ mutate: jest.fn(), mutateAsync: jest.fn(), isPending: false }),
@@ -59,6 +55,7 @@ const database: Database = {
   isInline: true,
   parentPageId: 'parent',
   archived: false,
+  locked: false,
   systemKey: null,
   createdAt: '',
   updatedAt: '',

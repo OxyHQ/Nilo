@@ -95,6 +95,7 @@ const database: Database = {
   isInline: true,
   parentPageId: 'parent',
   archived: false,
+  locked: false,
   systemKey: null,
   createdAt: '',
   updatedAt: '',

@@ -99,7 +99,7 @@ export function DatabaseHeader({
   const [newViewOpen, setNewViewOpen] = React.useState(false);
   const iconPicker = useDialogControl();
   const coverPicker = useDialogControl();
-  const locked = database.locked === true;
+  const locked = database.locked;
 
   const handleTitleBlur = () => {
     if (readOnly || titleDraft === null) return;

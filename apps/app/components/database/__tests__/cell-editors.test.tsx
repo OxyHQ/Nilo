@@ -23,7 +23,6 @@ jest.mock('@tanstack/react-query', () => ({
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key, locale: 'en-US' }),
 }));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/lib/hooks/use-member-profiles', () => ({
   useMemberProfiles: (ids: string[]) => ({
     data: ids

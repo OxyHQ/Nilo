@@ -11,16 +11,12 @@ import type { Database, DatabaseView } from '@/lib/types/databases';
 const mockDelete = jest.fn();
 jest.mock('../button-settings', () => ({ ButtonSettings: () => null }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
-}));
 jest.mock('@/lib/i18n', () => ({
   __esModule: true,
   default: {
     t: (key: string, options?: { app?: string }) => (options?.app ? `${key}:${options.app}` : key),
   },
 }));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/lib/hooks/use-database-properties', () => ({
   useAddProperty: () => ({ mutate: jest.fn(), isPending: false }),
   useUpdateProperty: () => ({ mutateAsync: jest.fn(), isPending: false }),

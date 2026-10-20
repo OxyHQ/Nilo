@@ -16,10 +16,6 @@ jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({ isAuthenticated: false, oxyServices: {} }),
 }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }) }));
 jest.mock('@/lib/hooks/use-database-rows', () => ({
   useDatabaseRow: jest.fn(),
   useRelatedRows: jest.fn(),
