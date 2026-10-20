@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Button } from '@oxy.so/bloom/button';
 import { Item } from '@oxy.so/bloom/item';
+import { PageHeader } from '@oxy.so/bloom/page-header';
 import { HoverCard } from '@oxy.so/bloom/hover-card';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import apiClient from '@/lib/api/client';
@@ -12,6 +13,10 @@ import { PageHistoryDialog } from '../page-history-dialog';
 import { PageInfo } from '../page-info';
 
 const mockPush = jest.fn();
+let mockPresentation: 'inline' | 'floating' = 'inline';
+jest.mock('@oxy.so/bloom/app-shell/hooks', () => ({
+  useAppShellPanel: () => ({ presentation: mockPresentation }),
+}));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
@@ -81,6 +86,7 @@ async function mount(content: React.ReactNode) {
 const ItemRenderer = (Item as unknown as { type: ComponentType }).type;
 const titles = () => renderer.root.findAllByType(ItemRenderer).map((item) => item.props.title);
 beforeEach(() => {
+  mockPresentation = 'inline';
   jest.clearAllMocks();
   client = new QueryClient({ defaultOptions: { queries: { retryDelay: 0, gcTime: Infinity } } });
   jest.mocked(apiClient.get).mockResolvedValue({ data: { versions } });
@@ -204,4 +210,30 @@ it('resets the selected history version when the activity panel changes page', a
   await settle();
   expect(renderer.root.findAllByType(PageHistoryDialog)).toHaveLength(0);
   expect(apiClient.get).toHaveBeenCalledWith('/pages/second/versions', expect.any(Object));
+});
+
+it('leaves dismissal to the floating compositor and restores the inline close action after resize', async () => {
+  await mount(<PageActivityPanel page={page} open onClose={onClose} />);
+  const Header = (PageHeader as unknown as { type: ComponentType }).type;
+  const inlineAction = renderer.root.findByType(Header).props.actions;
+  expect(inlineAction.props.accessibilityLabel).toBe('pages.activity.close');
+  act(() => inlineAction.props.onPress());
+  expect(onClose).toHaveBeenCalledTimes(1);
+  mockPresentation = 'floating';
+  await act(async () =>
+    renderer.update(tree(<PageActivityPanel page={page} open onClose={onClose} />)),
+  );
+  expect(renderer.root.findByType(Header).props.actions).toBeUndefined();
+  expect(
+    renderer.root.findAll((node) => node.props.accessibilityLabel === 'pages.activity.close'),
+  ).toHaveLength(0);
+  expect(titles()).toContain('pages.activity.savedBy:Page owner');
+  mockPresentation = 'inline';
+  await act(async () =>
+    renderer.update(tree(<PageActivityPanel page={page} open onClose={onClose} />)),
+  );
+  expect(renderer.root.findByType(Header).props.actions.props.accessibilityLabel).toBe(
+    'pages.activity.close',
+  );
+  expect(apiClient.get).toHaveBeenCalledTimes(1);
 });

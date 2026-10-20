@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUserById } from '@oxy.so/services/ui/client';
 import { Avatar } from '@oxy.so/bloom/avatar';
+import { useAppShellPanel } from '@oxy.so/bloom/app-shell/hooks';
 import { Button, CloseButton } from '@oxy.so/bloom/button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@oxy.so/bloom/hover-card';
 import { Item } from '@oxy.so/bloom/item';
@@ -138,6 +139,7 @@ export function PageActivityPanel({
 }
 
 function ActivityPanelContent({ page, onClose }: { page: Page; onClose: () => void }) {
+  const { presentation } = useAppShellPanel();
   const { t } = useTranslation();
   const versions = usePageVersions(page.id);
   const now = usePageClock();
@@ -152,7 +154,9 @@ function ActivityPanelContent({ page, onClose }: { page: Page; onClose: () => vo
             safeArea={false}
             title={t('pages.activity.title')}
             actions={
-              <CloseButton accessibilityLabel={t('pages.activity.close')} onPress={onClose} />
+              presentation === 'floating' ? undefined : (
+                <CloseButton accessibilityLabel={t('pages.activity.close')} onPress={onClose} />
+              )
             }
           />
         }
