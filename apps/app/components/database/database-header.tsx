@@ -2,7 +2,7 @@ import { toast } from '@oxy.so/bloom/toast';
 import { DatabaseActionsMenu } from './database-actions-menu';
 import { viewIsEditable } from '@oxy.so/nilo-contracts';
 import * as React from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { PageHeader, PageHeaderTitleInput } from '@oxy.so/bloom/page-header';
 import { Toolbar } from '@oxy.so/bloom/layout';
 import { RiArrowLeftSLine } from '@oxy.so/bloom/icons/RiArrowLeftSLine';
@@ -45,7 +45,9 @@ import {
 } from '@/lib/hooks/use-database-views';
 import { movedViews, orderChanges } from '@/lib/view-order';
 import type { BloomIconComponent } from '@oxy.so/bloom/icons';
-import { CoverDisplay } from '@/components/page-chrome/cover-display';
+import { CoverHeader } from '@oxy.so/bloom/cover-header';
+import { useCoverMedia } from '@/components/page-chrome/use-cover-media';
+import { DatabaseBreadcrumb } from './database-breadcrumb';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { DatabaseChromePickers } from './database-chrome';
 import { ViewSettings } from './view-settings';
@@ -109,6 +111,7 @@ export function DatabaseHeader({
   const [newViewOpen, setNewViewOpen] = React.useState(false);
   const iconPicker = useDialogControl();
   const coverPicker = useDialogControl();
+  const coverMedia = useCoverMedia(database.cover);
   const locked = database.locked;
 
   const handleTitleBlur = () => {
@@ -138,15 +141,46 @@ export function DatabaseHeader({
 
   return (
     <View className="border-b border-border/30">
-      {database.cover ? (
-        <Pressable
-          disabled={readOnly}
-          accessibilityRole={readOnly ? undefined : 'button'}
-          accessibilityLabel={t('databases.chrome.changeCover')}
-          onPress={() => coverPicker.open()}
-        >
-          <CoverDisplay value={database.cover} height={160} />
-        </Pressable>
+      <PageHeader
+        presentation="navigation"
+        border="none"
+        safeArea={false}
+        title={
+          <DatabaseBreadcrumb
+            database={database}
+            onRename={
+              !readOnly
+                ? (name) => updateDatabase.mutateAsync({ id: database.id, name })
+                : undefined
+            }
+            onChooseIcon={!readOnly ? () => iconPicker.open() : undefined}
+          />
+        }
+        actions={
+          <>
+            {locked ? (
+              <Button
+                appearance="plain"
+                leadingIcon={RiLockLine}
+                disabled={readOnly || updateDatabase.isPending}
+                accessibilityLabel={t(readOnly ? 'databases.lock.badge' : 'databases.lock.unlock')}
+                onPress={() => updateDatabase.mutate({ id: database.id, locked: false })}
+              >
+                {t('databases.lock.badge')}
+              </Button>
+            ) : null}
+            <DatabaseActionsMenu databaseId={database.id} readOnly={readOnly} />
+          </>
+        }
+      />
+      {coverMedia.hasCover ? (
+        <CoverHeader
+          coverSource={coverMedia.coverSource}
+          cover={coverMedia.cover}
+          coverHeight={160}
+          overlap={0}
+          onChangeCover={!readOnly ? () => coverPicker.open() : undefined}
+        />
       ) : null}
       <PageHeader
         presentation="bar"
@@ -176,23 +210,6 @@ export function DatabaseHeader({
             editable={!readOnly}
             placeholder={t('databases.untitledDatabase')}
           />
-        }
-        actions={
-          <>
-            {locked ? (
-              <Button
-                appearance="subtle"
-                size="xs"
-                leadingIcon={RiLockLine}
-                disabled={readOnly || updateDatabase.isPending}
-                accessibilityLabel={t(readOnly ? 'databases.lock.badge' : 'databases.lock.unlock')}
-                onPress={() => updateDatabase.mutate({ id: database.id, locked: false })}
-              >
-                {t('databases.lock.badge')}
-              </Button>
-            ) : null}
-            <DatabaseActionsMenu databaseId={database.id} readOnly={readOnly} />
-          </>
         }
         accessory={
           <>

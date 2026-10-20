@@ -42,7 +42,7 @@ export function IdentityPopover({
   }, []);
 
   React.useEffect(() => {
-    if (saving || pendingRef.current) return;
+    if (saving || pendingRef.current || failedRef.current) return;
     // A remote rename can update an untouched field, but never replace a draft.
     if (draftRef.current === savedRef.current) {
       draftRef.current = title;

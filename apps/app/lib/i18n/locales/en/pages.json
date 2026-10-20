@@ -49,7 +49,8 @@
     "restored": "Page restored",
     "restoreFailed": "Failed to restore",
     "deletedPermanently": "Page deleted permanently",
-    "deleteFailed": "Failed to delete page"
+    "deleteFailed": "Failed to delete page",
+    "copyLinkFailed": "Could not copy the link."
   },
   "deleteDialog": {
     "title": "Delete permanently?",
@@ -73,7 +74,9 @@
     "changeCover": "Change cover",
     "changeIcon": "Change icon",
     "addIcon": "Add icon",
-    "addCover": "Add cover"
+    "addCover": "Add cover",
+    "rename": "Name and icon",
+    "renameFailed": "Could not save the name. Your draft is still here; try again."
   },
   "moveDialog": {
     "title": "Move page",
@@ -333,7 +336,7 @@
     "banner": "This page is locked.",
     "unlock": "Unlock"
   },
-  "title": "Page title",
+  "title": "Title",
   "offline": {
     "available": "Available offline",
     "hint": "Keep this page on this device to read and edit it without a connection."

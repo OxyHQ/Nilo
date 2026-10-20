@@ -27,6 +27,7 @@ import { CoverHeader } from '@oxy.so/bloom/cover-header';
 import { useCoverMedia } from './use-cover-media';
 import { CoverPicker } from './cover-picker';
 import { FavoriteButton } from './favorite-button';
+import { CopyPageLinkButton } from '@/components/sharing/copy-page-link-button';
 import { IconDisplay } from './icon-display';
 import { IconPicker } from './icon-picker';
 import { useRouter } from 'expo-router';
@@ -103,14 +104,22 @@ export function PageChrome({
         bottomBarKeyboardBehavior="follow"
         header={
           <ScreenHeader
-            presentation="bar"
+            presentation="navigation"
+            border="none"
             safeArea={false}
-            title={<Breadcrumb currentPage={page} />}
+            title={
+              <Breadcrumb
+                currentPage={page}
+                onRename={
+                  !contentReadOnly
+                    ? (title) => updatePage.mutateAsync({ id: page.id, title })
+                    : undefined
+                }
+                onChooseIcon={!contentReadOnly ? () => iconPicker.open() : undefined}
+              />
+            }
             actions={(state) => (
               <>
-                {!state.compact && !page.archived ? (
-                  <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
-                ) : null}
                 {page.publishedAt ? (
                   <View
                     accessible
@@ -121,6 +130,10 @@ export function PageChrome({
                   </View>
                 ) : null}
                 {typeof rightHeader === 'function' ? rightHeader(state) : rightHeader}
+                {!state.compact ? <CopyPageLinkButton pageId={page.id} /> : null}
+                {!state.compact && !page.archived ? (
+                  <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
+                ) : null}
                 <PageActionsMenu page={page} readOnly={readOnly} />
               </>
             )}

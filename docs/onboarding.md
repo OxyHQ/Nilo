@@ -39,8 +39,9 @@ Bloom owns the workspace layout. `NiloShell` supplies navigation and workspace
 actions to `AppShell` and `Sidebar`; individual routes compose their surfaces
 with `AppShellPanels` and `Screen`. Do not put a surface around the entire
 router outlet: a document and its comments are sibling panels.
-Comments use the compositor's `separated` appearance. Their desktop surface,
-gutter and responsive floating presentation belong to `AppShellPanels`;
+The workspace uses `AppShell gutter={0} navigationGap={0}` and the document and
+comments use the compositor's `joined` appearance. Their shared Surface,
+divider and responsive floating presentation belong to `AppShellPanels`;
 `CommentPanel` supplies its own `Screen` header, scroll content and footer.
 Opening or closing discussions must preserve the mounted document editor.
 
@@ -49,8 +50,13 @@ Opening or closing discussions must preserve the mounted document editor.
 Boards and canvases use `Screen scroll="none"` so their own viewport fills the
 remaining space. Database pagination uses `ScreenScrollView.onEndReached`.
 
-The header breadcrumb represents the authorized page ancestry returned by the
-API. Do not prepend a workspace-home link: guests may only have access to the
+Navigation uses `PageHeader presentation="navigation"`: Bloom owns its height,
+insets and contextual control density without changing the normal `md` size.
+Overlays start their own density scope. The header breadcrumb represents the
+authorized page ancestry returned by the API. For database rows,
+`usePageBreadcrumbPath` first verifies access to the database, then includes its
+authorized parent pages and the database link. A row grant alone must not reveal
+the database or its parents. Do not prepend a workspace-home link: guests may only have access to the
 page, and workspace switching already belongs to the sidebar. Supply real
 `href` destinations for every authorized ancestor to `Breadcrumb overflow="collapse"`.
 Bloom owns fitting, truncation and the menu for hidden ancestors; Nilo must not
@@ -61,7 +67,12 @@ the hierarchy. Breadcrumb queries include their
 workspace scope so those events do not invalidate unrelated editor data.
 Those events refresh exact page-metadata queries in the same workspace, keeping
 title, icon, cover and lock state consistent with the header. Pending page
-mutations defer that refresh until settlement; blocks and Yjs remain untouched.
+and database mutations defer that refresh until settlement; blocks and Yjs remain untouched.
+The editable current item uses `BreadcrumbItem.trigger` with Bloom's
+`PopoverTrigger`, preserving the same measured button and responsive renderer.
+`IdentityPopover` supplies only name/icon mutation behavior: Enter or outside
+dismissal saves, Escape cancels, and a failed save retains the draft for retry.
+Opening the existing icon picker waits for a successful name save.
 Header actions use Bloom's `PageHeader.actions` callback and its `compact` state.
 Nilo forwards that state to sharing and keeps favorites in the page actions menu
 when the direct star is hidden. Bloom owns the header-width decision; Nilo must
@@ -82,6 +93,11 @@ the same component; no viewport measurement belongs in the app.
 Sidebar onboarding uses Bloom's `Sidebar.onboarding` slot. Nilo supplies
 localized steps, role-appropriate actions and completion derived from workspace
 data.
+
+Page icons use Bloom's existing `EmojiPicker` with `embedded` and
+`scrollable={false}` inside `Dialog`. The dialog owns the sole surface and scroll
+region; the shared picker owns emoji search, categories and tone selection.
+Nilo supplies its catalog, icon/upload tabs, authorization and persistence.
 
 The application establishes `BloomScope size="md"` above its overlay outlet.
 Normal sizing belongs to Bloom's family recipes; do not shrink the whole app

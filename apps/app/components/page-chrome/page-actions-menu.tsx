@@ -4,8 +4,7 @@ import { saveExport } from '@/lib/save-export';
 import { PageHistoryDialog } from './page-history-dialog';
 import { ReminderDialog } from '@/components/reminders/reminder-dialog';
 import * as React from 'react';
-import { Platform } from 'react-native';
-import * as Clipboard from 'expo-clipboard';
+import { useCopyPageLink } from '@/components/sharing/use-copy-page-link';
 import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
 import { useRouter } from 'expo-router';
 import { toast } from '@oxy.so/bloom/toast';
@@ -86,15 +85,7 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
     updatePage.mutate({ id: page.id, favorited: !page.favorited });
   }, [updatePage, page.id, page.favorited]);
 
-  const handleCopyLink = React.useCallback(async () => {
-    const origin =
-      Platform.OS === 'web' && typeof window !== 'undefined'
-        ? window.location.origin
-        : 'https://nilo.so';
-    const url = `${origin}/p/${page.id}`;
-    await Clipboard.setStringAsync(url);
-    toast.success(t('pages.toasts.linkCopied'));
-  }, [page.id, t]);
+  const handleCopyLink = useCopyPageLink(page.id);
 
   const handleExport = async (format: ExportFormat, subpages = false) => {
     try {
@@ -139,7 +130,7 @@ export function PageActionsMenu({ page, readOnly = false }: PageActionsMenuProps
       >
         <DropdownMenuTrigger asChild>
           <Button
-            appearance="subtle"
+            appearance="plain"
             tone="neutral"
             iconOnly
             accessibilityLabel={t('pages.actions.menu')}

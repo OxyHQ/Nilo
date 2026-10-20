@@ -246,6 +246,8 @@ export function NiloShell({ children }: { children: React.ReactNode }) {
     <>
       <AppShell
         panels
+        gutter={0}
+        navigationGap={0}
         contentMaxWidth="none"
         scroll="fixed"
         safeArea

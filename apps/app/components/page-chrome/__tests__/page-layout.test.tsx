@@ -320,7 +320,8 @@ it.each([false, true])(
     const rightHeader = jest.fn(() => null);
     await mount(initial, readOnly, rightHeader);
     const header = renderer.root.findAll(
-      (node) => node.props.presentation === 'bar' && typeof node.props.actions === 'function',
+      (node) =>
+        node.props.presentation === 'navigation' && typeof node.props.actions === 'function',
     )[0];
     const full = Children.toArray(header.props.actions({ compact: false }).props.children).filter(
       isValidElement,

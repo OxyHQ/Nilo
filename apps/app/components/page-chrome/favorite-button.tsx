@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { RiStarLine } from '@oxy.so/bloom/icons/RiStarLine';
+import { RiStarFill } from '@oxy.so/bloom/icons/RiStarFill';
 import { Button } from '@oxy.so/bloom/button';
-import { useTheme } from '@oxy.so/bloom/theme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
 
@@ -17,7 +17,6 @@ interface FavoriteButtonProps {
  * the actions menu (single source of truth: the page itself).
  */
 export function FavoriteButton({ pageId, favorited }: FavoriteButtonProps) {
-  const { colors } = useTheme();
   const { t } = useTranslation();
   const updatePage = useUpdatePage();
 
@@ -27,12 +26,13 @@ export function FavoriteButton({ pageId, favorited }: FavoriteButtonProps) {
 
   return (
     <Button
-      appearance="subtle"
+      appearance="plain"
       tone="neutral"
       iconOnly
       onPress={handleToggle}
       accessibilityLabel={favorited ? t('pages.favorite.remove') : t('pages.favorite.add')}
-      leadingIcon={RiStarLine}
+      aria-pressed={favorited}
+      leadingIcon={favorited ? RiStarFill : RiStarLine}
     />
   );
 }

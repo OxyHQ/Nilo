@@ -2,7 +2,6 @@ import * as React from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
-import { RiLockLine } from '@oxy.so/bloom/icons/RiLockLine';
 import { RiChat3Line } from '@oxy.so/bloom/icons/RiChat3Line';
 import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
@@ -19,7 +18,6 @@ import { ShareButton } from '@/components/sharing';
 import { CommentPanel } from '@/components/comments/comment-panel';
 import { PageChrome, PageHeader, TrashedPageBanner } from '@/components/page-chrome';
 import { RowPropertiesPanel } from '@/components/database/row-properties-panel';
-import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePage } from '@/lib/hooks/use-pages';
 import { useRouteWorkspace } from '@/lib/hooks/use-route-workspace';
@@ -82,7 +80,6 @@ function PageDetail({
   openComments: boolean;
 }) {
   const router = useRouter();
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   const { data, isLoading, error } = usePage(pageId);
   useRouteWorkspace(data?.page.workspaceId);
@@ -149,14 +146,10 @@ function PageDetail({
   const commentsLabel = t('pages.comments.openCount', { count: openCommentCount });
 
   const rightHeader: PageHeaderProps['actions'] = ({ compact }) => (
-    <View className="flex-row items-center gap-2">
-      {page.restricted ? (
-        <View accessible accessibilityLabel={t('pages.restricted')}>
-          <RiLockLine width={14} height={14} fill={colors.mutedForeground} />
-        </View>
-      ) : null}
+    <>
       <Button
-        appearance="subtle"
+        appearance="plain"
+        tone="neutral"
         iconOnly
         onPress={() => handleOpenPanel(null)}
         accessibilityLabel={commentsLabel}
@@ -164,8 +157,8 @@ function PageDetail({
         aria-expanded={commentPanel.open}
         leadingIcon={RiChat3Line}
       />
-      <ShareButton pageId={page.id} compact={compact} />
-    </View>
+      <ShareButton pageId={page.id} compact={compact} restricted={page.restricted} />
+    </>
   );
 
   const content = (
@@ -217,7 +210,7 @@ function PageDetail({
         layout={{
           mode: 'split',
           flow: 'bounded',
-          appearance: 'separated',
+          appearance: 'joined',
           activePanel: 'document',
           panels: [
             { id: 'document', span: 1, content },

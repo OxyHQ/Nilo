@@ -49,7 +49,8 @@
     "restored": "Página restaurada",
     "restoreFailed": "No se pudo restaurar",
     "deletedPermanently": "Página eliminada definitivamente",
-    "deleteFailed": "No se pudo eliminar la página"
+    "deleteFailed": "No se pudo eliminar la página",
+    "copyLinkFailed": "No se pudo copiar el enlace."
   },
   "deleteDialog": {
     "title": "¿Eliminar definitivamente?",
@@ -73,7 +74,9 @@
     "changeCover": "Cambiar portada",
     "changeIcon": "Cambiar icono",
     "addIcon": "Añadir icono",
-    "addCover": "Añadir portada"
+    "addCover": "Añadir portada",
+    "rename": "Nombre e icono",
+    "renameFailed": "No se pudo guardar el nombre. Tu borrador sigue aquí; inténtalo de nuevo."
   },
   "moveDialog": {
     "title": "Mover página",
@@ -333,7 +336,7 @@
     "banner": "Esta página está bloqueada.",
     "unlock": "Desbloquear"
   },
-  "title": "Título de la página",
+  "title": "Título",
   "offline": {
     "available": "Disponible sin conexión",
     "hint": "Guarda esta página en este dispositivo para leerla y editarla sin conexión."
