@@ -1,8 +1,6 @@
 import { toast } from '@oxy.so/bloom/toast';
-import { View } from 'react-native';
 import { usePageEditorContext } from '@/components/page-editor/page-editor-context';
-import { Switch } from '@oxy.so/bloom/switch';
-import { Text } from '@oxy.so/bloom/typography';
+import { DropdownMenuCheckboxItem } from '@oxy.so/bloom/dropdown-menu';
 import { useTranslation } from '@/hooks/useTranslation';
 import { toCanvas, toDocument } from '@/lib/editor/canvas';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
@@ -20,29 +18,27 @@ export function CanvasSwitch({ page }: { page: Page }) {
   if (!store) return null;
   const canvas = page.mode === 'canvas';
   return (
-    <View className="gap-0.5 px-3 py-1.5">
-      <View className="flex-row items-center justify-between gap-3">
-        <Text variant="body-regular">{t('pages.canvas.mode')}</Text>
-        <Switch
-          checked={canvas}
-          disabled={updatePage.isPending || page.locked}
-          accessibilityLabel={t('pages.canvas.mode')}
-          onCheckedChange={(next) => {
-            store.sealHistory();
-            const changed = store.run(next ? toCanvas : toDocument);
-            updatePage.mutate(
-              { id: page.id, mode: next ? 'canvas' : 'document' },
-              {
-                onError: () => {
-                  if (changed) store.undo();
-                  toast.error(t('pages.canvas.failed'));
-                },
-              },
-            );
-          }}
-        />
-      </View>
-      <Text className="text-xs text-muted-foreground">{t('pages.canvas.hint')}</Text>
-    </View>
+    <DropdownMenuCheckboxItem
+      indicatorPosition="trailing"
+      keepOpen
+      checked={canvas}
+      disabled={updatePage.isPending || page.locked}
+      accessibilityLabel={t('pages.canvas.mode')}
+      onCheckedChange={(next) => {
+        store.sealHistory();
+        const changed = store.run(next ? toCanvas : toDocument);
+        updatePage.mutate(
+          { id: page.id, mode: next ? 'canvas' : 'document' },
+          {
+            onError: () => {
+              if (changed) store.undo();
+              toast.error(t('pages.canvas.failed'));
+            },
+          },
+        );
+      }}
+    >
+      {t('pages.canvas.mode')}
+    </DropdownMenuCheckboxItem>
   );
 }

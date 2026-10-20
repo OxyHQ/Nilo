@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { type DimensionValue, Pressable, ScrollView, View } from 'react-native';
+import { type DimensionValue, Pressable, View } from 'react-native';
 import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
 import {
   DropdownMenu,
@@ -105,29 +105,28 @@ export function CalculationCell({
         label={t('databases.calculations.pick', { name: property.name })}
       >
         <DropdownMenuLabel>{property.name}</DropdownMenuLabel>
-        <ScrollView style={{ maxHeight: 360 }}>
+
+        <DropdownMenuItem
+          leading={
+            !fn ? <RiCheckLine width={14} height={14} fill={colors.foreground} /> : undefined
+          }
+          onPress={() => choose(null)}
+        >
+          {t('databases.calculations.none')}
+        </DropdownMenuItem>
+        {calculationsFor(property).map((option) => (
           <DropdownMenuItem
+            key={option}
             leading={
-              !fn ? <RiCheckLine width={14} height={14} fill={colors.foreground} /> : undefined
+              option === fn ? (
+                <RiCheckLine width={14} height={14} fill={colors.foreground} />
+              ) : undefined
             }
-            onPress={() => choose(null)}
+            onPress={() => choose(option)}
           >
-            {t('databases.calculations.none')}
+            {t(`databases.calculations.functions.${option}`)}
           </DropdownMenuItem>
-          {calculationsFor(property).map((option) => (
-            <DropdownMenuItem
-              key={option}
-              leading={
-                option === fn ? (
-                  <RiCheckLine width={14} height={14} fill={colors.foreground} />
-                ) : undefined
-              }
-              onPress={() => choose(option)}
-            >
-              {t(`databases.calculations.functions.${option}`)}
-            </DropdownMenuItem>
-          ))}
-        </ScrollView>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );

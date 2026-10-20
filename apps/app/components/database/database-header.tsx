@@ -2,7 +2,9 @@ import { toast } from '@oxy.so/bloom/toast';
 import { DatabaseActionsMenu } from './database-actions-menu';
 import { viewIsEditable } from '@oxy.so/nilo-contracts';
 import * as React from 'react';
-import { Platform, Pressable, ScrollView, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { PageHeader, PageHeaderTitleInput } from '@oxy.so/bloom/page-header';
+import { Toolbar, ScrollArea } from '@oxy.so/bloom/layout';
 import { RiArrowLeftSLine } from '@oxy.so/bloom/icons/RiArrowLeftSLine';
 import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
 import { RiCalendarLine } from '@oxy.so/bloom/icons/RiCalendarLine';
@@ -82,6 +84,7 @@ interface DatabaseHeaderProps {
   onSelectView: (id: string) => void;
   /** A reader's: the title, the views and the database's settings are shown, not edited. */
   readOnly?: boolean;
+  accessory?: React.ReactNode;
 }
 
 export function DatabaseHeader({
@@ -90,6 +93,7 @@ export function DatabaseHeader({
   activeViewId,
   onSelectView,
   readOnly = false,
+  accessory,
 }: DatabaseHeaderProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -138,11 +142,15 @@ export function DatabaseHeader({
           <CoverDisplay value={database.cover} height={160} />
         </Pressable>
       ) : null}
-      <View className="px-6 py-4 gap-3">
-        <View className="flex-row items-center gap-2">
-          <Pressable
+      <PageHeader
+        presentation="bar"
+        border="none"
+        safeArea={false}
+        leading={
+          <Button
+            iconOnly
+            appearance="plain"
             disabled={readOnly}
-            accessibilityRole={readOnly ? undefined : 'button'}
             accessibilityLabel={t('databases.chrome.changeIcon')}
             onPress={() => iconPicker.open()}
           >
@@ -151,64 +159,63 @@ export function DatabaseHeader({
             ) : (
               <RiTableLine size="xl" fill={colors.foreground} />
             )}
-          </Pressable>
-          <View className="flex-1">
-            <TextInput
-              value={titleDraft ?? database.name}
-              onChangeText={setTitleDraft}
-              onBlur={handleTitleBlur}
-              editable={!readOnly}
-              placeholder={t('databases.untitledDatabase')}
-              placeholderTextColor={colors.mutedForeground}
-              className="text-3xl font-bold text-foreground"
-              style={
-                Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined
+          </Button>
+        }
+        title={
+          <PageHeaderTitleInput
+            label={t('databases.untitledDatabase')}
+            value={titleDraft ?? database.name}
+            onChangeText={setTitleDraft}
+            onBlur={handleTitleBlur}
+            editable={!readOnly}
+            placeholder={t('databases.untitledDatabase')}
+          />
+        }
+        actions={
+          <>
+            {locked ? (
+              <Button
+                appearance="subtle"
+                size="xs"
+                leadingIcon={RiLockLine}
+                disabled={readOnly || updateDatabase.isPending}
+                accessibilityLabel={t(readOnly ? 'databases.lock.badge' : 'databases.lock.unlock')}
+                onPress={() => updateDatabase.mutate({ id: database.id, locked: false })}
+              >
+                {t('databases.lock.badge')}
+              </Button>
+            ) : null}
+            <DatabaseActionsMenu databaseId={database.id} readOnly={readOnly} />
+          </>
+        }
+        accessory={
+          <>
+            <Toolbar
+              actions={
+                !readOnly && !locked ? (
+                  <Button
+                    appearance="plain"
+                    size="xs"
+                    onPress={() => setNewViewOpen(true)}
+                    leadingIcon={RiAddLine}
+                  >
+                    {t('databases.views.new')}
+                  </Button>
+                ) : undefined
               }
-              underlineColorAndroid="transparent"
-            />
-          </View>
-          {locked ? (
-            <Button
-              appearance="subtle"
-              size="xs"
-              leadingIcon={RiLockLine}
-              disabled={readOnly || updateDatabase.isPending}
-              accessibilityLabel={t(readOnly ? 'databases.lock.badge' : 'databases.lock.unlock')}
-              onPress={() => updateDatabase.mutate({ id: database.id, locked: false })}
             >
-              {t('databases.lock.badge')}
-            </Button>
-          ) : null}
-          <DatabaseActionsMenu databaseId={database.id} readOnly={readOnly} />
-        </View>
-
-        {/* View tabs */}
-        <View className="flex-row items-center gap-1">
-          <View className="flex-shrink">
-            <Tabs
-              value={activeViewId ?? undefined}
-              onValueChange={onSelectView}
-              variant="pill"
-              label={t('databases.views.title')}
-            >
-              {views.map((v) => (
-                <ViewTab key={v.id} view={v} database={database} readOnly={readOnly} />
-              ))}
-            </Tabs>
-          </View>
-          {/* A locked database's views are as they are. */}
-          {!readOnly && !locked ? (
-            <Button
-              appearance="plain"
-              size="xs"
-              onPress={() => setNewViewOpen(true)}
-              leadingIcon={RiAddLine}
-            >
-              {t('databases.views.new')}
-            </Button>
-          ) : null}
-        </View>
-      </View>
+              <DatabaseViewTabs
+                database={database}
+                views={views}
+                activeViewId={activeViewId}
+                onSelectView={onSelectView}
+                readOnly={readOnly}
+              />
+            </Toolbar>
+            {accessory}
+          </>
+        }
+      />
       <NewViewPicker
         open={!readOnly && !locked && newViewOpen}
         onClose={() => setNewViewOpen(false)}
@@ -226,14 +233,53 @@ export function DatabaseHeader({
   );
 }
 
+/** The same controlled view strip is shared by full-page and inline databases. */
+export function DatabaseViewTabs({
+  database,
+  views,
+  activeViewId,
+  onSelectView,
+  readOnly = false,
+}: Omit<DatabaseHeaderProps, 'accessory'>) {
+  const { t } = useTranslation();
+  const updateView = useUpdateView();
+  const locked = views.every((view) => !viewIsEditable(database, view));
+  return (
+    <Tabs
+      value={activeViewId ?? undefined}
+      onValueChange={onSelectView}
+      variant="pill"
+      label={t('databases.views.title')}
+      onReorder={
+        readOnly || locked || updateView.isPending
+          ? undefined
+          : async (from, to) => {
+              const target = views.findIndex((view) => view.id === to);
+              if (target < 0 || !views.some((view) => view.id === from)) return;
+              try {
+                await Promise.all(
+                  orderChanges(movedViews(views, from, target)).map((change) =>
+                    updateView.mutateAsync({ databaseId: database.id, ...change }),
+                  ),
+                );
+              } catch {
+                toast.error(t('databases.views.updateFailed'));
+              }
+            }
+      }
+    >
+      {views.map((v) => (
+        <ViewTab key={v.id} view={v} database={database} readOnly={readOnly} />
+      ))}
+    </Tabs>
+  );
+}
+
 interface ViewTabProps {
   readOnly?: boolean;
   view: DatabaseView;
   database: Database;
 }
-
-/** What a dragged view tab carries (web): its view's id, and only to its siblings. */
-const VIEW_DRAG_TYPE = 'application/x-nilo-view';
 
 /**
  * One view in a database's `Tabs` strip, with its menu beside the label:
@@ -310,39 +356,6 @@ export function ViewTab({ view, database, readOnly = false }: ViewTabProps) {
       toast.error(t('databases.views.updateFailed'));
     }
   };
-
-  // Web: the tab itself is dragged onto another. It is found by its test id
-  // because the trigger is Bloom's and the strip measures it, so it cannot be
-  // wrapped in an element of ours.
-  const testID = `database-view-tab-${view.id}`;
-  React.useEffect(() => {
-    if (Platform.OS !== 'web' || !editable || typeof document === 'undefined') return;
-    const element = document.querySelector<HTMLElement>(`[data-testid="${testID}"]`);
-    if (!element) return;
-    const start = (event: DragEvent) => {
-      event.dataTransfer?.setData(VIEW_DRAG_TYPE, view.id);
-      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
-    };
-    const over = (event: DragEvent) => {
-      if (event.dataTransfer?.types.includes(VIEW_DRAG_TYPE)) event.preventDefault();
-    };
-    const drop = (event: DragEvent) => {
-      const dragged = event.dataTransfer?.getData(VIEW_DRAG_TYPE);
-      if (!dragged || dragged === view.id || !siblings.some((v) => v.id === dragged)) return;
-      event.preventDefault();
-      void moveTo(dragged, index);
-    };
-    element.draggable = true;
-    element.addEventListener('dragstart', start);
-    element.addEventListener('dragover', over);
-    element.addEventListener('drop', drop);
-    return () => {
-      element.draggable = false;
-      element.removeEventListener('dragstart', start);
-      element.removeEventListener('dragover', over);
-      element.removeEventListener('drop', drop);
-    };
-  }, [editable, testID, view.id, siblings, index, moveTo]);
 
   // The settings button is the trigger's `trailing` node: Bloom lays it beside
   // the tab's press target, so opening the menu does not select the view.
@@ -463,9 +476,9 @@ export function ViewTab({ view, database, readOnly = false }: ViewTabProps) {
         ) : null}
         {mode === 'settings' ? (
           <>
-            <ScrollView style={{ maxHeight: 440 }} keyboardShouldPersistTaps="handled">
+            <ScrollArea style={{ maxHeight: 440 }} keyboardShouldPersistTaps="handled">
               <ViewSettings database={database} view={view} />
-            </ScrollView>
+            </ScrollArea>
             <View className="mt-1 flex-row justify-end">
               <Button appearance="subtle" size="sm" onPress={() => setMode('menu')}>
                 {t('common.back')}
@@ -483,7 +496,8 @@ export function ViewTab({ view, database, readOnly = false }: ViewTabProps) {
       label={view.name}
       leadingIcon={Icon}
       trailing={settings}
-      testID={testID}
+      testID={`database-view-tab-${view.id}`}
+      reorderable={editable}
       onLongPress={!editable ? undefined : () => setMenuOpen(true)}
     />
   );

@@ -177,6 +177,47 @@ afterAll(async () => {
 });
 
 describe("a view's layout", () => {
+  it('persists board column order and rejects ambiguous duplicate columns', async () => {
+    const databaseId = await createDatabase();
+    const view = await createView(databaseId, { type: 'board', groupBy: { propertyId: 'stage' } });
+    const config = { boardColumnOrder: { propertyId: 'stage', columnIds: ['done', 'todo'] } };
+    const path = `/databases/${databaseId}/views/${view.id}`;
+    expect((await api('PATCH', path, { config })).status).toBe(200);
+    const [stored] = await db.select().from(databaseViews).where(eq(databaseViews.id, view.id));
+    expect(stored.config).toMatchObject(config);
+    expect(
+      (
+        await api('PATCH', path, {
+          config: { boardColumnOrder: { propertyId: 'stage', columnIds: ['todo', 'todo'] } },
+        })
+      ).status,
+    ).toBe(400);
+    await api('DELETE', `/databases/${databaseId}/properties/stage`);
+    const [removed] = await db.select().from(databaseViews).where(eq(databaseViews.id, view.id));
+    expect(removed.config.boardColumnOrder).toBeUndefined();
+  });
+
+  it.each(['board', 'gallery'])(
+    'persists %s card layout and rejects unsupported sizes',
+    async (type) => {
+      const databaseId = await createDatabase();
+      const config = { cardSize: 'large', coverSource: 'pageCover', fit: 'contain' };
+      const view = await createView(databaseId, { type, config });
+      const [stored] = await db.select().from(databaseViews).where(eq(databaseViews.id, view.id));
+      expect(stored.config).toMatchObject(config);
+      const changed = await api('PATCH', `/databases/${databaseId}/views/${view.id}`, {
+        config: { cardSize: 'small', coverSource: 'none' },
+      });
+      expect(changed.status).toBe(200);
+      const [updated] = await db.select().from(databaseViews).where(eq(databaseViews.id, view.id));
+      expect(updated.config).toMatchObject({ cardSize: 'small', coverSource: 'none' });
+      const invalid = await api('PATCH', `/databases/${databaseId}/views/${view.id}`, {
+        config: { cardSize: 'giant' },
+      });
+      expect(invalid.status).toBe(400);
+    },
+  );
+
   it('keeps where it opens rows, its column widths, its property order and its calculations', async () => {
     const databaseId = await createDatabase();
     const view = await createView(databaseId, {
@@ -359,6 +400,32 @@ describe('a grouped table', () => {
       `/databases/${databaseId}/rows?viewId=${byMonth.id}&timeZone=Mars/Olympus`,
     );
     expect(unknown.status).toBe(400);
+  });
+
+  it('groups board columns by relations without enabling relation grouping for other layouts or lanes', async () => {
+    const databaseId = await createDatabase();
+    const targetDatabaseId = await createDatabase();
+    const property = await api('POST', `/databases/${databaseId}/properties`, {
+      id: 'project',
+      name: 'Project',
+      type: 'relation',
+      config: { targetDatabaseId },
+    });
+    expect(property.status).toBe(201);
+    const board = await createView(databaseId, {
+      type: 'board',
+      groupBy: { propertyId: 'project' },
+    });
+    const path = `/databases/${databaseId}/views/${board.id}`;
+    expect((await api('PATCH', path, { config: { cardSize: 'large' } })).status).toBe(200);
+    expect((await api('PATCH', path, { groupBy: { propertyId: 'tags' } })).status).toBe(200);
+    expect((await api('PATCH', path, { groupBy: { propertyId: 'project' } })).status).toBe(200);
+    for (const body of [{ type: 'table' }, { subGroupBy: { propertyId: 'project' } }]) {
+      const refused = await api('PATCH', path, body);
+      expect(refused.status).toBe(400);
+      expect(refused.json.code).toBe('INVALID_GROUP');
+    }
+    expect((await api('PATCH', path, { type: 'table', groupBy: null })).status).toBe(200);
   });
 
   it('sub-groups a board, and refuses a grouping by a property that has no groups', async () => {

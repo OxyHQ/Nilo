@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
 import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
 import { Avatar } from '@oxy.so/bloom/avatar';
@@ -123,37 +123,37 @@ function PersonPicker({
         value={query}
         onChangeText={setQuery}
       />
-      <ScrollView style={{ maxHeight: 280 }} keyboardShouldPersistTaps="handled">
-        {isPending && scope ? (
-          <Text className="py-2 text-sm text-muted-foreground">{t('common.loading')}</Text>
-        ) : shown.length === 0 ? (
-          <EmptyState
-            variant="compact"
-            title={t(isError || !scope ? 'databases.people.failed' : 'databases.people.none')}
-          />
-        ) : (
-          shown.map((person) => {
-            const name = memberProfileName(person) ?? t('databases.people.unknown');
-            const selected = value.includes(person.userId);
-            return (
-              <Item
-                key={person.userId}
-                density="compact"
-                role="checkbox"
-                selected={selected}
-                accessibilityLabel={name}
-                leading={<Avatar source={person.user?.avatar ?? null} name={name} size="sm" />}
-                title={name}
-                subtitle={person.guest ? t('databases.people.guest') : undefined}
-                trailing={
-                  selected ? <RiCheckLine width={14} height={14} fill={colors.foreground} /> : null
-                }
-                onPress={() => toggle(person.userId)}
-              />
-            );
-          })
-        )}
-      </ScrollView>
+
+      {isPending && scope ? (
+        <Text className="py-2 text-sm text-muted-foreground">{t('common.loading')}</Text>
+      ) : shown.length === 0 ? (
+        <EmptyState
+          variant="compact"
+          title={t(isError || !scope ? 'databases.people.failed' : 'databases.people.none')}
+        />
+      ) : (
+        shown.map((person) => {
+          const name = memberProfileName(person) ?? t('databases.people.unknown');
+          const selected = value.includes(person.userId);
+          return (
+            <Item
+              key={person.userId}
+              density="compact"
+              role="checkbox"
+              selected={selected}
+              accessibilityLabel={name}
+              leading={<Avatar source={person.user?.avatar ?? null} name={name} size="sm" />}
+              title={name}
+              subtitle={person.guest ? t('databases.people.guest') : undefined}
+              trailing={
+                selected ? <RiCheckLine width={14} height={14} fill={colors.foreground} /> : null
+              }
+              onPress={() => toggle(person.userId)}
+            />
+          );
+        })
+      )}
+
       {value.length > 0 ? (
         <Button
           appearance="plain"

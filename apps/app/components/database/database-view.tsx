@@ -1,8 +1,9 @@
-import { RowsScrollView } from './rows-scroll-view';
 import { ViewForm } from './view-form';
 import { viewIsEditable } from '@oxy.so/nilo-contracts';
-import { ScrollView, View } from 'react-native';
+import { Screen, ScreenScrollView } from '@oxy.so/bloom/screen';
+import { PageHeader } from '@oxy.so/bloom/page-header';
 import { Text } from '@oxy.so/bloom/typography';
+import { Toolbar } from '@oxy.so/bloom/layout';
 import { useTranslation } from '@/hooks/useTranslation';
 import type * as React from 'react';
 import type {
@@ -29,6 +30,8 @@ import { OpenRowProvider } from './row-peek-provider';
 import { RelatedRowsProvider } from './relation-cell';
 
 interface DatabaseViewContainerProps {
+  /** Route identity and view tabs, composed into the screen header. */
+  renderHeader?: (accessory: React.ReactNode) => React.ReactNode;
   database: Database;
   view: DatabaseView;
   rows: DatabaseRow[];
@@ -64,25 +67,29 @@ const VIEW_BODIES: Record<
   (props: ViewBodyProps) => React.ReactNode
 > = {
   table: ({ onLoadMore, ...props }) => (
-    <RowsScrollView onLoadMore={onLoadMore}>
+    <ScreenScrollView
+      keyboardShouldPersistTaps="handled"
+      onEndReached={onLoadMore}
+      onEndReachedThreshold={1}
+    >
       <ViewTable {...props} />
-    </RowsScrollView>
+    </ScreenScrollView>
   ),
   board: ({ schemaReadOnly: _schemaReadOnly, ...props }) => <ViewBoard {...props} />,
   gallery: ({ schemaReadOnly: _schemaReadOnly, ...props }) => <ViewGallery {...props} />,
   list: ({ schemaReadOnly: _schemaReadOnly, ...props }) => <ViewList {...props} />,
   calendar: (props) => (
-    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+    <ScreenScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
       <ViewCalendar
         database={props.database}
         view={props.view}
         rows={props.rows}
         isLoading={props.isLoading}
       />
-    </ScrollView>
+    </ScreenScrollView>
   ),
   timeline: (props) => (
-    <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+    <ScreenScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
       <ViewTimeline
         database={props.database}
         view={props.view}
@@ -91,12 +98,12 @@ const VIEW_BODIES: Record<
         groups={props.groups}
         viewEditable={props.viewEditable}
       />
-    </ScrollView>
+    </ScreenScrollView>
   ),
   chart: (props) => (
-    <ScrollView nestedScrollEnabled>
+    <ScreenScrollView nestedScrollEnabled>
       <ViewChart database={props.database} view={props.view} />
-    </ScrollView>
+    </ScreenScrollView>
   ),
 };
 
@@ -113,6 +120,7 @@ export function DatabaseViewContainer({
   view,
   rows,
   isLoading,
+  renderHeader,
   readOnly = false,
   viewsReadOnly = readOnly,
   total,
@@ -126,39 +134,54 @@ export function DatabaseViewContainer({
   const viewEditable = !viewsReadOnly && viewIsEditable(database, view);
   const schemaEditable = !readOnly && !locked;
 
-  if (view.type === 'form') return <ViewForm database={database} view={view} readOnly={readOnly} />;
+  const tools =
+    view.type === 'form' ? null : (
+      <Toolbar
+        actions={!readOnly && !viewsReadOnly ? <NewRowMenu databaseId={database.id} /> : null}
+        accessory={
+          <>
+            {total !== undefined ? (
+              <Text className="px-4 py-1 text-xs text-muted-foreground">
+                {t('databases.rows.total', { count: total })}
+              </Text>
+            ) : null}
+            {isFetchingMore ? (
+              <Text accessibilityLiveRegion="polite" className="px-4 text-xs text-muted-foreground">
+                {t('common.loading')}
+              </Text>
+            ) : null}
+          </>
+        }
+      >
+        <ViewSearch viewId={view.id} />
+        {viewEditable ? (
+          <>
+            <FilterBuilder database={database} view={view} rows={rows} />
+            <SortBuilder database={database} view={view} />
+          </>
+        ) : null}
+        {schemaEditable && !viewsReadOnly ? <AddPropertyButton database={database} /> : null}
+      </Toolbar>
+    );
 
   return (
     <DatabaseCellScopeProvider databaseId={database.id}>
       <OpenRowProvider view={view}>
-        <View className="flex-1">
-          <View className="flex-row items-center justify-between px-6 py-2 border-b border-border">
-            <View className="flex-row items-center gap-1">
-              <ViewSearch viewId={view.id} />
-              {viewEditable ? (
-                <>
-                  <FilterBuilder database={database} view={view} rows={rows} />
-                  <SortBuilder database={database} view={view} />
-                </>
-              ) : null}
-              {schemaEditable && !viewsReadOnly ? <AddPropertyButton database={database} /> : null}
-            </View>
-            {!readOnly && !viewsReadOnly ? <NewRowMenu databaseId={database.id} /> : null}
-          </View>
-
-          {total !== undefined ? (
-            <Text className="px-4 py-1 text-xs text-muted-foreground">
-              {t('databases.rows.total', { count: total })}
-            </Text>
-          ) : null}
-          {isFetchingMore ? (
-            <Text accessibilityLiveRegion="polite" className="px-4 text-xs text-muted-foreground">
-              {t('common.loading')}
-            </Text>
-          ) : null}
-          <View className="flex-1">
-            <RelatedRowsProvider database={database} rows={rows}>
-              {VIEW_BODIES[view.type]({
+        <Screen
+          scroll={view.type === 'board' ? 'none' : 'auto'}
+          header={
+            renderHeader ? (
+              renderHeader(tools)
+            ) : tools ? (
+              <PageHeader safeArea={false} accessory={tools} />
+            ) : undefined
+          }
+        >
+          <RelatedRowsProvider database={database} rows={rows}>
+            {view.type === 'form' ? (
+              <ViewForm database={database} view={view} readOnly={readOnly} />
+            ) : (
+              VIEW_BODIES[view.type]({
                 database,
                 view,
                 rows,
@@ -169,10 +192,10 @@ export function DatabaseViewContainer({
                 groups,
                 hasMore,
                 onLoadMore,
-              })}
-            </RelatedRowsProvider>
-          </View>
-        </View>
+              })
+            )}
+          </RelatedRowsProvider>
+        </Screen>
       </OpenRowProvider>
     </DatabaseCellScopeProvider>
   );

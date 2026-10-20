@@ -8,8 +8,10 @@ import {
 import { RowPropertiesPanel } from '@/components/database/row-properties-panel';
 import { CommentPanel } from '@/components/comments/comment-panel';
 import { PageChrome } from '@/components/page-chrome';
+import { AppShellPanels } from '@oxy.so/bloom/app-shell';
 
 let mockLocked = true;
+jest.mock('@/lib/hooks/use-route-workspace', () => ({ useRouteWorkspace: jest.fn() }));
 let mockRole = 'editor';
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ pageId: 'page' }),
@@ -38,11 +40,34 @@ jest.mock('@/components/page-editor/page-editor', () => ({ PageEditor: jest.fn((
 jest.mock('@/components/page-editor/page-editor-context', () => ({
   PageEditorProvider: ({ children }: { children: React.ReactNode }) => children,
   PageEditorToolbar: jest.fn(() => null),
-  usePageEditorContext: () => ({ toolbarHeight: 0 }),
 }));
 jest.mock('@/components/page-chrome', () => ({
-  PageChrome: ({ children }: { children: React.ReactNode }) => children,
+  PageChrome: ({
+    children,
+    bottomBar,
+  }: {
+    children: React.ReactNode;
+    bottomBar: React.ReactNode;
+  }) => [children, bottomBar],
   PageHeader: () => null,
+}));
+// The route owns permissions and descriptors; Bloom tests layout and chrome.
+jest.mock('@oxy.so/bloom/app-shell', () => ({
+  AppShellPanels: ({
+    layout,
+  }: {
+    layout: { panels: { id: string; content: React.ReactNode }[] };
+  }) =>
+    layout.panels.map((panel) =>
+      require('react').createElement(
+        require('react-native').View,
+        { key: panel.id },
+        panel.content,
+      ),
+    ),
+}));
+jest.mock('@oxy.so/bloom/screen', () => ({
+  ScreenScrollView: require('react-native').View,
 }));
 jest.mock('@/components/sharing', () => ({ ShareButton: () => null }));
 jest.mock('@/components/page-chrome/icon-display', () => ({ IconDisplay: () => null }));
@@ -52,6 +77,7 @@ jest.mock('@/components/database/row-properties-panel', () => ({
 }));
 jest.mock('react-native-keyboard-controller', () => ({
   KeyboardAwareScrollView: require('react-native').View,
+  KeyboardStickyView: require('react-native').View,
 }));
 
 let renderer: ReactTestRenderer;
@@ -85,4 +111,24 @@ it('responds to remote unlock without remounting the page editor', () => {
   expect(renderer.root.findByType(PageEditor)).toBe(editor);
   expect(editor.props.readOnly).toBe(false);
   expect(renderer.root.findByType(RowPropertiesPanel).props.readOnly).toBe(false);
+});
+
+it('opens comments through the panel compositor and keeps the document editor mounted', () => {
+  mockRole = 'editor';
+  mockLocked = false;
+  act(() => {
+    renderer = create(<PageDetailRoute />);
+  });
+  const editor = renderer.root.findByType(PageEditor);
+  const panels = () => renderer.root.findByType(AppShellPanels).props.layout.panels;
+  expect(panels().find((panel: { id: string }) => panel.id === 'comments').visible).toBe(false);
+  act(() => editor.props.onOpenBlockComments('paragraph', { start: 0, end: 4, quote: 'Text' }));
+  const comments = panels().find((panel: { id: string }) => panel.id === 'comments');
+  expect(comments.visible).toBe(true);
+  expect(comments.floating.open).toBe(true);
+  expect(renderer.root.findByType(CommentPanel).props.focusedBlockId).toBe('paragraph');
+  expect(renderer.root.findByType(PageEditor)).toBe(editor);
+  act(() => comments.floating.onOpenChange(false));
+  expect(panels().find((panel: { id: string }) => panel.id === 'comments').visible).toBe(false);
+  expect(renderer.root.findByType(PageEditor)).toBe(editor);
 });

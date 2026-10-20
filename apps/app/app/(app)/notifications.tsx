@@ -1,8 +1,9 @@
+import { Screen, ScreenScrollView } from '@oxy.so/bloom/screen';
 import { PageAssignedNotification } from '@/components/sharing/page-assigned-notification';
 import { PageEditedNotification } from '@/components/sharing/page-edited-notification';
 import { ReminderList } from '@/components/reminders/reminder-list';
 import { PageSharedNotification } from '@/components/sharing/page-shared-notification';
-import { View, ScrollView, Pressable } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { Button, CloseButton } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
@@ -136,41 +137,44 @@ export default function NotificationsScreen() {
   const StatusIcon = pushEnabled ? RiNotification3Line : RiNotificationOffLine;
 
   return (
-    <View className="flex-1 bg-background">
-      <PageHeader
-        presentation="bar"
-        border="always"
-        // The app layout already pads this route below the status bar.
-        safeArea={false}
-        onBack={() => router.back()}
-        backLabel={t('common.back')}
-        title={t('notifications.title')}
-        subtitle={unreadCount > 0 ? t('notifications.unread', { count: unreadCount }) : undefined}
-        actions={
-          <View className="flex-row items-center gap-2">
-            {unreadCount > 0 && (
+    <Screen
+      scroll="auto"
+      header={
+        <PageHeader
+          presentation="bar"
+          border="always"
+          // The app layout already pads this route below the status bar.
+          safeArea={false}
+          onBack={() => router.back()}
+          backLabel={t('common.back')}
+          title={t('notifications.title')}
+          subtitle={unreadCount > 0 ? t('notifications.unread', { count: unreadCount }) : undefined}
+          actions={
+            <View className="flex-row items-center gap-2">
+              {unreadCount > 0 && (
+                <Button
+                  appearance="subtle"
+                  size="sm"
+                  onPress={() => markAllAsRead.mutate()}
+                  leadingIcon={RiCheckDoubleLine}
+                >
+                  {t('notifications.markAllRead')}
+                </Button>
+              )}
               <Button
                 appearance="subtle"
-                size="sm"
-                onPress={() => markAllAsRead.mutate()}
-                leadingIcon={RiCheckDoubleLine}
-              >
-                {t('notifications.markAllRead')}
-              </Button>
-            )}
-            <Button
-              appearance="subtle"
-              iconOnly
-              pressed={showSettings}
-              accessibilityLabel={t('notifications.pushNotifications')}
-              onPress={() => setShowSettings((s) => !s)}
-              leadingIcon={RiNotification3Line}
-            />
-          </View>
-        }
-      />
-
-      <ScrollView className="flex-1">
+                iconOnly
+                pressed={showSettings}
+                accessibilityLabel={t('notifications.pushNotifications')}
+                onPress={() => setShowSettings((s) => !s)}
+                leadingIcon={RiNotification3Line}
+              />
+            </View>
+          }
+        />
+      }
+    >
+      <ScreenScrollView className="flex-1">
         {/* Push Settings (collapsible) */}
         {showSettings && (
           <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
@@ -287,7 +291,7 @@ export default function NotificationsScreen() {
             })}
           </View>
         )}
-      </ScrollView>
-    </View>
+      </ScreenScrollView>
+    </Screen>
   );
 }

@@ -18,6 +18,8 @@ interface CoverDisplayProps {
   pageId?: string;
   /** How the reader reached the page, when not as a member (a share link, a published site). */
   fileScope?: FileUrlScope;
+  /** Card previews may show the entire image instead of cropping it. */
+  fit?: 'cover' | 'contain';
 }
 
 /**
@@ -45,6 +47,7 @@ export function CoverDisplay({
   preview = false,
   pageId,
   fileScope,
+  fit = 'cover',
 }: CoverDisplayProps) {
   const parsed = React.useMemo<CoverValue>(() => parseCover(value), [value]);
   const { t } = useTranslation();
@@ -79,6 +82,7 @@ export function CoverDisplay({
         preview={preview}
         pageId={pageId}
         fileScope={fileScope}
+        fit={fit}
       />
     );
   }
@@ -90,7 +94,7 @@ export function CoverDisplay({
           width: '100%',
           height,
           borderRadius: preview ? 8 : 0,
-          objectFit: 'cover',
+          objectFit: fit,
           objectPosition: `50% ${position}%`,
         }
       : {
@@ -103,7 +107,7 @@ export function CoverDisplay({
     <Image
       source={{ uri }}
       style={imageStyle as ImageStyle}
-      resizeMode="cover"
+      resizeMode={fit}
       accessibilityLabel={t('pages.header.pageCover')}
     />
   );
@@ -117,6 +121,7 @@ function FileCover({
   preview,
   pageId,
   fileScope,
+  fit,
 }: {
   fileId: string;
   position: number;
@@ -124,6 +129,7 @@ function FileCover({
   preview: boolean;
   pageId?: string;
   fileScope?: FileUrlScope;
+  fit: 'cover' | 'contain';
 }) {
   const { t } = useTranslation();
   const contextScope = useFileScope(pageId);
@@ -134,7 +140,7 @@ function FileCover({
     <ExpoImage
       source={source}
       style={style}
-      contentFit="cover"
+      contentFit={fit}
       contentPosition={{ left: '50%', top: `${position}%` }}
       accessibilityLabel={t('pages.header.pageCover')}
     />

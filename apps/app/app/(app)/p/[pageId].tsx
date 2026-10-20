@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
 import { RiLockLine } from '@oxy.so/bloom/icons/RiLockLine';
@@ -7,13 +7,11 @@ import { RiChat3Line } from '@oxy.so/bloom/icons/RiChat3Line';
 import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
-import { Text } from '@oxy.so/bloom/typography';
-import { IconDisplay } from '@/components/page-chrome/icon-display';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { AppShellPanels } from '@oxy.so/bloom/app-shell';
+import { ScreenScrollView } from '@oxy.so/bloom/screen';
 import {
   PageEditorProvider,
   PageEditorToolbar,
-  usePageEditorContext,
 } from '@/components/page-editor/page-editor-context';
 import { PageEditor } from '@/components/page-editor/page-editor';
 import { ShareButton } from '@/components/sharing';
@@ -23,6 +21,7 @@ import { RowPropertiesPanel } from '@/components/database/row-properties-panel';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePage } from '@/lib/hooks/use-pages';
+import { useRouteWorkspace } from '@/lib/hooks/use-route-workspace';
 import { usePageComments } from '@/lib/hooks/use-comments';
 import { useDatabase } from '@/lib/hooks/use-databases';
 import { useTrackRecentPage } from '@/lib/hooks/use-track-recent-page';
@@ -85,6 +84,7 @@ function PageDetail({
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const { data, isLoading, isError, error } = usePage(pageId);
+  useRouteWorkspace(data?.page.workspaceId);
   const { data: commentsData } = usePageComments(pageId, false);
   const role = data?.role;
   useTrackRecentPage(pageId);
@@ -166,92 +166,90 @@ function PageDetail({
     </View>
   );
 
-  return (
-    <PageEditorProvider pageId={pageId} readOnly={contentReadOnly}>
-      <PageChrome page={page} readOnly={!canEdit} rightHeader={rightHeader}>
-        {page.archived ? <TrashedPageBanner page={page} canEdit={canEdit} /> : null}
-        <View className="flex-1 flex-row">
-          {page.mode === 'canvas' ? (
-            // A canvas fills the page: notes are placed on it, not scrolled through.
-            <View className="flex-1">
-              <View className="flex-row items-center gap-2 border-b border-border px-4 py-2">
-                <IconDisplay value={page.icon} size={18} pageId={page.id} />
-                <Text variant="headline-semibold" numberOfLines={1}>
-                  {page.title || t('pages.untitled')}
-                </Text>
-              </View>
-              {page.databaseId ? (
-                // A database row keeps its properties above its canvas.
-                <View className="border-b border-border px-4 py-2">
-                  <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
-                </View>
-              ) : null}
-              <PageEditor
-                pageId={page.id}
-                focusedBlockId={blockId}
-                readOnly={contentReadOnly}
-                onOpenBlockComments={handleOpenPanel}
-                layout="canvas"
-              />
+  const content = (
+    <PageChrome
+      page={page}
+      readOnly={!canEdit}
+      rightHeader={rightHeader}
+      scroll={page.mode === 'canvas' ? 'none' : 'auto'}
+      bottomBar={<PageEditorToolbar />}
+    >
+      {page.archived ? <TrashedPageBanner page={page} canEdit={canEdit} /> : null}
+      {page.mode === 'canvas' ? (
+        // A canvas fills the page: notes are placed on it, not scrolled through.
+        <View className="flex-1">
+          {page.databaseId ? (
+            // A database row keeps its properties above its canvas.
+            <View className="border-b border-border px-4 py-2">
+              <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
             </View>
-          ) : (
-            <EditorScrollView>
-              <PageHeader page={page} readOnly={!canEdit} />
-              <View
-                className={cn('px-6 md:px-10 w-full mx-auto pt-4', !page.fullWidth && 'max-w-3xl')}
-              >
-                <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
-                <PageEditor
-                  pageId={page.id}
-                  focusedBlockId={blockId}
-                  readOnly={contentReadOnly}
-                  onOpenBlockComments={handleOpenPanel}
-                />
-              </View>
-            </EditorScrollView>
-          )}
-
-          <CommentPanel
-            canComment={hasRole(role, 'commenter')}
+          ) : null}
+          <PageEditor
             pageId={page.id}
-            workspaceId={page.workspaceId}
-            open={commentPanel.open}
-            focusedBlockId={commentPanel.focusedBlockId}
-            anchor={commentPanel.anchor ?? null}
-            onAnchorUsed={() => setCommentPanel((panel) => ({ ...panel, anchor: null }))}
-            onClose={() => setCommentPanel({ open: false, focusedBlockId: null })}
+            focusedBlockId={blockId}
+            readOnly={contentReadOnly}
+            onOpenBlockComments={handleOpenPanel}
+            layout="canvas"
           />
         </View>
-        <PageEditorToolbar />
-      </PageChrome>
-    </PageEditorProvider>
+      ) : (
+        <ScreenScrollView keyboardShouldPersistTaps="handled">
+          <PageHeader page={page} readOnly={!canEdit} />
+          <View className={cn('px-6 md:px-10 w-full mx-auto pt-4', !page.fullWidth && 'max-w-3xl')}>
+            <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
+            <PageEditor
+              pageId={page.id}
+              focusedBlockId={blockId}
+              readOnly={contentReadOnly}
+              onOpenBlockComments={handleOpenPanel}
+            />
+          </View>
+        </ScreenScrollView>
+      )}
+    </PageChrome>
   );
-}
-
-/** The inset follows the toolbar's measured height, including its link form. */
-function EditorScrollView({ children }: { children: React.ReactNode }) {
-  const { toolbarHeight } = usePageEditorContext();
-  if (Platform.OS === 'web') {
-    return (
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="pb-12"
-        keyboardShouldPersistTaps="handled"
-      >
-        {children}
-      </ScrollView>
-    );
-  }
+  const closeComments = () => setCommentPanel({ open: false, focusedBlockId: null });
   return (
-    <KeyboardAwareScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ paddingBottom: 48 + toolbarHeight }}
-      bottomOffset={toolbarHeight}
-      extraKeyboardSpace={toolbarHeight}
-      keyboardShouldPersistTaps="handled"
-    >
-      {children}
-    </KeyboardAwareScrollView>
+    <PageEditorProvider pageId={pageId} readOnly={contentReadOnly}>
+      <AppShellPanels
+        layout={{
+          mode: 'split',
+          flow: 'bounded',
+          appearance: 'joined',
+          activePanel: 'document',
+          panels: [
+            { id: 'document', span: 1, content },
+            {
+              id: 'comments',
+              width: 360,
+              minWidth: 280,
+              maxWidth: 480,
+              visible: commentPanel.open,
+              floating: {
+                below: 'xl',
+                open: commentPanel.open,
+                onOpenChange: (open) => {
+                  if (!open) closeComments();
+                },
+                label: t('comments.panel.title'),
+              },
+              content: (
+                <CommentPanel
+                  canComment={hasRole(role, 'commenter')}
+                  pageId={page.id}
+                  workspaceId={page.workspaceId}
+                  open={commentPanel.open}
+                  focusedBlockId={commentPanel.focusedBlockId}
+                  anchor={commentPanel.anchor ?? null}
+                  onAnchorUsed={() => setCommentPanel((panel) => ({ ...panel, anchor: null }))}
+                  onClose={closeComments}
+                />
+              ),
+            },
+          ],
+        }}
+      />
+    </PageEditorProvider>
   );
 }
 

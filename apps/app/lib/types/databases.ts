@@ -190,6 +190,8 @@ export interface ViewGroupBy {
 }
 
 export interface ViewConfig {
+  cardSize?: import('@oxy.so/nilo-contracts').CardSize;
+  boardColumnOrder?: import('@oxy.so/nilo-contracts').BoardColumnOrder;
   description?: string;
   datePropertyId?: string;
   startPropertyId?: string;

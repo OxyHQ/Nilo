@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { RiArrowDownLine } from '@oxy.so/bloom/icons/RiArrowDownLine';
 import { RiArrowUpLine } from '@oxy.so/bloom/icons/RiArrowUpLine';
 import { RiDraggable } from '@oxy.so/bloom/icons/RiDraggable';
@@ -147,25 +147,23 @@ export function SortBuilder({ database, view }: SortBuilderProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" label={t('databases.sorts.add')}>
-              <ScrollView style={{ maxHeight: 220 }}>
-                {available.length === 0 ? (
-                  <DropdownMenuItem disabled>{t('databases.sorts.allAdded')}</DropdownMenuItem>
-                ) : (
-                  available.map((p) => (
-                    <DropdownMenuItem
-                      key={p.id}
-                      onPress={() =>
-                        setDraft((prev) => [
-                          ...prev,
-                          { propertyId: p.id, direction: 'asc' } satisfies ViewSort,
-                        ])
-                      }
-                    >
-                      {p.name}
-                    </DropdownMenuItem>
-                  ))
-                )}
-              </ScrollView>
+              {available.length === 0 ? (
+                <DropdownMenuItem disabled>{t('databases.sorts.allAdded')}</DropdownMenuItem>
+              ) : (
+                available.map((p) => (
+                  <DropdownMenuItem
+                    key={p.id}
+                    onPress={() =>
+                      setDraft((prev) => [
+                        ...prev,
+                        { propertyId: p.id, direction: 'asc' } satisfies ViewSort,
+                      ])
+                    }
+                  >
+                    {p.name}
+                  </DropdownMenuItem>
+                ))
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </View>

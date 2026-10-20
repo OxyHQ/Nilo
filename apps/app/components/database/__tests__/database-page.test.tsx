@@ -4,10 +4,27 @@ import type { WorkspaceRole } from '@/lib/hooks/use-workspaces';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import DatabaseRoute from '../../../app/(app)/db/[id]';
 import { DatabaseActionsMenu } from '../database-actions-menu';
+import { DatabaseHeader } from '../database-header';
+import { DatabaseViewContainer } from '../database-view';
 import { PropertyCell } from '../property-cell';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 
 let mockRole: WorkspaceRole = 'viewer';
+
+// react-test-renderer supplies native host refs, not DOM scroll owners. Keep the
+// real Screen scope/chrome; viewport geometry is covered by Bloom and browser QA.
+jest.mock('@oxy.so/bloom/screen', () => {
+  const actual = jest.requireActual('@oxy.so/bloom/screen');
+  const React = jest.requireActual('react');
+  return {
+    ...actual,
+    Screen: (props: React.ComponentProps<typeof actual.Screen>) =>
+      React.createElement(actual.Screen, { ...props, scroll: 'content' }),
+  };
+});
+jest.mock('@/lib/hooks/use-route-workspace', () => ({ useRouteWorkspace: jest.fn() }));
+let mockViewId: string | undefined;
+const mockSetParams = jest.fn();
 // The cells read people, files and rows through the API client.
 jest.mock('@/lib/hooks/use-view-data', () => ({
   useViewCalculations: () => ({ data: undefined }),
@@ -26,12 +43,16 @@ jest.mock('@/lib/hooks/use-forms', () => ({
 }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock('expo-router', () => ({
-  useLocalSearchParams: () => ({ id: 'db' }),
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  useLocalSearchParams: () => ({ id: 'db', v: mockViewId }),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), setParams: mockSetParams }),
 }));
 jest.mock('@/lib/hooks/use-databases', () => ({
   useDatabase: () => ({
-    data: { database: mockDatabase(), views: [mockView()], role: mockRole },
+    data: {
+      database: mockDatabase(),
+      views: [mockView(), { ...mockView(), id: 'second', name: 'Second', isDefault: false }],
+      role: mockRole,
+    },
     isLoading: false,
     isError: false,
   }),
@@ -132,6 +153,7 @@ let renderer: ReactTestRenderer;
 const originalOS = Platform.OS;
 beforeEach(() => {
   jest.clearAllMocks();
+  mockViewId = undefined;
   Platform.OS = 'web';
 });
 afterEach(() => {
@@ -155,6 +177,20 @@ const newView = () =>
       node.props.children === 'databases.views.new' && typeof node.props.onPress === 'function',
   );
 const title = () => renderer.root.findAllByType(TextInput)[0];
+
+it('opens the view named by a shared URL and writes tab choices to the URL', () => {
+  mockViewId = 'second';
+  render('viewer');
+  expect(renderer.root.findByType(DatabaseViewContainer).props.view.id).toBe('second');
+  act(() => renderer.root.findByType(DatabaseHeader).props.onSelectView('view'));
+  expect(mockSetParams).toHaveBeenCalledWith({ v: 'view' });
+});
+
+it('falls back to the default when a linked view has been removed', () => {
+  mockViewId = 'removed';
+  render('viewer');
+  expect(renderer.root.findByType(DatabaseViewContainer).props.view.id).toBe('view');
+});
 
 it.each<WorkspaceRole>(['viewer', 'commenter'])(
   'a %s of the database reads it without a way to change it',

@@ -1,5 +1,10 @@
+// This suite checks the page mutation; Bloom tests the menu's interaction contract.
+jest.mock('@oxy.so/bloom/dropdown-menu', () => ({
+  DropdownMenuCheckboxItem: (props: Record<string, unknown>) =>
+    require('react').createElement(require('react-native').View, props),
+}));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Switch } from '@oxy.so/bloom/switch';
+import { DropdownMenuCheckboxItem } from '@oxy.so/bloom/dropdown-menu';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import type { Page } from '@/lib/types/pages';
 import { OfflineSwitch } from '../offline-switch';
@@ -31,7 +36,7 @@ afterEach(() => act(() => renderer.unmount()));
 it('keeps the page offline when switched on, naming it for the list', () => {
   mount();
   expect(mockUseOfflinePage).toHaveBeenCalledWith('p', { title: 'Plan', workspaceId: 'w' });
-  const toggle = renderer.root.findByType(Switch);
+  const toggle = renderer.root.findByType(DropdownMenuCheckboxItem);
   expect(toggle.props.checked).toBe(false);
   act(() => toggle.props.onCheckedChange(true));
   expect(mockSetPinned).toHaveBeenCalledWith(true);
@@ -40,7 +45,7 @@ it('keeps the page offline when switched on, naming it for the list', () => {
 it('shows a page kept offline as on, and lets it go', () => {
   mockOffline = { ...mockOffline, pinned: true };
   mount();
-  const toggle = renderer.root.findByType(Switch);
+  const toggle = renderer.root.findByType(DropdownMenuCheckboxItem);
   expect(toggle.props.checked).toBe(true);
   act(() => toggle.props.onCheckedChange(false));
   expect(mockSetPinned).toHaveBeenCalledWith(false);

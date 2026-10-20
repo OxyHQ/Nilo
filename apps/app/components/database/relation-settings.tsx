@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { Button } from '@oxy.so/bloom/button';
 import { RadioGroup } from '@oxy.so/bloom/radio';
 import { confirm } from '@oxy.so/bloom/surfaces';
@@ -60,18 +60,18 @@ export function RelationSettings({
   return (
     <View className="gap-3">
       <Text variant="body-semibold">{t('databases.relations.target')}</Text>
-      <ScrollView style={{ maxHeight: 240 }}>
-        <RadioGroup
-          label={t('databases.relations.target')}
-          value={target}
-          disabled={pending}
-          onValueChange={setTarget}
-          options={choices.map((choice) => ({
-            value: choice.id,
-            label: choice.name || t('databases.untitledDatabase'),
-          }))}
-        />
-      </ScrollView>
+
+      <RadioGroup
+        label={t('databases.relations.target')}
+        value={target}
+        disabled={pending}
+        onValueChange={setTarget}
+        options={choices.map((choice) => ({
+          value: choice.id,
+          label: choice.name || t('databases.untitledDatabase'),
+        }))}
+      />
+
       <View className="flex-row items-center justify-between gap-2">
         <Text variant="body-regular">
           {t('databases.relations.showOn', { database: targetName })}

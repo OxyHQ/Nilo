@@ -14,7 +14,8 @@
  */
 
 import { closeDb, getDb } from '../src/db/client.js';
-import { createBlock } from '../src/repositories/blocks.js';
+import { EMPTY_FILTER_GROUP } from '../src/db/schema/databases.js';
+import { createBlock, type CreateBlockInput } from '../src/repositories/blocks.js';
 import { createComment } from '../src/repositories/comments.js';
 import { insertDatabase, insertDatabaseView } from '../src/repositories/databases.js';
 import { createPage } from '../src/repositories/pages.js';
@@ -81,7 +82,7 @@ async function main(): Promise<void> {
     order: 0,
   });
 
-  const blocks: { type: string; content: Record<string, unknown> }[] = [
+  const blocks: Pick<CreateBlockInput, 'type' | 'content'>[] = [
     { type: 'heading_1', content: { text: 'Welcome to Nilo' } },
     {
       type: 'paragraph',
@@ -120,8 +121,8 @@ async function main(): Promise<void> {
     order += 1000;
     await createBlock(db, {
       pageId: welcome.id,
-      type: block.type as never,
-      content: block.content as never,
+      type: block.type,
+      content: block.content,
       order,
     });
   }
@@ -138,10 +139,10 @@ async function main(): Promise<void> {
   });
   await createBlock(db, {
     pageId: child.id,
-    type: 'paragraph' as never,
+    type: 'paragraph',
     content: {
       text: 'Pages, blocks and databases are stored in PostgreSQL through Drizzle.',
-    } as never,
+    },
     order: 1000,
   });
   console.log(`  sub-page "${child.title}"`);
@@ -149,6 +150,7 @@ async function main(): Promise<void> {
   // ── A database with typed properties, rows and a view ─────────────────────
   const tasks = await insertDatabase(db, {
     workspaceId,
+    teamspaceId: null,
     name: 'Tasks',
     icon: '✅',
     cover: null,
@@ -162,16 +164,18 @@ async function main(): Promise<void> {
         {
           id: 'status',
           name: 'Status',
-          type: 'select',
-          options: [
-            { id: 'todo', name: 'To do', color: 'gray' },
-            { id: 'doing', name: 'In progress', color: 'blue' },
-            { id: 'done', name: 'Done', color: 'green' },
-          ],
+          type: 'status',
+          config: {
+            options: [
+              { id: 'todo', name: 'To do', color: 'gray' },
+              { id: 'doing', name: 'In progress', color: 'blue' },
+              { id: 'done', name: 'Done', color: 'green' },
+            ],
+          },
         },
         { id: 'done', name: 'Complete', type: 'checkbox' },
       ],
-    } as never,
+    },
   });
 
   await insertDatabaseView(db, {
@@ -179,14 +183,29 @@ async function main(): Promise<void> {
     name: 'All tasks',
     type: 'table',
     isDefault: true,
-    filters: { operator: 'and', conditions: [] } as never,
+    filters: EMPTY_FILTER_GROUP,
     sorts: [],
     groupBy: null,
     hiddenProperties: [],
     frozenProperties: [],
     pageSize: 50,
-    config: {} as never,
+    config: {},
     order: 0,
+  });
+
+  await insertDatabaseView(db, {
+    databaseId: tasks.id,
+    name: 'Board',
+    type: 'board',
+    isDefault: false,
+    filters: EMPTY_FILTER_GROUP,
+    sorts: [],
+    groupBy: { propertyId: 'status' },
+    hiddenProperties: ['status'],
+    frozenProperties: [],
+    pageSize: 50,
+    config: { cardSize: 'medium' },
+    order: 1000,
   });
 
   const rows = [
@@ -206,9 +225,9 @@ async function main(): Promise<void> {
       order: rowOrder,
       properties: {
         name: { text: row.title },
-        status: { select: row.status },
+        status: { optionId: row.status },
         done: { checked: row.done },
-      } as never,
+      },
     });
   }
   console.log(`  database "${tasks.name}" with ${rows.length} rows`);
@@ -223,7 +242,7 @@ async function main(): Promise<void> {
     content: {
       segments: [{ type: 'text', text: 'Seeded thread — try resolving this.' }],
       plainText: 'Seeded thread — try resolving this.',
-    } as never,
+    },
   });
   await createComment(db, {
     workspaceId,
@@ -234,7 +253,7 @@ async function main(): Promise<void> {
     content: {
       segments: [{ type: 'text', text: 'And this is a reply on the same thread.' }],
       plainText: 'And this is a reply on the same thread.',
-    } as never,
+    },
   });
   console.log('  comment thread with one reply');
 

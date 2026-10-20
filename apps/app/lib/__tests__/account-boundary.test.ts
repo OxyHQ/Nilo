@@ -23,6 +23,7 @@ beforeEach(async () => {
   client = new QueryClient();
   client.setQueryData(['pages', 'w'], { pages: ['secret'] });
 });
+afterEach(() => client.clear());
 
 const cleared = () => {
   expect(client.getQueryData(['pages', 'w'])).toBeUndefined();

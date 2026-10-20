@@ -1,5 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Animated, Image, Platform } from 'react-native';
+import { Animated, Platform } from 'react-native';
 import { Button } from '@oxy.so/bloom/button';
 import { Switch } from '@oxy.so/bloom/switch';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
@@ -10,11 +10,13 @@ import { DatabaseHeader, ViewTab } from '../database-header';
 import { ViewTable } from '../view-table';
 import { ViewSearch } from '../view-search';
 import { ViewGallery } from '../view-gallery';
+import { PropertyCell } from '../property-cell';
 import { CoverDisplay } from '@/components/page-chrome/cover-display';
 import { useViewSearchStore } from '@/lib/stores/view-search-store';
 import type { Database, DatabaseView } from '@/lib/types/databases';
 
 const mockUpdateView = jest.fn();
+const mockUpdateRow = jest.fn();
 const mockUpdateViewAsync = jest.fn();
 const mockReorder = jest.fn();
 let mockViews: DatabaseView[] = [];
@@ -53,7 +55,7 @@ jest.mock('@/lib/hooks/use-databases', () => ({
 }));
 jest.mock('@/lib/hooks/use-database-rows', () => ({
   useCreateRow: () => ({ mutate: jest.fn(), mutateAsync: jest.fn(), isPending: false }),
-  useUpdateRow: () => ({ mutate: jest.fn() }),
+  useUpdateRow: () => ({ mutate: mockUpdateRow }),
 }));
 jest.mock('../property-cell', () => ({ PropertyCell: () => null }));
 jest.mock('../property-config-modal', () => ({ PropertyHeaderMenu: () => null }));
@@ -120,6 +122,28 @@ const setting = (label: string) =>
   renderer.root.findAllByType(SettingSelect).find((s) => s.props.label === label);
 
 describe('view settings', () => {
+  it.each(['board', 'gallery'] as const)(
+    'saves %s card size and preview without losing other settings',
+    (type) => {
+      render(
+        <ViewSettings
+          database={database}
+          view={makeView({ type, config: { openIn: 'full_page' } })}
+        />,
+      );
+      act(() => setting('databases.viewSettings.cardSize')?.props.onChange('large'));
+      expect(mockUpdateView).toHaveBeenCalledWith(
+        expect.objectContaining({ config: { openIn: 'full_page', cardSize: 'large' } }),
+        expect.anything(),
+      );
+      act(() => setting('databases.viewSettings.cardPreview')?.props.onChange('pageCover'));
+      expect(mockUpdateView).toHaveBeenCalledWith(
+        expect.objectContaining({ config: { openIn: 'full_page', coverSource: 'pageCover' } }),
+        expect.anything(),
+      );
+    },
+  );
+
   it('groups a board by an option or checkbox property only', () => {
     render(<ViewSettings database={database} view={makeView({ type: 'board' })} />);
     const groupBy = setting('databases.viewSettings.groupBy');
@@ -513,6 +537,55 @@ describe('a gallery’s cards', () => {
     schema: { properties: [{ id: 'shots', name: 'Shots', type: 'files' }] },
   } as unknown as Database;
 
+  it('shows all enabled properties and saves inline edits', () => {
+    render(
+      <ViewGallery
+        database={database}
+        view={makeView({ type: 'gallery' })}
+        rows={[card({})]}
+        isLoading={false}
+      />,
+    );
+    const cells = renderer.root.findAllByType(PropertyCell);
+    expect(cells.map((cell) => cell.props.property.id)).toEqual([
+      'stage',
+      'kind',
+      'done',
+      'notes',
+      'due',
+    ]);
+    act(() => cells[0]?.props.onChange({ optionId: 'todo' }));
+    expect(mockUpdateRow).toHaveBeenCalledWith(
+      {
+        databaseId: 'db',
+        rowId: 'row',
+        properties: { stage: { optionId: 'todo' } },
+      },
+      expect.objectContaining({ onError: expect.any(Function) }),
+    );
+  });
+
+  it('resolves uploaded property previews through the row that grants access', () => {
+    render(
+      <ViewGallery
+        database={files}
+        view={makeView({
+          type: 'gallery',
+          config: { coverSource: 'property', coverPropertyId: 'shots', fit: 'contain' },
+        })}
+        rows={[
+          card({ properties: { shots: { files: [{ name: 'Photo', fileId: 'private-file' }] } } }),
+        ]}
+        isLoading={false}
+      />,
+    );
+    expect(renderer.root.findByType(CoverDisplay).props).toMatchObject({
+      value: 'file:private-file',
+      pageId: 'row',
+      fit: 'contain',
+    });
+  });
+
   it('show a page’s cover as its page does, a file fitted if asked, or nothing', () => {
     render(
       <ViewGallery
@@ -537,7 +610,11 @@ describe('a gallery’s cards', () => {
         isLoading={false}
       />,
     );
-    expect(renderer.root.findAllByType(Image)[0]?.props.resizeMode).toBe('contain');
+    expect(renderer.root.findAllByType(CoverDisplay)[0]?.props).toMatchObject({
+      value: 'image:https://x.test/a.png',
+      pageId: 'row',
+      fit: 'contain',
+    });
     act(() => renderer.unmount());
     render(
       <ViewGallery

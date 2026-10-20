@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { toast } from '@oxy.so/bloom/toast';
 import { PageInfo } from './page-info';
 import * as React from 'react';
-import { Platform, Pressable, TextInput, View, type GestureResponderEvent } from 'react-native';
+import { Pressable, View, type GestureResponderEvent } from 'react-native';
 import { RiGlobalLine } from '@oxy.so/bloom/icons/RiGlobalLine';
 import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
 import { RiLockLine } from '@oxy.so/bloom/icons/RiLockLine';
@@ -13,6 +13,8 @@ import { Badge } from '@oxy.so/bloom/badge';
 import { Button } from '@oxy.so/bloom/button';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
 import { Text } from '@oxy.so/bloom/typography';
+import { PageHeader as ScreenHeader, PageHeaderTitleInput } from '@oxy.so/bloom/page-header';
+import { Screen, type ScreenProps } from '@oxy.so/bloom/screen';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
@@ -35,6 +37,8 @@ interface PageChromeProps {
   children?: React.ReactNode;
   /** Right-side header content (ShareButton lives here in the page route). */
   rightHeader?: React.ReactNode;
+  bottomBar?: React.ReactNode;
+  scroll?: ScreenProps['scroll'];
 }
 
 interface PageChromeState {
@@ -45,19 +49,17 @@ interface PageChromeState {
 const StateContext = React.createContext<PageChromeState | null>(null);
 
 /**
- * Page-level chrome.
- *
- * Layers:
- *   1. Sticky top bar — breadcrumb + favorite + actions.
- *   2. Children — the page route renders its own ScrollView containing the
- *      `PageHeader` component (cover + icon + title) and the editor. That
- *      keeps the cover/title scrolling with the content, while the top bar
- *      stays pinned.
- *
- * The icon and cover pickers are mounted here as portals — the children
- * can open them via `usePageChrome()`.
+ * Domain actions and pickers composed into Bloom's Screen and PageHeader.
+ * Screen owns chrome, scrolling and the editor toolbar's keyboard behavior.
  */
-export function PageChrome({ page, children, rightHeader, readOnly = false }: PageChromeProps) {
+export function PageChrome({
+  page,
+  children,
+  rightHeader,
+  bottomBar,
+  scroll = 'auto',
+  readOnly = false,
+}: PageChromeProps) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
   const updatePage = useUpdatePage();
@@ -93,37 +95,47 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
 
   return (
     <StateContext.Provider value={stateValue}>
-      <View className="flex-1 bg-background">
-        {/* Sticky top bar (always visible above the scroll). */}
-        <View className="h-12 flex-row items-center justify-between border-b border-border/30 px-4 md:px-6">
-          <View className="flex-1 min-w-0">
-            <Breadcrumb pageId={page.id} workspaceId={page.workspaceId} />
-          </View>
-          <View className="flex-row items-center gap-1">
-            {!page.archived ? (
-              <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
-            ) : null}
-            {page.publishedAt ? (
-              <View accessible accessibilityLabel={t('pages.publish.published')} className="px-1">
-                <RiGlobalLine width={14} height={14} fill={colors.mutedForeground} />
-              </View>
-            ) : null}
-            {rightHeader}
-            <PageActionsMenu page={page} readOnly={readOnly} />
-          </View>
-        </View>
-
+      <Screen
+        scroll={scroll}
+        contentClearance={48}
+        bottomBar={bottomBar}
+        bottomBarKeyboardBehavior="follow"
+        header={
+          <ScreenHeader
+            presentation="bar"
+            safeArea={false}
+            title={<Breadcrumb pageId={page.id} workspaceId={page.workspaceId} />}
+            actions={
+              <>
+                {!page.archived ? (
+                  <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
+                ) : null}
+                {page.publishedAt ? (
+                  <View
+                    accessible
+                    accessibilityLabel={t('pages.publish.published')}
+                    className="px-1"
+                  >
+                    <RiGlobalLine width={14} height={14} fill={colors.mutedForeground} />
+                  </View>
+                ) : null}
+                {rightHeader}
+                <PageActionsMenu page={page} readOnly={readOnly} />
+              </>
+            }
+          />
+        }
+      >
         <RepositioningContext.Provider value={repositioning}>
           {children}
         </RepositioningContext.Provider>
-
-        {!contentReadOnly ? (
-          <>
-            <IconPicker control={iconPicker} pageId={page.id} onSelect={handleIconSelect} />
-            <CoverPicker control={coverPicker} pageId={page.id} onSelect={handleCoverSelect} />
-          </>
-        ) : null}
-      </View>
+      </Screen>
+      {!contentReadOnly ? (
+        <>
+          <IconPicker control={iconPicker} pageId={page.id} onSelect={handleIconSelect} />
+          <CoverPicker control={coverPicker} pageId={page.id} onSelect={handleCoverSelect} />
+        </>
+      ) : null}
     </StateContext.Provider>
   );
 }
@@ -478,24 +490,17 @@ interface TitleInputProps {
   style: { fontFamily: string; fontSize: number; lineHeight: number };
 }
 function TitleInput({ value, onChangeText, onBlur, style }: TitleInputProps) {
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   return (
-    <TextInput
+    <PageHeaderTitleInput
       value={value}
       onChangeText={onChangeText}
       onBlur={onBlur}
-      accessibilityLabel={t('pages.title')}
+      label={t('pages.title')}
       placeholder={t('pages.untitled')}
-      placeholderTextColor={colors.mutedForeground}
-      className="text-4xl font-bold text-foreground"
       multiline
       scrollEnabled={false}
-      style={[
-        style,
-        Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined,
-      ]}
-      underlineColorAndroid="transparent"
+      style={style}
     />
   );
 }

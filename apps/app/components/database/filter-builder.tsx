@@ -448,13 +448,11 @@ function PropertyMenu({ label, properties, onPick }: PropertyMenuProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" label={label}>
-        <ScrollView style={{ maxHeight: 220 }}>
-          {properties.map((p) => (
-            <DropdownMenuItem key={p.id} onPress={() => onPick(p)}>
-              {p.name}
-            </DropdownMenuItem>
-          ))}
-        </ScrollView>
+        {properties.map((p) => (
+          <DropdownMenuItem key={p.id} onPress={() => onPick(p)}>
+            {p.name}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );

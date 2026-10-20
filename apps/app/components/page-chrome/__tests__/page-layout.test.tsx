@@ -5,11 +5,11 @@ jest.mock('@/lib/realtime/use-live-updates', () => ({
   useDatabaseLive: jest.fn(),
 }));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { TextInput } from 'react-native';
+import { StyleSheet, TextInput } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PageActionsMenu } from '../page-actions-menu';
 import { PageChrome, PageHeader } from '../page-chrome';
-import { Switch } from '@oxy.so/bloom/switch';
+import { DropdownMenuCheckboxItem, DropdownMenuRadioGroup } from '@oxy.so/bloom/dropdown-menu';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import apiClient from '@/lib/api/client';
 import { usePage } from '@/lib/hooks/use-pages';
@@ -27,9 +27,26 @@ jest.mock('@oxy.so/bloom/toast', () => ({ toast: { error: jest.fn(), success: je
 jest.mock('@oxy.so/bloom/fonts', () => ({
   fontFamilies: { sans: 'Inter', display: 'BlomusModernus', mono: 'JetBrains Mono' },
 }));
-jest.mock('@oxy.so/bloom/popover', () => {
+// Page persistence is under test; overlay positioning and keyboard navigation
+// belong to Bloom's menu tests and the Windows browser checks.
+jest.mock('@oxy.so/bloom/dropdown-menu', () => {
+  const React = require('react');
   const { View } = require('react-native');
-  return { Popover: View, PopoverTrigger: View, PopoverContent: View, PopoverSeparator: View };
+  return Object.fromEntries(
+    [
+      'DropdownMenu',
+      'DropdownMenuTrigger',
+      'DropdownMenuContent',
+      'DropdownMenuItem',
+      'DropdownMenuCheckboxItem',
+      'DropdownMenuRadioGroup',
+      'DropdownMenuRadioItem',
+      'DropdownMenuSeparator',
+      'DropdownMenuSub',
+      'DropdownMenuSubTrigger',
+      'DropdownMenuSubContent',
+    ].map((name) => [name, (props: Record<string, unknown>) => React.createElement(View, props)]),
+  );
 });
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), replace: jest.fn() }) }));
 jest.mock('@/lib/useColorScheme', () => ({
@@ -131,18 +148,10 @@ function button(label: string) {
     { deep: false },
   )[0]!;
 }
-/** The font choice labelled `label`. */
-function fontChoice(label: string) {
-  return renderer.root.findAll(
-    (node) =>
-      node.props.accessibilityLabel === label && typeof node.props.onValueChange === 'function',
-    { deep: false },
-  )[0]!;
-}
 function toggle(field: string) {
   return renderer.root
-    .findAllByType(Switch)
-    .find((node) => node.props.accessibilityLabel === `pages.style.${field}`)!;
+    .findAllByType(DropdownMenuCheckboxItem)
+    .find((node) => node.props.children === `pages.style.${field}`)!;
 }
 async function settle(patch: Partial<Page>) {
   serverPage = { ...serverPage, ...patch };
@@ -180,13 +189,13 @@ it.each(['default', 'serif', 'mono'] as const)(
   async (font) => {
     await mount({ ...initial, font: 'mono' });
     await act(async () => {
-      fontChoice(`pages.style.${font}`).props.onValueChange(font);
+      renderer.root.findByType(DropdownMenuRadioGroup).props.onValueChange(font);
     });
     expect(apiClient.patch).toHaveBeenCalledWith('/pages/page', { font });
     expect(cached().font).toBe(font);
     await settle({ font });
-    expect(fontChoice(`pages.style.${font}`).props.checked).toBe(true);
-    expect(renderer.root.findByType(TextInput).props.style[0].fontFamily).toBe(
+    expect(renderer.root.findByType(DropdownMenuRadioGroup).props.value).toBe(font);
+    expect(StyleSheet.flatten(renderer.root.findByType(TextInput).props.style).fontFamily).toBe(
       { default: 'Inter', serif: 'BlomusModernus', mono: 'JetBrains Mono' }[font],
     );
   },
@@ -241,8 +250,8 @@ it('shows the lock banner to viewers without settings or unlock controls', async
   expect(JSON.stringify(renderer.toJSON())).toContain('pages.lock.banner');
   expect(button('pages.lock.unlock')).toBeUndefined();
   // No page settings; keeping the page offline is a viewer's to choose too.
-  expect(renderer.root.findAllByType(Switch).map((s) => s.props.accessibilityLabel)).toEqual([
-    'pages.offline.available',
-  ]);
+  expect(
+    renderer.root.findAllByType(DropdownMenuCheckboxItem).map((s) => s.props.children),
+  ).toEqual(['pages.follow.follow', 'pages.offline.available']);
   expect(renderer.root.findByType(PageActionsMenu).props.readOnly).toBe(true);
 });

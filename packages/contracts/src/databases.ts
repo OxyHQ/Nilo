@@ -33,6 +33,25 @@ export const DATABASE_PROPERTY_TYPES = [
 ] as const;
 export type DatabasePropertyType = (typeof DATABASE_PROPERTY_TYPES)[number];
 
+/** Shared by the API validator and the board/gallery layout controls. */
+export const CARD_SIZES = ['small', 'medium', 'large'] as const;
+export type CardSize = (typeof CARD_SIZES)[number];
+/** Column identities belong to the property the board groups by. */
+export interface BoardColumnOrder {
+  propertyId: string;
+  columnIds: string[];
+}
+
+/** Board columns represent values that can be assigned by moving a page. */
+export const BOARD_GROUPABLE_PROPERTY_TYPES = [
+  'status',
+  'select',
+  'multi_select',
+  'person',
+  'relation',
+  'checkbox',
+] as const satisfies readonly DatabasePropertyType[];
+
 const TEXT = [
   'contains',
   'equals',

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { OxyProvider, useOxy } from '@oxy.so/services/ui/client';
 import { OverlayInertBoundary, PortalOutlet, PortalProvider } from '@oxy.so/bloom/portal';
 import { BloomProvider } from '@oxy.so/bloom/provider';
+import { BloomScope } from '@oxy.so/bloom/appearance';
 import { ImageResolverProvider } from '@oxy.so/bloom/image-resolver';
 import { expoRouterScrollAdapter } from '@oxy.so/bloom/scroll/expo-router';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
@@ -143,33 +144,35 @@ function RootLayout() {
         storage={BLOOM_THEME_STORAGE}
         scrollAdapter={expoRouterScrollAdapter}
       >
-        <AppErrorBoundary>
-          <QueryClientProvider client={queryClient}>
-            <OxyProvider
-              baseURL={OXY_API_URL}
-              queryClient={queryClient}
-              accountQueries={ACCOUNT_QUERIES}
-              clientId={process.env.EXPO_PUBLIC_OXY_CLIENT_ID}
-              authRedirectUri={Platform.OS !== 'web' ? AUTH_REDIRECT_URI : undefined}
-              language={{
-                supportedLocales: SUPPORTED_LOCALES,
-                fallbackLocale: DEFAULT_LOCALE,
-                onChange: (locale) => useI18nStore.getState().setLocale(locale),
-                onError: (error, locale) =>
-                  console.error('Failed to follow the Oxy-resolved language', error, locale),
-              }}
-            >
-              {/* Bloom leaves its visual outlets to the app: overlays (the
+        <BloomScope size="md">
+          <AppErrorBoundary>
+            <QueryClientProvider client={queryClient}>
+              <OxyProvider
+                baseURL={OXY_API_URL}
+                queryClient={queryClient}
+                accountQueries={ACCOUNT_QUERIES}
+                clientId={process.env.EXPO_PUBLIC_OXY_CLIENT_ID}
+                authRedirectUri={Platform.OS !== 'web' ? AUTH_REDIRECT_URI : undefined}
+                language={{
+                  supportedLocales: SUPPORTED_LOCALES,
+                  fallbackLocale: DEFAULT_LOCALE,
+                  onChange: (locale) => useI18nStore.getState().setLocale(locale),
+                  onError: (error, locale) =>
+                    console.error('Failed to follow the Oxy-resolved language', error, locale),
+                }}
+              >
+                {/* Bloom leaves its visual outlets to the app: overlays (the
                   Alia sheet among them) render into this one outlet. */}
-              <PortalProvider>
-                <OverlayInertBoundary>
-                  <AppContent />
-                </OverlayInertBoundary>
-                <PortalOutlet />
-              </PortalProvider>
-            </OxyProvider>
-          </QueryClientProvider>
-        </AppErrorBoundary>
+                <PortalProvider>
+                  <OverlayInertBoundary>
+                    <AppContent />
+                  </OverlayInertBoundary>
+                  <PortalOutlet />
+                </PortalProvider>
+              </OxyProvider>
+            </QueryClientProvider>
+          </AppErrorBoundary>
+        </BloomScope>
       </BloomProvider>
     </GestureHandlerRootView>
   );

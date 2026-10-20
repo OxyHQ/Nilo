@@ -141,7 +141,7 @@
     "loadMore": "Cargar más",
     "moveTo": "Mover a",
     "moveCard": "Mover %{title} a otra columna",
-    "longPressHint": "Mantén pulsado para moverla a otra columna",
+    "dragCard": "Arrastrar %{title} a otra columna",
     "checked": "Marcado",
     "unchecked": "Sin marcar"
   },
@@ -395,6 +395,8 @@
     "failed": "No se pudo crear la fila. Inténtalo de nuevo."
   },
   "rows": {
+    "saveFailed": "No se pudo guardar la página. Inténtalo de nuevo.",
+    "createFailed": "No se pudo crear la página. Inténtalo de nuevo.",
     "total": "%{count} filas"
   },
   "system": {
@@ -521,6 +523,12 @@
       "apply": "Aplicar rangos",
       "reset": "Ajustar a los números",
       "invalid": "Desde debe ser menor que Hasta, en %{count} rangos como mucho."
+    },
+    "cardSize": "Tamaño de tarjeta",
+    "cardSizes": {
+      "small": "Pequeña",
+      "medium": "Mediana",
+      "large": "Grande"
     }
   },
   "options": {

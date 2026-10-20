@@ -33,6 +33,45 @@ passing because it scanned nothing.
 | `apps/app/lib/api/` | authenticated API client and route constants |
 | `apps/app/app/` | Expo Router screens |
 
+## UI composition
+
+Bloom owns the workspace layout. `NiloShell` supplies navigation and workspace
+actions to `AppShell` and `Sidebar`; individual routes compose their surfaces
+with `AppShellPanels` and `Screen`. Do not put a surface around the entire
+router outlet: a document and its comments are sibling panels.
+
+`PageHeader` owns header placement and measures its accessory (view tabs and
+`Toolbar`). `ScreenScrollView` binds content to that screen's scroll owner.
+Boards and canvases use `Screen scroll="none"` so their own viewport fills the
+remaining space. Database pagination uses `ScreenScrollView.onEndReached`.
+
+The editor supplies its toolbar through `Screen.bottomBar` with
+`bottomBarKeyboardBehavior="follow"`. Bloom coordinates keyboard avoidance,
+focused inputs and toolbar clearance; Nilo does not measure the toolbar or
+position it above the keyboard.
+
+An embedded database uses `AppShellPanels scope="local"` with a vertical
+`split`, document flow and a declarative panel height. Its `ProjectBoard`
+owns the horizontal deck and column scrolling. Grouped boards pass lanes to
+the same component; no viewport measurement belongs in the app.
+
+Sidebar onboarding uses Bloom's `Sidebar.onboarding` slot. Nilo supplies
+localized steps, role-appropriate actions and completion derived from workspace
+data.
+
+The application establishes `BloomScope size="md"` above its overlay outlet.
+Normal sizing belongs to Bloom's family recipes; do not shrink the whole app
+or add local padding overrides to compensate for a component that ignores the
+scope. Preserve Bloom's shared `Surface` material and rounded presentation.
+
+Page actions use `DropdownMenu` with appearance and export submenus. Their
+content must not introduce a fixed-height `ScrollView` inside the floating
+surface. Missing viewport or scroll behavior must be implemented in Bloom's
+own container. Apply the same ownership rule to other menus and popovers.
+Bloom's `docs/ui-architecture.mdx` is the shared architectural contract for
+consumer work; its adoption matrix distinguishes requirements from implemented
+coverage.
+
 ## Setup
 
 ```bash

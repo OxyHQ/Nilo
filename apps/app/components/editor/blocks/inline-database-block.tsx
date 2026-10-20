@@ -1,7 +1,7 @@
 import { useInlineDatabaseViews } from '@/lib/hooks/use-inline-database-views';
 import { useCreateView } from '@/lib/hooks/use-database-views';
 import { usePageEditorContext } from '@/components/page-editor/page-editor-context';
-import { ViewTab, NewViewPicker } from '@/components/database/database-header';
+import { DatabaseViewTabs, NewViewPicker } from '@/components/database/database-header';
 import { toast } from '@oxy.so/bloom/toast';
 import { DatabaseActionsMenu } from '@/components/database/database-actions-menu';
 import { useState } from 'react';
@@ -12,7 +12,9 @@ import { RiDatabase2Line } from '@oxy.so/bloom/icons/RiDatabase2Line';
 import { RiExternalLinkLine } from '@oxy.so/bloom/icons/RiExternalLinkLine';
 import { DatabaseViewContainer } from '@/components/database/database-view';
 import { Button } from '@oxy.so/bloom/button';
-import { Tabs } from '@oxy.so/bloom/tabs';
+import { AppShellPanels } from '@oxy.so/bloom/app-shell';
+import { Toolbar } from '@oxy.so/bloom/layout';
+import { PageHeader } from '@oxy.so/bloom/page-header';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
@@ -146,53 +148,7 @@ export function InlineDatabaseBlock({ block, readOnly, onChangeContent }: BlockC
     );
   const db = database.data.database;
   return (
-    <View className="my-2 overflow-hidden rounded-lg border border-border">
-      <View className="flex-row flex-wrap items-center gap-2 border-b border-border px-3 py-2">
-        {db.icon ? (
-          <Text variant="headline-regular">{db.icon}</Text>
-        ) : (
-          <RiDatabase2Line size="sm" fill={colors.mutedForeground} />
-        )}
-        <Text accessibilityRole="header" className="flex-1 text-sm font-semibold text-foreground">
-          {db.name || t('editor.inlineDatabase.defaultName')}
-        </Text>
-        {!readOnly && !viewState.linked ? <DatabaseActionsMenu databaseId={db.id} /> : null}
-        <Button
-          appearance="subtle"
-          tone="neutral"
-          size="xs"
-          accessibilityRole="link"
-          accessibilityLabel={t('editor.inlineDatabase.openFullPage')}
-          onPress={() => router.push(`/db/${db.id}`)}
-          leadingIcon={RiExternalLinkLine}
-        >
-          {t('editor.inlineDatabase.openFullPage')}
-        </Button>
-      </View>
-      <View className="flex-row items-center gap-1 border-b border-border">
-        <View className="flex-shrink">
-          <Tabs
-            value={selectedView?.id}
-            onValueChange={setActiveViewId}
-            variant="pill"
-            label={t('databases.views.title')}
-          >
-            {views.map((view) => (
-              <ViewTab key={view.id} view={view} database={db} readOnly={readOnly} />
-            ))}
-          </Tabs>
-        </View>
-        {!readOnly ? (
-          <Button
-            appearance="subtle"
-            size="sm"
-            accessibilityLabel={t('databases.views.new')}
-            onPress={() => setNewViewOpen(true)}
-          >
-            {t('databases.views.new')}
-          </Button>
-        ) : null}
-      </View>
+    <>
       <NewViewPicker
         open={!readOnly && newViewOpen}
         onClose={() => setNewViewOpen(false)}
@@ -213,28 +169,100 @@ export function InlineDatabaseBlock({ block, readOnly, onChangeContent }: BlockC
         }}
       />
       {selectedView ? (
-        <View style={{ height: 400 }}>
-          <DatabaseViewContainer
-            database={db}
-            view={selectedView}
-            rows={rows.data?.rows ?? []}
-            isLoading={rows.isLoading}
-            readOnly={readOnly || (viewState.linked && !canEditSource)}
-            viewsReadOnly={readOnly}
-            total={rows.data?.total}
-            groups={rows.data?.groups}
-            hasMore={rows.hasNextPage}
-            isFetchingMore={rows.isFetchingNextPage}
-            onLoadMore={() => {
-              if (rows.hasNextPage && !rows.isFetching)
-                void rows.fetchNextPage({ cancelRefetch: false });
-            }}
-          />
-        </View>
+        <AppShellPanels
+          scope="local"
+          layout={{
+            mode: 'split',
+            axis: 'vertical',
+            flow: 'document',
+            appearance: 'joined',
+            panels: [
+              {
+                id: `inline-database-${block.id}`,
+                height: 400,
+                content: (
+                  <DatabaseViewContainer
+                    renderHeader={(tools) => (
+                      <PageHeader
+                        safeArea={false}
+                        title={db.name || t('editor.inlineDatabase.defaultName')}
+                        leading={
+                          db.icon ? (
+                            <Text variant="headline-regular">{db.icon}</Text>
+                          ) : (
+                            <RiDatabase2Line size="sm" fill={colors.mutedForeground} />
+                          )
+                        }
+                        actions={
+                          <>
+                            {!readOnly && !viewState.linked ? (
+                              <DatabaseActionsMenu databaseId={db.id} />
+                            ) : null}
+                            <Button
+                              appearance="subtle"
+                              size="xs"
+                              accessibilityRole="link"
+                              accessibilityLabel={t('editor.inlineDatabase.openFullPage')}
+                              onPress={() => router.push(`/db/${db.id}`)}
+                              leadingIcon={RiExternalLinkLine}
+                            >
+                              {t('editor.inlineDatabase.openFullPage')}
+                            </Button>
+                          </>
+                        }
+                        accessory={
+                          <>
+                            <Toolbar
+                              actions={
+                                !readOnly ? (
+                                  <Button
+                                    appearance="subtle"
+                                    size="sm"
+                                    accessibilityLabel={t('databases.views.new')}
+                                    onPress={() => setNewViewOpen(true)}
+                                  >
+                                    {t('databases.views.new')}
+                                  </Button>
+                                ) : null
+                              }
+                            >
+                              <DatabaseViewTabs
+                                database={db}
+                                views={views}
+                                activeViewId={selectedView.id}
+                                onSelectView={setActiveViewId}
+                                readOnly={readOnly}
+                              />
+                            </Toolbar>
+                            {tools}
+                          </>
+                        }
+                      />
+                    )}
+                    database={db}
+                    view={selectedView}
+                    rows={rows.data?.rows ?? []}
+                    isLoading={rows.isLoading}
+                    readOnly={readOnly || (viewState.linked && !canEditSource)}
+                    viewsReadOnly={readOnly}
+                    total={rows.data?.total}
+                    groups={rows.data?.groups}
+                    hasMore={rows.hasNextPage}
+                    isFetchingMore={rows.isFetchingNextPage}
+                    onLoadMore={() => {
+                      if (rows.hasNextPage && !rows.isFetching)
+                        void rows.fetchNextPage({ cancelRefetch: false });
+                    }}
+                  />
+                ),
+              },
+            ],
+          }}
+        />
       ) : (
         <State message={t('pages.database.noViews')} />
       )}
-    </View>
+    </>
   );
 }
 

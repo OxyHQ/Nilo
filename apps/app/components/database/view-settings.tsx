@@ -19,6 +19,8 @@ import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
 import {
   CHART_AGGREGATES,
+  CARD_SIZES,
+  BOARD_GROUPABLE_PROPERTY_TYPES,
   CHART_MEASURABLE_TYPES,
   CHART_TYPES,
   DATE_GROUP_GRANULARITIES,
@@ -54,7 +56,7 @@ import { moveProperty, orderedProperties } from '@/lib/view-properties';
 import { useGroupLabel } from './group-label';
 
 /** What a board groups by (`view-board.tsx`). */
-export const GROUPABLE_TYPES: readonly DatabasePropertyType[] = ['status', 'select', 'checkbox'];
+export const GROUPABLE_TYPES: readonly DatabasePropertyType[] = BOARD_GROUPABLE_PROPERTY_TYPES;
 
 /** The views that open rows; a form takes responses, a chart shows none. */
 const OPENS_ROWS: ReadonlySet<DatabaseView['type']> = new Set([
@@ -320,14 +322,23 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
           />
         </>
       ) : null}
-      {view.type === 'gallery' ? (
+      {view.type === 'gallery' || view.type === 'board' ? (
         <>
+          <SettingSelect
+            label={t('databases.viewSettings.cardSize')}
+            value={view.config.cardSize ?? 'medium'}
+            options={CARD_SIZES.map((size) => ({
+              value: size,
+              label: t(`databases.viewSettings.cardSizes.${size}`),
+            }))}
+            onChange={(cardSize) => setConfig({ cardSize: cardSize as ViewConfig['cardSize'] })}
+          />
           <SettingSelect
             label={t('databases.viewSettings.cardPreview')}
             value={
               view.config.coverSource === 'property' && view.config.coverPropertyId
                 ? view.config.coverPropertyId
-                : (view.config.coverSource ?? 'pageCover')
+                : (view.config.coverSource ?? (view.type === 'board' ? 'none' : 'pageCover'))
             }
             options={[
               { value: 'none', label: t('databases.viewSettings.none') },

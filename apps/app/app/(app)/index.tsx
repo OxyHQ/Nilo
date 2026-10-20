@@ -1,6 +1,6 @@
 import { useNewPageStore } from '@/lib/stores/new-page-store';
 import * as React from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiTimeLine } from '@oxy.so/bloom/icons/RiTimeLine';
@@ -8,6 +8,10 @@ import { useOxy } from '@oxy.so/services/ui/client';
 import { Button } from '@oxy.so/bloom/button';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
+import { Card } from '@oxy.so/bloom/card';
+import { ResponsiveGrid } from '@oxy.so/bloom/grid';
+import { PageHeader } from '@oxy.so/bloom/page-header';
+import { Screen, ScreenScrollView } from '@oxy.so/bloom/screen';
 import { useTranslation } from '@/hooks/useTranslation';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
@@ -43,7 +47,7 @@ export default function HomePage() {
 
   if (!isAuthenticated || !currentWorkspaceId || isLoading || !hasPages) {
     return (
-      <View className="flex-1 items-center justify-center bg-background px-6">
+      <Screen className="items-center justify-center px-6">
         <View className="max-w-md items-center gap-4">
           <Text className="text-3xl font-semibold text-foreground text-center">Nilo</Text>
           {!isAuthenticated ? (
@@ -72,7 +76,7 @@ export default function HomePage() {
             </>
           )}
         </View>
-      </View>
+      </Screen>
     );
   }
 
@@ -80,39 +84,45 @@ export default function HomePage() {
   const greeting = greetingFor(new Date());
 
   return (
-    <ScrollView className="flex-1 bg-background" contentContainerClassName="px-6 py-12 md:px-10">
-      <View className="w-full max-w-3xl mx-auto gap-10">
-        <View className="flex-row flex-wrap items-center justify-between gap-4">
-          <Text accessibilityRole="header" className="text-3xl font-semibold text-foreground">
-            {name
+    <Screen
+      scroll="auto"
+      header={
+        <PageHeader
+          safeArea={false}
+          title={
+            name
               ? t(`home.greeting.${greeting}`, { name })
-              : t(`home.greeting.${greeting}Anonymous`)}
-          </Text>
-          <Button
-            appearance="solid"
-            tone="accent"
-            onPress={handleCreate}
-            accessibilityLabel={t('home.newPage')}
-            leadingIcon={RiAddLine}
-          >
-            {t('home.newPage')}
-          </Button>
-        </View>
-
+              : t(`home.greeting.${greeting}Anonymous`)
+          }
+          actions={
+            <Button
+              appearance="solid"
+              tone="accent"
+              onPress={handleCreate}
+              accessibilityLabel={t('home.newPage')}
+              leadingIcon={RiAddLine}
+            >
+              {t('home.newPage')}
+            </Button>
+          }
+        />
+      }
+    >
+      <ScreenScrollView contentContainerClassName="px-6 py-8 md:px-10">
         <View className="gap-3">
           <RecentHeading />
           {recent.length > 0 ? (
-            <View className="flex-row flex-wrap gap-3">
+            <ResponsiveGrid minItemWidth={160} maxColumns={5} gap={12}>
               {recent.map((page) => (
                 <RecentCard key={page.id} page={page} />
               ))}
-            </View>
+            </ResponsiveGrid>
           ) : (
             <Text className="text-sm text-muted-foreground">{t('home.noRecent')}</Text>
           )}
         </View>
-      </View>
-    </ScrollView>
+      </ScreenScrollView>
+    </Screen>
   );
 }
 
@@ -134,16 +144,16 @@ function RecentCard({ page }: { page: Page }) {
   const { t } = useTranslation();
   const title = page.title.trim() || t('pages.untitled');
   return (
-    <Pressable
+    <Card
       onPress={() => router.push(`/p/${page.id}`)}
       accessibilityRole="link"
       accessibilityLabel={t('pages.openPage', { title })}
-      className="w-40 gap-3 rounded-lg border border-border bg-background p-3 hover:bg-muted/60 active:bg-muted/60"
+      className="gap-3 p-3"
     >
       <IconDisplay value={page.icon} size={28} showPlaceholder pageId={page.id} />
       <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
         {title}
       </Text>
-    </Pressable>
+    </Card>
   );
 }

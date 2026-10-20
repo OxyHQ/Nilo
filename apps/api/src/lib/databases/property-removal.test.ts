@@ -25,6 +25,18 @@ const view = (overrides: Partial<PropertyReferencingView> = {}): PropertyReferen
 });
 
 describe('viewWithoutProperty', () => {
+  it('drops board column order when its grouping property is removed or retyped', () => {
+    const current = view({
+      type: 'board',
+      groupBy: { propertyId: 'stage' },
+      config: {
+        cardSize: 'large',
+        boardColumnOrder: { propertyId: 'stage', columnIds: ['done', 'todo'] },
+      },
+    });
+    expect(viewWithoutProperty(current, 'stage')?.config).toEqual({ cardSize: 'large' });
+    expect(viewAfterRetype(current, 'stage', 'checkbox')?.config).toEqual({ cardSize: 'large' });
+  });
   it('leaves a view that never named the property alone', () => {
     expect(
       viewWithoutProperty(
@@ -132,6 +144,18 @@ describe('the keys of a view’s groups', () => {
     expect(
       viewAfterRetype(view({ groupBy: { propertyId: 'other' }, config: keys }), 'p', 'number'),
     ).toBeNull();
+  });
+
+  it('keeps only groupings supported by the new property type and layout', () => {
+    const board = view({ type: 'board', groupBy: { propertyId: 'p' } });
+    expect(viewAfterRetype(board, 'p', 'relation')).toBeNull();
+    expect(viewAfterRetype(board, 'p', 'text')).toEqual({ groupBy: null });
+    expect(
+      viewAfterRetype(view({ type: 'table', groupBy: { propertyId: 'p' } }), 'p', 'relation'),
+    ).toEqual({ groupBy: null });
+    expect(
+      viewAfterRetype(view({ ...board, subGroupBy: { propertyId: 'p' } }), 'p', 'relation'),
+    ).toEqual({ subGroupBy: null });
   });
 
   it('go when the view is grouped by another property, unless the change gives its config', () => {

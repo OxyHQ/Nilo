@@ -1,5 +1,6 @@
+import { Screen, ScreenScrollView } from '@oxy.so/bloom/screen';
 import * as React from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useOxy } from '@oxy.so/services/ui/client';
 import { RiArrowGoBackLine } from '@oxy.so/bloom/icons/RiArrowGoBackLine';
@@ -162,30 +163,33 @@ export default function TrashRoute() {
   }
 
   return (
-    <View className="flex-1 bg-background">
-      <PageHeader
-        presentation="bar"
-        border="always"
-        // The app layout already pads this route below the status bar.
-        safeArea={false}
-        title={t('trash.title')}
-        subtitle={t('trash.subtitle')}
-        actions={
-          isOwner ? (
-            <Button
-              appearance="outline"
-              size="sm"
-              onPress={handleEmptyTrash}
-              disabled={emptyTrash.isPending || pages.length === 0}
-              loading={emptyTrash.isPending}
-              leadingIcon={RiDeleteBin6Line}
-            >
-              {t('trash.emptyTrash')}
-            </Button>
-          ) : undefined
-        }
-      />
-
+    <Screen
+      scroll="auto"
+      header={
+        <PageHeader
+          presentation="bar"
+          border="always"
+          // The app layout already pads this route below the status bar.
+          safeArea={false}
+          title={t('trash.title')}
+          subtitle={t('trash.subtitle')}
+          actions={
+            isOwner ? (
+              <Button
+                appearance="outline"
+                size="sm"
+                onPress={handleEmptyTrash}
+                disabled={emptyTrash.isPending || pages.length === 0}
+                loading={emptyTrash.isPending}
+                leadingIcon={RiDeleteBin6Line}
+              >
+                {t('trash.emptyTrash')}
+              </Button>
+            ) : undefined
+          }
+        />
+      }
+    >
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
           <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
@@ -198,7 +202,7 @@ export default function TrashRoute() {
           />
         </View>
       ) : (
-        <ScrollView className="flex-1" contentContainerClassName="px-4 py-3 md:px-8">
+        <ScreenScrollView className="flex-1" contentContainerClassName="px-4 py-3 md:px-8">
           {pages.map((page) => (
             <TrashRow
               key={page.id}
@@ -223,9 +227,9 @@ export default function TrashRoute() {
               canHardDelete={isOwner}
             />
           ))}
-        </ScrollView>
+        </ScreenScrollView>
       )}
-    </View>
+    </Screen>
   );
 }
 
