@@ -33,6 +33,8 @@ import { usePageComments } from '@/lib/hooks/use-comments';
 import { openCommentCounts } from '@/components/comments/comment-indicator';
 
 type EditorContextValue = PageEditorState & {
+  /** The page's content is read, not edited (`pageContentReadOnly`). */
+  readOnly: boolean;
   /** Null until the page's blocks have loaded (or when they failed: `error`). */
   controller: EditorController | null;
   decorations: BlockDecorations;
@@ -139,6 +141,7 @@ export function PageEditorProvider({
   const value = useMemo(
     () => ({
       ...state,
+      readOnly,
       controller,
       decorations,
       theme,
@@ -150,7 +153,17 @@ export function PageEditorProvider({
       embeddedController,
       setEmbeddedController,
     }),
-    [state, controller, decorations, theme, labels, toolbarHeight, aiTarget, embeddedController],
+    [
+      state,
+      readOnly,
+      controller,
+      decorations,
+      theme,
+      labels,
+      toolbarHeight,
+      aiTarget,
+      embeddedController,
+    ],
   );
   return <PageEditorContext.Provider value={value}>{children}</PageEditorContext.Provider>;
 }
@@ -166,8 +179,8 @@ export function useOptionalPageEditorContext() {
  * selected text, `page-editor.tsx`), which the toolbar shows while text is
  * selected.
  */
-export function PageEditorToolbar({ readOnly }: { readOnly: boolean }) {
-  const { controller, embeddedController, theme, labels, setToolbarHeight } =
+export function PageEditorToolbar() {
+  const { readOnly, controller, embeddedController, theme, labels, setToolbarHeight } =
     usePageEditorContext();
   if (Platform.OS === 'web' || readOnly || !controller) return null;
   // A synced block being edited has the keyboard: its editor's toolbar.

@@ -27,6 +27,7 @@ import { usePageComments } from '@/lib/hooks/use-comments';
 import { useDatabase } from '@/lib/hooks/use-databases';
 import { useTrackRecentPage } from '@/lib/hooks/use-track-recent-page';
 import { hasRole } from '@/lib/hooks/workspace-roles';
+import { pageContentReadOnly } from '@/lib/hooks/page-access';
 import type { DatabaseRow, PropertyValue } from '@/lib/types/databases';
 import { cn } from '@/lib/utils';
 import type { Page } from '@/lib/types/pages';
@@ -143,8 +144,7 @@ function PageDetail({
 
   const page = data.page;
   const canEdit = hasRole(role, 'editor');
-  // A page in the trash is read there; restoring it makes it editable again.
-  const contentReadOnly = !canEdit || page.locked || page.archived === true;
+  const contentReadOnly = pageContentReadOnly(page, role);
 
   const rightHeader = (
     <View className="flex-row items-center gap-2">
@@ -196,7 +196,7 @@ function PageDetail({
             </View>
           ) : (
             <EditorScrollView>
-              <PageHeader page={page} readOnly={!canEdit || page.archived} />
+              <PageHeader page={page} readOnly={!canEdit} />
               <View
                 className={cn('px-6 md:px-10 w-full mx-auto pt-4', !page.fullWidth && 'max-w-3xl')}
               >
@@ -222,7 +222,7 @@ function PageDetail({
             onClose={() => setCommentPanel({ open: false, focusedBlockId: null })}
           />
         </View>
-        <PageEditorToolbar readOnly={contentReadOnly} />
+        <PageEditorToolbar />
       </PageChrome>
     </PageEditorProvider>
   );

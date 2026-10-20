@@ -22,7 +22,13 @@ jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }
 jest.mock('@/lib/hooks/use-pages', () => ({
   usePage: () => ({
     data: {
-      page: { id: 'page', workspaceId: 'workspace', databaseId: 'db', locked: mockLocked },
+      page: {
+        id: 'page',
+        workspaceId: 'workspace',
+        databaseId: 'db',
+        locked: mockLocked,
+        archived: false,
+      },
       role: mockRole,
     },
   }),
@@ -64,7 +70,8 @@ it.each(['editor', 'commenter', 'viewer'])(
     });
     expect(renderer.root.findByType(PageEditor).props.readOnly).toBe(true);
     expect(renderer.root.findByType(PageEditorProvider).props.readOnly).toBe(true);
-    expect(renderer.root.findByType(PageEditorToolbar).props.readOnly).toBe(true);
+    // The toolbar reads it from the provider.
+    renderer.root.findByType(PageEditorToolbar);
     expect(renderer.root.findByType(RowPropertiesPanel).props.readOnly).toBe(true);
     expect(renderer.root.findByType(CommentPanel).props.canComment).toBe(role !== 'viewer');
     expect(renderer.root.findByType(PageChrome).props.readOnly).toBe(role !== 'editor');
