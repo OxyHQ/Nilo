@@ -8,6 +8,11 @@
   "expand": "Expandir",
   "comments": {
     "open": "Abrir comentarios",
+    "openCount": {
+      "zero": "Abrir comentarios",
+      "one": "Abrir comentarios (1 conversación sin resolver)",
+      "other": "Abrir comentarios (%{count} conversaciones sin resolver)"
+    },
     "label": "Comentarios"
   },
   "database": {

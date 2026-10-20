@@ -8,6 +8,11 @@
   "expand": "Expand",
   "comments": {
     "open": "Open comments",
+    "openCount": {
+      "zero": "Open comments",
+      "one": "Open comments (1 unresolved discussion)",
+      "other": "Open comments (%{count} unresolved discussions)"
+    },
     "label": "Comments"
   },
   "database": {

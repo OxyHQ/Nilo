@@ -145,6 +145,7 @@ function PageDetail({
   const page = data.page;
   const canEdit = hasRole(role, 'editor');
   const contentReadOnly = pageContentReadOnly(page, role);
+  const commentsLabel = t('pages.comments.openCount', { count: openCommentCount });
 
   const rightHeader = (
     <View className="flex-row items-center gap-2">
@@ -155,13 +156,13 @@ function PageDetail({
       ) : null}
       <Button
         appearance="subtle"
-        size="sm"
+        iconOnly
         onPress={() => handleOpenPanel(null)}
-        accessibilityLabel={t('pages.comments.open')}
+        accessibilityLabel={commentsLabel}
+        title={commentsLabel}
+        aria-expanded={commentPanel.open}
         leadingIcon={RiChat3Line}
-      >
-        {`${openCommentCount > 0 ? openCommentCount : ''} ${t('pages.comments.label')}`.trim()}
-      </Button>
+      />
       <ShareButton pageId={page.id} />
     </View>
   );
