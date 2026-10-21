@@ -1,6 +1,75 @@
 import { useMemo } from 'react';
-import type { SlashItem } from '@oxy.so/bloom-editor';
+import type { SlashMenuItem } from '@oxy.so/bloom-editor';
+import type { BloomIconComponent } from '@oxy.so/bloom/icons';
+import { RiArrowRightSLine } from '@oxy.so/bloom/icons/RiArrowRightSLine';
+import { RiBookmarkLine } from '@oxy.so/bloom/icons/RiBookmarkLine';
+import { RiCheckboxLine } from '@oxy.so/bloom/icons/RiCheckboxLine';
+import { RiClipboardLine } from '@oxy.so/bloom/icons/RiClipboardLine';
+import { RiCodeBlock } from '@oxy.so/bloom/icons/RiCodeBlock';
+import { RiCodeSSlashLine } from '@oxy.so/bloom/icons/RiCodeSSlashLine';
+import { RiCursorLine } from '@oxy.so/bloom/icons/RiCursorLine';
+import { RiDatabase2Line } from '@oxy.so/bloom/icons/RiDatabase2Line';
+import { RiDoubleQuotesL } from '@oxy.so/bloom/icons/RiDoubleQuotesL';
+import { RiFileLine } from '@oxy.so/bloom/icons/RiFileLine';
+import { RiFilePdf2Line } from '@oxy.so/bloom/icons/RiFilePdf2Line';
+import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
+import { RiFlowChart } from '@oxy.so/bloom/icons/RiFlowChart';
+import { RiFontSize } from '@oxy.so/bloom/icons/RiFontSize';
+import { RiFunctions } from '@oxy.so/bloom/icons/RiFunctions';
+import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
+import { RiLayoutGridLine } from '@oxy.so/bloom/icons/RiLayoutGridLine';
+import { RiLightbulbLine } from '@oxy.so/bloom/icons/RiLightbulbLine';
+import { RiLink } from '@oxy.so/bloom/icons/RiLink';
+import { RiListOrdered } from '@oxy.so/bloom/icons/RiListOrdered';
+import { RiListUnordered } from '@oxy.so/bloom/icons/RiListUnordered';
+import { RiLoopRightLine } from '@oxy.so/bloom/icons/RiLoopRightLine';
+import { RiRouteLine } from '@oxy.so/bloom/icons/RiRouteLine';
+import { RiSubtractLine } from '@oxy.so/bloom/icons/RiSubtractLine';
+import { RiTableLine } from '@oxy.so/bloom/icons/RiTableLine';
+import { RiText } from '@oxy.so/bloom/icons/RiText';
+import { RiVideoLine } from '@oxy.so/bloom/icons/RiVideoLine';
+import { RiVolumeUpLine } from '@oxy.so/bloom/icons/RiVolumeUpLine';
 import { useTranslation } from '@/hooks/useTranslation';
+
+/** Presentation data only: Bloom owns icon size, paint and suggestion layout. */
+const SLASH_ICONS = {
+  paragraph: RiText,
+  childPage: RiFileTextLine,
+  heading1: RiFontSize,
+  heading2: RiFontSize,
+  heading3: RiFontSize,
+  toggleHeading1: RiArrowRightSLine,
+  toggleHeading2: RiArrowRightSLine,
+  toggleHeading3: RiArrowRightSLine,
+  bulletedList: RiListUnordered,
+  numberedList: RiListOrdered,
+  todo: RiCheckboxLine,
+  toggle: RiArrowRightSLine,
+  quote: RiDoubleQuotesL,
+  callout: RiLightbulbLine,
+  divider: RiSubtractLine,
+  image: RiImageLine,
+  video: RiVideoLine,
+  audio: RiVolumeUpLine,
+  file: RiFileLine,
+  pdf: RiFilePdf2Line,
+  bookmark: RiBookmarkLine,
+  code: RiCodeBlock,
+  columns: RiLayoutGridLine,
+  table: RiTableLine,
+  syncedBlock: RiLoopRightLine,
+  pasteSyncedBlock: RiClipboardLine,
+  button: RiCursorLine,
+  linkToPage: RiLink,
+  equation: RiFunctions,
+  mermaid: RiFlowChart,
+  tableOfContents: RiListUnordered,
+  breadcrumb: RiRouteLine,
+  embed: RiCodeSSlashLine,
+  youtube: RiVideoLine,
+  inlineDatabase: RiDatabase2Line,
+  linkedDatabase: RiDatabase2Line,
+} satisfies Record<string, BloomIconComponent>;
 
 /** Keywords for search: the catalog's comma-separated list. */
 const words = (list: string) =>
@@ -9,18 +78,26 @@ const words = (list: string) =>
     .map((w) => w.trim())
     .filter(Boolean);
 
-export function useSlashItems(): SlashItem[] {
+export function useSlashItems(): SlashMenuItem[] {
   const { t } = useTranslation();
   // `t` changes with the language, so the items are re-read with it.
   return useMemo(() => {
     const item = (
-      id: string,
+      id: keyof typeof SLASH_ICONS,
       label: string,
       description: string,
       keywords: string,
       group: string,
-      action: SlashItem['action'],
-    ): SlashItem => ({ id, label, description, keywords: words(keywords), group, action });
+      action: SlashMenuItem['action'],
+    ): SlashMenuItem => ({
+      id,
+      label,
+      description,
+      keywords: words(keywords),
+      group,
+      action,
+      icon: SLASH_ICONS[id],
+    });
     const block = (type: string, props?: Record<string, unknown>) => ({
       kind: 'block' as const,
       type,
@@ -67,7 +144,7 @@ export function useSlashItems(): SlashItem[] {
         'basic',
         block('heading_3'),
       ),
-      ...[1, 2, 3].map((level) =>
+      ...([1, 2, 3] as const).map((level) =>
         item(
           `toggleHeading${level}`,
           t(`editor.slashMenu.toggleHeading${level}.label`),

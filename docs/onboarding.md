@@ -186,6 +186,17 @@ Mixed action/form popovers use `PopoverItem` for their action rows and let
 `PopoverContent` own overflow, including when switching to view settings.
 Comment mention suggestions also use the popover's scroll owner; keep typing
 in the non-modal composer instead of wrapping the suggestions in a second scroller.
+
+The editor's slash catalog supplies translated labels, descriptions, search terms,
+actions and an `icon` component through Bloom Editor's React `SlashMenuItem` adapter.
+The platform-free `SlashItem` model remains presentation-free. Use existing Bloom
+icon components without local width, color, padding or decorative wrappers;
+`leading` remains available for caller-owned custom nodes such as avatars and
+does not imply styling arbitrary React elements. Bloom's `SuggestionList` owns
+the row, icon slot, selection and scrolling. Keep command ids and actions stable
+when the locale changes, and do not build another suggestion renderer or scroll
+engine in Nilo.
+
 Bloom's [UI architecture](https://github.com/OxyHQ/Bloom/blob/main/docs/ui-architecture.mdx)
 is the shared architectural contract for consumer work; its adoption matrix
 distinguishes requirements from implemented coverage.
