@@ -39,9 +39,10 @@ Bloom owns the workspace layout. `NiloShell` supplies navigation and workspace
 actions to `AppShell` and `Sidebar`; individual routes compose their surfaces
 with `AppShellPanels` and `Screen`. Do not put a surface around the entire
 router outlet: a document and its comments are sibling panels.
-The workspace uses `AppShell gutter={0} navigationGap={0}` and the document and
-comments use the compositor's `joined` appearance. Their shared Surface,
-divider and responsive floating presentation belong to `AppShellPanels`;
+The workspace inherits AppShell's normal outer gutter and navigation gap;
+do not flatten the panel against the viewport to imitate a reference header.
+The document and comments use the compositor's `joined` appearance. Their shared
+Surface, divider and responsive floating presentation belong to `AppShellPanels`;
 `CommentPanel` supplies its own `Screen` header, scroll content and footer.
 The group's `header` slot spans the document and its adjacent panels inside
 that same Surface. Keep the editor toolbar in the document's own `Screen`;
