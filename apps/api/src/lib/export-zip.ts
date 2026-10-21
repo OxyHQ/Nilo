@@ -41,14 +41,17 @@ export type ZipFormat = 'md' | 'html';
 
 /** A name every OS accepts for a file or folder, from a page's title. */
 export function fileName(title: string): string {
-  const name = title
+  let name = title
     .normalize('NFC')
     .replace(/[\\/:*?"<>|\p{Cc}]+/gu, ' ')
     .replace(/\s+/gu, ' ')
     .trim()
     .replace(/^\.+/u, '')
     .slice(0, 100)
-    .trim();
+    .replace(/[. ]+$/u, '');
+  // Windows reserves these basenames even before an extension. The same
+  // sanitized name also becomes a folder for descendants, so trim final dots.
+  if (/^(con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/iu.test(name)) name = `_${name}`;
   return name || 'Untitled';
 }
 

@@ -29,6 +29,9 @@ Names use the existing cross-platform filename sanitizer. Pages and databases
 share a case-insensitive sibling namespace, including their folders; collisions
 receive ` (2)`, ` (3)`, and so on. Sanitizing a filename does not change the
 page's title or its CSV cell values.
+Windows-reserved device basenames receive an underscore prefix, and trailing
+periods/spaces are removed before assigning folders and resolving collisions;
+see [Windows naming conventions](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file).
 
 CSV uses the same stored-property conversion as the standalone database export:
 UTF-8 BOM, CRLF records, spreadsheet formula escaping, display values for

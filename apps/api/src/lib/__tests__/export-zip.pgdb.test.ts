@@ -49,6 +49,25 @@ const page = (title: string, extra: Partial<Parameters<typeof createPage>[1]> = 
   createPage(db, { workspaceId, title, ownerId: me, order: 0, teamspaceId: null, ...extra });
 
 describe('exporting pages as a ZIP', () => {
+  it('exports Windows-compatible paths without changing the titles inside documents', async () => {
+    const scope = await seedWorkspace(db, 'export-portable-names');
+    await db.insert(workspaceMembers).values({ workspaceId: scope, userId: me, role: 'owner' });
+    const reserved = await page('CON', { workspaceId: scope, order: 0 });
+    await page('_CON', { workspaceId: scope, order: 1 });
+    await page('AUX.txt', { workspaceId: scope, parentId: reserved.id });
+    const dotted = await page('Plan. ', { workspaceId: scope, order: 2 });
+    await page('Details', { workspaceId: scope, parentId: dotted.id });
+    const files = unzipSync(
+      (await exportPagesZip(db, { viewerId: me, workspaceId: scope, rootIds: null, format: 'md' }))
+        .bytes,
+    );
+    expect(Object.keys(files).sort()).toEqual(
+      ['_CON.md', '_CON (2).md', '_CON/_AUX.txt.md', 'Plan.md', 'Plan/Details.md'].sort(),
+    );
+    expect(strFromU8(files['_CON.md'] as Uint8Array)).toContain('# CON');
+    expect(strFromU8(files['_CON/_AUX.txt.md'] as Uint8Array)).toContain('# AUX.txt');
+  });
+
   it('projects acknowledged row edits before exporting their bodies', async () => {
     const scope = await seedWorkspace(db, 'export-pending-row');
     await db.insert(workspaceMembers).values({ workspaceId: scope, userId: me, role: 'owner' });
@@ -372,5 +391,10 @@ describe('fileName', () => {
     expect(fileName('a/b:c*?"<>|d')).toBe('a b c d');
     expect(fileName('  ...hidden  ')).toBe('hidden');
     expect(fileName('   ')).toBe('Untitled');
+    expect(fileName('  Plan...  ')).toBe('Plan');
+    expect(fileName('nul.tar.gz')).toBe('_nul.tar.gz');
+    expect(fileName('COM¹')).toBe('_COM¹');
+    expect(fileName('LPT9')).toBe('_LPT9');
+    expect(fileName('COM10')).toBe('COM10');
   });
 });
