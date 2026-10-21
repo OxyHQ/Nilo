@@ -8,7 +8,12 @@ import type { ReadOnlyBlock } from '../block-tree';
 import type { BreadcrumbEntry, Page, PageResponse } from '../types/pages';
 import { useAuthQuery } from './create-query';
 import { queryKeys } from './query-keys';
-import { readPageHistory, terminalHistoryError, useHistoryAccess } from './use-page-history-access';
+import {
+  readPageHistory,
+  retirePageHistoryError,
+  terminalHistoryError,
+  useHistoryAccess,
+} from './use-page-history-access';
 import { hasRole } from './workspace-roles';
 
 export interface PublicPage {
@@ -143,7 +148,17 @@ export function useRestoreVersion(page: Page) {
         !hasRole(access?.data?.role, 'editor')
       )
         throw new Error('Page history requires editor access');
-      return (await apiClient.post(API_ROUTES.pages.restoreVersion(page.id, versionId))).data;
+      try {
+        return (await apiClient.post(API_ROUTES.pages.restoreVersion(page.id, versionId))).data;
+      } catch (error) {
+        retirePageHistoryError({
+          client,
+          pageId: page.id,
+          key: queryKeys.versions.detail(page.id, versionId),
+          error,
+        });
+        throw error;
+      }
     },
     onSuccess: async () => {
       await Promise.all([

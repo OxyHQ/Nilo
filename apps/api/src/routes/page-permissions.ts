@@ -8,6 +8,7 @@
 import { Router, type Request, type Response } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
+import { announceChange } from '../collab/live-rooms.js';
 import { getDb } from '../db/client.js';
 import { PAGE_GRANT_ROLES, type PageGrantRole } from '../db/schema/collab.js';
 import { compareRoles, hasRole } from '../db/schema/workspaces.js';
@@ -142,6 +143,7 @@ async function grantAccess(
     return;
   }
   const grant = await upsertGrant(db, { pageId, userId, role, grantedBy: callerId });
+  announceChange({ workspaceId: page.workspaceId });
 
   if (!existing && userId !== callerId) {
     try {
@@ -250,7 +252,9 @@ router.delete(
           return;
         }
       }
-      await deleteGrant(db, pageId, userId);
+      const page = await findPageById(db, pageId);
+      const deleted = await deleteGrant(db, pageId, userId);
+      if (deleted && page) announceChange({ workspaceId: page.workspaceId });
       res.json({ success: true });
     } catch (error: unknown) {
       if (handleZodError(error, res)) return;

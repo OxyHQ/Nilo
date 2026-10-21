@@ -271,3 +271,86 @@ it('does not cycle persistent history denials when page metadata still reports e
   await settle();
   expect(deniedReads).toBe(settledReads + 1);
 });
+
+it('retires denied restore history and cancels a pending preview before its late response', async () => {
+  await mount();
+  const activityKey = queryKeys.pageActivity.page('w', 'p');
+  client.setQueryData(activityKey, {
+    pages: [{ items: [{ id: 'private-event' }] }],
+    pageParams: [null],
+  });
+  let resolve!: (value: unknown) => void;
+  let signal!: AbortSignal;
+  jest.mocked(apiClient.get).mockImplementation((url, options) => {
+    if (url === '/pages/p') return Promise.resolve({ data: { page, role } });
+    return new Promise((done) => {
+      resolve = done;
+      signal = options?.signal as AbortSignal;
+    });
+  });
+  let pending!: ReturnType<typeof preview.refetch>;
+  await act(async () => {
+    pending = preview.refetch();
+  });
+  await settle();
+  const denied = new AxiosError('denied');
+  denied.response = { status: 403 } as AxiosError['response'];
+  jest.mocked(apiClient.post).mockImplementation(async () => {
+    role = 'viewer';
+    throw denied;
+  });
+  await act(async () => {
+    await expect(restore.mutateAsync('v')).rejects.toBe(denied);
+  });
+  await settle();
+  expect(signal.aborted).toBe(true);
+  expect(list.canEdit).toBe(false);
+  expect(client.getQueryData(listKey)).toBeNull();
+  expect(client.getQueryData(detailKey)).toBeNull();
+  expect(client.getQueryData(activityKey)).toBeNull();
+  await act(async () => {
+    resolve({ data: detail });
+    await pending;
+  });
+  expect(preview.data).toBeUndefined();
+  expect(client.getQueryData(detailKey)).toBeNull();
+});
+
+it('retires only the missing snapshot when restore returns 404', async () => {
+  await mount();
+  const activityKey = queryKeys.pageActivity.page('w', 'p');
+  const activity = { pages: [{ items: [{ id: 'event' }] }], pageParams: [null] };
+  client.setQueryData(activityKey, activity);
+  const reads = jest.mocked(apiClient.get).mock.calls.length;
+  const missing = new AxiosError('missing');
+  missing.response = { status: 404 } as AxiosError['response'];
+  jest.mocked(apiClient.post).mockRejectedValue(missing);
+  await act(async () => {
+    await expect(restore.mutateAsync('v')).rejects.toBe(missing);
+  });
+  await settle();
+  expect(client.getQueryData(detailKey)).toBeNull();
+  expect(list.data).toEqual(history);
+  expect(list.canEdit).toBe(true);
+  expect(client.getQueryData(activityKey)).toEqual(activity);
+  expect(apiClient.get).toHaveBeenCalledTimes(reads);
+});
+
+it('preserves preview after a recoverable restore failure and allows an explicit retry', async () => {
+  await mount();
+  const failure = new AxiosError('server unavailable');
+  failure.response = { status: 500 } as AxiosError['response'];
+  jest
+    .mocked(apiClient.post)
+    .mockRejectedValueOnce(failure)
+    .mockResolvedValueOnce({ data: { ok: true } });
+  await act(async () => {
+    await expect(restore.mutateAsync('v')).rejects.toBe(failure);
+  });
+  expect(preview.data).toEqual(detail);
+  expect(list.data).toEqual(history);
+  await act(async () => {
+    await expect(restore.mutateAsync('v')).resolves.toEqual({ ok: true });
+  });
+  expect(apiClient.post).toHaveBeenCalledTimes(2);
+});

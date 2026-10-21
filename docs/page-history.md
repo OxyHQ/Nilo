@@ -23,10 +23,22 @@ Screen and PageFooter keep confirmation actions reachable without another
 overlay or a consumer-defined fixed-height scroller.
 Restoration requires effective editor access and a successful idle access
 check, including when an old confirmation callback survives a permission
-change. Failed saves keep the selection and allow retry; repeated submission
+change. Recoverable save failures keep the selection and allow retry; repeated submission
 while the same request is pending cannot send a second mutation. Success closes
 history and returns to the page. The history query owner masks and retires
 historical caches after access downgrade; current page metadata remains visible.
+A 401/403 from either a history read or restore cancels sibling historical
+requests, retires their cached values and rechecks current page access. A 404
+for the selected snapshot retires only that preview; retention can remove a
+snapshot without revoking the page's remaining history.
+
+Committed page-grant changes announce the workspace ID through the existing
+authorized workspace room. A guest with a direct grant can join that room even
+without workspace membership. The open page's breadcrumb holds the subscription;
+the workspace invalidation rechecks loaded page metadata, including descendants
+of a changed ancestor. After a downgrade, the shared history owner cancels
+pending history requests before retiring cached snapshots and activity. The
+event carries no historical content, grant details or user IDs.
 
 Only saved block content is previewed and restored. The API saves the current
 blocks before replacing them, allowing another restore. Page properties, icon,

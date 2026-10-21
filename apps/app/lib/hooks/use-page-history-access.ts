@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { type QueryClient, useQueryClient } from '@tanstack/react-query';
+import { type Query, type QueryClient, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import apiClient from '../api/client';
 import { useOxy } from '@oxy.so/services/ui/client';
@@ -74,26 +74,50 @@ export async function readPageHistory<T>({
   try {
     return (await apiClient.get<T>(url, { signal, ...(params ? { params } : {}) })).data;
   } catch (error) {
-    if (!signal.aborted && terminalHistoryError(error)) {
-      if (key[0] === 'version' && axios.isAxiosError(error) && error.response?.status === 404) {
-        // Retention can remove a selected snapshot without revoking page access.
-        client.setQueryData(key, null);
-      } else {
-        const current = client.getQueryCache().find({ queryKey: key, exact: true });
-        void client.cancelQueries({
-          predicate: (query) => historyOf(pageId)(query) && query !== current,
-        });
-        // Preserve terminal errors: clearing an error can restart sibling reads
-        // after every metadata recheck, creating a denial loop.
-        client.setQueriesData(
-          {
-            predicate: (query) => historyOf(pageId)(query) && query.state.data != null,
-          },
-          null,
-        );
-        void client.invalidateQueries({ queryKey: queryKeys.pages.detail(pageId), exact: true });
-      }
-    }
+    retirePageHistoryError({
+      client,
+      pageId,
+      key,
+      error,
+      signal,
+      owner: client.getQueryCache().find({ queryKey: key, exact: true }),
+    });
     throw error;
   }
+}
+
+/** Retire denied historical reads and writes through the same cache owner. */
+export function retirePageHistoryError({
+  client,
+  pageId,
+  key,
+  error,
+  signal,
+  owner,
+}: {
+  client: QueryClient;
+  pageId: string;
+  key: readonly unknown[];
+  error: unknown;
+  signal?: AbortSignal;
+  owner?: Query;
+}): void {
+  if (signal?.aborted || !terminalHistoryError(error)) return;
+  if (key[0] === 'version' && axios.isAxiosError(error) && error.response?.status === 404) {
+    // A missing selected snapshot does not revoke the page's other history.
+    void client.cancelQueries({
+      queryKey: key,
+      exact: true,
+      predicate: (query) => query !== owner,
+    });
+    client.setQueryData(key, null);
+    return;
+  }
+  void client.cancelQueries({ predicate: (query) => historyOf(pageId)(query) && query !== owner });
+  // Keep terminal query errors stable across the metadata recheck.
+  client.setQueriesData(
+    { predicate: (query) => historyOf(pageId)(query) && query.state.data != null },
+    null,
+  );
+  void client.invalidateQueries({ queryKey: queryKeys.pages.detail(pageId), exact: true });
 }
