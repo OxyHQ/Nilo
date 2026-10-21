@@ -267,6 +267,13 @@ The routes announce a change once their write is done (`announceChange`).
 
 ## Page history
 
+Listing versions, reading a version, and restoring one require the page's
+effective `editor` role or higher. The canonical page-access resolver applies
+direct and inherited grants, teamspace visibility and restrictions; a workspace
+role alone does not bypass a private tree. Viewers and commenters receive 403
+before version metadata or historical blocks are read. The current document
+remains readable under its ordinary page permissions.
+
 Before the first change after ten quiet minutes the projection keeps the
 page's blocks as a version (`page_versions`, newest 200), and a restore keeps
 the page as it is first. A restore is one change to the document, from the

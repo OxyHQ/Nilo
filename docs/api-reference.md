@@ -62,7 +62,8 @@ model, credential, conversation or chat-completion route.
   `GET /pages/recent?workspaceId&limit` — the caller's latest, only pages
   they can still open.
 - `GET /pages/:id/backlinks`, `GET/PUT/DELETE /pages/:id/follow`,
-  history (`GET /pages/:id/versions[/:versionId]`,
+  history (effective editor role required for list, detail and restore:
+  `GET /pages/:id/versions[/:versionId]`,
   `POST …/versions/:versionId/restore`), reminders
   (`GET/POST /pages/:id/reminders`, `GET /reminders`, `DELETE /reminders/:id`).
 - Import: `POST /pages/import` (Markdown and HTML files with their folder
