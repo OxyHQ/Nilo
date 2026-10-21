@@ -22,9 +22,15 @@ but cannot retrieve these historical values. Changing a role applies to the next
 request. Client history caches must hide and discard denied results.
 
 Property changes expose their property ID and old/new row values. An optional
-`property` contains the display schema captured when the change was committed:
-name, type, and selected formatting options. The endpoint includes this snapshot
-only when the caller can also read the database under `resolveDatabaseRole`.
+`property` contains the display schema observed while recording the change inside
+its transaction: name, type, and selected formatting options. Page-value writes
+are serialized by the page row lock; schema-only changes are not totally ordered
+with them. A concurrent field or option rename may therefore determine which
+label the event captures. The stored old/new values remain the actual locked-row
+values, and later renames do not rewrite the recorded display schema.
+
+The endpoint includes this snapshot only when the caller can also read the
+database under `resolveDatabaseRole`.
 A grant to a single row does not expose its database's field names or option
 labels. The snapshot never contains database names, relation targets, formulas,
 button actions, or parent paths. Clients must not interpret old option IDs or
