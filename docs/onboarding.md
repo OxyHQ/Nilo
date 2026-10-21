@@ -130,6 +130,22 @@ The editor supplies its toolbar through `Screen.bottomBar` with
 focused inputs and toolbar clearance; Nilo does not measure the toolbar or
 position it above the keyboard.
 
+Block transformations belong to Bloom Editor's commands. Apply the final type
+and properties together, including toggle-heading variants, so child ownership
+and undo reflect one operation. Nilo must not reconstruct block trees to work
+around a shared transformation defect. Whole-block Cut must preserve content
+when the supported clipboard format cannot reconstruct the complete selection
+or when writing fails. Nilo supplies localized feedback through
+`onClipboardError`; the editor owns selection, clipboard validation and undo.
+Plain-text/Markdown copying does not establish lossless rich-block clipboard
+support. Attachment identities remain subject to Nilo's file-reference rules.
+
+Alia's chat sheet uses the SDK's Bloom `BottomSheet` composition. A flex-based
+conversation needs `sizing="fill"` so Bloom provides bounded available space;
+do not introduce app-owned viewport heights or keyboard offsets. Bloom keeps
+content sizing as the default for ordinary sheets. Verify the SDK's main and
+conversation sheets, including draft and focus continuity during resize.
+
 An embedded database uses `AppShellPanels scope="local"` with a vertical
 `split`, document flow and a declarative panel height. Its `ProjectBoard`
 owns the horizontal deck and column scrolling. Grouped boards pass lanes to
