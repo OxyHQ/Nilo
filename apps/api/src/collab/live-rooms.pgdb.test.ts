@@ -17,6 +17,7 @@ import {
   testDatabaseUrl,
 } from '../db/__tests__/testDatabase.js';
 import { closeDb } from '../db/client.js';
+import { pagePermissions } from '../db/schema/collab.js';
 import { workspaceMembers } from '../db/schema/workspaces.js';
 
 const ctx = vi.hoisted(() => ({ io: null as unknown }));
@@ -38,6 +39,9 @@ vi.mock('../lib/logger.js', () => ({
 const { registerLiveRooms } = await import('./live-rooms.js');
 const { default: pagesRouter } = await import('../routes/pages.js');
 const { default: databasesRouter } = await import('../routes/databases.js');
+const { default: permissionsRouter } = await import('../routes/page-permissions.js');
+const { default: historyRouter } = await import('../routes/page-history.js');
+const { default: activityRouter } = await import('../routes/page-activity.js');
 const { default: commentsRouter } = await import('../routes/comments.js');
 const { registerPageRooms } = await import('./page-rooms.js');
 
@@ -105,6 +109,9 @@ beforeAll(async () => {
   app.use('/pages', pagesRouter);
   app.use('/databases', databasesRouter);
   app.use(commentsRouter);
+  app.use(permissionsRouter);
+  app.use(historyRouter);
+  app.use(activityRouter);
   httpServer = http.createServer(app);
   io = new Server(httpServer);
   ctx.io = io;
@@ -145,6 +152,82 @@ describe('workspace rooms', () => {
     expect((await api('ann', 'POST', '/pages', { workspaceId, title: 'New' })).status).toBe(201);
     expect(await heard).toEqual({ workspaceId });
   });
+});
+
+describe('page grant invalidations', () => {
+  it.each(['direct', 'inherited'] as const)(
+    'notifies an already subscribed guest after committed %s downgrade and deletion',
+    async (scope) => {
+      const parent = (
+        await api('ann', 'POST', '/pages', {
+          workspaceId,
+          title: 'Private parent',
+          teamspaceId: null,
+        })
+      ).json.page as { id: string };
+      const child = (
+        await api('ann', 'POST', '/pages', {
+          workspaceId,
+          title: 'Private child',
+          parentId: parent.id,
+        })
+      ).json.page as { id: string };
+      const grantId = scope === 'direct' ? child.id : parent.id;
+      const guestId = `guest-${scope}`;
+      await db.insert(pagePermissions).values({
+        pageId: grantId,
+        userId: guestId,
+        role: 'editor',
+        grantedBy: 'ann',
+      });
+      // Drain the separate page-creation event before testing grant-only writes.
+      await new Promise((resolve) => setTimeout(resolve, 220));
+      const guest = await client(guestId);
+      expect(await join(guest, 'workspace:join', workspaceId)).toEqual({ ok: true });
+      expect((await api(guestId, 'GET', `/pages/${child.id}/versions`)).status).toBe(200);
+      const outsider = await client(`outsider-${scope}`);
+      expect((await join(outsider, 'workspace:join', workspaceId)).ok).toBe(false);
+      const leaked = vi.fn();
+      outsider.on('workspace:changed', leaked);
+
+      const changed = hear(guest, 'workspace:changed');
+      expect(
+        (await api('ann', 'PUT', `/pages/${grantId}/permissions/${guestId}`, { role: 'viewer' }))
+          .status,
+      ).toBe(200);
+      expect(await changed).toEqual({ workspaceId });
+      // Event observers see committed permissions, including inherited access.
+      expect((await api(guestId, 'GET', `/pages/${child.id}`)).json.role).toBe('viewer');
+      expect((await api(guestId, 'GET', `/pages/${child.id}/versions`)).status).toBe(403);
+      expect((await api(guestId, 'GET', `/pages/${child.id}/activity`)).status).toBe(403);
+
+      const restored = hear(guest, 'workspace:changed');
+      expect(
+        (await api('ann', 'PUT', `/pages/${grantId}/permissions/${guestId}`, { role: 'editor' }))
+          .status,
+      ).toBe(200);
+      expect(await restored).toEqual({ workspaceId });
+      const removed = hear(guest, 'workspace:changed');
+      expect((await api('ann', 'DELETE', `/pages/${grantId}/permissions/${guestId}`)).status).toBe(
+        200,
+      );
+      expect(await removed).toEqual({ workspaceId });
+      expect((await api(guestId, 'GET', `/pages/${child.id}`)).status).toBe(403);
+      expect((await api(guestId, 'GET', `/pages/${child.id}/versions`)).status).toBe(403);
+      expect(leaked).not.toHaveBeenCalled();
+
+      const spurious = vi.fn();
+      guest.on('workspace:changed', spurious);
+      expect(
+        (await api(guestId, 'PUT', `/pages/${grantId}/permissions/ann`, { role: 'editor' })).status,
+      ).toBe(403);
+      expect((await api('ann', 'DELETE', `/pages/${grantId}/permissions/${guestId}`)).status).toBe(
+        404,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 220));
+      expect(spurious).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe('database rooms', () => {

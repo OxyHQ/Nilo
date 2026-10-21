@@ -58,12 +58,15 @@ export class OfflinePages {
   }
 
   /** One change at a time: the index is read, changed and written whole. */
-  private serial<T>(work: (files: OfflineFiles) => Promise<T>): Promise<T | null> {
+  private serial<T>(
+    work: (files: OfflineFiles) => Promise<T>,
+    reportFailure = false,
+  ): Promise<T | null> {
     const files = this.files;
     if (!files) return Promise.resolve(null);
     const run = this.queue.then(() => work(files));
     this.queue = run.catch(() => undefined);
-    return run.catch(() => null);
+    return reportFailure ? run : run.catch(() => null);
   }
 
   private async readIndex(files: OfflineFiles): Promise<Index> {
@@ -183,6 +186,24 @@ export class OfflinePages {
       delete index.pages[pageId];
       await this.writeIndex(files, index);
     });
+  }
+
+  /**
+   * Remove download choices, retaining unsent work and the base of open editors.
+   * An open editor releases its clean document when its last session closes.
+   * The session owner coordinates removal with editors opening concurrently.
+   * The store's `remove` retains dirty documents; no separate dirty check.
+   */
+  async removeDownloads(
+    removeClosedDocument: (pageId: string, store: PageDocStore | null) => Promise<void>,
+  ): Promise<void> {
+    await this.serial(async (files) => {
+      const index = await this.readIndex(files);
+      for (const pageId of Object.keys(index.pages)) {
+        await removeClosedDocument(pageId, this.docs);
+      }
+      await this.writeIndex(files, { pages: {} });
+    }, true);
   }
 
   /** Forget every page kept on this device, and every document stored. */

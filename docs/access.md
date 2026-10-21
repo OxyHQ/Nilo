@@ -10,6 +10,11 @@ Members get a workspace role. A page can also be shared with a person
 directly (`page_permissions`) with any role but `owner`, member or **guest**
 (not a member of the workspace). A grant covers the page and its subtree.
 
+Reading the current page requires `viewer`; listing, previewing or restoring
+its saved versions requires effective `editor` access. Creation/edit metadata
+remains visible to readers. See [content history](collaboration.md) for the
+version lifecycle and client revocation behavior.
+
 ## The personal workspace
 
 Every user has exactly one personal workspace (`workspaces.is_personal`,

@@ -1,4 +1,4 @@
-import { Platform, ScrollView, View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { Link, useLocalSearchParams } from 'expo-router';
 import Head from 'expo-router/head';
 import axios from 'axios';
@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@oxy.so/bloom/button';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
+import { Screen, ScreenScrollView } from '@oxy.so/bloom/screen';
 import { CoverDisplay } from '@/components/page-chrome/cover-display';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -28,7 +29,8 @@ export default function PublicSitePage() {
     ? data.page.title || t('pages.untitled')
     : t(missing ? 'pages.publish.notFound' : 'pages.publish.title');
   return (
-    <View
+    <Screen
+      scroll="auto"
       className="flex-1 bg-background"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
@@ -58,14 +60,12 @@ export default function PublicSitePage() {
           ) : null}
         </View>
       ) : (
-        <ScrollView contentContainerClassName="pb-12">
-          <View className={cn('w-full mx-auto px-6 md:px-10', !data.page.fullWidth && 'max-w-3xl')}>
-            <CoverDisplay
-              value={data.page.cover}
-              position={data.page.coverPosition}
-              fileScope={{ kind: 'published', slug, pageId: data.page.id }}
-            />
-          </View>
+        <ScreenScrollView contentContainerClassName="pb-12">
+          <CoverDisplay
+            value={data.page.cover}
+            position={data.page.coverPosition}
+            fileScope={{ kind: 'published', slug, pageId: data.page.id }}
+          />
           <View
             className={cn(
               'w-full mx-auto px-6 md:px-10 py-8 gap-5',
@@ -138,8 +138,8 @@ export default function PublicSitePage() {
               </View>
             ) : null}
           </View>
-        </ScrollView>
+        </ScreenScrollView>
       )}
-    </View>
+    </Screen>
   );
 }

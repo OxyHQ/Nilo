@@ -25,7 +25,7 @@ import { registerPageRooms } from './page-rooms.js';
 import { eq } from 'drizzle-orm';
 import { uuidv7 } from '@oxy.so/db';
 
-vi.mock('../socket.js', () => ({ getIO: () => null }));
+vi.mock('../socket.js', () => ({ getIO: () => io }));
 vi.mock('../lib/notification-service.js', () => ({ sendNotification: vi.fn() }));
 import { ensureDefaultTeamspace } from '../repositories/teamspaces.js';
 
@@ -295,6 +295,12 @@ describe('page documents', () => {
     const alice = await editor(aliceSocket);
     const bob = await editor(bobSocket);
 
+    const outsider = await client('projection-outsider');
+    expect((await join(outsider, pageId)).ok).toBe(false);
+    const privateEvent = vi.fn();
+    outsider.on('page:projected', privateEvent);
+    const authorProjected = next<{ pageId: string }>(aliceSocket, 'page:projected');
+    const viewerProjected = next<{ pageId: string }>(bobSocket, 'page:projected');
     const arrived = next(bobSocket, 'doc:update');
     alice.store.dispatch(
       insertBlockAfter(alice.store.context(), null, 'paragraph', { text: [{ text: 'Hola' }] }),
@@ -316,6 +322,9 @@ describe('page documents', () => {
     expect(rows.map((r) => (r.content as { text?: string }).text)).toEqual(['Hola']);
     const [page] = await db.select().from(pagesTable).where(eq(pagesTable.id, pageId));
     expect(page?.lastEditedBy).toBe('alice');
+    expect(await authorProjected).toEqual({ pageId });
+    expect(await viewerProjected).toEqual({ pageId });
+    expect(privateEvent).not.toHaveBeenCalled();
   });
 
   it("answers a change over Socket.IO's 1 MB default, and refuses one over the limit", async () => {

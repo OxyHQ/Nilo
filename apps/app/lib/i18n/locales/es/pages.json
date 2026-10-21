@@ -8,6 +8,11 @@
   "expand": "Expandir",
   "comments": {
     "open": "Abrir comentarios",
+    "openCount": {
+      "zero": "Abrir comentarios",
+      "one": "Abrir comentarios (1 conversación sin resolver)",
+      "other": "Abrir comentarios (%{count} conversaciones sin resolver)"
+    },
     "label": "Comentarios"
   },
   "database": {
@@ -44,7 +49,8 @@
     "restored": "Página restaurada",
     "restoreFailed": "No se pudo restaurar",
     "deletedPermanently": "Página eliminada definitivamente",
-    "deleteFailed": "No se pudo eliminar la página"
+    "deleteFailed": "No se pudo eliminar la página",
+    "copyLinkFailed": "No se pudo copiar el enlace."
   },
   "deleteDialog": {
     "title": "¿Eliminar definitivamente?",
@@ -68,7 +74,9 @@
     "changeCover": "Cambiar portada",
     "changeIcon": "Cambiar icono",
     "addIcon": "Añadir icono",
-    "addCover": "Añadir portada"
+    "addCover": "Añadir portada",
+    "rename": "Nombre e icono",
+    "renameFailed": "No se pudo guardar el nombre. Tu borrador sigue aquí; inténtalo de nuevo."
   },
   "moveDialog": {
     "title": "Mover página",
@@ -223,18 +231,28 @@
     "subpages": "Subpáginas"
   },
   "history": {
-    "title": "Historial de la página",
+    "title": "Historial de versiones",
     "description": "Las versiones anteriores se guardan automáticamente tras periodos de inactividad y antes de restaurar.",
     "empty": "Todavía no hay versiones anteriores.",
     "loadFailed": "No se pudo cargar el historial de la página.",
-    "entry": "%{time} · %{name} · %{count} bloques",
+    "entry": {
+      "one": "%{time} · %{name} · %{count} bloque",
+      "other": "%{time} · %{name} · %{count} bloques"
+    },
     "preview": "Vista previa de la versión",
     "restore": "Restaurar esta versión",
     "noPermission": "Se necesita acceso de edición para restaurar una versión.",
     "confirmTitle": "¿Restaurar esta versión?",
-    "confirmBody": "Se reemplazarán los bloques actuales. El estado actual se guardará como otra versión.",
+    "confirmBody": "El texto y los bloques actuales se reemplazarán por esta versión guardada. Las propiedades, el icono, la portada y las conversaciones no cambiarán. El contenido actual se guardará como otra versión para que puedas volver a restaurarlo.",
     "restored": "Versión restaurada",
-    "restoreFailed": "No se pudo restaurar esta versión. Comprueba tu acceso e inténtalo de nuevo."
+    "restoreFailed": "No se pudo restaurar esta versión. Comprueba tu acceso e inténtalo de nuevo.",
+    "restoreScope": "Qué se restaurará",
+    "cancelRestore": "Cancelar restauración",
+    "beginRestore": "Iniciar restauración",
+    "close": "Cerrar historial de versiones",
+    "back": "Volver a las versiones",
+    "unknownDate": "Fecha desconocida",
+    "contentOnly": "Contenido guardado de la página. Esta versión no incluye propiedades, icono, portada ni conversaciones."
   },
   "reminders": {
     "title": "Recordarme…",
@@ -328,7 +346,7 @@
     "banner": "Esta página está bloqueada.",
     "unlock": "Desbloquear"
   },
-  "title": "Título de la página",
+  "title": "Título",
   "offline": {
     "available": "Disponible sin conexión",
     "hint": "Guarda esta página en este dispositivo para leerla y editarla sin conexión."
@@ -344,5 +362,58 @@
     "uploading": "Subiendo…",
     "failed": "No se pudo subir la imagen.",
     "tooLarge": "Esta imagen es demasiado grande."
+  },
+  "activity": {
+    "title": "Actividad",
+    "open": "Abrir actividad de la página",
+    "close": "Cerrar actividad",
+    "editedBy": "Editado por %{name}",
+    "createdBy": "Creado por %{name}",
+    "savedBy": "Versión guardada por %{name}",
+    "versionDetails": {
+      "one": "%{time} · %{count} bloque",
+      "other": "%{time} · %{count} bloques"
+    },
+    "versionHint": "Versiones guardadas del contenido. Elige una para verla o restaurarla.",
+    "updates": "Actualizaciones",
+    "you": "Tú",
+    "unattributed": "Autor desconocido",
+    "created": "creó",
+    "edited": "editó",
+    "contentEdited": "Actualizó el contenido de la página.",
+    "empty": "Los cambios de esta página aparecerán aquí.",
+    "loadFailed": "No se pudieron cargar las actualizaciones.",
+    "restricted": "Necesitas permiso de edición para ver las actualizaciones de la página.",
+    "more": "Más actualizaciones",
+    "before": "Valor anterior",
+    "after": "Valor nuevo",
+    "emptyValue": "Vacío",
+    "enabled": "Activado",
+    "disabled": "Desactivado",
+    "changedValue": "Modificado",
+    "fields": {
+      "title": "Título de la página",
+      "icon": "Icono de la página",
+      "cover": "Portada",
+      "coverPosition": "Posición de portada",
+      "parentId": "Ubicación de la página",
+      "teamspaceId": "Espacio de equipo",
+      "archived": "En la papelera",
+      "template": "Plantilla",
+      "fullWidth": "Ancho completo",
+      "smallText": "Texto pequeño",
+      "font": "Fuente",
+      "mode": "Tipo de página",
+      "locked": "Bloqueo de página",
+      "properties": "Propiedad"
+    }
+  },
+  "navigation": {
+    "neighbors": "Otras páginas",
+    "neighborsIn": "Otras páginas en %{name}",
+    "more": "Más páginas",
+    "retry": "No se pudieron cargar las páginas. Reintentar",
+    "empty": "No hay otras páginas",
+    "current": "%{name}, página actual"
   }
 }

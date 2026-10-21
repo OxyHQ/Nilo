@@ -141,7 +141,7 @@
     "loadMore": "Load more",
     "moveTo": "Move to",
     "moveCard": "Move %{title} to another column",
-    "longPressHint": "Long press to move it to another column",
+    "dragCard": "Drag %{title} to another column",
     "checked": "Checked",
     "unchecked": "Unchecked"
   },
@@ -395,6 +395,8 @@
     "failed": "Could not create the row. Try again."
   },
   "rows": {
+    "saveFailed": "Could not save the page. Please try again.",
+    "createFailed": "Could not create the page. Please try again.",
     "total": "%{count} rows"
   },
   "system": {
@@ -521,6 +523,12 @@
       "apply": "Apply ranges",
       "reset": "Fit to the numbers",
       "invalid": "From must be below To, in at most %{count} ranges."
+    },
+    "cardSize": "Card size",
+    "cardSizes": {
+      "small": "Small",
+      "medium": "Medium",
+      "large": "Large"
     }
   },
   "options": {

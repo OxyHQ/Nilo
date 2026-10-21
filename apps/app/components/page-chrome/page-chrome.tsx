@@ -3,29 +3,38 @@ import { cn } from '@/lib/utils';
 import { toast } from '@oxy.so/bloom/toast';
 import { PageInfo } from './page-info';
 import * as React from 'react';
-import { Platform, Pressable, TextInput, View, type GestureResponderEvent } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { RiGlobalLine } from '@oxy.so/bloom/icons/RiGlobalLine';
 import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
 import { RiLockLine } from '@oxy.so/bloom/icons/RiLockLine';
-import { RiDragMove2Line } from '@oxy.so/bloom/icons/RiDragMove2Line';
 import { RiEmotionHappyLine } from '@oxy.so/bloom/icons/RiEmotionHappyLine';
 import { Badge } from '@oxy.so/bloom/badge';
 import { Button } from '@oxy.so/bloom/button';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
 import { Text } from '@oxy.so/bloom/typography';
+import {
+  PageHeader as ScreenHeader,
+  PageHeaderTitleInput,
+  type PageHeaderProps,
+} from '@oxy.so/bloom/page-header';
+import { Screen, type ScreenProps } from '@oxy.so/bloom/screen';
+import { AppShellPanels, type AppShellPanelDefinition } from '@oxy.so/bloom/app-shell';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
 import type { Page } from '@/lib/types/pages';
 import { Breadcrumb } from './breadcrumb';
-import { CoverDisplay } from './cover-display';
+import { CoverHeader } from '@oxy.so/bloom/cover-header';
+import { useCoverMedia } from './use-cover-media';
 import { CoverPicker } from './cover-picker';
 import { FavoriteButton } from './favorite-button';
+import { CopyPageLinkButton } from '@/components/sharing/copy-page-link-button';
 import { IconDisplay } from './icon-display';
 import { IconPicker } from './icon-picker';
 import { useRouter } from 'expo-router';
 import { usePageEditorContext } from '@/components/page-editor/page-editor-context';
 import { PageActionsMenu } from './page-actions-menu';
+import { PageActivity } from './page-activity';
 
 interface PageChromeProps {
   page: Page;
@@ -34,36 +43,39 @@ interface PageChromeProps {
   /** Editor (or any body content) rendered below the page header. */
   children?: React.ReactNode;
   /** Right-side header content (ShareButton lives here in the page route). */
-  rightHeader?: React.ReactNode;
+  rightHeader?: PageHeaderProps['actions'];
+  bottomBar?: React.ReactNode;
+  /** Page discussions and activity share the document header and compositor Surface. */
+  panels?: readonly AppShellPanelDefinition[];
+  scroll?: ScreenProps['scroll'];
+  onOpenActivity?: () => void;
 }
 
 interface PageChromeState {
   openIconPicker: () => void;
   openCoverPicker: () => void;
-  setRepositioning: (next: boolean | ((prev: boolean) => boolean)) => void;
 }
 const StateContext = React.createContext<PageChromeState | null>(null);
 
 /**
- * Page-level chrome.
- *
- * Layers:
- *   1. Sticky top bar — breadcrumb + favorite + actions.
- *   2. Children — the page route renders its own ScrollView containing the
- *      `PageHeader` component (cover + icon + title) and the editor. That
- *      keeps the cover/title scrolling with the content, while the top bar
- *      stays pinned.
- *
- * The icon and cover pickers are mounted here as portals — the children
- * can open them via `usePageChrome()`.
+ * Domain actions and pickers composed into Bloom's Screen and PageHeader.
+ * Screen owns chrome, scrolling and the editor toolbar's keyboard behavior.
  */
-export function PageChrome({ page, children, rightHeader, readOnly = false }: PageChromeProps) {
+export function PageChrome({
+  page,
+  children,
+  rightHeader,
+  bottomBar,
+  panels,
+  scroll = 'auto',
+  readOnly = false,
+  onOpenActivity,
+}: PageChromeProps) {
   const { t } = useTranslation();
   const { colors } = useColorScheme();
   const updatePage = useUpdatePage();
   const iconPicker = useDialogControl();
   const coverPicker = useDialogControl();
-  const [repositioning, setRepositioning] = React.useState(false);
   // A locked page, or one in the trash, keeps its icon and cover as they are.
   const { readOnly: contentReadOnly } = usePageEditorContext();
 
@@ -86,49 +98,81 @@ export function PageChrome({ page, children, rightHeader, readOnly = false }: Pa
     () => ({
       openIconPicker: () => iconPicker.open(),
       openCoverPicker: () => coverPicker.open(),
-      setRepositioning,
     }),
     [iconPicker, coverPicker],
   );
 
+  const header = (
+    <ScreenHeader
+      presentation="navigation"
+      border="none"
+      safeArea={false}
+      title={
+        <Breadcrumb
+          currentPage={page}
+          onRename={
+            !contentReadOnly ? (title) => updatePage.mutateAsync({ id: page.id, title }) : undefined
+          }
+          onChooseIcon={!contentReadOnly ? () => iconPicker.open() : undefined}
+        />
+      }
+      actions={(state) => (
+        <>
+          {state.spacious && onOpenActivity ? (
+            <PageActivity page={page} onOpen={onOpenActivity} />
+          ) : null}
+          {page.publishedAt ? (
+            <View accessible accessibilityLabel={t('pages.publish.published')} className="px-1">
+              <RiGlobalLine width={14} height={14} fill={colors.mutedForeground} />
+            </View>
+          ) : null}
+          {typeof rightHeader === 'function' ? rightHeader(state) : rightHeader}
+          {!state.compact ? <CopyPageLinkButton pageId={page.id} /> : null}
+          {!state.compact && !page.archived ? (
+            <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
+          ) : null}
+          <PageActionsMenu page={page} readOnly={readOnly} onOpenActivity={onOpenActivity} />
+        </>
+      )}
+    />
+  );
+  const document = (
+    <Screen
+      scroll={scroll}
+      contentClearance={48}
+      bottomBar={bottomBar}
+      bottomBarKeyboardBehavior="follow"
+      header={panels ? undefined : header}
+    >
+      {children}
+    </Screen>
+  );
+
   return (
     <StateContext.Provider value={stateValue}>
-      <View className="flex-1 bg-background">
-        {/* Sticky top bar (always visible above the scroll). */}
-        <View className="h-12 flex-row items-center justify-between border-b border-border/30 px-4 md:px-6">
-          <View className="flex-1 min-w-0">
-            <Breadcrumb pageId={page.id} workspaceId={page.workspaceId} />
-          </View>
-          <View className="flex-row items-center gap-1">
-            {!page.archived ? (
-              <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
-            ) : null}
-            {page.publishedAt ? (
-              <View accessible accessibilityLabel={t('pages.publish.published')} className="px-1">
-                <RiGlobalLine width={14} height={14} fill={colors.mutedForeground} />
-              </View>
-            ) : null}
-            {rightHeader}
-            <PageActionsMenu page={page} readOnly={readOnly} />
-          </View>
-        </View>
-
-        <RepositioningContext.Provider value={repositioning}>
-          {children}
-        </RepositioningContext.Provider>
-
-        {!contentReadOnly ? (
-          <>
-            <IconPicker control={iconPicker} pageId={page.id} onSelect={handleIconSelect} />
-            <CoverPicker control={coverPicker} pageId={page.id} onSelect={handleCoverSelect} />
-          </>
-        ) : null}
-      </View>
+      {panels ? (
+        <AppShellPanels
+          layout={{
+            mode: 'split',
+            flow: 'bounded',
+            appearance: 'joined',
+            header,
+            activePanel: 'document',
+            panels: [{ id: 'document', span: 1, content: document }, ...panels],
+          }}
+        />
+      ) : (
+        document
+      )}
+      {!contentReadOnly ? (
+        <>
+          <IconPicker control={iconPicker} pageId={page.id} onSelect={handleIconSelect} />
+          <CoverPicker control={coverPicker} pageId={page.id} onSelect={handleCoverSelect} />
+        </>
+      ) : null}
     </StateContext.Provider>
   );
 }
-
-const RepositioningContext = React.createContext<boolean>(false);
 
 /**
  * `PageHeader` — cover + icon + title. Designed to live INSIDE the route's
@@ -141,7 +185,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
   const { t } = useTranslation();
   const { colors } = useColorScheme();
   const state = React.useContext(StateContext);
-  const repositioning = React.useContext(RepositioningContext);
+  const media = useCoverMedia(page.cover, page.id);
   const updatePage = useUpdatePage();
   const [titleDraft, setTitleDraft] = React.useState<string | null>(null);
 
@@ -167,42 +211,34 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
   }, [contentReadOnly, titleDraft, page.title, page.id, updatePage]);
 
   const handleCommitReposition = React.useCallback(
-    (nextPosition: number) => {
+    async (nextPosition: number) => {
       if (contentReadOnly) return;
       const clamped = Math.min(100, Math.max(0, Math.round(nextPosition)));
       if (clamped === (page.coverPosition ?? 50)) return;
-      updatePage.mutate({ id: page.id, coverPosition: clamped });
+      await updatePage.mutateAsync({ id: page.id, coverPosition: clamped });
     },
     [contentReadOnly, page.id, page.coverPosition, updatePage],
   );
 
   return (
-    <View>
-      <View className={cn('px-6 md:px-10 w-full mx-auto', !page.fullWidth && 'max-w-3xl')}>
-        {contentReadOnly ? (
-          page.cover ? (
-            <CoverDisplay
-              value={page.cover}
-              position={page.coverPosition ?? 50}
-              height={192}
-              pageId={page.id}
-            />
-          ) : null
-        ) : (
-          <CoverArea
-            pageId={page.id}
-            cover={page.cover ?? null}
-            position={page.coverPosition ?? 50}
-            onOpenPicker={() => state?.openCoverPicker()}
-            repositioning={repositioning}
-            onToggleReposition={() => state?.setRepositioning((v) => !v)}
-            onCommitPosition={handleCommitReposition}
-          />
-        )}
-      </View>
+    <CoverHeader
+      key={page.id}
+      coverSource={media.coverSource}
+      cover={media.cover}
+      coverPosition={{ x: 0.5, y: (page.coverPosition ?? 50) / 100 }}
+      coverHeight={media.hasCover ? 280 : 0}
+      overlap={media.hasCover && page.icon ? 32 : 0}
+      repositionable={!contentReadOnly}
+      repositionAxes="vertical"
+      onCoverPositionCommit={({ y }) => handleCommitReposition(y * 100)}
+      onChangeCover={
+        !contentReadOnly && media.hasCover ? () => state?.openCoverPicker() : undefined
+      }
+      testID="page-cover"
+    >
       <View
         className={cn('px-6 md:px-10 w-full mx-auto', !page.fullWidth && 'max-w-3xl')}
-        style={{ marginTop: page.cover ? -32 : 24 }}
+        style={{ paddingTop: media.hasCover && page.icon ? 0 : 24 }}
       >
         {contentReadOnly ? (
           page.icon ? (
@@ -293,103 +329,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
         ) : null}
         <PageInfo page={page} />
       </View>
-    </View>
-  );
-}
-
-/* ---------------------------------------------------------------- *
- * Cover area
- * ---------------------------------------------------------------- */
-
-interface CoverAreaProps {
-  pageId: string;
-  cover: string | null;
-  position: number;
-  onOpenPicker: () => void;
-  repositioning: boolean;
-  onToggleReposition: () => void;
-  onCommitPosition: (next: number) => void;
-}
-function CoverArea({
-  pageId,
-  cover,
-  position,
-  onOpenPicker,
-  repositioning,
-  onToggleReposition,
-  onCommitPosition,
-}: CoverAreaProps) {
-  const { t } = useTranslation();
-  const [localPosition, setLocalPosition] = React.useState<number | null>(null);
-  const startY = React.useRef<number | null>(null);
-  const startPos = React.useRef<number>(position);
-
-  const effectivePosition = localPosition ?? position;
-
-  const handleStart = React.useCallback(
-    (e: GestureResponderEvent) => {
-      if (!repositioning) return;
-      startY.current = e.nativeEvent.pageY;
-      startPos.current = effectivePosition;
-    },
-    [repositioning, effectivePosition],
-  );
-  const handleMove = React.useCallback(
-    (e: GestureResponderEvent) => {
-      if (!repositioning || startY.current === null) return;
-      const delta = e.nativeEvent.pageY - startY.current;
-      // 200px cover height → roughly 100% range. ~2px per percent.
-      const next = startPos.current + delta / 2;
-      setLocalPosition(Math.min(100, Math.max(0, next)));
-    },
-    [repositioning],
-  );
-  const handleEnd = React.useCallback(() => {
-    if (!repositioning) return;
-    if (localPosition !== null) onCommitPosition(localPosition);
-    setLocalPosition(null);
-    startY.current = null;
-    onToggleReposition();
-  }, [repositioning, localPosition, onCommitPosition, onToggleReposition]);
-
-  if (!cover) return <View className="h-2" />;
-
-  return (
-    <View className="relative">
-      <View
-        onStartShouldSetResponder={() => repositioning}
-        onMoveShouldSetResponder={() => repositioning}
-        onResponderGrant={handleStart}
-        onResponderMove={handleMove}
-        onResponderRelease={handleEnd}
-        onResponderTerminate={handleEnd}
-        accessibilityLabel={t('pages.header.cover')}
-      >
-        <CoverDisplay value={cover} position={effectivePosition} height={192} pageId={pageId} />
-      </View>
-      <View className="absolute right-3 top-3 flex-row gap-2">
-        <Button
-          appearance={repositioning ? 'solid' : 'subtle'}
-          tone={repositioning ? 'accent' : 'neutral'}
-          size="sm"
-          onPress={onToggleReposition}
-          accessibilityLabel={t('pages.header.repositionCover')}
-          leadingIcon={RiDragMove2Line}
-        >
-          {repositioning ? t('pages.header.savePosition') : t('pages.header.reposition')}
-        </Button>
-        <Button
-          appearance="subtle"
-          tone="neutral"
-          size="sm"
-          onPress={onOpenPicker}
-          accessibilityLabel={t('pages.header.changeCover')}
-          leadingIcon={RiImageLine}
-        >
-          {t('pages.header.changeCover')}
-        </Button>
-      </View>
-    </View>
+    </CoverHeader>
   );
 }
 
@@ -478,24 +418,17 @@ interface TitleInputProps {
   style: { fontFamily: string; fontSize: number; lineHeight: number };
 }
 function TitleInput({ value, onChangeText, onBlur, style }: TitleInputProps) {
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
   return (
-    <TextInput
+    <PageHeaderTitleInput
       value={value}
       onChangeText={onChangeText}
       onBlur={onBlur}
-      accessibilityLabel={t('pages.title')}
+      label={t('pages.title')}
       placeholder={t('pages.untitled')}
-      placeholderTextColor={colors.mutedForeground}
-      className="text-4xl font-bold text-foreground"
       multiline
       scrollEnabled={false}
-      style={[
-        style,
-        Platform.OS === 'web' ? { outlineWidth: 0, borderWidth: 0, padding: 0 } : undefined,
-      ]}
-      underlineColorAndroid="transparent"
+      style={style}
     />
   );
 }

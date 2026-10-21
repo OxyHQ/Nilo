@@ -33,6 +33,8 @@ import type { z } from 'zod';
 import * as Y from 'yjs';
 import type { segmentSchema } from '@oxy.so/nilo-contracts';
 import { announceChange } from '../collab/live-rooms.js';
+import { pageRoom } from '../collab/page-rooms.js';
+import { getIO } from '../socket.js';
 import { getDb, type PgHandle } from '../db/client.js';
 import { isSystemDatabase } from './databases/system.js';
 import {
@@ -54,6 +56,7 @@ import {
 import { follow, listFollowers } from '../repositories/pageFollows.js';
 import { bumpBlocksVersion, findPageById, lockPage } from '../repositories/pages.js';
 import { snapshotPage } from '../repositories/pageVersions.js';
+import { recordPageActivity } from '../repositories/pageActivity.js';
 import { log } from './logger.js';
 import { sendNotification } from './notification-service.js';
 import { resolvePageAccess } from './page-access.js';
@@ -196,6 +199,7 @@ export async function projectPage(db: PgHandle, pageId: string): Promise<void> {
     }
     await deleteBlocksOfPage(tx, pageId, removed);
     await bumpBlocksVersion(tx, pageId, people[people.length - 1]);
+    await recordPageActivity(tx, { pageId, actorIds: people, kind: 'content_edited' });
     // Whoever edits a page follows it (a no-op when they already do).
     for (const userId of new Set(people)) await follow(tx, pageId, userId);
 
@@ -205,6 +209,10 @@ export async function projectPage(db: PgHandle, pageId: string): Promise<void> {
       .map(([userId, at]) => ({ userId, ...at }));
   });
   if (!changed) return;
+  // Projection (including metadata and history) is committed. Tell every reader,
+  // including the editing socket; doc:update's acknowledgement precedes this.
+  // This authorized room carries only an invalidation ID, never page content.
+  getIO()?.to(pageRoom(pageId)).emit('page:projected', { pageId });
   const page = await findPageById(db, pageId);
   if (!page) return;
   // An app syncing a system database (Noted's notes) hears a body edit as a

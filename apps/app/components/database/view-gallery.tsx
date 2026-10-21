@@ -1,17 +1,18 @@
-import { RowsScrollView } from './rows-scroll-view';
-import { CoverDisplay } from '@/components/page-chrome/cover-display';
+import { ScreenScrollView } from '@oxy.so/bloom/screen';
 import * as React from 'react';
-import { Image, Pressable, View } from 'react-native';
-import { RiImageLine } from '@oxy.so/bloom/icons/RiImageLine';
+import { View } from 'react-native';
+import { Card } from '@oxy.so/bloom/card';
+import { ResponsiveGrid } from '@oxy.so/bloom/grid';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
+import { toast } from '@oxy.so/bloom/toast';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type { Database, DatabaseRow, DatabaseView, RowGroup } from '@/lib/types/databases';
-import { useCreateRow } from '@/lib/hooks/use-database-rows';
+import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { groupTakesRows, type RowSection } from '@/lib/view-groups';
-import { orderedProperties } from '@/lib/view-properties';
+import { CardPreview, cardProperties, cardWidth } from './card-layout';
 import { GroupHeader, useGroupedSections } from './group-header';
 import { useGroupLabel } from './group-label';
 import { useOpenRow } from './open-row';
@@ -32,11 +33,9 @@ interface ViewGalleryProps {
   viewEditable?: boolean;
 }
 
-const CARD_WIDTH = 240;
-
 /**
  * Gallery view — grid of cards. Each card shows the row's cover (or a
- * configured file property), title, and a few preview properties. Grouped
+ * configured file property), title, and the view's visible properties. Grouped
  * (`groupBy`), the cards come in collapsible sections, one per group with
  * its count, as a table's rows do, and a card added in one gets its value.
  */
@@ -55,6 +54,7 @@ export function ViewGallery({
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const createRow = useCreateRow();
+  const updateRow = useUpdateRow();
   const { grouping, sections, isCollapsed, headerProps, newRowIn } = useGroupedSections(
     database,
     view,
@@ -72,9 +72,7 @@ export function ViewGallery({
 
   // In the view's own order.
   const visibleProperties = React.useMemo(() => {
-    return orderedProperties(database, view).filter(
-      (p) => !view.hiddenProperties.includes(p.id) && p.id !== 'name',
-    );
+    return cardProperties(database, view);
   }, [database, view]);
 
   if (isLoading) {
@@ -90,42 +88,23 @@ export function ViewGallery({
     createRow.mutate(group ? newRowIn(group) : { databaseId: database.id });
 
   const renderCards = (list: DatabaseRow[], group?: RowSection) => (
-    <View className="flex-row flex-wrap gap-3 p-3">
+    <ResponsiveGrid minItemWidth={cardWidth(view)} maxColumns={6} gap={12} style={{ padding: 12 }}>
       {list.map((row) => {
-        const cover = readCover(row, view, database);
         return (
-          <Pressable
+          <Card
             key={row.id}
             accessibilityRole="link"
             accessibilityLabel={row.title || t('databases.untitled')}
             onPress={() => openRow(row.id)}
-            className="bg-card border border-border rounded-xl overflow-hidden"
-            style={{ width: CARD_WIDTH }}
+            clipContent
           >
-            {view.config.coverSource === 'none' ? null : (
-              <View className="h-32 bg-muted items-center justify-center overflow-hidden">
-                {cover?.kind === 'page' ? (
-                  <View className="w-full">
-                    <CoverDisplay value={cover.value} height={128} />
-                  </View>
-                ) : cover ? (
-                  <Image
-                    source={{ uri: cover.url }}
-                    style={{ width: '100%', height: '100%' }}
-                    resizeMode={view.config.fit === 'contain' ? 'contain' : 'cover'}
-                    accessible={false}
-                  />
-                ) : (
-                  <RiImageLine size="lg" fill={colors.mutedForeground} />
-                )}
-              </View>
-            )}
+            <CardPreview row={row} view={view} database={database} />
             <View className="p-3 gap-1">
               <Text variant="body-medium" numberOfLines={2}>
                 {row.title || t('databases.untitled')}
               </Text>
               <View className="gap-1">
-                {visibleProperties.slice(0, 3).map((property) => (
+                {visibleProperties.map((property) => (
                   <View key={property.id} className="flex-row items-center gap-2">
                     <PropertyCell
                       readOnly={readOnly}
@@ -133,18 +112,28 @@ export function ViewGallery({
                       value={row.properties[property.id] ?? null}
                       variant="card"
                       rowId={row.id}
-                      onChange={() => openRow(row.id)}
+                      onChange={(value) => {
+                        if (readOnly) return;
+                        updateRow.mutate(
+                          {
+                            databaseId: database.id,
+                            rowId: row.id,
+                            properties: { [property.id]: value },
+                          },
+                          { onError: () => toast.error(t('databases.rows.saveFailed')) },
+                        );
+                      }}
                     />
                   </View>
                 ))}
               </View>
             </View>
-          </Pressable>
+          </Card>
         );
       })}
 
       {!readOnly && (!group || (grouping && groupTakesRows(grouping))) ? (
-        <Pressable
+        <Card
           accessibilityRole="button"
           accessibilityLabel={
             group
@@ -153,20 +142,25 @@ export function ViewGallery({
           }
           disabled={createRow.isPending}
           onPress={() => newCard(group)}
-          className="border border-dashed border-border rounded-xl items-center justify-center"
-          style={{ width: CARD_WIDTH, height: 200 }}
+          appearance="outline"
+          className="items-center justify-center"
+          style={{ minHeight: 200 }}
         >
           <RiAddLine size="md" fill={colors.mutedForeground} />
           <Text className="mt-1 text-sm text-muted-foreground">
             {createRow.isPending ? t('databases.actions.adding') : t('databases.gallery.newCard')}
           </Text>
-        </Pressable>
+        </Card>
       ) : null}
-    </View>
+    </ResponsiveGrid>
   );
 
   return (
-    <RowsScrollView onLoadMore={onLoadMore}>
+    <ScreenScrollView
+      keyboardShouldPersistTaps="handled"
+      onEndReached={onLoadMore}
+      onEndReachedThreshold={1}
+    >
       {sections && grouping
         ? sections.map((section) => {
             const collapsed = isCollapsed(section.key);
@@ -181,39 +175,6 @@ export function ViewGallery({
             );
           })
         : renderCards(rows)}
-    </RowsScrollView>
+    </ScreenScrollView>
   );
-}
-
-function readCover(
-  row: DatabaseRow,
-  view: DatabaseView,
-  database: Database,
-): { kind: 'url'; url: string } | { kind: 'page'; value: string } | null {
-  const source = view.config.coverSource ?? 'pageCover';
-  // A page's cover is stored encoded (a gradient, a colour, an image): shown as its page shows it.
-  if (source === 'pageCover' && row.cover) {
-    return { kind: 'page', value: row.cover };
-  }
-  if (source === 'property' && view.config.coverPropertyId) {
-    const property = database.schema.properties.find((p) => p.id === view.config.coverPropertyId);
-    if (property?.type === 'files') {
-      const value = row.properties[property.id];
-      if (value && typeof value === 'object' && 'files' in value) {
-        const files = value.files;
-        if (Array.isArray(files) && files.length > 0) {
-          const first = files[0];
-          if (
-            first &&
-            typeof first === 'object' &&
-            'url' in first &&
-            typeof first.url === 'string'
-          ) {
-            return { kind: 'url', url: first.url };
-          }
-        }
-      }
-    }
-  }
-  return null;
 }

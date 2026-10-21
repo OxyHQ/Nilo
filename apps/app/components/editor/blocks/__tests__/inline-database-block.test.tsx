@@ -5,7 +5,7 @@ import { BloomTestProviders } from '@/test-support/bloom-providers';
 import apiClient from '@/lib/api/client';
 import { InlineDatabaseBlock } from '../inline-database-block';
 import { DatabaseViewContainer } from '@/components/database/database-view';
-import { ViewTab } from '@/components/database/database-header';
+import { DatabaseViewTabs } from '@/components/database/database-header';
 import type { Block } from '@/lib/types/pages';
 
 const mockPush = jest.fn();
@@ -23,7 +23,10 @@ jest.mock('@/components/page-editor/page-editor-context', () => ({
 jest.mock('@/components/database/database-actions-menu', () => ({
   DatabaseActionsMenu: () => null,
 }));
-jest.mock('@/components/database/database-view', () => ({ DatabaseViewContainer: () => null }));
+jest.mock('@/components/database/database-view', () => ({
+  DatabaseViewContainer: ({ renderHeader }: { renderHeader?: () => React.ReactNode }) =>
+    renderHeader?.() ?? null,
+}));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() },
@@ -91,12 +94,12 @@ it('shows a quiet no-access state when the source returns 403 without loading it
 });
 it('shows the source name and link and allows view editing with read-only source access', async () => {
   await mount();
-  expect(JSON.stringify(renderer.toJSON())).toContain('Source database');
+  expect(renderer.root.findAllByProps({ title: 'Source database' }).length).toBeGreaterThan(0);
   const view = renderer.root.findByType(DatabaseViewContainer);
   expect(view.props.view.id).toBe('linked');
   expect(view.props.readOnly).toBe(true);
   expect(view.props.viewsReadOnly).toBe(false);
-  expect(renderer.root.findByType(ViewTab).props.readOnly).toBe(false);
+  expect(renderer.root.findByType(DatabaseViewTabs).props.readOnly).toBe(false);
   const open = renderer.root.findAllByProps({ accessibilityRole: 'link' })[0];
   act(() => open.props.onPress());
   expect(mockPush).toHaveBeenCalledWith('/db/db');
@@ -107,5 +110,5 @@ it('hides editing controls for page viewers even if the source is editable', asy
   const view = renderer.root.findByType(DatabaseViewContainer);
   expect(view.props.readOnly).toBe(true);
   expect(view.props.viewsReadOnly).toBe(true);
-  expect(renderer.root.findByType(ViewTab).props.readOnly).toBe(true);
+  expect(renderer.root.findByType(DatabaseViewTabs).props.readOnly).toBe(true);
 });

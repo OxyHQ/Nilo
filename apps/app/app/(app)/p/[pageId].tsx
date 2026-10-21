@@ -1,28 +1,26 @@
 import * as React from 'react';
-import { Platform, ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
-import { RiLockLine } from '@oxy.so/bloom/icons/RiLockLine';
 import { RiChat3Line } from '@oxy.so/bloom/icons/RiChat3Line';
 import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
-import { Text } from '@oxy.so/bloom/typography';
-import { IconDisplay } from '@/components/page-chrome/icon-display';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { ScreenScrollView } from '@oxy.so/bloom/screen';
+import type { PageHeaderProps } from '@oxy.so/bloom/page-header';
 import {
   PageEditorProvider,
   PageEditorToolbar,
-  usePageEditorContext,
 } from '@/components/page-editor/page-editor-context';
 import { PageEditor } from '@/components/page-editor/page-editor';
 import { ShareButton } from '@/components/sharing';
 import { CommentPanel } from '@/components/comments/comment-panel';
+import { PageActivityPanel } from '@/components/page-chrome/page-activity';
 import { PageChrome, PageHeader, TrashedPageBanner } from '@/components/page-chrome';
 import { RowPropertiesPanel } from '@/components/database/row-properties-panel';
-import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePage } from '@/lib/hooks/use-pages';
+import { useRouteWorkspace } from '@/lib/hooks/use-route-workspace';
 import { usePageComments } from '@/lib/hooks/use-comments';
 import { useDatabase } from '@/lib/hooks/use-databases';
 import { useTrackRecentPage } from '@/lib/hooks/use-track-recent-page';
@@ -82,9 +80,9 @@ function PageDetail({
   openComments: boolean;
 }) {
   const router = useRouter();
-  const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const { data, isLoading, isError, error } = usePage(pageId);
+  const { data, isLoading, error } = usePage(pageId);
+  useRouteWorkspace(data?.page.workspaceId);
   const { data: commentsData } = usePageComments(pageId, false);
   const role = data?.role;
   useTrackRecentPage(pageId);
@@ -95,9 +93,13 @@ function PageDetail({
     /** The text a new comment is on, when it was asked for on a selection. */
     anchor?: CommentAnchor | null;
   }>({ open: false, focusedBlockId: null });
+  const [activityOpen, setActivityOpen] = React.useState(false);
 
   React.useEffect(() => {
-    if (openComments) setCommentPanel({ open: true, focusedBlockId: blockId ?? null });
+    if (openComments) {
+      setActivityOpen(false);
+      setCommentPanel({ open: true, focusedBlockId: blockId ?? null });
+    }
   }, [openComments, blockId]);
 
   const openCommentCount = React.useMemo(() => {
@@ -107,10 +109,15 @@ function PageDetail({
 
   const handleOpenPanel = React.useCallback(
     (focusedBlockId: string | null = null, anchor: CommentAnchor | null = null) => {
+      setActivityOpen(false);
       setCommentPanel({ open: true, focusedBlockId, anchor });
     },
     [],
   );
+  const openActivity = React.useCallback(() => {
+    setCommentPanel({ open: false, focusedBlockId: null });
+    setActivityOpen(true);
+  }, []);
 
   if (isLoading) {
     return (
@@ -120,7 +127,7 @@ function PageDetail({
     );
   }
 
-  if (isError || !data?.page) {
+  if (!data?.page) {
     const noAccess =
       axios.isAxiosError(error) &&
       error.response?.status === 403 &&
@@ -145,113 +152,120 @@ function PageDetail({
   const page = data.page;
   const canEdit = hasRole(role, 'editor');
   const contentReadOnly = pageContentReadOnly(page, role);
+  const commentsLabel = t('pages.comments.openCount', { count: openCommentCount });
 
-  const rightHeader = (
-    <View className="flex-row items-center gap-2">
-      {page.restricted ? (
-        <View accessible accessibilityLabel={t('pages.restricted')}>
-          <RiLockLine width={14} height={14} fill={colors.mutedForeground} />
-        </View>
-      ) : null}
+  const rightHeader: PageHeaderProps['actions'] = ({ compact }) => (
+    <>
       <Button
-        appearance="subtle"
-        size="sm"
+        appearance="plain"
+        tone="neutral"
+        iconOnly
         onPress={() => handleOpenPanel(null)}
-        accessibilityLabel={t('pages.comments.open')}
+        accessibilityLabel={commentsLabel}
+        title={commentsLabel}
+        aria-expanded={commentPanel.open}
         leadingIcon={RiChat3Line}
-      >
-        {`${openCommentCount > 0 ? openCommentCount : ''} ${t('pages.comments.label')}`.trim()}
-      </Button>
-      <ShareButton pageId={page.id} />
-    </View>
+      />
+      <ShareButton pageId={page.id} compact={compact} restricted={page.restricted} />
+    </>
   );
 
+  const closeComments = () => setCommentPanel({ open: false, focusedBlockId: null });
   return (
     <PageEditorProvider pageId={pageId} readOnly={contentReadOnly}>
-      <PageChrome page={page} readOnly={!canEdit} rightHeader={rightHeader}>
+      <PageChrome
+        panels={[
+          {
+            id: 'comments',
+            width: 360,
+            minWidth: 280,
+            maxWidth: 480,
+            visible: commentPanel.open,
+            floating: {
+              below: 'lg',
+              open: commentPanel.open,
+              onOpenChange: (open) => {
+                if (!open) closeComments();
+              },
+              label: t('comments.panel.title'),
+            },
+            content: (
+              <CommentPanel
+                canComment={hasRole(role, 'commenter')}
+                pageId={page.id}
+                workspaceId={page.workspaceId}
+                open={commentPanel.open}
+                focusedBlockId={commentPanel.focusedBlockId}
+                anchor={commentPanel.anchor ?? null}
+                onAnchorUsed={() => setCommentPanel((panel) => ({ ...panel, anchor: null }))}
+                onClose={closeComments}
+              />
+            ),
+          },
+          {
+            id: 'activity',
+            width: 384,
+            minWidth: 280,
+            maxWidth: 480,
+            visible: activityOpen,
+            floating: {
+              below: 'lg',
+              open: activityOpen,
+              onOpenChange: setActivityOpen,
+              label: t('pages.activity.title'),
+            },
+            content: (
+              <PageActivityPanel
+                page={page}
+                open={activityOpen}
+                onClose={() => setActivityOpen(false)}
+              />
+            ),
+          },
+        ]}
+        page={page}
+        readOnly={!canEdit}
+        rightHeader={rightHeader}
+        onOpenActivity={openActivity}
+        scroll={page.mode === 'canvas' ? 'none' : 'auto'}
+        bottomBar={<PageEditorToolbar />}
+      >
         {page.archived ? <TrashedPageBanner page={page} canEdit={canEdit} /> : null}
-        <View className="flex-1 flex-row">
-          {page.mode === 'canvas' ? (
-            // A canvas fills the page: notes are placed on it, not scrolled through.
-            <View className="flex-1">
-              <View className="flex-row items-center gap-2 border-b border-border px-4 py-2">
-                <IconDisplay value={page.icon} size={18} pageId={page.id} />
-                <Text variant="headline-semibold" numberOfLines={1}>
-                  {page.title || t('pages.untitled')}
-                </Text>
+        {page.mode === 'canvas' ? (
+          // A canvas fills the page: notes are placed on it, not scrolled through.
+          <View className="flex-1">
+            {page.databaseId ? (
+              // A database row keeps its properties above its canvas.
+              <View className="border-b border-border px-4 py-2">
+                <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
               </View>
-              {page.databaseId ? (
-                // A database row keeps its properties above its canvas.
-                <View className="border-b border-border px-4 py-2">
-                  <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
-                </View>
-              ) : null}
+            ) : null}
+            <PageEditor
+              pageId={page.id}
+              focusedBlockId={blockId}
+              readOnly={contentReadOnly}
+              onOpenBlockComments={handleOpenPanel}
+              layout="canvas"
+            />
+          </View>
+        ) : (
+          <ScreenScrollView keyboardShouldPersistTaps="handled">
+            <PageHeader page={page} readOnly={!canEdit} />
+            <View
+              className={cn('px-6 md:px-10 w-full mx-auto pt-4', !page.fullWidth && 'max-w-3xl')}
+            >
+              <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
               <PageEditor
                 pageId={page.id}
                 focusedBlockId={blockId}
                 readOnly={contentReadOnly}
                 onOpenBlockComments={handleOpenPanel}
-                layout="canvas"
               />
             </View>
-          ) : (
-            <EditorScrollView>
-              <PageHeader page={page} readOnly={!canEdit} />
-              <View
-                className={cn('px-6 md:px-10 w-full mx-auto pt-4', !page.fullWidth && 'max-w-3xl')}
-              >
-                <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
-                <PageEditor
-                  pageId={page.id}
-                  focusedBlockId={blockId}
-                  readOnly={contentReadOnly}
-                  onOpenBlockComments={handleOpenPanel}
-                />
-              </View>
-            </EditorScrollView>
-          )}
-
-          <CommentPanel
-            canComment={hasRole(role, 'commenter')}
-            pageId={page.id}
-            workspaceId={page.workspaceId}
-            open={commentPanel.open}
-            focusedBlockId={commentPanel.focusedBlockId}
-            anchor={commentPanel.anchor ?? null}
-            onAnchorUsed={() => setCommentPanel((panel) => ({ ...panel, anchor: null }))}
-            onClose={() => setCommentPanel({ open: false, focusedBlockId: null })}
-          />
-        </View>
-        <PageEditorToolbar />
+          </ScreenScrollView>
+        )}
       </PageChrome>
     </PageEditorProvider>
-  );
-}
-
-/** The inset follows the toolbar's measured height, including its link form. */
-function EditorScrollView({ children }: { children: React.ReactNode }) {
-  const { toolbarHeight } = usePageEditorContext();
-  if (Platform.OS === 'web') {
-    return (
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="pb-12"
-        keyboardShouldPersistTaps="handled"
-      >
-        {children}
-      </ScrollView>
-    );
-  }
-  return (
-    <KeyboardAwareScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ paddingBottom: 48 + toolbarHeight }}
-      bottomOffset={toolbarHeight}
-      extraKeyboardSpace={toolbarHeight}
-      keyboardShouldPersistTaps="handled"
-    >
-      {children}
-    </KeyboardAwareScrollView>
   );
 }
 

@@ -17,6 +17,10 @@ jest.mock('@/lib/hooks/use-comments', () => ({
   useCreateComment: () => ({ mutateAsync: mockCreate, isPending: false }),
 }));
 jest.mock('@/lib/realtime/use-live-updates', () => ({ useCommentsLive: () => {} }));
+jest.mock('@/lib/hooks/use-member-profiles', () => ({
+  useMemberProfiles: () => ({ data: [] }),
+  profileName: () => null,
+}));
 // The composer is its own component; here, what it submits.
 jest.mock('../comment-composer', () => ({
   CommentComposer: () => null,

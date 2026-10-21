@@ -80,6 +80,12 @@ checks the person may read the page):
 - `doc:update { pageId, update }` → `{ ok }`: one change, from someone who
   may edit the page (checked again every ten seconds per page). Stored, sent
   to everyone else in the room, projected once the burst settles.
+- `page:projected { pageId }`: sent to every reader in the same authorized room,
+  including the author, after a changed projection commits metadata and history.
+  The payload is an invalidation ID only. The client refreshes that page’s
+  metadata and version list, leaving its live document and optimistic metadata
+  mutations alone. A document acknowledgement or incoming update does not imply
+  that projection has finished; neither triggers a guessed-delay refetch.
 
 The Redis adapter carries the room across the API's tasks.
 
@@ -193,11 +199,24 @@ to the device — SQLite on iOS and Android, IndexedDB in a browser. A page is
 `dirty` while it holds a change of the device's the server has not
 confirmed; nothing removes a dirty page but signing out.
 
-What stays once a page is closed: on iOS and Android, the pages kept for
-reading offline (`offline-pages.ts`: pinned, or among the last 20 opened) and
-dirty ones; in a browser, dirty ones only. Pinned pages are brought up to date
+What stays once a page is closed: the pages kept for reading offline
+(`offline-pages.ts`: pinned, or among the last 20 opened) and dirty ones,
+on native devices and browsers with IndexedDB. Pinned pages are brought up to date
 in the background through `POST /pages/:id/doc` (the handshake over HTTP).
 Signing out, or another account signing in, removes every document stored.
+
+Settings' **Remove all downloads** removes download choices and clean closed
+documents through `OfflinePages.removeDownloads`. It preserves unsent document
+updates, including their file references. Open sessions also retain their base
+document so subsequent offline deltas remain recoverable before the editor
+closes. Closing the last session removes its clean copy when no download reason
+remains. The session owner serializes a new opening behind an in-flight
+download removal, so it cannot read a base that is about to be deleted.
+Cancelled openings do not start later; failed removals release that guard and
+report the failure without clearing the download index. Page records used by
+the route remain in the account's separate shell-query cache; removing download
+choices does not clear that cache. The account boundary continues to use
+`clear`, which purges all local documents, including pending work.
 
 Yjs reads `crypto.getRandomValues` the moment it loads: the app installs it
 from `expo-crypto` (`expo-standard-web-crypto`) first thing at its entry, and
@@ -247,6 +266,13 @@ ids only — clients read again through the API — and bursts are coalesced.
 The routes announce a change once their write is done (`announceChange`).
 
 ## Page history
+
+Listing versions, reading a version, and restoring one require the page's
+effective `editor` role or higher. The canonical page-access resolver applies
+direct and inherited grants, teamspace visibility and restrictions; a workspace
+role alone does not bypass a private tree. Viewers and commenters receive 403
+before version metadata or historical blocks are read. The current document
+remains readable under its ordinary page permissions.
 
 Before the first change after ten quiet minutes the projection keeps the
 page's blocks as a version (`page_versions`, newest 200), and a restore keeps

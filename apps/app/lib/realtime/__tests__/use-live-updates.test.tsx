@@ -74,7 +74,7 @@ it('joins once for shared holders, rejoins on every connect, leaves only after t
   expect(releaseSocket).toHaveBeenCalledTimes(3);
   expect([...events.values()].every((listeners) => listeners.size === 0)).toBe(true);
 });
-it('debounces matching ids, refreshes all variants, and never invalidates editor page data', async () => {
+it('refreshes matching workspace metadata and paths without invalidating editor blocks or other workspaces', async () => {
   const keys = [
     ['pages', 'w'],
     ['pages', 'w', 'templates'],
@@ -88,14 +88,24 @@ it('debounces matching ids, refreshes all variants, and never invalidates editor
     ['comments', 'page', 'p', true],
     ['comments', 'page', 'p', false],
     ['comments', 'block', 'b'],
+    ['page', 'p', 'breadcrumb', 'w'],
     ['page', 'p'],
     ['blocks', 'p'],
+    ['page', 'other'],
+    ['page', 'other', 'breadcrumb', 'other'],
     ['pages', 'other'],
     ['database', 'other'],
     ['comments', 'page', 'other', false],
   ];
   for (const key of keys)
-    client.setQueryData(key, key[1] === 'block' ? { comments: [{ pageId: 'p' }] } : {});
+    client.setQueryData(
+      key,
+      key[1] === 'block'
+        ? { comments: [{ pageId: 'p' }] }
+        : key[0] === 'page' && key.length === 2
+          ? { page: { workspaceId: key[1] === 'p' ? 'w' : 'other' } }
+          : {},
+    );
   await mount();
   act(() => jest.runOnlyPendingTimers());
   for (const key of keys) client.setQueryData(key, client.getQueryData(key));
@@ -116,9 +126,13 @@ it('debounces matching ids, refreshes all variants, and never invalidates editor
   });
   expect(invalidate).not.toHaveBeenCalled();
   act(() => jest.advanceTimersByTime(120));
-  expect(invalidate).toHaveBeenCalledTimes(5);
-  for (const key of keys.slice(0, 12)) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
-  for (const key of keys.slice(12)) expect(client.getQueryState(key)?.isInvalidated).toBe(false);
+  expect(invalidate).toHaveBeenCalledTimes(12);
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['page-activity', 'w'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['page-activity'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['breadcrumb-neighbors', 'w'] });
+  expect(invalidate).toHaveBeenCalledWith({ queryKey: ['breadcrumb-neighbors'] });
+  for (const key of keys.slice(0, 14)) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+  for (const key of keys.slice(14)) expect(client.getQueryState(key)?.isInvalidated).toBe(false);
 });
 it('cancels scheduled invalidations and switches room ids', async () => {
   await mount();

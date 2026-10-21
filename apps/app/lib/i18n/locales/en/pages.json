@@ -8,6 +8,11 @@
   "expand": "Expand",
   "comments": {
     "open": "Open comments",
+    "openCount": {
+      "zero": "Open comments",
+      "one": "Open comments (1 unresolved discussion)",
+      "other": "Open comments (%{count} unresolved discussions)"
+    },
     "label": "Comments"
   },
   "database": {
@@ -44,7 +49,8 @@
     "restored": "Page restored",
     "restoreFailed": "Failed to restore",
     "deletedPermanently": "Page deleted permanently",
-    "deleteFailed": "Failed to delete page"
+    "deleteFailed": "Failed to delete page",
+    "copyLinkFailed": "Could not copy the link."
   },
   "deleteDialog": {
     "title": "Delete permanently?",
@@ -68,7 +74,9 @@
     "changeCover": "Change cover",
     "changeIcon": "Change icon",
     "addIcon": "Add icon",
-    "addCover": "Add cover"
+    "addCover": "Add cover",
+    "rename": "Name and icon",
+    "renameFailed": "Could not save the name. Your draft is still here; try again."
   },
   "moveDialog": {
     "title": "Move page",
@@ -223,18 +231,28 @@
     "subpages": "Subpages"
   },
   "history": {
-    "title": "Page history",
+    "title": "Version history",
     "description": "Previous versions are saved automatically after quiet periods and before a restore.",
     "empty": "No previous versions yet.",
     "loadFailed": "Could not load page history.",
-    "entry": "%{time} · %{name} · %{count} blocks",
+    "entry": {
+      "one": "%{time} · %{name} · %{count} block",
+      "other": "%{time} · %{name} · %{count} blocks"
+    },
     "preview": "Version preview",
     "restore": "Restore this version",
     "noPermission": "Editor access is required to restore a version.",
     "confirmTitle": "Restore this version?",
-    "confirmBody": "The current blocks will be replaced. The current state will be saved as another version.",
+    "confirmBody": "The current text and blocks will be replaced by this saved version. Page properties, icon, cover and discussions will stay unchanged. The current content will be saved as another version, so you can restore it again.",
     "restored": "Version restored",
-    "restoreFailed": "Could not restore this version. Check your access and try again."
+    "restoreFailed": "Could not restore this version. Check your access and try again.",
+    "restoreScope": "What will be restored",
+    "cancelRestore": "Cancel restore",
+    "beginRestore": "Begin restore",
+    "close": "Close version history",
+    "back": "Back to versions",
+    "unknownDate": "Unknown date",
+    "contentOnly": "Saved page content. Page properties, icon, cover and discussions are not included in this snapshot."
   },
   "reminders": {
     "title": "Remind me…",
@@ -328,7 +346,7 @@
     "banner": "This page is locked.",
     "unlock": "Unlock"
   },
-  "title": "Page title",
+  "title": "Title",
   "offline": {
     "available": "Available offline",
     "hint": "Keep this page on this device to read and edit it without a connection."
@@ -344,5 +362,58 @@
     "uploading": "Uploading…",
     "failed": "The image couldn’t be uploaded.",
     "tooLarge": "This image is too large."
+  },
+  "activity": {
+    "title": "Activity",
+    "open": "Open page activity",
+    "close": "Close activity",
+    "editedBy": "Edited by %{name}",
+    "createdBy": "Created by %{name}",
+    "savedBy": "Version saved by %{name}",
+    "versionDetails": {
+      "one": "%{time} · %{count} block",
+      "other": "%{time} · %{count} blocks"
+    },
+    "versionHint": "Saved content versions. Choose one to view or restore it.",
+    "updates": "Updates",
+    "you": "You",
+    "unattributed": "Unknown author",
+    "created": "created",
+    "edited": "edited",
+    "contentEdited": "Updated the page content.",
+    "empty": "Changes to this page will appear here.",
+    "loadFailed": "Could not load updates.",
+    "restricted": "Editing access is required to view page updates.",
+    "more": "More updates",
+    "before": "Previous value",
+    "after": "New value",
+    "emptyValue": "Empty",
+    "enabled": "On",
+    "disabled": "Off",
+    "changedValue": "Changed",
+    "fields": {
+      "title": "Page title",
+      "icon": "Page icon",
+      "cover": "Cover",
+      "coverPosition": "Cover position",
+      "parentId": "Page location",
+      "teamspaceId": "Teamspace",
+      "archived": "In trash",
+      "template": "Template",
+      "fullWidth": "Full width",
+      "smallText": "Small text",
+      "font": "Font",
+      "mode": "Page type",
+      "locked": "Page lock",
+      "properties": "Property"
+    }
+  },
+  "navigation": {
+    "neighbors": "Other pages",
+    "neighborsIn": "Other pages in %{name}",
+    "more": "More pages",
+    "retry": "Could not load pages. Retry",
+    "empty": "No other pages",
+    "current": "%{name}, current page"
   }
 }

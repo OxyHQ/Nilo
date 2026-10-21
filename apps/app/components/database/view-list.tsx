@@ -1,4 +1,4 @@
-import { RowsScrollView } from './rows-scroll-view';
+import { ScreenScrollView } from '@oxy.so/bloom/screen';
 import { nestSubItems, subItemProperties, useExpandedRows } from '@/lib/sub-items';
 import { SubItemToggle, NewSubItem } from './sub-item-controls';
 import * as React from 'react';
@@ -137,7 +137,11 @@ export function ViewList({
     });
 
   return (
-    <RowsScrollView onLoadMore={onLoadMore}>
+    <ScreenScrollView
+      keyboardShouldPersistTaps="handled"
+      onEndReached={onLoadMore}
+      onEndReachedThreshold={1}
+    >
       {sections && grouping
         ? sections.map((section) => {
             const prefix = `${section.key === null ? '\u0000' : section.key}:`;
@@ -171,6 +175,6 @@ export function ViewList({
           </Text>
         </Pressable>
       ) : null}
-    </RowsScrollView>
+    </ScreenScrollView>
   );
 }

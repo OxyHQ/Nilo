@@ -1,4 +1,10 @@
 export const queryKeys = {
+  breadcrumbNeighbors: {
+    all: ['breadcrumb-neighbors'] as const,
+    workspace: (workspaceId: string) => ['breadcrumb-neighbors', workspaceId] as const,
+    anchor: (workspaceId: string, kind: 'page' | 'database', id: string) =>
+      ['breadcrumb-neighbors', workspaceId, kind, id] as const,
+  },
   forms: {
     all: ['forms'] as const,
     link: (id: string, viewId: string) => ['form-link', id, viewId] as const,
@@ -7,6 +13,11 @@ export const queryKeys = {
   publicPages: {
     all: ['public-pages'] as const,
     detail: (slug: string, pageId?: string) => ['public-pages', slug, pageId] as const,
+  },
+  pageActivity: {
+    all: ['page-activity'] as const,
+    workspace: (workspaceId: string) => ['page-activity', workspaceId] as const,
+    page: (workspaceId: string, pageId: string) => ['page-activity', workspaceId, pageId] as const,
   },
   versions: {
     list: (id: string) => ['versions', id] as const,
@@ -33,7 +44,8 @@ export const queryKeys = {
     permissions: (id: string) => ['page-permissions', id] as const,
     list: (workspaceId: string | null) => ['pages', workspaceId] as const,
     detail: (id: string) => ['page', id] as const,
-    breadcrumb: (id: string) => ['page', id, 'breadcrumb'] as const,
+    breadcrumb: (id: string, workspaceId: string | null | undefined) =>
+      ['page', id, 'breadcrumb', workspaceId] as const,
     archived: (workspaceId: string | null) => ['pages', workspaceId, 'archived'] as const,
   },
   blocks: {

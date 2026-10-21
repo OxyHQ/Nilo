@@ -17,7 +17,8 @@ import {
   testDatabaseUrl,
 } from '../db/__tests__/testDatabase.js';
 import { closeDb, getDb } from '../db/client.js';
-import { blocks, pageDocs, pages } from '../db/schema/pages.js';
+import { blocks, pageDocs, pages, pageVersions } from '../db/schema/pages.js';
+import { listPageActivity } from '../repositories/pageActivity.js';
 import { appendUpdate, loadPageState } from './page-docs.js';
 import {
   projectPage,
@@ -26,7 +27,15 @@ import {
   sweepProjections,
 } from './page-projection.js';
 
-vi.mock('../socket.js', () => ({ getIO: () => null }));
+const projected = vi.hoisted(() => ({ to: vi.fn(), emit: vi.fn() }));
+vi.mock('../socket.js', () => ({
+  getIO: () => ({
+    to: (room: string) => {
+      projected.to(room);
+      return { emit: projected.emit };
+    },
+  }),
+}));
 vi.mock('./notification-service.js', () => ({ sendNotification: vi.fn() }));
 
 let db: TestDatabase;
@@ -111,6 +120,50 @@ describe('a page’s projection, kept in the database', () => {
     expect(await rowTexts(pageId)).toEqual(['de Ana', 'de Bea']);
     const [row] = await db.select().from(pages).where(eq(pages.id, pageId));
     expect(row?.lastEditedBy).toBe('bea');
+    const activity = await listPageActivity(db, pageId, 20);
+    expect(activity.items).toHaveLength(1);
+    expect(activity.items[0]).toMatchObject({
+      kind: 'content_edited',
+      actorIds: ['ana', 'bea'],
+      changes: [],
+    });
+    await projectPage(getDb(), pageId);
+    expect((await listPageActivity(db, pageId, 20)).items).toEqual(activity.items);
+  });
+
+  it('announces only committed metadata and history, once for a changed projection', async () => {
+    const id = await page();
+    await appendUpdate(getDb(), {
+      pageId: id,
+      update: await paragraph(id, 'before'),
+      actorId: 'ana',
+    });
+    await projectPage(getDb(), id);
+    projected.emit.mockClear();
+    projected.to.mockClear();
+    await appendUpdate(getDb(), {
+      pageId: id,
+      update: await paragraph(id, 'after'),
+      actorId: 'bea',
+    });
+    // Read through a separate pool as soon as the notification fires. These must
+    // already be visible, not an uncommitted transaction's proposed values.
+    let observed: Promise<unknown> | undefined;
+    projected.emit.mockImplementationOnce(() => {
+      observed = Promise.all([
+        db.select({ editor: pages.lastEditedBy }).from(pages).where(eq(pages.id, id)),
+        db
+          .select({ actor: pageVersions.createdBy })
+          .from(pageVersions)
+          .where(eq(pageVersions.pageId, id)),
+      ]);
+    });
+    await projectPage(getDb(), id);
+    expect(projected.to).toHaveBeenCalledWith(`page:${id}`);
+    expect(projected.emit).toHaveBeenCalledWith('page:projected', { pageId: id });
+    expect(await observed).toEqual([[{ editor: 'bea' }], [{ actor: 'bea' }]]);
+    await projectPage(getDb(), id);
+    expect(projected.emit).toHaveBeenCalledTimes(1);
   });
 
   it('is projected by the sweep when no process had it waiting', async () => {

@@ -89,8 +89,10 @@ function Probe() {
   return null;
 }
 let renderer: ReactTestRenderer | undefined;
+const clients: QueryClient[] = [];
 async function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  clients.push(client);
   await act(async () => {
     renderer = create(
       <QueryClientProvider client={client}>
@@ -115,6 +117,11 @@ beforeEach(() => {
 afterEach(() => {
   act(() => renderer?.unmount());
   renderer = undefined;
+  for (const client of clients.splice(0)) {
+    // MutationCache.clear removes entries but does not cancel their GC timers.
+    for (const mutation of client.getMutationCache().getAll()) mutation.destroy();
+    client.clear();
+  }
 });
 
 describe('running an action', () => {

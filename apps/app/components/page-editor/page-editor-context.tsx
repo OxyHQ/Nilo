@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform } from 'react-native';
 import {
   BlockDecorations,
   EditorController,
@@ -21,7 +21,6 @@ import {
 } from '@oxy.so/bloom-editor';
 import { usePage } from '@/lib/hooks/use-pages';
 import { useOxy } from '@oxy.so/services/ui/client';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useTranslation } from '@/hooks/useTranslation';
 import { usePageEditor, type PageEditorState } from '@/lib/editor/use-page-editor';
 import { profileName, useMemberProfiles } from '@/lib/hooks/use-member-profiles';
@@ -41,8 +40,6 @@ type EditorContextValue = PageEditorState & {
   decorations: BlockDecorations;
   theme: EditorTheme;
   labels: EditorLabels;
-  toolbarHeight: number;
-  setToolbarHeight: (height: number) => void;
   /** What the AI dialog works on, when it is open (`ai-dialog.tsx`). */
   aiTarget: AiTarget | null;
   setAiTarget: (target: AiTarget | null) => void;
@@ -86,7 +83,6 @@ export function PageEditorProvider({
   const page = usePage(pageId);
   const theme = useEditorTheme(page.data?.page.font, page.data?.page.smallText);
   const labels = useEditorLabels();
-  const [toolbarHeight, setToolbarHeight] = useState(0);
   const [aiTarget, setAiTarget] = useState<AiTarget | null>(null);
   const [embeddedController, setEmbeddedController] = useState<EditorController | null>(null);
   const comments = usePageComments(pageId);
@@ -154,24 +150,12 @@ export function PageEditorProvider({
       decorations,
       theme,
       labels,
-      toolbarHeight,
-      setToolbarHeight,
       aiTarget,
       setAiTarget,
       embeddedController,
       setEmbeddedController,
     }),
-    [
-      state,
-      readOnly,
-      controller,
-      decorations,
-      theme,
-      labels,
-      toolbarHeight,
-      aiTarget,
-      embeddedController,
-    ],
+    [state, readOnly, controller, decorations, theme, labels, aiTarget, embeddedController],
   );
   return <PageEditorContext.Provider value={value}>{children}</PageEditorContext.Provider>;
 }
@@ -188,16 +172,9 @@ export function useOptionalPageEditorContext() {
  * selected.
  */
 export function PageEditorToolbar() {
-  const { readOnly, controller, embeddedController, theme, labels, setToolbarHeight } =
-    usePageEditorContext();
+  const { readOnly, controller, embeddedController, theme, labels } = usePageEditorContext();
   if (Platform.OS === 'web' || readOnly || !controller) return null;
   // A synced block being edited has the keyboard: its editor's toolbar.
   const active = embeddedController ?? controller;
-  return (
-    <KeyboardStickyView style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
-      <View onLayout={(event) => setToolbarHeight(event.nativeEvent.layout.height)}>
-        <EditorToolbar controller={active} theme={theme} labels={labels} mentionIndicator="@" />
-      </View>
-    </KeyboardStickyView>
-  );
+  return <EditorToolbar controller={active} theme={theme} labels={labels} mentionIndicator="@" />;
 }

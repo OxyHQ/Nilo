@@ -5,7 +5,8 @@
     "hintWeb": "@ para mencionar · Cmd/Ctrl+Enter para enviar",
     "send": "Enviar comentario",
     "posting": "Publicando…",
-    "submit": "Comentar"
+    "submit": "Comentar",
+    "failed": "No se pudo enviar el comentario. Tu borrador sigue aquí; inténtalo de nuevo."
   },
   "mentionLabel": "Mención: %{name}",
   "indicator": {
@@ -24,12 +25,16 @@
     "blockPlaceholder": "Comenta este bloque…",
     "pagePlaceholder": "Añade un comentario a la página…",
     "textPlaceholder": "Comenta el texto seleccionado…",
-    "cancelQuote": "Comentar todo el bloque"
+    "cancelQuote": "Comentar todo el bloque",
+    "emptyPerson": "No hay comentarios de esta persona que coincidan con los filtros actuales.",
+    "loadFailed": "No se pudieron cargar los comentarios. Inténtalo de nuevo."
   },
   "filters": {
     "open": "Abiertos",
     "all": "Todos",
-    "resolved": "Resueltos"
+    "resolved": "Resueltos",
+    "everyone": "Todas las personas",
+    "person": "Filtrar por persona"
   },
   "time": {
     "justNow": "ahora mismo",

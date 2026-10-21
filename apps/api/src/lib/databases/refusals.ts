@@ -4,7 +4,12 @@
  * cannot take it. Pure: each returns why (`Refusal`, sent as a 400) or null,
  * and the route sends it.
  */
-import { acceptsCalculation, isChartMeasurable, isGroupableType } from '@oxy.so/nilo-contracts';
+import {
+  acceptsCalculation,
+  BOARD_GROUPABLE_PROPERTY_TYPES,
+  isChartMeasurable,
+  isGroupableType,
+} from '@oxy.so/nilo-contracts';
 import type { DatabaseProperty, DatabaseSchema, Filter } from '../../db/schema/databases.js';
 import { invalidCondition } from './filters.js';
 import { parsePropertyValue } from './property-values.js';
@@ -42,6 +47,7 @@ export function filterRefusal(schema: DatabaseSchema, filter: Filter | undefined
  * gives it: zod, without `strict`, infers every field optional.
  */
 export interface ViewSettings {
+  type?: string;
   groupBy?: { propertyId?: string } | null;
   subGroupBy?: { propertyId?: string } | null;
   config?: {
@@ -66,10 +72,15 @@ export function viewSettingsRefusal(schema: DatabaseSchema, view: ViewSettings):
     code,
     ...(propertyId !== undefined && { propertyId }),
   });
-  for (const grouping of [view.groupBy, view.subGroupBy]) {
+  for (const [index, grouping] of [view.groupBy, view.subGroupBy].entries()) {
     if (!grouping) continue;
     const property = byId.get(grouping.propertyId);
-    if (!property || !isGroupableType(property.type)) {
+    const supported =
+      property &&
+      (view.type === 'board' && index === 0
+        ? BOARD_GROUPABLE_PROPERTY_TYPES.some((type) => type === property.type)
+        : isGroupableType(property.type));
+    if (!supported) {
       return refusal('That property cannot group rows', 'INVALID_GROUP', grouping.propertyId);
     }
   }

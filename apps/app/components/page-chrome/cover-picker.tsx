@@ -1,5 +1,7 @@
 import * as React from 'react';
-import { Image, Pressable, ScrollView, View } from 'react-native';
+import { View } from 'react-native';
+import { Card } from '@oxy.so/bloom/card';
+import { ResponsiveGrid } from '@oxy.so/bloom/grid';
 import { useQuery } from '@tanstack/react-query';
 import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { Button } from '@oxy.so/bloom/button';
@@ -62,7 +64,7 @@ export function CoverPicker({ control, pageId, onSelect }: CoverPickerProps) {
       placement={{ base: 'bottom', md: 'center' }}
       maxWidth={768}
     >
-      <View className="gap-3">
+      <View className="gap-3 px-5 pb-3">
         <View className="flex-row items-center gap-2">
           <View className="min-w-0 flex-1">
             <Tabs
@@ -83,7 +85,6 @@ export function CoverPicker({ control, pageId, onSelect }: CoverPickerProps) {
           <Button
             appearance="outline"
             tone="danger"
-            size="sm"
             onPress={() => handleSelect(null)}
             accessibilityLabel={t('pages.coverPicker.removeCover')}
             leadingIcon={RiDeleteBin6Line}
@@ -119,23 +120,23 @@ export function CoverPicker({ control, pageId, onSelect }: CoverPickerProps) {
 function GradientGrid({ onSelect }: { onSelect: (idx: number) => void }) {
   const { t } = useTranslation();
   return (
-    <ScrollView className="max-h-96">
-      <View className="flex-row flex-wrap gap-2 pb-2">
-        {COVER_GRADIENTS.map((g, idx) => (
-          <Pressable
-            key={g.name}
-            onPress={() => onSelect(idx)}
-            className="w-40 overflow-hidden rounded-md border border-border hover:opacity-90"
-            accessibilityLabel={t('pages.coverPicker.gradientLabel', { name: g.label() })}
-          >
-            <CoverDisplay value={`gradient:${idx}`} height={70} preview />
-            <View className="px-2 py-1">
-              <Text className="text-xs text-muted-foreground">{g.label()}</Text>
-            </View>
-          </Pressable>
-        ))}
-      </View>
-    </ScrollView>
+    <ResponsiveGrid minItemWidth={128} maxColumns={4} gap={8}>
+      {COVER_GRADIENTS.map((g, idx) => (
+        <Card
+          key={g.name}
+          onPress={() => onSelect(idx)}
+          appearance="outline"
+          radius="radius-8"
+          clipContent
+          accessibilityLabel={t('pages.coverPicker.gradientLabel', { name: g.label() })}
+        >
+          <CoverDisplay value={`gradient:${idx}`} height={70} />
+          <View className="px-2 py-1">
+            <Text className="text-xs text-muted-foreground">{g.label()}</Text>
+          </View>
+        </Card>
+      ))}
+    </ResponsiveGrid>
   );
 }
 
@@ -146,23 +147,23 @@ function GradientGrid({ onSelect }: { onSelect: (idx: number) => void }) {
 function ColorGrid({ onSelect }: { onSelect: (hex: string) => void }) {
   const { t } = useTranslation();
   return (
-    <ScrollView className="max-h-96">
-      <View className="flex-row flex-wrap gap-2 pb-2">
-        {COVER_COLORS.map((c) => (
-          <Pressable
-            key={c.hex}
-            onPress={() => onSelect(c.hex)}
-            className="w-40 overflow-hidden rounded-md border border-border hover:opacity-90"
-            accessibilityLabel={t('pages.coverPicker.colorLabel', { name: c.label() })}
-          >
-            <CoverDisplay value={`color:${c.hex}`} height={70} preview />
-            <View className="px-2 py-1">
-              <Text className="text-xs text-muted-foreground">{c.label()}</Text>
-            </View>
-          </Pressable>
-        ))}
-      </View>
-    </ScrollView>
+    <ResponsiveGrid minItemWidth={128} maxColumns={4} gap={8}>
+      {COVER_COLORS.map((c) => (
+        <Card
+          key={c.hex}
+          onPress={() => onSelect(c.hex)}
+          appearance="outline"
+          radius="radius-8"
+          clipContent
+          accessibilityLabel={t('pages.coverPicker.colorLabel', { name: c.label() })}
+        >
+          <CoverDisplay value={`color:${c.hex}`} height={70} />
+          <View className="px-2 py-1">
+            <Text className="text-xs text-muted-foreground">{c.label()}</Text>
+          </View>
+        </Card>
+      ))}
+    </ResponsiveGrid>
   );
 }
 
@@ -231,7 +232,6 @@ function UnsplashTab({ onSelect }: { onSelect: (url: string) => void }) {
       <View className="flex-row items-center gap-2">
         <View className="min-w-0 flex-1">
           <TextFieldInput
-            size="sm"
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={handleSubmit}
@@ -243,7 +243,6 @@ function UnsplashTab({ onSelect }: { onSelect: (url: string) => void }) {
         <Button
           appearance="solid"
           tone="accent"
-          size="sm"
           onPress={handleSubmit}
           accessibilityLabel={t('pages.coverPicker.searchUnsplash')}
         >
@@ -257,27 +256,23 @@ function UnsplashTab({ onSelect }: { onSelect: (url: string) => void }) {
       ) : errorMessage ? (
         <Text className="px-2 py-6 text-center text-sm text-destructive">{errorMessage}</Text>
       ) : (
-        <ScrollView className="max-h-80">
-          <View className="flex-row flex-wrap gap-2 pb-2">
-            {(data ?? []).map((img) => (
-              <Pressable
-                key={img.id}
-                onPress={() => onSelect(img.url)}
-                className="w-40 overflow-hidden rounded-md border border-border hover:opacity-90"
-                accessibilityLabel={t('pages.coverPicker.photoBy', { author: img.author })}
-              >
-                <Image
-                  source={{ uri: img.thumb }}
-                  style={{ width: '100%', height: 70 }}
-                  resizeMode="cover"
-                />
-                <View className="px-2 py-1">
-                  <Text className="text-xs text-muted-foreground">{img.author}</Text>
-                </View>
-              </Pressable>
-            ))}
-          </View>
-        </ScrollView>
+        <ResponsiveGrid minItemWidth={128} maxColumns={4} gap={8}>
+          {(data ?? []).map((img) => (
+            <Card
+              key={img.id}
+              onPress={() => onSelect(img.url)}
+              appearance="outline"
+              radius="radius-8"
+              clipContent
+              accessibilityLabel={t('pages.coverPicker.photoBy', { author: img.author })}
+            >
+              <CoverDisplay value={encodeCoverImage(img.thumb)} height={70} />
+              <View className="px-2 py-1">
+                <Text className="text-xs text-muted-foreground">{img.author}</Text>
+              </View>
+            </Card>
+          ))}
+        </ResponsiveGrid>
       )}
     </View>
   );
@@ -294,7 +289,6 @@ function LinkTab({ onSelect }: { onSelect: (url: string) => void }) {
     <View className="gap-3 px-1 py-4">
       <Text variant="body-regular">{t('pages.coverPicker.linkHint')}</Text>
       <TextFieldInput
-        size="sm"
         value={url}
         onChangeText={setUrl}
         label={t('pages.coverPicker.linkHint')}

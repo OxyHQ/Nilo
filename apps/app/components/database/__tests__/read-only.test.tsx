@@ -1,4 +1,5 @@
 import type React from 'react';
+import { ProjectBoard, type ControlledProjectBoardProps } from '@oxy.so/bloom/project-board';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Platform } from 'react-native';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
@@ -6,7 +7,40 @@ import { DatabaseViewContainer } from '../database-view';
 import { PropertyCell } from '../property-cell';
 import type { Database, DatabaseRow, DatabaseView, DatabaseViewType } from '@/lib/types/databases';
 
-// The cells read people, files and rows through the API client and Oxy's session.
+const mockUpdateRow = jest.fn();
+
+// react-test-renderer supplies native host refs, not DOM scroll owners. Keep the
+// real Screen scope/chrome; viewport geometry is covered by Bloom and browser QA.
+jest.mock('@oxy.so/bloom/screen', () => {
+  const actual = jest.requireActual('@oxy.so/bloom/screen');
+  const React = jest.requireActual('react');
+  return {
+    ...actual,
+    Screen: (props: React.ComponentProps<typeof actual.Screen>) =>
+      React.createElement(actual.Screen, { ...props, scroll: 'content' }),
+  };
+});
+// Render only Nilo's card slots here: drag geometry is Bloom's responsibility.
+// Assertions below check that Nilo sends readOnly and suppresses every write.
+jest.mock('@oxy.so/bloom/project-board', () => {
+  const React = jest.requireActual('react');
+  const { Pressable } = jest.requireActual('react-native');
+  return {
+    ...jest.requireActual('@oxy.so/bloom/project-board'),
+    ProjectBoard: (props: ControlledProjectBoardProps<DatabaseRow>) =>
+      props.columns.map((column) =>
+        column.items.map((row) =>
+          React.createElement(
+            React.Fragment,
+            { key: `${column.id}:${row.id}` },
+            props.renderCard(row, column, { isDragging: false }),
+          ),
+        ),
+      ),
+    BoardDragHandle: ({ children, onPress }: { children: React.ReactNode; onPress?: () => void }) =>
+      React.createElement(Pressable, { onPress }, children),
+  };
+});
 jest.mock('@/lib/hooks/use-view-data', () => ({
   useViewCalculations: () => ({ data: undefined }),
   useViewChart: () => ({ data: undefined, isLoading: false }),
@@ -32,10 +66,15 @@ jest.mock('@/lib/hooks/use-row-templates', () => ({
 jest.mock('@/lib/hooks/use-database-views', () => ({ useUpdateView: jest.fn() }));
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+jest.mock('@/lib/hooks/use-member-profiles', () => ({
+  profileName: () => null,
+  useMemberProfiles: () => ({ data: [] }),
+}));
 jest.mock('@/lib/hooks/use-database-rows', () => ({
   useCreateRow: () => ({ mutate: jest.fn(), mutateAsync: jest.fn(), isPending: false }),
-  useUpdateRow: () => ({ mutate: jest.fn() }),
+  useUpdateRow: () => ({ mutate: mockUpdateRow }),
   useRelatedRowSets: () => new Map(),
+  useRelatedRows: () => ({}),
 }));
 jest.mock('../property-config-modal', () => ({
   AddPropertyButton: () => null,
@@ -114,6 +153,7 @@ function Bloom({ children }: { children: React.ReactNode }) {
 let renderer: ReactTestRenderer;
 const originalOS = Platform.OS;
 beforeEach(() => {
+  mockUpdateRow.mockClear();
   Platform.OS = 'web';
 });
 afterEach(() => {
@@ -137,6 +177,21 @@ it.each<DatabaseViewType>(['table', 'board', 'gallery', 'list'])(
         </Bloom>,
       );
     });
+    if (type === 'board') {
+      const board = renderer.root.findByType(ProjectBoard).props;
+      expect(board.readOnly).toBe(true);
+      expect(board.allowReorder).toBe(false);
+      expect(board.onColumnOrderChange).toBeUndefined();
+      act(() =>
+        board.onMove({
+          itemId: 'row',
+          fromColumnId: 'done',
+          toColumnId: '__unassigned__',
+          toIndex: 0,
+        }),
+      );
+      expect(mockUpdateRow).not.toHaveBeenCalled();
+    }
     expect(renderer.root.findAllByType(PropertyCell).length).toBeGreaterThan(0);
     expect(renderer.root.findAllByType(PropertyCell).every((cell) => cell.props.readOnly)).toBe(
       true,

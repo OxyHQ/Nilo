@@ -1,5 +1,12 @@
 import * as React from 'react';
-import { Platform, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import {
+  ProjectBoard,
+  BoardDragHandle,
+  type BoardColumn,
+  type ControlledProjectBoardProps,
+} from '@oxy.so/bloom/project-board';
+import { Screen } from '@oxy.so/bloom/screen';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiArrowLeftRightLine } from '@oxy.so/bloom/icons/RiArrowLeftRightLine';
 import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
@@ -11,6 +18,7 @@ import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Item } from '@oxy.so/bloom/item';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
+import { toast } from '@oxy.so/bloom/toast';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
 import type {
@@ -20,16 +28,26 @@ import type {
   DatabaseView,
   PropertyValue,
   RowGroup,
-  SelectOption,
 } from '@/lib/types/databases';
-import { statusGroups } from '@/lib/status-groups';
-import { useCreateRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
+import {
+  boardMoveValue,
+  boardSections,
+  boardValueKeys,
+  canGroupBoard,
+  type BoardColumnData as Column,
+  type BoardSection as Section,
+} from '@/lib/board-groups';
+import { profileName, useMemberProfiles } from '@/lib/hooks/use-member-profiles';
+import { useUpdateView } from '@/lib/hooks/use-database-views';
+import { rankBy } from '@/lib/list-order';
+import { useCreateRow, useUpdateRow, useRelatedRows } from '@/lib/hooks/use-database-rows';
 import { groupValue, type RowSection } from '@/lib/view-groups';
-import { orderedProperties } from '@/lib/view-properties';
+import { CardPreview, cardProperties as visibleCardProperties, cardWidth } from './card-layout';
 import { PropertyCell } from './property-cell';
 import { useOpenRow } from './open-row';
 import { SELECT_CHIP_HUE } from './select-color';
-import { GroupHeader, useGroupedSections } from './group-header';
+import { GroupBadge, GroupActionsMenu, useGroupedSections } from './group-header';
+import { useGroupLabel } from './group-label';
 
 interface ViewBoardProps {
   database: Database;
@@ -46,33 +64,16 @@ interface ViewBoardProps {
   viewEditable?: boolean;
 }
 
-const COLUMN_WIDTH = 280;
-
-/** A board's column: the rows whose group property holds `value`, shown as `option`. */
-interface Column {
-  option: SelectOption;
-  rows: DatabaseRow[];
-  /** What a card moved here, or made here, gets. */
-  value: PropertyValue;
-}
-
-/** Columns under one heading: a status group's, or all of them under none. */
-interface Section {
-  id: string;
-  label: string | null;
-  columns: Column[];
-}
-
 /**
- * Board view — Kanban grouped by a select, status or checkbox property. Each
+ * Board view — Kanban grouped by options, people, relations or a checkbox. Each
  * column corresponds to one option of the group property (a status's in the
  * order of its groups, To-do, In progress and Complete, under their names; a
  * checkbox's checked and not); moving a card to another column updates the
  * row's property value.
  *
- * On web a card is dragged (HTML5 DataTransfer). Everywhere, and on native
- * where nothing drags, its "Move to…" button or a long press on it opens the
- * columns to move it to.
+ * Bloom shares ProjectBoard's pointer, touch and keyboard engine. The title
+ * is the drag handle; property controls remain independently editable. The
+ * "Move to…" button also opens the columns to move the card to.
  *
  * Sub-grouped (`subGroupBy`), the columns repeat in collapsible rows, one per
  * sub-group in the API's order: a card is in the row of its sub-group (a
@@ -93,98 +94,58 @@ export function ViewBoard({
   const { t } = useTranslation();
   const createRow = useCreateRow();
   const updateRow = useUpdateRow();
+  const updateView = useUpdateView();
   const moveControl = useDialogControl();
   // The card the "Move to" dialog moves: one dialog for the board, not one per card.
-  const [moving, setMoving] = React.useState<DatabaseRow | null>(null);
+  const [moving, setMoving] = React.useState<{ row: DatabaseRow; columnId: string } | null>(null);
 
   const groupByProperty = React.useMemo<DatabaseProperty | null>(() => {
     const target = view.groupBy?.propertyId;
     if (target) {
       const p = database.schema.properties.find((x) => x.id === target);
-      if (p && (p.type === 'select' || p.type === 'status' || p.type === 'checkbox')) return p;
+      if (p && canGroupBoard(p)) return p;
     }
     return (
-      database.schema.properties.find((p) => p.type === 'status' || p.type === 'select') ?? null
+      database.schema.properties.find((p) => p.type === 'status') ??
+      database.schema.properties.find(canGroupBoard) ??
+      null
     );
   }, [database.schema.properties, view.groupBy?.propertyId]);
 
+  const referenceIds = React.useMemo(
+    () =>
+      groupByProperty && ['person', 'relation'].includes(groupByProperty.type)
+        ? [...new Set(rows.flatMap((row) => boardValueKeys(row.properties[groupByProperty.id])))]
+        : [],
+    [groupByProperty, rows],
+  );
+  const { data: profiles } = useMemberProfiles(
+    groupByProperty?.type === 'person' ? referenceIds : [],
+  );
+  const { data: related } = useRelatedRows(
+    groupByProperty?.type === 'relation' ? groupByProperty.config?.targetDatabaseId : undefined,
+    groupByProperty?.type === 'relation' ? referenceIds : [],
+  );
   const buildSections = React.useCallback(
-    (rows: DatabaseRow[]): Section[] => {
-      if (!groupByProperty) return [];
-      if (groupByProperty.type === 'checkbox') {
-        const checked = (row: DatabaseRow) => {
-          const value = row.properties[groupByProperty.id];
-          return Boolean(value && typeof value === 'object' && 'checked' in value && value.checked);
-        };
-        return [
-          {
-            id: 'checkbox',
-            label: null,
-            columns: [
-              {
-                option: { id: 'checked', name: t('databases.board.checked'), color: 'green' },
-                rows: rows.filter(checked),
-                value: { checked: true },
-              },
-              {
-                option: { id: 'unchecked', name: t('databases.board.unchecked'), color: 'default' },
-                rows: rows.filter((row) => !checked(row)),
-                value: { checked: false },
-              },
-            ],
-          },
-        ];
-      }
-      const options = groupByProperty.config?.options ?? [];
-      const unassigned: DatabaseRow[] = [];
-      const byOption = new Map<string, DatabaseRow[]>();
-      for (const opt of options) byOption.set(opt.id, []);
-      for (const row of rows) {
-        const value = row.properties[groupByProperty.id];
-        const optId =
-          value && typeof value === 'object' && 'optionId' in value
-            ? typeof value.optionId === 'string'
-              ? value.optionId
-              : null
-            : null;
-        const bucket = optId ? byOption.get(optId) : undefined;
-        if (bucket) bucket.push(row);
-        else unassigned.push(row);
-      }
-      const column = (opt: SelectOption): Column => ({
-        option: opt,
-        rows: byOption.get(opt.id) ?? [],
-        value: { optionId: opt.id },
-      });
-      const none: Section = {
-        id: '__unassigned__',
-        label: null,
-        columns: [
-          {
-            option: { id: '__unassigned__', name: t('databases.board.noStatus'), color: 'default' },
-            rows: unassigned,
-            value: { optionId: null },
-          },
-        ],
-      };
-      // A status grouped before groups existed shows its options as a select's.
-      if (groupByProperty.type !== 'status' || !groupByProperty.config?.groups) {
-        return [{ id: 'options', label: null, columns: options.map(column) }, none];
-      }
-      const byId = new Map(options.map((o) => [o.id, o]));
-      return [
-        ...statusGroups(options, groupByProperty.config.groups).map((group) => ({
-          id: group.id,
-          label: t(`databases.statusGroups.${group.id}`),
-          columns: group.optionIds.flatMap((id) => {
-            const opt = byId.get(id);
-            return opt ? [column(opt)] : [];
-          }),
-        })),
-        none,
-      ];
-    },
-    [groupByProperty, t],
+    (items: DatabaseRow[]): Section[] =>
+      groupByProperty
+        ? boardSections(groupByProperty, items, {
+            checked: t('databases.board.checked'),
+            unchecked: t('databases.board.unchecked'),
+            unassigned: ['person', 'relation', 'multi_select'].includes(groupByProperty.type)
+              ? t('databases.groups.none', { name: groupByProperty.name })
+              : t('databases.board.noStatus'),
+            statusGroup: (id) => t(`databases.statusGroups.${id}`),
+            referenceIds,
+            reference: (id) =>
+              groupByProperty.type === 'person'
+                ? (profileName(profiles?.find((person) => person.id === id)) ??
+                  t('databases.people.unknown'))
+                : related?.find((row) => row.id === id)?.title ||
+                  t('databases.relations.unavailable'),
+          })
+        : [],
+    [groupByProperty, profiles, related, referenceIds, t],
   );
   const sections = React.useMemo(() => buildSections(rows), [buildSections, rows]);
 
@@ -195,28 +156,37 @@ export function ViewBoard({
     headerProps,
   } = useGroupedSections(database, view, rows, groups, hasMore, 'subGroupBy', viewEditable);
 
-  const moveRow = React.useCallback(
-    (rowId: string, value: PropertyValue) => {
-      if (readOnly || !groupByProperty) return;
-      updateRow.mutate({
-        databaseId: database.id,
-        rowId,
-        properties: { [groupByProperty.id]: value },
-      });
-    },
-    [database.id, groupByProperty, updateRow, readOnly],
+  const laneLabel = useGroupLabel(
+    subGroup ?? { id: 'name', name: '', type: 'text' },
+    view.subGroupBy?.granularity,
   );
 
-  // A card shows the first properties the view does not hide, in its order.
+  const moveRow = React.useCallback(
+    (rowId: string, value: PropertyValue, fromColumnId?: string) => {
+      if (readOnly || !groupByProperty) return;
+      const row = rows.find((item) => item.id === rowId);
+      if (!row) return;
+      const source = sections
+        .flatMap((section) => section.columns)
+        .find((column) => column.option.id === fromColumnId);
+      const next = source
+        ? boardMoveValue(groupByProperty, row.properties[groupByProperty.id], source.value, value)
+        : value;
+      updateRow.mutate(
+        { databaseId: database.id, rowId, properties: { [groupByProperty.id]: next } },
+        { onError: () => toast.error(t('databases.rows.saveFailed')) },
+      );
+    },
+    [database.id, groupByProperty, updateRow, readOnly, t, rows, sections],
+  );
+
+  // A card shows every property enabled in the view, in its order.
   const cardProperties = React.useMemo(() => {
-    const hidden = new Set(view.hiddenProperties);
-    return orderedProperties(database, view)
-      .filter((p) => p.id !== 'name' && p.type !== 'rollup' && !hidden.has(p.id))
-      .slice(0, 3);
+    return visibleCardProperties(database, view);
   }, [database, view]);
 
-  const startMove = (row: DatabaseRow) => {
-    setMoving(row);
+  const startMove = (row: DatabaseRow, columnId: string) => {
+    setMoving({ row, columnId });
     moveControl.open();
   };
 
@@ -238,88 +208,191 @@ export function ViewBoard({
     );
   }
 
-  /** The board's columns over `list`; a card added in one is in `lane` too. */
-  const renderColumns = (list: Section[], lane: RowSection | null) =>
-    list.map((section) => (
-      <View key={section.id} className="gap-1">
-        {section.label ? (
-          <Text className="px-1 text-xs font-semibold text-muted-foreground">{section.label}</Text>
-        ) : null}
-        <View className="flex-row gap-3">
-          {section.columns.map((column) => (
-            <BoardColumn
-              readOnly={readOnly}
-              key={column.option.id}
-              option={column.option}
-              rows={column.rows}
-              onAddRow={async () => {
-                const inLane =
-                  lane && subGroup ? groupValue(subGroup, lane.key, lane.range) : undefined;
-                await createRow.mutateAsync({
-                  databaseId: database.id,
-                  properties: {
-                    [groupByProperty.id]: column.value,
-                    ...(subGroup && inLane !== undefined && { [subGroup.id]: inLane }),
-                  },
-                });
-              }}
-              onMoveTo={(rowId) => moveRow(rowId, column.value)}
-              renderCard={(row) => (
-                <BoardCard
-                  key={row.id}
-                  readOnly={readOnly}
-                  row={row}
-                  properties={cardProperties}
-                  onOpen={() => openRow(row.id)}
-                  onMove={() => startMove(row)}
-                />
-              )}
-            />
-          ))}
+  const columnsFor = (list: Section[]) => {
+    const unordered = list.flatMap((section) =>
+      section.columns.map((column) => ({
+        ...column,
+        id: column.option.id,
+        title: column.option.name,
+        items: column.rows,
+        sectionId: section.id,
+        sectionLabel: section.label,
+      })),
+    );
+    const order = view.config.boardColumnOrder;
+    return rankBy(
+      unordered,
+      order?.propertyId === groupByProperty.id ? order.columnIds : [],
+      (column) => column.id,
+    ).map((column, index, sorted) => ({
+      ...column,
+      sectionLabel: sorted[index - 1]?.sectionId === column.sectionId ? null : column.sectionLabel,
+    }));
+  };
+  const columns = columnsFor(sections);
+  const byId = new Map(columns.map((column) => [column.id, column]));
+  const hasSectionLabels = sections.some((section) => section.label);
+  const laneId = (lane: RowSection) => JSON.stringify(lane.key);
+  const byLaneId = new Map(lanes?.map((lane) => [laneId(lane), lane]));
+  const boardProps: Omit<ControlledProjectBoardProps<DatabaseRow>, 'variant' | 'columns'> = {
+    accessibilityLabel: view.name,
+    getItemId: (row) => row.id,
+    getItemLabel: (row) => row.title || t('databases.untitled'),
+    columnWidth: cardWidth(view),
+    readOnly,
+    dragMode: 'handle',
+    allowReorder: false,
+    onColumnOrderChange:
+      viewEditable && !readOnly && !updateView.isPending
+        ? (columnIds) =>
+            updateView.mutate(
+              {
+                databaseId: database.id,
+                viewId: view.id,
+                config: {
+                  ...view.config,
+                  boardColumnOrder: { propertyId: groupByProperty.id, columnIds: [...columnIds] },
+                },
+              },
+              { onError: () => toast.error(t('databases.views.updateFailed')) },
+            )
+        : undefined,
+    onMove: ({ itemId, fromColumnId, toColumnId }) => {
+      const target = byId.get(toColumnId);
+      if (target) moveRow(itemId, target.value, fromColumnId);
+    },
+    renderColumnHeader: (column) => {
+      const source = byId.get(column.id);
+      if (!source) return null;
+      return (
+        <View className="gap-2 px-1">
+          {hasSectionLabels ? (
+            <Text className="text-xs font-semibold text-muted-foreground">
+              {source.sectionLabel ?? ' '}
+            </Text>
+          ) : null}
+          <View className="flex-row items-center gap-2">
+            <Chip size="xs" hue={SELECT_CHIP_HUE[source.option.color] ?? 'neutral'}>
+              {column.title}
+            </Chip>
+            <Badge content={column.items.length} variant="subtle" tone="neutral" />
+          </View>
         </View>
-      </View>
-    ));
+      );
+    },
+    renderCard: (row, column) => (
+      <BoardCard
+        readOnly={readOnly}
+        row={row}
+        preview={<CardPreview row={row} view={view} database={database} />}
+        properties={cardProperties}
+        onChange={(propertyId, value) => {
+          if (readOnly) return;
+          updateRow.mutate(
+            { databaseId: database.id, rowId: row.id, properties: { [propertyId]: value } },
+            { onError: () => toast.error(t('databases.rows.saveFailed')) },
+          );
+        }}
+        onOpen={() => openRow(row.id)}
+        onMove={() => startMove(row, column.id)}
+      />
+    ),
+  };
+  const renderColumnFooter = (column: BoardColumn<DatabaseRow>, lane?: RowSection) =>
+    readOnly ? null : (
+      <Button
+        appearance="plain"
+        size="sm"
+        leadingIcon={RiAddLine}
+        className="self-start"
+        disabled={createRow.isPending}
+        accessibilityLabel={t('databases.groups.addRow', { name: column.title })}
+        onPress={() => {
+          const target = byId.get(column.id);
+          if (!target || readOnly) return;
+          const inLane = lane && subGroup ? groupValue(subGroup, lane.key, lane.range) : undefined;
+          createRow.mutate(
+            {
+              databaseId: database.id,
+              properties: {
+                [groupByProperty.id]: target.value,
+                ...(subGroup && inLane !== undefined && { [subGroup.id]: inLane }),
+              },
+            },
+            {
+              onSuccess: (row) => openRow(row.id),
+              onError: () => toast.error(t('databases.rows.createFailed')),
+            },
+          );
+        }}
+      >
+        {t('databases.actions.new')}
+      </Button>
+    );
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator>
-      <View className={lanes ? 'gap-2 px-3 py-3' : 'flex-row gap-3 px-3 py-3'}>
-        {lanes && subGroup
-          ? lanes.map((lane) => {
-              const collapsed = isCollapsed(lane.key);
-              return (
-                <View
-                  key={`lane-${lane.key === null ? '\u0000' : lane.key}`}
-                  testID={`board-lane-${lane.key ?? 'none'}`}
-                  className="gap-1"
-                >
-                  <GroupHeader {...headerProps(lane)} />
-                  {collapsed ? null : (
-                    <View className="flex-row gap-3">
-                      {renderColumns(buildSections(lane.rows), lane)}
-                    </View>
-                  )}
-                </View>
-              );
-            })
-          : renderColumns(sections, null)}
-        {hasMore && onLoadMore ? (
-          <Button appearance="subtle" size="sm" className="self-start" onPress={onLoadMore}>
+    <Screen
+      scroll="none"
+      bottomBar={
+        hasMore && onLoadMore ? (
+          <Button appearance="subtle" size="sm" onPress={onLoadMore}>
             {t('databases.board.loadMore')}
           </Button>
-        ) : null}
-      </View>
+        ) : undefined
+      }
+    >
+      {lanes && subGroup ? (
+        <ProjectBoard
+          {...boardProps}
+          variant="grouped"
+          lanes={lanes.map((lane) => ({
+            id: laneId(lane),
+            title: laneLabel(lane.key, lane.range),
+            columns: columnsFor(buildSections(lane.rows)),
+            collapsed: isCollapsed(lane.key),
+          }))}
+          onLaneCollapsedChange={(id, collapsed) => {
+            const lane = byLaneId.get(id);
+            if (lane && isCollapsed(lane.key) !== collapsed) headerProps(lane).onToggle();
+          }}
+          renderLaneHeader={(group) => {
+            const lane = byLaneId.get(group.id);
+            return lane ? (
+              <View className="flex-row items-center gap-2">
+                <GroupBadge property={subGroup} groupKey={lane.key} label={group.title} />
+                <Text className="text-xs text-muted-foreground">
+                  {t('databases.groups.count', { count: lane.count })}
+                </Text>
+              </View>
+            ) : null;
+          }}
+          renderLaneActions={(group) => {
+            const lane = byLaneId.get(group.id);
+            const actions = lane ? headerProps(lane).actions : undefined;
+            return actions ? <GroupActionsMenu actions={actions} label={group.title} /> : null;
+          }}
+          renderColumnFooter={(column, group) => renderColumnFooter(column, byLaneId.get(group.id))}
+        />
+      ) : (
+        <ProjectBoard
+          {...boardProps}
+          variant="embedded"
+          columns={columns}
+          renderColumnFooter={(column) => renderColumnFooter(column)}
+        />
+      )}
       {!readOnly ? (
         <MoveToDialog
           control={moveControl}
           columns={sections.flatMap((section) => section.columns)}
-          current={moving ? (moving.id as string) : null}
+          current={moving?.columnId ?? null}
           onPick={(column) => {
-            if (moving) moveRow(moving.id, column.value);
+            if (moving) moveRow(moving.row.id, column.value, moving.columnId);
             moveControl.close();
           }}
         />
       ) : null}
-    </ScrollView>
+    </Screen>
   );
 }
 
@@ -332,7 +405,7 @@ function MoveToDialog({
 }: {
   control: ReturnType<typeof useDialogControl>;
   columns: Column[];
-  /** The card being moved: its column is the one holding it. */
+  /** The occurrence being moved, including when a page belongs to several groups. */
   current: string | null;
   onPick: (column: Column) => void;
 }) {
@@ -347,7 +420,7 @@ function MoveToDialog({
     >
       <View className="pb-4">
         {columns.map((column) => {
-          const here = current !== null && column.rows.some((row) => row.id === current);
+          const here = current === column.option.id;
           return (
             <Item
               key={column.option.id}
@@ -371,65 +444,11 @@ function MoveToDialog({
   );
 }
 
-interface BoardColumnProps {
-  readOnly: boolean;
-  option: SelectOption;
-  rows: DatabaseRow[];
-  onAddRow: () => void;
-  onMoveTo: (rowId: string) => void;
-  renderCard: (row: DatabaseRow) => React.ReactNode;
-}
-
-function BoardColumn({ option, rows, onAddRow, onMoveTo, renderCard, readOnly }: BoardColumnProps) {
-  const { t } = useTranslation();
-
-  // Web-only drag target — accept a row id payload from the dragged card.
-  const dropHandlers =
-    Platform.OS === 'web' && !readOnly
-      ? {
-          onDragOver: (e: { preventDefault: () => void }) => e.preventDefault(),
-          onDrop: (e: { preventDefault: () => void; dataTransfer: DataTransfer }) => {
-            e.preventDefault();
-            const id = e.dataTransfer.getData('text/plain');
-            if (id) onMoveTo(id);
-          },
-        }
-      : {};
-
-  return (
-    <View
-      className="bg-muted/40 rounded-lg p-2"
-      style={{ width: COLUMN_WIDTH }}
-      {...(dropHandlers as Record<string, unknown>)}
-    >
-      <View className="flex-row items-center justify-between mb-2 px-1">
-        <View className="flex-row items-center gap-2">
-          <Chip size="xs" hue={SELECT_CHIP_HUE[option.color] ?? 'neutral'}>
-            {option.name}
-          </Chip>
-          <Badge content={rows.length} variant="subtle" />
-        </View>
-        {!readOnly ? (
-          <Button
-            iconOnly
-            appearance="plain"
-            size="xs"
-            accessibilityLabel={t('databases.actions.new')}
-            onPress={onAddRow}
-            leadingIcon={RiAddLine}
-          />
-        ) : null}
-      </View>
-      <ScrollView style={{ maxHeight: 600 }}>
-        <View className="gap-2">{rows.map((r) => renderCard(r))}</View>
-      </ScrollView>
-    </View>
-  );
-}
-
 interface BoardCardProps {
   readOnly: boolean;
   row: DatabaseRow;
+  preview: React.ReactNode;
+  onChange: (propertyId: string, value: PropertyValue) => void;
   /** The properties the card shows, in order. */
   properties: DatabaseProperty[];
   onOpen: () => void;
@@ -437,64 +456,70 @@ interface BoardCardProps {
   onMove: () => void;
 }
 
-function BoardCard({ row, properties, onOpen, onMove, readOnly }: BoardCardProps) {
+function BoardCard({
+  row,
+  preview,
+  properties,
+  onOpen,
+  onMove,
+  onChange,
+  readOnly,
+}: BoardCardProps) {
   const { t } = useTranslation();
   const title = row.title || t('databases.untitled');
-
-  const dragHandlers =
-    Platform.OS === 'web' && !readOnly
-      ? {
-          draggable: true,
-          onDragStart: (e: { dataTransfer: DataTransfer }) => {
-            e.dataTransfer.setData('text/plain', row.id);
-            e.dataTransfer.effectAllowed = 'move';
-          },
-        }
-      : {};
 
   return (
     <Pressable
       accessibilityRole="link"
       accessibilityLabel={title}
-      accessibilityHint={readOnly ? undefined : t('databases.board.longPressHint')}
       onPress={onOpen}
-      onLongPress={readOnly ? undefined : onMove}
-      className="bg-card border border-border rounded-md px-3 py-2 shadow-sm"
-      {...(dragHandlers as Record<string, unknown>)}
+      className="overflow-hidden"
     >
-      <View className="mb-1 flex-row items-start gap-1">
-        <Text className="flex-1 text-sm font-medium text-foreground" numberOfLines={2}>
-          {title}
-        </Text>
-        {!readOnly ? (
-          <Button
-            iconOnly
-            appearance="plain"
-            size="xs"
-            // The card around the button opens the row.
-            stopPropagation
-            accessibilityLabel={t('databases.board.moveCard', { title })}
-            onPress={onMove}
-            leadingIcon={RiArrowLeftRightLine}
-          />
-        ) : null}
-      </View>
-      <View className="gap-1">
-        {properties.map((property) => (
-          <View key={property.id} className="flex-row items-center gap-1">
-            <PropertyCell
-              readOnly={readOnly}
-              property={property}
-              value={row.properties[property.id] ?? null}
-              variant="card"
-              rowId={row.id}
-              onChange={() => {
-                // cards are not editable inline — opens row instead
-                onOpen();
-              }}
+      {preview}
+      <View className="px-3 py-2">
+        <View className="mb-1 flex-row items-start gap-1">
+          {readOnly ? (
+            <Text className="flex-1 text-sm font-medium text-foreground" numberOfLines={2}>
+              {title}
+            </Text>
+          ) : (
+            <BoardDragHandle
+              style={{ flex: 1 }}
+              accessibilityLabel={t('databases.board.dragCard', { title })}
+              onPress={onOpen}
+            >
+              <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
+                {title}
+              </Text>
+            </BoardDragHandle>
+          )}
+          {!readOnly ? (
+            <Button
+              iconOnly
+              appearance="plain"
+              size="xs"
+              // The card around the button opens the row.
+              stopPropagation
+              accessibilityLabel={t('databases.board.moveCard', { title })}
+              onPress={onMove}
+              leadingIcon={RiArrowLeftRightLine}
             />
-          </View>
-        ))}
+          ) : null}
+        </View>
+        <View className="gap-1">
+          {properties.map((property) => (
+            <View key={property.id} className="flex-row items-center gap-1">
+              <PropertyCell
+                readOnly={readOnly}
+                property={property}
+                value={row.properties[property.id] ?? null}
+                variant="card"
+                rowId={row.id}
+                onChange={(value) => onChange(property.id, value)}
+              />
+            </View>
+          ))}
+        </View>
       </View>
     </Pressable>
   );

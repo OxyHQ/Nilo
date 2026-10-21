@@ -83,6 +83,10 @@ export class PageSession {
   private status: SyncStatus = 'saved';
   private storeFailed = false;
   private readOnly: boolean;
+  private pendingLocal = false;
+  private localVersion = 0;
+  private persistence: Promise<void> = Promise.resolve();
+  private disposal: Promise<number> | null = null;
 
   constructor(private readonly options: PageSessionOptions) {
     this.readOnly = options.readOnly;
@@ -101,12 +105,14 @@ export class PageSession {
 
   /** Open the page: the device's copy, then the server whenever the socket is connected. */
   async start(): Promise<void> {
+    if (this.disposed) return;
     const { store, pageId, socket } = this.options;
     const kept = await store?.load(pageId).catch((err: unknown) => {
       this.storeFailure(err);
       return null;
     });
     if (this.disposed) return;
+    this.pendingLocal = kept?.dirty ?? false;
     if (kept && kept.updates.length > 0) {
       Y.applyUpdate(this.doc, Y.mergeUpdates(kept.updates), FROM_DEVICE);
       this.markReady();
@@ -121,7 +127,8 @@ export class PageSession {
   }
 
   /** Close the page; resolves with the size of what the device keeps of it. */
-  dispose(): Promise<number> {
+  dispose({ flush = true }: { flush?: boolean } = {}): Promise<number> {
+    if (this.disposal) return this.disposal;
     this.disposed = true;
     const { socket, pageId, store } = this.options;
     socket.off('connect', this.onConnect);
@@ -129,15 +136,46 @@ export class PageSession {
     socket.off('doc:update', this.onRemote);
     this.doc.off('update', this.onUpdate);
     if (this.batchTimer) clearTimeout(this.batchTimer);
-    this.flush();
+    if (flush) this.flush();
+    else this.batch = [];
     socket.emit('page:leave', pageId);
     const state = Y.encodeStateAsUpdate(this.doc);
     this.doc.destroy();
-    if (!store) return Promise.resolve(0);
-    return store.compact(pageId, state).then(
-      () => state.byteLength,
-      () => 0,
-    );
+    // A deferred/cancelled opening has no loaded base to compact.
+    if (!store || !this.ready) {
+      this.disposal = this.persistence.then(() => 0);
+    } else {
+      this.disposal = this.persist(() => store.compact(pageId, state)).then(
+        () => state.byteLength,
+        () => 0,
+      );
+    }
+    return this.disposal;
+  }
+
+  /** Device writes of this session settle in document order, including closure. */
+  private persist(write: () => Promise<void>): Promise<void> {
+    const pending = this.persistence.then(write);
+    this.persistence = pending.catch(this.storeFailure);
+    return pending;
+  }
+
+  /** A server confirmation becomes saved only after earlier device writes settle. */
+  private confirm(): void {
+    const version = this.localVersion;
+    void this.persist(async () => {
+      if (
+        this.storeFailed ||
+        version !== this.localVersion ||
+        this.inflight !== 0 ||
+        this.batch.length !== 0
+      )
+        return;
+      await this.options.store?.markSynced(this.options.pageId);
+      if (version !== this.localVersion) return;
+      this.pendingLocal = false;
+      if (!this.disposed && this.joined) this.setStatus('saved');
+    });
   }
 
   private setStatus(status: SyncStatus): void {
@@ -168,12 +206,17 @@ export class PageSession {
     const { store, pageId } = this.options;
     const { readOnly } = this;
     const local = origin !== FROM_SERVER && origin !== FROM_DEVICE;
+    if (local) {
+      this.pendingLocal = true;
+      this.localVersion += 1;
+    }
     if (origin !== FROM_DEVICE && store) {
-      void store.append(pageId, update, local).catch(this.storeFailure);
+      void this.persist(() => store.append(pageId, update, local));
       this.appends += 1;
       if (this.appends >= COMPACT_EVERY) {
         this.appends = 0;
-        void store.compact(pageId, Y.encodeStateAsUpdate(this.doc)).catch(this.storeFailure);
+        const state = Y.encodeStateAsUpdate(this.doc);
+        void this.persist(() => store.compact(pageId, state));
       }
     }
     if (!local || readOnly) return;
@@ -197,7 +240,7 @@ export class PageSession {
   }
 
   private send(update: Uint8Array): void {
-    const { socket, pageId, store } = this.options;
+    const { socket, pageId } = this.options;
     if (update.byteLength > MAX_DOC_UPDATE_BYTES) {
       // The server would refuse it: kept on the device, and said.
       this.options.onRejected('UPDATE_TOO_LARGE');
@@ -223,8 +266,7 @@ export class PageSession {
         return;
       }
       if (this.inflight === 0 && this.batch.length === 0) {
-        this.setStatus('saved');
-        void store?.markSynced(pageId).catch(() => {});
+        this.confirm();
       }
     }) as (reply: never) => void);
   }
@@ -265,7 +307,7 @@ export class PageSession {
 
   /** The Yjs sync, both ways. */
   private handshake(): void {
-    const { socket, pageId, store } = this.options;
+    const { socket, pageId } = this.options;
     socket.emit('doc:sync', { pageId, stateVector: Y.encodeStateVector(this.doc) }, ((
       reply: Reply,
     ) => {
@@ -278,14 +320,15 @@ export class PageSession {
       Y.applyUpdate(this.doc, bytes(reply.update), FROM_SERVER);
       this.joined = true;
       this.markReady();
-      const missing = this.readOnly
-        ? null
-        : Y.encodeStateAsUpdate(this.doc, bytes(reply.stateVector));
-      if (missing && hasContent(missing)) this.send(missing);
-      else {
-        this.setStatus('saved');
-        void store?.markSynced(pageId).catch(() => {});
-      }
+      const missing = Y.encodeStateAsUpdate(this.doc, bytes(reply.stateVector));
+      if (hasContent(missing)) {
+        if (!this.readOnly) this.send(missing);
+        else if (this.pendingLocal) {
+          // Downloading remote state is not an acknowledgement of a local draft.
+          this.options.onRejected('READ_ONLY');
+          this.setStatus('error');
+        } else this.setStatus('saved');
+      } else this.confirm();
       this.flush();
     }) as (reply: never) => void);
   }

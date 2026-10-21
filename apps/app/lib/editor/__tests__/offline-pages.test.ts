@@ -145,3 +145,85 @@ it('keeps nothing where there is no storage for it (a browser)', async () => {
   expect(await web.keeps('a')).toBe(false);
   expect(await web.list()).toEqual([]);
 });
+
+it('removes downloads and clean documents, preserving pending work even outside the index', async () => {
+  for (const id of ['clean', 'pending']) await pages.setPinned(id, true);
+  await docs.append('clean', update, false);
+  await docs.append('pending', update, true);
+  await docs.append('pending-unlisted', update, true);
+  const heard = jest.fn();
+  const stop = pages.subscribe(heard);
+
+  await pages.removeDownloads((id) => docs.remove(id));
+
+  expect(await pages.list()).toEqual([]);
+  expect(await docs.load('clean')).toBeNull();
+  expect(await docs.load('pending')).toEqual({ updates: [update], dirty: true });
+  expect(await docs.load('pending-unlisted')).toEqual({ updates: [update], dirty: true });
+  expect(heard).toHaveBeenCalledTimes(1);
+  stop();
+  // The privacy boundary still purges pending work, indexed or not.
+  await pages.clear();
+  expect(await docs.load('pending')).toBeNull();
+  expect(await docs.load('pending-unlisted')).toBeNull();
+});
+
+it('does not lose an edit that arrives while a clean download is being removed', async () => {
+  await pages.setPinned('page', true);
+  await docs.append('page', update, false);
+  const remove = docs.remove.bind(docs);
+  const local = new Uint8Array([4, 5, 6]);
+  jest.spyOn(docs, 'remove').mockImplementationOnce(async (id, options) => {
+    await docs.append(id, local, true);
+    await remove(id, options);
+  });
+
+  await pages.removeDownloads((id) => docs.remove(id));
+
+  expect(await docs.load('page')).toEqual({ updates: [update, local], dirty: true });
+  expect(await pages.list()).toEqual([]);
+});
+
+it('serializes a new download after removal so the later choice survives', async () => {
+  await pages.setPinned('old', true);
+  await docs.append('old', update, false);
+  let release!: () => void;
+  const paused = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let entered!: () => void;
+  const removing = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const remove = docs.remove.bind(docs);
+  jest.spyOn(docs, 'remove').mockImplementationOnce(async (id, options) => {
+    entered();
+    await paused;
+    await remove(id, options);
+  });
+  const removal = pages.removeDownloads((id) => docs.remove(id));
+  await removing;
+  const pinned = pages.setPinned('new', true);
+  release();
+  await Promise.all([removal, pinned]);
+
+  expect((await pages.list()).map((entry) => entry.pageId)).toEqual(['new']);
+  expect(await docs.load('old')).toBeNull();
+});
+
+it('reports a failed download removal, keeps the index, and allows a later retry', async () => {
+  await pages.setPinned('page', true);
+  const heard = jest.fn();
+  const stop = pages.subscribe(heard);
+  await expect(
+    pages.removeDownloads(async () => {
+      throw new Error('Storage failed');
+    }),
+  ).rejects.toThrow('Storage failed');
+  expect(await pages.keeps('page')).toBe(true);
+  expect(heard).not.toHaveBeenCalled();
+  await pages.removeDownloads((id) => docs.remove(id));
+  expect(await pages.list()).toEqual([]);
+  expect(heard).toHaveBeenCalledTimes(1);
+  stop();
+});

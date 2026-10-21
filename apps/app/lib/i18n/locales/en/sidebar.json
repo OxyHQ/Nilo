@@ -6,6 +6,21 @@
   "termsOfService": "Terms of Service",
   "privacyPolicy": "Privacy Policy",
   "home": "Home",
+  "welcome": {
+    "title": "Welcome to Nilo",
+    "seeAll": "See all",
+    "description": "Keep your ideas, projects and team knowledge together. Choose where to start.",
+    "write": "Capture your first idea",
+    "ask": "Ask anything with Alia",
+    "search": "Find what you need",
+    "invite": "Bring your team together",
+    "details": {
+      "write": "Start a page, use a template, or import your existing work.",
+      "ask": "Get help writing, organizing ideas and planning your next steps.",
+      "search": "Search pages and jump to workspace commands.",
+      "invite": "Invite members and manage their workspace access."
+    }
+  },
   "expandSidebar": "Expand sidebar",
   "collapseSidebar": "Collapse sidebar",
   "accountMenu": "Account menu",

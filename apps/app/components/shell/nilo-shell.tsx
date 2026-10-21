@@ -26,6 +26,7 @@ import { useUIStore } from '@/lib/stores/ui-store';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
 import { PRIVACY_URL, TERMS_URL, useAccountIdentity, useWorkspaceTeam } from './use-identities';
 import { useSidebarTree } from './use-sidebar-tree';
+import { useOnboarding } from './use-onboarding';
 
 /** The `SidebarNavItem` icon slot hands over a size; Alia's mark takes it as its box. */
 function AliaGlyph({ width, height }: { width?: number; height?: number }) {
@@ -67,6 +68,7 @@ export function NiloShell({ children }: { children: React.ReactNode }) {
   const { data: unread } = useUnreadCount();
   const { team, dialogs: workspaceDialogs } = useWorkspaceTeam();
   const account = useAccountIdentity();
+  const { onboarding, dialogs: onboardingDialogs } = useOnboarding(workspaceId);
   const {
     tree,
     onTreeItemDrop,
@@ -168,6 +170,7 @@ export function NiloShell({ children }: { children: React.ReactNode }) {
       teamPlacement: 'header',
       team,
       account,
+      onboarding,
       items: [
         {
           key: 'search',
@@ -229,6 +232,7 @@ export function NiloShell({ children }: { children: React.ReactNode }) {
     unread?.count,
     team,
     account,
+    onboarding,
     setPaletteOpen,
     openSettings,
     workspaceId,
@@ -241,6 +245,8 @@ export function NiloShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <AppShell
+        panels
+        contentMaxWidth="none"
         scroll="fixed"
         safeArea
         navFrom={SIDEBAR_IN_FLOW_FROM}
@@ -255,6 +261,7 @@ export function NiloShell({ children }: { children: React.ReactNode }) {
       </AppShell>
       {workspaceDialogs}
       {treeDialogs}
+      {onboardingDialogs}
     </>
   );
 }

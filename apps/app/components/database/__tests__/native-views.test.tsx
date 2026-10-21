@@ -28,6 +28,10 @@ jest.mock('@/lib/useColorScheme', () => ({ useColorScheme: () => ({ colors: {} }
 jest.mock('@/lib/hooks/use-database-views', () => ({
   useUpdateView: () => ({ mutate: jest.fn(), isPending: false }),
 }));
+jest.mock('@/lib/hooks/use-member-profiles', () => ({
+  profileName: () => null,
+  useMemberProfiles: () => ({ data: [] }),
+}));
 jest.mock('@/lib/hooks/use-database-rows', () => ({
   useCreateRow: () => ({ mutate: jest.fn(), mutateAsync: jest.fn(), isPending: false }),
   useUpdateRow: () => ({ mutate: mockMutate }),
@@ -179,23 +183,29 @@ describe('board on native', () => {
     type: 'board',
     groupBy: { propertyId: 'stage' },
     hiddenProperties: [],
+    config: {},
   } as unknown as DatabaseView;
 
-  it('moves a card to another column without dragging, by its button or a long press', () => {
+  it('moves a card to another column through its accessible move button', () => {
     render(<ViewBoard database={database} view={view} rows={rows} isLoading={false} />);
     act(() => pressable('databases.board.moveCard').props.onPress());
     act(() => pressable('Done').props.onPress());
-    expect(mockMutate).toHaveBeenCalledWith({
-      databaseId: 'db',
-      rowId: 'a',
-      properties: { stage: { optionId: 'done' } },
-    });
+    expect(mockMutate).toHaveBeenCalledWith(
+      {
+        databaseId: 'db',
+        rowId: 'a',
+        properties: { stage: { optionId: 'done' } },
+      },
+      expect.objectContaining({ onError: expect.any(Function) }),
+    );
 
-    const card = renderer.root.findAll(
+    const card = pressable('Row b');
+    const moveButton = card.findAll(
       (node) =>
-        node.props.accessibilityLabel === 'Row b' && typeof node.props.onLongPress === 'function',
+        node.props.accessibilityLabel === 'databases.board.moveCard' &&
+        typeof node.props.onPress === 'function',
     )[0];
-    act(() => card?.props.onLongPress());
+    act(() => moveButton?.props.onPress());
     const none = pressable('databases.board.noStatus');
     // Where the card is now is checked.
     expect(none.props.selected).toBe(true);

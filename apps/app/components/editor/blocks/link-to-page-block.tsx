@@ -1,19 +1,15 @@
 import * as React from 'react';
-import { Pressable, View } from 'react-native';
-import { router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { View } from 'react-native';
+import { Link } from 'expo-router';
 import { isEntityId } from '@oxy.so/nilo-contracts';
-import { Button } from '@oxy.so/bloom/button';
+import { Button, LinkButton } from '@oxy.so/bloom/button';
 import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { Text } from '@oxy.so/bloom/typography';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useColorScheme } from '@/lib/useColorScheme';
-import apiClient from '@/lib/api/client';
-import { API_ROUTES } from '@/lib/api/routes';
-import { queryKeys } from '@/lib/hooks/query-keys';
+import { usePage } from '@/lib/hooks/use-pages';
 import { useWorkspaceStore } from '@/lib/stores/workspace-store';
-import type { PageResponse } from '@/lib/types/pages';
 import { PagePicker } from '../page-picker';
 import type { BlockComponentProps } from './types';
 
@@ -32,15 +28,7 @@ export function LinkToPageBlock({ block, onChangeContent, readOnly }: BlockCompo
   const pageId = typeof block.content.pageId === 'string' ? block.content.pageId : '';
   const isResolved = pageId !== PLACEHOLDER_ID && isEntityId(pageId);
 
-  const pageQuery = useQuery<PageResponse>({
-    queryKey: isResolved ? queryKeys.pages.detail(pageId) : ['pages', 'none'],
-    queryFn: async () => {
-      const res = await apiClient.get(API_ROUTES.pages.get(pageId));
-      return res.data;
-    },
-    enabled: isResolved,
-    staleTime: 1000 * 30,
-  });
+  const pageQuery = usePage(isResolved ? pageId : undefined);
 
   if (!isResolved) {
     return (
@@ -87,19 +75,24 @@ export function LinkToPageBlock({ block, onChangeContent, readOnly }: BlockCompo
 
   const page = pageQuery.data?.page;
   return (
-    <Pressable
-      accessibilityRole="link"
-      onPress={() => router.push(`/p/${pageId}`)}
-      className="flex-row items-center gap-2 rounded-md px-2 py-1 hover:bg-muted"
-    >
-      {page?.icon ? (
-        <IconDisplay value={page.icon} size={16} />
-      ) : (
-        <RiFileTextLine width={14} height={14} fill={colors.foreground} />
-      )}
-      <Text className="text-sm text-foreground underline" numberOfLines={1}>
+    <Link href={`/p/${pageId}`} asChild>
+      <LinkButton
+        accessibilityRole="link"
+        linkTone="text"
+        underline="rest"
+        textVariant="body-2-regular"
+        numberOfLines={1}
+        style={{ alignSelf: 'stretch', justifyContent: 'flex-start' }}
+        renderLeadingIcon={({ size, color }) =>
+          page?.icon ? (
+            <IconDisplay value={page.icon} size={size} pageId={pageId} />
+          ) : (
+            <RiFileTextLine width={size} height={size} fill={color} />
+          )
+        }
+      >
         {page ? page.title || t('pages.untitled') : t('editor.blocks.loading')}
-      </Text>
-    </Pressable>
+      </LinkButton>
+    </Link>
   );
 }

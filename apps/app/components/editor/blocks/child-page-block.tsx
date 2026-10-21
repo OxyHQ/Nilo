@@ -1,6 +1,7 @@
-import { Pressable, View } from 'react-native';
-import { router } from 'expo-router';
+import { View } from 'react-native';
+import { Link } from 'expo-router';
 import { isEntityId } from '@oxy.so/nilo-contracts';
+import { LinkButton } from '@oxy.so/bloom/button';
 import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { Text } from '@oxy.so/bloom/typography';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
@@ -39,32 +40,33 @@ export function ChildPageBlock({ block }: BlockComponentProps) {
   const title = page ? page.title || t('pages.untitled') : t('editor.blocks.loading');
   const trashed = page?.archived;
   return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={title}
-      onPress={() => router.push({ pathname: '/(app)/p/[pageId]', params: { pageId } })}
-      className="flex-row items-center gap-2 rounded-md px-2 py-1 hover:bg-muted active:bg-muted"
-    >
-      {page?.icon ? (
-        <IconDisplay value={page.icon} size={18} pageId={pageId} />
-      ) : (
-        <RiFileTextLine width={18} height={18} fill={colors.foreground} />
-      )}
-      <Text
-        className={
-          trashed
-            ? 'shrink text-base font-medium text-muted-foreground line-through'
-            : 'shrink text-base font-medium text-foreground underline decoration-border'
-        }
+    <Link href={`/p/${pageId}`} asChild>
+      <LinkButton
+        accessibilityRole="link"
+        accessibilityLabel={title}
+        linkTone={trashed ? 'secondary' : 'text'}
+        underline={trashed ? 'none' : 'rest'}
+        textVariant="body-medium"
+        textStyle={trashed ? { textDecorationLine: 'line-through' } : undefined}
         numberOfLines={1}
+        style={{ alignSelf: 'stretch', justifyContent: 'flex-start' }}
+        renderLeadingIcon={({ size, color }) =>
+          page?.icon ? (
+            <IconDisplay value={page.icon} size={size} pageId={pageId} />
+          ) : (
+            <RiFileTextLine width={size} height={size} fill={color} />
+          )
+        }
+        trailing={
+          trashed ? (
+            <Text variant="caption-1-regular" className="text-muted-foreground">
+              {t('editor.blocks.childPage.trashed')}
+            </Text>
+          ) : undefined
+        }
       >
         {title}
-      </Text>
-      {trashed ? (
-        <Text className="text-xs text-muted-foreground">
-          {t('editor.blocks.childPage.trashed')}
-        </Text>
-      ) : null}
-    </Pressable>
+      </LinkButton>
+    </Link>
   );
 }

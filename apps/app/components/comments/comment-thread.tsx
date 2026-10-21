@@ -3,11 +3,14 @@ import * as React from 'react';
 import { View } from 'react-native';
 import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
 import { RiCornerDownRightLine } from '@oxy.so/bloom/icons/RiCornerDownRightLine';
-import { RiMessage2Line } from '@oxy.so/bloom/icons/RiMessage2Line';
 import { RiMoreLine } from '@oxy.so/bloom/icons/RiMoreLine';
 import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { RiArrowGoBackLine } from '@oxy.so/bloom/icons/RiArrowGoBackLine';
 import { Button } from '@oxy.so/bloom/button';
+import { Avatar } from '@oxy.so/bloom/avatar';
+import { Card } from '@oxy.so/bloom/card';
+import type { User } from '@oxy.so/core';
+import { profileName } from '@/lib/hooks/use-member-profiles';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +38,7 @@ interface CommentThreadProps {
   thread: CommentThreadType;
   workspaceId: string;
   pageId: string;
+  profiles?: User[];
 }
 
 function relativeTime(iso: string): string {
@@ -62,6 +66,7 @@ export function CommentThread({
   workspaceId,
   pageId,
   canComment = true,
+  profiles,
 }: CommentThreadProps) {
   const { user } = useOxy();
   const { t } = useTranslation();
@@ -92,7 +97,7 @@ export function CommentThread({
   };
 
   return (
-    <View className="rounded-xl border border-border bg-card px-3 py-3 gap-2">
+    <Card appearance="plain" border="hairline" elevation="none" className="p-3 gap-2">
       {thread.root.anchor ? (
         <CommentQuote blockId={thread.root.blockId} anchor={thread.root.anchor} />
       ) : null}
@@ -101,6 +106,7 @@ export function CommentThread({
         currentUserId={canComment ? (user?.id ?? null) : null}
         pageId={pageId}
         blockId={thread.root.blockId}
+        profile={profiles?.find((profile) => profile.id === thread.root.authorId)}
         onDelete={() =>
           deleteMutation.mutate({
             id: thread.root.id,
@@ -112,7 +118,7 @@ export function CommentThread({
           canComment ? (
             <Button
               appearance="subtle"
-              size="xs"
+              iconOnly
               onPress={handleToggleResolve}
               disabled={resolveMutation.isPending || unresolveMutation.isPending}
               accessibilityLabel={
@@ -125,9 +131,7 @@ export function CommentThread({
                   <RiCheckLine width={size} height={size} fill={color} />
                 )
               }
-            >
-              {isResolved ? t('comments.thread.reopen') : t('comments.thread.resolve')}
-            </Button>
+            />
           ) : null
         }
       />
@@ -141,6 +145,7 @@ export function CommentThread({
               currentUserId={canComment ? (user?.id ?? null) : null}
               pageId={pageId}
               blockId={reply.blockId}
+              profile={profiles?.find((profile) => profile.id === reply.authorId)}
               compact
               onDelete={() =>
                 deleteMutation.mutate({
@@ -169,7 +174,6 @@ export function CommentThread({
         ) : (
           <Button
             appearance="subtle"
-            size="xs"
             className="self-start"
             onPress={() => setReplyOpen(true)}
             accessibilityLabel={t('comments.thread.replyToThread')}
@@ -179,7 +183,7 @@ export function CommentThread({
           </Button>
         )
       ) : null}
-    </View>
+    </Card>
   );
 }
 
@@ -191,34 +195,30 @@ interface CommentRowProps {
   compact?: boolean;
   onDelete: () => void;
   rightSlot?: React.ReactNode;
+  profile?: User;
 }
 
-function CommentRow({ comment, currentUserId, compact, onDelete, rightSlot }: CommentRowProps) {
+function CommentRow({
+  comment,
+  currentUserId,
+  compact,
+  onDelete,
+  rightSlot,
+  profile,
+}: CommentRowProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const isAuthor = currentUserId === comment.authorId;
+  const name = profileName(profile) ?? shortAuthor(comment.authorId);
 
   return (
     <View className="gap-1">
       <View className="flex-row items-center gap-2">
-        <View
-          className={
-            compact
-              ? 'h-5 w-5 items-center justify-center rounded-full bg-muted'
-              : 'h-7 w-7 items-center justify-center rounded-full bg-muted'
-          }
-        >
-          <RiMessage2Line
-            width={compact ? 10 : 12}
-            height={compact ? 10 : 12}
-            fill={colors.mutedForeground}
-          />
-        </View>
-        <Text variant="caption-1-medium">
-          {/* Phase 2 backend returns authorId only; profile hydration arrives later. */}
-          {isAuthor ? t('comments.thread.you') : shortAuthor(comment.authorId)}
+        <Avatar source={profile?.avatar} name={name} size={compact ? 'sm' : 'md'} />
+        <Text variant="caption-1-medium" numberOfLines={1} className="min-w-0 shrink">
+          {isAuthor ? t('comments.thread.you') : name}
         </Text>
-        <Text className="text-[10px] text-muted-foreground">
+        <Text variant="caption-2-regular" className="text-muted-foreground">
           {relativeTime(comment.createdAt)}
           {comment.editedAt ? ` · ${t('comments.thread.edited')}` : ''}
         </Text>
@@ -229,7 +229,6 @@ function CommentRow({ comment, currentUserId, compact, onDelete, rightSlot }: Co
             <DropdownMenuTrigger asChild>
               <Button
                 appearance="subtle"
-                size="xs"
                 iconOnly
                 accessibilityLabel={t('comments.thread.moreActions')}
                 leadingIcon={RiMoreLine}

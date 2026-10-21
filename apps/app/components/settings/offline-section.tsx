@@ -3,9 +3,11 @@ import { useRouter } from 'expo-router';
 import { Button } from '@oxy.so/bloom/button';
 import { SettingsCard, SettingsRow, SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
 import { confirm } from '@oxy.so/bloom/surfaces';
+import { toast } from '@oxy.so/bloom/toast';
 import { useTranslation } from '@/hooks/useTranslation';
 import { type OfflineEntry, offlinePages } from '@/lib/editor/offline-pages';
 import { useOfflinePageList } from '@/lib/editor/use-offline-pages';
+import { removeClosedPageDocument } from '@/lib/editor/shared-sessions';
 import { useNiloSettings } from './settings-provider';
 
 /** A size in bytes the way people read one: 820 KB, 3.4 MB. */
@@ -37,7 +39,13 @@ export function OfflineSection() {
       cancelLabel: t('common.cancel'),
       destructive: true,
     });
-    if (confirmed) await offlinePages.clear();
+    if (confirmed) {
+      try {
+        await offlinePages.removeDownloads(removeClosedPageDocument);
+      } catch {
+        toast.error(t('common.error'));
+      }
+    }
   };
 
   return (

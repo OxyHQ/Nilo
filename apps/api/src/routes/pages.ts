@@ -63,7 +63,6 @@ import { hasRole } from '../db/schema/workspaces.js';
 import {
   listGrantsOfUser,
   listGrantsOfUserInWorkspace,
-  listGrantsOnPages,
   upsertGrant,
 } from '../repositories/pagePermissions.js';
 import { findLiveWorkspaceById, listMembershipsForUser } from '../repositories/workspaces.js';
@@ -748,7 +747,11 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     // The page's subpages go to the trash with it.
     const archivedPage = await db.transaction(async (tx) => {
-      const written = await updatePage(tx, page.id, { archived: true, archivedWith: null });
+      const written = await updatePage(tx, page.id, {
+        archived: true,
+        archivedWith: null,
+        lastEditedBy: req.user?.id,
+      });
       if (written && !page.archived) await setTreeArchived(tx, page.id, true);
       return written;
     });

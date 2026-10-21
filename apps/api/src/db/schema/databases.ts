@@ -230,8 +230,8 @@ export interface ViewGroupBy {
  * view type are read. Documented options:
  *   - calendar: { datePropertyId }
  *   - timeline: { startPropertyId, endPropertyId? }
- *   - gallery:  { coverSource, coverPropertyId?, fit? }
- *   - board:    grouping is via top-level `groupBy`; no extra fields needed.
+ *   - gallery/board: { coverSource?, coverPropertyId?, fit?, cardSize? }
+ *   - board:    grouping is via top-level `groupBy`.
  *   - form:     { description? }, shown above its fields
  *   - table:    { columnWidths?, calculations? }
  *   - chart:    { chart }
@@ -240,11 +240,13 @@ export interface ViewGroupBy {
  *   - any:      { openIn?, propertyOrder? }
  */
 export interface ViewConfig {
+  cardSize?: import('@oxy.so/nilo-contracts').CardSize;
+  boardColumnOrder?: import('@oxy.so/nilo-contracts').BoardColumnOrder;
   description?: string;
   datePropertyId?: string;
   startPropertyId?: string;
   endPropertyId?: string;
-  coverSource?: 'property' | 'pageCover';
+  coverSource?: 'property' | 'pageCover' | 'none';
   coverPropertyId?: string;
   fit?: 'cover' | 'contain';
   /** Where the view opens a row; absent, in a side peek. */

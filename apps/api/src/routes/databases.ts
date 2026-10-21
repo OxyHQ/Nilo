@@ -5,6 +5,8 @@ import { isLiveEntityId } from '@oxy.so/db';
 import {
   acceptsCalculation,
   CALCULATION_FUNCTIONS,
+  CARD_SIZES,
+  BOARD_GROUPABLE_PROPERTY_TYPES,
   CHART_AGGREGATES,
   CHART_TYPES,
   MAX_NUMBER_GROUPS,
@@ -377,6 +379,17 @@ const numberGroupingSchema = z
 
 /** A view's `config` (`ViewConfig`): a key it does not name is dropped, so each is listed. */
 const viewConfigSchema = z.object({
+  cardSize: z.enum(CARD_SIZES).optional(),
+  boardColumnOrder: z
+    .object({
+      propertyId: z.string().min(1),
+      columnIds: z
+        .array(z.string().min(1))
+        .max(1000)
+        .refine((ids) => new Set(ids).size === ids.length),
+    })
+    .strict()
+    .optional(),
   /** A form's text above its fields. */
   description: z.string().max(5000).optional(),
   datePropertyId: z.string().optional(),
@@ -776,7 +789,7 @@ function viewDefaults(
     types.flatMap((t) => schema.properties.find((p) => p.type === t) ?? [])[0];
   const out = { groupBy: groupBy ?? null, config: { ...config } };
   if (type === 'board' && groupBy === undefined) {
-    const by = first('status', 'select', 'checkbox');
+    const by = first(...BOARD_GROUPABLE_PROPERTY_TYPES);
     if (by) out.groupBy = { propertyId: by.id };
   }
   const date = first('date');
@@ -1878,7 +1891,18 @@ router.patch('/:id/views/:viewId', async (req: Request, res: Response) => {
     if (!found) return;
     const { db, view } = found;
     if (refuse(res, filterRefusal(db.propertiesSchema, body.filters))) return;
-    if (refuse(res, viewSettingsRefusal(db.propertiesSchema, body))) return;
+    if (
+      refuse(
+        res,
+        viewSettingsRefusal(db.propertiesSchema, {
+          ...body,
+          type: body.type ?? view.type,
+          groupBy: body.groupBy === undefined ? view.groupBy : body.groupBy,
+          subGroupBy: body.subGroupBy === undefined ? view.subGroupBy : body.subGroupBy,
+        }),
+      )
+    )
+      return;
 
     // Promoting a view and demoting the previous default(s) commit
     // together, so a failure between the two cannot leave the database with

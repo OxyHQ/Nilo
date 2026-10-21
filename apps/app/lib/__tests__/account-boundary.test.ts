@@ -3,6 +3,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { enterAccount, sessionEnded, signOutOfDevice } from '../account-boundary';
 import { pageDocStore } from '../editor/doc-store';
 import { offlinePages } from '../editor/offline-pages';
+import { withPageSessionsDrained } from '../editor/shared-sessions';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
@@ -12,6 +13,9 @@ jest.mock('../editor/doc-store', () => ({
 }));
 jest.mock('../editor/offline-pages', () => ({
   offlinePages: { clear: jest.fn(async () => undefined) },
+}));
+jest.mock('../editor/shared-sessions', () => ({
+  withPageSessionsDrained: jest.fn(async (purge: () => Promise<void>) => purge()),
 }));
 // Releasing push on sign-out is `push-registration.test.ts`'s.
 jest.mock('../push-registration', () => ({ unregisterPush: jest.fn(async () => undefined) }));
@@ -23,6 +27,7 @@ beforeEach(async () => {
   client = new QueryClient();
   client.setQueryData(['pages', 'w'], { pages: ['secret'] });
 });
+afterEach(() => client.clear());
 
 const cleared = () => {
   expect(client.getQueryData(['pages', 'w'])).toBeUndefined();
@@ -82,4 +87,27 @@ it('ignores a session ending for an account that does not own the device', async
   await enterAccount(client, 'ana');
   await sessionEnded('someone-else');
   expect(await AsyncStorage.getItem('nilo:account')).toBe('ana');
+});
+
+it('does not clear device data until session persistence has drained', async () => {
+  await enterAccount(client, 'ana');
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let began!: () => void;
+  const started = new Promise<void>((resolve) => {
+    began = resolve;
+  });
+  jest.mocked(withPageSessionsDrained).mockImplementationOnce(async (purge) => {
+    began();
+    await pending;
+    return purge();
+  });
+  const signingOut = signOutOfDevice(client);
+  await started;
+  kept();
+  release();
+  await signingOut;
+  cleared();
 });

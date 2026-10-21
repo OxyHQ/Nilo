@@ -11,6 +11,7 @@ jest.mock('react-native-gesture-handler', () => {
   const chain: Record<string, unknown> = {};
   const gesture = () => new Proxy(chain, { get: () => () => gesture() });
   return {
+    GestureHandlerRootView: require('react-native').View,
     Gesture: { Pan: gesture, Pinch: gesture, Tap: gesture, Simultaneous: gesture },
     GestureDetector: ({ children }: { children: unknown }) => children,
   };

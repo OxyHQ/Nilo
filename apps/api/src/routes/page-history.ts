@@ -28,12 +28,12 @@ function badInput(error: unknown, res: Response): boolean {
   return false;
 }
 
-/** GET /pages/:id/versions — newest first. */
+/** GET /pages/:id/versions — editors only, newest first. */
 router.get('/pages/:id/versions', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { id } = z.object({ id: entityIdSchema }).parse(req.params);
     const db = getDb();
-    if (!(await checkPageAccess(req, res, db, id, 'viewer'))) return;
+    if (!(await checkPageAccess(req, res, db, id, 'editor'))) return;
     res.json({ versions: await listPageVersions(db, id) });
   } catch (error: unknown) {
     if (badInput(error, res)) return;
@@ -42,7 +42,7 @@ router.get('/pages/:id/versions', authenticateToken, async (req: Request, res: R
   }
 });
 
-/** GET /pages/:id/versions/:versionId — the version's blocks, to look at. */
+/** GET /pages/:id/versions/:versionId — editors only, the version's blocks. */
 router.get(
   '/pages/:id/versions/:versionId',
   authenticateToken,
@@ -52,7 +52,7 @@ router.get(
         .object({ id: entityIdSchema, versionId: entityIdSchema })
         .parse(req.params);
       const db = getDb();
-      if (!(await checkPageAccess(req, res, db, id, 'viewer'))) return;
+      if (!(await checkPageAccess(req, res, db, id, 'editor'))) return;
       const version = await findPageVersion(db, id, versionId);
       if (!version) {
         res.status(404).json({ error: 'Version not found' });

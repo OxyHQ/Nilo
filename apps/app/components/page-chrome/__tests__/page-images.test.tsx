@@ -1,3 +1,5 @@
+// Activity's requests and interaction are covered by page-activity.test.tsx.
+jest.mock('../page-activity', () => ({ PageActivity: () => null, PageActivityPanel: () => null }));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Image as ExpoImage } from 'expo-image';
 import { Platform, Text } from 'react-native';

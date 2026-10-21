@@ -24,6 +24,8 @@ import {
   pageTombstones,
 } from '../db/schema/pages.js';
 
+import { recordPageActivity, recordPageChanges } from './pageActivity.js';
+
 export type PageRow = typeof pages.$inferSelect;
 
 /**
@@ -285,27 +287,34 @@ export interface CreatePageInput {
  * rather than quietly fixed here.
  */
 export async function createPage(db: PgHandle, input: CreatePageInput): Promise<PageRow> {
-  const [row] = await db
-    .insert(pages)
-    .values({
-      ...(input.id !== undefined && { id: input.id }),
-      workspaceId: input.workspaceId,
-      parentId: input.parentId ?? null,
-      title: input.title ?? '',
-      icon: input.icon ?? null,
-      cover: input.cover ?? null,
-      ownerId: input.ownerId,
-      archived: input.archived ?? false,
-      order: input.order,
-      databaseId: input.databaseId ?? null,
-      properties: input.properties ?? {},
-      template: input.template ?? false,
-      // Read only at the top of a tree: a subpage lives where its tree starts.
-      teamspaceId: input.parentId ? null : (input.teamspaceId ?? null),
-    })
-    .returning();
-  if (!row) throw new Error('createPage inserted no row');
-  return row;
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(pages)
+      .values({
+        ...(input.id !== undefined && { id: input.id }),
+        workspaceId: input.workspaceId,
+        parentId: input.parentId ?? null,
+        title: input.title ?? '',
+        icon: input.icon ?? null,
+        cover: input.cover ?? null,
+        ownerId: input.ownerId,
+        archived: input.archived ?? false,
+        order: input.order,
+        databaseId: input.databaseId ?? null,
+        properties: input.properties ?? {},
+        template: input.template ?? false,
+        // Read only at the top of a tree: a subpage lives where its tree starts.
+        teamspaceId: input.parentId ? null : (input.teamspaceId ?? null),
+      })
+      .returning();
+    if (!row) throw new Error('createPage inserted no row');
+    await recordPageActivity(tx, {
+      pageId: row.id,
+      actorIds: input.ownerId.startsWith('form:') ? [] : [input.ownerId],
+      kind: 'created',
+    });
+    return row;
+  });
 }
 
 export interface UpdatePageInput {
@@ -398,8 +407,13 @@ export async function updatePage(
     throw new Error('updatePage was given no fields to write');
   }
 
-  const [row] = await db.update(pages).set(values).where(eq(pages.id, id)).returning();
-  return row;
+  return db.transaction(async (tx) => {
+    const [before] = await tx.select().from(pages).where(eq(pages.id, id)).for('update');
+    if (!before) return undefined;
+    const [row] = await tx.update(pages).set(values).where(eq(pages.id, id)).returning();
+    if (row) await recordPageChanges(tx, before, row, patch.lastEditedBy);
+    return row;
+  });
 }
 
 /**

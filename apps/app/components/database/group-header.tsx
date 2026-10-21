@@ -168,42 +168,49 @@ export function GroupHeader({
           {t('databases.groups.count', { count })}
         </Text>
       </Pressable>
-      {actions ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              iconOnly
-              appearance="plain"
-              size="xs"
-              accessibilityLabel={t('databases.groups.options', { name: label })}
-              leadingIcon={RiMoreLine}
-            />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" label={t('databases.groups.options', { name: label })}>
-            <DropdownMenuItem
-              disabled={!actions.canMoveUp}
-              leading={<RiArrowUpLine width={14} height={14} fill={colors.foreground} />}
-              onPress={() => actions.onMove(-1)}
-            >
-              {t('databases.groups.moveUp')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={!actions.canMoveDown}
-              leading={<RiArrowDownLine width={14} height={14} fill={colors.foreground} />}
-              onPress={() => actions.onMove(1)}
-            >
-              {t('databases.groups.moveDown')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              leading={<RiEyeOffLine width={14} height={14} fill={colors.foreground} />}
-              onPress={actions.onHide}
-            >
-              {t('databases.groups.hide')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : null}
+      {actions ? <GroupActionsMenu actions={actions} label={label} /> : null}
     </View>
+  );
+}
+
+/** Product actions shared by Bloom's board lanes and other grouped views. */
+export function GroupActionsMenu({ actions, label }: { actions: GroupActions; label: string }) {
+  const { t } = useTranslation();
+  const { colors } = useColorScheme();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          iconOnly
+          appearance="plain"
+          size="xs"
+          accessibilityLabel={t('databases.groups.options', { name: label })}
+          leadingIcon={RiMoreLine}
+        />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" label={t('databases.groups.options', { name: label })}>
+        <DropdownMenuItem
+          disabled={!actions.canMoveUp}
+          leading={<RiArrowUpLine width={14} height={14} fill={colors.foreground} />}
+          onPress={() => actions.onMove(-1)}
+        >
+          {t('databases.groups.moveUp')}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!actions.canMoveDown}
+          leading={<RiArrowDownLine width={14} height={14} fill={colors.foreground} />}
+          onPress={() => actions.onMove(1)}
+        >
+          {t('databases.groups.moveDown')}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          leading={<RiEyeOffLine width={14} height={14} fill={colors.foreground} />}
+          onPress={actions.onHide}
+        >
+          {t('databases.groups.hide')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

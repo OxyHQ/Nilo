@@ -12,7 +12,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { materialize } from '@oxy.so/bloom-editor/yjs';
 import { closeDb, getDb } from '../../db/client.js';
 import { loadPageDoc } from '../../lib/page-docs.js';
-import { comments } from '../../db/schema/collab.js';
+import { comments, pagePermissions } from '../../db/schema/collab.js';
 import { blocks, pageVersions } from '../../db/schema/pages.js';
 import { workspaceMembers, workspaces } from '../../db/schema/workspaces.js';
 import {
@@ -49,6 +49,8 @@ let workspaceId: string;
 let previousUrl: string | undefined;
 const EDITOR = 'history-editor';
 const VIEWER = 'history-viewer';
+const COMMENTER = 'history-commenter';
+const MEMBER_EDITOR = 'history-member-editor';
 
 async function api(user: string, method: string, path: string, body?: unknown) {
   const res = await fetch(`${base}${path}`, {
@@ -93,6 +95,8 @@ beforeAll(async () => {
   await db.insert(workspaceMembers).values([
     { workspaceId, userId: EDITOR, role: 'owner' },
     { workspaceId, userId: VIEWER, role: 'viewer' },
+    { workspaceId, userId: COMMENTER, role: 'commenter' },
+    { workspaceId, userId: MEMBER_EDITOR, role: 'editor' },
   ]);
   const app = express();
   app.use(express.json());
@@ -259,7 +263,7 @@ describe('page history', () => {
     expect(rows.map((r) => [r.id, r.parentBlockId])).toEqual([[c, null]]);
   });
 
-  it('lets viewers look but not restore', async () => {
+  it('requires an effective editor role to list, read, or restore history', async () => {
     const pageId = (
       (await api(EDITOR, 'POST', '/pages', { workspaceId })).json.page as { id: string }
     ).id;
@@ -268,10 +272,87 @@ describe('page history', () => {
       { kind: 'insert', id: a, parentBlockId: null, afterId: null, type: 'paragraph', content: {} },
     ]);
     await tx(pageId, [{ kind: 'update', id: a, content: { text: 'x' } }]);
-    const [kept] = await versionsOf(VIEWER, pageId);
+    const [kept] = await versionsOf(EDITOR, pageId);
     expect(kept).toBeDefined();
-    expect(
-      (await api(VIEWER, 'POST', `/pages/${pageId}/versions/${kept?.id}/restore`)).status,
-    ).toBe(403);
+    for (const user of [VIEWER, COMMENTER]) {
+      for (const [method, path] of [
+        ['GET', `/pages/${pageId}/versions`],
+        ['GET', `/pages/${pageId}/versions/${kept?.id}`],
+        ['POST', `/pages/${pageId}/versions/${kept?.id}/restore`],
+      ]) {
+        const denied = await api(user, method, path);
+        expect(denied.status).toBe(403);
+        expect(denied.json).toMatchObject({ code: 'INSUFFICIENT_ROLE', required: 'editor' });
+        expect(denied.json.versions).toBeUndefined();
+        expect(denied.json.blocks).toBeUndefined();
+      }
+    }
+    for (const user of [EDITOR, MEMBER_EDITOR]) {
+      expect((await api(user, 'GET', `/pages/${pageId}/versions`)).status).toBe(200);
+      expect((await api(user, 'GET', `/pages/${pageId}/versions/${kept?.id}`)).status).toBe(200);
+    }
+  });
+
+  it('uses direct and inherited page grants and immediately removes history access after a downgrade', async () => {
+    const parent = (
+      await api(EDITOR, 'POST', '/pages', {
+        workspaceId,
+        title: 'Private parent',
+        teamspaceId: null,
+      })
+    ).json.page as { id: string };
+    const child = (
+      await api(EDITOR, 'POST', '/pages', { workspaceId, title: 'Child', parentId: parent.id })
+    ).json.page as { id: string };
+    const blockId = uuidv7();
+    await tx(child.id, [
+      {
+        kind: 'insert',
+        id: blockId,
+        parentBlockId: null,
+        afterId: null,
+        type: 'paragraph',
+        content: { text: 'History for editors' },
+      },
+    ]);
+    await tx(child.id, [{ kind: 'update', id: blockId, content: { text: 'Current' } }]);
+    const [kept] = await versionsOf(EDITOR, child.id);
+    expect(kept).toBeDefined();
+    for (const [scope, grantPageId] of [
+      ['inherited', parent.id],
+      ['direct', child.id],
+    ]) {
+      for (const role of ['viewer', 'commenter', 'editor'] as const) {
+        const user = testScope(`history-${scope}-${role}`);
+        await db
+          .insert(pagePermissions)
+          .values({ pageId: grantPageId, userId: user, role, grantedBy: EDITOR });
+        for (const path of [
+          `/pages/${child.id}/versions`,
+          `/pages/${child.id}/versions/${kept?.id}`,
+        ]) {
+          const response = await api(user, 'GET', path);
+          expect(response.status).toBe(role === 'editor' ? 200 : 403);
+          if (role !== 'editor')
+            expect(response.json).toMatchObject({
+              code: 'INSUFFICIENT_ROLE',
+              required: 'editor',
+              actual: role,
+            });
+        }
+        if (role === 'editor') {
+          await db
+            .update(pagePermissions)
+            .set({ role: 'viewer' })
+            .where(eq(pagePermissions.userId, user));
+          expect((await api(user, 'GET', `/pages/${child.id}/versions`)).status).toBe(403);
+          expect((await api(user, 'GET', `/pages/${child.id}/versions/${kept?.id}`)).status).toBe(
+            403,
+          );
+        }
+      }
+    }
+    // Even a workspace editor cannot use history to bypass a private tree.
+    expect((await api(MEMBER_EDITOR, 'GET', `/pages/${child.id}/versions`)).status).toBe(403);
   });
 });

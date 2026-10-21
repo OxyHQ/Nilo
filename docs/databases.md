@@ -66,7 +66,7 @@ itself two-way is **sub-items**: "Sub-items" and "Sub-items (parent)".
 
 Table, board, calendar, gallery, list, timeline, form and chart. A new view starts
 on what it needs when the request leaves it open: a board grouped by the first
-status (else select, else checkbox), a calendar and a timeline on the first
+status (else another supported board property), a calendar and a timeline on the first
 date, a gallery of page covers. A view's rows are
 filtered, searched (by title), sorted and paged in PostgreSQL
 (`view-query.ts`): its filter tree and sorts compile to SQL over the rows'
@@ -76,6 +76,33 @@ rows stay oldest first (the id breaks a tie). Empty values sort last
 ascending, first descending; select and status options in the order they are
 listed; text in ICU's root order, case and accents told apart (the `nilo_sort`
 collation in SQL, `compareText` in JS).
+
+**Cards.** Board columns support status, select, multi-select, people, relations
+and checkboxes. A card with several labels, people or relations appears in each
+assigned column; moving one occurrence replaces that assignment and preserves
+the others. Moving it to the unassigned column clears that property. People
+and relation columns are derived from loaded rows. Nilo uses `ProjectBoard` from
+`@oxy.so/bloom/project-board` with controlled columns and embedded layout. The
+component owns column and card presentation, pointer/touch dragging, keyboard
+moves and animations; Nilo supplies row content, permissions and persistence.
+Subgroups use its controlled `grouped` variant: Bloom owns lane sizing,
+collapse presentation and scrolling, while Nilo persists group preferences.
+The full-page database uses `Screen`, `PageHeader` and `Toolbar`; embedded
+databases use the compositor's local scope, not a separate app layout.
+The card title is its drag handle; property controls remain editable. An
+explicit move button offers the same column changes. Editors can reorder
+columns through Bloom's panel controls; `config.boardColumnOrder` persists
+their IDs scoped to the grouping property, with new columns appended. Removing
+or retyping that property clears its order. Manual ordering of cards inside a
+column is disabled because rows follow the view's saved sort.
+
+Board and gallery cards show all properties enabled in the view, in its saved
+order. Editable property cells save changes directly. Both layouts persist
+small, medium or large cards and optional cover previews (page cover or a files
+property, with cover/contain fit). Board previews default to none; gallery
+previews default to the page cover. Uploaded covers retain the row's page
+context for access checks. Database URLs use `?v=<view-id>` for the selected
+view; a missing or deleted view falls back to the default.
 
 Pages are a keyset: `cursor` is opaque (base64url JSON of the last row's sort
 values, creation time and id), so a row added, edited or archived between two

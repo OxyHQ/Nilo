@@ -3,6 +3,8 @@ import { useOxy } from '@oxy.so/services/ui/client';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { acquireSocket, releaseSocket } from './socket';
 import { queryKeys } from '../hooks/query-keys';
+import type { PageResponse } from '../types/pages';
+import type { DatabaseDetail } from '../types/databases';
 import type { CommentsListResponse } from '../types/comments';
 
 type Kind = 'workspace' | 'database' | 'comments';
@@ -13,10 +15,50 @@ const subscriptions = new WeakMap<
 
 export function invalidateLiveQueries(client: QueryClient, kind: Kind, id: string) {
   if (kind === 'workspace') {
+    void client.invalidateQueries({ queryKey: queryKeys.pageActivity.workspace(id) });
+    void client.invalidateQueries({ queryKey: queryKeys.breadcrumbNeighbors.workspace(id) });
     void client.invalidateQueries({ queryKey: queryKeys.pages.list(id) });
     void client.invalidateQueries({ queryKey: queryKeys.databases.list(id) });
+    // A parent page can move or disappear without a database-room event. Refresh
+    // its database metadata/access while leaving row queries and edits alone.
+    void client.invalidateQueries({
+      predicate: (query) =>
+        query.queryKey.length === 2 &&
+        query.queryKey[0] === 'database' &&
+        (query.state.data as DatabaseDetail | undefined)?.database?.workspaceId === id &&
+        client.isMutating({
+          mutationKey: ['database-update'],
+          predicate: (mutation) =>
+            (mutation.state.variables as { id?: string } | undefined)?.id === query.queryKey[1],
+        }) === 0,
+    });
+    // An ancestor can move or change its title independently of this page's metadata.
+    void client.invalidateQueries({
+      predicate: (query) =>
+        query.queryKey[0] === 'page' &&
+        query.queryKey[2] === 'breadcrumb' &&
+        query.queryKey[3] === id,
+    });
+    // Metadata belongs to PageResponse, not the editor's Yjs/blocks. A pending
+    // page mutation already refreshes this query on settle; don't overwrite it.
+    void client.invalidateQueries({
+      predicate: (query) =>
+        query.queryKey.length === 2 &&
+        query.queryKey[0] === 'page' &&
+        (query.state.data as PageResponse | undefined)?.page?.workspaceId === id &&
+        client.isMutating({
+          mutationKey: ['page-update'],
+          predicate: (mutation) =>
+            (mutation.state.variables as { id?: string } | undefined)?.id === query.queryKey[1],
+        }) === 0,
+    });
     // Favorites and page templates are derived from the workspace's pages queries.
   } else if (kind === 'database') {
+    void client.invalidateQueries({ queryKey: queryKeys.pageActivity.all });
+    // Row anchors deliberately do not infer access or a database id from private
+    // cached metadata. Revalidate open neighbor menus on a database-room change;
+    // disabled menus merely become stale and will load on their next opening.
+    void client.invalidateQueries({ queryKey: queryKeys.breadcrumbNeighbors.all });
     // This prefix covers detail, every view's rows, single rows and templates,
     // but never the page or blocks currently held by the editor.
     void client.invalidateQueries({ queryKey: queryKeys.databases.detail(id) });

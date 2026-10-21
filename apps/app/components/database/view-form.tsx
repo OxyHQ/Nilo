@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
+import { ScreenScrollView } from '@oxy.so/bloom/screen';
 import * as Clipboard from 'expo-clipboard';
 import { Button } from '@oxy.so/bloom/button';
 import { Loading } from '@oxy.so/bloom/loading';
@@ -65,7 +66,7 @@ function FormBuilder({ database, view }: { database: Database; view: DatabaseVie
       },
     );
   return (
-    <ScrollView
+    <ScreenScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerClassName="p-6 gap-5 max-w-3xl w-full mx-auto"
     >
@@ -148,7 +149,7 @@ function FormBuilder({ database, view }: { database: Database; view: DatabaseVie
         </View>
       ) : null}
       <FormLinkPanel databaseId={database.id} viewId={view.id} />
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 function FormLinkPanel({ databaseId, viewId }: { databaseId: string; viewId: string }) {

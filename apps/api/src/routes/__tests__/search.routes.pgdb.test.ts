@@ -7,6 +7,7 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { uuidv7 } from '@oxy.so/db';
 import { sql } from 'drizzle-orm';
+import { blocks, pages } from '../../db/schema/pages.js';
 import express from 'express';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { closeDb } from '../../db/client.js';
@@ -284,6 +285,172 @@ describe('GET /search', () => {
     expect(
       (await api(OWNER, 'GET', `/search?workspaceId=${workspaceId}&editedAfter=yesterday`)).status,
     ).toBe(400);
+  });
+
+  it('preserves template inclusion for text search and exclusion for filter-only listings', async () => {
+    const template = await createPage(db, {
+      workspaceId,
+      ownerId: OWNER,
+      title: 'Templatequartz',
+      order: 1,
+      template: true,
+      teamspaceId: null,
+    });
+    expect((await search(OWNER, 'templatequartz')).map((entry) => entry.page.id)).toEqual([
+      template.id,
+    ]);
+    const filtered = await api(
+      OWNER,
+      'GET',
+      `/search?${new URLSearchParams({ workspaceId, createdBy: OWNER, limit: '50' })}`,
+    );
+    expect((filtered.json.results as Result[]).map((entry) => entry.page.id)).not.toContain(
+      template.id,
+    );
+    expect(await search(VIEWER, 'templatequartz')).toEqual([]);
+  });
+
+  it('combines title and body scores before applying the result limit', async () => {
+    // The winner is fourth in each old candidate pool, but first after combining.
+    const winner = await pageWith('Nebulastar', ['Nebulastar']);
+    for (let i = 0; i < 3; i++) {
+      await pageWith('Nebulastar', []);
+      await pageWith(`Unrelated ${i}`, [Array(20).fill('Nebulastar').join(' ')]);
+    }
+    const result = await api(
+      OWNER,
+      'GET',
+      `/search?${new URLSearchParams({ workspaceId, q: 'nebulastar', limit: '1' })}`,
+    );
+    const found = result.json.results as Result[];
+    expect(found.map((entry) => entry.page.id)).toEqual([winner]);
+    expect(found[0]?.matchedTitle).toBe(true);
+    expect(found[0]?.snippet.some((part) => part.match)).toBe(true);
+  });
+
+  it('applies teamspace scope before the result limit', async () => {
+    const [team] = await db
+      .insert(teamspaces)
+      .values({ workspaceId, name: 'Search target', privacy: 'open', createdBy: OWNER })
+      .returning();
+    const target = await createPage(db, {
+      workspaceId,
+      ownerId: OWNER,
+      title: 'Lunarstone',
+      order: 1,
+      teamspaceId: team.id,
+    });
+    for (let i = 0; i < 7; i++) await pageWith('Lunarstone', []);
+    const result = await api(
+      OWNER,
+      'GET',
+      `/search?${new URLSearchParams({ workspaceId, q: 'lunarstone', limit: '1', teamspaceId: team.id })}`,
+    );
+    expect((result.json.results as Result[]).map((entry) => entry.page.id)).toEqual([target.id]);
+  });
+
+  it('does not let private body matches consume the result limit', async () => {
+    const guest = testScope('search-body-guest');
+    const shared = await createPage(db, {
+      workspaceId,
+      ownerId: OWNER,
+      title: 'Shared body',
+      order: 1,
+      teamspaceId: null,
+    });
+    await db
+      .insert(pagePermissions)
+      .values({ pageId: shared.id, userId: guest, role: 'viewer', grantedBy: OWNER });
+    await db
+      .insert(blocks)
+      .values({ pageId: shared.id, type: 'paragraph', content: { text: 'Cometstone' }, order: 0 });
+    for (let i = 0; i < 4; i++) {
+      const hidden = await createPage(db, {
+        workspaceId,
+        ownerId: OWNER,
+        title: 'Private body',
+        order: i + 2,
+        teamspaceId: null,
+      });
+      await db.insert(blocks).values({
+        pageId: hidden.id,
+        type: 'paragraph',
+        content: { text: Array(20).fill('Cometstone').join(' ') },
+        order: 0,
+      });
+    }
+    const result = await api(
+      guest,
+      'GET',
+      `/search?${new URLSearchParams({ workspaceId, q: 'cometstone', limit: '1' })}`,
+    );
+    expect((result.json.results as Result[]).map((entry) => entry.page.id)).toEqual([shared.id]);
+  });
+
+  it('keeps quoted words contiguous, ordered, and exact in titles', async () => {
+    const exact = await pageWith('Quasar release notes', []);
+    await pageWith('Quasar release planning notes', []);
+    await pageWith('Quasar notes release', []);
+    await pageWith('Quasar releases notes', []);
+    const result = await api(
+      OWNER,
+      'GET',
+      `/search?${new URLSearchParams({ workspaceId, q: 'quasar "release notes"', titleOnly: 'true' })}`,
+    );
+    expect((result.json.results as Result[]).map((entry) => entry.page.id)).toEqual([exact]);
+  });
+
+  it('keeps quoted words together in one body block and retains case/accent folding', async () => {
+    const exact = await pageWith('Phrase example', ['Un café azul brilla']);
+    await pageWith('Separated words', ['Un café muy azul brilla']);
+    await pageWith('Reversed words', ['Azul café']);
+    await pageWith('Across blocks', ['café', 'azul']);
+    const result = await search(OWNER, '"CAFÉ azul"');
+    expect(result.map((entry) => entry.page.id)).toEqual([exact]);
+    expect(result[0]?.snippet.some((part) => part.match)).toBe(true);
+  });
+
+  it('matches whole lexical phrases, with punctuation normalized and no stemming or prefix expansion', async () => {
+    const exact = await pageWith('Aurorastone plan, day', []);
+    await pageWith('Aurorastone planning day', []);
+    await pageWith('Aurorastone plans day', []);
+    await pageWith('Aurorastone plan days', []);
+    const result = await api(
+      OWNER,
+      'GET',
+      `/search?${new URLSearchParams({ workspaceId, q: 'aurorastone "plan day"', titleOnly: 'true' })}`,
+    );
+    expect((result.json.results as Result[]).map((entry) => entry.page.id)).toEqual([exact]);
+    const unfinished = await search(OWNER, 'aurorastone "plan');
+    expect(unfinished).toHaveLength(4);
+  });
+
+  it('does not let private title candidates consume the result limit', async () => {
+    const guest = 'search-candidate-guest';
+    const shared = await createPage(db, {
+      workspaceId,
+      ownerId: OWNER,
+      title: 'Starlight',
+      order: 0,
+      teamspaceId: null,
+    });
+    await db
+      .insert(pagePermissions)
+      .values({ pageId: shared.id, userId: guest, role: 'viewer', grantedBy: OWNER });
+    await db.insert(pages).values(
+      Array.from({ length: 65 }, () => ({
+        workspaceId,
+        ownerId: OWNER,
+        title: 'Starlight',
+        updatedAt: new Date('2090-01-01T00:00:00Z'),
+      })),
+    );
+    const result = await api(
+      guest,
+      'GET',
+      `/search?${new URLSearchParams({ workspaceId, q: 'starlight', titleOnly: 'true' })}`,
+    );
+    expect((result.json.results as Result[]).map((entry) => entry.page.id)).toEqual([shared.id]);
   });
 
   it('can use the full-text and trigram indexes', async () => {

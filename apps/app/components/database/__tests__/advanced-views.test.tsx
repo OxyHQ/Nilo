@@ -1,3 +1,4 @@
+import { ProjectBoard } from '@oxy.so/bloom/project-board';
 import type React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Linking, Platform } from 'react-native';
@@ -28,6 +29,22 @@ let mockCalculations: Record<string, { function: string; value: number | null }>
 let mockPoints: { key: string | null; count: number; value: number | null }[] = [];
 let mockCalculationGroups: { key: string | null; calculations: CalculationValues }[] | undefined;
 
+// react-test-renderer supplies native host refs, not DOM scroll owners. Keep the
+// real Screen scope/chrome; viewport geometry is covered by Bloom and browser QA.
+jest.mock('@oxy.so/bloom/screen', () => {
+  const actual = jest.requireActual('@oxy.so/bloom/screen');
+  const React = jest.requireActual('react');
+  return {
+    ...actual,
+    Screen: (props: React.ComponentProps<typeof actual.Screen>) =>
+      React.createElement(actual.Screen, { ...props, scroll: 'content' }),
+  };
+});
+// This suite verifies Nilo's grouped-board adapter. Bloom tests the panel layout.
+jest.mock('@oxy.so/bloom/project-board', () => ({
+  ...jest.requireActual('@oxy.so/bloom/project-board'),
+  ProjectBoard: () => null,
+}));
 jest.mock('../row-peek', () => ({
   RowPeek: (props: { rowId: string; mode: string; open: boolean }) => mockPeek(props),
 }));
@@ -67,6 +84,10 @@ jest.mock('@/lib/useColorScheme', () => ({
   useColorScheme: () => ({ colors: {}, isDarkColorScheme: false }),
 }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
+jest.mock('@/lib/hooks/use-member-profiles', () => ({
+  profileName: () => null,
+  useMemberProfiles: () => ({ data: [] }),
+}));
 jest.mock('@/lib/hooks/use-database-rows', () => ({
   useCreateRow: () => ({
     mutate: jest.fn(),
@@ -75,6 +96,7 @@ jest.mock('@/lib/hooks/use-database-rows', () => ({
   }),
   useUpdateRow: () => ({ mutate: jest.fn(), mutateAsync: mockUpdateRowAsync }),
   useRelatedRowSets: () => new Map(),
+  useRelatedRows: () => ({}),
 }));
 jest.mock('../property-config-modal', () => ({
   AddPropertyButton: () => null,
@@ -342,15 +364,17 @@ describe('a grouped table', () => {
         isLoading={false}
       />,
     );
-    const lanes = renderer.root
-      .findAll(
-        (n) =>
-          typeof n.props.testID === 'string' &&
-          n.props.testID.startsWith('board-lane-') &&
-          typeof n.type === 'string',
-      )
-      .map((n) => n.props.testID);
-    expect(lanes).toEqual(['board-lane-true', 'board-lane-false']);
+    const board = renderer.root.findByType(ProjectBoard).props;
+    expect(board.variant).toBe('grouped');
+    expect(board.lanes.map((lane: { id: string }) => JSON.parse(lane.id))).toEqual([
+      'true',
+      'false',
+    ]);
+    expect(
+      board.lanes.map((lane: { columns: { items: DatabaseRow[] }[] }) =>
+        lane.columns.flatMap((column) => column.items.map((row) => row.id)),
+      ),
+    ).toEqual([['1'], ['2']]);
   });
 });
 

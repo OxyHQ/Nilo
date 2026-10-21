@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Platform } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useQueryClient } from '@tanstack/react-query';
@@ -37,6 +37,15 @@ export function useEditorExtras(pageId: string, store: EditorStore | null, readO
   const { oxyServices } = useOxy();
   const queryClient = useQueryClient();
   const palette = useCodePalette();
+  const session = useMemo(() => ({ pageId, store, readOnly }), [pageId, store, readOnly]);
+  const activeSession = useRef<typeof session | null>(session);
+  activeSession.current = session;
+  useEffect(() => {
+    activeSession.current = session;
+    return () => {
+      if (activeSession.current === session) activeSession.current = null;
+    };
+  }, [session]);
 
   const onCopyBlockLink = useCallback(
     (blockId: string) => {
@@ -47,19 +56,35 @@ export function useEditorExtras(pageId: string, store: EditorStore | null, readO
     [pageId, t],
   );
 
+  const onClipboardError = useCallback(
+    (reason: 'unsupported-cut' | 'write-failed' | 'changed-cut') => {
+      toast.error(
+        t(
+          reason === 'unsupported-cut'
+            ? 'editor.clipboard.cutUnsupported'
+            : reason === 'changed-cut'
+              ? 'editor.clipboard.cutChanged'
+              : 'editor.clipboard.writeFailed',
+        ),
+      );
+    },
+    [t],
+  );
+
   const onPasteImages = useCallback(
     (images: PastedImage[], blockId: string) => {
       if (!store || readOnly) return;
+      const active = session;
+      const stillEditing = () => activeSession.current === active && !active.readOnly;
       void (async () => {
         let after = blockId;
         for (const [i, image] of images.entries()) {
+          if (!stillEditing()) return;
           try {
-            const attached = await uploadPageFile(
-              oxyServices,
-              queryClient,
-              pageId,
-              await pickedFile(image, i),
-            );
+            const file = await pickedFile(image, i);
+            if (!stillEditing()) return;
+            const attached = await uploadPageFile(oxyServices, queryClient, pageId, file);
+            if (!stillEditing()) return;
             // Each image goes after the one before it, the first after the block it was pasted in.
             let placed: string | null = null;
             store.run((ctx) => {
@@ -76,12 +101,12 @@ export function useEditorExtras(pageId: string, store: EditorStore | null, readO
             });
             if (placed) after = placed;
           } catch {
-            toast.error(t('editor.blocks.uploadFailed'));
+            if (stillEditing()) toast.error(t('editor.blocks.uploadFailed'));
           }
         }
       })();
     },
-    [store, readOnly, oxyServices, queryClient, pageId, t],
+    [store, readOnly, oxyServices, queryClient, pageId, t, session],
   );
 
   const codeLanguages = useMemo<readonly CodeLanguage[]>(
@@ -101,5 +126,11 @@ export function useEditorExtras(pageId: string, store: EditorStore | null, readO
     [palette],
   );
 
-  return { onCopyBlockLink, onPasteImages, codeLanguages, highlightCode: highlight };
+  return {
+    onCopyBlockLink,
+    onClipboardError,
+    onPasteImages,
+    codeLanguages,
+    highlightCode: highlight,
+  };
 }

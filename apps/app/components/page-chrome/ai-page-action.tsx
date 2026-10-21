@@ -1,4 +1,4 @@
-import { Item } from '@oxy.so/bloom/item';
+import { DropdownMenuItem } from '@oxy.so/bloom/dropdown-menu';
 import { usePageEditorContext } from '@/components/page-editor/page-editor-context';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAiAvailable } from '@/lib/ai/use-ai';
@@ -10,15 +10,13 @@ export function AiPageAction({ onOpen }: { onOpen: () => void }) {
   const available = useAiAvailable();
   if (!available || !store) return null;
   return (
-    <Item
-      title={t('ai.summarizePage')}
-      density="compact"
-      role="menuitem"
-      accessibilityLabel={t('ai.summarizePage')}
+    <DropdownMenuItem
       onPress={() => {
         onOpen();
         setAiTarget({ kind: 'page' });
       }}
-    />
+    >
+      {t('ai.summarizePage')}
+    </DropdownMenuItem>
   );
 }

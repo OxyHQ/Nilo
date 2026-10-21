@@ -64,10 +64,18 @@ export function useActiveWorkspace(): {
  */
 export function useWorkspaceTeam(): { team: SidebarTeam | undefined; dialogs: React.ReactNode } {
   const { t } = useTranslation();
+  const router = useRouter();
   const { user } = useOxy();
   const { workspaces, active } = useActiveWorkspace();
   const setCurrentWorkspaceId = useWorkspaceStore((s) => s.setCurrentWorkspaceId);
   const createDialog = useDialogControl();
+  const selectWorkspace = React.useCallback(
+    (id: string) => {
+      setCurrentWorkspaceId(id);
+      router.replace('/(app)');
+    },
+    [setCurrentWorkspaceId, router],
+  );
 
   const team = React.useMemo<SidebarTeam | undefined>(() => {
     if (!workspaces) return undefined;
@@ -118,18 +126,18 @@ export function useWorkspaceTeam(): { team: SidebarTeam | undefined; dialogs: Re
                 : undefined,
             avatar: avatar(workspace),
             selected: workspace.id === active.id,
-            onPress: () => setCurrentWorkspaceId(workspace.id),
+            onPress: () => selectWorkspace(workspace.id),
           })),
         },
         create,
       ],
     };
-  }, [workspaces, active, user, t, createDialog, setCurrentWorkspaceId]);
+  }, [workspaces, active, user, t, createDialog, selectWorkspace]);
 
   const dialogs = (
     <CreateWorkspaceModal
       control={createDialog}
-      onCreated={(workspace: Workspace) => setCurrentWorkspaceId(workspace.id)}
+      onCreated={(workspace: Workspace) => selectWorkspace(workspace.id)}
     />
   );
   return { team, dialogs };

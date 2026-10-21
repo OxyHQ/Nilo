@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PortalOutlet, PortalProvider } from '@oxy.so/bloom/portal';
 import { BloomThemeProvider } from '@oxy.so/bloom/theme';
+import { Screen } from '@oxy.so/bloom/screen';
 
 const initialMetrics = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -15,13 +17,15 @@ const initialMetrics = {
  */
 export function BloomTestProviders({ children }: { children: ReactNode }) {
   return (
-    <SafeAreaProvider initialMetrics={initialMetrics}>
-      <BloomThemeProvider fonts={false}>
-        <PortalProvider>
-          {children}
-          <PortalOutlet />
-        </PortalProvider>
-      </BloomThemeProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView>
+      <SafeAreaProvider initialMetrics={initialMetrics}>
+        <BloomThemeProvider fonts={false}>
+          <PortalProvider>
+            <Screen scroll="content">{children}</Screen>
+            <PortalOutlet />
+          </PortalProvider>
+        </BloomThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -22,6 +22,10 @@ export function buildShareUrl(token: string): string {
   return `${resolveWebOrigin()}/share/${token}`;
 }
 
+export function buildPageUrl(pageId: string): string {
+  return `${resolveWebOrigin()}/p/${encodeURIComponent(pageId)}`;
+}
+
 export function buildPublishUrl(slug: string): string {
   return `${resolveWebOrigin()}/pub/${encodeURIComponent(slug)}`;
 }

@@ -1,7 +1,7 @@
 import { FILTER_OPERATORS_BY_TYPE } from '@oxy.so/nilo-contracts';
 import { resultPropertyFromRows } from '@/lib/formula-results';
 import * as React from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { RiFilter3Line } from '@oxy.so/bloom/icons/RiFilter3Line';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
@@ -448,13 +448,11 @@ function PropertyMenu({ label, properties, onPick }: PropertyMenuProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" label={label}>
-        <ScrollView style={{ maxHeight: 220 }}>
-          {properties.map((p) => (
-            <DropdownMenuItem key={p.id} onPress={() => onPick(p)}>
-              {p.name}
-            </DropdownMenuItem>
-          ))}
-        </ScrollView>
+        {properties.map((p) => (
+          <DropdownMenuItem key={p.id} onPress={() => onPick(p)}>
+            {p.name}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -587,25 +585,23 @@ function ChoiceChips({ choices, value, onChange }: ChoiceChipsProps) {
     );
   }
   return (
-    <ScrollView style={{ maxHeight: 160 }} nestedScrollEnabled>
-      <View
-        accessibilityRole="radiogroup"
-        accessibilityLabel={t('databases.filters.value')}
-        className="flex-row flex-wrap gap-1"
-      >
-        {choices.map((choice) => (
-          <Chip
-            key={choice.value}
-            size="sm"
-            role="radio"
-            selected={value === choice.value}
-            onPress={() => onChange(choice.value)}
-          >
-            {choice.label}
-          </Chip>
-        ))}
-      </View>
-    </ScrollView>
+    <View
+      accessibilityRole="radiogroup"
+      accessibilityLabel={t('databases.filters.value')}
+      className="flex-row flex-wrap gap-1"
+    >
+      {choices.map((choice) => (
+        <Chip
+          key={choice.value}
+          size="sm"
+          role="radio"
+          selected={value === choice.value}
+          onPress={() => onChange(choice.value)}
+        >
+          {choice.label}
+        </Chip>
+      ))}
+    </View>
   );
 }
 

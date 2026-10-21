@@ -8,6 +8,13 @@ import type { ReadOnlyBlock } from '../block-tree';
 import type { BreadcrumbEntry, Page, PageResponse } from '../types/pages';
 import { useAuthQuery } from './create-query';
 import { queryKeys } from './query-keys';
+import {
+  readPageHistory,
+  retirePageHistoryError,
+  terminalHistoryError,
+  useHistoryAccess,
+} from './use-page-history-access';
+import { hasRole } from './workspace-roles';
 
 export interface PublicPage {
   page: Pick<
@@ -82,31 +89,83 @@ export interface PageVersion {
   createdBy: string;
   blockCount: number;
 }
+function useHistoryQuery<T>(pageId: string, key: readonly string[], url: string, enabled = true) {
+  const client = useQueryClient();
+  const { canEdit, ready } = useHistoryAccess(pageId);
+  const query = useQuery<T | null, Error, T | undefined>({
+    queryKey: key,
+    queryFn: ({ signal }) =>
+      readPageHistory<T>({
+        client,
+        pageId,
+        key,
+        url,
+        signal,
+        ready,
+        enabled,
+      }),
+    select: (data) => data ?? undefined,
+    // An access recheck toggles ready. A terminal history error must remain
+    // stable across that toggle, even if metadata still reports editor. A user
+    // can explicitly retry; a real downgrade clears the cache and a later
+    // editor grant can enable a fresh read again.
+    enabled: (query) => ready && enabled && !terminalHistoryError(query.state.error),
+    staleTime: 0,
+    retry: (count, error) => !terminalHistoryError(error) && count < 2,
+  });
+  return {
+    ...query,
+    canEdit,
+    isLoading: canEdit && (!ready || query.isLoading),
+    data: ready && !query.isError ? query.data : undefined,
+  };
+}
+
 export function usePageVersions(pageId: string) {
-  return useAuthQuery<{ versions: PageVersion[] }>(
+  return useHistoryQuery<{ versions: PageVersion[] }>(
+    pageId,
     queryKeys.versions.list(pageId),
     API_ROUTES.pages.versions(pageId),
-    undefined,
-    { staleTime: 0 },
   );
 }
 export function usePageVersion(pageId: string, versionId: string) {
-  const { isAuthenticated } = useOxy();
-  return useAuthQuery<{ version: Omit<PageVersion, 'blockCount'>; blocks: ReadOnlyBlock[] }>(
+  return useHistoryQuery<{ version: Omit<PageVersion, 'blockCount'>; blocks: ReadOnlyBlock[] }>(
+    pageId,
     queryKeys.versions.detail(pageId, versionId),
     API_ROUTES.pages.version(pageId, versionId),
-    undefined,
-    { enabled: isAuthenticated && Boolean(versionId) },
+    Boolean(versionId),
   );
 }
 export function useRestoreVersion(page: Page) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (versionId: string) =>
-      (await apiClient.post(API_ROUTES.pages.restoreVersion(page.id, versionId))).data,
+    mutationFn: async (versionId: string) => {
+      const access = client.getQueryState<PageResponse | null>(queryKeys.pages.detail(page.id));
+      if (
+        access?.error ||
+        access?.isInvalidated ||
+        access?.fetchStatus !== 'idle' ||
+        !hasRole(access?.data?.role, 'editor')
+      )
+        throw new Error('Page history requires editor access');
+      try {
+        return (await apiClient.post(API_ROUTES.pages.restoreVersion(page.id, versionId))).data;
+      } catch (error) {
+        retirePageHistoryError({
+          client,
+          pageId: page.id,
+          key: queryKeys.versions.detail(page.id, versionId),
+          error,
+        });
+        throw error;
+      }
+    },
     onSuccess: async () => {
       await Promise.all([
         client.invalidateQueries({ queryKey: queryKeys.versions.list(page.id) }),
+        client.invalidateQueries({
+          queryKey: queryKeys.pageActivity.page(page.workspaceId, page.id),
+        }),
         client.invalidateQueries({ queryKey: queryKeys.blocks.list(page.id) }),
         client.invalidateQueries({ queryKey: queryKeys.pages.detail(page.id) }),
         client.invalidateQueries({ queryKey: queryKeys.pages.list(page.workspaceId) }),

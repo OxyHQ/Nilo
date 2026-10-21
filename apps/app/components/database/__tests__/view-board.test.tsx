@@ -2,6 +2,8 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { PropertyCell } from '../property-cell';
 import { ViewBoard } from '../view-board';
+import { ProjectBoard, type ControlledProjectBoardProps } from '@oxy.so/bloom/project-board';
+import { Text } from '@oxy.so/bloom/typography';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 
 // The cells read people, files and rows through the API client and Oxy's session.
@@ -13,13 +15,18 @@ jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({ isAuthenticated: false, oxyServices: {} }),
 }));
 // A view's groups are saved with it (collapsed, moved, hidden).
+const mockUpdateView = jest.fn();
 jest.mock('@/lib/hooks/use-database-views', () => ({
-  useUpdateView: () => ({ mutate: jest.fn(), isPending: false }),
+  useUpdateView: () => ({ mutate: mockUpdateView, isPending: false }),
 }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 const mockUpdateRow = jest.fn();
+jest.mock('@/lib/hooks/use-member-profiles', () => ({
+  profileName: () => null,
+  useMemberProfiles: () => ({ data: [] }),
+}));
 jest.mock('@/lib/hooks/use-database-rows', () => ({
-  useCreateRow: () => ({ mutateAsync: jest.fn() }),
+  useCreateRow: () => ({ mutate: jest.fn(), mutateAsync: jest.fn() }),
   useUpdateRow: () => ({ mutate: mockUpdateRow }),
   useRelatedRows: () => ({}),
 }));
@@ -40,6 +47,7 @@ const database = {
       { id: 'secret', name: 'Secret', type: 'text' },
       { id: 'notes', name: 'Notes', type: 'text' },
       { id: 'points', name: 'Points', type: 'number' },
+      { id: 'total', name: 'Total', type: 'rollup' },
     ],
   },
 } as Database;
@@ -48,6 +56,7 @@ const view = {
   type: 'board',
   groupBy: { propertyId: 'stage' },
   hiddenProperties: ['secret'],
+  config: {},
 } as DatabaseView;
 const rows = [
   { id: 'row', title: 'Card', properties: { stage: { optionId: 'todo' } } },
@@ -57,7 +66,12 @@ let renderer: ReactTestRenderer;
 afterEach(() => act(() => renderer?.unmount()));
 
 function render(
-  props: { hasMore?: boolean; onLoadMore?: () => void } = {},
+  props: {
+    hasMore?: boolean;
+    onLoadMore?: () => void;
+    viewEditable?: boolean;
+    readOnly?: boolean;
+  } = {},
   on: { database: Database; view: DatabaseView } = { database, view },
 ) {
   act(() => {
@@ -69,16 +83,73 @@ function render(
   });
 }
 /** The board's columns, by the name of the option each shows. */
-const columns = () =>
-  renderer.root
-    .findAll((node) => typeof node.props.onMoveTo === 'function' && node.props.option)
-    .map((node) => node.props as { option: { name: string }; onMoveTo: (id: string) => void })
-    .filter((props, i, all) => all.findIndex((p) => p.option === props.option) === i);
+const columns = () => {
+  const board = renderer.root.findByType(ProjectBoard)
+    .props as ControlledProjectBoardProps<DatabaseRow>;
+  return board.columns.map((column) => ({
+    option: { name: column.title },
+    onMoveTo: (id: string) =>
+      board.onMove?.({ itemId: id, fromColumnId: 'unchecked', toColumnId: column.id }),
+  }));
+};
 
 it('shows on a card only the properties the view does not hide', () => {
   render();
   const shown = renderer.root.findAllByType(PropertyCell).map((cell) => cell.props.property.id);
-  expect(shown).toEqual(['stage', 'notes', 'points']);
+  expect(shown).toEqual(['stage', 'notes', 'points', 'total']);
+});
+
+it('saves a card property through the row mutation', () => {
+  render();
+  const status = renderer.root
+    .findAllByType(PropertyCell)
+    .find((cell) => cell.props.property.id === 'stage');
+  act(() => status?.props.onChange({ optionId: null }));
+  expect(mockUpdateRow).toHaveBeenCalledWith(
+    {
+      databaseId: 'db',
+      rowId: 'row',
+      properties: { stage: { optionId: null } },
+    },
+    expect.objectContaining({ onError: expect.any(Function) }),
+  );
+});
+
+it('restores the column order and lets view editors persist a new order', () => {
+  const ordered = {
+    ...view,
+    config: { boardColumnOrder: { propertyId: 'stage', columnIds: ['__unassigned__', 'todo'] } },
+  };
+  render({ viewEditable: true }, { database, view: ordered });
+  const board = renderer.root.findByType(ProjectBoard)
+    .props as ControlledProjectBoardProps<DatabaseRow>;
+  expect(board.columns.map((column) => column.id)).toEqual(['__unassigned__', 'todo']);
+  act(() => board.onColumnOrderChange?.(['todo', '__unassigned__']));
+  expect(mockUpdateView).toHaveBeenCalledWith(
+    {
+      databaseId: 'db',
+      viewId: 'view',
+      config: { boardColumnOrder: { propertyId: 'stage', columnIds: ['todo', '__unassigned__'] } },
+    },
+    expect.objectContaining({ onError: expect.any(Function) }),
+  );
+  render({ viewEditable: true, readOnly: true }, { database, view: ordered });
+  expect(renderer.root.findByType(ProjectBoard).props.onColumnOrderChange).toBeUndefined();
+  render(
+    {},
+    {
+      database,
+      view: {
+        ...view,
+        config: {
+          boardColumnOrder: { propertyId: 'other', columnIds: ['__unassigned__', 'todo'] },
+        },
+      },
+    },
+  );
+  expect(
+    renderer.root.findByType(ProjectBoard).props.columns.map((column: { id: string }) => column.id),
+  ).toEqual(['todo', '__unassigned__']);
 });
 
 it('offers the next rows while the board has not read them all', () => {
@@ -90,7 +161,9 @@ it('offers the next rows while the board has not read them all', () => {
   act(() => more?.props.onPress());
   expect(onLoadMore).toHaveBeenCalled();
   render({ hasMore: false, onLoadMore });
-  expect(JSON.stringify(renderer.toJSON())).not.toContain('databases.board.loadMore');
+  expect(renderer.root.findAllByType(Text).map((node) => node.props.children)).not.toContain(
+    'databases.board.loadMore',
+  );
 });
 
 it('shows a status’s options under their groups, in the groups’ order', () => {
@@ -125,8 +198,26 @@ it('shows a status’s options under their groups, in the groups’ order', () =
     'Done',
     'databases.board.noStatus',
   ]);
-  const json = JSON.stringify(renderer.toJSON());
-  const at = (text: string) => json.indexOf(text);
+  const board = renderer.root.findByType(ProjectBoard)
+    .props as ControlledProjectBoardProps<DatabaseRow>;
+  // Native panel headers render through their screen's outlet. Exercise the
+  // supplied header slots directly, independently of screen layout in Jest.
+  const labels = board.columns.flatMap((column) => {
+    let header!: ReactTestRenderer;
+    act(() => {
+      header = create(
+        <BloomTestProviders>
+          {board.renderColumnHeader?.(column, { isDropTarget: false })}
+        </BloomTestProviders>,
+      );
+    });
+    const text = header.root
+      .findAll((node) => typeof node.props.children === 'string')
+      .map((node) => node.props.children);
+    act(() => header.unmount());
+    return text;
+  });
+  const at = (text: string) => labels.indexOf(text);
   expect(at('databases.statusGroups.todo')).toBeGreaterThan(-1);
   expect(at('databases.statusGroups.todo')).toBeLessThan(at('databases.statusGroups.in_progress'));
   expect(at('databases.statusGroups.in_progress')).toBeLessThan(
@@ -146,9 +237,12 @@ it('groups by a checkbox, a card moved across checking or unchecking it', () => 
     'databases.board.unchecked',
   ]);
   act(() => checked?.onMoveTo('row'));
-  expect(mockUpdateRow).toHaveBeenCalledWith({
-    databaseId: 'db',
-    rowId: 'row',
-    properties: { done: { checked: true } },
-  });
+  expect(mockUpdateRow).toHaveBeenCalledWith(
+    {
+      databaseId: 'db',
+      rowId: 'row',
+      properties: { done: { checked: true } },
+    },
+    expect.objectContaining({ onError: expect.any(Function) }),
+  );
 });

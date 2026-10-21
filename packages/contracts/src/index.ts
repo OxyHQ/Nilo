@@ -30,6 +30,10 @@ export {
   acceptsCalculation,
   acceptsFilterOperator,
   BUTTON_ACTION_KINDS,
+  BOARD_GROUPABLE_PROPERTY_TYPES,
+  CARD_SIZES,
+  type CardSize,
+  type BoardColumnOrder,
   type ButtonAction,
   type ButtonActionKind,
   CALCULATION_FUNCTIONS,
@@ -120,3 +124,11 @@ export {
   type NoteWrite,
   noteWriteSchema,
 } from './notes';
+export type { NavigationNeighbor, NavigationNeighbors } from './navigation';
+export type {
+  PageActivityKind,
+  PageActivityProperty,
+  PageActivityChange,
+  PageActivityEvent,
+  PageActivityPage,
+} from './page-activity';

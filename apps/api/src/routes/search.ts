@@ -3,8 +3,8 @@
  *             [&teamspaceId=…|private][&editedAfter=…][&editedBefore=…]
  *
  * Full-text search over a workspace's live pages: titles and block text, word
- * prefixes, every word required; in titles, a word may also be close, typos
- * included. Results are pages, best first, each with the
+ * prefixes and quoted lexical phrases, every term required; in titles, an
+ * unquoted word may also be close, typos included. Results are pages, best first, each with the
  * block that matched best and a snippet whose matches are marked (as parts,
  * never markup), and the titles of the pages above it. Only pages the caller
  * can open are returned. The filters narrow it, as Notion's do: titles only,
@@ -16,7 +16,6 @@ import { Router, type Request, type Response } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
 import { getDb } from '../db/client.js';
-import { hasRole, type WorkspaceRole } from '../db/schema/workspaces.js';
 import { log } from '../lib/logger.js';
 import { databaseHomes, loadViewer, rolesForPages } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
@@ -24,10 +23,8 @@ import { listGrantsOfUserInWorkspace } from '../repositories/pagePermissions.js'
 import { listPages } from '../repositories/pages.js';
 import { findLiveWorkspaceById, findMembership } from '../repositories/workspaces.js';
 import {
-  prefixQuery,
-  queryWords,
-  searchBlockText,
-  searchPageTitles,
+  parseSearchQuery,
+  searchPages,
   type SearchFilter,
   type SnippetPart,
 } from '../repositories/search.js';
@@ -53,9 +50,6 @@ const querySchema = z.object({
   editedAfter: z.string().datetime({ offset: true }).optional(),
   editedBefore: z.string().datetime({ offset: true }).optional(),
 });
-
-/** A title match outranks any amount of body text. */
-const TITLE_WEIGHT = 1;
 
 /**
  * GET /search?workspaceId&q&limit — the pages of a workspace the caller can
@@ -90,19 +84,14 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     const filtered =
       Boolean(filter.createdBy || filter.editedAfter || filter.editedBefore) ||
       params.teamspaceId !== undefined;
-    const query = prefixQuery(q);
+    const query = parseSearchQuery(q);
     // Nothing typed and nothing to narrow by: nothing to show.
     if (!query && !filtered) {
       res.json({ results: [] });
       return;
     }
 
-    // More than `limit` from each side: some are dropped for access (and
-    // the teamspace) below.
-    const pool = limit * (params.teamspaceId ? 6 : 3);
-    const [titles, texts, all, homes] = await Promise.all([
-      query ? searchPageTitles(db, workspaceId, queryWords(q), pool, filter) : [],
-      query && !params.titleOnly ? searchBlockText(db, workspaceId, query, pool, filter) : [],
+    const [all, homes] = await Promise.all([
       listPages(db, { workspaceId, archived: false }),
       databaseHomes(db, workspaceId),
     ]);
@@ -132,23 +121,19 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       { score: number; matchedTitle: boolean; blockId: string | null; snippet: SnippetPart[] }
     >();
     if (query) {
-      for (const hit of titles) {
-        scored.set(hit.pageId, {
-          score: TITLE_WEIGHT + hit.rank,
-          matchedTitle: true,
-          blockId: null,
-          snippet: [],
-        });
-      }
-      for (const hit of texts) {
-        const current = scored.get(hit.pageId);
-        scored.set(hit.pageId, {
-          score: (current?.score ?? 0) + hit.rank,
-          matchedTitle: current?.matchedTitle ?? false,
-          blockId: hit.blockId,
-          snippet: hit.snippet,
-        });
-      }
+      const authorizedIds = all
+        .filter((page) => visible.has(page.id) && inTeamspace(page.id))
+        .map((page) => page.id);
+      const hits = await searchPages(
+        db,
+        workspaceId,
+        authorizedIds,
+        query,
+        limit,
+        params.titleOnly,
+        filter,
+      );
+      for (const hit of hits) scored.set(hit.pageId, hit);
     } else {
       // Only filters: the matching pages, the latest edited first.
       const after = filter.editedAfter?.getTime();

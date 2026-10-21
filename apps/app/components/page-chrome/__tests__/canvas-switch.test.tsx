@@ -1,6 +1,13 @@
+// Activity's requests and interaction are covered by page-activity.test.tsx.
+jest.mock('../page-activity', () => ({ PageActivity: () => null, PageActivityPanel: () => null }));
+// This suite checks the page mutation; Bloom tests the menu's interaction contract.
+jest.mock('@oxy.so/bloom/dropdown-menu', () => ({
+  DropdownMenuCheckboxItem: (props: Record<string, unknown>) =>
+    require('react').createElement(require('react-native').View, props),
+}));
 import { documentFromSnapshot, EditorStore, getBlock } from '@oxy.so/bloom-editor/model';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { Switch } from '@oxy.so/bloom/switch';
+import { DropdownMenuCheckboxItem } from '@oxy.so/bloom/dropdown-menu';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { NOTE } from '@/lib/editor/canvas';
 import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
@@ -23,7 +30,7 @@ const newId = () => `b${++n}`;
 const page = (mode: Page['mode']) => ({ id: 'p', mode, locked: false }) as Page;
 let renderer: ReactTestRenderer;
 const toggle = (value: boolean) =>
-  act(() => renderer.root.findByType(Switch).props.onCheckedChange(value));
+  act(() => renderer.root.findByType(DropdownMenuCheckboxItem).props.onCheckedChange(value));
 
 beforeEach(() => {
   jest.clearAllMocks();

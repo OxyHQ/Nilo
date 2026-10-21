@@ -2,6 +2,9 @@
 // reach the UI runtime when they load (Reanimated runs a worklet there,
 // gesture-handler asks for its holder), which Worklets' JS runtime refuses.
 jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
+jest.mock('react-native-keyboard-controller', () =>
+  require('react-native-keyboard-controller/jest'),
+);
 
 // The native media players (`components/editor/blocks/media-players.tsx`):
 // their native modules are not in jest. A player that loads and plays nothing.

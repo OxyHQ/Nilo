@@ -1,6 +1,6 @@
 import { apiErrorMessage } from '@/lib/api/error-message';
 import { useRef, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import axios from 'axios';
@@ -143,13 +143,13 @@ export function ImportPagesDialog({
                 <Text className="text-sm text-muted-foreground">
                   {t('pages.import.skipped', { count: result.skipped.length })}
                 </Text>
-                <ScrollView className="max-h-40" keyboardShouldPersistTaps="handled">
+                <View>
                   {result.skipped.map((path) => (
                     <Text key={path} className="text-sm text-muted-foreground">
                       {path}
                     </Text>
                   ))}
-                </ScrollView>
+                </View>
               </>
             ) : null}
             {first ? (

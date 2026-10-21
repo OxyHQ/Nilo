@@ -10,6 +10,7 @@
  */
 import {
   acceptsCalculation,
+  BOARD_GROUPABLE_PROPERTY_TYPES,
   isChartMeasurable,
   isGroupableType,
   withoutGroupKeys,
@@ -153,6 +154,7 @@ export function viewWithoutProperty(
  */
 function configWithout(view: ViewConfig, propertyId: string): ViewConfig | null {
   const config: ViewConfig = { ...view };
+  if (config.boardColumnOrder?.propertyId === propertyId) delete config.boardColumnOrder;
   for (const key of CONFIG_PROPERTY_KEYS) if (config[key] === propertyId) delete config[key];
   if (config.columnWidths && propertyId in config.columnWidths) {
     const { [propertyId]: _width, ...widths } = config.columnWidths;
@@ -187,12 +189,18 @@ export function viewAfterRetype(
   > = {};
   const filters = prunedFilters(view, propertyId);
   if (filters) patch.filters = filters;
-  if (type && !isGroupableType(type)) {
-    if (view.groupBy?.propertyId === propertyId) patch.groupBy = null;
-    if (view.subGroupBy?.propertyId === propertyId) patch.subGroupBy = null;
+  if (type) {
+    const primaryGroupable =
+      view.type === 'board'
+        ? BOARD_GROUPABLE_PROPERTY_TYPES.some((supported) => supported === type)
+        : isGroupableType(type);
+    if (!primaryGroupable && view.groupBy?.propertyId === propertyId) patch.groupBy = null;
+    if (!isGroupableType(type) && view.subGroupBy?.propertyId === propertyId)
+      patch.subGroupBy = null;
   }
   if (type) {
     const config: ViewConfig = { ...view.config };
+    if (config.boardColumnOrder?.propertyId === propertyId) delete config.boardColumnOrder;
     const fn = config.calculations?.[propertyId];
     if (config.calculations && fn && !acceptsCalculation(type, fn)) {
       const { [propertyId]: _fn, ...calculations } = config.calculations;

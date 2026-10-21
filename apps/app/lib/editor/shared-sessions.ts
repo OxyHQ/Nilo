@@ -55,6 +55,9 @@ const defaultDeps: SessionDeps = {
 
 interface Entry {
   session: PageSession;
+  deps: SessionDeps;
+  beforeStart: Promise<void> | null;
+  closing: Promise<void> | null;
   holders: Set<SessionHolder>;
   doc: Y.Doc | null;
   status: SyncStatus;
@@ -62,6 +65,51 @@ interface Entry {
 }
 
 const entries = new Map<string, Entry>();
+/** A new session must not read a base document while it is being deleted. */
+const removals = new Map<string, Promise<void>>();
+/** Reopening must not load a base still being compacted by its previous holder. */
+const closings = new Map<string, { persisted: Promise<void>; done: Promise<void> }>();
+let draining = 0;
+
+function closeEntry(pageId: string, entry: Entry, flush = true): Promise<void> {
+  if (entry.closing) return entry.closing;
+  if (entries.get(pageId) === entry) entries.delete(pageId);
+  // Dispose synchronously to detach callbacks and cancel a deferred start.
+  const previous = closings.get(pageId);
+  const disposed = entry.session.dispose({ flush });
+  // Retention uses OfflinePages' serial index queue. A download removal already
+  // holding that queue may wait for persistence, but must not wait for retention.
+  const persisted = Promise.allSettled([previous?.persisted, disposed]).then(() => {});
+  const closed = Promise.all([entry.beforeStart?.catch(() => {}), disposed])
+    .then(([, bytes]) => entry.deps.closed(pageId, bytes))
+    .finally(() => {
+      entry.deps.releaseSocket();
+      if (closings.get(pageId)?.done === closed) closings.delete(pageId);
+    });
+  entry.closing = closed;
+  closings.set(pageId, { persisted, done: closed });
+  return closed;
+}
+
+/**
+ * The account boundary: no new holder or late write may cross the device purge.
+ * Disposes without sending queued edits and waits for existing closures/removals.
+ * It does not change which accounts retain or clear their documents.
+ */
+export async function withPageSessionsDrained<T>(purge: () => Promise<T>): Promise<T> {
+  draining += 1;
+  try {
+    const closing = [...entries].map(([pageId, entry]) => closeEntry(pageId, entry, false));
+    await Promise.allSettled([
+      ...closing,
+      ...Array.from(closings.values(), (closing) => closing.done),
+      ...removals.values(),
+    ]);
+    return await purge();
+  } finally {
+    draining -= 1;
+  }
+}
 
 function sendsChanges(entry: Entry): boolean {
   for (const holder of entry.holders) if (!holder.readOnly) return true;
@@ -78,11 +126,21 @@ export function holdPageSession(
   holder: SessionHolder,
   deps: SessionDeps = defaultDeps,
 ): () => void {
+  // AuthSetup mounts the next account only after its boundary has completed.
+  // A stale holder arriving during a purge must never start later.
+  if (draining > 0) return () => {};
   let entry = entries.get(pageId);
   if (!entry) {
     const socket = deps.acquireSocket();
     const holders = new Set<SessionHolder>();
+    const barriers = [removals.get(pageId), closings.get(pageId)?.done].filter(
+      (pending): pending is Promise<void> => pending !== undefined,
+    );
+    const beforeStart = barriers.length ? Promise.allSettled(barriers).then(() => {}) : null;
     const created: Entry = {
+      deps,
+      beforeStart,
+      closing: null,
       holders,
       doc: null,
       status: 'saved',
@@ -113,7 +171,11 @@ export function holdPageSession(
     entry = created;
     entries.set(pageId, created);
     holders.add(holder);
-    void created.session.start();
+    if (beforeStart) {
+      void beforeStart.then(() => created.session.start());
+    } else {
+      void created.session.start();
+    }
   } else {
     entry.holders.add(holder);
     entry.session.setReadOnly(!sendsChanges(entry));
@@ -135,13 +197,32 @@ export function holdPageSession(
       held.session.setReadOnly(!sendsChanges(held));
       return;
     }
-    entries.delete(pageId);
-    void held.session
-      .dispose()
-      .then((bytes) => deps.closed(pageId, bytes))
-      .catch(() => {});
-    deps.releaseSocket();
+    void closeEntry(pageId, held).catch(() => {});
   };
+}
+
+/** Download removal must retain the base document until the last editor closes. */
+export function isPageSessionOpen(pageId: string): boolean {
+  return (entries.get(pageId)?.holders.size ?? 0) > 0;
+}
+
+/** Remove a closed clean copy; starts arriving during deletion wait for it. */
+export async function removeClosedPageDocument(
+  pageId: string,
+  store: PageDocStore | null,
+): Promise<void> {
+  if (isPageSessionOpen(pageId) || !store) return;
+  const pending = removals.get(pageId);
+  if (pending) return pending;
+  const removal = Promise.resolve(closings.get(pageId)?.persisted)
+    .catch(() => {})
+    .then(() => store.remove(pageId));
+  removals.set(pageId, removal);
+  try {
+    await removal;
+  } finally {
+    if (removals.get(pageId) === removal) removals.delete(pageId);
+  }
 }
 
 /** For tests: how many places hold `pageId` open. */
