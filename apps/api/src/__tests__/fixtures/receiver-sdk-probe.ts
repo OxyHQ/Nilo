@@ -77,7 +77,7 @@ async function run(): Promise<void> {
     process.env.OXY_API_URL = await listen(issuer);
     // Configuration syntax only: this test never opens a product database.
     process.env.DATABASE_URL = 'postgres://unused:unused@127.0.0.1:1/receiver_fixture_unused';
-    const { authenticateToken: middleware, oxyClient } = await import('../../middleware/auth.js');
+    const { authenticateToken: middleware } = await import('../../middleware/auth.js');
     const app = express();
     app.get('/owned-fixture', middleware, (req, res) => {
       admitted += 1;
@@ -105,22 +105,22 @@ async function run(): Promise<void> {
       assert.equal(admitted, before);
     }
 
-    // reuses a successful validation of the same bearer (core's 30 s session
-    // validation cache), and refuses a revoked session as soon as Oxy's
-    // invalidation reaches this process
+    // core 6.9.0 caches a validation only while OxyServer's revocation feed
+    // from Oxy is live; this process has no service token, so there is no
+    // feed: every request asks Oxy, and a revoked session is refused on the
+    // very next request with no invalidation call from the app
     {
-      oxyClient.invalidateSessionValidations();
       active = true;
       const token = bearer();
-      assert.equal((await request(token)).status, 200);
       const checks = validations;
       assert.equal((await request(token)).status, 200);
-      assert.equal(validations, checks);
+      assert.equal(validations, checks + 1);
+      assert.equal((await request(token)).status, 200);
+      assert.equal(validations, checks + 2);
       const before = admitted;
       active = false;
-      oxyClient.invalidateSessionValidations({ sessionId: 'receiver-session' });
       assert.equal((await request(token)).status, 401);
-      assert.equal(validations, checks + 1);
+      assert.equal(validations, checks + 3);
       assert.equal(admitted, before);
     }
     assert.equal(blockedNetwork, 0);
