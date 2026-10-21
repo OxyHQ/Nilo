@@ -491,6 +491,7 @@
   },
   "blockLinkCopied": "Link to block copied",
   "clipboard": {
+    "cutChanged": "These blocks changed while confirming the cut. Nothing was removed. Select them again to retry.",
     "cutUnsupported": "These blocks cannot be cut without losing content or formatting. Nothing was removed. Use Move or Duplicate instead.",
     "writeFailed": "Could not write to the clipboard. Nothing was removed."
   },

@@ -491,6 +491,7 @@
   },
   "blockLinkCopied": "Enlace al bloque copiado",
   "clipboard": {
+    "cutChanged": "Estos bloques cambiaron mientras se confirmaba el corte. No se eliminó nada. Vuelve a seleccionarlos para reintentar.",
     "cutUnsupported": "Estos bloques no se pueden cortar sin perder contenido o formato. No se eliminó nada. Usa Mover o Duplicar.",
     "writeFailed": "No se pudo escribir en el portapapeles. No se eliminó nada."
   },

@@ -47,7 +47,7 @@ afterEach(() => {
   renderer = undefined;
 });
 
-it.each(['unsupported-cut', 'write-failed'] as const)(
+it.each(['unsupported-cut', 'write-failed', 'changed-cut'] as const)(
   'reports clipboard %s without announcing success or modifying the document',
   (reason) => {
     jest.mocked(toast.error).mockClear();
@@ -57,7 +57,9 @@ it.each(['unsupported-cut', 'write-failed'] as const)(
     expect(toast.error).toHaveBeenCalledWith(
       reason === 'unsupported-cut'
         ? 'editor.clipboard.cutUnsupported'
-        : 'editor.clipboard.writeFailed',
+        : reason === 'changed-cut'
+          ? 'editor.clipboard.cutChanged'
+          : 'editor.clipboard.writeFailed',
     );
     expect(toast.success).not.toHaveBeenCalled();
     expect(store.doc).toBe(before);

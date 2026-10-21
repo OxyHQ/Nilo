@@ -57,12 +57,14 @@ export function useEditorExtras(pageId: string, store: EditorStore | null, readO
   );
 
   const onClipboardError = useCallback(
-    (reason: 'unsupported-cut' | 'write-failed') => {
+    (reason: 'unsupported-cut' | 'write-failed' | 'changed-cut') => {
       toast.error(
         t(
           reason === 'unsupported-cut'
             ? 'editor.clipboard.cutUnsupported'
-            : 'editor.clipboard.writeFailed',
+            : reason === 'changed-cut'
+              ? 'editor.clipboard.cutChanged'
+              : 'editor.clipboard.writeFailed',
         ),
       );
     },
