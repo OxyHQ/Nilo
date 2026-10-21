@@ -196,3 +196,81 @@ it('keeps a change broadcast while its handshake was still answering', async () 
   await settle();
   expect(texts(b.store())).toEqual(['antes', 'durante']);
 });
+
+function deferredWrite() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+it('preserves an unsent draft when reopened read-only and sends it after editing is allowed again', async () => {
+  const server = new FakeServer();
+  const first = await device(server);
+  write(first.store(), 'server base');
+  await settle();
+  first.socket.disconnect();
+  write(first.store(), 'unsent draft');
+  await settle();
+  await first.session.dispose();
+  expect(await first.docs.isDirty('page')).toBe(true);
+
+  const reader = await device(server, { docs: first.docs, readOnly: true });
+  expect(texts(reader.store())).toEqual(['server base', 'unsent draft']);
+  expect(server.doc.getMap('blocks').size).toBe(1);
+  expect(await reader.docs.isDirty('page')).toBe(true);
+  expect(reader.statuses.at(-1)).toBe('error');
+  expect(reader.rejected).toEqual(['READ_ONLY']);
+  reader.session.setReadOnly(false);
+  await settle();
+  expect(server.doc.getMap('blocks').size).toBe(2);
+  expect(await reader.docs.isDirty('page')).toBe(false);
+  expect(reader.statuses.at(-1)).toBe('saved');
+  await reader.session.dispose();
+});
+
+it('waits for a pending append before compacting the document on close', async () => {
+  const current = await device(new FakeServer());
+  write(current.store(), 'base');
+  await settle();
+  current.socket.disconnect();
+  const pending = deferredWrite();
+  const append = current.docs.append.bind(current.docs);
+  jest.spyOn(current.docs, 'append').mockImplementationOnce(async (...args) => {
+    await pending.promise;
+    await append(...args);
+  });
+  const compact = jest.spyOn(current.docs, 'compact');
+  write(current.store(), 'pending');
+  const closing = current.session.dispose();
+  await Promise.resolve();
+  expect(compact).not.toHaveBeenCalled();
+  pending.resolve();
+  await closing;
+  const recovered = new Y.Doc();
+  Y.applyUpdate(recovered, Y.mergeUpdates((await current.docs.load('page'))?.updates ?? []));
+  expect(recovered.getMap('blocks').size).toBe(2);
+  expect(await current.docs.isDirty('page')).toBe(true);
+  recovered.destroy();
+});
+
+it('does not publish saved or clear dirty before the acknowledged append is durable', async () => {
+  const current = await device(new FakeServer());
+  const pending = deferredWrite();
+  const append = current.docs.append.bind(current.docs);
+  jest.spyOn(current.docs, 'append').mockImplementationOnce(async (...args) => {
+    await pending.promise;
+    await append(...args);
+  });
+  const synced = jest.spyOn(current.docs, 'markSynced');
+  write(current.store(), 'acknowledged but still writing');
+  await settle();
+  expect(current.statuses.at(-1)).toBe('saving');
+  expect(synced).not.toHaveBeenCalled();
+  pending.resolve();
+  await settle();
+  expect(current.statuses.at(-1)).toBe('saved');
+  expect(await current.docs.isDirty('page')).toBe(false);
+  await current.session.dispose();
+});

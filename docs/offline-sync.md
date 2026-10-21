@@ -1,7 +1,7 @@
 # Synchronizing pending changes after a page closes
 
-This document specifies a follow-up implementation for pending offline document
-changes. It is a design, not a claim that closed pages already synchronize.
+This document describes the current session guarantees and the follow-up design
+for pending offline document changes. Closed pages do not already synchronize.
 The scope is existing Yjs documents; offline page creation, database caching,
 new transports, and background execution while the app is suspended are excluded.
 
@@ -27,7 +27,35 @@ Consequently, a pending change in a closed page currently waits until a session
 for that page opens again. The missing push should hold the existing session,
 not implement another Yjs protocol or a second persistent work queue.
 
-## Required persistence contract
+## Current guarantees within one process
+
+`PageSession` serializes appends, compaction, and confirmation. A server ACK does
+not change the display to saved before earlier device writes and `markSynced`
+finish. A local edit arriving before confirmation runs prevents that confirmation
+from clearing newer work. A read-only handshake computes the missing server diff
+and preserves a dirty draft when the server lacks it; downloading remote state
+alone cannot mark that draft as sent.
+
+`shared-sessions.ts` coordinates closure and reopening for each page. A new holder
+waits for the previous session's persistence and retention callback before loading
+the base document. A holder released while waiting never starts afterward. The
+close barrier distinguishes persistence from retention: download removal waits
+only for persistence, because the retention callback uses the same offline-index
+queue that removal already owns. This prevents a circular wait without allowing a
+new session to load a base still being compacted or removed.
+
+Account purges use `withPageSessionsDrained`: detach sessions synchronously without
+flushing queued updates, reject new holds during the purge, settle existing writes,
+closures, and removals, then clear device data. Old holders cannot reactivate or
+remove a later session. Callbacks from disposed sessions cannot recreate data
+after the clear. The existing sign-out, account-switch, and external-session
+retention policies remain unchanged.
+
+These guarantees are local to one JavaScript process. They do not provide atomic
+coordination with another browser tab, a background synchronization pass, or the
+revision-aware confirmation and compaction contract below.
+
+## Required persistence contract for background synchronization
 
 Enumerate pending work in `PageDocStore` through `listDirtyPageIds()`. Implement
 it in all three stores; do not infer pending work from pinned/recent metadata.
@@ -60,9 +88,9 @@ No application-server database or secondary persistence path is introduced.
 
 ## Session confirmation and disposal
 
-`PageSession` must serialize its persistence operations. Appends, compaction, and
-confirmation cannot race one another. Store failures are reported through the
-existing rejection contract and cannot produce a successful durable confirmation.
+The existing serialization in `PageSession` must extend to conditional revision
+operations. Store failures use the existing rejection contract and cannot produce
+a successful durable confirmation.
 
 A successful session confirmation requires both server and device evidence:
 
@@ -84,11 +112,9 @@ it synced merely because it downloaded the server's state. Locked, archived,
 forbidden, oversized, and failed updates also remain pending. A clean read-only
 copy can still receive remote changes normally.
 
-The shared-session owner needs one per-page close barrier. New holders arriving
-during disposal wait for persistence to settle before loading a base. Releasing
-such a holder before the barrier resolves must not start a disposed session.
-Failures release the barrier without hiding the error or blocking future opens.
-Download removal continues to use the same owner coordination.
+Use the existing shared-session close barrier for foreground and background
+holders. Preserve its distinction between persistence and retention when adding
+revision checks; download removal must not wait for its own offline-index queue.
 
 ## Bounded synchronization through existing sessions
 
@@ -154,9 +180,9 @@ Use real Yjs updates and the existing room/session test doubles. Verify:
   including concurrent writers and failures. Memory tests alone do not prove
   either adapter's transaction behavior.
 
-Two current failures have deterministic reproductions using the actual session
-owners and a controlled asynchronous memory store: a read-only handshake clears
-dirty while the server still lacks the draft; and a closing session's delayed
-compaction replaces an edit persisted by a newly opened session. The latter tests
-the owner contract at an asynchronous boundary, not a native-device scheduling
-claim. Both must become regression tests when the complete fix is implemented.
+Current regression tests use actual session owners, real Yjs updates, and a
+controlled asynchronous memory store. They cover read-only draft preservation,
+ACKs waiting for appends, close/reopen ordering, cancellation during close,
+download removal during retention, and late callbacks around account purges.
+These tests establish the owner contract at asynchronous boundaries; they do not
+prove cross-tab atomicity or either platform adapter's transaction behavior.

@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { QueryClient } from '@tanstack/react-query';
 import { pageDocStore } from './editor/doc-store';
 import { offlinePages } from './editor/offline-pages';
+import { withPageSessionsDrained } from './editor/shared-sessions';
 import { unregisterPush } from './push-registration';
 
 const OWNER_KEY = 'nilo:account';
@@ -31,11 +32,13 @@ const readOwner = () => AsyncStorage.getItem(OWNER_KEY).catch(() => null);
 const writeOwner = (value: string) => AsyncStorage.setItem(OWNER_KEY, value).catch(() => undefined);
 
 async function clearDevice(client: QueryClient): Promise<void> {
-  client.clear();
-  // The pages kept offline, and every document stored, unsent work included:
-  // in a browser too, where no page is kept offline but unsent work is.
-  await offlinePages.clear();
-  await pageDocStore?.clear().catch(() => undefined);
+  await withPageSessionsDrained(async () => {
+    client.clear();
+    // The pages kept offline, and every document stored, unsent work included.
+    // Session writes have settled and cannot recreate data after this purge.
+    await offlinePages.clear();
+    await pageDocStore?.clear().catch(() => undefined);
+  });
 }
 
 /**

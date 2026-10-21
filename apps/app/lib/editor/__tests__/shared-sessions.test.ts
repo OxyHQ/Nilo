@@ -16,6 +16,7 @@ import {
   holdPageSession,
   isPageSessionOpen,
   removeClosedPageDocument,
+  withPageSessionsDrained,
 } from '../shared-sessions';
 import { OfflinePages } from '../offline-pages';
 
@@ -354,5 +355,193 @@ it('reports a removal failure and releases the guard for waiting and future open
   }
   // No rejected promise remains installed as a permanent deletion guard.
   await removeClosedPageDocument('page', docs);
+  expect(await docs.load('page')).toBeNull();
+});
+
+it('waits for the previous close before reopening and preserves the next edit durably', async () => {
+  const phone = device(new FakeServer());
+  const docs = phone.deps.store as MemoryPageDocStore;
+  const first = phone.hold();
+  await settle();
+  phone.socket.disconnect();
+  (first.held.store as EditorStore).run((c) =>
+    insertBlockAfter(c, null, 'paragraph', { text: [{ text: 'A' }] }),
+  );
+  await settle();
+  const pending = deferred();
+  const compact = docs.compact.bind(docs);
+  jest.spyOn(docs, 'compact').mockImplementationOnce(async (...args) => {
+    await pending.promise;
+    await compact(...args);
+  });
+  first.release();
+  const load = jest.spyOn(docs, 'load');
+  const second = phone.hold();
+  try {
+    await settle();
+    expect(second.held.store).toBeNull();
+    expect(load).not.toHaveBeenCalled();
+    pending.resolve();
+    await settle();
+    const next = second.held.store as EditorStore;
+    next.run((c) =>
+      insertBlockAfter(c, next.doc.root.at(-1) ?? null, 'paragraph', { text: [{ text: 'B' }] }),
+    );
+    await settle();
+    const persisted = await docs.load('page');
+    const recovered = new Y.Doc();
+    Y.applyUpdate(recovered, Y.mergeUpdates(persisted?.updates ?? []));
+    expect(recovered.getMap('blocks').size).toBe(2);
+    expect(persisted?.dirty).toBe(true);
+    recovered.destroy();
+  } finally {
+    pending.resolve();
+    second.release();
+    await settle();
+  }
+});
+
+it('cancels a reopening during close without starting a late session', async () => {
+  const phone = device(new FakeServer());
+  const docs = phone.deps.store as MemoryPageDocStore;
+  const first = phone.hold();
+  await settle();
+  const pending = deferred();
+  const compact = docs.compact.bind(docs);
+  jest.spyOn(docs, 'compact').mockImplementationOnce(async (...args) => {
+    await pending.promise;
+    await compact(...args);
+  });
+  first.release();
+  const joins = phone.socket.sent.filter((event) => event === 'page:join').length;
+  const load = jest.spyOn(docs, 'load');
+  const cancelled = phone.hold();
+  cancelled.release();
+  pending.resolve();
+  await settle();
+  expect(load).not.toHaveBeenCalled();
+  expect(cancelled.held.store).toBeNull();
+  expect(phone.socket.sent.filter((event) => event === 'page:join')).toHaveLength(joins);
+  expect(phone.sockets()).toBe(0);
+});
+
+it('drains pending writes before a purge and ignores late callbacks and stale holders afterward', async () => {
+  const server = new FakeServer();
+  const phone = device(server);
+  const docs = phone.deps.store as MemoryPageDocStore;
+  const old = phone.hold();
+  await settle();
+  const pending = deferred();
+  const append = docs.append.bind(docs);
+  const appendSpy = jest.spyOn(docs, 'append').mockImplementationOnce(async (...args) => {
+    await pending.promise;
+    await append(...args);
+  });
+  let lateAck: (() => void) | undefined;
+  const handle = server.handle.bind(server);
+  jest.spyOn(server, 'handle').mockImplementation((socket, event, payload, ack) => {
+    handle(
+      socket,
+      event,
+      payload,
+      event === 'doc:update'
+        ? (reply) => {
+            lateAck = () => ack?.(reply);
+          }
+        : ack,
+    );
+  });
+  (old.held.store as EditorStore).run((c) =>
+    insertBlockAfter(c, null, 'paragraph', { text: [{ text: 'Unsent on device' }] }),
+  );
+  await settle();
+  expect(lateAck).toBeDefined();
+  let cleared = false;
+  const purging = withPageSessionsDrained(async () => {
+    await docs.clear();
+    cleared = true;
+  });
+  const cancelled = phone.hold();
+  cancelled.release();
+  await Promise.resolve();
+  expect(cleared).toBe(false);
+  expect(cancelled.held.store).toBeNull();
+  pending.resolve();
+  await purging;
+  expect(await docs.load('page')).toBeNull();
+  const writes = appendSpy.mock.calls.length;
+  const sends = phone.socket.sent.length;
+  lateAck?.();
+  phone.socket.deliver('doc:update', { pageId: 'page', update: Y.encodeStateAsUpdate(server.doc) });
+  await settle();
+  expect(appendSpy).toHaveBeenCalledTimes(writes);
+  expect(phone.socket.sent).toHaveLength(sends);
+  expect(await docs.load('page')).toBeNull();
+  const current = phone.hold();
+  try {
+    await settle();
+    expect(current.held.store).not.toBeNull();
+    expect(current.held.store).not.toBe(old.held.store);
+    old.release();
+    expect(holdersOf('page')).toBe(1);
+  } finally {
+    current.release();
+    await settle();
+  }
+});
+
+it('removes downloads during a pending close without deadlocking the retention queue or purge', async () => {
+  const phone = device(new FakeServer());
+  const docs = phone.deps.store as MemoryPageDocStore;
+  const files = new Map<string, string>();
+  const pages = new OfflinePages(
+    {
+      read: async (name) => files.get(name) ?? null,
+      write: async (name, value) => void files.set(name, value),
+      remove: async (name) => void files.delete(name),
+      clear: async () => files.clear(),
+    },
+    docs,
+  );
+  phone.deps.closed = async (id, bytes) => {
+    if (await pages.keeps(id)) await pages.saved(id, bytes);
+    else await docs.remove(id);
+  };
+  await pages.setPinned('page', true);
+  const first = phone.hold();
+  await settle();
+  phone.socket.disconnect();
+  (first.held.store as EditorStore).run((c) =>
+    insertBlockAfter(c, null, 'paragraph', { text: [{ text: 'Retain draft' }] }),
+  );
+  await settle();
+  const pending = deferred();
+  const compact = docs.compact.bind(docs);
+  jest.spyOn(docs, 'compact').mockImplementationOnce(async (...args) => {
+    await pending.promise;
+    await compact(...args);
+  });
+  first.release();
+  let enteredRemoval!: () => void;
+  const removingStarted = new Promise<void>((resolve) => {
+    enteredRemoval = resolve;
+  });
+  const removing = pages.removeDownloads(async (id, store) => {
+    enteredRemoval();
+    await removeClosedPageDocument(id, store);
+  });
+  await removingStarted;
+  let purged = false;
+  const purging = withPageSessionsDrained(async () => {
+    // Dirty work survived removing the download choices before the privacy purge.
+    expect(await docs.isDirty('page')).toBe(true);
+    expect(await pages.list()).toEqual([]);
+    await pages.clear();
+    purged = true;
+  });
+  pending.resolve();
+  await Promise.all([removing, purging]);
+  expect(purged).toBe(true);
+  expect(phone.sockets()).toBe(0);
   expect(await docs.load('page')).toBeNull();
 });
