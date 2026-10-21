@@ -1,6 +1,7 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { documentFromSnapshot, EditorStore, getBlock } from '@oxy.so/bloom-editor/model';
 import { NILO_SCHEMA } from '@oxy.so/nilo-contracts/editor';
+import { toast } from '@oxy.so/bloom/toast';
 import { useEditorExtras } from '../editor-extras';
 
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ oxyServices: {} }) }));
@@ -45,6 +46,23 @@ afterEach(() => {
   act(() => renderer?.unmount());
   renderer = undefined;
 });
+
+it.each(['unsupported-cut', 'write-failed'] as const)(
+  'reports clipboard %s without announcing success or modifying the document',
+  (reason) => {
+    jest.mocked(toast.error).mockClear();
+    jest.mocked(toast.success).mockClear();
+    const before = store.doc;
+    act(() => extras.onClipboardError(reason));
+    expect(toast.error).toHaveBeenCalledWith(
+      reason === 'unsupported-cut'
+        ? 'editor.clipboard.cutUnsupported'
+        : 'editor.clipboard.writeFailed',
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(store.doc).toBe(before);
+  },
+);
 async function paste() {
   await act(async () => {
     extras.onPasteImages(

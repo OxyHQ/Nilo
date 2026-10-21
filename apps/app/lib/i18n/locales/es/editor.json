@@ -490,5 +490,9 @@
     }
   },
   "blockLinkCopied": "Enlace al bloque copiado",
+  "clipboard": {
+    "cutUnsupported": "Estos bloques no se pueden cortar sin perder contenido o formato. No se eliminó nada. Usa Mover o Duplicar.",
+    "writeFailed": "No se pudo escribir en el portapapeles. No se eliminó nada."
+  },
   "codePlain": "Texto plano"
 }

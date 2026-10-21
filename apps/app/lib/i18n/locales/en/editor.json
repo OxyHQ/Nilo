@@ -490,5 +490,9 @@
     }
   },
   "blockLinkCopied": "Link to block copied",
+  "clipboard": {
+    "cutUnsupported": "These blocks cannot be cut without losing content or formatting. Nothing was removed. Use Move or Duplicate instead.",
+    "writeFailed": "Could not write to the clipboard. Nothing was removed."
+  },
   "codePlain": "Plain text"
 }

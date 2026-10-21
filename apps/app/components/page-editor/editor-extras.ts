@@ -56,6 +56,19 @@ export function useEditorExtras(pageId: string, store: EditorStore | null, readO
     [pageId, t],
   );
 
+  const onClipboardError = useCallback(
+    (reason: 'unsupported-cut' | 'write-failed') => {
+      toast.error(
+        t(
+          reason === 'unsupported-cut'
+            ? 'editor.clipboard.cutUnsupported'
+            : 'editor.clipboard.writeFailed',
+        ),
+      );
+    },
+    [t],
+  );
+
   const onPasteImages = useCallback(
     (images: PastedImage[], blockId: string) => {
       if (!store || readOnly) return;
@@ -111,5 +124,11 @@ export function useEditorExtras(pageId: string, store: EditorStore | null, readO
     [palette],
   );
 
-  return { onCopyBlockLink, onPasteImages, codeLanguages, highlightCode: highlight };
+  return {
+    onCopyBlockLink,
+    onClipboardError,
+    onPasteImages,
+    codeLanguages,
+    highlightCode: highlight,
+  };
 }
