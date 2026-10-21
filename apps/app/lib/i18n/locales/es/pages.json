@@ -235,7 +235,10 @@
     "description": "Las versiones anteriores se guardan automáticamente tras periodos de inactividad y antes de restaurar.",
     "empty": "Todavía no hay versiones anteriores.",
     "loadFailed": "No se pudo cargar el historial de la página.",
-    "entry": "%{time} · %{name} · %{count} bloques",
+    "entry": {
+      "one": "%{time} · %{name} · %{count} bloque",
+      "other": "%{time} · %{name} · %{count} bloques"
+    },
     "preview": "Vista previa de la versión",
     "restore": "Restaurar esta versión",
     "noPermission": "Se necesita acceso de edición para restaurar una versión.",

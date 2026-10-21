@@ -235,7 +235,10 @@
     "description": "Previous versions are saved automatically after quiet periods and before a restore.",
     "empty": "No previous versions yet.",
     "loadFailed": "Could not load page history.",
-    "entry": "%{time} · %{name} · %{count} blocks",
+    "entry": {
+      "one": "%{time} · %{name} · %{count} block",
+      "other": "%{time} · %{name} · %{count} blocks"
+    },
     "preview": "Version preview",
     "restore": "Restore this version",
     "noPermission": "Editor access is required to restore a version.",
