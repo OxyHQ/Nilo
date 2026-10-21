@@ -51,7 +51,8 @@ model, credential, conversation or chat-completion route.
   `POST /pages` (`teamspaceId`: a teamspace, null for private, absent for
   the default), `GET/PATCH/DELETE /pages/:id` (layout, lock, place, move),
   `POST /pages/:id/duplicate`, `GET /pages/:id/breadcrumb`,
-  `GET /pages/:id/export` (Markdown or HTML).
+  `GET /pages/:id/export` (Markdown or HTML). Workspace ZIP contents and access
+  rules are documented in [Exports](exports.md).
 - Sharing: `GET/POST /pages/:id/permissions`, `PUT/DELETE …/permissions/:userId`;
   share links `GET/POST /pages/:id/share`, `DELETE /share-links/:id`,
   `GET /share/:token`, `POST /share/:token/join`.
@@ -156,7 +157,9 @@ the catalog after each healthy rollout.
 ## Search, files, embeds, feedback
 
 - `GET /search?workspaceId&q` — titles and text, accent-insensitive, every word
-  as a prefix; in titles a word may also be close (a typo), by trigrams.
+  as a prefix; in titles an unquoted word may also be close (a typo), by trigrams.
+  Closed double quotes require whole words together in order. Authorization and
+  teamspace filters precede the final result limit; see [Search](search.md).
   Filters: `titleOnly=true`, `createdBy`, `teamspaceId` (or `private`),
   `editedAfter`/`editedBefore` (ISO); with filters and no `q`, the matching
   pages, the latest edited first.

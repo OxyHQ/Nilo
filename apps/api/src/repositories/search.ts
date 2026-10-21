@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import { sqlColumnName } from '@oxy.so/db';
 import type { PgHandle } from '../db/client.js';
 import { blocks, pages } from '../db/schema/pages.js';
@@ -9,24 +9,19 @@ export interface SnippetPart {
   match: boolean;
 }
 
-export interface TitleHit {
+export interface SearchHit {
   pageId: string;
-  rank: number;
-}
-
-export interface BlockHit {
-  pageId: string;
-  blockId: string;
-  rank: number;
+  score: number;
+  matchedTitle: boolean;
+  blockId: string | null;
   snippet: SnippetPart[];
 }
 
-/** The longest query worth parsing: a search box, not a document. */
-const MAX_QUERY_LENGTH = 200;
+const MAX_QUERY_LENGTH = 500;
 const MAX_TERMS = 8;
 
-/** The words of what someone typed: runs of letters and digits, at most `MAX_TERMS`. */
-export function queryWords(input: string): string[] {
+/** Unquoted words retain the existing bounded prefix/typo search. */
+function queryWords(input: string): string[] {
   const words =
     input
       .slice(0, MAX_QUERY_LENGTH)
@@ -35,14 +30,40 @@ export function queryWords(input: string): string[] {
   return [...new Set(words)].slice(0, MAX_TERMS);
 }
 
+export interface SearchQuery {
+  words: string[];
+  phrases: string[];
+}
+
 /**
- * The tsquery for what someone typed: every word, as a prefix, all required
- * (`plan:* & semana:*`). Words are runs of letters and digits, so nothing
- * the user types reaches `to_tsquery` as syntax. Null when there is no word.
+ * Closed quotes require whole lexemes in order. An unfinished quote is ordinary
+ * search input, so typing a quote does not hide all suggestions. Never shorten
+ * a closed phrase to the unquoted word budget.
  */
-export function prefixQuery(input: string): string | null {
-  const terms = queryWords(input);
-  return terms.length > 0 ? terms.map((term) => `${term}:*`).join(' & ') : null;
+export function parseSearchQuery(input: string): SearchQuery | null {
+  const phrases: string[] = [];
+  const unquoted = input
+    .slice(0, MAX_QUERY_LENGTH)
+    .replace(/"([^"]*)"/g, (_match, phrase: string) => {
+      if (/[\p{L}\p{N}]/u.test(phrase)) phrases.push(phrase);
+      return ' ';
+    });
+  const words = queryWords(unquoted);
+  return words.length || phrases.length ? { words, phrases } : null;
+}
+
+function phraseQueries(query: SearchQuery): SQL[] {
+  return query.phrases.map((phrase) => sql`phraseto_tsquery('nilo_search'::regconfig, ${phrase})`);
+}
+
+function textQuery(query: SearchQuery): SQL {
+  const clauses = phraseQueries(query);
+  if (query.words.length) {
+    clauses.unshift(
+      sql`to_tsquery('nilo_search'::regconfig, ${query.words.map((word) => `${word}:*`).join(' & ')})`,
+    );
+  }
+  return sql`(${sql.join(clauses, sql` && `)})`;
 }
 
 // ts_headline marks matches with these; control characters cannot occur in
@@ -102,93 +123,90 @@ function filterSql(filter: SearchFilter | undefined, alias?: string) {
 const NEAR_WORD = 0.45;
 
 /**
- * Live pages of `workspaceId` whose title has every word typed, each as a
- * prefix or close to a word of the title, typos included (by trigrams),
- * best first: a title matching every word as typed ranks above any near one.
- * The expressions are `pages_title_fts_idx`'s and `pages_title_trgm_idx`'s.
+ * Search only the IDs authorized by the shared page-access owner. Titles and
+ * the best body block contribute to one score before the single final LIMIT;
+ * inaccessible or out-of-teamspace candidates cannot consume result slots.
+ * Keep the indexed vector/folding expressions identical to the GIN indexes.
  */
-export async function searchPageTitles(
+export async function searchPages(
   db: PgHandle,
   workspaceId: string,
-  words: readonly string[],
+  authorizedIds: readonly string[],
+  query: SearchQuery,
   limit: number,
+  titleOnly: boolean,
   filter?: SearchFilter,
-): Promise<TitleHit[]> {
-  if (words.length === 0) return [];
-  const vector = sql`to_tsvector('nilo_search'::regconfig, ${col(pages.title)})`;
-  const prefix = (query: string) => sql`to_tsquery('nilo_search'::regconfig, ${query})`;
-  const title = sql`nilo_fold(${col(pages.title)})`;
-  const all = prefix(words.map((word) => `${word}:*`).join(' & '));
-  const everyWord = sql.join(
-    words.map(
-      (word) => sql`(${vector} @@ ${prefix(`${word}:*`)} or nilo_fold(${word}) <% ${title})`,
-    ),
-    sql` and `,
+): Promise<SearchHit[]> {
+  if (!authorizedIds.length) return [];
+  const vector = sql`to_tsvector('nilo_search'::regconfig, p.${col(pages.title)})`;
+  const title = sql`nilo_fold(p.${col(pages.title)})`;
+  const all = textQuery(query);
+  const titleClauses = query.words.map(
+    (word) =>
+      sql`(${vector} @@ to_tsquery('nilo_search'::regconfig, ${`${word}:*`}) or nilo_fold(${word}) <% ${title})`,
   );
-  const closeness = sql.join(
-    words.map((word) => sql`word_similarity(nilo_fold(${word}), ${title})`),
-    sql` + `,
-  );
+  titleClauses.push(...phraseQueries(query).map((phrase) => sql`${vector} @@ ${phrase}`));
+  const closeness = query.words.length
+    ? sql`(${sql.join(
+        query.words.map((word) => sql`word_similarity(nilo_fold(${word}), ${title})`),
+        sql` + `,
+      )}) / ${query.words.length}`
+    : sql`0`;
+  const text = sql`coalesce(b.${col(blocks.content)} ->> 'text', '')`;
+  const bodyVector = sql`to_tsvector('nilo_search'::regconfig, ${text})`;
   return db.transaction(async (tx) => {
-    // `<%` reads the threshold from the session; `set local` keeps it to this query.
     await tx.execute(
       sql`select set_config('pg_trgm.word_similarity_threshold', ${String(NEAR_WORD)}, true)`,
     );
     const rows = await tx.execute(sql`
-      select ${col(pages.id)} as id,
-             case when ${vector} @@ ${all} then 1 + ts_rank(${vector}, ${all}) else 0 end
-               + (${closeness}) / ${words.length} as rank
-      from ${pages}
-      where ${col(pages.workspaceId)} = ${workspaceId}
-        and not ${col(pages.archived)}
-        and ${everyWord}${filterSql(filter)}
-      order by rank desc, ${col(pages.updatedAt)} desc
-      limit ${limit}
+      with eligible as not materialized (
+        select p.* from ${pages} p
+        where p.${col(pages.workspaceId)} = ${workspaceId}
+          and not p.${col(pages.archived)}
+          and p.${col(pages.id)} = any(${sql.param(authorizedIds)}::text[])
+          ${filterSql(filter, 'p')}
+      ), title_hits as (
+        select p.${col(pages.id)} as page_id, p.${col(pages.updatedAt)} as updated_at,
+               1 + case when ${vector} @@ ${all} then 1 + ts_rank(${vector}, ${all}) else 0 end
+                 + ${closeness} as score
+        from eligible p
+        where ${sql.join(titleClauses, sql` and `)}
+      ), body_candidates as (
+        select b.${col(blocks.id)} as block_id, p.${col(pages.id)} as page_id,
+               p.${col(pages.updatedAt)} as updated_at, ${text} as text,
+               ts_rank(${bodyVector}, ${all}) as score,
+               row_number() over (
+                 partition by p.${col(pages.id)}
+                 order by ts_rank(${bodyVector}, ${all}) desc, b.${col(blocks.id)}
+               ) as nth
+        from ${blocks} b
+        join eligible p on p.${col(pages.id)} = b.${col(blocks.pageId)}
+        where ${!titleOnly} and ${bodyVector} @@ ${all}
+      ), body_hits as (
+        select * from body_candidates where nth = 1
+      ), ranked as (
+        select coalesce(t.page_id, b.page_id) as page_id,
+               coalesce(t.score, 0) + coalesce(b.score, 0) as score,
+               t.page_id is not null as matched_title, b.block_id, b.text,
+               coalesce(t.updated_at, b.updated_at) as updated_at
+        from title_hits t full join body_hits b on b.page_id = t.page_id
+        order by score desc, updated_at desc, page_id
+        limit ${limit}
+      )
+      select page_id, score, matched_title, block_id,
+             case when block_id is not null then
+               ts_headline('nilo_search'::regconfig, text, ${all},
+                 ${`StartSel=${START}, StopSel=${STOP}, MaxWords=24, MinWords=8, MaxFragments=1`})
+             else null end as headline
+      from ranked
+      order by score desc, updated_at desc, page_id
     `);
-    return rows.map((row) => ({ pageId: String(row.id), rank: Number(row.rank) }));
+    return rows.map((row) => ({
+      pageId: String(row.page_id),
+      score: Number(row.score),
+      matchedTitle: Boolean(row.matched_title),
+      blockId: row.block_id == null ? null : String(row.block_id),
+      snippet: snippetParts(String(row.headline ?? '')),
+    }));
   });
-}
-
-/**
- * The best-matching block per live page of `workspaceId`, best pages first,
- * with a snippet of it. The tsvector expression is `blocks_text_fts_idx`'s.
- */
-export async function searchBlockText(
-  db: PgHandle,
-  workspaceId: string,
-  query: string,
-  limit: number,
-  filter?: SearchFilter,
-): Promise<BlockHit[]> {
-  const text = sql`coalesce(b.${col(blocks.content)} ->> 'text', '')`;
-  const rows = await db.execute(sql`
-    with matched as (
-      select b.${col(blocks.id)} as block_id,
-             b.${col(blocks.pageId)} as page_id,
-             ${text} as text,
-             ts_rank(to_tsvector('nilo_search'::regconfig, ${text}), to_tsquery('nilo_search'::regconfig, ${query})) as rank,
-             row_number() over (
-               partition by b.${col(blocks.pageId)}
-               order by ts_rank(to_tsvector('nilo_search'::regconfig, ${text}), to_tsquery('nilo_search'::regconfig, ${query})) desc
-             ) as nth
-      from ${blocks} b
-      join ${pages} p on p.${col(pages.id)} = b.${col(blocks.pageId)}
-      where p.${col(pages.workspaceId)} = ${workspaceId}
-        and not p.${col(pages.archived)}${filterSql(filter, 'p')}
-        and to_tsvector('nilo_search'::regconfig, ${text}) @@ to_tsquery('nilo_search'::regconfig, ${query})
-    )
-    select block_id, page_id, rank,
-           ts_headline('nilo_search'::regconfig, text, to_tsquery('nilo_search'::regconfig, ${query}),
-             ${`StartSel=${START}, StopSel=${STOP}, MaxWords=24, MinWords=8, MaxFragments=1`}) as headline
-    from matched
-    where nth = 1
-    order by rank desc
-    limit ${limit}
-  `);
-  return rows.map((row) => ({
-    pageId: String(row.page_id),
-    blockId: String(row.block_id),
-    rank: Number(row.rank),
-    snippet: snippetParts(String(row.headline ?? '')),
-  }));
 }
