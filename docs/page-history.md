@@ -7,7 +7,8 @@ The versions rail and content preview are separate Screen scroll regions; the
 outer Dialog does not add a third scroller. Bloom owns viewport sizing, panel
 collapse, focus and dismissal. Narrow containers show the version list first;
 choosing a version opens its preview, whose Back action returns to the list.
-Opening a specific version from activity opens that preview directly.
+The Activity header opens the version list; activity records and saved versions
+are separate data and are not assumed to have a one-to-one correspondence.
 
 Version rows show an exact local date/time and the author resolved through the
 public member-profile owner. A page-only guest editor does not need workspace
