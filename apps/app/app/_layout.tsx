@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { OxyProvider, useOxy } from '@oxy.so/services/ui/client';
+import { OxyProvider, useAccountColor, useOxy } from '@oxy.so/services/ui/client';
 import { OverlayInertBoundary, PortalOutlet, PortalProvider } from '@oxy.so/bloom/portal';
 import { BloomProvider } from '@oxy.so/bloom/provider';
 import { BloomScope } from '@oxy.so/bloom/appearance';
@@ -86,6 +86,9 @@ function AuthSetup({ children }: { children: React.ReactNode }) {
 
 function AppContent() {
   const { colors } = useColorScheme();
+  // The Oxy account colour is the app's accent: applied once, below both the
+  // Oxy and Bloom providers.
+  useAccountColor();
 
   // Mounted only once BloomProvider has loaded Bloom's fonts, so hiding the
   // splash here leaves no unstyled-text flash.

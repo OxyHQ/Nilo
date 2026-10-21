@@ -33,18 +33,8 @@
     "workspace": "Espacio de trabajo"
   },
   "accentColor": {
-    "title": "Color de la app",
-    "teal": "Verde azulado",
-    "blue": "Azul",
-    "green": "Verde",
-    "yellow": "Amarillo",
-    "amber": "Ámbar",
-    "red": "Rojo",
-    "purple": "Morado",
-    "pink": "Rosa",
-    "sky": "Cielo",
-    "orange": "Naranja",
-    "mint": "Menta"
+    "title": "Color de la cuenta",
+    "saveFailed": "No se pudo guardar tu color. Inténtalo de nuevo."
   },
   "members": {
     "description": "Invita a personas a tu espacio de trabajo y gestiona sus roles. Solo los administradores y propietarios del espacio de trabajo pueden cambiar roles o quitar miembros."
