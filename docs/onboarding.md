@@ -84,6 +84,13 @@ the hovered resource's authorized neighbors while open; it must not derive
 siblings from cached workspace lists. See [navigation neighbors](navigation-neighbors.md)
 for pagination, access and cursor semantics. Neighbor queries are memory-only and
 recheck access before exposing a cached response on reopening.
+
+Page-link and child-page blocks compose Expo Router's `Link asChild` with Bloom's
+`LinkButton`. The router owns activation and Bloom owns the visible control,
+icon slot, typography and truncation. Keep a real `href`; a bare `router.push`
+callback loses modified-click behavior, while an uncoordinated `href` and
+callback can navigate twice. Do not duplicate modifier-key handling in Nilo.
+
 Header actions use Bloom's `PageHeader.actions` callback and its `compact` state.
 Nilo forwards that state to sharing and keeps favorites in the page actions menu
 when the direct star is hidden. Bloom owns the header-width decision; Nilo must
