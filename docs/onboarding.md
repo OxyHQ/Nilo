@@ -43,7 +43,10 @@ The workspace uses `AppShell gutter={0} navigationGap={0}` and the document and
 comments use the compositor's `joined` appearance. Their shared Surface,
 divider and responsive floating presentation belong to `AppShellPanels`;
 `CommentPanel` supplies its own `Screen` header, scroll content and footer.
-Opening or closing discussions must preserve the mounted document editor.
+The group's `header` slot spans the document and its adjacent panels inside
+that same Surface. Keep the editor toolbar in the document's own `Screen`;
+do not offset side panels with a guessed header height. Opening or closing
+discussions must preserve the mounted document editor and header overlays.
 
 `PageHeader` owns header placement and measures its accessory (view tabs and
 `Toolbar`). `ScreenScrollView` binds content to that screen's scroll owner.
@@ -173,7 +176,8 @@ Keep their result lists in its content region and mutation actions in its action
 slot. A long result list is not a reason to introduce a second fixed-height scroller.
 
 Page history uses `Dialog presentation="fullscreen" scrollable={false}` with
-`AppShellPanels scope="local" appearance="joined"`. The version list and block
+`AppShellPanels scope="local" appearance="plain"` to inherit the dialog Surface
+without painting a second one. The version list and block
 preview are genuinely independent regions, each with its own `Screen` and
 `ScreenScrollView`; the outer dialog must not add another scroll owner. Bloom
 owns viewport sizing and responsive collapse. On narrow containers, selecting a

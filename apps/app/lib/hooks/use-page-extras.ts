@@ -8,7 +8,7 @@ import type { ReadOnlyBlock } from '../block-tree';
 import type { BreadcrumbEntry, Page, PageResponse } from '../types/pages';
 import { useAuthQuery } from './create-query';
 import { queryKeys } from './query-keys';
-import { historyOf, useHistoryAccess } from './use-page-history-access';
+import { readPageHistory, terminalHistoryError, useHistoryAccess } from './use-page-history-access';
 import { hasRole } from './workspace-roles';
 
 export interface PublicPage {
@@ -84,58 +84,21 @@ export interface PageVersion {
   createdBy: string;
   blockCount: number;
 }
-const terminalHistoryError = (error: unknown) =>
-  axios.isAxiosError(error) && [401, 403, 404].includes(error.response?.status ?? 0);
-
 function useHistoryQuery<T>(pageId: string, key: readonly string[], url: string, enabled = true) {
   const client = useQueryClient();
   const { canEdit, ready } = useHistoryAccess(pageId);
   const query = useQuery<T | null, Error, T | undefined>({
     queryKey: key,
-    queryFn: async ({ signal }) => {
-      const access = client.getQueryState<PageResponse | null>(queryKeys.pages.detail(pageId));
-      // refetch() is callable even on a disabled observer. Keep the same guard
-      // at the transport boundary, including stale callbacks held by a dialog.
-      if (
-        !ready ||
-        !enabled ||
-        access?.isInvalidated ||
-        access?.fetchStatus !== 'idle' ||
-        !hasRole(access?.data?.role, 'editor')
-      )
-        throw new Error('Page history requires editor access');
-      try {
-        return (await apiClient.get<T>(url, { signal })).data;
-      } catch (error) {
-        if (!signal.aborted && terminalHistoryError(error)) {
-          if (key[0] === 'version' && axios.isAxiosError(error) && error.response?.status === 404) {
-            // Retention can delete a selected version while the page remains
-            // editable. Retire this preview without invalidating page access or
-            // discarding the other versions.
-            client.setQueryData(key, null);
-          } else {
-            const current = client.getQueryCache().find({ queryKey: key, exact: true });
-            void client.cancelQueries({
-              predicate: (query) => historyOf(pageId)(query) && query !== current,
-            });
-            client.setQueriesData(
-              {
-                // Preserve existing terminal errors. Resetting a sibling's error
-                // to success would re-enable it after each access recheck and let
-                // two denied queries repeatedly restart one another.
-                predicate: (query) => historyOf(pageId)(query) && query.state.data != null,
-              },
-              null,
-            );
-            void client.invalidateQueries({
-              queryKey: queryKeys.pages.detail(pageId),
-              exact: true,
-            });
-          }
-        }
-        throw error;
-      }
-    },
+    queryFn: ({ signal }) =>
+      readPageHistory<T>({
+        client,
+        pageId,
+        key,
+        url,
+        signal,
+        ready,
+        enabled,
+      }),
     select: (data) => data ?? undefined,
     // An access recheck toggles ready. A terminal history error must remain
     // stable across that toggle, even if metadata still reports editor. A user
@@ -185,6 +148,9 @@ export function useRestoreVersion(page: Page) {
     onSuccess: async () => {
       await Promise.all([
         client.invalidateQueries({ queryKey: queryKeys.versions.list(page.id) }),
+        client.invalidateQueries({
+          queryKey: queryKeys.pageActivity.page(page.workspaceId, page.id),
+        }),
         client.invalidateQueries({ queryKey: queryKeys.blocks.list(page.id) }),
         client.invalidateQueries({ queryKey: queryKeys.pages.detail(page.id) }),
         client.invalidateQueries({ queryKey: queryKeys.pages.list(page.workspaceId) }),

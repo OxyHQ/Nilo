@@ -18,6 +18,7 @@ import {
   type PageHeaderProps,
 } from '@oxy.so/bloom/page-header';
 import { Screen, type ScreenProps } from '@oxy.so/bloom/screen';
+import { AppShellPanels, type AppShellPanelDefinition } from '@oxy.so/bloom/app-shell';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdatePage } from '@/lib/hooks/use-pages';
@@ -44,6 +45,8 @@ interface PageChromeProps {
   /** Right-side header content (ShareButton lives here in the page route). */
   rightHeader?: PageHeaderProps['actions'];
   bottomBar?: React.ReactNode;
+  /** Page discussions and activity share the document header and compositor Surface. */
+  panels?: readonly AppShellPanelDefinition[];
   scroll?: ScreenProps['scroll'];
   onOpenActivity?: () => void;
 }
@@ -63,6 +66,7 @@ export function PageChrome({
   children,
   rightHeader,
   bottomBar,
+  panels,
   scroll = 'auto',
   readOnly = false,
   onOpenActivity,
@@ -98,56 +102,68 @@ export function PageChrome({
     [iconPicker, coverPicker],
   );
 
+  const header = (
+    <ScreenHeader
+      presentation="navigation"
+      border="none"
+      safeArea={false}
+      title={
+        <Breadcrumb
+          currentPage={page}
+          onRename={
+            !contentReadOnly ? (title) => updatePage.mutateAsync({ id: page.id, title }) : undefined
+          }
+          onChooseIcon={!contentReadOnly ? () => iconPicker.open() : undefined}
+        />
+      }
+      actions={(state) => (
+        <>
+          {state.spacious && onOpenActivity ? (
+            <PageActivity page={page} onOpen={onOpenActivity} />
+          ) : null}
+          {page.publishedAt ? (
+            <View accessible accessibilityLabel={t('pages.publish.published')} className="px-1">
+              <RiGlobalLine width={14} height={14} fill={colors.mutedForeground} />
+            </View>
+          ) : null}
+          {typeof rightHeader === 'function' ? rightHeader(state) : rightHeader}
+          {!state.compact ? <CopyPageLinkButton pageId={page.id} /> : null}
+          {!state.compact && !page.archived ? (
+            <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
+          ) : null}
+          <PageActionsMenu page={page} readOnly={readOnly} onOpenActivity={onOpenActivity} />
+        </>
+      )}
+    />
+  );
+  const document = (
+    <Screen
+      scroll={scroll}
+      contentClearance={48}
+      bottomBar={bottomBar}
+      bottomBarKeyboardBehavior="follow"
+      header={panels ? undefined : header}
+    >
+      {children}
+    </Screen>
+  );
+
   return (
     <StateContext.Provider value={stateValue}>
-      <Screen
-        scroll={scroll}
-        contentClearance={48}
-        bottomBar={bottomBar}
-        bottomBarKeyboardBehavior="follow"
-        header={
-          <ScreenHeader
-            presentation="navigation"
-            border="none"
-            safeArea={false}
-            title={
-              <Breadcrumb
-                currentPage={page}
-                onRename={
-                  !contentReadOnly
-                    ? (title) => updatePage.mutateAsync({ id: page.id, title })
-                    : undefined
-                }
-                onChooseIcon={!contentReadOnly ? () => iconPicker.open() : undefined}
-              />
-            }
-            actions={(state) => (
-              <>
-                {state.spacious && onOpenActivity ? (
-                  <PageActivity page={page} onOpen={onOpenActivity} />
-                ) : null}
-                {page.publishedAt ? (
-                  <View
-                    accessible
-                    accessibilityLabel={t('pages.publish.published')}
-                    className="px-1"
-                  >
-                    <RiGlobalLine width={14} height={14} fill={colors.mutedForeground} />
-                  </View>
-                ) : null}
-                {typeof rightHeader === 'function' ? rightHeader(state) : rightHeader}
-                {!state.compact ? <CopyPageLinkButton pageId={page.id} /> : null}
-                {!state.compact && !page.archived ? (
-                  <FavoriteButton pageId={page.id} favorited={page.favorited ?? false} />
-                ) : null}
-                <PageActionsMenu page={page} readOnly={readOnly} onOpenActivity={onOpenActivity} />
-              </>
-            )}
-          />
-        }
-      >
-        {children}
-      </Screen>
+      {panels ? (
+        <AppShellPanels
+          layout={{
+            mode: 'split',
+            flow: 'bounded',
+            appearance: 'joined',
+            header,
+            activePanel: 'document',
+            panels: [{ id: 'document', span: 1, content: document }, ...panels],
+          }}
+        />
+      ) : (
+        document
+      )}
       {!contentReadOnly ? (
         <>
           <IconPicker control={iconPicker} pageId={page.id} onSelect={handleIconSelect} />

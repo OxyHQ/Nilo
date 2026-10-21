@@ -14,6 +14,11 @@ export const queryKeys = {
     all: ['public-pages'] as const,
     detail: (slug: string, pageId?: string) => ['public-pages', slug, pageId] as const,
   },
+  pageActivity: {
+    all: ['page-activity'] as const,
+    workspace: (workspaceId: string) => ['page-activity', workspaceId] as const,
+    page: (workspaceId: string, pageId: string) => ['page-activity', workspaceId, pageId] as const,
+  },
   versions: {
     list: (id: string) => ['versions', id] as const,
     detail: (id: string, versionId: string) => ['version', id, versionId] as const,

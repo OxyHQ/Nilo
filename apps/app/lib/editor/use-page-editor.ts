@@ -105,6 +105,9 @@ export function usePageEditor(
       if (event.pageId !== pageId) return;
       refreshPageInfo();
       void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === 'page-activity' && query.queryKey[2] === pageId,
+      });
+      void queryClient.invalidateQueries({
         queryKey: queryKeys.versions.list(pageId),
         exact: true,
       });

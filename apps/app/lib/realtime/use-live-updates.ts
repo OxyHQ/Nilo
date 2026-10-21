@@ -15,6 +15,7 @@ const subscriptions = new WeakMap<
 
 export function invalidateLiveQueries(client: QueryClient, kind: Kind, id: string) {
   if (kind === 'workspace') {
+    void client.invalidateQueries({ queryKey: queryKeys.pageActivity.workspace(id) });
     void client.invalidateQueries({ queryKey: queryKeys.breadcrumbNeighbors.workspace(id) });
     void client.invalidateQueries({ queryKey: queryKeys.pages.list(id) });
     void client.invalidateQueries({ queryKey: queryKeys.databases.list(id) });
@@ -53,6 +54,7 @@ export function invalidateLiveQueries(client: QueryClient, kind: Kind, id: strin
     });
     // Favorites and page templates are derived from the workspace's pages queries.
   } else if (kind === 'database') {
+    void client.invalidateQueries({ queryKey: queryKeys.pageActivity.all });
     // Row anchors deliberately do not infer access or a database id from private
     // cached metadata. Revalidate open neighbor menus on a database-room change;
     // disabled menus merely become stale and will load on their next opening.

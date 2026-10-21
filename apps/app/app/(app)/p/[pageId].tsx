@@ -6,7 +6,6 @@ import { RiChat3Line } from '@oxy.so/bloom/icons/RiChat3Line';
 import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
-import { AppShellPanels } from '@oxy.so/bloom/app-shell';
 import { ScreenScrollView } from '@oxy.so/bloom/screen';
 import type { PageHeaderProps } from '@oxy.so/bloom/page-header';
 import {
@@ -171,110 +170,101 @@ function PageDetail({
     </>
   );
 
-  const content = (
-    <PageChrome
-      page={page}
-      readOnly={!canEdit}
-      rightHeader={rightHeader}
-      onOpenActivity={openActivity}
-      scroll={page.mode === 'canvas' ? 'none' : 'auto'}
-      bottomBar={<PageEditorToolbar />}
-    >
-      {page.archived ? <TrashedPageBanner page={page} canEdit={canEdit} /> : null}
-      {page.mode === 'canvas' ? (
-        // A canvas fills the page: notes are placed on it, not scrolled through.
-        <View className="flex-1">
-          {page.databaseId ? (
-            // A database row keeps its properties above its canvas.
-            <View className="border-b border-border px-4 py-2">
-              <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
-            </View>
-          ) : null}
-          <PageEditor
-            pageId={page.id}
-            focusedBlockId={blockId}
-            readOnly={contentReadOnly}
-            onOpenBlockComments={handleOpenPanel}
-            layout="canvas"
-          />
-        </View>
-      ) : (
-        <ScreenScrollView keyboardShouldPersistTaps="handled">
-          <PageHeader page={page} readOnly={!canEdit} />
-          <View className={cn('px-6 md:px-10 w-full mx-auto pt-4', !page.fullWidth && 'max-w-3xl')}>
-            <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
+  const closeComments = () => setCommentPanel({ open: false, focusedBlockId: null });
+  return (
+    <PageEditorProvider pageId={pageId} readOnly={contentReadOnly}>
+      <PageChrome
+        panels={[
+          {
+            id: 'comments',
+            width: 360,
+            minWidth: 280,
+            maxWidth: 480,
+            visible: commentPanel.open,
+            floating: {
+              below: 'lg',
+              open: commentPanel.open,
+              onOpenChange: (open) => {
+                if (!open) closeComments();
+              },
+              label: t('comments.panel.title'),
+            },
+            content: (
+              <CommentPanel
+                canComment={hasRole(role, 'commenter')}
+                pageId={page.id}
+                workspaceId={page.workspaceId}
+                open={commentPanel.open}
+                focusedBlockId={commentPanel.focusedBlockId}
+                anchor={commentPanel.anchor ?? null}
+                onAnchorUsed={() => setCommentPanel((panel) => ({ ...panel, anchor: null }))}
+                onClose={closeComments}
+              />
+            ),
+          },
+          {
+            id: 'activity',
+            width: 384,
+            minWidth: 280,
+            maxWidth: 480,
+            visible: activityOpen,
+            floating: {
+              below: 'lg',
+              open: activityOpen,
+              onOpenChange: setActivityOpen,
+              label: t('pages.activity.title'),
+            },
+            content: (
+              <PageActivityPanel
+                page={page}
+                open={activityOpen}
+                onClose={() => setActivityOpen(false)}
+              />
+            ),
+          },
+        ]}
+        page={page}
+        readOnly={!canEdit}
+        rightHeader={rightHeader}
+        onOpenActivity={openActivity}
+        scroll={page.mode === 'canvas' ? 'none' : 'auto'}
+        bottomBar={<PageEditorToolbar />}
+      >
+        {page.archived ? <TrashedPageBanner page={page} canEdit={canEdit} /> : null}
+        {page.mode === 'canvas' ? (
+          // A canvas fills the page: notes are placed on it, not scrolled through.
+          <View className="flex-1">
+            {page.databaseId ? (
+              // A database row keeps its properties above its canvas.
+              <View className="border-b border-border px-4 py-2">
+                <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
+              </View>
+            ) : null}
             <PageEditor
               pageId={page.id}
               focusedBlockId={blockId}
               readOnly={contentReadOnly}
               onOpenBlockComments={handleOpenPanel}
+              layout="canvas"
             />
           </View>
-        </ScreenScrollView>
-      )}
-    </PageChrome>
-  );
-  const closeComments = () => setCommentPanel({ open: false, focusedBlockId: null });
-  return (
-    <PageEditorProvider pageId={pageId} readOnly={contentReadOnly}>
-      <AppShellPanels
-        layout={{
-          mode: 'split',
-          flow: 'bounded',
-          appearance: 'joined',
-          activePanel: 'document',
-          panels: [
-            { id: 'document', span: 1, content },
-            {
-              id: 'comments',
-              width: 360,
-              minWidth: 280,
-              maxWidth: 480,
-              visible: commentPanel.open,
-              floating: {
-                below: 'lg',
-                open: commentPanel.open,
-                onOpenChange: (open) => {
-                  if (!open) closeComments();
-                },
-                label: t('comments.panel.title'),
-              },
-              content: (
-                <CommentPanel
-                  canComment={hasRole(role, 'commenter')}
-                  pageId={page.id}
-                  workspaceId={page.workspaceId}
-                  open={commentPanel.open}
-                  focusedBlockId={commentPanel.focusedBlockId}
-                  anchor={commentPanel.anchor ?? null}
-                  onAnchorUsed={() => setCommentPanel((panel) => ({ ...panel, anchor: null }))}
-                  onClose={closeComments}
-                />
-              ),
-            },
-            {
-              id: 'activity',
-              width: 360,
-              minWidth: 280,
-              maxWidth: 480,
-              visible: activityOpen,
-              floating: {
-                below: 'lg',
-                open: activityOpen,
-                onOpenChange: setActivityOpen,
-                label: t('pages.activity.title'),
-              },
-              content: (
-                <PageActivityPanel
-                  page={page}
-                  open={activityOpen}
-                  onClose={() => setActivityOpen(false)}
-                />
-              ),
-            },
-          ],
-        }}
-      />
+        ) : (
+          <ScreenScrollView keyboardShouldPersistTaps="handled">
+            <PageHeader page={page} readOnly={!canEdit} />
+            <View
+              className={cn('px-6 md:px-10 w-full mx-auto pt-4', !page.fullWidth && 'max-w-3xl')}
+            >
+              <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
+              <PageEditor
+                pageId={page.id}
+                focusedBlockId={blockId}
+                readOnly={contentReadOnly}
+                onOpenBlockComments={handleOpenPanel}
+              />
+            </View>
+          </ScreenScrollView>
+        )}
+      </PageChrome>
     </PageEditorProvider>
   );
 }

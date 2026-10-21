@@ -13,7 +13,7 @@ import {
 import { RowPropertiesPanel } from '@/components/database/row-properties-panel';
 import { CommentPanel } from '@/components/comments/comment-panel';
 import { PageChrome } from '@/components/page-chrome';
-import { AppShellPanels } from '@oxy.so/bloom/app-shell';
+import type { AppShellPanelDefinition } from '@oxy.so/bloom/app-shell';
 
 let mockLocked = true;
 let mockCompact = false;
@@ -52,10 +52,12 @@ jest.mock('@/components/page-chrome', () => ({
     children,
     bottomBar,
     rightHeader,
+    panels,
   }: {
     children: React.ReactNode;
     bottomBar: React.ReactNode;
     rightHeader: PageHeaderProps['actions'];
+    panels: readonly AppShellPanelDefinition[];
   }) => (
     <>
       {typeof rightHeader === 'function'
@@ -63,24 +65,16 @@ jest.mock('@/components/page-chrome', () => ({
         : rightHeader}
       {children}
       {bottomBar}
+      {panels.map((panel) =>
+        require('react').createElement(
+          require('react-native').View,
+          { key: panel.id },
+          panel.content,
+        ),
+      )}
     </>
   ),
   PageHeader: () => null,
-}));
-// The route owns permissions and descriptors; Bloom tests layout and chrome.
-jest.mock('@oxy.so/bloom/app-shell', () => ({
-  AppShellPanels: ({
-    layout,
-  }: {
-    layout: { panels: { id: string; content: React.ReactNode }[] };
-  }) =>
-    layout.panels.map((panel) =>
-      require('react').createElement(
-        require('react-native').View,
-        { key: panel.id },
-        panel.content,
-      ),
-    ),
 }));
 jest.mock('@oxy.so/bloom/screen', () => ({
   ...jest.requireActual('@oxy.so/bloom/screen'),
@@ -147,7 +141,7 @@ it('opens comments through the panel compositor and keeps the document editor mo
     renderer = create(route());
   });
   const editor = renderer.root.findByType(PageEditor);
-  const panels = () => renderer.root.findByType(AppShellPanels).props.layout.panels;
+  const panels = () => renderer.root.findByType(PageChrome).props.panels;
   expect(panels().find((panel: { id: string }) => panel.id === 'comments').visible).toBe(false);
   act(() => editor.props.onOpenBlockComments('paragraph', { start: 0, end: 4, quote: 'Text' }));
   const comments = panels().find((panel: { id: string }) => panel.id === 'comments');

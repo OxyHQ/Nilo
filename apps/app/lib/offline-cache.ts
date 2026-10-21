@@ -39,6 +39,7 @@ export const MEMORY_ONLY_ROOTS = [
   'member-profiles',
   'notifications',
   'page-permissions',
+  'page-activity',
   'public-pages',
   'reminders',
   'search',

@@ -3,7 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Button } from '@oxy.so/bloom/button';
 import { Item } from '@oxy.so/bloom/item';
-import { PageHeader } from '@oxy.so/bloom/page-header';
+import { ActivityFeed } from '@oxy.so/bloom/activity-feed';
 import { HoverCard } from '@oxy.so/bloom/hover-card';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import apiClient from '@/lib/api/client';
@@ -30,7 +30,13 @@ jest.mock('@/lib/config', () => ({
   default: { apiUrl: 'https://api.example.test' },
 }));
 jest.mock('@oxy.so/services/ui/client', () => ({
-  useOxy: () => ({ isAuthenticated: true }),
+  useOxy: () => ({
+    isAuthenticated: true,
+    user: { id: 'self' },
+    oxyServices: {
+      users: { getMany: async () => [{ id: 'owner', name: { displayName: 'Page owner' } }] },
+    },
+  }),
   useUserById: (id: string | null) => ({
     data: id === 'owner' ? { name: { displayName: 'Page owner' } } : undefined,
   }),
@@ -66,10 +72,30 @@ let client: QueryClient;
 let renderer: ReactTestRenderer;
 const onClose = jest.fn();
 const onOpen = jest.fn();
-const versions = [
-  { id: 'v1', createdBy: 'unknown', createdAt: page.updatedAt, blockCount: 5 },
-  { id: 'v2', createdBy: 'owner', createdAt: page.createdAt, blockCount: 2 },
+const events = [
+  {
+    id: 'e1',
+    pageId: page.id,
+    actorIds: ['owner'],
+    kind: 'metadata_changed',
+    createdAt: page.updatedAt,
+    changes: [{ field: 'title', before: 'Before', after: 'After' }],
+  },
+  {
+    id: 'e2',
+    pageId: page.id,
+    actorIds: ['owner'],
+    kind: 'created',
+    createdAt: page.createdAt,
+    changes: [],
+  },
 ];
+const ActivityRenderer = (ActivityFeed as unknown as { type: ComponentType }).type;
+const entries = () => renderer.root.findByType(ActivityRenderer).props.entries;
+const historyButton = () =>
+  renderer.root
+    .findAllByType(Button)
+    .find((node) => node.props.accessibilityLabel === 'pages.history.title');
 function tree(content: React.ReactNode) {
   return (
     <BloomTestProviders>
@@ -98,24 +124,12 @@ beforeEach(() => {
     .mockImplementation(async (url) =>
       /^\/pages\/[^/]+$/.test(String(url))
         ? { data: { page: { ...page, id: String(url).split('/').at(-1) }, role } }
-        : { data: { versions } },
+        : { data: { items: events, nextCursor: null } },
     );
 });
 afterEach(() => {
   act(() => renderer?.unmount());
   client.clear();
-});
-
-it('does not request versions while closed, and loads them when the panel opens', async () => {
-  await mount(<PageActivityPanel page={page} open={false} onClose={onClose} />);
-  expect(apiClient.get).not.toHaveBeenCalled();
-  await act(async () =>
-    renderer.update(tree(<PageActivityPanel page={page} open onClose={onClose} />)),
-  );
-  await settle();
-  expect(apiClient.get).toHaveBeenCalledWith('/pages/page/versions', expect.any(Object));
-  expect(titles()).toContain('pages.activity.savedBy:Page owner');
-  expect(jest.mocked(apiClient.post)).not.toHaveBeenCalled();
 });
 
 it('shows actual editor and creator metadata, including an unknown-profile fallback', async () => {
@@ -137,51 +151,6 @@ it('does not render invalid dates as Invalid Date or NaN', async () => {
     <PageActivity page={{ ...page, createdAt: 'invalid', updatedAt: 'invalid' }} onOpen={onOpen} />,
   );
   expect(JSON.stringify(renderer.toJSON())).not.toMatch(/Invalid Date|NaN/);
-});
-
-it('shows loading then an error with retry, without inventing activity entries', async () => {
-  let reject!: (error: Error) => void;
-  const pending = new Promise((_resolve, refuse) => {
-    reject = refuse;
-  });
-  jest
-    .mocked(apiClient.get)
-    .mockImplementation((url) =>
-      String(url).endsWith('/versions')
-        ? (pending as ReturnType<typeof apiClient.get>)
-        : Promise.resolve({ data: { page, role } }),
-    );
-  await mount(<PageActivityPanel page={page} open onClose={onClose} />);
-  expect(titles().filter((title) => String(title).startsWith('pages.activity.savedBy'))).toEqual(
-    [],
-  );
-  expect(
-    renderer.root.findAll((node) => node.props.accessibilityLabel === 'common.loading').length,
-  ).toBeGreaterThan(0);
-  await act(async () => reject(new Error('Unavailable')));
-  await settle();
-  const retry = renderer.root
-    .findAllByType(Button)
-    .find((node) => String(node.props.children).includes('pages.publish.retry'));
-  expect(retry).toBeDefined();
-  jest.mocked(apiClient.get).mockResolvedValue({ data: { versions } });
-  if (!retry) throw new Error('Retry button missing');
-  await act(async () => retry.props.onPress());
-  await settle();
-  expect(titles()).toContain('pages.activity.savedBy:Page owner');
-});
-
-it('opens the existing history dialog at the selected version, without restoring anything', async () => {
-  await mount(<PageActivityPanel page={page} open onClose={onClose} />);
-  const choices = renderer.root.findAllByType(ItemRenderer).filter((item) => item.props.onPress);
-  expect(choices).toHaveLength(2);
-  act(() => choices[1].props.onPress());
-  const history = renderer.root.findByType(PageHistoryDialog);
-  expect(history.props.initialVersionId).toBe('v2');
-  expect(history.props.page).toBe(page);
-  expect(apiClient.post).not.toHaveBeenCalled();
-  act(() => history.props.onClose());
-  expect(renderer.root.findAllByType(PageHistoryDialog)).toHaveLength(0);
 });
 
 it('does not show zero backlinks or duplicate edited metadata beneath the title', async () => {
@@ -211,11 +180,51 @@ it('keeps useful backlinks expandable and navigable when they exist', async () =
   expect(mockPush).toHaveBeenCalledWith('/p/source');
 });
 
-it('resets the selected history version when the activity panel changes page', async () => {
+it('loads actual updates only when open, never version snapshots', async () => {
+  await mount(<PageActivityPanel page={page} open={false} onClose={onClose} />);
+  expect(apiClient.get).not.toHaveBeenCalled();
+  await act(async () =>
+    renderer.update(tree(<PageActivityPanel page={page} open onClose={onClose} />)),
+  );
+  await settle();
+  expect(apiClient.get).toHaveBeenCalledWith('/pages/page/activity', expect.any(Object));
+  expect(entries().map((entry: { id: string }) => entry.id)).toEqual(['e1', 'e2']);
+  expect(entries()[0].actor.name).toBe('Page owner');
+  expect(
+    jest.mocked(apiClient.get).mock.calls.some(([url]) => String(url).includes('/versions')),
+  ).toBe(false);
+});
+
+it('retries failed updates without inventing entries', async () => {
+  jest.mocked(apiClient.get).mockImplementation(async (url) => {
+    if (String(url).endsWith('/activity')) throw new Error('Unavailable');
+    return { data: { page, role } };
+  });
   await mount(<PageActivityPanel page={page} open onClose={onClose} />);
-  const choice = renderer.root.findAllByType(ItemRenderer).find((item) => item.props.onPress);
-  if (!choice) throw new Error('Version choice missing');
-  act(() => choice.props.onPress());
+  await settle();
+  expect(entries()).toEqual([]);
+  const retry = renderer.root
+    .findAllByType(Button)
+    .find((node) => node.props.children === 'pages.publish.retry');
+  expect(retry).toBeDefined();
+  jest.mocked(apiClient.get).mockResolvedValue({ data: { items: events, nextCursor: null } });
+  await act(async () => retry?.props.onPress());
+  await settle();
+  expect(entries()).toHaveLength(2);
+});
+
+it('opens history separately without assigning a snapshot to an update', async () => {
+  await mount(<PageActivityPanel page={page} open onClose={onClose} />);
+  act(() => historyButton()?.props.onPress());
+  expect(renderer.root.findByType(PageHistoryDialog).props.initialVersionId).toBeUndefined();
+  expect(apiClient.post).not.toHaveBeenCalled();
+  act(() => renderer.root.findByType(PageHistoryDialog).props.onClose());
+  expect(renderer.root.findAllByType(PageHistoryDialog)).toHaveLength(0);
+});
+
+it('resets history on page changes', async () => {
+  await mount(<PageActivityPanel page={page} open onClose={onClose} />);
+  act(() => historyButton()?.props.onPress());
   expect(renderer.root.findAllByType(PageHistoryDialog)).toHaveLength(1);
   await act(async () =>
     renderer.update(
@@ -224,64 +233,52 @@ it('resets the selected history version when the activity panel changes page', a
   );
   await settle();
   expect(renderer.root.findAllByType(PageHistoryDialog)).toHaveLength(0);
-  expect(apiClient.get).toHaveBeenCalledWith('/pages/second/versions', expect.any(Object));
+  expect(apiClient.get).toHaveBeenCalledWith('/pages/second/activity', expect.any(Object));
 });
 
-it('leaves dismissal to the floating compositor and restores the inline close action after resize', async () => {
+it('uses the compositor floating close without duplicate close controls', async () => {
   await mount(<PageActivityPanel page={page} open onClose={onClose} />);
-  const Header = (PageHeader as unknown as { type: ComponentType }).type;
-  const inlineAction = renderer.root.findByType(Header).props.actions;
-  expect(inlineAction.props.accessibilityLabel).toBe('pages.activity.close');
-  act(() => inlineAction.props.onPress());
-  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(
+    renderer.root.findAll((node) => node.props.accessibilityLabel === 'pages.activity.close')
+      .length,
+  ).toBeGreaterThan(0);
   mockPresentation = 'floating';
   await act(async () =>
     renderer.update(tree(<PageActivityPanel page={page} open onClose={onClose} />)),
   );
-  expect(renderer.root.findByType(Header).props.actions).toBeUndefined();
   expect(
     renderer.root.findAll((node) => node.props.accessibilityLabel === 'pages.activity.close'),
   ).toHaveLength(0);
-  expect(titles()).toContain('pages.activity.savedBy:Page owner');
-  mockPresentation = 'inline';
-  await act(async () =>
-    renderer.update(tree(<PageActivityPanel page={page} open onClose={onClose} />)),
-  );
-  expect(renderer.root.findByType(Header).props.actions.props.accessibilityLabel).toBe(
-    'pages.activity.close',
-  );
-  expect(
-    jest.mocked(apiClient.get).mock.calls.filter(([url]) => String(url).endsWith('/versions')),
-  ).toHaveLength(1);
+  expect(entries()).toHaveLength(2);
 });
 
 it.each(['viewer', 'commenter'])(
-  'keeps activity metadata visible to %s without historical entries or requests',
+  'retires historical values for %s without querying activity',
   async (value) => {
     role = value;
-    client.setQueryData(queryKeys.versions.list(page.id), { versions });
+    client.setQueryData(queryKeys.pageActivity.page(page.workspaceId, page.id), {
+      pages: [{ items: events, nextCursor: null }],
+      pageParams: [null],
+    });
     await mount(<PageActivityPanel page={page} open onClose={onClose} />);
-    expect(titles()).toContain('pages.activity.createdBy:Page owner');
-    expect(titles()).toContain('pages.activity.editedBy:pages.info.unknownMember');
-    expect(titles()).not.toContain('pages.history.title');
+    expect(historyButton()).toBeUndefined();
+    expect(titles()).toContain('pages.activity.restricted');
     expect(
-      jest.mocked(apiClient.get).mock.calls.filter(([url]) => String(url).includes('/versions')),
-    ).toHaveLength(0);
-    expect(client.getQueryData(queryKeys.versions.list(page.id))).toBeNull();
+      jest.mocked(apiClient.get).mock.calls.some(([url]) => String(url).endsWith('/activity')),
+    ).toBe(false);
+    expect(client.getQueryData(queryKeys.pageActivity.page(page.workspaceId, page.id))).toBeNull();
   },
 );
 
-it('removes an open historical selection on downgrade while retaining metadata', async () => {
+it('closes history and removes historical activity after a live downgrade', async () => {
   await mount(<PageActivityPanel page={page} open onClose={onClose} />);
-  const choice = renderer.root.findAllByType(ItemRenderer).find((item) => item.props.onPress);
-  act(() => choice?.props.onPress());
-  expect(renderer.root.findAllByType(PageHistoryDialog)).toHaveLength(1);
+  act(() => historyButton()?.props.onPress());
   role = 'viewer';
   await act(async () =>
     client.invalidateQueries({ queryKey: queryKeys.pages.detail(page.id), exact: true }),
   );
   await settle();
   expect(renderer.root.findAllByType(PageHistoryDialog)).toHaveLength(0);
-  expect(titles()).not.toContain('pages.history.title');
-  expect(titles()).toContain('pages.activity.createdBy:Page owner');
+  expect(renderer.root.findAllByType(ActivityRenderer)).toHaveLength(0);
+  expect(client.getQueryData(queryKeys.pageActivity.page(page.workspaceId, page.id))).toBeNull();
 });
