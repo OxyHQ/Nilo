@@ -12,7 +12,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { usePageVersions, usePageVersion, useRestoreVersion } from '@/lib/hooks/use-page-extras';
 import { usePage } from '@/lib/hooks/use-pages';
 import { hasRole } from '@/lib/hooks/workspace-roles';
-import { memberProfileName, useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
+import { profileName, useMemberProfiles } from '@/lib/hooks/use-member-profiles';
 import type { Page } from '@/lib/types/pages';
 import { relativeEditTime, usePageClock } from './page-time';
 
@@ -31,7 +31,8 @@ export function PageHistoryDialog({
   const [selected, setSelected] = useState<string | null>(initialVersionId ?? null);
   const selectedId = selected ?? list.data?.versions[0]?.id ?? '';
   const preview = usePageVersion(page.id, selectedId);
-  const members = useWorkspaceMembers(page.workspaceId);
+  const profiles = useMemberProfiles(list.data?.versions.map((version) => version.createdBy) ?? []);
+  const profilesById = new Map(profiles.data?.map((profile) => [profile.id, profile]));
   const access = usePage(page.id);
   const canRestore = !access.isError && !access.isFetching && hasRole(access.data?.role, 'editor');
   const restore = useRestoreVersion(page);
@@ -110,11 +111,8 @@ export function PageHistoryDialog({
           ) : (
             <View className="gap-2">
               {list.data.versions.map((version) => {
-                const member = members.data?.find((entry) => entry.userId === version.createdBy);
                 const name =
-                  (member && memberProfileName(member)) ||
-                  version.createdBy ||
-                  t('notifications.someone');
+                  profileName(profilesById.get(version.createdBy)) ?? t('pages.info.unknownMember');
                 const label = t('pages.history.entry', {
                   time: relativeEditTime(version.createdAt, locale, now),
                   name,

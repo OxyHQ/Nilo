@@ -7,6 +7,8 @@ import { queryKeys } from '@/lib/hooks/query-keys';
 import type { Page } from '@/lib/types/pages';
 import { PageHistoryDialog } from '../page-history-dialog';
 
+const mockGetProfiles = jest.fn();
+
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), post: jest.fn() },
@@ -15,7 +17,12 @@ jest.mock('@/lib/config', () => ({
   __esModule: true,
   default: { apiUrl: 'https://api.example.test' },
 }));
-jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({
+  useOxy: () => ({
+    isAuthenticated: true,
+    oxyServices: { users: { getMany: mockGetProfiles } },
+  }),
+}));
 jest.mock('@/lib/realtime/use-live-updates', () => ({ useWorkspaceLive: jest.fn() }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 // Dialog animation/portaling and document block rendering are separate owners.
@@ -51,6 +58,7 @@ async function mount() {
 beforeEach(() => {
   role = 'editor';
   jest.clearAllMocks();
+  mockGetProfiles.mockResolvedValue([{ id: 'owner', name: { displayName: 'Page author' } }]);
   client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, retryDelay: 0, gcTime: Infinity },
@@ -60,7 +68,6 @@ beforeEach(() => {
   jest.mocked(apiClient.get).mockImplementation(async (url) => {
     if (url === '/pages/page') return { data: { page, role } };
     if (url === '/pages/page/versions') return { data: { versions } };
-    if (url === '/workspaces/workspace/members') return { data: { members: [] } };
     if (url === '/pages/page/versions/v2') return { data: { version: versions[1], blocks: [] } };
     throw new Error(`Unexpected request ${url}`);
   });
@@ -76,6 +83,17 @@ it('opens the version selected in activity for an editor', async () => {
   expect(apiClient.get).not.toHaveBeenCalledWith('/pages/page/versions/v1', expect.any(Object));
   expect(renderer.root.findByType(Dialog).props.actions[0]).toMatchObject({ disabled: false });
   expect(apiClient.post).not.toHaveBeenCalled();
+});
+
+it('hydrates historical authors for a page-only editor without requesting workspace membership', async () => {
+  await mount();
+  expect(mockGetProfiles).toHaveBeenCalledWith(['owner']);
+  const rows = renderer.root.findAll((node) => node.props.role === 'radio' && node.props.title);
+  expect(rows.length).toBeGreaterThan(0);
+  expect(rows.every((row) => row.props.title.includes('Page author'))).toBe(true);
+  expect(
+    jest.mocked(apiClient.get).mock.calls.some(([url]) => String(url).includes('/members')),
+  ).toBe(false);
 });
 
 it.each(['viewer', 'commenter'] as const)(

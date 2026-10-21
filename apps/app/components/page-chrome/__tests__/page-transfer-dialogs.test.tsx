@@ -38,9 +38,9 @@ jest.mock('@/lib/hooks/use-page-extras', () => ({
   }),
   useRestoreVersion: () => ({ mutateAsync: mockRestore, isPending: false }),
 }));
-jest.mock('@/lib/hooks/use-workspace-members', () => ({
-  useWorkspaceMembers: () => ({ data: [] }),
-  memberProfileName: () => 'Author',
+jest.mock('@/lib/hooks/use-member-profiles', () => ({
+  useMemberProfiles: () => ({ data: [] }),
+  profileName: () => 'Author',
 }));
 jest.mock('@/components/sharing/shared-block-renderer', () => ({
   SharedBlockTree: ({ blocks }: { blocks: { id: string }[] }) => {
