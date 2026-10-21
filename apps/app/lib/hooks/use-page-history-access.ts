@@ -28,7 +28,7 @@ export function useHistoryAccess(pageId: string) {
     });
   }, [client, pageId, denied, isAuthenticated]);
   const canEdit = isAuthenticated && editor && !access.isError;
-  return { canEdit, ready: canEdit && !access.isFetching && !access.isPending };
+  return { canEdit, ready: canEdit && access.fetchStatus === 'idle' && !access.isPending };
 }
 
 export function usePageHistoryAccess(pageId: string) {

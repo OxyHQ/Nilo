@@ -84,6 +84,9 @@ export interface PageVersion {
   createdBy: string;
   blockCount: number;
 }
+const terminalHistoryError = (error: unknown) =>
+  axios.isAxiosError(error) && [401, 403, 404].includes(error.response?.status ?? 0);
+
 function useHistoryQuery<T>(pageId: string, key: readonly string[], url: string, enabled = true) {
   const client = useQueryClient();
   const { canEdit, ready } = useHistoryAccess(pageId);
@@ -104,23 +107,43 @@ function useHistoryQuery<T>(pageId: string, key: readonly string[], url: string,
       try {
         return (await apiClient.get<T>(url, { signal })).data;
       } catch (error) {
-        if (
-          !signal.aborted &&
-          axios.isAxiosError(error) &&
-          [401, 403, 404].includes(error.response?.status ?? 0)
-        ) {
-          client.setQueriesData({ predicate: historyOf(pageId) }, null);
-          void client.invalidateQueries({ queryKey: queryKeys.pages.detail(pageId), exact: true });
+        if (!signal.aborted && terminalHistoryError(error)) {
+          if (key[0] === 'version' && axios.isAxiosError(error) && error.response?.status === 404) {
+            // Retention can delete a selected version while the page remains
+            // editable. Retire this preview without invalidating page access or
+            // discarding the other versions.
+            client.setQueryData(key, null);
+          } else {
+            const current = client.getQueryCache().find({ queryKey: key, exact: true });
+            void client.cancelQueries({
+              predicate: (query) => historyOf(pageId)(query) && query !== current,
+            });
+            client.setQueriesData(
+              {
+                // Preserve existing terminal errors. Resetting a sibling's error
+                // to success would re-enable it after each access recheck and let
+                // two denied queries repeatedly restart one another.
+                predicate: (query) => historyOf(pageId)(query) && query.state.data != null,
+              },
+              null,
+            );
+            void client.invalidateQueries({
+              queryKey: queryKeys.pages.detail(pageId),
+              exact: true,
+            });
+          }
         }
         throw error;
       }
     },
     select: (data) => data ?? undefined,
-    enabled: ready && enabled,
+    // An access recheck toggles ready. A terminal history error must remain
+    // stable across that toggle, even if metadata still reports editor. A user
+    // can explicitly retry; a real downgrade clears the cache and a later
+    // editor grant can enable a fresh read again.
+    enabled: (query) => ready && enabled && !terminalHistoryError(query.state.error),
     staleTime: 0,
-    retry: (count, error) =>
-      !(axios.isAxiosError(error) && [401, 403, 404].includes(error.response?.status ?? 0)) &&
-      count < 2,
+    retry: (count, error) => !terminalHistoryError(error) && count < 2,
   });
   return {
     ...query,

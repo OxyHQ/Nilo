@@ -1,5 +1,5 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import apiClient from '@/lib/api/client';
 import { queryKeys } from '../query-keys';
@@ -60,6 +60,19 @@ beforeEach(() => {
 afterEach(() => {
   act(() => renderer?.unmount());
   client.clear();
+  onlineManager.setOnline(true);
+});
+
+it('hides editor-era history while the permission recheck is paused offline', async () => {
+  client.setQueryData(pageKey, { page, role: 'editor' });
+  client.setQueryData(listKey, history);
+  client.setQueryData(detailKey, detail);
+  onlineManager.setOnline(false);
+  await mount();
+  expect(client.getQueryState(pageKey)?.fetchStatus).toBe('paused');
+  expect(list.data).toBeUndefined();
+  expect(preview.data).toBeUndefined();
+  expect(historyCalls()).toHaveLength(0);
 });
 
 it('waits for a permission recheck before exposing editor-era cached history', async () => {
@@ -143,4 +156,77 @@ it('keeps other pages history intact when one page loses permission', async () =
   expect(client.getQueryData(queryKeys.versions.list('other'))).toEqual(history);
   expect(client.getQueryData(queryKeys.versions.detail('other', 'v'))).toEqual(detail);
   expect(historyCalls()).toHaveLength(0);
+});
+
+it('keeps a deleted version error stable without discarding other versions or rechecking page access', async () => {
+  await mount();
+  const pageReads = jest
+    .mocked(apiClient.get)
+    .mock.calls.filter(([url]) => url === '/pages/p').length;
+  const missing = new AxiosError('Version not found');
+  missing.response = { status: 404 } as AxiosError['response'];
+  let missingReads = 0;
+  jest.mocked(apiClient.get).mockImplementation(async (url) => {
+    if (url === '/pages/p') {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return { data: { page, role: 'editor' } };
+    }
+    if (url === '/pages/p/versions') return { data: history };
+    missingReads++;
+    throw missing;
+  });
+  await act(async () => {
+    await preview.refetch();
+  });
+  await settle();
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
+  expect(missingReads).toBe(1);
+  expect(jest.mocked(apiClient.get).mock.calls.filter(([url]) => url === '/pages/p')).toHaveLength(
+    pageReads,
+  );
+  expect(list.data).toEqual(history);
+  expect(preview.data).toBeUndefined();
+  expect(preview.isError).toBe(true);
+  expect(client.getQueryData(detailKey)).toBeNull();
+  // Explicit retry still works, but does not silently retry on its own.
+  await act(async () => {
+    await preview.refetch();
+  });
+  await settle();
+  expect(missingReads).toBe(2);
+});
+
+it('does not cycle persistent history denials when page metadata still reports editor', async () => {
+  await mount();
+  const denied = new AxiosError('History denied');
+  denied.response = { status: 403 } as AxiosError['response'];
+  let deniedReads = 0;
+  jest.mocked(apiClient.get).mockImplementation(async (url) => {
+    if (url === '/pages/p') {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return { data: { page, role: 'editor' } };
+    }
+    deniedReads++;
+    throw denied;
+  });
+  await act(async () => {
+    await preview.refetch();
+  });
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
+  await settle();
+  const settledReads = deniedReads;
+  expect(settledReads).toBeGreaterThan(0);
+  expect(settledReads).toBeLessThanOrEqual(2);
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
+  await settle();
+  expect(deniedReads).toBe(settledReads);
+  expect(client.getQueryData(listKey)).toBeNull();
+  expect(client.getQueryData(detailKey)).toBeNull();
+  expect(list.data).toBeUndefined();
+  expect(preview.data).toBeUndefined();
+  await act(async () => {
+    await preview.refetch();
+  });
+  await settle();
+  expect(deniedReads).toBe(settledReads + 1);
 });
