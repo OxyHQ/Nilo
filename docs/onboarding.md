@@ -91,8 +91,11 @@ viewport calculation in Nilo. Its HoverCard shows creation/edit metadata and its
 primary action opens an activity panel declared beside the document in the same
 compositor. The actions menu keeps activity reachable at narrower sizes.
 Comments and activity are mutually exclusive; switching them preserves the
-document editor. The activity panel shows actual metadata and saved content
-versions, reusing the existing version preview/restore dialog and access checks.
+document editor. The activity panel shows actual metadata to readers; listing,
+previewing and restoring saved content versions require the page's effective
+editor role. Enforce that same canonical permission in the API and client,
+including when an open panel loses edit access. Do not expose cached historical
+content after a downgrade. Reuse the existing version preview/restore dialog.
 Content edits refresh that metadata and history on `page:projected`, emitted to
 the authorized document room after PostgreSQL commits the projection. A document
 update acknowledgement confirms storage of the update, not completion of the
