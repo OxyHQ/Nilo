@@ -31,7 +31,7 @@ jest.mock('@/lib/hooks/use-pages', () => ({
   usePage: () => ({ data: { role: mockRole }, isError: false }),
 }));
 jest.mock('@/lib/hooks/use-page-extras', () => ({
-  usePageVersions: () => ({ data: { versions: mockVersions } }),
+  usePageVersions: () => ({ data: { versions: mockVersions }, canEdit: mockRole === 'editor' }),
   usePageVersion: (_pageId: string, versionId: string) => ({
     data: { blocks: [{ id: versionId }] },
     isError: mockPreviewError,
@@ -119,18 +119,13 @@ it('selects a distant version and restores only after confirmation', async () =>
   expect(versionItems()).toHaveLength(35);
 });
 
-it.each(['reader', 'commenter'])(
-  'keeps %s history readable without enabling restore',
-  async (role) => {
-    mockRole = role;
-    await mount(<PageHistoryDialog page={page} onClose={jest.fn()} />);
-    expectSingleOwner();
-    expect(dialog().props.actions[0].disabled).toBe(true);
-    expect(JSON.stringify(renderer.toJSON())).toContain('pages.history.noPermission');
-    expect(versionItems()).toHaveLength(35);
-    expect(mockRestore).not.toHaveBeenCalled();
-  },
-);
+it.each(['viewer', 'commenter'])('does not render historical content for a %s', async (role) => {
+  mockRole = role;
+  await mount(<PageHistoryDialog page={page} onClose={jest.fn()} />);
+  expect(renderer.root.findAllByType(Dialog)).toHaveLength(0);
+  expect(versionItems()).toHaveLength(0);
+  expect(mockRestore).not.toHaveBeenCalled();
+});
 
 it('does not offer restoration of a failed preview', async () => {
   mockPreviewError = true;

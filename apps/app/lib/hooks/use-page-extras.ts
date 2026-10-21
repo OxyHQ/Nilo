@@ -8,6 +8,8 @@ import type { ReadOnlyBlock } from '../block-tree';
 import type { BreadcrumbEntry, Page, PageResponse } from '../types/pages';
 import { useAuthQuery } from './create-query';
 import { queryKeys } from './query-keys';
+import { historyOf, useHistoryAccess } from './use-page-history-access';
+import { hasRole } from './workspace-roles';
 
 export interface PublicPage {
   page: Pick<
@@ -82,28 +84,81 @@ export interface PageVersion {
   createdBy: string;
   blockCount: number;
 }
+function useHistoryQuery<T>(pageId: string, key: readonly string[], url: string, enabled = true) {
+  const client = useQueryClient();
+  const { canEdit, ready } = useHistoryAccess(pageId);
+  const query = useQuery<T | null, Error, T | undefined>({
+    queryKey: key,
+    queryFn: async ({ signal }) => {
+      const access = client.getQueryState<PageResponse | null>(queryKeys.pages.detail(pageId));
+      // refetch() is callable even on a disabled observer. Keep the same guard
+      // at the transport boundary, including stale callbacks held by a dialog.
+      if (
+        !ready ||
+        !enabled ||
+        access?.isInvalidated ||
+        access?.fetchStatus === 'fetching' ||
+        !hasRole(access?.data?.role, 'editor')
+      )
+        throw new Error('Page history requires editor access');
+      try {
+        return (await apiClient.get<T>(url, { signal })).data;
+      } catch (error) {
+        if (
+          !signal.aborted &&
+          axios.isAxiosError(error) &&
+          [401, 403, 404].includes(error.response?.status ?? 0)
+        ) {
+          client.setQueriesData({ predicate: historyOf(pageId) }, null);
+          void client.invalidateQueries({ queryKey: queryKeys.pages.detail(pageId), exact: true });
+        }
+        throw error;
+      }
+    },
+    select: (data) => data ?? undefined,
+    enabled: ready && enabled,
+    staleTime: 0,
+    retry: (count, error) =>
+      !(axios.isAxiosError(error) && [401, 403, 404].includes(error.response?.status ?? 0)) &&
+      count < 2,
+  });
+  return {
+    ...query,
+    canEdit,
+    isLoading: canEdit && (!ready || query.isLoading),
+    data: ready && !query.isError ? query.data : undefined,
+  };
+}
+
 export function usePageVersions(pageId: string) {
-  return useAuthQuery<{ versions: PageVersion[] }>(
+  return useHistoryQuery<{ versions: PageVersion[] }>(
+    pageId,
     queryKeys.versions.list(pageId),
     API_ROUTES.pages.versions(pageId),
-    undefined,
-    { staleTime: 0 },
   );
 }
 export function usePageVersion(pageId: string, versionId: string) {
-  const { isAuthenticated } = useOxy();
-  return useAuthQuery<{ version: Omit<PageVersion, 'blockCount'>; blocks: ReadOnlyBlock[] }>(
+  return useHistoryQuery<{ version: Omit<PageVersion, 'blockCount'>; blocks: ReadOnlyBlock[] }>(
+    pageId,
     queryKeys.versions.detail(pageId, versionId),
     API_ROUTES.pages.version(pageId, versionId),
-    undefined,
-    { enabled: isAuthenticated && Boolean(versionId) },
+    Boolean(versionId),
   );
 }
 export function useRestoreVersion(page: Page) {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: async (versionId: string) =>
-      (await apiClient.post(API_ROUTES.pages.restoreVersion(page.id, versionId))).data,
+    mutationFn: async (versionId: string) => {
+      const access = client.getQueryState<PageResponse | null>(queryKeys.pages.detail(page.id));
+      if (
+        access?.error ||
+        access?.isInvalidated ||
+        access?.fetchStatus === 'fetching' ||
+        !hasRole(access?.data?.role, 'editor')
+      )
+        throw new Error('Page history requires editor access');
+      return (await apiClient.post(API_ROUTES.pages.restoreVersion(page.id, versionId))).data;
+    },
     onSuccess: async () => {
       await Promise.all([
         client.invalidateQueries({ queryKey: queryKeys.versions.list(page.id) }),

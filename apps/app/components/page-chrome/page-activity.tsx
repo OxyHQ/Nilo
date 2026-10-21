@@ -163,28 +163,32 @@ function ActivityPanelContent({ page, onClose }: { page: Page; onClose: () => vo
       >
         <ScreenScrollView>
           <PageActivitySummary page={page} />
-          <Item title={t('pages.history.title')} subtitle={t('pages.activity.versionHint')} />
-          {versions.isLoading ? (
-            <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
-          ) : versions.isError ? (
-            <Button appearance="plain" onPress={() => void versions.refetch()}>
-              {t('pages.history.loadFailed')} · {t('pages.publish.retry')}
-            </Button>
-          ) : !versions.data?.versions.length ? (
-            <Item title={t('pages.history.empty')} />
-          ) : (
-            versions.data.versions.map((version) => (
-              <VersionActivity
-                key={version.id}
-                version={version}
-                now={now}
-                onPress={() => setSelectedVersion(version.id)}
-              />
-            ))
-          )}
+          {versions.canEdit ? (
+            <>
+              <Item title={t('pages.history.title')} subtitle={t('pages.activity.versionHint')} />
+              {versions.isLoading ? (
+                <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
+              ) : versions.isError ? (
+                <Button appearance="plain" onPress={() => void versions.refetch()}>
+                  {t('pages.history.loadFailed')} · {t('pages.publish.retry')}
+                </Button>
+              ) : !versions.data?.versions.length ? (
+                <Item title={t('pages.history.empty')} />
+              ) : (
+                versions.data.versions.map((version) => (
+                  <VersionActivity
+                    key={version.id}
+                    version={version}
+                    now={now}
+                    onPress={() => setSelectedVersion(version.id)}
+                  />
+                ))
+              )}
+            </>
+          ) : null}
         </ScreenScrollView>
       </Screen>
-      {selectedVersion ? (
+      {selectedVersion && versions.canEdit ? (
         <PageHistoryDialog
           page={page}
           initialVersionId={selectedVersion}

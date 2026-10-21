@@ -8,11 +8,14 @@ import { HoverCard } from '@oxy.so/bloom/hover-card';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import apiClient from '@/lib/api/client';
 import type { Page } from '@/lib/types/pages';
+import { queryKeys } from '@/lib/hooks/query-keys';
 import { PageActivity, PageActivityPanel } from '../page-activity';
 import { PageHistoryDialog } from '../page-history-dialog';
 import { PageInfo } from '../page-info';
 
 const mockPush = jest.fn();
+jest.mock('@/lib/realtime/use-live-updates', () => ({ useWorkspaceLive: jest.fn() }));
+let role = 'editor';
 let mockPresentation: 'inline' | 'floating' = 'inline';
 jest.mock('@oxy.so/bloom/app-shell/hooks', () => ({
   useAppShellPanel: () => ({ presentation: mockPresentation }),
@@ -87,9 +90,16 @@ const ItemRenderer = (Item as unknown as { type: ComponentType }).type;
 const titles = () => renderer.root.findAllByType(ItemRenderer).map((item) => item.props.title);
 beforeEach(() => {
   mockPresentation = 'inline';
+  role = 'editor';
   jest.clearAllMocks();
   client = new QueryClient({ defaultOptions: { queries: { retryDelay: 0, gcTime: Infinity } } });
-  jest.mocked(apiClient.get).mockResolvedValue({ data: { versions } });
+  jest
+    .mocked(apiClient.get)
+    .mockImplementation(async (url) =>
+      /^\/pages\/[^/]+$/.test(String(url))
+        ? { data: { page: { ...page, id: String(url).split('/').at(-1) }, role } }
+        : { data: { versions } },
+    );
 });
 afterEach(() => {
   act(() => renderer?.unmount());
@@ -131,11 +141,16 @@ it('does not render invalid dates as Invalid Date or NaN', async () => {
 
 it('shows loading then an error with retry, without inventing activity entries', async () => {
   let reject!: (error: Error) => void;
-  jest.mocked(apiClient.get).mockReturnValue(
-    new Promise((_resolve, refuse) => {
-      reject = refuse;
-    }),
-  );
+  const pending = new Promise((_resolve, refuse) => {
+    reject = refuse;
+  });
+  jest
+    .mocked(apiClient.get)
+    .mockImplementation((url) =>
+      String(url).endsWith('/versions')
+        ? (pending as ReturnType<typeof apiClient.get>)
+        : Promise.resolve({ data: { page, role } }),
+    );
   await mount(<PageActivityPanel page={page} open onClose={onClose} />);
   expect(titles().filter((title) => String(title).startsWith('pages.activity.savedBy'))).toEqual(
     [],
@@ -235,5 +250,38 @@ it('leaves dismissal to the floating compositor and restores the inline close ac
   expect(renderer.root.findByType(Header).props.actions.props.accessibilityLabel).toBe(
     'pages.activity.close',
   );
-  expect(apiClient.get).toHaveBeenCalledTimes(1);
+  expect(
+    jest.mocked(apiClient.get).mock.calls.filter(([url]) => String(url).endsWith('/versions')),
+  ).toHaveLength(1);
+});
+
+it.each(['viewer', 'commenter'])(
+  'keeps activity metadata visible to %s without historical entries or requests',
+  async (value) => {
+    role = value;
+    client.setQueryData(queryKeys.versions.list(page.id), { versions });
+    await mount(<PageActivityPanel page={page} open onClose={onClose} />);
+    expect(titles()).toContain('pages.activity.createdBy:Page owner');
+    expect(titles()).toContain('pages.activity.editedBy:pages.info.unknownMember');
+    expect(titles()).not.toContain('pages.history.title');
+    expect(
+      jest.mocked(apiClient.get).mock.calls.filter(([url]) => String(url).includes('/versions')),
+    ).toHaveLength(0);
+    expect(client.getQueryData(queryKeys.versions.list(page.id))).toBeNull();
+  },
+);
+
+it('removes an open historical selection on downgrade while retaining metadata', async () => {
+  await mount(<PageActivityPanel page={page} open onClose={onClose} />);
+  const choice = renderer.root.findAllByType(ItemRenderer).find((item) => item.props.onPress);
+  act(() => choice?.props.onPress());
+  expect(renderer.root.findAllByType(PageHistoryDialog)).toHaveLength(1);
+  role = 'viewer';
+  await act(async () =>
+    client.invalidateQueries({ queryKey: queryKeys.pages.detail(page.id), exact: true }),
+  );
+  await settle();
+  expect(renderer.root.findAllByType(PageHistoryDialog)).toHaveLength(0);
+  expect(titles()).not.toContain('pages.history.title');
+  expect(titles()).toContain('pages.activity.createdBy:Page owner');
 });

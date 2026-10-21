@@ -1,0 +1,146 @@
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
+import apiClient from '@/lib/api/client';
+import { queryKeys } from '../query-keys';
+import { usePageVersion, usePageVersions } from '../use-page-extras';
+
+jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { get: jest.fn() } }));
+jest.mock('@/lib/config', () => ({
+  __esModule: true,
+  default: { apiUrl: 'https://api.example.test' },
+}));
+jest.mock('@/lib/realtime/use-live-updates', () => ({ useWorkspaceLive: jest.fn() }));
+jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
+
+const listKey = queryKeys.versions.list('p');
+const detailKey = queryKeys.versions.detail('p', 'v');
+const pageKey = queryKeys.pages.detail('p');
+const page = { id: 'p', workspaceId: 'w' };
+const history = {
+  versions: [{ id: 'v', createdBy: 'private-author', createdAt: '2026-10-20', blockCount: 1 }],
+};
+const detail = { version: history.versions[0], blocks: [{ id: 'private-block' }] };
+let client: QueryClient;
+let renderer: ReactTestRenderer;
+let list: ReturnType<typeof usePageVersions>;
+let preview: ReturnType<typeof usePageVersion>;
+let role: string;
+function Probe() {
+  list = usePageVersions('p');
+  preview = usePageVersion('p', 'v');
+  return null;
+}
+async function settle() {
+  for (let i = 0; i < 6; i++)
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 0)));
+}
+async function mount() {
+  await act(async () => {
+    renderer = create(
+      <QueryClientProvider client={client}>
+        <Probe />
+      </QueryClientProvider>,
+    );
+  });
+  await settle();
+}
+const historyCalls = () =>
+  jest.mocked(apiClient.get).mock.calls.filter(([url]) => String(url).includes('/versions'));
+beforeEach(() => {
+  role = 'editor';
+  jest.clearAllMocks();
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false, retryDelay: 0, gcTime: Infinity } },
+  });
+  jest.mocked(apiClient.get).mockImplementation(async (url) => ({
+    data: url === '/pages/p' ? { page, role } : url === '/pages/p/versions' ? history : detail,
+  }));
+});
+afterEach(() => {
+  act(() => renderer?.unmount());
+  client.clear();
+});
+
+it('waits for a permission recheck before exposing editor-era cached history', async () => {
+  client.setQueryData(pageKey, { page, role: 'editor' });
+  client.setQueryData(listKey, history);
+  client.setQueryData(detailKey, detail);
+  let resolve!: (value: unknown) => void;
+  jest.mocked(apiClient.get).mockReturnValue(
+    new Promise((done) => {
+      resolve = done;
+    }),
+  );
+  await mount();
+  expect(list.data).toBeUndefined();
+  expect(preview.data).toBeUndefined();
+  expect(historyCalls()).toHaveLength(0);
+  await act(async () => resolve({ data: { page, role: 'viewer' } }));
+  await settle();
+  expect(list.canEdit).toBe(false);
+  expect(client.getQueryData(listKey)).toBeNull();
+  expect(client.getQueryData(detailKey)).toBeNull();
+  await act(async () => {
+    await list.refetch();
+    await preview.refetch();
+  });
+  expect(historyCalls()).toHaveLength(0);
+});
+
+it('cancels in-flight list and preview reads on downgrade and ignores their late transport responses', async () => {
+  const pending: { signal: AbortSignal; resolve: (data: unknown) => void }[] = [];
+  jest
+    .mocked(apiClient.get)
+    .mockImplementation((url, options) =>
+      url === '/pages/p'
+        ? Promise.resolve({ data: { page, role } })
+        : new Promise((resolve) =>
+            pending.push({ signal: options?.signal as AbortSignal, resolve }),
+          ),
+    );
+  await mount();
+  expect(pending).toHaveLength(2);
+  role = 'commenter';
+  await act(async () => client.invalidateQueries({ queryKey: pageKey, exact: true }));
+  await settle();
+  expect(pending.every((request) => request.signal.aborted)).toBe(true);
+  await act(async () => {
+    for (const request of pending) request.resolve({ data: detail });
+  });
+  await settle();
+  expect(list.data).toBeUndefined();
+  expect(preview.data).toBeUndefined();
+  expect(client.getQueryData(listKey)).toBeNull();
+  expect(client.getQueryData(detailKey)).toBeNull();
+});
+
+it('retires both caches after a terminal version denial, including a later failed access recheck', async () => {
+  await mount();
+  expect(list.data).toEqual(history);
+  expect(preview.data).toEqual(detail);
+  const denied = new AxiosError('denied');
+  denied.response = { status: 403 } as AxiosError['response'];
+  jest.mocked(apiClient.get).mockImplementation(async (url) => {
+    if (url === '/pages/p') throw new Error('offline');
+    throw denied;
+  });
+  await act(async () => {
+    await preview.refetch();
+  });
+  await settle();
+  expect(list.data).toBeUndefined();
+  expect(preview.data).toBeUndefined();
+  expect(client.getQueryData(listKey)).toBeNull();
+  expect(client.getQueryData(detailKey)).toBeNull();
+});
+
+it('keeps other pages history intact when one page loses permission', async () => {
+  client.setQueryData(queryKeys.versions.list('other'), history);
+  client.setQueryData(queryKeys.versions.detail('other', 'v'), detail);
+  role = 'viewer';
+  await mount();
+  expect(client.getQueryData(queryKeys.versions.list('other'))).toEqual(history);
+  expect(client.getQueryData(queryKeys.versions.detail('other', 'v'))).toEqual(detail);
+  expect(historyCalls()).toHaveLength(0);
+});

@@ -33,7 +33,7 @@ export function PageHistoryDialog({
   const preview = usePageVersion(page.id, selectedId);
   const members = useWorkspaceMembers(page.workspaceId);
   const access = usePage(page.id);
-  const canRestore = !access.isError && hasRole(access.data?.role, 'editor');
+  const canRestore = !access.isError && !access.isFetching && hasRole(access.data?.role, 'editor');
   const restore = useRestoreVersion(page);
   const [confirm, setConfirm] = useState(false);
   const control = useDialogControl();
@@ -76,6 +76,8 @@ export function PageHistoryDialog({
         ]
       : undefined;
 
+  if (!list.canEdit) return null;
+
   return (
     <Dialog
       control={control}
@@ -91,77 +93,72 @@ export function PageHistoryDialog({
       actions={actions}
     >
       {confirm ? null : (
-        <>
-          <View className="gap-4">
-            {list.isLoading ? (
-              <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
-            ) : list.isError ? (
-              <View className="gap-2">
-                <Text variant="body-regular" accessibilityRole="alert">
-                  {t('pages.history.loadFailed')}
-                </Text>
-                <Button appearance="outline" tone="neutral" onPress={() => list.refetch()}>
-                  {t('pages.publish.retry')}
-                </Button>
-              </View>
-            ) : !list.data?.versions.length ? (
-              <EmptyState variant="compact" title={t('pages.history.empty')} />
-            ) : (
-              <View className="gap-2">
-                {list.data.versions.map((version) => {
-                  const member = members.data?.find((entry) => entry.userId === version.createdBy);
-                  const name =
-                    (member && memberProfileName(member)) ||
-                    version.createdBy ||
-                    t('notifications.someone');
-                  const label = t('pages.history.entry', {
-                    time: relativeEditTime(version.createdAt, locale, now),
-                    name,
-                    count: version.blockCount,
-                  });
-                  return (
-                    <Item
-                      key={version.id}
-                      title={label}
-                      role="radio"
-                      selected={selectedId === version.id}
-                      onPress={() => setSelected(version.id)}
-                      accessibilityLabel={label}
-                    />
-                  );
-                })}
-              </View>
-            )}
-            {selectedId ? (
-              <View className="border-t border-border pt-4 gap-3">
-                <Text accessibilityRole="header" variant="headline-semibold">
-                  {t('pages.history.preview')}
-                </Text>
-                {preview.isLoading ? (
-                  <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
-                ) : preview.isError ? (
-                  <View className="gap-2">
-                    <Text variant="body-regular" accessibilityRole="alert">
-                      {t('pages.history.loadFailed')}
-                    </Text>
-                    <Button appearance="outline" tone="neutral" onPress={() => preview.refetch()}>
-                      {t('pages.publish.retry')}
-                    </Button>
-                  </View>
-                ) : preview.data ? (
-                  <SharedBlockTree
-                    blocks={preview.data.blocks}
-                    font={page.font}
-                    fileScope={{ kind: 'page', pageId: page.id }}
+        <View className="gap-4">
+          {list.isLoading ? (
+            <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
+          ) : list.isError ? (
+            <View className="gap-2">
+              <Text variant="body-regular" accessibilityRole="alert">
+                {t('pages.history.loadFailed')}
+              </Text>
+              <Button appearance="outline" tone="neutral" onPress={() => list.refetch()}>
+                {t('pages.publish.retry')}
+              </Button>
+            </View>
+          ) : !list.data?.versions.length ? (
+            <EmptyState variant="compact" title={t('pages.history.empty')} />
+          ) : (
+            <View className="gap-2">
+              {list.data.versions.map((version) => {
+                const member = members.data?.find((entry) => entry.userId === version.createdBy);
+                const name =
+                  (member && memberProfileName(member)) ||
+                  version.createdBy ||
+                  t('notifications.someone');
+                const label = t('pages.history.entry', {
+                  time: relativeEditTime(version.createdAt, locale, now),
+                  name,
+                  count: version.blockCount,
+                });
+                return (
+                  <Item
+                    key={version.id}
+                    title={label}
+                    role="radio"
+                    selected={selectedId === version.id}
+                    onPress={() => setSelected(version.id)}
+                    accessibilityLabel={label}
                   />
-                ) : null}
-              </View>
-            ) : null}
-          </View>
-          {!canRestore ? (
-            <Text className="text-sm text-muted-foreground">{t('pages.history.noPermission')}</Text>
+                );
+              })}
+            </View>
+          )}
+          {selectedId ? (
+            <View className="border-t border-border pt-4 gap-3">
+              <Text accessibilityRole="header" variant="headline-semibold">
+                {t('pages.history.preview')}
+              </Text>
+              {preview.isLoading ? (
+                <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
+              ) : preview.isError ? (
+                <View className="gap-2">
+                  <Text variant="body-regular" accessibilityRole="alert">
+                    {t('pages.history.loadFailed')}
+                  </Text>
+                  <Button appearance="outline" tone="neutral" onPress={() => preview.refetch()}>
+                    {t('pages.publish.retry')}
+                  </Button>
+                </View>
+              ) : preview.data ? (
+                <SharedBlockTree
+                  blocks={preview.data.blocks}
+                  font={page.font}
+                  fileScope={{ kind: 'page', pageId: page.id }}
+                />
+              ) : null}
+            </View>
           ) : null}
-        </>
+        </View>
       )}
     </Dialog>
   );

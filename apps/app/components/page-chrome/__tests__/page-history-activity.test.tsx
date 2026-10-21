@@ -32,7 +32,7 @@ const versions = [
 ];
 let client: QueryClient;
 let renderer: ReactTestRenderer;
-let role: 'viewer' | 'editor';
+let role: 'viewer' | 'commenter' | 'editor';
 async function settle() {
   for (let i = 0; i < 4; i++) await act(async () => new Promise((r) => setTimeout(r, 0)));
 }
@@ -49,10 +49,13 @@ async function mount() {
   await settle();
 }
 beforeEach(() => {
-  role = 'viewer';
+  role = 'editor';
   jest.clearAllMocks();
   client = new QueryClient({
-    defaultOptions: { queries: { retry: false, retryDelay: 0, gcTime: Infinity } },
+    defaultOptions: {
+      queries: { retry: false, retryDelay: 0, gcTime: Infinity },
+      mutations: { gcTime: Infinity },
+    },
   });
   jest.mocked(apiClient.get).mockImplementation(async (url) => {
     if (url === '/pages/page') return { data: { page, role } };
@@ -67,29 +70,47 @@ afterEach(() => {
   client.clear();
 });
 
-it('opens the version selected in activity and leaves restore disabled for a reader', async () => {
+it('opens the version selected in activity for an editor', async () => {
   await mount();
   expect(apiClient.get).toHaveBeenCalledWith('/pages/page/versions/v2', expect.any(Object));
   expect(apiClient.get).not.toHaveBeenCalledWith('/pages/page/versions/v1', expect.any(Object));
-  expect(renderer.root.findByType(Dialog).props.actions[0]).toMatchObject({ disabled: true });
-  expect(apiClient.post).not.toHaveBeenCalled();
-  // Even a stale/programmatic callback cannot bypass the live role check.
-  act(() => renderer.root.findByType(Dialog).props.actions[0].onPress());
-  await act(async () => renderer.root.findByType(Dialog).props.actions[0].onPress());
+  expect(renderer.root.findByType(Dialog).props.actions[0]).toMatchObject({ disabled: false });
   expect(apiClient.post).not.toHaveBeenCalled();
 });
+
+it.each(['viewer', 'commenter'] as const)(
+  'does not request or reveal history to a %s, even with cached versions',
+  async (value) => {
+    role = value;
+    client.setQueryData(queryKeys.versions.list(page.id), { versions });
+    client.setQueryData(queryKeys.versions.detail(page.id, 'v2'), {
+      version: versions[1],
+      blocks: [{ id: 'private-history' }],
+    });
+    await mount();
+    expect(renderer.root.findAllByType(Dialog)).toHaveLength(0);
+    expect(
+      jest.mocked(apiClient.get).mock.calls.filter(([url]) => String(url).includes('/versions')),
+    ).toHaveLength(0);
+    expect(client.getQueryData(queryKeys.versions.list(page.id))).toBeNull();
+    expect(client.getQueryData(queryKeys.versions.detail(page.id, 'v2'))).toBeNull();
+  },
+);
 
 it('revokes restore permission while an editor is in the confirmation step', async () => {
   role = 'editor';
   await mount();
   expect(renderer.root.findByType(Dialog).props.actions[0].disabled).toBe(false);
   act(() => renderer.root.findByType(Dialog).props.actions[0].onPress());
+  const staleRestore = renderer.root.findByType(Dialog).props.actions[0].onPress;
   role = 'viewer';
   await act(async () =>
     client.invalidateQueries({ queryKey: queryKeys.pages.detail(page.id), exact: true }),
   );
   await settle();
-  expect(renderer.root.findByType(Dialog).props.actions[0].disabled).toBe(true);
-  await act(async () => renderer.root.findByType(Dialog).props.actions[0].onPress());
+  expect(renderer.root.findAllByType(Dialog)).toHaveLength(0);
+  expect(client.getQueryData(queryKeys.versions.list(page.id))).toBeNull();
+  expect(client.getQueryData(queryKeys.versions.detail(page.id, 'v2'))).toBeNull();
+  await act(async () => staleRestore());
   expect(apiClient.post).not.toHaveBeenCalled();
 });

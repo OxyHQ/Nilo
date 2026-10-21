@@ -290,6 +290,11 @@ it('rolls back a failed setting and refetches the page', async () => {
 });
 it('locks title/icon/cover, shows the banner, and unlocks optimistically for editors', async () => {
   await mount({ ...initial, locked: true });
+  expect(
+    renderer.root
+      .findAllByType(DropdownMenuItem)
+      .some((item) => item.props.children === 'pages.history.title'),
+  ).toBe(true);
   expect(renderer.root.findAllByType(TextInput)).toHaveLength(0);
   expect(renderer.root.findAllByProps({ accessibilityLabel: 'pages.cover.change' })).toHaveLength(
     0,
@@ -314,6 +319,11 @@ it('shows the lock banner to viewers without settings or unlock controls', async
     renderer.root.findAllByType(DropdownMenuCheckboxItem).map((s) => s.props.children),
   ).toEqual(['pages.follow.follow', 'pages.offline.available']);
   expect(renderer.root.findByType(PageActionsMenu).props.readOnly).toBe(true);
+  expect(
+    renderer.root
+      .findAllByType(DropdownMenuItem)
+      .some((item) => item.props.children === 'pages.history.title'),
+  ).toBe(false);
 });
 
 it.each([false, true])(

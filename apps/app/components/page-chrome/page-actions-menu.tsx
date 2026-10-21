@@ -29,6 +29,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { useDeletePage, useDuplicatePage, useUpdatePage } from '@/lib/hooks/use-pages';
 import { EXPORT_FORMATS, type ExportFormat } from '@/lib/export-formats';
 import { useExportPage } from '@/lib/hooks/use-page-transfer';
+import { usePageHistoryAccess } from '@/lib/hooks/use-page-history-access';
 import { ImportPagesDialog } from './import-pages-dialog';
 import type { Page } from '@/lib/types/pages';
 import { MoveToDialog } from './move-to-dialog';
@@ -60,6 +61,7 @@ export function PageActionsMenu({ page, readOnly = false, onOpenActivity }: Page
   const updatePage = useUpdatePage();
   const deletePage = useDeletePage();
   const exportPage = useExportPage();
+  const canViewHistory = usePageHistoryAccess(page.id);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [importOpen, setImportOpen] = React.useState(false);
 
@@ -167,9 +169,11 @@ export function PageActionsMenu({ page, readOnly = false, onOpenActivity }: Page
               {t('pages.activity.title')}
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem onPress={() => setHistoryOpen(true)}>
-            {t('pages.history.title')}
-          </DropdownMenuItem>
+          {canViewHistory ? (
+            <DropdownMenuItem onPress={() => setHistoryOpen(true)}>
+              {t('pages.history.title')}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem onPress={() => setRemindersOpen(true)}>
             {t('pages.reminders.title')}
           </DropdownMenuItem>
@@ -342,7 +346,9 @@ export function PageActionsMenu({ page, readOnly = false, onOpenActivity }: Page
           onClose={() => setImportOpen(false)}
         />
       ) : null}
-      {historyOpen ? <PageHistoryDialog page={page} onClose={() => setHistoryOpen(false)} /> : null}
+      {historyOpen && canViewHistory ? (
+        <PageHistoryDialog page={page} onClose={() => setHistoryOpen(false)} />
+      ) : null}
       {remindersOpen ? (
         <ReminderDialog pageId={page.id} onClose={() => setRemindersOpen(false)} />
       ) : null}
