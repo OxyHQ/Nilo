@@ -135,7 +135,10 @@ and properties together, including toggle-heading variants, so child ownership
 and undo reflect one operation. Nilo must not reconstruct block trees to work
 around a shared transformation defect. Whole-block Cut must preserve content
 when the supported clipboard format cannot reconstruct the complete selection
-or when writing fails. Nilo supplies localized feedback through
+or when writing fails. A pending removal must recheck the mounted editor's
+current edit capability; Cut also rechecks the copied subtree and its location
+after confirmation so a collaborative change is never deleted uncopied.
+Nilo supplies localized feedback through
 `onClipboardError`; the editor owns selection, clipboard validation and undo.
 Plain-text/Markdown copying does not establish lossless rich-block clipboard
 support. Attachment identities remain subject to Nilo's file-reference rules.
