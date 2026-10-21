@@ -3,6 +3,7 @@ import {
   startEcosystemActivity,
   stopEcosystemActivity,
 } from './ecosystemActivity';
+import { oxyTrustProxy } from '@oxy.so/core/server';
 import express from 'express';
 import http from 'node:http';
 import cors from 'cors';
@@ -63,6 +64,14 @@ import { rateLimit } from './lib/rate-limit.js';
 // reads apps/api/.env. Variables already in the environment win.
 
 const app = express();
+// `req.ip` is the real client whether or not Cloudflare proxies the hostname
+// in front of the ALB: `oxyTrustProxy` trusts the socket peer only when private
+// (the ALB) and the next hop only when it is a Cloudflare edge address, so a
+// forged X-Forwarded-For is never believed. A fixed hop count cannot be right
+// for both shapes: one hop answers Cloudflare's edge for a proxied hostname,
+// two let a DNS-only caller choose its own address. Rate limits key on it
+// (`lib/rate-limit.ts`). Set first, before anything that can read `req.ip`.
+app.set('trust proxy', oxyTrustProxy);
 app.use(ecosystemActivityMiddleware);
 const PORT = parseInt(process.env.PORT || '4001', 10);
 
@@ -146,10 +155,6 @@ app.use((_req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   next();
 });
-
-// The API runs behind one load balancer: the client's address is the last hop
-// it adds to X-Forwarded-For. Rate limits key on it (`lib/rate-limit.ts`).
-app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS ?? 1));
 
 // Oxy's file events are signed over their exact bytes, so they are read raw,
 // before any body parser and outside the per-client rate limit (`routes/oxy-file-events.ts`).
