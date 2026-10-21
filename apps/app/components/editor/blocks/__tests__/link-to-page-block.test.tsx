@@ -9,7 +9,17 @@ import { usePage } from '@/lib/hooks/use-pages';
 import type { Block, Page, PageResponse } from '@/lib/types/pages';
 import { LinkToPageBlock } from '../link-to-page-block';
 
-jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
+jest.mock('expo-router', () => {
+  const React = jest.requireActual('react');
+  const router = { push: jest.fn() };
+  return {
+    router,
+    Link: ({ href, asChild, children }: { href: string; asChild: boolean; children: unknown }) => {
+      if (!asChild) throw new Error('The router must delegate its rendering to Bloom');
+      return React.cloneElement(children, { href, onPress: () => router.push(href) });
+    },
+  };
+});
 jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
 jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { get: jest.fn() } }));
 jest.mock('@/lib/realtime/socket', () => ({ acquireSocket: jest.fn(), releaseSocket: jest.fn() }));
@@ -76,6 +86,8 @@ it('opens the named page using the shared cached metadata', async () => {
   await mount();
   expect(JSON.stringify(renderer.toJSON())).toContain(page.title);
   const link = renderer.root.findByProps({ accessibilityRole: 'link' });
+  expect(link.props.href).toBe(`/p/${page.id}`);
+  expect(link.props.numberOfLines).toBe(1);
   act(() => link.props.onPress());
   expect(router.push).toHaveBeenCalledWith(`/p/${page.id}`);
   expect(apiClient.get).not.toHaveBeenCalled();

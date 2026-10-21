@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { Pressable, View } from 'react-native';
-import { router } from 'expo-router';
+import { View } from 'react-native';
+import { Link } from 'expo-router';
 import { isEntityId } from '@oxy.so/nilo-contracts';
-import { Button } from '@oxy.so/bloom/button';
+import { Button, LinkButton } from '@oxy.so/bloom/button';
 import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { Text } from '@oxy.so/bloom/typography';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
@@ -75,19 +75,24 @@ export function LinkToPageBlock({ block, onChangeContent, readOnly }: BlockCompo
 
   const page = pageQuery.data?.page;
   return (
-    <Pressable
-      accessibilityRole="link"
-      onPress={() => router.push(`/p/${pageId}`)}
-      className="flex-row items-center gap-2 rounded-md px-2 py-1 hover:bg-muted"
-    >
-      {page?.icon ? (
-        <IconDisplay value={page.icon} size={16} />
-      ) : (
-        <RiFileTextLine width={14} height={14} fill={colors.foreground} />
-      )}
-      <Text className="text-sm text-foreground underline" numberOfLines={1}>
+    <Link href={`/p/${pageId}`} asChild>
+      <LinkButton
+        accessibilityRole="link"
+        linkTone="text"
+        underline="rest"
+        textVariant="body-2-regular"
+        numberOfLines={1}
+        style={{ alignSelf: 'stretch', justifyContent: 'flex-start' }}
+        renderLeadingIcon={({ size, color }) =>
+          page?.icon ? (
+            <IconDisplay value={page.icon} size={size} pageId={pageId} />
+          ) : (
+            <RiFileTextLine width={size} height={size} fill={color} />
+          )
+        }
+      >
         {page ? page.title || t('pages.untitled') : t('editor.blocks.loading')}
-      </Text>
-    </Pressable>
+      </LinkButton>
+    </Link>
   );
 }
