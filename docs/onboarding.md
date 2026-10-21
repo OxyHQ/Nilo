@@ -91,18 +91,35 @@ viewport calculation in Nilo. Its HoverCard shows creation/edit metadata and its
 primary action opens an activity panel declared beside the document in the same
 compositor. The actions menu keeps activity reachable at narrower sizes.
 Comments and activity are mutually exclusive; switching them preserves the
-document editor. The activity panel shows actual metadata to readers; listing,
-previewing and restoring saved content versions require the page's effective
-editor role. Enforce that same canonical permission in the API and client,
-including when an open panel loses edit access. Do not expose cached historical
-content after a downgrade. Reuse the existing version preview/restore dialog.
-Content edits refresh that metadata and history on `page:projected`, emitted to
+document editor. Current creation/edit metadata remains available to readers in
+the header HoverCard. The activity panel uses Bloom's `ActivityFeed` inside its
+`ScreenScrollView`, with actor profiles, localized times and committed change
+records supplied by Nilo. Its records come from the paginated page-activity API;
+saved block snapshots are not feed events. Do not invent entries for changes
+before activity capture was installed, or substitute view analytics for edits.
+
+Activity values and saved versions require the page's effective editor role in
+both API and client. The shared history owner hides them during a permission
+recheck, cancels pending reads and retires cached data after denial or downgrade.
+Keep these query families in memory only. A failed next-page request preserves
+an already authorized feed; a permission denial retires it. Snapshot-specific
+404s do not invalidate unrelated activity or create a permission-refetch loop.
+
+Property changes use the display schema captured with the event, never today's
+property type or option labels. Historical schema is returned only to readers of
+the database; a grant to one row alone must not disclose its field names. Missing
+historical context, including relation destinations, uses a generic change
+description rather than resolving a guessed target. See [Page activity](page-activity.md)
+for persistence owners, capture scope and the additive migration contract.
+
+Content edits refresh metadata, activity and versions on `page:projected`, emitted to
 the authorized document room after PostgreSQL commits the projection. A document
 update acknowledgement confirms storage of the update, not completion of the
 projection; do not substitute a guessed timeout or an optimistic edit date.
+Metadata changes use the existing workspace invalidation events. Realtime carries
+invalidation IDs, never historical field values; every read rechecks access.
 Floating panels use the compositor's dismiss control; consult `useAppShellPanel`
 before supplying a second close action in a panel's own header.
-It is not a complete property-change audit log or analytics implementation.
 
 The editor supplies its toolbar through `Screen.bottomBar` with
 `bottomBarKeyboardBehavior="follow"`. Bloom coordinates keyboard avoidance,
@@ -151,10 +168,22 @@ and returns the save promise so a failure stays visible in Bloom's editor.
 The cover picker composes Bloom's `Dialog`, `ResponsiveGrid` and pressable
 `Card` options. Its gallery uses the dialog's scroll owner, including on narrow
 screens; do not add fixed-height scrollers around individual tabs.
-Import, move and page-history dialogs also delegate their content scrolling to
-`Dialog`. Keep result lists and history previews in its content region, with
-confirmation and mutation actions in its action slot. A long result list is
-not a reason to introduce a second fixed-height scroller.
+Import and move dialogs also delegate their content scrolling to `Dialog`.
+Keep their result lists in its content region and mutation actions in its action
+slot. A long result list is not a reason to introduce a second fixed-height scroller.
+
+Page history uses `Dialog presentation="fullscreen" scrollable={false}` with
+`AppShellPanels scope="local" appearance="joined"`. The version list and block
+preview are genuinely independent regions, each with its own `Screen` and
+`ScreenScrollView`; the outer dialog must not add another scroll owner. Bloom
+owns viewport sizing and responsive collapse. On narrow containers, selecting a
+version shows its preview and Back returns to the list. Restore review stays in
+the compositor, preserving the selected preview and placing confirmation actions
+in the review screen's `bottomBar`. Failures retain the selection for retry.
+Listing, previewing and restoring all require the canonical editor permission,
+including a final check for stale restore callbacks. A snapshot contains blocks,
+not historical icon, cover, properties or discussions; do not label the latest
+snapshot as the current page without evidence. See [Page history](page-history.md).
 
 ## Reference behavior
 
