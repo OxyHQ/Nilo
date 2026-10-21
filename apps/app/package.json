@@ -27,7 +27,7 @@
     "@oxy.so/bloom-editor": "0.6.0",
     "@oxy.so/bloom-text": "0.1.5",
     "@oxy.so/contracts": "5.4.0",
-    "@oxy.so/core": "^6.9.0",
+    "@oxy.so/core": "^6.9.1",
     "@oxy.so/nilo-contracts": "workspace:*",
     "@oxy.so/services": "12.4.0",
     "@react-native-async-storage/async-storage": "2.2.0",
