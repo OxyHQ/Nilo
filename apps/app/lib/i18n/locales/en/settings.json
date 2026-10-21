@@ -33,18 +33,8 @@
     "workspace": "Workspace"
   },
   "accentColor": {
-    "title": "App Color",
-    "teal": "Teal",
-    "blue": "Blue",
-    "green": "Green",
-    "yellow": "Yellow",
-    "amber": "Amber",
-    "red": "Red",
-    "purple": "Purple",
-    "pink": "Pink",
-    "sky": "Sky",
-    "orange": "Orange",
-    "mint": "Mint"
+    "title": "Account color",
+    "saveFailed": "Could not save your color. Try again."
   },
   "members": {
     "description": "Invite people to your workspace and manage their roles. Only workspace admins and owners can change roles or remove members."

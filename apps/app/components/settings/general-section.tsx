@@ -8,16 +8,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@oxy.so/bloom/select';
-import { APP_COLOR_NAMES, useBloomTheme } from '@oxy.so/bloom/theme';
+import { toast } from '@oxy.so/bloom/toast';
+import { COLOR_PRESET_REGISTRY } from '@oxy.so/bloom/theme';
 import { getNativeLanguageName } from '@oxy.so/core';
-import { useOxy } from '@oxy.so/services/ui/client';
+import { useAccountColorSave, useOxy } from '@oxy.so/services/ui/client';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useNiloSettings } from './settings-provider';
 
 export function GeneralSection() {
   const { mode, setColorScheme } = useColorScheme();
-  const { colorPreset, setColorPreset } = useBloomTheme();
+  const { colors: allowedColors, value: colorValue, saveColor } = useAccountColorSave();
   const { t } = useTranslation();
   const { currentLanguage, currentLanguages, showBottomSheet } = useOxy();
   const { afterClose } = useNiloSettings();
@@ -25,10 +26,9 @@ export function GeneralSection() {
     value,
     label: t(`settings.appearance.${value}`),
   }));
-  const colors = APP_COLOR_NAMES.map((value) => ({
-    value,
-    label: t(`settings.accentColor.${value}`),
-  }));
+  const colors = COLOR_PRESET_REGISTRY.filter(({ name }) => allowedColors.includes(name)).map(
+    ({ name, displayName }) => ({ value: name, label: displayName }),
+  );
   // The UI language is the Oxy account's: Oxy resolves it and owns the picker.
   const languages = currentLanguages.length ? currentLanguages : [currentLanguage];
   return (
@@ -70,10 +70,13 @@ export function GeneralSection() {
         </SettingsRow>
         <SettingsRow label={t('settings.accentColor.title')}>
           <Select
-            value={colorPreset}
+            value={colorValue}
             onValueChange={(value) => {
               const next = colors.find((option) => option.value === value);
-              if (next) setColorPreset(next.value);
+              if (next)
+                saveColor(next.value).catch(() =>
+                  toast.error(t('settings.accentColor.saveFailed')),
+                );
             }}
           >
             <SelectTrigger label={t('settings.accentColor.title')}>
