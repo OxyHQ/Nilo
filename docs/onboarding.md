@@ -143,11 +143,14 @@ Nilo supplies localized feedback through
 Plain-text/Markdown copying does not establish lossless rich-block clipboard
 support. Attachment identities remain subject to Nilo's file-reference rules.
 
-Alia's chat sheet uses the SDK's Bloom `BottomSheet` composition. A flex-based
-conversation needs `sizing="fill"` so Bloom provides bounded available space;
-do not introduce app-owned viewport heights or keyboard offsets. Bloom keeps
-content sizing as the default for ordinary sheets. Verify the SDK's main and
-conversation sheets, including draft and focus continuity during resize.
+Alia's chat sheet uses the SDK's Bloom `BottomSheet` composition and keeps
+content-driven height. The sheet and Screen compositor must communicate their
+intrinsic sizing and available-space limit; do not replace auto-sizing with
+`sizing="fill"` to work around a collapsed flex layout. Fill is for deliberately
+full-height surfaces. Do not introduce app-owned viewport heights or keyboard
+offsets. Verify the main and conversation sheets grow and shrink with content,
+scroll only at their available-height limit, and retain draft and focus during
+resize.
 
 An embedded database uses `AppShellPanels scope="local"` with a vertical
 `split`, document flow and a declarative panel height. Its `ProjectBoard`
