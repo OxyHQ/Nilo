@@ -28,6 +28,9 @@ jest.mock('expo-notifications', () => ({
 }));
 jest.mock('../editor/doc-store', () => ({ pageDocStore: null }));
 jest.mock('../editor/offline-pages', () => ({ offlinePages: { clear: jest.fn() } }));
+jest.mock('../editor/shared-sessions', () => ({
+  withPageSessionsDrained: jest.fn(async (purge: () => Promise<unknown>) => purge()),
+}));
 
 const api = apiClient as unknown as Record<'get' | 'post' | 'delete', jest.Mock>;
 const os = Platform.OS;
