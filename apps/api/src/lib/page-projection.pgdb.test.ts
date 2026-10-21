@@ -18,6 +18,7 @@ import {
 } from '../db/__tests__/testDatabase.js';
 import { closeDb, getDb } from '../db/client.js';
 import { blocks, pageDocs, pages, pageVersions } from '../db/schema/pages.js';
+import { listPageActivity } from '../repositories/pageActivity.js';
 import { appendUpdate, loadPageState } from './page-docs.js';
 import {
   projectPage,
@@ -119,6 +120,15 @@ describe('a page’s projection, kept in the database', () => {
     expect(await rowTexts(pageId)).toEqual(['de Ana', 'de Bea']);
     const [row] = await db.select().from(pages).where(eq(pages.id, pageId));
     expect(row?.lastEditedBy).toBe('bea');
+    const activity = await listPageActivity(db, pageId, 20);
+    expect(activity.items).toHaveLength(1);
+    expect(activity.items[0]).toMatchObject({
+      kind: 'content_edited',
+      actorIds: ['ana', 'bea'],
+      changes: [],
+    });
+    await projectPage(getDb(), pageId);
+    expect((await listPageActivity(db, pageId, 20)).items).toEqual(activity.items);
   });
 
   it('announces only committed metadata and history, once for a changed projection', async () => {

@@ -125,3 +125,10 @@ export {
   noteWriteSchema,
 } from './notes';
 export type { NavigationNeighbor, NavigationNeighbors } from './navigation';
+export type {
+  PageActivityKind,
+  PageActivityProperty,
+  PageActivityChange,
+  PageActivityEvent,
+  PageActivityPage,
+} from './page-activity';

@@ -66,6 +66,9 @@ model, credential, conversation or chat-completion route.
   `GET /pages/:id/versions[/:versionId]`,
   `POST …/versions/:versionId/restore`), reminders
   (`GET/POST /pages/:id/reminders`, `GET /reminders`, `DELETE /reminders/:id`).
+- Activity: `GET /pages/:id/activity?limit=20&cursor=…` (effective editor role
+  required). Persisted changes are separate from snapshots; see
+  [Page activity](page-activity.md) for capture scope, pagination and schema privacy.
 - Import: `POST /pages/import` (Markdown and HTML files with their folder
   paths), `POST /pages/import/zip` (a Notion export, Markdown or HTML, or any
   ZIP of `.md`, `.html` and `.csv` files). Each file is a page and a

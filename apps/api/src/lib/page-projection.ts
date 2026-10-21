@@ -56,6 +56,7 @@ import {
 import { follow, listFollowers } from '../repositories/pageFollows.js';
 import { bumpBlocksVersion, findPageById, lockPage } from '../repositories/pages.js';
 import { snapshotPage } from '../repositories/pageVersions.js';
+import { recordPageActivity } from '../repositories/pageActivity.js';
 import { log } from './logger.js';
 import { sendNotification } from './notification-service.js';
 import { resolvePageAccess } from './page-access.js';
@@ -198,6 +199,7 @@ export async function projectPage(db: PgHandle, pageId: string): Promise<void> {
     }
     await deleteBlocksOfPage(tx, pageId, removed);
     await bumpBlocksVersion(tx, pageId, people[people.length - 1]);
+    await recordPageActivity(tx, { pageId, actorIds: people, kind: 'content_edited' });
     // Whoever edits a page follows it (a no-op when they already do).
     for (const userId of new Set(people)) await follow(tx, pageId, userId);
 
