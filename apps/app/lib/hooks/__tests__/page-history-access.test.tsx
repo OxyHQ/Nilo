@@ -2,10 +2,14 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import apiClient from '@/lib/api/client';
+import type { Page } from '@/lib/types/pages';
 import { queryKeys } from '../query-keys';
-import { usePageVersion, usePageVersions } from '../use-page-extras';
+import { usePageVersion, usePageVersions, useRestoreVersion } from '../use-page-extras';
 
-jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { get: jest.fn() } }));
+jest.mock('@/lib/api/client', () => ({
+  __esModule: true,
+  default: { get: jest.fn(), post: jest.fn() },
+}));
 jest.mock('@/lib/config', () => ({
   __esModule: true,
   default: { apiUrl: 'https://api.example.test' },
@@ -25,10 +29,12 @@ let client: QueryClient;
 let renderer: ReactTestRenderer;
 let list: ReturnType<typeof usePageVersions>;
 let preview: ReturnType<typeof usePageVersion>;
+let restore: ReturnType<typeof useRestoreVersion>;
 let role: string;
 function Probe() {
   list = usePageVersions('p');
   preview = usePageVersion('p', 'v');
+  restore = useRestoreVersion(page as Page);
   return null;
 }
 async function settle() {
@@ -51,11 +57,46 @@ beforeEach(() => {
   role = 'editor';
   jest.clearAllMocks();
   client = new QueryClient({
-    defaultOptions: { queries: { retry: false, retryDelay: 0, gcTime: Infinity } },
+    defaultOptions: {
+      queries: { retry: false, retryDelay: 0, gcTime: Infinity },
+      // Exercise the owner's transport guard independently of TanStack's
+      // default offline mutation queue; no real transport is used in this test.
+      mutations: { networkMode: 'always', gcTime: Infinity },
+    },
   });
   jest.mocked(apiClient.get).mockImplementation(async (url) => ({
     data: url === '/pages/p' ? { page, role } : url === '/pages/p/versions' ? history : detail,
   }));
+});
+
+it('rejects stale history and restore callbacks while a non-invalidated permission read is paused', async () => {
+  await mount();
+  const staleRestore = restore.mutateAsync;
+  const staleRead = client.getQueryCache().find({ queryKey: listKey, exact: true })
+    ?.options.queryFn;
+  if (typeof staleRead !== 'function') throw new Error('Missing history query');
+  const reads = historyCalls().length;
+  await act(async () => {
+    onlineManager.setOnline(false);
+    await client.refetchQueries({ queryKey: pageKey, exact: true });
+  });
+  expect(client.getQueryState(pageKey)).toMatchObject({
+    fetchStatus: 'paused',
+    isInvalidated: false,
+  });
+  await act(async () => {
+    await expect(
+      staleRead({
+        client,
+        queryKey: listKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      }),
+    ).rejects.toThrow('Page history requires editor access');
+    await expect(staleRestore('v')).rejects.toThrow('Page history requires editor access');
+  });
+  expect(historyCalls()).toHaveLength(reads);
+  expect(apiClient.post).not.toHaveBeenCalled();
 });
 afterEach(() => {
   act(() => renderer?.unmount());

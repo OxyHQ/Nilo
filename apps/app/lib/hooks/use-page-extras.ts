@@ -100,7 +100,7 @@ function useHistoryQuery<T>(pageId: string, key: readonly string[], url: string,
         !ready ||
         !enabled ||
         access?.isInvalidated ||
-        access?.fetchStatus === 'fetching' ||
+        access?.fetchStatus !== 'idle' ||
         !hasRole(access?.data?.role, 'editor')
       )
         throw new Error('Page history requires editor access');
@@ -176,7 +176,7 @@ export function useRestoreVersion(page: Page) {
       if (
         access?.error ||
         access?.isInvalidated ||
-        access?.fetchStatus === 'fetching' ||
+        access?.fetchStatus !== 'idle' ||
         !hasRole(access?.data?.role, 'editor')
       )
         throw new Error('Page history requires editor access');
