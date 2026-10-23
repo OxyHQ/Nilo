@@ -1,5 +1,5 @@
 import { io, type Socket } from 'socket.io-client';
-import { currentAccessToken } from '../api/client';
+import { currentAccessToken, onApiSessionContextChange } from '../api/client';
 import config from '../config';
 
 /**
@@ -9,6 +9,7 @@ import config from '../config';
  */
 let socket: Socket | null = null;
 let holders = 0;
+let unsubscribeContext: (() => void) | undefined;
 
 export function acquireSocket(): Socket {
   if (!socket) {
@@ -23,6 +24,10 @@ export function acquireSocket(): Socket {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
     });
+    unsubscribeContext = onApiSessionContextChange(() => {
+      socket?.disconnect();
+      if (currentAccessToken()) socket?.connect();
+    });
   }
   holders += 1;
   return socket;
@@ -31,6 +36,8 @@ export function acquireSocket(): Socket {
 export function releaseSocket(): void {
   holders = Math.max(0, holders - 1);
   if (holders === 0 && socket) {
+    unsubscribeContext?.();
+    unsubscribeContext = undefined;
     socket.disconnect();
     socket = null;
   }

@@ -5,7 +5,10 @@ import { answerText, instructionFor, MAX_INPUT_CHARS, messagesFor } from '../act
 import { AI_POWER_LEVEL, failureOf, useAiAction, useAiAvailable } from '../use-ai';
 
 const mockClient = { listRoutingProfiles: jest.fn(), respond: jest.fn() };
-const mockGetPublic = jest.fn();
+let mockAccount = 'account-a';
+let mockEpoch = 1;
+let mockPolicyRevision = 1;
+const mockServices = { http: { getSessionEpoch: () => mockEpoch } };
 let mockAuthenticated = true;
 jest.mock('@oxy.so/core/inference', () => {
   const actual = jest.requireActual('@oxy.so/core/inference');
@@ -14,8 +17,12 @@ jest.mock('@oxy.so/core/inference', () => {
 jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({
     isAuthenticated: mockAuthenticated,
-    oxyServices: { apps: { getPublic: (id: string) => mockGetPublic(id) } },
+    canUsePrivateApi: mockAuthenticated,
+    user: { id: mockAccount, kind: 'personal' },
+    activeSessionId: `session-${mockAccount}`,
+    oxyServices: mockServices,
   }),
+  useSupervision: () => ({ dataUpdatedAt: mockPolicyRevision }),
 }));
 
 const refusal = (code: string, retryable: boolean) =>
@@ -100,7 +107,7 @@ async function mount() {
       </QueryClientProvider>,
     );
   });
-  // Let the application's scopes, then the power levels, arrive.
+  // Let the current account catalogue arrive.
   for (let i = 0; i < 3; i += 1) {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -111,7 +118,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockAuthenticated = true;
   process.env.EXPO_PUBLIC_OXY_CLIENT_ID = 'nilo-client';
-  mockGetPublic.mockResolvedValue({ scopes: ['user:read', 'inference:invoke'] });
+  mockAccount = 'account-a';
+  mockEpoch = 1;
+  mockPolicyRevision = 1;
   mockClient.listRoutingProfiles.mockResolvedValue([{ slug: 'instant' }, { slug: 'high' }]);
 });
 afterEach(() => {
@@ -125,17 +134,40 @@ afterEach(() => {
 });
 
 describe('running an action', () => {
-  it("is offered once Nilo's application holds the scope and the edge lists the power level", async () => {
+  it('is offered from the signed-in account catalogue without application scope metadata', async () => {
     await mount();
-    expect(mockGetPublic).toHaveBeenCalledWith('nilo-client');
     expect(available).toBe(true);
+    expect(mockClient.listRoutingProfiles).toHaveBeenCalledTimes(1);
   });
 
-  it("is not offered while Nilo's application lacks the scope, whatever the catalogue lists", async () => {
-    mockGetPublic.mockResolvedValue({ scopes: ['user:read'] });
+  it('does not reuse another account or session catalogue, and refreshes after a policy change', async () => {
     await mount();
+    expect(available).toBe(true);
+    mockAccount = 'account-b';
+    mockEpoch++;
+    mockClient.listRoutingProfiles.mockResolvedValue([]);
+    const queryClient = clients.at(-1);
+    if (!queryClient) throw new Error('Missing mounted query client');
+    const refresh = async () => {
+      await act(async () =>
+        renderer?.update(
+          <QueryClientProvider client={queryClient}>
+            <Probe />
+          </QueryClientProvider>,
+        ),
+      );
+      for (let i = 0; i < 3; i++)
+        await act(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+    };
+    await refresh();
     expect(available).toBe(false);
-    expect(mockClient.listRoutingProfiles).not.toHaveBeenCalled();
+    mockClient.listRoutingProfiles.mockResolvedValue([{ slug: 'instant' }]);
+    mockPolicyRevision++;
+    await refresh();
+    expect(available).toBe(true);
+    expect(mockClient.listRoutingProfiles).toHaveBeenCalledTimes(3);
   });
 
   it('is not offered when the edge lists nothing, or before signing in', async () => {

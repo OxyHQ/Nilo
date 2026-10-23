@@ -56,12 +56,11 @@ Last verified: 2026-09-13.
   `GET /notifications/vapid-public-key` answers 503.
 - Attachments live in Oxy's file manager (`docs/files.md`): no bucket, no
   storage credential, and the image is read-only. The API mints file URLs
-  with its workload-identity service token, which needs the
-  `files:linked:read` scope on Nilo's Oxy application (granted 2026-10-16).
+  with its workload identity. The owner's live file-to-application reference
+  determines which attachments Oxy can serve to Nilo.
 - Nilo tells Oxy when it stops using a file (Oxy ADR 0043, `docs/files.md`)
-  with the same token, which needs `files:references:write` on Nilo's Oxy
-  application as well; until it is granted, removals wait in
-  `file_reference_removals` and are sent once it is. The daily
+  with the same identity. Failed deliveries remain in `file_reference_removals`
+  and retry after the service recovers. The daily
   reconciliation commits; its counts are `file_reference_runs.report`.
 - File events: set Nilo's endpoint to `https://<api origin>/webhooks/oxy/files`
   (Oxy console → Webhooks → File events, or `oxy.apps.setFilesWebhook`). Oxy
@@ -72,10 +71,9 @@ Last verified: 2026-09-13.
 - Invitation email (`apps/api/src/lib/invite-email.ts`): someone invited who
   has no Oxy account is emailed the invitation's link by Oxy
   (`POST /apps/invitations/email` on `OXY_API_URL`) with the same
-  workload-identity token, which needs the `invitations:email` scope on Nilo's
-  Oxy application AND on its workload binding (`oxy-nilo-task`). Off until
+  workload identity (`oxy-nilo-task`). The operational mail switch is off until
   `INVITE_EMAILS_ENABLED=true` is set in the task definition (a plain
-  environment value, no secret); set it only once both grants are in place.
+  environment value, no secret). Own products need no scope grant.
   The link is on `OXYNILO_PUBLIC_URL`, which must be an origin registered for
   Nilo's application (`https://nilo.so`), or Oxy refuses it. Without the
   email the invitation is still made, and admins copy its link from Settings ›
@@ -123,11 +121,9 @@ client.
 `.github/scripts/deploy-ecs.sh` registers the notes catalog with Oxy after the
 rollout is healthy and the post migrations ran, as a one-shot with the
 release image (`bun apps/api/dist/scripts/register-capability-catalog.js`).
-It runs as Nilo's service (the `oxy-nilo-task` workload binding), which needs
-the Nilo application's `catalog:noted` capability and the scopes
-`catalogs:write`, `capabilities:read`, `capability-audit:write` and
-`capability-events:publish` on both the application and the binding. A
-failed registration fails the deploy. The event outbox worker runs in every
+It runs as Nilo's service (the live `oxy-nilo-task` workload binding). Oxy
+checks the registered catalog namespace and workload environment; own app
+scopes are not prerequisites. A failed registration fails the deploy. The event outbox worker runs in every
 API task that has that identity; `APP_EVENT_OUTBOX_WORKER_ENABLED=false`
 stops it, and events then wait in `app_event_outbox`.
 

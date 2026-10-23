@@ -5,13 +5,15 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
  * are plain constants registered before a dynamic import of the module.
  */
 const client = {
-  serviceToken: vi.fn(async () => 'service-token'),
-  invalidateServiceToken: vi.fn(),
+  fetch: (input: string | URL | Request, init?: RequestInit) => globalThis.fetch(input, init),
 };
 let identity: typeof client | null = client;
 vi.mock('../../capabilities/oxy-service.js', () => ({
   OXY_API_URL: 'https://oxy.test',
-  oxyServiceClient: () => identity,
+  oxyServiceTransport: () => {
+    if (!identity) throw new Error('No workload identity');
+    return identity;
+  },
 }));
 const warn = vi.fn();
 vi.mock('../logger.js', () => ({
@@ -51,8 +53,6 @@ beforeEach(() => {
   identity = client;
   calls.length = 0;
   answers = [new Response('{}', { status: 202 })];
-  client.serviceToken.mockClear();
-  client.invalidateServiceToken.mockClear();
   warn.mockClear();
   globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
     calls.push({ url: String(url), init: init ?? {} });
@@ -82,7 +82,7 @@ describe('the invitation email', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].url).toBe('https://oxy.test/apps/invitations/email');
     const headers = calls[0].init.headers as Record<string, string>;
-    expect(headers.authorization).toBe('Bearer service-token');
+    expect(headers.authorization).toBeUndefined();
     expect(headers['idempotency-key']).toBe(`${invite.id}.${invite.createdAt.getTime()}`);
     expect(JSON.parse(String(calls[0].init.body))).toEqual({
       to: 'guest@example.org',
@@ -118,11 +118,10 @@ describe('the invitation email', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('renews a stale service token once', async () => {
-    answers = [new Response('{}', { status: 401 }), new Response('{}', { status: 202 })];
-    expect(await sendInviteEmail({ invite, workspaceName: 'W', locale: undefined })).toBe('sent');
-    expect(client.invalidateServiceToken).toHaveBeenCalledTimes(1);
-    expect(calls).toHaveLength(2);
+  it('reports an unrecovered shared-transport refusal without a second app-local replay', async () => {
+    answers = [new Response('{}', { status: 401 })];
+    expect(await sendInviteEmail({ invite, workspaceName: 'W', locale: undefined })).toBe('failed');
+    expect(calls).toHaveLength(1);
   });
 
   it('reports a refusal as failed, and logs why, without throwing', async () => {

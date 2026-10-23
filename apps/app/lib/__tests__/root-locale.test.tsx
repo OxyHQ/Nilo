@@ -12,7 +12,7 @@ jest.mock('@oxy.so/bloom/provider', () => ({
   BloomProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 jest.mock('@oxy.so/bloom/scroll/expo-router', () => ({ expoRouterScrollAdapter: undefined }));
-jest.mock('@/lib/api/client', () => ({ setTokenGetter: jest.fn() }));
+jest.mock('@/lib/api/client', () => ({ bindApiClient: jest.fn(), releaseApiClient: jest.fn() }));
 jest.mock('@/lib/account-boundary', () => ({ enterAccount: jest.fn(), sessionEnded: jest.fn() }));
 jest.mock('@/lib/app-worker', () => ({ registerAppWorker: jest.fn() }));
 

@@ -1,18 +1,9 @@
 /**
- * The invitation email for someone invited to a workspace who has no Oxy
- * account yet. Nilo has no outbound mail of its own: Oxy sends one template it
- * owns for an application holding `invitations:email`
- * (`POST /apps/invitations/email`), naming the inviter itself and linking only
- * to an origin Nilo registered — so the link here is `OXYNILO_PUBLIC_URL`'s.
- *
- * Off unless `INVITE_EMAILS_ENABLED=true`: the scope is granted to Nilo's
- * application by Oxy staff, and until it is every call would be refused. The
- * call authenticates as Nilo's own Oxy service (`capabilities/oxy-service.ts`:
- * the task role on ECS, a key pair elsewhere) and never fails the invitation:
- * any refusal or error is logged and reported as `failed`, and the inviter is
- * told to share the link instead.
+ * Oxy sends Nilo's workspace invitation template through the shared workload transport.
+ * INVITE_EMAILS_ENABLED is the operational mail switch; own products need no scope grant.
+ * The original invitation/issue idempotency key and user-visible failure handling stay intact.
  */
-import { OXY_API_URL, oxyServiceClient } from '../capabilities/oxy-service.js';
+import { OXY_API_URL, oxyServiceTransport } from '../capabilities/oxy-service.js';
 import type { WorkspaceInviteRow } from '../repositories/workspaceInvites.js';
 import { log } from './logger.js';
 import { publicAppUrl } from './public-links.js';
@@ -54,11 +45,10 @@ function resourceName(workspaceName: string): string {
     : `${inline.slice(0, RESOURCE_NAME_MAX_LENGTH - 1).trimEnd()}…`;
 }
 
-async function post(body: string, key: string, token: string): Promise<Response> {
-  return fetch(`${OXY_API_URL}/apps/invitations/email`, {
+async function post(body: string, key: string): Promise<Response> {
+  return oxyServiceTransport().fetch(`${OXY_API_URL}/apps/invitations/email`, {
     method: 'POST',
     headers: {
-      authorization: `Bearer ${token}`,
       'content-type': 'application/json',
       'idempotency-key': key,
     },
@@ -78,11 +68,10 @@ export async function sendInviteEmail(input: {
   const context = { inviteId: invite.id, workspaceId: invite.workspaceId };
   try {
     const acceptUrl = inviteUrl(invite);
-    const client = oxyServiceClient();
-    if (!acceptUrl || !client) {
+    if (!acceptUrl) {
       log.general.warn(
-        { ...context, hasLink: Boolean(acceptUrl), hasIdentity: Boolean(client) },
-        'Invitation email not sent: no link or no Oxy identity',
+        { ...context, hasLink: Boolean(acceptUrl) },
+        'Invitation email not sent: no invitation link',
       );
       return 'failed';
     }
@@ -94,11 +83,7 @@ export async function sendInviteEmail(input: {
       ...(input.locale ? { locale: input.locale } : {}),
     });
     const key = inviteEmailIdempotencyKey(invite);
-    let response = await post(body, key, await client.serviceToken());
-    if (response.status === 401) {
-      client.invalidateServiceToken();
-      response = await post(body, key, await client.serviceToken());
-    }
+    const response = await post(body, key);
     if (response.ok) return 'sent';
     const refusal = (await response.json().catch(() => null)) as {
       error?: unknown;

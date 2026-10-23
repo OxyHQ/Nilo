@@ -110,3 +110,19 @@ Every request counts against the caller's general budget, per member when
 signed in and per hashed client address otherwise (the SDK's
 `createOxyRateLimit`); public endpoints add a stricter budget of their own
 (`lib/rate-limit.ts`). Counted in Redis, so both API tasks share one window.
+
+## Oxy transport and account boundaries
+
+The frontend uses Oxy's linked optional-session transport through Axios's fetch
+adapter, preserving public pages and Axios response/error handling. The shared
+SDK owns bearer attachment, refresh, origin checks, redirect refusal and session
+change fencing. Provider replacement/unmount disposes its linked client; sockets
+reconnect when core's session context changes, and never keep an old account room
+after sign-out. Public HTTP does not waive authentication on private API routes.
+
+Own backend calls use the receiving product's SDK or Oxy's workload transport.
+Catalogue registration, ticket introspection and audit share the MCP transport;
+Alia event delivery keeps its original lease, event id and idempotency key.
+Invitation email preserves its issue-specific idempotency key and operational
+mail switch, without an app-scope grant. External MCP/OAuth clients continue to
+use scoped authority and each resource handler retains workspace access rules.

@@ -2,7 +2,7 @@
  * URLs for attachments in Oxy's file manager (`@oxy.so/nilo-contracts` `files.ts`).
  *
  * Oxy mints a short-lived URL only for a file whose owner linked it to Nilo,
- * through Nilo's service token (`files:linked:read`, Oxy ADR 0021); deciding
+ * through Nilo's workload identity (Oxy ADR 0021); deciding
  * who may have it is Nilo's job, done before anything here is called
  * (`repositories/pageFiles.ts`).
  *
