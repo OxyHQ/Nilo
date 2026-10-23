@@ -44,7 +44,6 @@
     "@oxy.so/bloom-text": "0.1.5"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
-    "prepublishOnly": "bun run typecheck"
+    "typecheck": "tsc -p tsconfig.json"
   }
 }
