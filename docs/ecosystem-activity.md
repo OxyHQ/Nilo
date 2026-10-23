@@ -4,17 +4,16 @@ The backend publishes aggregate traffic and its infrastructure heartbeat to the
 Oxy API, which broadcasts changes to the website dashboard. Collection runs in
 the service process regardless of whether somebody opens the dashboard.
 
-The publisher starts when the process can authenticate to Oxy at all. On the
-infrastructure that is its own identity: an ECS task signs an STS
-`GetCallerIdentity` request with its task role, Oxy replays it and mints the
-service token (oxy ADR 0026), so a deployed task needs no credential in its
-environment. A registered application credential (`OXY_SERVICE_API_KEY` and
-`OXY_SERVICE_API_SECRET`) is still accepted and still preferred where it is
-present. `AWS_REGION` selects the infrastructure location and ECS sets it.
+The publisher uses the shared workload transport. On deployed infrastructure,
+Oxy validates the process's attested role against its registered application and
+explicit environment. Local development can use a registered temporary IAM role
+through the AWS credential chain, including SSO. Customer API keys are not an
+internal fallback. `AWS_REGION` selects the infrastructure location.
 
-Neither an attestable workload identity nor a credential — a laptop, a CI box —
-emits a warning and starts no publisher; that must not be interpreted as zero
-traffic.
+Credential resolution is lazy and shared; bootstrap does not infer capability
+from ECS environment variables or silently disable collection on a developer
+machine. Registration failures remain visible through the collector's normal
+retry and status behavior. No heartbeat represents fabricated traffic.
 
 HTTP middleware is mounted before body parsers and routers, including public
 routes, webhooks, failures and authenticated internal calls. Outgoing fetch and

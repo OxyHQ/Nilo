@@ -41,7 +41,9 @@ describe('the checked-in public surfaces describe routes that exist', () => {
     expect(serverSocket).toContain('socket.data.userId');
     expect(serverSocket).not.toContain("socket.on('subscribe-notifications'");
     expect(clientSocket).toContain('const token = currentAccessToken();');
-    expect(rootLayout).toContain('setTokenGetter(() => oxyServices.session.accessToken');
+    expect(rootLayout).toContain('bindApiClient(oxyServices)');
+    expect(rootLayout).toContain('releaseApiClient(oxyServices)');
+    expect(clientSocket).toContain('onApiSessionContextChange');
     expect(notificationSetup).toContain('acquireSocket()');
     expect(notificationSetup).not.toContain("socket.emit('subscribe-notifications'");
   });
