@@ -51,9 +51,9 @@ Preserve approved Bloom visuals while comparing Notion's behavior and appearance
 
 ## Commands
 
-npm releases: only Actions → Release packages (`release-packages.yml`, Oxy's shared
-workflow, OIDC); a package's gates are its `prepublishOnly`. Never publish from a laptop —
-`~/Oxy/docs/npm-releases.md`.
+npm releases: merging a version bump to main publishes it (`release-packages.yml`, Oxy's
+shared workflow, OIDC, once CI passed on that commit); a package's gates are CI. Never publish
+from a laptop — `~/Oxy/docs/npm-releases.md`.
 
 ```bash
 bun install
