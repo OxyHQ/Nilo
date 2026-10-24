@@ -184,7 +184,7 @@
     },
     "packages/contracts": {
       "name": "@oxy.so/nilo-contracts",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "dependencies": {
         "zod": "^3.24.1",
       },
