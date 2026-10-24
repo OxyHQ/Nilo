@@ -149,9 +149,15 @@ function errorFor(status: number, headers: Headers, body: unknown): NiloApiError
   return new NiloApiError(code, message, status, {}, retryAfter(headers));
 }
 
+function withoutTrailingSlashes(url: string): string {
+  let end = url.length;
+  while (end > 0 && url.charCodeAt(end - 1) === 47) end--;
+  return url.slice(0, end);
+}
+
 export function createNiloClient(options: NiloClientOptions) {
   if (!options?.baseURL) throw new NiloValidationError('baseURL is required', 'baseURL');
-  const baseURL = options.baseURL.replace(/\/+$/, '');
+  const baseURL = withoutTrailingSlashes(options.baseURL);
   const timeoutMs = options.timeoutMs ?? 30_000;
   const fallback: NiloFetch | undefined = globalThis.fetch?.bind(globalThis);
   const maybeSend = options.fetch ?? fallback;
