@@ -1,10 +1,3 @@
-declare module '*.svg' {
-  import * as React from 'react';
-  import { SvgProps } from 'react-native-svg';
-  const content: React.FC<SvgProps>;
-  export default content;
-}
-
 /**
  * Web-only CSS properties we use through RN style props. RN-Web forwards
  * unknown style keys directly to the DOM, so declaring them here keeps

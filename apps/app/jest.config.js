@@ -18,9 +18,11 @@ module.exports = {
   resolver: require.resolve('react-native-reanimated/jest/resolver'),
   // Bloom's sheets and swipeable surfaces are gesture-handler views.
   setupFiles: ['react-native-gesture-handler/jestSetup', '<rootDir>/test-support/jest-setup.js'],
-  // As in Metro (metro.config.js): lib0 takes its standard Web Crypto build,
-  // which Node provides, not the React Native one that needs expo-random.
+  // `@/` as Metro resolves it, from tsconfig.json's paths. lib0, as in Metro
+  // (metro.config.js), takes its standard Web Crypto build, which Node
+  // provides, not the React Native one that needs expo-random.
   moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/$1',
     '^lib0/webcrypto$': '<rootDir>/../../node_modules/lib0/dist/webcrypto.cjs',
   },
   transformIgnorePatterns: [

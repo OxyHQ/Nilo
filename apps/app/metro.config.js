@@ -23,17 +23,7 @@ module.exports = (() => {
   // Add web-specific resolver settings to handle ESM modules
   config.resolver.sourceExts = [...config.resolver.sourceExts, 'mjs', 'cjs'];
 
-  // SVG support for react-native-svg-transformer (Expo transformer)
-  const { transformer, resolver } = config;
-  config.transformer = {
-    ...transformer,
-    babelTransformerPath: require.resolve('react-native-svg-transformer/expo'),
-  };
-  config.resolver = {
-    ...resolver,
-    assetExts: [...resolver.assetExts.filter((ext) => ext !== 'svg'), 'wasm', 'woff2', 'woff'],
-    sourceExts: [...resolver.sourceExts, 'svg'],
-  };
+  config.resolver.assetExts = [...config.resolver.assetExts, 'wasm', 'woff2', 'woff'];
 
   const resolveRequest = config.resolver.resolveRequest;
   config.resolver.resolveRequest = (context, moduleName, platform) => {
