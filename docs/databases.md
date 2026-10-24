@@ -191,6 +191,11 @@ and the properties Noted reads cannot be removed, retyped or reconfigured;
 renaming is fine, and labels stay editable. Rows deleted for good leave a
 tombstone (`page_tombstones`, 30 days) for clients that sync them.
 
+It can also have `calendar`, its own calendar, made on first use of
+`/calendar` and kept the same way (its colours stay editable). Any database
+with a calendar view on a date property is a calendar to `/calendar` too:
+`docs/calendar.md`.
+
 ## Live
 
 Rows, properties and views changing are announced to the database's room

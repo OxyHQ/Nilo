@@ -325,11 +325,13 @@ function jsonPathAnyOf(values: readonly string[]): string {
 /**
  * Databases Nilo keeps in a personal workspace for an app built on it
  * (`lib/databases/system.ts`): `notes` holds Noted's notes, one row per note,
- * and `note_folders` the folders they are filed in. A workspace has at most
- * one of each. Their own properties cannot be removed or retyped, and the
- * databases cannot be deleted, because the app reads them by those ids.
+ * and `note_folders` the folders they are filed in; `calendar` is the
+ * workspace's own calendar, one row per event (`docs/calendar.md`). A
+ * workspace has at most one of each. Their own properties cannot be removed
+ * or retyped, and the databases cannot be deleted, because the apps read them
+ * by those ids.
  */
-export const SYSTEM_DATABASE_KEYS = ['notes', 'note_folders'] as const;
+export const SYSTEM_DATABASE_KEYS = ['notes', 'note_folders', 'calendar'] as const;
 export type SystemDatabaseKey = (typeof SYSTEM_DATABASE_KEYS)[number];
 
 // ---------------------------------------------------------------------------

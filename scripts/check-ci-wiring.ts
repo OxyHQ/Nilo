@@ -28,12 +28,14 @@ const WORKFLOW = '.github/workflows/ci.yml';
  * Trees whose every `*.test.*` file a runner finds by itself, and the CI
  * command that runs that runner. The API's vitest configs own `apps/api/src`
  * (unit and pgdb), the app's jest (jest-expo's default match) owns `apps/app`,
- * and the end-to-end config (`e2e/vitest.config.ts`) owns `e2e`.
+ * the end-to-end config (`e2e/vitest.config.ts`) owns `e2e`, and the SDK's
+ * vitest owns `packages/sdk`.
  */
 const OWNED_TREES = [
   { root: 'apps/api/src/', command: 'bun run --filter @nilo/api test' },
   { root: 'apps/app/', command: 'bun run --filter @nilo/app test' },
   { root: 'e2e/', command: 'bun run test:e2e' },
+  { root: 'packages/sdk/', command: 'bun run --filter @oxy.so/nilo test' },
 ] as const;
 const GATED_SCRIPT = /^(test|check|typecheck)(:.+)?$/u;
 const EXEMPT_SCRIPT = /:(watch|coverage)$/u;
@@ -98,8 +100,8 @@ export function checkCiWiring(root: string): { errors: string[]; summary: string
   }
 
   // Vacuity floors: today's counts. Raise them when adding; never lower them to pass.
-  if (scriptCount < 12)
-    errors.push(`found only ${scriptCount} test/check/typecheck script(s); expected 12+`);
+  if (scriptCount < 14)
+    errors.push(`found only ${scriptCount} test/check/typecheck script(s); expected 14+`);
   if (outside.length < 2)
     errors.push(`found only ${outside.length} root test file(s); expected 2+`);
 

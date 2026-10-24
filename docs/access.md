@@ -21,7 +21,8 @@ Every user has exactly one personal workspace (`workspaces.is_personal`,
 unique per owner). It is provisioned whole (workspace, owner membership,
 default teamspace, in one transaction) on the first `GET /workspaces` or
 `GET /workspaces/personal`, and that same path repairs one missing its owner
-row. It takes no invitations, cannot be transferred and can never be archived: the delete route
+row. Its calendar is made on the owner's first use of `/calendar`
+(`docs/calendar.md`). It takes no invitations, cannot be transferred and can never be archived: the delete route
 refuses it and the `workspaces_personal_not_archived` CHECK backs the route.
 Its owner can **reset** it instead, which deletes everything in it for good
 and keeps the same id. Any other workspace a user needs, they create.

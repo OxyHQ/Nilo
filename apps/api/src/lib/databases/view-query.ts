@@ -103,7 +103,7 @@ const ISO_INSTANT = String.raw`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z
  * JavaScript reads one). Anything else — which JavaScript reads as NaN — is
  * NULL, and an impossible date is NULL rather than an error.
  */
-function dateMs(start: SQL): SQL {
+export function dateMs(start: SQL): SQL {
   const text = asText(start);
   const day = sql`(${text} || 'T00:00:00Z')`;
   return sql`(case

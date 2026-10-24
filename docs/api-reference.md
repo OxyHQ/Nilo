@@ -1,7 +1,7 @@
 # Nilo API reference
 
 Last verified against `apps/api/src/index.ts` and `apps/api/src/routes/*`:
-2026-10-15. The routes are the source of truth; this is the map.
+2026-10-24. The routes are the source of truth; this is the map.
 
 There is currently no public production base URL. Clients receive the intended
 origin through `EXPO_PUBLIC_API_URL`.
@@ -157,6 +157,25 @@ the catalog after each healthy rollout.
   same tools as a remote MCP server; the host is checked exactly.
 - Events for Alia (`note_changed`, `reminder`) are queued with the change in
   `app_event_outbox` and delivered at least once to Alia's `/webhooks/oxy`.
+
+## Calendar
+
+Calendars are databases with a calendar view, events their rows; the
+personal workspace's default calendar is the `calendar` system database, made
+on first use (`docs/calendar.md`). Contract:
+`packages/contracts/src/calendar.ts`; client: `@oxy.so/nilo` (`packages/sdk`).
+Oxy's conventional shapes: lists `{ items, nextCursor }`, errors
+`{ error: { code, message, details? } }`.
+
+- `GET /calendar/calendars?workspaceId`, `GET /calendar/calendars/:id`.
+- `GET /calendar/events?from&to&calendarIds&workspaceId&timeZone&limit&cursor`
+  — events and expanded occurrences overlapping the window, by start, keyset
+  paged.
+- `POST /calendar/events`, `GET/PATCH/DELETE /calendar/events/:rowId` — row
+  writes, through the same path as `PATCH /pages/:id`.
+- `GET /calendar/calendars/:id/export.ics`,
+  `POST /calendar/calendars/:id/import { ics | url, timeZone? }` (matched on
+  UID).
 
 ## Search, files, embeds, feedback
 

@@ -146,7 +146,7 @@ export interface Database {
   updatedAt: string;
 }
 
-export type SystemDatabaseKey = 'notes' | 'note_folders';
+export type SystemDatabaseKey = 'notes' | 'note_folders' | 'calendar';
 
 export type DatabaseViewType =
   | 'table'
