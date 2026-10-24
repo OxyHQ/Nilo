@@ -237,10 +237,10 @@ await nilo.calendar.deleteEvent(event.rowId);
   `NiloTimeoutError`. A body Nilo did not write maps by status.
 
 It ships its TypeScript source, like `@oxy.so/nilo-contracts`, for bundlers
-(Metro, Vite, Bun). It is `private` until its first release: publishing it
-means flipping `private` off and bumping `@oxy.so/nilo-contracts` (its
-calendar contract is not on npm yet) in one PR, after the owner sets up its
-npm trusted publisher (`~/Oxy/docs/npm-releases.md`).
+(Metro, Vite, Bun). It is `private` until its first release. Its calendar contract is on npm from
+`@oxy.so/nilo-contracts` 0.3.0, so publishing it is flipping `private` off,
+once the owner has set up its npm trusted publisher
+(`~/Oxy/docs/npm-releases.md`).
 
 Tests: `packages/sdk/src/client.test.ts` (unit), and
 `e2e/calendar-sdk.test.ts`, the SDK against the real routes on PostgreSQL.
