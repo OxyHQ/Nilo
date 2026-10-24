@@ -36,7 +36,6 @@ import { findDatabaseById } from '../repositories/databases.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { mintFileUrls } from '../lib/files.js';
-import { notifyAssigned } from '../lib/databases/assignments.js';
 import { projectNow } from '../lib/page-projection.js';
 import { blocksToPdf, type ImageLoader, imageSources } from '../lib/pdf-export.js';
 import { attachment } from '../lib/attachment.js';
@@ -48,7 +47,6 @@ import { log } from '../lib/logger.js';
 import { loadMemberProfiles } from '../lib/member-profiles.js';
 import { rateLimit } from '../lib/rate-limit.js';
 import { placeOrRefuse } from '../lib/placement.js';
-import { syncRelations } from '../lib/databases/relations.js';
 import { isSystemDatabase } from '../lib/databases/system.js';
 import type { DatabaseRecord } from '../repositories/databases.js';
 import {
@@ -66,7 +64,7 @@ import {
   upsertGrant,
 } from '../repositories/pagePermissions.js';
 import { findLiveWorkspaceById, listMembershipsForUser } from '../repositories/workspaces.js';
-import { parsePropertyValue, serializeParsedValue } from '../lib/databases/property-values.js';
+import { parseRowProperties, rowWritten, writePage } from '../lib/databases/row-writes.js';
 import { invalidReference } from '../lib/databases/property-references.js';
 import { NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
 import { announceChange } from '../collab/live-rooms.js';
@@ -621,32 +619,18 @@ router.patch('/:id', async (req: Request, res: Response) => {
         return;
       }
       rowDatabase = database;
-      const schemaById = new Map(database.propertiesSchema.properties.map((p) => [p.id, p]));
       // `mergeProperties` is a shallow top-level merge into the stored object,
       // so the keys the request does not mention keep their values — which is
-      // what `.set()` on the page's existing property Map did. A key the
-      // database does not have, or one the server computes, is refused rather
-      // than dropped: answering 200 would have the client show a value that
-      // was never stored.
-      const merge: Record<string, unknown> = {};
-      for (const [key, raw] of Object.entries(body.properties)) {
-        const prop = schemaById.get(key);
-        const parsed = prop ? parsePropertyValue(prop.type, raw) : null;
-        if (!prop || !parsed) {
-          res.status(400).json({
-            error: prop ? `"${prop.name}" is computed and cannot be set` : 'Unknown property',
-            code: prop ? 'COMPUTED_PROPERTY' : 'UNKNOWN_PROPERTY',
-            propertyId: key,
-          });
-          return;
-        }
-        merge[key] = serializeParsedValue(parsed);
-        // Keep title <-> Name in sync. This overwrites `body.title` when both
-        // are submitted, matching the order the two writes happened in before.
-        if (key === NAME_PROPERTY_ID && parsed.kind === 'text') {
-          patch.title = parsed.text;
-        }
+      // what `.set()` on the page's existing property Map did.
+      const parsed = parseRowProperties(database.propertiesSchema, body.properties);
+      if ('refusal' in parsed) {
+        res.status(400).json(parsed.refusal);
+        return;
       }
+      const merge = parsed.merge;
+      // Keep title <-> Name in sync. This overwrites `body.title` when both
+      // are submitted, matching the order the two writes happened in before.
+      if (parsed.name !== null) patch.title = parsed.name;
       const invalid = await invalidReference(db, database, merge, page.properties);
       if (invalid) {
         res.status(400).json(invalid);
@@ -672,29 +656,24 @@ router.patch('/:id', async (req: Request, res: Response) => {
       patch.parentId = null;
       patch.teamspaceId = access.home.teamspaceId;
     }
-    const updated = await db.transaction(async (tx) => {
-      const written = await updatePage(tx, page.id, patch);
-      if (written && movesTrash) await setTreeArchived(tx, page.id, written.archived);
-      if (written && rowDatabase && patch.mergeProperties && !written.template) {
-        await syncRelations(tx, rowDatabase, page.id, page.properties, written.properties);
-      }
-      return written;
-    });
+    const updated = await writePage(db, page, patch, { rowDatabase, movesTrash });
     if (!updated) {
       res.status(404).json({ error: 'Page not found' });
       return;
     }
 
-    if (rowDatabase && patch.mergeProperties) {
-      void notifyAssigned({
-        properties: rowDatabase.propertiesSchema.properties,
+    if (rowDatabase) {
+      rowWritten({
+        database: rowDatabase,
         row: updated,
         before: page.properties,
-        after: updated.properties,
         actorId: userId,
+        propertiesChanged: patch.mergeProperties !== undefined,
+        workspace: true,
       });
+    } else {
+      announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
     }
-    announceChange({ workspaceId: page.workspaceId, databaseId: page.databaseId });
     res.json({ page: serializePage(updated, await isFavorited(db, page.id, userId)) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;

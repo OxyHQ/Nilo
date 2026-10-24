@@ -67,21 +67,16 @@ import {
   type DatabaseViewRecord,
 } from '../repositories/databases.js';
 import {
-  createPage,
   deleteDatabaseRows,
   findPageById,
   findPagesByIds,
   listDatabaseRows,
-  nextDatabaseRowOrder,
   removePropertyFromDatabaseRows,
   writePropertyOfRows,
 } from '../repositories/pages.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { requireWorkspaceMember } from '../middleware/workspace.js';
 import { log } from '../lib/logger.js';
-import { checkWorkspaceAccess } from '../lib/workspace-access.js';
-import { duplicateBlocksToPage } from '../repositories/blocks.js';
-import { notifyAssigned } from '../lib/databases/assignments.js';
 import { projectNow } from '../lib/page-projection.js';
 import {
   createDatabaseWithRows,
@@ -89,7 +84,8 @@ import {
   normalizeIncomingProperties,
 } from '../lib/databases/create.js';
 import { csvToDatabase, databaseToCsv } from '../lib/databases/csv.js';
-import { createRow, numberExistingRows } from '../lib/databases/rows.js';
+import { numberExistingRows } from '../lib/databases/rows.js';
+import { insertRow, rowWritten } from '../lib/databases/row-writes.js';
 import {
   checkDatabaseAccess,
   checkPageAccess,
@@ -152,7 +148,7 @@ import {
 } from '../lib/databases/calculations.js';
 import { formulaCellValue, type FormulaValue } from '../lib/databases/formula.js';
 import { rowFormulaContext } from '../lib/databases/row-values.js';
-import { linkTwoWay, syncRelations, unlinkTwoWay } from '../lib/databases/relations.js';
+import { linkTwoWay, unlinkTwoWay } from '../lib/databases/relations.js';
 import { resolveRollups } from '../lib/databases/rollups.js';
 import {
   configAfterRegroup,
@@ -1694,26 +1690,17 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
 
     // The template's rows, brought up to its latest edits.
     if (template) await projectNow(template.id);
-    const row = await handle.transaction(async (tx) => {
-      const created = await createRow(tx, db, {
-        workspaceId: db.workspaceId,
-        parentId: null,
-        title:
-          template && typeof body.title !== 'string' && nameFromProperty === null
-            ? template.title
-            : title,
-        icon: template?.icon ?? null,
-        cover: template?.cover ?? null,
-        ownerId: userId,
-        archived: false,
-        order: await nextDatabaseRowOrder(tx, db.id),
-        properties: { ...(template?.properties ?? {}), ...stored },
-        template: body.template === true,
-      });
-      if (template) await duplicateBlocksToPage(tx, template.id, created.id);
-      // Its two-way relations show it on their other side (not a template's).
-      if (!created.template) await syncRelations(tx, db, created.id, {}, created.properties);
-      return created;
+    const row = await insertRow(handle, db, {
+      ownerId: userId,
+      title:
+        template && typeof body.title !== 'string' && nameFromProperty === null
+          ? template.title
+          : title,
+      icon: template?.icon ?? null,
+      cover: template?.cover ?? null,
+      properties: { ...(template?.properties ?? {}), ...stored },
+      template: body.template === true,
+      blocksFrom: template?.id ?? null,
     });
 
     const derived = await resolveDerivedProperties(
@@ -1723,14 +1710,7 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
       req.user?.id ?? null,
     );
 
-    void notifyAssigned({
-      properties: db.propertiesSchema.properties,
-      row,
-      before: {},
-      after: row.properties,
-      actorId: userId,
-    });
-    announceChange({ databaseId: db.id });
+    rowWritten({ database: db, row, before: {}, actorId: userId, propertiesChanged: true });
     res.status(201).json({ row: serializeRow(row, { derived }) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;
