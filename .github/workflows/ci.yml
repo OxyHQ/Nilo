@@ -104,6 +104,8 @@ jobs:
         run: bun run --filter @nilo/app typecheck
       - name: Typecheck the published contracts
         run: bun run --filter @oxy.so/nilo-contracts typecheck
+      - name: Typecheck the Nilo SDK
+        run: bun run --filter @oxy.so/nilo typecheck
 
       # Every Oxy app shares one Postgres: a new migration may not hold a lock
       # that stalls a hot table (NOT VALID foreign keys validated later, hot-table
@@ -171,6 +173,11 @@ jobs:
 
       - name: Run app tests
         run: bun run --filter @nilo/app test
+
+      # `@oxy.so/nilo`, the client other Oxy apps call Nilo with. Its unit
+      # tests run here; e2e/calendar-sdk.test.ts runs it against the real API.
+      - name: Run SDK tests
+        run: bun run --filter @oxy.so/nilo test
 
       - name: Run end-to-end editing tests against PostgreSQL
         env:

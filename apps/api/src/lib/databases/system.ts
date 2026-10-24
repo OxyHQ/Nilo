@@ -2,7 +2,8 @@
  * System databases: databases Nilo keeps in a personal workspace for an app
  * built on it (`databases.system_key`). Noted's notes are the rows of `notes`,
  * filed in the rows of `note_folders`, and `routes/notes.ts` reads and writes
- * them by the fixed property ids below.
+ * them by the fixed property ids below. `calendar` is the workspace's own
+ * calendar (`routes/calendar.ts`, `docs/calendar.md`), made on first use.
  *
  * They are ordinary databases to everyone else: the owner opens, filters and
  * views them in Nilo like any other, and may add properties and views of
@@ -23,6 +24,7 @@ import {
 import { pages, transactionTime } from '../../db/schema/pages.js';
 import {
   type DatabaseRecord,
+  demoteOtherDefaultViews,
   findDatabaseById,
   insertDatabaseView,
 } from '../../repositories/databases.js';
@@ -68,6 +70,56 @@ export const FOLDER_PROPERTY = {
   parent: 'folder_parent',
   subfolders: 'folder_subfolders',
 } as const;
+
+/**
+ * The property ids of `calendar`, the personal workspace's own calendar
+ * (`docs/calendar.md`): an event is a row, its time the When date property.
+ */
+export const CALENDAR_PROPERTY = {
+  name: NAME_PROPERTY_ID,
+  when: 'event_when',
+  location: 'event_location',
+  url: 'event_url',
+  description: 'event_description',
+  attendees: 'event_attendees',
+  color: 'event_color',
+  recurrence: 'event_repeat',
+  uid: 'event_uid',
+} as const;
+
+/** The colours a new calendar's events can take, in Nilo's palette. */
+const CALENDAR_COLOR_OPTIONS: { id: string; name: string; color: SelectColor }[] = [
+  { id: 'blue', name: 'Blue', color: 'blue' },
+  { id: 'green', name: 'Green', color: 'green' },
+  { id: 'yellow', name: 'Yellow', color: 'yellow' },
+  { id: 'orange', name: 'Orange', color: 'orange' },
+  { id: 'red', name: 'Red', color: 'red' },
+  { id: 'pink', name: 'Pink', color: 'pink' },
+  { id: 'purple', name: 'Purple', color: 'purple' },
+  { id: 'brown', name: 'Brown', color: 'brown' },
+  { id: 'gray', name: 'Gray', color: 'gray' },
+];
+
+function calendarSchema(): DatabaseSchema {
+  return {
+    properties: [
+      { id: CALENDAR_PROPERTY.name, name: 'Name', type: 'text' },
+      { id: CALENDAR_PROPERTY.when, name: 'When', type: 'date', config: { includeTime: true } },
+      { id: CALENDAR_PROPERTY.location, name: 'Location', type: 'text' },
+      { id: CALENDAR_PROPERTY.url, name: 'Meeting link', type: 'url' },
+      { id: CALENDAR_PROPERTY.description, name: 'Description', type: 'text' },
+      { id: CALENDAR_PROPERTY.attendees, name: 'Attendees', type: 'person' },
+      {
+        id: CALENDAR_PROPERTY.color,
+        name: 'Color',
+        type: 'select',
+        config: { options: CALENDAR_COLOR_OPTIONS.map((o) => ({ ...o })) },
+      },
+      { id: CALENDAR_PROPERTY.recurrence, name: 'Repeat', type: 'text' },
+      { id: CALENDAR_PROPERTY.uid, name: 'iCal UID', type: 'text' },
+    ],
+  };
+}
 
 function folderSchema(foldersId: string): DatabaseSchema {
   return {
@@ -159,6 +211,17 @@ const SYSTEM_PROPERTIES: Record<SystemDatabaseKey, Record<string, { optionsEdita
     [FOLDER_PROPERTY.name]: { optionsEditable: false },
     [FOLDER_PROPERTY.parent]: { optionsEditable: false },
     [FOLDER_PROPERTY.subfolders]: { optionsEditable: false },
+  },
+  calendar: {
+    [CALENDAR_PROPERTY.name]: { optionsEditable: false },
+    [CALENDAR_PROPERTY.when]: { optionsEditable: false },
+    [CALENDAR_PROPERTY.location]: { optionsEditable: false },
+    [CALENDAR_PROPERTY.url]: { optionsEditable: false },
+    [CALENDAR_PROPERTY.description]: { optionsEditable: false },
+    [CALENDAR_PROPERTY.attendees]: { optionsEditable: false },
+    [CALENDAR_PROPERTY.color]: { optionsEditable: true },
+    [CALENDAR_PROPERTY.recurrence]: { optionsEditable: false },
+    [CALENDAR_PROPERTY.uid]: { optionsEditable: false },
   },
 };
 
@@ -304,6 +367,41 @@ export async function ensureNoteDatabases(
     views: addNotesGalleryView,
   }));
   return { notes, folders };
+}
+
+/**
+ * The personal workspace's own calendar, made on first use. Private to the
+ * owner, like the notes; it opens on its Calendar view, with the table of
+ * every event beside it.
+ */
+export async function ensureCalendarDatabase(
+  db: PgHandle,
+  workspace: { id: string; ownerId: string },
+): Promise<DatabaseRecord> {
+  return ensureSystemDatabase(db, workspace, 'calendar', () => ({
+    name: 'Calendar',
+    icon: '📅',
+    schema: calendarSchema(),
+    views: addCalendarView,
+  }));
+}
+
+async function addCalendarView(db: PgHandle, calendarId: string): Promise<void> {
+  const view = await insertDatabaseView(db, {
+    databaseId: calendarId,
+    name: 'Calendar',
+    type: 'calendar',
+    isDefault: true,
+    filters: { kind: 'group', combinator: 'and', filters: [] },
+    sorts: [],
+    groupBy: null,
+    hiddenProperties: [CALENDAR_PROPERTY.uid, CALENDAR_PROPERTY.recurrence],
+    frozenProperties: [],
+    pageSize: 50,
+    config: { datePropertyId: CALENDAR_PROPERTY.when },
+    order: -1,
+  });
+  await demoteOtherDefaultViews(db, calendarId, view.id);
 }
 
 /** A gallery of the notes not archived, pinned first: how Noted shows them. */

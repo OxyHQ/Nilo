@@ -28,6 +28,7 @@ import pageActivityRouter from './routes/page-activity.js';
 import navigationRouter from './routes/navigation.js';
 import remindersRouter from './routes/reminders.js';
 import notesRouter from './routes/notes.js';
+import calendarRouter from './routes/calendar.js';
 import capabilitiesRouter from './routes/capabilities.js';
 import { createNotesMcpService } from './capabilities/notes-mcp.js';
 import { startEventOutboxWorker, stopEventOutboxWorker } from './capabilities/event-outbox.js';
@@ -188,6 +189,7 @@ app.use(teamspacesRouter);
 app.use(syncedBlocksRouter);
 app.use('/workspaces', workspacesRouter);
 app.use('/notes', notesRouter);
+app.use('/calendar', calendarRouter);
 app.use(formsRouter);
 app.use(pageFollowsRouter);
 app.use(shareLinksRouter);
@@ -223,6 +225,7 @@ app.get('/', (_req, res) => {
       '/pages',
       '/blocks',
       '/databases',
+      '/calendar',
       '/comments',
       '/embed',
       '/share-links',

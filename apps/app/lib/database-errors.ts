@@ -6,6 +6,7 @@ import type { Database, SystemDatabaseKey } from '@/lib/types/databases';
 const SYSTEM_APPS: Record<SystemDatabaseKey, string> = {
   notes: 'Noted',
   note_folders: 'Noted',
+  calendar: 'Calendar',
 };
 
 /**

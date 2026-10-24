@@ -379,6 +379,20 @@
       "when": 1792546840961,
       "tag": "0053_page_activity",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1792833605644,
+      "tag": "0054_calendar_system_database",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1792833610854,
+      "tag": "0055_calendar_system_database_validate",
+      "breakpoints": true
     }
   ]
 }
