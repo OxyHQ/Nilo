@@ -13,11 +13,12 @@ import {
 } from '@oxy.so/contracts';
 import { CapabilityTicketError, verifyCapabilityTicket } from '@oxy.so/core/server';
 import { z } from 'zod';
+import { postOxyServiceJson } from '@oxy.so/mcp';
 
 import { NOTES_CAPABILITY_CATALOG } from './notes.catalog.js';
-import { OXY_API_URL, oxyServiceToken } from './oxy-service.js';
+import { OXY_API_URL, oxyServiceTransport } from './oxy-service.js';
 
-type AuditResult = z.infer<typeof auditResultSchema>;
+type AuditResult = ReturnType<typeof auditResultSchema.parse>;
 
 const JWKS_TTL_MS = 5 * 60 * 1_000;
 
@@ -44,6 +45,8 @@ async function loadPublicKeys(force = false): Promise<void> {
   if (!force && cachedKeys.size > 0 && Date.now() < keysExpireAt) return;
   const response = await fetch(`${OXY_API_URL}/capabilities/.well-known/jwks.json`, {
     signal: AbortSignal.timeout(5_000),
+    redirect: 'error',
+    credentials: 'omit',
   });
   if (!response.ok) throw new Error(`Oxy capability JWKS returned ${response.status}`);
   const body = jwksSchema.parse(await response.json());
@@ -73,17 +76,10 @@ export async function verifyNotesCapabilityTicket(token: string): Promise<Capabi
 }
 
 async function authorityRequest(path: string, body: Record<string, unknown>): Promise<unknown> {
-  const token = await oxyServiceToken();
-  const response = await fetch(`${OXY_API_URL}${path}`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(10_000),
+  return postOxyServiceJson(body, {
+    endpoint: `${OXY_API_URL}${path}`,
+    transport: oxyServiceTransport(),
   });
-  if (!response.ok) {
-    throw new Error(`Oxy capability authority returned ${response.status}`);
-  }
-  return response.json();
 }
 
 /** Recalculates mutable user, account, grant, credential and app authority. */

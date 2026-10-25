@@ -14,10 +14,12 @@ const publisher = {
   stop: vi.fn(async () => {}),
 };
 const create = vi.fn((_options: unknown) => publisher);
-const canAttest = vi.fn(() => false);
-vi.mock('@oxy.so/core/server', () => ({
-  createEcosystemTraffic: create,
-  canAttestWorkloadIdentity: canAttest,
+const credentialProvider = vi.fn(async () => {
+  throw new Error('Not resolved during bootstrap');
+});
+vi.mock('@oxy.so/core/server', () => ({ createEcosystemTraffic: create }));
+vi.mock('@oxy.so/core/server/aws', () => ({
+  createAwsWorkloadCredentialProvider: () => credentialProvider,
 }));
 
 let ecosystemActivityMiddleware: typeof import('../ecosystemActivity').ecosystemActivityMiddleware;
@@ -34,73 +36,37 @@ beforeAll(async () => {
   } = await import('../ecosystemActivity'));
 });
 
-/** `vi.stubEnv` semantics by hand: `undefined` deletes the variable. */
-const STUBBED_ENV = ['OXY_SERVICE_API_KEY', 'OXY_SERVICE_API_SECRET'] as const;
-type StubbedEnv = (typeof STUBBED_ENV)[number];
-const originalEnv = new Map(STUBBED_ENV.map((name) => [name, process.env[name]]));
-function stubEnv(name: StubbedEnv, value: string | undefined): void {
-  if (value === undefined) delete process.env[name];
-  else process.env[name] = value;
-}
-function unstubAllEnvs(): void {
-  for (const [name, value] of originalEnv) stubEnv(name, value);
-}
-
+const originalRegion = process.env.AWS_REGION;
+const originalDefaultRegion = process.env.AWS_DEFAULT_REGION;
 describe('ecosystem activity lifecycle', () => {
   beforeEach(() => {
-    stubEnv('OXY_SERVICE_API_KEY', 'test-key');
-    stubEnv('OXY_SERVICE_API_SECRET', 'test-secret');
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.clearAllMocks();
-    // A laptop cannot attest; the ECS case is asserted on its own below.
-    canAttest.mockReturnValue(false);
+    process.env.AWS_REGION = 'us-west-2';
+    delete process.env.AWS_DEFAULT_REGION;
   });
   afterEach(async () => {
     await stopEcosystemActivity();
-    unstubAllEnvs();
     vi.restoreAllMocks();
+    if (originalRegion === undefined) delete process.env.AWS_REGION;
+    else process.env.AWS_REGION = originalRegion;
+    if (originalDefaultRegion === undefined) delete process.env.AWS_DEFAULT_REGION;
+    else process.env.AWS_DEFAULT_REGION = originalDefaultRegion;
   });
 
-  it('does not start or publish when the credential key is missing and nothing can be attested', () => {
-    stubEnv('OXY_SERVICE_API_KEY', undefined);
+  it('starts with a lazy workload provider without requiring client keys or an ECS-only hint', () => {
     startEcosystemActivity(() => true);
-    expect(create).not.toHaveBeenCalled();
-    expect(console.warn).toHaveBeenCalled();
-    const next = vi.fn();
-    ecosystemActivityMiddleware({} as never, {} as never, next);
-    observeEcosystemSocket({} as never);
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(publisher.observeSocket).not.toHaveBeenCalled();
-  });
-
-  it('does not start or publish when the credential secret is missing and nothing can be attested', () => {
-    stubEnv('OXY_SERVICE_API_SECRET', undefined);
-    startEcosystemActivity(() => true);
-    expect(create).not.toHaveBeenCalled();
-    expect(console.warn).toHaveBeenCalled();
-  });
-
-  it('does not start when a credential is present but blank', () => {
-    stubEnv('OXY_SERVICE_API_KEY', '   ');
-    startEcosystemActivity(() => true);
-    expect(create).not.toHaveBeenCalled();
-    expect(console.warn).toHaveBeenCalled();
-  });
-
-  /**
-   * The case the migration off the key pair turns into the NORMAL one: a task
-   * with no credential in its environment, which can still prove what it is.
-   * Gating on the pair here would have left nilo silently absent from the
-   * dashboard the moment the secret was dropped from its task definition.
-   */
-  it('starts on an attestable workload with no key pair at all', () => {
-    stubEnv('OXY_SERVICE_API_KEY', undefined);
-    stubEnv('OXY_SERVICE_API_SECRET', undefined);
-    canAttest.mockReturnValue(true);
-    startEcosystemActivity(() => true);
-    expect(create).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ service: 'nilo', workloadCredentials: credentialProvider }),
+    );
+    expect(credentialProvider).not.toHaveBeenCalled();
     expect(publisher.installFetch).toHaveBeenCalledTimes(1);
-    expect(console.warn).not.toHaveBeenCalled();
+  });
+
+  it('leaves local telemetry off without an infrastructure region', () => {
+    delete process.env.AWS_REGION;
+    startEcosystemActivity(() => true);
+    expect(create).not.toHaveBeenCalled();
+    expect(publisher.installFetch).not.toHaveBeenCalled();
   });
 
   it('fails boot when the shared collector rejects its configuration', () => {

@@ -8,9 +8,10 @@
  * `EVENT_OUTBOX_MAX_ATTEMPTS` it is set aside (`failedAt`) with its last
  * error. Alia dedupes on the event id (`idempotency-key`).
  *
- * The worker runs where Nilo has an Oxy identity (the deployed task role),
- * unless `APP_EVENT_OUTBOX_WORKER_ENABLED=false`; elsewhere events stay queued.
+ * The worker resolves temporary workload credentials when delivering. Unless
+ * `APP_EVENT_OUTBOX_WORKER_ENABLED=false`, failures remain queued for the next lease.
  */
+import { createAliaTransportForOxyService } from '@alia.onl/server';
 import { randomBytes } from 'node:crypto';
 import { hostname } from 'node:os';
 import { type NormalizedAppEvent, normalizedAppEventSchema } from '@oxy.so/contracts';
@@ -32,29 +33,20 @@ function aliaApiUrl(): string {
   return (process.env.ALIA_API_URL ?? 'https://api.alia.onl').replace(/\/$/, '');
 }
 
-async function postEvent(event: NormalizedAppEvent, token: string): Promise<Response> {
-  return fetch(`${aliaApiUrl()}/webhooks/oxy`, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${token}`,
-      'content-type': 'application/json',
-      'idempotency-key': event.eventId,
-    },
-    body: JSON.stringify(event),
-    signal: AbortSignal.timeout(10_000),
-  });
-}
-
-/** Post one event to Alia as Nilo; a stale token is renewed once. */
+/** Shared product transport owns mint and refresh; the outbox retains its idempotent delivery. */
 export async function deliverToAlia(event: NormalizedAppEvent): Promise<void> {
-  const client = oxyServiceClient();
-  if (!client) throw new Error('Nilo has no Oxy identity to deliver events with');
-  let response = await postEvent(event, await client.serviceToken());
-  if (response.status === 401) {
-    client.invalidateServiceToken();
-    response = await postEvent(event, await client.serviceToken());
+  const transport = createAliaTransportForOxyService(oxyServiceClient(), { baseURL: aliaApiUrl() });
+  try {
+    const response = await transport.fetch(`${aliaApiUrl()}/webhooks/oxy`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'idempotency-key': event.eventId },
+      body: JSON.stringify(event),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) throw new Error(`Alia refused the event (${response.status})`);
+  } finally {
+    transport.dispose();
   }
-  if (!response.ok) throw new Error(`Alia refused the event (${response.status})`);
 }
 
 function describeError(error: unknown): string {
@@ -179,10 +171,6 @@ async function tick(): Promise<void> {
 /** Start delivering in this process; idempotent. False where it does not run. */
 export function startEventOutboxWorker(): boolean {
   if (process.env.APP_EVENT_OUTBOX_WORKER_ENABLED?.trim().toLowerCase() === 'false') return false;
-  if (!oxyServiceClient()) {
-    log.general.info('No Oxy identity: app events stay queued');
-    return false;
-  }
   if (timer) return true;
   timer = setInterval(() => void tick(), POLL_INTERVAL_MS);
   timer.unref?.();

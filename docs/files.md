@@ -111,7 +111,7 @@ sweep), a page deleted for good (empty trash, `?hard=true`, `POST
 /notes/erase`, a reset), a file taken out of a page's properties — a trigger
 queues the removal in `file_reference_removals` in the same statement, whatever
 path did it. Every API task drains the queue every 30 s with Nilo's service
-token (`assets.references.remove`, scope `files:references:write`); a removal
+identity (`assets.references.remove`); a removal
 Oxy could not be told of waits 1 minute, doubling to 6 hours, and is never
 dropped. Removing a reference never deletes or trashes the file: it is the
 owner's, and Oxy only marks it "not in use".

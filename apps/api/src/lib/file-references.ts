@@ -9,7 +9,7 @@
  * - **Removal.** Deleting a `page_files` row queues its reference in
  *   `file_reference_removals` (a trigger, in the same statement). A drain on
  *   every API task sends the queue with Nilo's service token
- *   (`assets.references.remove`, scope `files:references:write`), backing off
+ *   (`assets.references.remove`, with its workload identity), backing off
  *   while Oxy cannot be told and never dropping a removal.
  * - **Once a day** (one task, by lease): the attachments nothing holds any
  *   more are let go (`releaseOrphanedPageFiles`); attachments marked removed

@@ -6,7 +6,7 @@
  * Kaana already have, and say so in the error.
  */
 import { createInferenceClient, OxyInferenceError } from '@oxy.so/core/inference';
-import { useOxy } from '@oxy.so/services/ui/client';
+import { useOxy, useSupervision } from '@oxy.so/services/ui/client';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import {
@@ -58,36 +58,26 @@ function useInferenceClient() {
   return useMemo(() => createInferenceClient(oxyServices), [oxyServices]);
 }
 
-/** The scope the edge requires: it spends the balance of the account that owns Nilo's application. */
-export const AI_SCOPE = 'inference:invoke';
-
-/**
- * Whether this member may run Nilo's actions: Nilo's application holds
- * `inference:invoke` in Oxy's registry (public metadata), and the edge lists
- * the power level for this member. The catalogue alone is not enough — it is
- * filtered by the kind of application, not by its scopes — so without the
- * scope no action is offered, rather than one that would only be refused.
- */
+/** Availability is the current account's route catalogue, refreshed with supervision state. */
 export function useAiAvailable(): boolean {
-  const { isAuthenticated, oxyServices } = useOxy();
+  const { canUsePrivateApi, user, activeSessionId, oxyServices } = useOxy();
+  const supervision = useSupervision();
   const client = useInferenceClient();
-  const clientId = process.env.EXPO_PUBLIC_OXY_CLIENT_ID;
-  const application = useQuery({
-    queryKey: ['ai', 'application', clientId],
-    queryFn: () => oxyServices.apps.getPublic(clientId as string),
-    enabled: isAuthenticated && Boolean(clientId),
-    staleTime: 10 * 60_000,
-    retry: false,
-  });
-  const granted = application.data?.scopes.includes(AI_SCOPE) ?? false;
   const levels = useQuery({
-    queryKey: ['ai', 'power-levels'],
+    queryKey: [
+      'ai',
+      'power-levels',
+      user?.id,
+      activeSessionId,
+      oxyServices.http.getSessionEpoch(),
+      supervision.dataUpdatedAt,
+    ],
     queryFn: ({ signal }) => client.listRoutingProfiles({ signal }),
-    enabled: isAuthenticated && granted,
+    enabled: canUsePrivateApi && Boolean(user?.id && activeSessionId),
     staleTime: 10 * 60_000,
     retry: false,
   });
-  return granted && (levels.data?.some((level) => level.slug === AI_POWER_LEVEL) ?? false);
+  return canUsePrivateApi && (levels.data?.some((level) => level.slug === AI_POWER_LEVEL) ?? false);
 }
 
 export interface AiRequest {

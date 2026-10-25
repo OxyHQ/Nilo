@@ -15,7 +15,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppErrorBoundary } from '@/components/error-boundary';
 import { registerAppWorker } from '@/lib/app-worker';
 import { useColorScheme } from '@/lib/useColorScheme';
-import { setTokenGetter } from '@/lib/api/client';
+import { bindApiClient, releaseApiClient } from '@/lib/api/client';
 import { enterAccount, sessionEnded } from '@/lib/account-boundary';
 import { ACCOUNT_QUERIES, configureShellQueries } from '@/lib/offline-cache';
 import { BLOOM_THEME_PERSIST_KEY, BLOOM_THEME_STORAGE } from '@/lib/themePersistence';
@@ -68,8 +68,13 @@ function AuthSetup({ children }: { children: React.ReactNode }) {
   const registeredServicesRef = useRef<typeof oxyServices | null>(null);
   if (registeredServicesRef.current !== oxyServices) {
     registeredServicesRef.current = oxyServices;
-    setTokenGetter(() => oxyServices.session.accessToken || null);
+    bindApiClient(oxyServices);
   }
+  useEffect(() => {
+    // Also rebind after StrictMode's effect cleanup/setup cycle.
+    bindApiClient(oxyServices);
+    return () => releaseApiClient(oxyServices);
+  }, [oxyServices]);
 
   // Bloom surfaces that take a bare Oxy file id (avatars) resolve it here.
   const resolveImageSource = useMemo(
