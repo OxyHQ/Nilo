@@ -7,8 +7,12 @@ let activity: ReturnType<typeof createEcosystemTraffic> | undefined;
 /** Start at process bootstrap; the shared transport resolves workload credentials lazily. */
 export function startEcosystemActivity(ready: () => boolean): void {
   if (activity) return;
+  // Optional telemetry cannot report a location on an unconfigured local host.
+  const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION;
+  if (!region) return;
   activity = createEcosystemTraffic({
     service: 'nilo',
+    region,
     baseURL: process.env.OXY_API_URL ?? 'https://api.oxy.so',
     workloadCredentials: createAwsWorkloadCredentialProvider(),
     ready,

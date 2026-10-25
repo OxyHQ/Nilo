@@ -1,5 +1,5 @@
 import { io, type Socket } from 'socket.io-client';
-import { currentAccessToken, onApiSessionContextChange } from '../api/client';
+import { hasApiSession, onApiSessionContextChange, socketAccessToken } from '../api/client';
 import config from '../config';
 
 /**
@@ -13,10 +13,18 @@ let unsubscribeContext: (() => void) | undefined;
 
 export function acquireSocket(): Socket {
   if (!socket) {
+    let handshake = new AbortController();
     socket = io(config.apiUrl, {
       auth: (callback) => {
-        const token = currentAccessToken();
-        callback(token ? { token } : {});
+        const signal = handshake.signal;
+        void socketAccessToken(signal).then(
+          (token) => {
+            if (!signal.aborted) callback({ token });
+          },
+          () => {
+            if (!signal.aborted) callback({});
+          },
+        );
       },
       transports: ['websocket'],
       reconnection: true,
@@ -24,10 +32,16 @@ export function acquireSocket(): Socket {
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
     });
-    unsubscribeContext = onApiSessionContextChange(() => {
+    const unsubscribe = onApiSessionContextChange(() => {
+      handshake.abort();
+      handshake = new AbortController();
       socket?.disconnect();
-      if (currentAccessToken()) socket?.connect();
+      if (hasApiSession()) socket?.connect();
     });
+    unsubscribeContext = () => {
+      handshake.abort();
+      unsubscribe();
+    };
   }
   holders += 1;
   return socket;

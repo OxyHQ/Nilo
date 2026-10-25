@@ -8,11 +8,11 @@ The publisher uses the shared workload transport. On deployed infrastructure,
 Oxy validates the process's attested role against its registered application and
 explicit environment. Local development can use a registered temporary IAM role
 through the AWS credential chain, including SSO. Customer API keys are not an
-internal fallback. `AWS_REGION` selects the infrastructure location.
+internal fallback. `AWS_REGION` (or `AWS_DEFAULT_REGION`) selects the infrastructure location.
+Without a region, optional collection stays off; no location is fabricated.
 
 Credential resolution is lazy and shared; bootstrap does not infer capability
-from ECS environment variables or silently disable collection on a developer
-machine. Registration failures remain visible through the collector's normal
+from ECS environment variables or disable collection merely because the host is a developer machine. Registration failures remain visible through the collector's normal
 retry and status behavior. No heartbeat represents fabricated traffic.
 
 HTTP middleware is mounted before body parsers and routers, including public

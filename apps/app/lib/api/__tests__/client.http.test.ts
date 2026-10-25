@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 it('uses real Axios and core HTTP for anonymous, authenticated and switching sessions', () => {
   // Expo's preset replaces network APIs; the child runs the production modules and real HTTP.
-  const result = spawnSync('bun', [resolve(__dirname, 'fixtures/client-probe.ts')], {
+  const result = spawnSync('bun', [resolve(__dirname, '../fixtures/client-probe.ts')], {
     encoding: 'utf8',
     timeout: 15_000,
     env: process.env,

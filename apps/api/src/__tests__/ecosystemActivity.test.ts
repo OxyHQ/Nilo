@@ -36,13 +36,21 @@ beforeAll(async () => {
   } = await import('../ecosystemActivity'));
 });
 
+const originalRegion = process.env.AWS_REGION;
+const originalDefaultRegion = process.env.AWS_DEFAULT_REGION;
 describe('ecosystem activity lifecycle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.AWS_REGION = 'us-west-2';
+    delete process.env.AWS_DEFAULT_REGION;
   });
   afterEach(async () => {
     await stopEcosystemActivity();
     vi.restoreAllMocks();
+    if (originalRegion === undefined) delete process.env.AWS_REGION;
+    else process.env.AWS_REGION = originalRegion;
+    if (originalDefaultRegion === undefined) delete process.env.AWS_DEFAULT_REGION;
+    else process.env.AWS_DEFAULT_REGION = originalDefaultRegion;
   });
 
   it('starts with a lazy workload provider without requiring client keys or an ECS-only hint', () => {
@@ -52,6 +60,13 @@ describe('ecosystem activity lifecycle', () => {
     );
     expect(credentialProvider).not.toHaveBeenCalled();
     expect(publisher.installFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves local telemetry off without an infrastructure region', () => {
+    delete process.env.AWS_REGION;
+    startEcosystemActivity(() => true);
+    expect(create).not.toHaveBeenCalled();
+    expect(publisher.installFetch).not.toHaveBeenCalled();
   });
 
   it('fails boot when the shared collector rejects its configuration', () => {

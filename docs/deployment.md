@@ -127,6 +127,21 @@ scopes are not prerequisites. A failed registration fails the deploy. The event 
 API task that has that identity; `APP_EVENT_OUTBOX_WORKER_ENABLED=false`
 stops it, and events then wait in `app_event_outbox`.
 
+## Shared transport rollout
+
+Nilo uses published Oxy core 7.1 / contracts 6 / services 13 and MCP 1.4. Human
+HTTP requests keep the existing session bearer and domain response bodies.
+Socket handshakes resolve fresh credentials through the linked client; an account
+change cancels pending handshakes before reconnecting under the new session.
+Noted's existing Nilo session and workspace-room wire contract is unchanged.
+
+The event outbox uses `@alia.onl/server` 1.2's product transport and the canonical
+Alia service audience. Deploy Alia's compatible reader before this producer;
+publishing its SDK alone does not prove the reader is live. Invitation delivery
+uses the platform transport and preserves its saved invitation, original
+idempotency key, mail switch and recipient limits. Temporary AWS credentials
+have an explicit provider dependency, with no customer-key fallback.
+
 ## Before a new API release
 
 1. Provision or identify the intended PostgreSQL database and secret binding.

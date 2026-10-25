@@ -18,7 +18,7 @@ import { postOxyServiceJson } from '@oxy.so/mcp';
 import { NOTES_CAPABILITY_CATALOG } from './notes.catalog.js';
 import { OXY_API_URL, oxyServiceTransport } from './oxy-service.js';
 
-type AuditResult = z.infer<typeof auditResultSchema>;
+type AuditResult = ReturnType<typeof auditResultSchema.parse>;
 
 const JWKS_TTL_MS = 5 * 60 * 1_000;
 

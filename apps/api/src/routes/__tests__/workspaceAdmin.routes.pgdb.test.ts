@@ -68,9 +68,8 @@ vi.mock('../../socket.js', () => ({ getIO: () => null }));
 // fetch interception below.
 vi.mock('../../capabilities/oxy-service.js', () => ({
   OXY_API_URL: 'https://oxy.test',
-  oxyServiceClient: () => ({
-    serviceToken: async () => 'service-token',
-    invalidateServiceToken: () => {},
+  oxyServiceTransport: () => ({
+    fetch: (url: string, init?: RequestInit) => globalThis.fetch(url, init),
   }),
 }));
 vi.mock('../../lib/logger.js', () => ({

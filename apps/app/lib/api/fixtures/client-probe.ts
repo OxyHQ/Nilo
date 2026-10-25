@@ -6,8 +6,8 @@ import { OxyServices } from '@oxy.so/core';
 
 let release: (() => void) | undefined;
 let arrived: (() => void) | undefined;
-const token = (userId: string) =>
-  `e30.${Buffer.from(JSON.stringify({ userId, sessionId: userId, exp: 2_000_000_000 })).toString('base64url')}.fixture`;
+const token = (userId: string, exp = 2_000_000_000) =>
+  `e30.${Buffer.from(JSON.stringify({ userId, sessionId: userId, exp })).toString('base64url')}.fixture`;
 const server = createServer(async (req, res) => {
   if (req.url === '/held') {
     const ready = new Promise<void>((resolve) => {
@@ -29,7 +29,7 @@ const server = createServer(async (req, res) => {
 await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 process.env.EXPO_PUBLIC_API_URL = origin;
-const api = await import('../../client');
+const api = await import('../client');
 const oxy = new OxyServices({ baseURL: origin });
 api.bindApiClient(oxy);
 try {
@@ -41,7 +41,10 @@ try {
     api.default.get('/private'),
     (error: unknown) => isAxiosError(error) && error.response?.status === 401,
   );
-  oxy.session.setAccessToken(token('A'));
+  oxy.session.setAccessToken(token('A', 1));
+  oxy.http.setAuthRefreshHandler(async () => token('A'));
+  assert.equal(await api.socketAccessToken(new AbortController().signal), token('A'));
+  assert.equal(api.hasApiSession(), true);
   assert.equal((await api.default.get('/private')).data.bearer, `Bearer ${token('A')}`);
   const ready = new Promise<void>((resolve) => {
     arrived = resolve;
@@ -58,7 +61,8 @@ try {
   });
   oxy.session.clear();
   assert.equal(changes, 1);
-  assert.equal(api.currentAccessToken(), null);
+  assert.equal(api.hasApiSession(), false);
+  await assert.rejects(api.socketAccessToken(new AbortController().signal), /active Oxy session/);
   unsubscribe();
   api.releaseApiClient(oxy);
   await assert.rejects(api.default.get('/public'), /provider has not bound/);
