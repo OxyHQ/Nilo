@@ -73,6 +73,8 @@ export interface DatabaseRecord {
   locked: boolean;
   /** The app that keeps this database (`lib/databases/system.ts`); null for every other one. */
   systemKey: SystemDatabaseKey | null;
+  /** Kept in step with an outside source (a calendar subscription): read-only to everyone. */
+  readOnly: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -115,6 +117,7 @@ function toDatabaseRecord(row: DatabaseRow): DatabaseRecord {
     teamspaceId: row.teamspaceId,
     archived: row.archived,
     locked: row.locked,
+    readOnly: row.readOnly,
     systemKey: row.systemKey,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -194,6 +197,7 @@ export async function findDatabaseWorkspaceId(
   parentPageId: string | null;
   teamspaceId: string | null;
   ownerId: string;
+  readOnly: boolean;
 } | null> {
   const [row] = await handle
     .select({
@@ -202,6 +206,7 @@ export async function findDatabaseWorkspaceId(
       parentPageId: databases.parentPageId,
       teamspaceId: databases.teamspaceId,
       ownerId: databases.ownerId,
+      readOnly: databases.readOnly,
     })
     .from(databases)
     .where(eq(databases.id, id))
@@ -221,6 +226,8 @@ export interface InsertDatabaseInput {
   /** For a database in no page: its teamspace, or null — private to its owner. */
   teamspaceId: string | null;
   archived: boolean;
+  /** Kept by a sync (a calendar subscription); false when absent. */
+  readOnly?: boolean;
 }
 
 /** `Database.create({...})` — `routes/databases.ts:679-691`. */
@@ -241,6 +248,7 @@ export async function insertDatabase(
       parentPageId: input.parentPageId,
       teamspaceId: input.parentPageId ? null : input.teamspaceId,
       archived: input.archived,
+      readOnly: input.readOnly ?? false,
     })
     .returning();
   return toDatabaseRecord(row);

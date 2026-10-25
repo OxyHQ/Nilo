@@ -4,6 +4,8 @@ Nilo keeps calendars as databases: an event is a row, its time a date
 property. Other Oxy apps (Astro first) read and write them through `/calendar`
 and the `@oxy.so/nilo` SDK; Nilo's own calendar view shows the same rows.
 Code: `apps/api/src/routes/calendar.ts`, `apps/api/src/lib/calendar/`.
+A calendar can also be a subscription to one kept elsewhere (Google, Outlook,
+iCloud): see [Subscriptions](#subscriptions).
 Contract: `packages/contracts/src/calendar.ts`. SDK: `packages/sdk`.
 
 ## The model
@@ -113,8 +115,8 @@ Reads expand a series into its occurrences in the window. A timed series
 keeps its wall-clock time in the request's `timeZone`: a 09:00 meeting stays
 at 09:00 across a change to summer time. An occurrence's `id` is
 `<rowId>:<start>`, `seriesStart` is the first occurrence's start, and a write
-to `rowId` changes the whole series. There are no exceptions (EXDATE) or
-single-occurrence edits yet.
+to `rowId` changes the whole series. A series holds exceptions (EXDATE) only
+in a subscribed calendar (below); there are no single-occurrence edits.
 
 ## API
 
@@ -155,8 +157,8 @@ is `bad_request`; a well-formed value refused is `validation_failed` with
   calendar needs a uid property): importing the same feed again updates what
   it imported, and an imported event deleted in Nilo stays deleted. At most
   2000 events; 30 imports an hour per caller. Answers
-  `{ created, updated, skipped, simplified }`. Re-importing a feed URL on a
-  schedule is the client's: Nilo keeps no subscription.
+  `{ created, updated, skipped, simplified }`. An import reads a feed once; to
+  keep a calendar in step with one, subscribe to it (below).
 
 **Reading a range** (`lib/calendar/query.ts`) is one SQL query for single
 events and one for the series that start before the window ends. Each
@@ -183,6 +185,96 @@ caller can read.
 relations, `invalidReference` (attendees must be members or guests of the
 workspace; colours must be options), `assigned` notifications and the live
 rooms.
+
+## Subscriptions
+
+Most people's events live in Google Calendar, Outlook or iCloud. A
+**subscription** keeps a Nilo calendar in step with one of them through the
+calendar's secret iCal address (Google: Settings › the calendar › Integrate
+calendar › *Secret address in iCal format*; Outlook: Settings › Calendar ›
+Shared calendars › *Publish a calendar*, the ICS link; iCloud: share as a
+*Public Calendar*; any CalDAV server's ICS link). Nilo's own UI is Settings ›
+Calendars (`/settings/calendars`). Code: `lib/calendar/subscriptions.ts`,
+`db/schema/calendar-subscriptions.ts`.
+
+**The calendar.** Each subscription makes a database of its own in the
+workspace (the personal one by default), private to the subscriber, with a
+calendar view and the system calendar's property ids (Name, When, Location,
+Link, Description, Repeat, iCal UID) plus Exceptions, hidden. It is
+**read-only** (`databases.read_only`): every role on it, its rows and their
+content is capped at `viewer` (`docs/access.md`), so `/calendar` lists it with
+`subscribed: true`, `canEdit: false`, and every write path (`/calendar`,
+`/pages`, `/databases`, the editor) refuses. The subscription's id is the
+calendar's id. Unsubscribing deletes the calendar and its events.
+
+**A refresh** fetches the feed and applies it when it changed:
+
+- Events are matched on their UID and written only when they differ (title or
+  any field), so an unchanged event keeps its `updatedAt` and history. An
+  event no longer in the feed is deleted (not trashed). The calendar holds
+  what the feed holds, as an import would read it: the same fields, a series
+  with an RRULE Nilo supports (an unsupported rule keeps its first occurrence,
+  counted as `simplified`), cancelled events left out.
+- A series keeps its **EXDATEs** as exceptions, and a **changed occurrence**
+  (a VEVENT with RECURRENCE-ID) removes that occurrence from the series and,
+  unless cancelled, is an event of its own whose UID is
+  `<series UID>#<occurrence>`. Range reads leave the exceptions out
+  (`isException`: a day for an all-day series; for a timed one, within six
+  hours of the instant named, since a series keeps its wall-clock time in the
+  reader's zone); the export writes them back as EXDATE.
+- Everything is one transaction; `database:changed` (and `workspace:changed`)
+  is announced when anything changed, as for any row write.
+
+**When.** Every API task sweeps once a minute and takes up to five due
+subscriptions, each held (`refreshing_until`, five minutes) so no two tasks or
+requests refresh it at once. A feed is read again after its `Cache-Control`
+max-age (else `Expires`), never sooner than 15 minutes nor later than 24
+hours, 30 minutes when it says nothing. Requests send the feed's `ETag` and
+`Last-Modified` back (`If-None-Match`, `If-Modified-Since`): a 304, or a body
+whose SHA-256 is the one last applied, writes nothing. A failure keeps the
+calendar as it was, records `lastError` (`unreachable`, `http_error`,
+`not_a_calendar`, `too_large`, `too_many_events`, `unsafe_url`, `internal`)
+and backs off: 15 minutes, doubling, to a day. The subscriber can refresh at
+once (`POST …/refresh`), at most once a minute.
+
+**Fetching safely.** A subscription's URL is user-supplied, so it is fetched
+as `safeFetch` fetches (`lib/safe-fetch.ts`) under `FEED_POLICY`: `https` only
+(`webcal://` and `webcals://` are read as `https://`), port 443, no
+credentials in the URL and none sent (no cookies, no Authorization); every
+address a name resolves to must be public (no loopback, private, link-local,
+CGNAT, metadata or reserved range, IPv4-mapped IPv6 included), checked at
+connection time on the address actually used and again on every redirect (at
+most five); at most `CALENDAR_IMPORT_MAX_BYTES` (5 MB) and 20 seconds; at
+most `CALENDAR_IMPORT_MAX_EVENTS` events.
+
+**The URL is a secret** (whoever holds it reads the calendar). It is stored
+only sealed with AES-256-GCM under `CALENDAR_FEED_KEY`
+(`lib/calendar/feed-secret.ts`, `docs/deployment.md`), deduplicated per person
+by an HMAC under a key derived from it, never logged, and never answered: the
+API shows its `host` only. Without the key the routes answer 503
+`service_unavailable` and the sweep does not start.
+
+**API** (each needs the session; a subscription is its subscriber's alone,
+`not_found` to anyone else):
+
+- `GET /calendar/subscriptions?workspaceId` — `{ items, nextCursor: null }`.
+- `POST /calendar/subscriptions { url, name?, workspaceId?, timeZone? }` → 201.
+  The feed is fetched before anything is made: a URL Nilo will not fetch is
+  `validation_failed` (`field: url`), one that does not answer with a
+  calendar `import_unreachable` (`details.reason`), the same feed twice
+  `conflict` (`details.calendarId`), more than 25 subscriptions
+  `validation_failed`. The calendar is named `name`, else the feed's
+  `X-WR-CALNAME`, else its host; `timeZone` (default UTC) reads its floating
+  times. 20 an hour per caller.
+- `GET /calendar/subscriptions/:id`, `PATCH { name }` (renames the calendar),
+  `DELETE` → 204.
+- `POST /calendar/subscriptions/:id/refresh` → the subscription after the
+  refresh (a failed feed is its `status`, not an error); within a minute of
+  the last attempt `rate_limited` with `details.retryAfterSeconds`; while
+  another refresh holds it `conflict`.
+
+The SDK has `calendar.listSubscriptions`, `getSubscription`, `subscribe`,
+`updateSubscription`, `refreshSubscription` and `unsubscribe`.
 
 ## Live updates
 
@@ -247,8 +339,10 @@ Tests: `packages/sdk/src/client.test.ts` (unit), and
 
 ## Not yet
 
-Exceptions to a series and single-occurrence edits; per-event time zones;
+Exceptions to a series and single-occurrence edits outside a subscribed
+calendar; per-event time zones;
 attendees by email and RSVP; reminders on events (Nilo's page reminders
-exist, `/pages/:id/reminders`, but `/calendar` does not expose them); stored
-ICS subscriptions refreshed by the server; a subscribable `.ics` URL (the
-export needs the session).
+exist, `/pages/:id/reminders`, but `/calendar` does not expose them); a
+subscribable `.ics` URL (the export needs the session). Subscriptions read
+neither RDATE nor a timed series' date-only EXDATE, and expand a series
+past an unsupported RRULE only to its first occurrence.

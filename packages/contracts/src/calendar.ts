@@ -131,9 +131,15 @@ export const calendarSchema = z.object({
   fields: calendarFieldsSchema,
   /** The colours its events can take (the colour property's options), in order. */
   colors: z.array(calendarColorOptionSchema),
+  /**
+   * Kept in step with an outside iCalendar feed: read-only for everyone, its
+   * subscription managed at `/calendar/subscriptions/:id` under the same id.
+   * Absent from an API older than subscriptions, which reads as false.
+   */
+  subscribed: z.boolean().default(false),
   updatedAt: z.string(),
 });
-export type Calendar = z.infer<typeof calendarSchema>;
+export type Calendar = z.output<typeof calendarSchema>;
 
 export const calendarListSchema = z.object({
   items: z.array(calendarSchema),
@@ -351,3 +357,108 @@ export const niloWorkspaceSchema = z
   })
   .passthrough();
 export type NiloWorkspace = z.infer<typeof niloWorkspaceSchema>;
+
+// ---------------------------------------------------------------------------
+// Subscriptions
+// ---------------------------------------------------------------------------
+
+/** The most subscriptions one person keeps. */
+export const CALENDAR_SUBSCRIPTIONS_MAX = 25;
+/** The soonest a subscription can be refreshed again on request. */
+export const CALENDAR_SUBSCRIPTION_MANUAL_REFRESH_SECONDS = 60;
+
+/**
+ * `pending`: made, not refreshed yet. `ok`: the last refresh succeeded (the
+ * feed answered, changed or not). `failing`: the last one did not, and the
+ * calendar keeps what it last read; refreshes go on, further apart.
+ */
+export const CALENDAR_SUBSCRIPTION_STATUSES = ['pending', 'ok', 'failing'] as const;
+export type CalendarSubscriptionStatus = (typeof CALENDAR_SUBSCRIPTION_STATUSES)[number];
+
+/** Why the last refresh failed. */
+export const CALENDAR_SUBSCRIPTION_ERRORS = [
+  /** No answer: DNS, connection, TLS or timeout. */
+  'unreachable',
+  /** An answer that was not a success (`lastHttpStatus` says which). */
+  'http_error',
+  /** A success whose body is not an iCalendar document. */
+  'not_a_calendar',
+  /** Larger than `CALENDAR_IMPORT_MAX_BYTES`. */
+  'too_large',
+  /** More than `CALENDAR_IMPORT_MAX_EVENTS` events. */
+  'too_many_events',
+  /** The URL, or a redirect, leads somewhere Nilo does not fetch (not public https). */
+  'unsafe_url',
+  /** Nilo failed on its side. */
+  'internal',
+] as const;
+export type CalendarSubscriptionError = (typeof CALENDAR_SUBSCRIPTION_ERRORS)[number];
+
+/**
+ * A calendar subscription. The feed's URL is a secret and never comes back:
+ * `host` is all the API shows of it.
+ */
+export const calendarSubscriptionSchema = z.object({
+  /** The subscribed calendar's id (a database): what `/calendar/events` reads. */
+  id: z.string(),
+  calendarId: z.string(),
+  workspaceId: z.string(),
+  name: z.string(),
+  /** The feed's host, e.g. `calendar.google.com`. */
+  host: z.string(),
+  status: z.enum(CALENDAR_SUBSCRIPTION_STATUSES),
+  lastError: z.enum(CALENDAR_SUBSCRIPTION_ERRORS).nullable(),
+  lastHttpStatus: z.number().int().nullable(),
+  /** Events the calendar holds from the feed (a repeating one counts once). */
+  eventCount: z.number().int(),
+  /** Repeating events whose rule Nilo does not support, kept as their first occurrence. */
+  simplified: z.number().int(),
+  /** The zone the feed's floating times are read in. */
+  timeZone: z.string(),
+  lastAttemptAt: z.string().nullable(),
+  /** The last refresh that succeeded, whether the feed had changed or not. */
+  lastSuccessAt: z.string().nullable(),
+  /** The last refresh that changed the calendar. */
+  lastChangeAt: z.string().nullable(),
+  nextRefreshAt: z.string(),
+  createdAt: z.string(),
+});
+export type CalendarSubscription = z.infer<typeof calendarSubscriptionSchema>;
+
+export const calendarSubscriptionListSchema = z.object({
+  items: z.array(calendarSubscriptionSchema),
+  nextCursor: z.null(),
+});
+export type CalendarSubscriptionList = z.infer<typeof calendarSubscriptionListSchema>;
+
+/** `GET /calendar/subscriptions`: the caller's subscriptions, in a workspace when one is named. */
+export const calendarSubscriptionListQuerySchema = z
+  .object({
+    workspaceId: z.string().min(1).optional(),
+  })
+  .strict();
+export type CalendarSubscriptionListQuery = z.input<typeof calendarSubscriptionListQuerySchema>;
+
+/**
+ * `POST /calendar/subscriptions`: subscribe to a feed's secret `https://` or
+ * `webcal://` URL. The calendar is made in `workspaceId` (the personal
+ * workspace when absent), private to the caller, named `name` or the feed's
+ * own name. `timeZone` (IANA, default UTC) is the zone of floating times.
+ */
+export const calendarSubscriptionCreateSchema = z
+  .object({
+    url: z.string().min(1).max(2000),
+    name: z.string().trim().min(1).max(200).optional(),
+    workspaceId: z.string().min(1).optional(),
+    timeZone: z.string().min(1).max(100).optional(),
+  })
+  .strict();
+export type CalendarSubscriptionCreate = z.input<typeof calendarSubscriptionCreateSchema>;
+
+/** `PATCH /calendar/subscriptions/:id`: rename the subscribed calendar. */
+export const calendarSubscriptionUpdateSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+  })
+  .strict();
+export type CalendarSubscriptionUpdate = z.input<typeof calendarSubscriptionUpdateSchema>;

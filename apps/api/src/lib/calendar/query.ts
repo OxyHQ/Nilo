@@ -17,9 +17,17 @@ import type { PgHandle } from '../../db/client.js';
 import { pages } from '../../db/schema/pages.js';
 import type { PageRow } from '../../repositories/pages.js';
 import { dateMs } from '../databases/view-query.js';
-import { type CalendarSource, readEventTime, rowRecurrence, spanOf } from './events.js';
+import {
+  type CalendarSource,
+  readEventTime,
+  rowExceptionsText,
+  rowRecurrence,
+  spanOf,
+} from './events.js';
 import {
   expandSeries,
+  isException,
+  parseExceptions,
   parseRepeatRule,
   type RepeatRule,
   RepeatRuleError,
@@ -198,11 +206,14 @@ export async function listEvents(
     }
     const keyOf = (start: number) =>
       time.allDay ? startOfLocalDay(start, window.timeZone) : start;
+    const exceptions = parseExceptions(rowExceptionsText(source, row));
     const starts = expandSeries(
       { rule: parsed ?? ONCE, allDay: time.allDay, ...spanOf(time) },
       window,
       limit + 1,
-      (start) => after({ key: keyOf(start), rowId: row.id }, cursor),
+      (start) =>
+        !(exceptions && isException(exceptions, time.allDay, start, window.timeZone)) &&
+        after({ key: keyOf(start), rowId: row.id }, cursor),
     );
     for (const start of starts) {
       entries.push({ source, row, occurrence: start, key: keyOf(start) });

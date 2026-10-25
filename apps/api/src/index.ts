@@ -38,6 +38,11 @@ import syncedBlocksRouter from './routes/synced-blocks.js';
 import formsRouter from './routes/forms.js';
 import pageFollowsRouter from './routes/page-follows.js';
 import { startReminderSweep, stopReminderSweep } from './lib/reminders.js';
+import { feedKeyMalformed } from './lib/calendar/feed-secret.js';
+import {
+  startCalendarSubscriptionSweep,
+  stopCalendarSubscriptionSweep,
+} from './lib/calendar/subscriptions.js';
 import {
   flushProjections,
   startProjectionSweep,
@@ -310,6 +315,13 @@ getDb()
       startProjectionSweep();
       startEventOutboxWorker();
       startFileReferenceWork();
+      if (feedKeyMalformed()) {
+        log.general.error(
+          'CALENDAR_FEED_KEY is not 32 bytes of base64: calendar subscriptions are off',
+        );
+      } else if (!startCalendarSubscriptionSweep()) {
+        log.general.info('Calendar subscriptions are off (no CALENDAR_FEED_KEY, or disabled)');
+      }
       // Verify Redis connectivity (non-blocking)
       import('./lib/redis.js')
         .then(({ getRedisClient }) => {
@@ -355,6 +367,7 @@ getDb()
       stopProjectionSweep();
       stopEventOutboxWorker();
       stopFileReferenceWork();
+      stopCalendarSubscriptionSweep();
       // Stop accepting new connections
       server.close(() => {
         log.general.info('HTTP server closed (no new connections)');

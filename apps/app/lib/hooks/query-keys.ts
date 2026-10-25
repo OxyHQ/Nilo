@@ -65,6 +65,9 @@ export const queryKeys = {
       ['comments', 'page', pageId, includeResolved] as const,
     block: (blockId: string) => ['comments', 'block', blockId] as const,
   },
+  calendarSubscriptions: {
+    all: ['calendar-subscriptions'] as const,
+  },
   databases: {
     templates: (id: string) => ['database', id, 'templates'] as const,
     list: (workspaceId: string | null) => ['databases', workspaceId] as const,

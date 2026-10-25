@@ -84,6 +84,22 @@ export interface BaseRole {
 
 const NO_BASE: BaseRole = { role: null, passesRestricted: false };
 
+/**
+ * The most anyone holds on a read-only database (`databases.read_only`, one a
+ * sync keeps), its rows and what is beneath them: they read it, no one edits
+ * it, whatever their role or grant says.
+ */
+export const READ_ONLY_CEILING: WorkspaceRole = 'viewer';
+
+/** `role`, no more than `READ_ONLY_CEILING` when `readOnly`. */
+export function readOnlyCapped(
+  role: WorkspaceRole | null,
+  readOnly: boolean | undefined,
+): WorkspaceRole | null {
+  if (!role || !readOnly) return role;
+  return compareRoles(role, READ_ONLY_CEILING) > 0 ? READ_ONLY_CEILING : role;
+}
+
 /** The caller's role on a tree from where it lives, before restrictions and grants. */
 export function baseRole(viewer: Viewer, home: Home): BaseRole {
   const { memberRole } = viewer;
@@ -131,18 +147,24 @@ export function grantReach(chain: readonly Pick<ChainLink, 'id' | 'restricted'>[
   return { ids, restricted: false };
 }
 
-/** The rule above, on data already loaded. */
+/**
+ * The rule above, on data already loaded. A page in a read-only database
+ * (itself a row of one, or beneath one) is capped at `READ_ONLY_CEILING`.
+ */
 export function effectivePageRole(input: {
   base: BaseRole;
-  chain: readonly Pick<ChainLink, 'id' | 'restricted'>[];
+  chain: readonly (Pick<ChainLink, 'id' | 'restricted'> & {
+    database?: { readOnly?: boolean } | null;
+  })[];
   grants: readonly Grant[];
 }): WorkspaceRole | null {
   const { base, chain, grants } = input;
-  if (base.passesRestricted) return base.role;
+  const readOnly = chain.some((link) => link.database?.readOnly === true);
+  if (base.passesRestricted) return readOnlyCapped(base.role, readOnly);
   const reach = grantReach(chain);
   const inReach = new Set(reach.ids);
   const granted = strongest(grants.filter((g) => inReach.has(g.pageId)).map((g) => g.role));
-  return strongest([reach.restricted ? null : base.role, granted]);
+  return readOnlyCapped(strongest([reach.restricted ? null : base.role, granted]), readOnly);
 }
 
 export interface PageAccess {
@@ -278,6 +300,8 @@ export interface DatabaseHome {
   parentPageId: string | null;
   teamspaceId: string | null;
   ownerId: string;
+  /** Kept by a sync: no one edits it (`readOnlyCapped`). */
+  readOnly: boolean;
 }
 
 /** Every database of a workspace and where it is, for `rolesForPages`. */
@@ -291,6 +315,7 @@ export async function databaseHomes(
       parentPageId: databases.parentPageId,
       teamspaceId: databases.teamspaceId,
       ownerId: databases.ownerId,
+      readOnly: databases.readOnly,
     })
     .from(databases)
     .where(eq(databases.workspaceId, workspaceId));
@@ -421,10 +446,12 @@ export async function resolveDatabaseRole(
   database: { workspaceId: string } & DatabaseHome,
 ): Promise<WorkspaceRole | null> {
   if (database.parentPageId) {
-    return (await resolvePageAccess(db, userId, database.parentPageId))?.role ?? null;
+    const role = (await resolvePageAccess(db, userId, database.parentPageId))?.role ?? null;
+    return readOnlyCapped(role, database.readOnly);
   }
   const home = { teamspaceId: database.teamspaceId, ownerId: database.ownerId };
-  return baseRole(await viewerFor(db, database.workspaceId, userId, home), home).role;
+  const role = baseRole(await viewerFor(db, database.workspaceId, userId, home), home).role;
+  return readOnlyCapped(role, database.readOnly);
 }
 
 /**
@@ -438,16 +465,19 @@ export async function checkDatabaseAccess(
   database: { workspaceId: string } & DatabaseHome,
   minRole: WorkspaceRole,
 ): Promise<WorkspaceRole | null> {
-  if (database.parentPageId)
-    return (await checkPageAccess(req, res, db, database.parentPageId, minRole))?.role ?? null;
   const userId = req.user?.id;
   if (!userId) {
     res.status(401).json({ error: 'Unauthorized' });
     return null;
   }
-  const home = { teamspaceId: database.teamspaceId, ownerId: database.ownerId };
-  const viewer = await viewerFor(db, database.workspaceId, userId, home);
-  const role = baseRole(viewer, home).role;
+  let role: WorkspaceRole | null;
+  if (database.parentPageId) {
+    role = (await resolvePageAccess(db, userId, database.parentPageId))?.role ?? null;
+  } else {
+    const home = { teamspaceId: database.teamspaceId, ownerId: database.ownerId };
+    role = baseRole(await viewerFor(db, database.workspaceId, userId, home), home).role;
+  }
+  role = readOnlyCapped(role, database.readOnly);
   if (role && hasRole(role, minRole)) return role;
   forbidden(res, minRole, role);
   return null;

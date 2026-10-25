@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   expandSeries,
+  formatExceptions,
   formatRepeatRule,
+  isException,
+  MAX_EXCEPTIONS,
   normalizeRepeatRule,
+  parseExceptions,
   parseRepeatRule,
   RepeatRuleError,
   type Series,
+  type SeriesExceptions,
   weekdayOf,
   type Window,
 } from './recurrence.js';
@@ -231,5 +236,65 @@ describe('expanding a series over a window', () => {
       10,
     );
     expect(starts).toEqual([]);
+  });
+});
+
+describe('exceptions', () => {
+  it('stores days and instants sorted, once each, without anything malformed', () => {
+    expect(
+      formatExceptions([
+        '2026-11-11T08:00:00.000Z',
+        '2026-11-04T08:00:00.000Z',
+        '2026-11-04T08:00:00.000Z',
+        'not a date',
+        '2027-12-24',
+      ]),
+    ).toBe('2026-11-04T08:00:00.000Z,2026-11-11T08:00:00.000Z,2027-12-24');
+    expect(formatExceptions([])).toBe('');
+  });
+
+  it('keeps the latest when a feed lists more than it holds', () => {
+    const many = Array.from({ length: MAX_EXCEPTIONS + 10 }, (_, i) =>
+      new Date(Date.UTC(2020, 0, 1) + i * 86_400_000).toISOString(),
+    );
+    const stored = formatExceptions(many).split(',');
+    expect(stored).toHaveLength(MAX_EXCEPTIONS);
+    expect(stored[stored.length - 1]).toBe(many[many.length - 1]);
+  });
+
+  it('removes an all-day occurrence by its day', () => {
+    const exceptions = parseExceptions('2027-12-24');
+    expect(exceptions).not.toBeNull();
+    const day = dayNumberOfIso('2027-12-24');
+    expect(isException(exceptions as SeriesExceptions, true, day, 'UTC')).toBe(true);
+    expect(isException(exceptions as SeriesExceptions, true, day + 1, 'UTC')).toBe(false);
+  });
+
+  it('removes a timed occurrence near the instant named, whatever zone it is read in', () => {
+    const exceptions = parseExceptions('2026-11-04T08:00:00.000Z') as SeriesExceptions;
+    const at = Date.parse('2026-11-04T08:00:00.000Z');
+    expect(isException(exceptions, false, at, 'Europe/Paris')).toBe(true);
+    expect(isException(exceptions, false, at + 60 * 60 * 1000, 'America/New_York')).toBe(true);
+    expect(isException(exceptions, false, at + 86_400_000, 'Europe/Paris')).toBe(false);
+    expect(isException(exceptions, false, at - 86_400_000, 'Europe/Paris')).toBe(false);
+  });
+
+  it('holds nothing for an empty or unreadable value', () => {
+    expect(parseExceptions(null)).toBeNull();
+    expect(parseExceptions('')).toBeNull();
+    expect(parseExceptions('nope,also nope')).toBeNull();
+  });
+
+  it('leaves the numbering of COUNT alone: an exception does not add an occurrence', () => {
+    const rule = parseRepeatRule('FREQ=DAILY;COUNT=3');
+    const first = dayNumberOfIso('2026-11-02');
+    const exceptions = parseExceptions('2026-11-03') as SeriesExceptions;
+    const days = expandSeries(
+      { rule, allDay: true, start: first, length: 1 },
+      { fromMs: 0, toMs: 0, firstDay: first, endDay: first + 30, timeZone: 'UTC' },
+      100,
+      (day) => !isException(exceptions, true, day, 'UTC'),
+    );
+    expect(days).toEqual([first, first + 2]);
   });
 });

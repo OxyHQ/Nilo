@@ -22,7 +22,13 @@ export interface ChainLink {
    * For a database row: its database, which says where the tree lives when
    * the database sits in no page.
    */
-  database: { parentPageId: string | null; teamspaceId: string | null; ownerId: string } | null;
+  database: {
+    parentPageId: string | null;
+    teamspaceId: string | null;
+    ownerId: string;
+    /** Kept by a sync (`databases.read_only`): no one edits its rows. */
+    readOnly: boolean;
+  } | null;
 }
 
 /**
@@ -55,7 +61,8 @@ export async function findPageChain(db: PgHandle, id: string): Promise<ChainLink
            p.${col(pages.teamspaceId)} as teamspace_id, p.${col(pages.ownerId)} as owner_id,
            d.${col(databases.id)} as database_id, d.${col(databases.parentPageId)} as database_host,
            d.${col(databases.teamspaceId)} as database_teamspace_id,
-           d.${col(databases.ownerId)} as database_owner_id
+           d.${col(databases.ownerId)} as database_owner_id,
+           d.${col(databases.readOnly)} as database_read_only
     from chain
     join ${pages} p on p.${col(pages.id)} = chain.${col(pages.id)}
     left join ${databases} d on d.${col(databases.id)} = chain.${col(pages.databaseId)}
@@ -77,6 +84,7 @@ export async function findPageChain(db: PgHandle, id: string): Promise<ChainLink
             parentPageId: text(row.database_host),
             teamspaceId: text(row.database_teamspace_id),
             ownerId: String(row.database_owner_id),
+            readOnly: row.database_read_only === true,
           },
   }));
 }

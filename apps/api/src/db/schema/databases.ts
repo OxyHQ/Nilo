@@ -431,6 +431,14 @@ export const databases = pgTable(
      * (423 `DATABASE_LOCKED`) until it is unlocked; its rows stay editable.
      */
     locked: boolean().notNull().default(false),
+    /**
+     * Kept in step with an outside source by the server (a calendar
+     * subscription, `calendar_subscriptions`): everyone reads it, no one edits
+     * it, its rows or their content (`lib/page-access.ts` caps every role on
+     * it at viewer). Only the sync writes it, and only removing the
+     * subscription removes it.
+     */
+    readOnly: boolean().notNull().default(false),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

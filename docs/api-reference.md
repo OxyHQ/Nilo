@@ -176,6 +176,12 @@ Oxy's conventional shapes: lists `{ items, nextCursor }`, errors
 - `GET /calendar/calendars/:id/export.ics`,
   `POST /calendar/calendars/:id/import { ics | url, timeZone? }` (matched on
   UID).
+- `GET /calendar/subscriptions?workspaceId`, `POST /calendar/subscriptions
+  { url, name?, workspaceId?, timeZone? }`, `GET/PATCH/DELETE
+  /calendar/subscriptions/:id`, `POST /calendar/subscriptions/:id/refresh` —
+  read-only calendars kept in step with an outside iCal feed (Google, Outlook,
+  iCloud); the URL is sealed and never answered. Off without
+  `CALENDAR_FEED_KEY` (503).
 
 ## Search, files, embeds, feedback
 

@@ -28,7 +28,9 @@ export type RateLimitScope =
   | 'page-export-pdf'
   | 'button-webhook'
   | 'export-zip'
-  | 'calendar-import';
+  | 'calendar-import'
+  | 'calendar-subscribe'
+  | 'calendar-subscription-refresh';
 
 /** In-process stores, for tests to clear between cases. */
 const memoryStores = new Set<MemoryStore>();

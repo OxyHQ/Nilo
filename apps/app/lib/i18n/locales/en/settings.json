@@ -27,6 +27,7 @@
   "sections": {
     "account": "Account",
     "members": "Members",
+    "calendars": "Calendars",
     "general": "General",
     "feedback": "Feedback",
     "offline": "Offline",
@@ -89,5 +90,44 @@
     "exportLabel": "Export workspace",
     "exportDescription": "Every page you can open, as Markdown or HTML files in folders by subpage, with databases as tables.",
     "exportFailed": "The workspace could not be exported."
+  },
+  "calendars": {
+    "addTitle": "Subscribe to a calendar",
+    "description": "Add a calendar from Google, Outlook or iCloud by its secret iCal address. Nilo keeps a read-only copy up to date, and other Oxy apps, like Astro, show its events.",
+    "urlLabel": "Calendar address (iCal)",
+    "urlPlaceholder": "https://… or webcal://…",
+    "nameLabel": "Name",
+    "namePlaceholder": "The calendar’s own name",
+    "subscribe": "Subscribe",
+    "subscribed": "Subscribed to %{name}",
+    "failed": "Could not subscribe to this calendar.",
+    "listTitle": "Subscribed calendars",
+    "where": "Google Calendar: Settings › your calendar › Integrate calendar › Secret address in iCal format. Outlook: Settings › Calendar › Shared calendars › Publish a calendar, then the ICS link. iCloud: share the calendar as a Public Calendar. The address is kept secret: Nilo never shows it again.",
+    "empty": "No subscribed calendars yet.",
+    "events": {
+      "one": "%{count} event",
+      "other": "%{count} events"
+    },
+    "status": {
+      "ok": "Updated %{when}",
+      "pending": "Waiting for its first update",
+      "failing": "Could not update: %{reason}"
+    },
+    "errors": {
+      "unreachable": "the calendar could not be reached",
+      "http_error": "its server refused the request",
+      "not_a_calendar": "the address does not answer with a calendar",
+      "too_large": "the calendar is too large",
+      "too_many_events": "the calendar has too many events",
+      "unsafe_url": "the address leads somewhere Nilo does not fetch calendars from",
+      "internal": "something went wrong on Nilo’s side"
+    },
+    "open": "Open",
+    "openLabel": "Open %{name}",
+    "refreshLabel": "Update %{name} now",
+    "remove": "Remove",
+    "removeLabel": "Remove %{name}",
+    "removeTitle": "Remove %{name}?",
+    "removeDescription": "The calendar and its events are removed from Nilo. The calendar at %{host} is not changed."
   }
 }

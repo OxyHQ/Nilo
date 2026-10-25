@@ -26,6 +26,7 @@ import {
   type DatabaseRecord,
   demoteOtherDefaultViews,
   findDatabaseById,
+  insertDatabase,
   insertDatabaseView,
 } from '../../repositories/databases.js';
 import { createDefaultViewForDatabase } from './create.js';
@@ -85,6 +86,11 @@ export const CALENDAR_PROPERTY = {
   color: 'event_color',
   recurrence: 'event_repeat',
   uid: 'event_uid',
+  /**
+   * A series' exceptions (`formatExceptions`): a subscribed calendar's only,
+   * which reads them from its feed's EXDATEs and changed occurrences.
+   */
+  exceptions: 'event_exceptions',
 } as const;
 
 /** The colours a new calendar's events can take, in Nilo's palette. */
@@ -386,7 +392,50 @@ export async function ensureCalendarDatabase(
   }));
 }
 
-async function addCalendarView(db: PgHandle, calendarId: string): Promise<void> {
+/**
+ * The database a calendar subscription keeps (`lib/calendar/subscriptions.ts`):
+ * what an iCalendar feed holds, at the system calendar's property ids, plus
+ * the series' exceptions. Private to the subscriber and read-only to everyone
+ * (`databases.read_only`): only the subscription's refreshes write it.
+ */
+export async function createSubscribedCalendarDatabase(
+  db: PgHandle,
+  input: { workspaceId: string; ownerId: string; name: string },
+): Promise<DatabaseRecord> {
+  const database = await insertDatabase(db, {
+    workspaceId: input.workspaceId,
+    name: input.name,
+    icon: '🗓️',
+    cover: null,
+    ownerId: input.ownerId,
+    propertiesSchema: {
+      properties: [
+        { id: CALENDAR_PROPERTY.name, name: 'Name', type: 'text' },
+        { id: CALENDAR_PROPERTY.when, name: 'When', type: 'date', config: { includeTime: true } },
+        { id: CALENDAR_PROPERTY.location, name: 'Location', type: 'text' },
+        { id: CALENDAR_PROPERTY.url, name: 'Link', type: 'url' },
+        { id: CALENDAR_PROPERTY.description, name: 'Description', type: 'text' },
+        { id: CALENDAR_PROPERTY.recurrence, name: 'Repeat', type: 'text' },
+        { id: CALENDAR_PROPERTY.exceptions, name: 'Exceptions', type: 'text' },
+        { id: CALENDAR_PROPERTY.uid, name: 'iCal UID', type: 'text' },
+      ],
+    },
+    isInline: false,
+    parentPageId: null,
+    teamspaceId: null,
+    archived: false,
+    readOnly: true,
+  });
+  await createDefaultViewForDatabase(db, database.id);
+  await addCalendarView(db, database.id, [CALENDAR_PROPERTY.exceptions]);
+  return database;
+}
+
+async function addCalendarView(
+  db: PgHandle,
+  calendarId: string,
+  alsoHidden: readonly string[] = [],
+): Promise<void> {
   const view = await insertDatabaseView(db, {
     databaseId: calendarId,
     name: 'Calendar',
@@ -395,7 +444,7 @@ async function addCalendarView(db: PgHandle, calendarId: string): Promise<void> 
     filters: { kind: 'group', combinator: 'and', filters: [] },
     sorts: [],
     groupBy: null,
-    hiddenProperties: [CALENDAR_PROPERTY.uid, CALENDAR_PROPERTY.recurrence],
+    hiddenProperties: [CALENDAR_PROPERTY.uid, CALENDAR_PROPERTY.recurrence, ...alsoHidden],
     frozenProperties: [],
     pageSize: 50,
     config: { datePropertyId: CALENDAR_PROPERTY.when },

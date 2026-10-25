@@ -182,3 +182,99 @@ describe('reading iCalendar', () => {
     expect(durationMs('1H')).toBeNull();
   });
 });
+
+describe('reading exceptions and changed occurrences', () => {
+  const feed = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'X-WR-CALNAME:Work\\, shared',
+    'BEGIN:VEVENT',
+    'UID:standup@example.com',
+    'DTSTART;TZID=Europe/Paris:20261102T090000',
+    'DTEND;TZID=Europe/Paris:20261102T091500',
+    'RRULE:FREQ=WEEKLY;BYDAY=MO,WE',
+    'EXDATE;TZID=Europe/Paris:20261104T090000,20261111T090000',
+    'EXDATE;TZID=Europe/Paris:20261116T090000',
+    'SUMMARY:Standup',
+    'END:VEVENT',
+    'BEGIN:VEVENT',
+    'UID:standup@example.com',
+    'RECURRENCE-ID;TZID=Europe/Paris:20261109T090000',
+    'DTSTART;TZID=Europe/Paris:20261109T100000',
+    'DTEND;TZID=Europe/Paris:20261109T101500',
+    'SUMMARY:Standup (moved)',
+    'END:VEVENT',
+    'BEGIN:VEVENT',
+    'UID:standup@example.com',
+    'RECURRENCE-ID;TZID=Europe/Paris:20261123T090000',
+    'DTSTART;TZID=Europe/Paris:20261123T090000',
+    'STATUS:CANCELLED',
+    'END:VEVENT',
+    'BEGIN:VEVENT',
+    'UID:holiday@example.com',
+    'DTSTART;VALUE=DATE:20261224',
+    'RRULE:FREQ=YEARLY',
+    'EXDATE;VALUE=DATE:20271224',
+    'SUMMARY:Holiday',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  it("keeps a series' EXDATEs, each read in its own zone", () => {
+    const parsed = parseIcs(feed, 'UTC');
+    const standup = parsed.events.find((e) => e.uid === 'standup@example.com');
+    expect(standup?.recurrence).toBe('FREQ=WEEKLY;BYDAY=MO,WE');
+    expect(standup?.exceptions).toEqual([
+      '2026-11-04T08:00:00.000Z',
+      '2026-11-11T08:00:00.000Z',
+      '2026-11-16T08:00:00.000Z',
+    ]);
+    expect(parsed.events.find((e) => e.uid === 'holiday@example.com')?.exceptions).toEqual([
+      '2027-12-24',
+    ]);
+  });
+
+  it('reads a changed occurrence as an override, and a cancelled one as an override with no event', () => {
+    const parsed = parseIcs(feed, 'UTC');
+    expect(parsed.overrides).toHaveLength(2);
+    const moved = parsed.overrides.find((o) => o.recurrenceId === '2026-11-09T08:00:00.000Z');
+    expect(moved?.uid).toBe('standup@example.com');
+    expect(moved?.event).toMatchObject({
+      title: 'Standup (moved)',
+      start: '2026-11-09T09:00:00.000Z',
+      end: '2026-11-09T09:15:00.000Z',
+      recurrence: null,
+    });
+    const cancelled = parsed.overrides.find((o) => o.recurrenceId === '2026-11-23T08:00:00.000Z');
+    expect(cancelled?.event).toBeNull();
+  });
+
+  it("reads the calendar's own name, and counts overrides as skipped for an import", () => {
+    const parsed = parseIcs(feed, 'UTC');
+    expect(parsed.name).toBe('Work, shared');
+    expect(parsed.events.map((e) => e.uid).sort()).toEqual([
+      'holiday@example.com',
+      'standup@example.com',
+    ]);
+    expect(parsed.skipped).toBe(2);
+  });
+
+  it('writes EXDATEs for a series that has exceptions', () => {
+    const ics = eventsToIcs(
+      'Team',
+      [
+        event({ recurrence: 'FREQ=WEEKLY' }),
+        event({
+          rowId: 'r2',
+          allDay: true,
+          start: '2026-12-24',
+          end: '2026-12-25',
+          recurrence: 'FREQ=YEARLY',
+        }),
+      ],
+      (rowId) => (rowId === 'r1' ? ['2026-11-10T12:00:00.000Z'] : ['2027-12-24']),
+    );
+    expect(ics).toContain('EXDATE:20261110T120000Z\r\n');
+    expect(ics).toContain('EXDATE;VALUE=DATE:20271224\r\n');
+  });
+});

@@ -17,6 +17,8 @@ import {
   CALENDAR_IMPORT_MAX_EVENTS,
   CALENDAR_MAX_IDS,
   CALENDAR_MAX_RANGE_DAYS,
+  CALENDAR_SUBSCRIPTION_MANUAL_REFRESH_SECONDS,
+  CALENDAR_SUBSCRIPTIONS_MAX,
   type CalendarErrorCode,
   type CalendarEventPage,
   type CalendarImportResult,
@@ -27,12 +29,20 @@ import {
   calendarEventUpdateSchema,
   calendarImportRequestSchema,
   calendarListQuerySchema,
+  type CalendarSubscriptionList,
+  calendarSubscriptionCreateSchema,
+  calendarSubscriptionListQuerySchema,
+  calendarSubscriptionUpdateSchema,
 } from '@oxy.so/nilo-contracts';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { type Request, type Response, Router } from 'express';
 import { z } from 'zod';
 import { announceChange } from '../collab/live-rooms.js';
 import { getDb, type PgHandle } from '../db/client.js';
+import {
+  type CalendarSubscriptionRow,
+  calendarSubscriptions,
+} from '../db/schema/calendar-subscriptions.js';
 import { databaseViews } from '../db/schema/databases.js';
 import { pages } from '../db/schema/pages.js';
 import { hasRole } from '../db/schema/workspaces.js';
@@ -43,9 +53,11 @@ import {
   eventProperties,
   mergedTime,
   readEventTime,
+  rowExceptionsText,
   type CalendarSource,
   toCalendar,
 } from '../lib/calendar/events.js';
+import { feedFingerprint, feedKeys, sealFeedUrl } from '../lib/calendar/feed-secret.js';
 import { eventsToIcs, looksLikeIcs, parseIcs } from '../lib/calendar/ics.js';
 import {
   cursorFingerprint,
@@ -54,6 +66,14 @@ import {
   listEvents,
 } from '../lib/calendar/query.js';
 import { recogniseCalendar } from '../lib/calendar/recognition.js';
+import {
+  claimSubscription,
+  fetchFeed,
+  listSubscriptions,
+  normalizeFeedUrl,
+  refreshSubscription,
+  toSubscription,
+} from '../lib/calendar/subscriptions.js';
 import { DAY_MS, isTimeZone, localDayNumber } from '../lib/calendar/zoned-time.js';
 import { invalidReference } from '../lib/databases/property-references.js';
 import {
@@ -62,11 +82,15 @@ import {
   rowWritten,
   writePage,
 } from '../lib/databases/row-writes.js';
-import { ensureCalendarDatabase } from '../lib/databases/system.js';
+import {
+  createSubscribedCalendarDatabase,
+  ensureCalendarDatabase,
+} from '../lib/databases/system.js';
 import { log } from '../lib/logger.js';
 import {
   baseRole,
   loadViewer,
+  readOnlyCapped,
   resolveDatabaseRole,
   resolvePageAccess,
 } from '../lib/page-access.js';
@@ -76,11 +100,18 @@ import { authenticateToken } from '../middleware/auth.js';
 import { ensurePersonalWorkspaceFor } from '../middleware/workspace.js';
 import {
   type DatabaseRecord,
+  deleteDatabase,
   findDatabaseById,
   listDatabasesByWorkspace,
   listViewsByDatabase,
+  updateDatabase,
 } from '../repositories/databases.js';
-import { findPageById, type PageRow } from '../repositories/pages.js';
+import {
+  deleteDatabaseRows,
+  findPageById,
+  type PageRow,
+  recordTombstones,
+} from '../repositories/pages.js';
 import {
   findLiveWorkspaceById,
   findMembership,
@@ -231,9 +262,12 @@ async function calendarsOf(
       views.filter((v) => v.databaseId === database.id),
     );
     if (!fields) continue;
-    const role = database.parentPageId
-      ? ((await resolvePageAccess(handle, userId, database.parentPageId))?.role ?? null)
-      : baseRole(viewer, { teamspaceId: database.teamspaceId, ownerId: database.ownerId }).role;
+    const role = readOnlyCapped(
+      database.parentPageId
+        ? ((await resolvePageAccess(handle, userId, database.parentPageId))?.role ?? null)
+        : baseRole(viewer, { teamspaceId: database.teamspaceId, ownerId: database.ownerId }).role,
+      database.readOnly,
+    );
     if (role) sources.push({ database, fields, role: role as CalendarRole });
   }
   return sources.sort(
@@ -265,6 +299,12 @@ async function loadCalendar(
 }
 
 const requireEditor = (source: CalendarSource) => {
+  if (source.database.readOnly) {
+    throw new CalendarError(
+      'forbidden',
+      'This calendar is a subscription to another calendar: it is read-only',
+    );
+  }
   if (!hasRole(source.role, 'editor')) {
     throw new CalendarError('forbidden', 'Editing this calendar needs edit access');
   }
@@ -473,7 +513,12 @@ async function loadEventRow(
     throw err;
   });
   if (!hasRole(access.role, minRole)) {
-    throw new CalendarError('forbidden', 'Editing this event needs edit access');
+    throw new CalendarError(
+      'forbidden',
+      source.database.readOnly
+        ? 'This event is in a subscribed calendar: it is read-only'
+        : 'Editing this event needs edit access',
+    );
   }
   if (row.archived) throw new CalendarError('gone', 'The event is in the trash');
   return { row, source: { ...source, role: access.role as CalendarRole } };
@@ -621,13 +666,16 @@ router.get('/calendars/:id/export.ics', async (req: Request, res: Response) => {
       .orderBy(pages.createdAt, pages.id)
       .limit(MAX_EXPORT_EVENTS);
     const events = rows.flatMap((row) => eventOf(source, row) ?? []);
+    const exceptions = new Map(
+      rows.map((row) => [row.id, rowExceptionsText(source, row)?.split(',') ?? []]),
+    );
     const name = source.database.name || 'Calendar';
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="${name.replace(/[^\w .-]/g, '_')}.ics"`,
     );
-    res.send(eventsToIcs(name, events));
+    res.send(eventsToIcs(name, events, (rowId) => exceptions.get(rowId) ?? []));
   } catch (error: unknown) {
     answerError(res, error, 'export a calendar');
   }
@@ -773,6 +821,276 @@ router.post('/calendars/:id/import', importLimit, async (req: Request, res: Resp
     res.json(result);
   } catch (error: unknown) {
     answerError(res, error, 'import a calendar');
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Subscriptions
+// ---------------------------------------------------------------------------
+
+const subscribeLimit = rateLimit('calendar-subscribe', { max: 20, windowMs: 60 * 60 * 1000 });
+const subscriptionRefreshLimit = rateLimit('calendar-subscription-refresh', {
+  max: 60,
+  windowMs: 60 * 60 * 1000,
+});
+
+/** Subscriptions need `CALENDAR_FEED_KEY`, which seals their URLs. */
+function requireFeedKey(): void {
+  if (!feedKeys()) {
+    throw new CalendarError(
+      'service_unavailable',
+      'Calendar subscriptions are not available on this server',
+    );
+  }
+}
+
+/** The caller's subscription `id` with its calendar; `not_found` when it is not theirs. */
+async function ownSubscription(
+  handle: PgHandle,
+  userId: string,
+  id: string,
+): Promise<{ row: CalendarSubscriptionRow; database: DatabaseRecord }> {
+  const [row] = await handle
+    .select()
+    .from(calendarSubscriptions)
+    .where(and(eq(calendarSubscriptions.databaseId, id), eq(calendarSubscriptions.ownerId, userId)))
+    .limit(1);
+  const database = row ? await findDatabaseById(handle, row.databaseId) : null;
+  if (!row || !database) throw new CalendarError('not_found', 'Subscription not found');
+  return { row, database };
+}
+
+const FEED_FAILURES: Partial<Record<string, string>> = {
+  unreachable: 'The calendar could not be reached',
+  http_error: 'The calendar’s server refused the request',
+  not_a_calendar: 'The URL did not answer with a calendar',
+  too_large: 'The calendar is too large to subscribe to',
+};
+
+/** GET /calendar/subscriptions?workspaceId — the caller's subscriptions. */
+router.get('/subscriptions', async (req: Request, res: Response) => {
+  try {
+    const userId = userOf(req);
+    const query = calendarSubscriptionListQuerySchema.parse(req.query);
+    const body: CalendarSubscriptionList = {
+      items: await listSubscriptions(getDb(), userId, query.workspaceId),
+      nextCursor: null,
+    };
+    res.json(body);
+  } catch (error: unknown) {
+    answerError(res, error, 'list calendar subscriptions');
+  }
+});
+
+/**
+ * POST /calendar/subscriptions { url, name?, workspaceId?, timeZone? } — a
+ * new calendar kept in step with the feed at `url`. The feed is fetched here,
+ * so a URL that does not answer with a calendar is refused at once, and the
+ * calendar is filled before the answer (201 with the subscription).
+ */
+router.post('/subscriptions', subscribeLimit, async (req: Request, res: Response) => {
+  try {
+    const userId = userOf(req);
+    const body = calendarSubscriptionCreateSchema.parse(req.body ?? {});
+    requireFeedKey();
+    const timeZone = body.timeZone ?? 'UTC';
+    if (!isTimeZone(timeZone)) {
+      throw new CalendarError('validation_failed', 'Unknown time zone', { field: 'timeZone' });
+    }
+    let url: URL;
+    try {
+      url = normalizeFeedUrl(body.url);
+    } catch (err: unknown) {
+      if (err instanceof UnsafeUrlError) {
+        throw new CalendarError('validation_failed', err.message, { field: 'url' });
+      }
+      throw err;
+    }
+    const handle = getDb();
+    const workspace = body.workspaceId
+      ? await findLiveWorkspaceById(handle, body.workspaceId)
+      : await ensurePersonalWorkspaceFor(userId);
+    if (!workspace) throw new CalendarError('not_found', 'Workspace not found');
+    const membership = await findMembership(handle, workspace.id, userId);
+    if (!membership) throw new CalendarError('forbidden', 'Not a member of this workspace');
+    if (!hasRole(membership.role, 'editor')) {
+      throw new CalendarError('forbidden', 'Adding a calendar to this workspace needs edit access');
+    }
+    const [held] = await handle
+      .select({ n: count() })
+      .from(calendarSubscriptions)
+      .where(eq(calendarSubscriptions.ownerId, userId));
+    if (Number(held?.n ?? 0) >= CALENDAR_SUBSCRIPTIONS_MAX) {
+      throw new CalendarError(
+        'validation_failed',
+        `At most ${CALENDAR_SUBSCRIPTIONS_MAX} calendar subscriptions`,
+        { field: 'url' },
+      );
+    }
+    const href = url.toString();
+    const fingerprint = feedFingerprint(href);
+    const [twin] = await handle
+      .select({ id: calendarSubscriptions.databaseId })
+      .from(calendarSubscriptions)
+      .where(
+        and(
+          eq(calendarSubscriptions.ownerId, userId),
+          eq(calendarSubscriptions.urlFingerprint, fingerprint),
+        ),
+      )
+      .limit(1);
+    if (twin) {
+      throw new CalendarError('conflict', 'You are already subscribed to this calendar', {
+        calendarId: twin.id,
+      });
+    }
+
+    const fetched = await fetchFeed(href, { etag: null, lastModified: null });
+    if (fetched.kind === 'failed') {
+      if (fetched.error === 'unsafe_url') {
+        throw new CalendarError(
+          'validation_failed',
+          'The URL leads somewhere Nilo does not fetch calendars from',
+          { field: 'url' },
+        );
+      }
+      throw new CalendarError(
+        'import_unreachable',
+        FEED_FAILURES[fetched.error] ?? 'The calendar could not be read',
+        { reason: fetched.error, status: fetched.httpStatus },
+      );
+    }
+    if (fetched.kind !== 'document') {
+      throw new CalendarError('import_unreachable', 'The URL did not answer with a calendar');
+    }
+    const parsed = parseIcs(fetched.body, timeZone);
+    if (parsed.events.length + parsed.overrides.length > CALENDAR_IMPORT_MAX_EVENTS) {
+      throw new CalendarError(
+        'validation_failed',
+        `A calendar of at most ${CALENDAR_IMPORT_MAX_EVENTS} events can be subscribed to`,
+        { field: 'url' },
+      );
+    }
+
+    const created = await handle.transaction(async (tx) => {
+      const database = await createSubscribedCalendarDatabase(tx, {
+        workspaceId: workspace.id,
+        ownerId: userId,
+        name: body.name ?? parsed.name ?? url.hostname,
+      });
+      const [row] = await tx
+        .insert(calendarSubscriptions)
+        .values({
+          databaseId: database.id,
+          workspaceId: workspace.id,
+          ownerId: userId,
+          urlSealed: sealFeedUrl(href),
+          urlFingerprint: fingerprint,
+          urlHost: url.hostname,
+          timeZone,
+          refreshingUntil: new Date(Date.now() + 5 * 60 * 1000),
+        })
+        .onConflictDoNothing({
+          target: [calendarSubscriptions.ownerId, calendarSubscriptions.urlFingerprint],
+        })
+        .returning();
+      if (!row) {
+        throw new CalendarError('conflict', 'You are already subscribed to this calendar');
+      }
+      return { database, row };
+    });
+    announceChange({ workspaceId: workspace.id });
+    const refreshed = await refreshSubscription(handle, created.row, { fetched });
+    res.status(201).json(toSubscription(refreshed, created.database));
+  } catch (error: unknown) {
+    answerError(res, error, 'subscribe to a calendar');
+  }
+});
+
+/** GET /calendar/subscriptions/:id — one of the caller's subscriptions. */
+router.get('/subscriptions/:id', async (req: Request, res: Response) => {
+  try {
+    const userId = userOf(req);
+    const { id } = idSchema.parse(req.params);
+    const { row, database } = await ownSubscription(getDb(), userId, id);
+    res.json(toSubscription(row, database));
+  } catch (error: unknown) {
+    answerError(res, error, 'read a calendar subscription');
+  }
+});
+
+/** PATCH /calendar/subscriptions/:id { name } — rename the subscribed calendar. */
+router.patch('/subscriptions/:id', async (req: Request, res: Response) => {
+  try {
+    const userId = userOf(req);
+    const { id } = idSchema.parse(req.params);
+    const body = calendarSubscriptionUpdateSchema.parse(req.body ?? {});
+    const handle = getDb();
+    const { row } = await ownSubscription(handle, userId, id);
+    const database = await updateDatabase(handle, row.databaseId, { name: body.name });
+    if (!database) throw new CalendarError('not_found', 'Subscription not found');
+    announceChange({ workspaceId: database.workspaceId, databaseId: database.id });
+    res.json(toSubscription(row, database));
+  } catch (error: unknown) {
+    answerError(res, error, 'rename a calendar subscription');
+  }
+});
+
+/**
+ * POST /calendar/subscriptions/:id/refresh — read the feed now (at most once
+ * a minute), answering with the subscription as the refresh left it: a feed
+ * that failed is its `status`, not an error.
+ */
+router.post(
+  '/subscriptions/:id/refresh',
+  subscriptionRefreshLimit,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = userOf(req);
+      const { id } = idSchema.parse(req.params);
+      requireFeedKey();
+      const handle = getDb();
+      const { row, database } = await ownSubscription(handle, userId, id);
+      const sinceMs = row.lastAttemptAt
+        ? Date.now() - new Date(row.lastAttemptAt).getTime()
+        : Number.POSITIVE_INFINITY;
+      const waitMs = CALENDAR_SUBSCRIPTION_MANUAL_REFRESH_SECONDS * 1000 - sinceMs;
+      if (waitMs > 0) {
+        const retryAfterSeconds = Math.ceil(waitMs / 1000);
+        res.setHeader('Retry-After', String(retryAfterSeconds));
+        throw new CalendarError('rate_limited', 'This calendar was refreshed a moment ago', {
+          retryAfterSeconds,
+        });
+      }
+      const claimed = await claimSubscription(handle, row.databaseId);
+      if (!claimed) throw new CalendarError('conflict', 'This calendar is being refreshed');
+      res.json(toSubscription(await refreshSubscription(handle, claimed), database));
+    } catch (error: unknown) {
+      answerError(res, error, 'refresh a calendar subscription');
+    }
+  },
+);
+
+/** DELETE /calendar/subscriptions/:id — unsubscribe: the calendar and its events are deleted. */
+router.delete('/subscriptions/:id', async (req: Request, res: Response) => {
+  try {
+    const userId = userOf(req);
+    const { id } = idSchema.parse(req.params);
+    const handle = getDb();
+    const { row } = await ownSubscription(handle, userId, id);
+    await handle.transaction(async (tx) => {
+      const rows = await tx
+        .select({ id: pages.id, databaseId: pages.databaseId })
+        .from(pages)
+        .where(eq(pages.databaseId, row.databaseId));
+      await deleteDatabaseRows(tx, row.databaseId);
+      await recordTombstones(tx, rows);
+      await deleteDatabase(tx, row.databaseId);
+    });
+    announceChange({ workspaceId: row.workspaceId, databaseId: row.databaseId });
+    res.status(204).end();
+  } catch (error: unknown) {
+    answerError(res, error, 'delete a calendar subscription');
   }
 });
 

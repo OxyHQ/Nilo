@@ -51,6 +51,14 @@ Last verified: 2026-09-13.
   says so at boot.
 - `IP_HASH_SALT` (`/oxy/nilo/IP_HASH_SALT`) keys anonymous rate limits by a
   salted hash of the client address; no raw address is stored.
+- `CALENDAR_FEED_KEY` (`/oxy/nilo/CALENDAR_FEED_KEY`, SecureString: 32 random
+  bytes in base64, `openssl rand -base64 32`) seals calendar subscriptions'
+  feed URLs (`docs/calendar.md`). Without it `/calendar/subscriptions` answers
+  503 and no task refreshes subscriptions; a value that is not 32 bytes is
+  logged at boot and treated as none. It cannot be rotated by replacing it:
+  the sealed URLs need the key they were sealed with. Every API task runs the
+  refresh sweep (once a minute, each subscription held by one task at a time);
+  `CALENDAR_SUBSCRIPTIONS_WORKER_ENABLED=false` stops it in a task.
 - `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` (`/oxy/nilo/`, SecureString) and
   `VAPID_SUBJECT` sign browser push. Without them
   `GET /notifications/vapid-public-key` answers 503.

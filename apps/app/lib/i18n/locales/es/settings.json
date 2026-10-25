@@ -27,6 +27,7 @@
   "sections": {
     "account": "Cuenta",
     "members": "Miembros",
+    "calendars": "Calendarios",
     "general": "General",
     "feedback": "Comentarios",
     "offline": "Sin conexión",
@@ -89,5 +90,44 @@
     "exportLabel": "Exportar el workspace",
     "exportDescription": "Todas las páginas que puedes abrir, como archivos Markdown o HTML en carpetas por subpágina, con las bases de datos como tablas.",
     "exportFailed": "No se pudo exportar el workspace."
+  },
+  "calendars": {
+    "addTitle": "Suscribirse a un calendario",
+    "description": "Añade un calendario de Google, Outlook o iCloud con su dirección iCal secreta. Nilo mantiene al día una copia de solo lectura, y otras apps de Oxy, como Astro, muestran sus eventos.",
+    "urlLabel": "Dirección del calendario (iCal)",
+    "urlPlaceholder": "https://… o webcal://…",
+    "nameLabel": "Nombre",
+    "namePlaceholder": "El nombre del propio calendario",
+    "subscribe": "Suscribirse",
+    "subscribed": "Suscrito a %{name}",
+    "failed": "No se pudo suscribir a este calendario.",
+    "listTitle": "Calendarios suscritos",
+    "where": "Google Calendar: Configuración › tu calendario › Integrar el calendario › Dirección secreta en formato iCal. Outlook: Configuración › Calendario › Calendarios compartidos › Publicar un calendario, y el vínculo ICS. iCloud: comparte el calendario como Calendario público. La dirección se guarda en secreto: Nilo no vuelve a mostrarla.",
+    "empty": "Aún no hay calendarios suscritos.",
+    "events": {
+      "one": "%{count} evento",
+      "other": "%{count} eventos"
+    },
+    "status": {
+      "ok": "Actualizado %{when}",
+      "pending": "Esperando su primera actualización",
+      "failing": "No se pudo actualizar: %{reason}"
+    },
+    "errors": {
+      "unreachable": "no se pudo contactar con el calendario",
+      "http_error": "su servidor rechazó la solicitud",
+      "not_a_calendar": "la dirección no responde con un calendario",
+      "too_large": "el calendario es demasiado grande",
+      "too_many_events": "el calendario tiene demasiados eventos",
+      "unsafe_url": "la dirección lleva a un sitio del que Nilo no obtiene calendarios",
+      "internal": "algo falló en Nilo"
+    },
+    "open": "Abrir",
+    "openLabel": "Abrir %{name}",
+    "refreshLabel": "Actualizar %{name} ahora",
+    "remove": "Quitar",
+    "removeLabel": "Quitar %{name}",
+    "removeTitle": "¿Quitar %{name}?",
+    "removeDescription": "El calendario y sus eventos se quitan de Nilo. El calendario en %{host} no cambia."
   }
 }

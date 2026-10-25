@@ -11,7 +11,14 @@ import {
   type PropsWithChildren,
 } from 'react';
 
-export type SettingsPage = 'account' | 'general' | 'workspace' | 'members' | 'offline' | 'feedback';
+export type SettingsPage =
+  | 'account'
+  | 'general'
+  | 'workspace'
+  | 'members'
+  | 'calendars'
+  | 'offline'
+  | 'feedback';
 interface SettingsContextValue {
   open: (page?: SettingsPage) => void;
   close: () => void;
