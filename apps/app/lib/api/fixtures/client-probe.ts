@@ -5,10 +5,23 @@ import type { AddressInfo } from 'node:net';
 import { OxyServices } from '@oxy.so/core';
 
 let release: (() => void) | undefined;
+const bodies: { path: string | undefined; body: string; type: string | undefined }[] = [];
+let postAttempts = 0;
 let arrived: (() => void) | undefined;
 const token = (userId: string, exp = 2_000_000_000) =>
   `e30.${Buffer.from(JSON.stringify({ userId, sessionId: userId, exp })).toString('base64url')}.fixture`;
 const server = createServer(async (req, res) => {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) chunks.push(Buffer.from(chunk));
+  bodies.push({
+    path: req.url,
+    body: Buffer.concat(chunks).toString(),
+    type: req.headers['content-type'],
+  });
+  if (req.url === '/refresh-post' && ++postAttempts === 1) {
+    res.writeHead(401, { 'content-type': 'application/json' }).end('{}');
+    return;
+  }
   if (req.url === '/held') {
     const ready = new Promise<void>((resolve) => {
       release = resolve;
@@ -46,6 +59,29 @@ try {
   assert.equal(await api.socketAccessToken(new AbortController().signal), token('A'));
   assert.equal(api.hasApiSession(), true);
   assert.equal((await api.default.get('/private')).data.bearer, `Bearer ${token('A')}`);
+  let refreshes = 0;
+  oxy.http.setAuthRefreshHandler(async () => {
+    refreshes++;
+    return token('A', 2_000_000_001);
+  });
+  await api.default.post('/refresh-post', { title: 'Original JSON' });
+  assert.equal(postAttempts, 2);
+  assert.equal(refreshes, 1);
+  assert.deepEqual(
+    bodies
+      .filter((body) => body.path === '/refresh-post')
+      .map(({ body, type }) => ({ body, type })),
+    [
+      { body: '{"title":"Original JSON"}', type: 'application/json' },
+      { body: '{"title":"Original JSON"}', type: 'application/json' },
+    ],
+  );
+  const form = new FormData();
+  form.append('file', new Blob(['Exact upload bytes']), 'sample.txt');
+  await api.default.post('/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+  assert.match(bodies.at(-1)?.type ?? '', /^multipart\/form-data; boundary=/);
+  assert.match(bodies.at(-1)?.body ?? '', /Exact upload bytes/);
+  assert.match(bodies.at(-1)?.body ?? '', /filename="sample.txt"/);
   const ready = new Promise<void>((resolve) => {
     arrived = resolve;
   });
