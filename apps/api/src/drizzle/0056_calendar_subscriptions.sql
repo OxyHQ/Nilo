@@ -26,7 +26,7 @@ CREATE TABLE "calendar_subscriptions" (
 	"created_at" timestamp with time zone DEFAULT date_trunc('milliseconds', now()) NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT date_trunc('milliseconds', now()) NOT NULL,
 	CONSTRAINT "calendar_subscriptions_status" CHECK ("calendar_subscriptions"."status" in ('pending', 'ok', 'failing')),
-	CONSTRAINT "calendar_subscriptions_last_error" CHECK ("calendar_subscriptions"."last_error" is null or "calendar_subscriptions"."last_error" in ('unreachable', 'http_error', 'not_a_calendar', 'too_large', 'too_many_events', 'unsafe_url', 'internal'))
+	CONSTRAINT "calendar_subscriptions_last_error" CHECK ("calendar_subscriptions"."last_error" is null or "calendar_subscriptions"."last_error" in ('unreachable', 'http_error', 'not_a_calendar', 'incomplete', 'too_large', 'too_many_events', 'unsafe_url', 'internal'))
 );
 --> statement-breakpoint
 ALTER TABLE "databases" ADD COLUMN "read_only" boolean DEFAULT false NOT NULL;--> statement-breakpoint

@@ -1,5 +1,5 @@
 {
-  "id": "675d730c-163b-4311-b2d7-ab471b4b832d",
+  "id": "0255dcc0-d637-4e9f-898a-83a9a9e58300",
   "prevId": "74f71762-87d0-4124-ab70-85b4e0627897",
   "version": "7",
   "dialect": "postgresql",
@@ -4850,7 +4850,7 @@
         },
         "calendar_subscriptions_last_error": {
           "name": "calendar_subscriptions_last_error",
-          "value": "\"calendar_subscriptions\".\"last_error\" is null or \"calendar_subscriptions\".\"last_error\" in ('unreachable', 'http_error', 'not_a_calendar', 'too_large', 'too_many_events', 'unsafe_url', 'internal')"
+          "value": "\"calendar_subscriptions\".\"last_error\" is null or \"calendar_subscriptions\".\"last_error\" in ('unreachable', 'http_error', 'not_a_calendar', 'incomplete', 'too_large', 'too_many_events', 'unsafe_url', 'internal')"
         }
       },
       "isRLSEnabled": false

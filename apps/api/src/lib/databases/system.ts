@@ -91,6 +91,8 @@ export const CALENDAR_PROPERTY = {
    * which reads them from its feed's EXDATEs and changed occurrences.
    */
   exceptions: 'event_exceptions',
+  /** The zone a subscribed series repeats in (its feed's TZID): a subscribed calendar's only. */
+  timeZone: 'event_time_zone',
 } as const;
 
 /** The colours a new calendar's events can take, in Nilo's palette. */
@@ -417,6 +419,7 @@ export async function createSubscribedCalendarDatabase(
         { id: CALENDAR_PROPERTY.description, name: 'Description', type: 'text' },
         { id: CALENDAR_PROPERTY.recurrence, name: 'Repeat', type: 'text' },
         { id: CALENDAR_PROPERTY.exceptions, name: 'Exceptions', type: 'text' },
+        { id: CALENDAR_PROPERTY.timeZone, name: 'Time zone', type: 'text' },
         { id: CALENDAR_PROPERTY.uid, name: 'iCal UID', type: 'text' },
       ],
     },
@@ -427,7 +430,10 @@ export async function createSubscribedCalendarDatabase(
     readOnly: true,
   });
   await createDefaultViewForDatabase(db, database.id);
-  await addCalendarView(db, database.id, [CALENDAR_PROPERTY.exceptions]);
+  await addCalendarView(db, database.id, [
+    CALENDAR_PROPERTY.exceptions,
+    CALENDAR_PROPERTY.timeZone,
+  ]);
   return database;
 }
 

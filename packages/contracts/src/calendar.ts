@@ -383,6 +383,8 @@ export const CALENDAR_SUBSCRIPTION_ERRORS = [
   'http_error',
   /** A success whose body is not an iCalendar document. */
   'not_a_calendar',
+  /** A document cut short (no END:VCALENDAR, or a VEVENT left open): not applied. */
+  'incomplete',
   /** Larger than `CALENDAR_IMPORT_MAX_BYTES`. */
   'too_large',
   /** More than `CALENDAR_IMPORT_MAX_EVENTS` events. */

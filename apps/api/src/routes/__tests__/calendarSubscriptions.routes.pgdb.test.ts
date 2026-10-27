@@ -101,7 +101,7 @@ process.env.CALENDAR_FEED_KEY = randomBytes(32).toString('base64');
 const { default: calendarRouter } = await import('../calendar.js');
 const { default: databasesRouter } = await import('../databases.js');
 const { default: pagesRouter } = await import('../pages.js');
-const { refreshDueSubscriptions, claimSubscription } = await import(
+const { refreshDueSubscriptions, claimSubscription, refreshSubscription } = await import(
   '../../lib/calendar/subscriptions.js'
 );
 
@@ -351,6 +351,24 @@ describe('calendar subscriptions', () => {
     );
   });
 
+  it("repeats a feed's series at its own zone's wall-clock time, whatever zone reads it", async () => {
+    const spring = await eventsOf(
+      calendarId,
+      '2027-03-21T00:00:00Z',
+      '2027-04-04T00:00:00Z',
+      'UTC',
+    );
+    expect(spring.filter((e) => e.title === 'Standup').map((e) => e.start)).toEqual([
+      '2027-03-22T08:00:00.000Z',
+      '2027-03-29T07:00:00.000Z',
+    ]);
+    const november = await eventsOf(calendarId, ...NOVEMBER, 'America/New_York');
+    expect(november.filter((e) => e.title === 'Standup').map((e) => e.start)).toEqual([
+      '2026-11-02T08:00:00.000Z',
+      '2026-11-30T08:00:00.000Z',
+    ]);
+  });
+
   it('is read-only through every route that writes', async () => {
     const [row] = await db.select().from(pages).where(eq(pages.databaseId, calendarId)).limit(1);
     const rowId = row?.id as string;
@@ -479,7 +497,44 @@ describe('calendar subscriptions', () => {
     );
   });
 
-  it('keeps the calendar and backs off when the feed fails', async () => {
+  it('applies nothing from a feed cut short, keeping every event', async () => {
+    feeds.set(SECRET_PATH, {
+      body: 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:launch@example.com\r\n',
+    });
+    await aMinuteLater(calendarId);
+    const res = await api('POST', `/calendar/subscriptions/${calendarId}/refresh`);
+    expect(calendarSubscriptionSchema.parse(res.json)).toMatchObject({
+      status: 'failing',
+      lastError: 'incomplete',
+      eventCount: 3,
+    });
+    expect(await eventsOf(calendarId, ...NOVEMBER)).toHaveLength(5);
+  });
+
+  it('writes nothing from a refresh whose lease another refresh has taken', async () => {
+    feeds.set(SECRET_PATH, { body: vcalendar('Work', [OFFSITE]) });
+    await db
+      .update(calendarSubscriptions)
+      .set({ refreshingUntil: null })
+      .where(eq(calendarSubscriptions.databaseId, calendarId));
+    const stale = await claimSubscription(db, calendarId, new Date(Date.now() - 60 * 60 * 1000));
+    expect(stale).not.toBeNull();
+    const current = await claimSubscription(db, calendarId);
+    expect(current).not.toBeNull();
+    await refreshSubscription(db, stale as NonNullable<typeof stale>);
+    expect(await eventsOf(calendarId, ...NOVEMBER)).toHaveLength(5);
+    const [row] = await db
+      .select()
+      .from(calendarSubscriptions)
+      .where(eq(calendarSubscriptions.databaseId, calendarId));
+    expect(row?.refreshingUntil?.getTime()).toBe(current?.refreshingUntil?.getTime());
+    await db
+      .update(calendarSubscriptions)
+      .set({ refreshingUntil: null })
+      .where(eq(calendarSubscriptions.databaseId, calendarId));
+  });
+
+  it('keeps the calendar and backs off, doubling, when the feed fails', async () => {
     feeds.set(SECRET_PATH, { status: 500 });
     await aMinuteLater(calendarId);
     const before = Date.now();
@@ -493,8 +548,9 @@ describe('calendar subscriptions', () => {
       eventCount: 3,
     });
     const next = Date.parse(subscription.nextRefreshAt) - before;
-    expect(next).toBeGreaterThan(14 * 60 * 1000);
-    expect(next).toBeLessThan(16 * 60 * 1000);
+    // The second failure in a row (the cut feed was the first): 15 minutes, doubled.
+    expect(next).toBeGreaterThan(29 * 60 * 1000);
+    expect(next).toBeLessThan(31 * 60 * 1000);
     expect(await eventsOf(calendarId, ...NOVEMBER)).toHaveLength(5);
   });
 

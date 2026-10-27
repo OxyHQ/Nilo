@@ -19,6 +19,7 @@ import {
   MIN_REFRESH_MS,
   nextRefreshDelay,
   normalizeFeedUrl,
+  scrubbedError,
 } from './subscriptions.js';
 
 const ICS = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR\r\n';
@@ -60,6 +61,9 @@ beforeAll(async () => {
       }
       res.writeHead(200, { 'last-modified': stamp });
       res.end(ICS);
+    } else if (path === '/cut.ics') {
+      res.writeHead(200);
+      res.end('BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:a\r\n');
     } else if (path === '/gone.ics') {
       res.writeHead(404);
       res.end('nope');
@@ -231,6 +235,9 @@ describe('fetching a feed', () => {
     expect(await fetchFeed(`${origin}/huge.ics`, none, FIXTURE_POLICY)).toMatchObject({
       error: 'too_large',
     });
+    expect(await fetchFeed(`${origin}/cut.ics`, none, FIXTURE_POLICY)).toMatchObject({
+      error: 'incomplete',
+    });
     expect(await fetchFeed('https://nothing.invalid/a.ics', none)).toMatchObject({
       error: 'unreachable',
     });
@@ -259,5 +266,19 @@ describe('when to read a feed again', () => {
     expect(failureDelay(2)).toBe(2 * MIN_REFRESH_MS);
     expect(failureDelay(3)).toBe(4 * MIN_REFRESH_MS);
     expect(failureDelay(50)).toBe(MAX_REFRESH_MS);
+  });
+});
+
+describe('logging a failed refresh', () => {
+  it('takes the feed URL and its secret path out of the error', () => {
+    const url =
+      'https://calendar.google.com/calendar/ical/ada%40example.com/private-9f8e/basic.ics';
+    const err = new Error(`connect ECONNRESET ${url}`);
+    Object.assign(err, { code: 'ECONNRESET' });
+    err.stack = `Error: request to /calendar/ical/ada%40example.com/private-9f8e/basic.ics failed`;
+    const logged = JSON.stringify(scrubbedError(err, url));
+    expect(logged).not.toContain('private-9f8e');
+    expect(logged).toContain('ECONNRESET');
+    expect(logged).toContain('[feed url]');
   });
 });

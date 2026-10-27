@@ -200,7 +200,7 @@ Calendars (`/settings/calendars`). Code: `lib/calendar/subscriptions.ts`,
 **The calendar.** Each subscription makes a database of its own in the
 workspace (the personal one by default), private to the subscriber, with a
 calendar view and the system calendar's property ids (Name, When, Location,
-Link, Description, Repeat, iCal UID) plus Exceptions, hidden. It is
+Link, Description, Repeat, iCal UID) plus Exceptions and Time zone, hidden. It is
 **read-only** (`databases.read_only`): every role on it, its rows and their
 content is capped at `viewer` (`docs/access.md`), so `/calendar` lists it with
 `subscribed: true`, `canEdit: false`, and every write path (`/calendar`,
@@ -215,25 +215,34 @@ calendar's id. Unsubscribing deletes the calendar and its events.
   what the feed holds, as an import would read it: the same fields, a series
   with an RRULE Nilo supports (an unsupported rule keeps its first occurrence,
   counted as `simplified`), cancelled events left out.
+- A document cut short (no `END:VCALENDAR`, or a VEVENT left open) is not
+  applied (`incomplete`): a truncated feed would otherwise read as one whose
+  events were removed.
+- A timed series keeps the **zone** its DTSTART names (TZID; UTC for a `Z`
+  time; the subscription's `timeZone` for a floating one) and repeats at that
+  zone's wall-clock time whatever zone reads it, so a 09:00 Paris meeting
+  stays at 09:00 Paris for a reader in New York across both summer-time
+  changes. Other calendars' series repeat in the reader's zone.
 - A series keeps its **EXDATEs** as exceptions, and a **changed occurrence**
   (a VEVENT with RECURRENCE-ID) removes that occurrence from the series and,
   unless cancelled, is an event of its own whose UID is
   `<series UID>#<occurrence>`. Range reads leave the exceptions out
   (`isException`: a day for an all-day series; for a timed one, within six
-  hours of the instant named, since a series keeps its wall-clock time in the
-  reader's zone); the export writes them back as EXDATE.
-- Everything is one transaction; `database:changed` (and `workspace:changed`)
+  hours of the instant named); the export writes them back as EXDATE.
+- Everything is one transaction, which first locks the subscription's row and
+  checks the refresh still holds its lease: a refresh that outlived its lease
+  (15 minutes) while another took over writes nothing; `database:changed` (and `workspace:changed`)
   is announced when anything changed, as for any row write.
 
 **When.** Every API task sweeps once a minute and takes up to five due
-subscriptions, each held (`refreshing_until`, five minutes) so no two tasks or
-requests refresh it at once. A feed is read again after its `Cache-Control`
+subscriptions, each held (`refreshing_until`, fifteen minutes) so no two tasks
+or requests refresh it at once. A feed is read again after its `Cache-Control`
 max-age (else `Expires`), never sooner than 15 minutes nor later than 24
 hours, 30 minutes when it says nothing. Requests send the feed's `ETag` and
 `Last-Modified` back (`If-None-Match`, `If-Modified-Since`): a 304, or a body
 whose SHA-256 is the one last applied, writes nothing. A failure keeps the
 calendar as it was, records `lastError` (`unreachable`, `http_error`,
-`not_a_calendar`, `too_large`, `too_many_events`, `unsafe_url`, `internal`)
+`not_a_calendar`, `incomplete`, `too_large`, `too_many_events`, `unsafe_url`, `internal`)
 and backs off: 15 minutes, doubling, to a day. The subscriber can refresh at
 once (`POST …/refresh`), at most once a minute.
 
@@ -250,8 +259,9 @@ most `CALENDAR_IMPORT_MAX_EVENTS` events.
 **The URL is a secret** (whoever holds it reads the calendar). It is stored
 only sealed with AES-256-GCM under `CALENDAR_FEED_KEY`
 (`lib/calendar/feed-secret.ts`, `docs/deployment.md`), deduplicated per person
-by an HMAC under a key derived from it, never logged, and never answered: the
-API shows its `host` only. Without the key the routes answer 503
+by an HMAC under a key derived from it, never logged (a failed refresh logs
+its error with the URL and its path taken out, `scrubbedError`), and never
+answered: the API shows its `host` only. Without the key the routes answer 503
 `service_unavailable` and the sweep does not start.
 
 **API** (each needs the session; a subscription is its subscriber's alone,

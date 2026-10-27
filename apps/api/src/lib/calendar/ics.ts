@@ -208,6 +208,12 @@ export interface ImportedEvent {
   description: string | null;
   url: string | null;
   recurrence: string | null;
+  /**
+   * The zone a timed event's wall-clock time is in: its DTSTART's TZID, `UTC`
+   * for a UTC time, the floating zone otherwise; null for an all-day event.
+   * A series repeats at that wall-clock time.
+   */
+  timeZone: string | null;
   /** It repeated by a rule Nilo does not support, and keeps its first occurrence. */
   simplified: boolean;
   /** The series' EXDATEs: `YYYY-MM-DD` days or ISO instants, ascending. */
@@ -308,6 +314,14 @@ function toEvent(lines: ContentLine[], floatingZone: string): ImportedEvent | nu
     }
   }
   const allDay = 'day' in start;
+  const tzid = startLine?.params.TZID;
+  const timeZone = allDay
+    ? null
+    : /Z$/i.test(startLine?.value.trim() ?? '')
+      ? 'UTC'
+      : tzid && isTimeZone(tzid)
+        ? tzid
+        : floatingZone;
   const startWire = 'day' in start ? start.day : new Date(start.ms).toISOString();
   let endWire: string | null = null;
   if (end) {
@@ -349,6 +363,7 @@ function toEvent(lines: ContentLine[], floatingZone: string): ImportedEvent | nu
     description: text('DESCRIPTION', 50_000),
     url: text('URL', 2000),
     recurrence,
+    timeZone,
     simplified,
     exceptions,
   };
@@ -406,3 +421,15 @@ export function parseIcs(ics: string, floatingZone: string): ParsedIcs {
 
 /** Whether a document looks like iCalendar at all. */
 export const looksLikeIcs = (text: string) => /^\s*BEGIN:VCALENDAR/i.test(text);
+
+/**
+ * Whether a document is whole: it ends its VCALENDAR, and every VEVENT it
+ * begins it ends. A feed cut short would otherwise read as one whose events
+ * were removed.
+ */
+export function isCompleteIcs(text: string): boolean {
+  if (!looksLikeIcs(text) || !/END:VCALENDAR\s*$/i.test(text)) return false;
+  const begun = text.match(/^BEGIN:VEVENT\s*$/gim)?.length ?? 0;
+  const ended = text.match(/^END:VEVENT\s*$/gim)?.length ?? 0;
+  return begun === ended;
+}

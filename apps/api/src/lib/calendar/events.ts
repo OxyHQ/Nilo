@@ -24,7 +24,13 @@ import type { PageRow } from '../../repositories/pages.js';
 import { NAME_PROPERTY_ID } from '../databases/schema-defaults.js';
 import { CALENDAR_PROPERTY } from '../databases/system.js';
 import { normalizeRepeatRule, RepeatRuleError } from './recurrence.js';
-import { DAY_MS, type DayNumber, dayNumberOfIso, isoOfDayNumber } from './zoned-time.js';
+import {
+  DAY_MS,
+  type DayNumber,
+  dayNumberOfIso,
+  isoOfDayNumber,
+  isTimeZone,
+} from './zoned-time.js';
 
 /** A calendar the caller can read: its database, where its fields are, and the caller's role. */
 export interface CalendarSource {
@@ -164,6 +170,18 @@ export function rowExceptionsText(source: CalendarSource, row: PageRow): string 
     (p) => p.id === CALENDAR_PROPERTY.exceptions && p.type === 'text',
   );
   return has ? text(row.properties, CALENDAR_PROPERTY.exceptions) : null;
+}
+
+/**
+ * The zone a row's series repeats in (`CALENDAR_PROPERTY.timeZone`, a
+ * subscribed calendar's only), or null to repeat in the reader's zone.
+ */
+export function rowSeriesZone(source: CalendarSource, row: PageRow): string | null {
+  const has = source.database.propertiesSchema.properties.some(
+    (p) => p.id === CALENDAR_PROPERTY.timeZone && p.type === 'text',
+  );
+  const zone = has ? text(row.properties, CALENDAR_PROPERTY.timeZone) : null;
+  return zone && isTimeZone(zone) ? zone : null;
 }
 
 /** The repeat rule a row holds, or null for a single event. */

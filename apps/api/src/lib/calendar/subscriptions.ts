@@ -47,14 +47,23 @@ import {
 } from '../safe-fetch.js';
 import { type CalendarSource, EventWriteError, eventProperties } from './events.js';
 import { feedKeys, openFeedUrl } from './feed-secret.js';
-import { type ImportedEvent, looksLikeIcs, type ParsedIcs, parseIcs } from './ics.js';
+import {
+  type ImportedEvent,
+  isCompleteIcs,
+  looksLikeIcs,
+  type ParsedIcs,
+  parseIcs,
+} from './ics.js';
 import { formatExceptions } from './recurrence.js';
 
 export const MIN_REFRESH_MS = 15 * 60 * 1000;
 export const DEFAULT_REFRESH_MS = 30 * 60 * 1000;
 export const MAX_REFRESH_MS = 24 * 60 * 60 * 1000;
-/** How long a refresh may hold a subscription before another task may take it. */
-export const REFRESH_LEASE_MS = 5 * 60 * 1000;
+/**
+ * How long a refresh may hold a subscription before another task may take it.
+ * A refresh that outlives its lease writes nothing (`LeaseLostError`).
+ */
+export const REFRESH_LEASE_MS = 15 * 60 * 1000;
 /** How often each API task looks for due subscriptions, and how many it takes at once. */
 export const SWEEP_INTERVAL_MS = 60 * 1000;
 const SWEEP_BATCH = 5;
@@ -187,6 +196,9 @@ export async function fetchFeed(
     if (!looksLikeIcs(res.body)) {
       return { kind: 'failed', error: 'not_a_calendar', httpStatus: res.status };
     }
+    if (!isCompleteIcs(res.body)) {
+      return { kind: 'failed', error: 'incomplete', httpStatus: res.status };
+    }
     return { kind: 'document', body: res.body, validators: next, maxAgeMs };
   } catch (err: unknown) {
     if (err instanceof UnsafeUrlError) {
@@ -248,6 +260,9 @@ function desiredRow(
     recurrence: event.recurrence,
     uid: key,
   });
+  properties[CALENDAR_PROPERTY.timeZone] = {
+    text: event.recurrence && event.timeZone ? event.timeZone : '',
+  };
   properties[CALENDAR_PROPERTY.exceptions] = {
     text: event.recurrence ? formatExceptions(exceptions) : '',
   };
@@ -299,6 +314,8 @@ export async function applyFeed(
   database: DatabaseRecord,
   ownerId: string,
   parsed: ParsedIcs,
+  /** The lease this refresh holds; the apply aborts when another refresh has taken it since. */
+  lease: Date | null = null,
 ): Promise<ApplyResult> {
   const source: CalendarSource = { database, fields: SUBSCRIBED_FIELDS, role: 'owner' };
   const desired = desiredRows(source, parsed);
@@ -310,6 +327,14 @@ export async function applyFeed(
     simplified: parsed.events.filter((e) => e.simplified).length,
   };
   await handle.transaction(async (tx) => {
+    // The subscription's row is the serialization point: one apply at a time,
+    // and only by the refresh that still holds the lease.
+    const [held] = await tx
+      .select({ until: calendarSubscriptions.refreshingUntil })
+      .from(calendarSubscriptions)
+      .where(eq(calendarSubscriptions.databaseId, database.id))
+      .for('update');
+    if (lease && held?.until?.getTime() !== lease.getTime()) throw new LeaseLostError();
     const existing = await tx
       .select()
       .from(pages)
@@ -416,6 +441,30 @@ export async function claimDueSubscriptions(
     .returning();
 }
 
+/** Another refresh took the subscription after this one's lease ran out: this one writes nothing. */
+export class LeaseLostError extends Error {}
+
+/**
+ * An error as it may be logged: its name, code, message and stack, with the
+ * feed's URL (and its path, which holds the secret) taken out.
+ */
+export function scrubbedError(err: unknown, url: string | null): Record<string, unknown> {
+  const secrets = url
+    ? [url, new URL(url).pathname, encodeURI(url)].filter((s) => s.length > 1)
+    : [];
+  const scrub = (value: unknown) => {
+    if (typeof value !== 'string') return value;
+    return secrets.reduce((text, secret) => text.split(secret).join('[feed url]'), value);
+  };
+  const e = err as { name?: unknown; code?: unknown; message?: unknown; stack?: unknown } | null;
+  return {
+    name: scrub(e?.name),
+    code: scrub(e?.code),
+    message: scrub(e?.message ?? String(err)),
+    stack: scrub(e?.stack),
+  };
+}
+
 export interface RefreshOptions {
   now?: Date;
   policy?: FetchPolicy;
@@ -434,11 +483,18 @@ export async function refreshSubscription(
   options: RefreshOptions = {},
 ): Promise<CalendarSubscriptionRow> {
   const now = options.now ?? new Date();
+  const lease = subscription.refreshingUntil ? new Date(subscription.refreshingUntil) : null;
+  let feedUrl: string | null = null;
   const finish = async (patch: Partial<typeof calendarSubscriptions.$inferInsert>) => {
     const [row] = await handle
       .update(calendarSubscriptions)
       .set({ ...patch, lastAttemptAt: now, refreshingUntil: null })
-      .where(eq(calendarSubscriptions.databaseId, subscription.databaseId))
+      .where(
+        and(
+          eq(calendarSubscriptions.databaseId, subscription.databaseId),
+          lease ? eq(calendarSubscriptions.refreshingUntil, lease) : sql`true`,
+        ),
+      )
       .returning();
     return row ?? subscription;
   };
@@ -455,10 +511,11 @@ export async function refreshSubscription(
   try {
     const database = await findDatabaseById(handle, subscription.databaseId);
     if (!database) return subscription;
+    feedUrl = openFeedUrl(subscription.urlSealed);
     const fetched =
       options.fetched ??
       (await fetchFeed(
-        openFeedUrl(subscription.urlSealed),
+        feedUrl,
         { etag: subscription.etag, lastModified: subscription.lastModified },
         options.policy,
       ));
@@ -482,7 +539,7 @@ export async function refreshSubscription(
     if (parsed.events.length + parsed.overrides.length > CALENDAR_IMPORT_MAX_EVENTS) {
       return await fail('too_many_events', null);
     }
-    const applied = await applyFeed(handle, database, subscription.ownerId, parsed);
+    const applied = await applyFeed(handle, database, subscription.ownerId, parsed, lease);
     return await finish({
       ...succeeded,
       contentHash,
@@ -491,8 +548,9 @@ export async function refreshSubscription(
       ...(applied.created + applied.updated + applied.deleted > 0 && { lastChangeAt: now }),
     });
   } catch (err: unknown) {
+    if (err instanceof LeaseLostError) return subscription;
     log.general.error(
-      { err, calendarId: subscription.databaseId },
+      { err: scrubbedError(err, feedUrl), calendarId: subscription.databaseId },
       'Calendar subscription refresh failed',
     );
     return fail('internal', null).catch(() => subscription);

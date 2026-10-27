@@ -1,6 +1,6 @@
 import type { CalendarEvent } from '@oxy.so/nilo-contracts';
 import { describe, expect, it } from 'vitest';
-import { contentLines, durationMs, eventsToIcs, foldLine, parseIcs } from './ics.js';
+import { contentLines, durationMs, eventsToIcs, foldLine, isCompleteIcs, parseIcs } from './ics.js';
 
 const event = (over: Partial<CalendarEvent>): CalendarEvent => ({
   id: 'r1',
@@ -276,5 +276,50 @@ describe('reading exceptions and changed occurrences', () => {
     );
     expect(ics).toContain('EXDATE:20261110T120000Z\r\n');
     expect(ics).toContain('EXDATE;VALUE=DATE:20271224\r\n');
+  });
+});
+
+describe('the zone a series repeats in, and whole documents', () => {
+  it('keeps the TZID of a timed event, UTC for a Z time, the floating zone otherwise', () => {
+    const parsed = parseIcs(
+      [
+        'BEGIN:VCALENDAR',
+        'BEGIN:VEVENT',
+        'UID:a',
+        'DTSTART;TZID=Europe/Paris:20261102T090000',
+        'END:VEVENT',
+        'BEGIN:VEVENT',
+        'UID:b',
+        'DTSTART:20261102T090000Z',
+        'END:VEVENT',
+        'BEGIN:VEVENT',
+        'UID:c',
+        'DTSTART:20261102T090000',
+        'END:VEVENT',
+        'BEGIN:VEVENT',
+        'UID:d',
+        'DTSTART;VALUE=DATE:20261102',
+        'END:VEVENT',
+        'END:VCALENDAR',
+      ].join('\r\n'),
+      'America/New_York',
+    );
+    expect(Object.fromEntries(parsed.events.map((e) => [e.uid, e.timeZone]))).toEqual({
+      a: 'Europe/Paris',
+      b: 'UTC',
+      c: 'America/New_York',
+      d: null,
+    });
+  });
+
+  it('tells a document cut short from a whole one', () => {
+    const whole = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:a\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n';
+    expect(isCompleteIcs(whole)).toBe(true);
+    expect(isCompleteIcs('BEGIN:VCALENDAR\r\nEND:VCALENDAR')).toBe(true);
+    expect(isCompleteIcs('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n')).toBe(false);
+    expect(isCompleteIcs(whole.slice(0, whole.indexOf('END:VEVENT')))).toBe(false);
+    expect(isCompleteIcs('BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:a\r\nEND:VCALENDAR\r\n')).toBe(
+      false,
+    );
   });
 });

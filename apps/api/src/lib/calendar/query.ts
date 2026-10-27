@@ -22,6 +22,7 @@ import {
   readEventTime,
   rowExceptionsText,
   rowRecurrence,
+  rowSeriesZone,
   spanOf,
 } from './events.js';
 import {
@@ -207,12 +208,15 @@ export async function listEvents(
     const keyOf = (start: number) =>
       time.allDay ? startOfLocalDay(start, window.timeZone) : start;
     const exceptions = parseExceptions(rowExceptionsText(source, row));
+    // A timed series from a feed repeats at its own zone's wall-clock time;
+    // the window's instants are the same in any zone.
+    const zone = (!time.allDay && rowSeriesZone(source, row)) || window.timeZone;
     const starts = expandSeries(
       { rule: parsed ?? ONCE, allDay: time.allDay, ...spanOf(time) },
-      window,
+      { ...window, timeZone: zone },
       limit + 1,
       (start) =>
-        !(exceptions && isException(exceptions, time.allDay, start, window.timeZone)) &&
+        !(exceptions && isException(exceptions, time.allDay, start, zone)) &&
         after({ key: keyOf(start), rowId: row.id }, cursor),
     );
     for (const start of starts) {
