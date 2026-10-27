@@ -26,3 +26,4 @@ export * from './feedback.js';
 export * from './capabilities.js';
 export * from './files.js';
 export * from './page-activity.js';
+export * from './calendar-subscriptions.js';

@@ -34,6 +34,7 @@ const databaseFields = {
   parentPageId: databases.parentPageId,
   teamspaceId: databases.teamspaceId,
   ownerId: databases.ownerId,
+  readOnly: databases.readOnly,
 };
 
 /** Cursor is scoped to the anchor AND its location, so moving it cannot reuse an old list. */

@@ -11,7 +11,7 @@
  * - Bounded time and size.
  */
 import dns from 'node:dns';
-import http, { type IncomingMessage } from 'node:http';
+import http, { type IncomingHttpHeaders, type IncomingMessage } from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
 
@@ -74,44 +74,75 @@ export function isPublicAddress(address: string): boolean {
 
 export class UnsafeUrlError extends Error {}
 
-/** Resolve like `dns.lookup`, refusing any answer that is not public. */
-function publicLookup(
+type LookupAll = (
   hostname: string,
-  options: dns.LookupOptions,
-  callback: (
-    err: NodeJS.ErrnoException | null,
-    address: string | dns.LookupAddress[],
-    family?: number,
-  ) => void,
-): void {
-  dns.lookup(hostname, { all: true }, (err, addresses) => {
-    if (err) return callback(err, '');
-    const list = addresses as dns.LookupAddress[];
-    if (list.length === 0 || list.some((a) => !isPublicAddress(a.address))) {
-      return callback(new UnsafeUrlError(`${hostname} does not resolve to a public address`), '');
-    }
-    const first = list[0] as dns.LookupAddress;
-    if (options.all) return callback(null, [first]);
-    callback(null, first.address, first.family);
-  });
+  callback: (err: NodeJS.ErrnoException | null, addresses: dns.LookupAddress[]) => void,
+) => void;
+
+/**
+ * Where a fetch may go. The default is any public address, http or https, on
+ * the default ports; a feed fetch narrows it to https. Tests widen
+ * `allowAddress` to reach a fixture server on loopback, and replace `lookup`
+ * to make a name resolve where they need it to.
+ */
+export interface FetchPolicy {
+  httpsOnly: boolean;
+  allowAddress: (address: string) => boolean;
+  allowPort: (port: string) => boolean;
+  lookup: LookupAll;
+}
+
+const systemLookup: LookupAll = (hostname, callback) =>
+  dns.lookup(hostname, { all: true }, (err, addresses) =>
+    callback(err, (addresses as dns.LookupAddress[] | undefined) ?? []),
+  );
+
+export const DEFAULT_FETCH_POLICY: FetchPolicy = {
+  httpsOnly: false,
+  allowAddress: isPublicAddress,
+  allowPort: (port) => port === '' || port === '80' || port === '443',
+  lookup: systemLookup,
+};
+
+/** Resolve like `dns.lookup`, refusing any answer the policy does not allow. */
+function guardedLookup(policy: FetchPolicy) {
+  return (
+    hostname: string,
+    options: dns.LookupOptions,
+    callback: (
+      err: NodeJS.ErrnoException | null,
+      address: string | dns.LookupAddress[],
+      family?: number,
+    ) => void,
+  ): void => {
+    policy.lookup(hostname, (err, list) => {
+      if (err) return callback(err, '');
+      if (list.length === 0 || list.some((a) => !policy.allowAddress(a.address))) {
+        return callback(new UnsafeUrlError(`${hostname} does not resolve to a public address`), '');
+      }
+      const first = list[0] as dns.LookupAddress;
+      if (options.all) return callback(null, [first]);
+      callback(null, first.address, first.family);
+    });
+  };
 }
 
 /** The URL if it is one a user may make us fetch; throws otherwise. */
-export function checkUrl(raw: string): URL {
+export function checkUrl(raw: string, policy: FetchPolicy = DEFAULT_FETCH_POLICY): URL {
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
     throw new UnsafeUrlError('Not a URL');
   }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:')
-    throw new UnsafeUrlError('Only http and https');
-  if (url.port && url.port !== '80' && url.port !== '443')
-    throw new UnsafeUrlError('Only the default ports');
+  if (policy.httpsOnly ? url.protocol !== 'https:' : !/^https?:$/.test(url.protocol))
+    throw new UnsafeUrlError(policy.httpsOnly ? 'Only https' : 'Only http and https');
+  if (!policy.allowPort(url.port)) throw new UnsafeUrlError('Only the default ports');
   if (url.username || url.password) throw new UnsafeUrlError('No credentials in URLs');
   // An address written as the host is never looked up: check it here.
   const host = url.hostname.replace(/^\[|\]$/g, '');
-  if (net.isIP(host) && !isPublicAddress(host)) throw new UnsafeUrlError('Not a public address');
+  if (net.isIP(host) && !policy.allowAddress(host))
+    throw new UnsafeUrlError('Not a public address');
   if (/^localhost$|\.localhost$|\.internal$|\.local$/i.test(host))
     throw new UnsafeUrlError('Not a public host');
   return url;
@@ -121,6 +152,7 @@ export interface SafeResponse {
   status: number;
   contentType: string;
   finalUrl: string;
+  headers: IncomingHttpHeaders;
   /** The body as UTF-8 text. */
   body: string;
   /** The body as received, for binary content. */
@@ -136,6 +168,7 @@ export interface SafeFetchOptions {
   headers?: Record<string, string>;
   /** Accept the response only if its content type passes. */
   accept?: (contentType: string) => boolean;
+  policy?: FetchPolicy;
 }
 
 function requestOnce(
@@ -146,7 +179,12 @@ function requestOnce(
     const client = url.protocol === 'https:' ? https : http;
     const req = client.get(
       url,
-      { headers: options.headers, lookup: publicLookup as never, timeout: options.timeoutMs },
+      {
+        headers: options.headers,
+        lookup: guardedLookup(options.policy) as never,
+        timeout: options.timeoutMs,
+        agent: false,
+      },
       resolve,
     );
     req.on('timeout', () => req.destroy(new Error('Timed out')));
@@ -177,7 +215,7 @@ export async function safePost(
           'content-type': 'application/json',
           'content-length': String(Buffer.byteLength(payload)),
         },
-        lookup: publicLookup as never,
+        lookup: guardedLookup(DEFAULT_FETCH_POLICY) as never,
         timeout: options.timeoutMs ?? 8000,
       },
       (res) => {
@@ -196,13 +234,15 @@ export async function safeFetch(
   raw: string,
   options: SafeFetchOptions = {},
 ): Promise<SafeResponse> {
+  const policy = options.policy ?? DEFAULT_FETCH_POLICY;
   const settings = {
     timeoutMs: options.timeoutMs ?? 8000,
     maxBytes: options.maxBytes ?? 2 * 1024 * 1024,
     headers: options.headers ?? {},
+    policy,
   };
   const deadline = Date.now() + settings.timeoutMs;
-  let url = checkUrl(raw);
+  let url = checkUrl(raw, policy);
   for (let hop = 0; hop <= (options.maxRedirects ?? 4); hop += 1) {
     const res = await requestOnce(url, {
       ...settings,
@@ -211,7 +251,7 @@ export async function safeFetch(
     const status = res.statusCode ?? 0;
     if (status >= 300 && status < 400 && res.headers.location) {
       res.resume();
-      url = checkUrl(new URL(res.headers.location, url).toString());
+      url = checkUrl(new URL(res.headers.location, url).toString(), policy);
       continue;
     }
     const contentType = String(res.headers['content-type'] ?? '');
@@ -221,6 +261,7 @@ export async function safeFetch(
         status,
         contentType,
         finalUrl: url.toString(),
+        headers: res.headers,
         body: '',
         bytes: Buffer.alloc(0),
         truncated: false,
@@ -249,6 +290,7 @@ export async function safeFetch(
       status,
       contentType,
       finalUrl: url.toString(),
+      headers: res.headers,
       body: bytes.toString('utf8'),
       bytes,
       truncated,

@@ -15,6 +15,15 @@ its saved versions requires effective `editor` access. Creation/edit metadata
 remains visible to readers. See [content history](collaboration.md) for the
 version lifecycle and client revocation behavior.
 
+## Read-only databases
+
+A database a sync keeps (`databases.read_only`: a calendar subscription,
+`docs/calendar.md`) caps every role on it, its rows and anything beneath
+them at `viewer` (`readOnlyCapped`, applied in `effectivePageRole`,
+`resolveDatabaseRole` and `checkDatabaseAccess`): owners, admins and grants
+included. Only the sync writes it, and only removing the subscription removes
+it.
+
 ## The personal workspace
 
 Every user has exactly one personal workspace (`workspaces.is_personal`,

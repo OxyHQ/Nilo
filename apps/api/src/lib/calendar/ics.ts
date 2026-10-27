@@ -1,13 +1,16 @@
 /**
  * iCalendar (RFC 5545): a calendar's events written as an `.ics` document,
- * and the VEVENTs of one read for an import.
+ * and the VEVENTs of one read for an import or a subscription.
  *
- * Export writes each row once, a repeating one with its RRULE. Import reads
- * what Nilo can hold: summary, description, location, URL, the time (a day,
- * a UTC time, a time in a named zone, or a floating time read in the zone
- * the request names), DTEND or DURATION, and an RRULE Nilo supports; a
- * repeating event with another rule keeps its first occurrence. Cancelled
- * events and changes to one occurrence (RECURRENCE-ID) are skipped.
+ * Export writes each row once, a repeating one with its RRULE (and EXDATEs,
+ * when it has exceptions). Reading keeps what Nilo can hold: summary,
+ * description, location, URL, the time (a day, a UTC time, a time in a named
+ * zone, or a floating time read in the zone the request names), DTEND or
+ * DURATION, an RRULE Nilo supports and the series' EXDATEs; a repeating event
+ * with another rule keeps its first occurrence. Cancelled events are skipped.
+ * A change to one occurrence (a VEVENT with RECURRENCE-ID) is read apart, as
+ * an override: an import skips it, a subscription removes that occurrence
+ * from its series and, unless it was cancelled, holds it as an event of its own.
  */
 import { createHash } from 'node:crypto';
 import type { CalendarEvent } from '@oxy.so/nilo-contracts';
@@ -48,7 +51,12 @@ const dayStamp = (day: string) => day.replace(/-/g, '');
 export const exportUid = (event: Pick<CalendarEvent, 'uid' | 'rowId'>) =>
   event.uid ?? `${event.rowId}@nilo.so`;
 
-export function eventsToIcs(calendarName: string, events: readonly CalendarEvent[]): string {
+export function eventsToIcs(
+  calendarName: string,
+  events: readonly CalendarEvent[],
+  /** A series' exceptions (`YYYY-MM-DD` days or ISO instants), by row id. */
+  exceptionsOf?: (rowId: string) => readonly string[],
+): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -72,6 +80,13 @@ export function eventsToIcs(calendarName: string, events: readonly CalendarEvent
     if (event.description) lines.push(`DESCRIPTION:${escapeText(event.description)}`);
     if (event.url) lines.push(`URL:${event.url.replace(/[\r\n]/g, '')}`);
     if (event.recurrence) lines.push(`RRULE:${event.recurrence}`);
+    const exdates = exceptionsOf?.(event.rowId) ?? [];
+    if (event.recurrence && exdates.length > 0) {
+      const days = exdates.filter((e) => !e.includes('T')).map(dayStamp);
+      const instants = exdates.filter((e) => e.includes('T')).map(utcStamp);
+      if (event.allDay && days.length > 0) lines.push(`EXDATE;VALUE=DATE:${days.join(',')}`);
+      if (!event.allDay && instants.length > 0) lines.push(`EXDATE:${instants.join(',')}`);
+    }
     lines.push(`CREATED:${utcStamp(event.createdAt)}`);
     lines.push(`LAST-MODIFIED:${utcStamp(event.updatedAt)}`);
     lines.push('END:VEVENT');
@@ -193,13 +208,74 @@ export interface ImportedEvent {
   description: string | null;
   url: string | null;
   recurrence: string | null;
+  /**
+   * The zone a timed event's wall-clock time is in: its DTSTART's TZID, `UTC`
+   * for a UTC time, the floating zone otherwise; null for an all-day event.
+   * A series repeats at that wall-clock time.
+   */
+  timeZone: string | null;
   /** It repeated by a rule Nilo does not support, and keeps its first occurrence. */
   simplified: boolean;
+  /** The series' EXDATEs: `YYYY-MM-DD` days or ISO instants, ascending. */
+  exceptions: string[];
+}
+
+/** A change to one occurrence of the series `uid`: the VEVENT with its RECURRENCE-ID. */
+export interface ImportedOverride {
+  uid: string;
+  /** The occurrence it replaces: a `YYYY-MM-DD` day or an ISO instant. */
+  recurrenceId: string;
+  /** The occurrence as it now is; null when it was cancelled. */
+  event: ImportedEvent | null;
 }
 
 export interface ParsedIcs {
   events: ImportedEvent[];
+  /** Changes to single occurrences, by series UID and occurrence (the last one of each wins). */
+  overrides: ImportedOverride[];
+  /** VEVENTs not read as events: cancelled, without a start, or overrides. */
   skipped: number;
+  /** The calendar's own name (`X-WR-CALNAME`), when it gives one. */
+  name: string | null;
+}
+
+/** A time as the API and the exceptions write it: a `YYYY-MM-DD` day or an ISO instant. */
+const timeToken = (time: IcsTime) => ('day' in time ? time.day : new Date(time.ms).toISOString());
+
+/** The times an EXDATE line lists, each read with the line's parameters. */
+function exceptionTimes(line: ContentLine, floatingZone: string): string[] {
+  return line.value.split(',').flatMap((value) => {
+    const time = readTime({ ...line, value }, floatingZone);
+    return time ? [timeToken(time)] : [];
+  });
+}
+
+const uidOf = (lines: ContentLine[], fallback: () => string) => {
+  const line = lines.find((l) => l.name === 'UID');
+  return line && line.value.trim() !== '' ? line.value.trim().slice(0, 500) : fallback();
+};
+
+function toOverride(lines: ContentLine[], floatingZone: string): ImportedOverride | null {
+  const idLine = lines.find((l) => l.name === 'RECURRENCE-ID');
+  const id = idLine ? readTime(idLine, floatingZone) : null;
+  const uidLine = lines.find((l) => l.name === 'UID');
+  if (!id || !uidLine || uidLine.value.trim() === '') return null;
+  const uid = uidLine.value.trim().slice(0, 500);
+  const cancelled =
+    lines
+      .find((l) => l.name === 'STATUS')
+      ?.value.trim()
+      .toUpperCase() === 'CANCELLED';
+  const event = cancelled
+    ? null
+    : toEvent(
+        lines.filter(
+          (l) => l.name !== 'RECURRENCE-ID' && l.name !== 'RRULE' && l.name !== 'EXDATE',
+        ),
+        floatingZone,
+      );
+  if (!cancelled && !event) return null;
+  return { uid, recurrenceId: timeToken(id), event };
 }
 
 function toEvent(lines: ContentLine[], floatingZone: string): ImportedEvent | null {
@@ -238,6 +314,14 @@ function toEvent(lines: ContentLine[], floatingZone: string): ImportedEvent | nu
     }
   }
   const allDay = 'day' in start;
+  const tzid = startLine?.params.TZID;
+  const timeZone = allDay
+    ? null
+    : /Z$/i.test(startLine?.value.trim() ?? '')
+      ? 'UTC'
+      : tzid && isTimeZone(tzid)
+        ? tzid
+        : floatingZone;
   const startWire = 'day' in start ? start.day : new Date(start.ms).toISOString();
   let endWire: string | null = null;
   if (end) {
@@ -248,11 +332,22 @@ function toEvent(lines: ContentLine[], floatingZone: string): ImportedEvent | nu
         : 'ms' in end && 'ms' in start && end.ms >= start.ms;
     if (!valid) endWire = null;
   }
-  const uidLine = get('UID');
-  const uid =
-    uidLine && uidLine.value.trim() !== ''
-      ? uidLine.value.trim().slice(0, 500)
-      : `${createHash('sha256').update(`${startLine?.value}|${title}`).digest('hex').slice(0, 32)}@import`;
+  const uid = uidOf(
+    lines,
+    () =>
+      `${createHash('sha256').update(`${startLine?.value}|${title}`).digest('hex').slice(0, 32)}@import`,
+  );
+  const exceptions =
+    recurrence === null
+      ? []
+      : [
+          ...new Set(
+            lines
+              .filter((l) => l.name === 'EXDATE')
+              .flatMap((l) => exceptionTimes(l, floatingZone))
+              .filter((token) => token.includes('T') !== allDay),
+          ),
+        ].sort();
   const text = (name: string, max: number) => {
     const line = get(name);
     const value = line ? unescapeText(line.value).trim() : '';
@@ -268,7 +363,9 @@ function toEvent(lines: ContentLine[], floatingZone: string): ImportedEvent | nu
     description: text('DESCRIPTION', 50_000),
     url: text('URL', 2000),
     recurrence,
+    timeZone,
     simplified,
+    exceptions,
   };
 }
 
@@ -279,10 +376,17 @@ function toEvent(lines: ContentLine[], floatingZone: string): ImportedEvent | nu
  */
 export function parseIcs(ics: string, floatingZone: string): ParsedIcs {
   const byUid = new Map<string, ImportedEvent>();
+  const overrides = new Map<string, ImportedOverride>();
   let skipped = 0;
+  let name: string | null = null;
   let current: ContentLine[] | null = null;
   let nested = 0;
   for (const line of contentLines(ics)) {
+    if (!current && line.name === 'X-WR-CALNAME' && name === null) {
+      const value = unescapeText(line.value).trim();
+      name = value === '' ? null : value.slice(0, 200);
+      continue;
+    }
     if (line.name === 'BEGIN' && line.value.trim().toUpperCase() === 'VEVENT') {
       current = [];
       nested = 0;
@@ -298,16 +402,34 @@ export function parseIcs(ics: string, floatingZone: string): ParsedIcs {
       continue;
     }
     if (line.name === 'END' && line.value.trim().toUpperCase() === 'VEVENT') {
-      const event = toEvent(current, floatingZone);
-      if (event) byUid.set(event.uid, event);
-      else skipped += 1;
+      if (current.some((l) => l.name === 'RECURRENCE-ID')) {
+        const override = toOverride(current, floatingZone);
+        if (override) overrides.set(`${override.uid}\n${override.recurrenceId}`, override);
+        skipped += 1;
+      } else {
+        const event = toEvent(current, floatingZone);
+        if (event) byUid.set(event.uid, event);
+        else skipped += 1;
+      }
       current = null;
       continue;
     }
     if (nested === 0) current.push(line);
   }
-  return { events: [...byUid.values()], skipped };
+  return { events: [...byUid.values()], overrides: [...overrides.values()], skipped, name };
 }
 
 /** Whether a document looks like iCalendar at all. */
 export const looksLikeIcs = (text: string) => /^\s*BEGIN:VCALENDAR/i.test(text);
+
+/**
+ * Whether a document is whole: it ends its VCALENDAR, and every VEVENT it
+ * begins it ends. A feed cut short would otherwise read as one whose events
+ * were removed.
+ */
+export function isCompleteIcs(text: string): boolean {
+  if (!looksLikeIcs(text) || !/END:VCALENDAR\s*$/i.test(text)) return false;
+  const begun = text.match(/^BEGIN:VEVENT\s*$/gim)?.length ?? 0;
+  const ended = text.match(/^END:VEVENT\s*$/gim)?.length ?? 0;
+  return begun === ended;
+}

@@ -393,6 +393,13 @@
       "when": 1792833610854,
       "tag": "0055_calendar_system_database_validate",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1792920209107,
+      "tag": "0056_calendar_subscriptions",
+      "breakpoints": true
     }
   ]
 }

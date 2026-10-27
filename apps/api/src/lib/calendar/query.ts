@@ -17,9 +17,18 @@ import type { PgHandle } from '../../db/client.js';
 import { pages } from '../../db/schema/pages.js';
 import type { PageRow } from '../../repositories/pages.js';
 import { dateMs } from '../databases/view-query.js';
-import { type CalendarSource, readEventTime, rowRecurrence, spanOf } from './events.js';
+import {
+  type CalendarSource,
+  readEventTime,
+  rowExceptionsText,
+  rowRecurrence,
+  rowSeriesZone,
+  spanOf,
+} from './events.js';
 import {
   expandSeries,
+  isException,
+  parseExceptions,
   parseRepeatRule,
   type RepeatRule,
   RepeatRuleError,
@@ -198,11 +207,17 @@ export async function listEvents(
     }
     const keyOf = (start: number) =>
       time.allDay ? startOfLocalDay(start, window.timeZone) : start;
+    const exceptions = parseExceptions(rowExceptionsText(source, row));
+    // A timed series from a feed repeats at its own zone's wall-clock time;
+    // the window's instants are the same in any zone.
+    const zone = (!time.allDay && rowSeriesZone(source, row)) || window.timeZone;
     const starts = expandSeries(
       { rule: parsed ?? ONCE, allDay: time.allDay, ...spanOf(time) },
-      window,
+      { ...window, timeZone: zone },
       limit + 1,
-      (start) => after({ key: keyOf(start), rowId: row.id }, cursor),
+      (start) =>
+        !(exceptions && isException(exceptions, time.allDay, start, zone)) &&
+        after({ key: keyOf(start), rowId: row.id }, cursor),
     );
     for (const start of starts) {
       entries.push({ source, row, occurrence: start, key: keyOf(start) });

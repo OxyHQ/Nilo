@@ -213,6 +213,7 @@ describe('findDatabaseById / findDatabaseWorkspaceId', () => {
       parentPageId: null,
       teamspaceId: null,
       ownerId: 'user-1',
+      readOnly: false,
     });
   });
 });

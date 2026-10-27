@@ -12,9 +12,11 @@ import { RiDownloadCloud2Line } from '@oxy.so/bloom/icons/RiDownloadCloud2Line';
 import { RiBuilding2Line } from '@oxy.so/bloom/icons/RiBuilding2Line';
 import { RiTeamLine } from '@oxy.so/bloom/icons/RiTeamLine';
 import { RiFeedbackLine } from '@oxy.so/bloom/icons/RiFeedbackLine';
+import { RiCalendarLine } from '@oxy.so/bloom/icons/RiCalendarLine';
 import { useTranslation } from '@/hooks/useTranslation';
 import { MembersSection } from '@/components/workspace/members-section';
 import { AccountSection } from './account-section';
+import { CalendarsSection } from './calendars-section';
 import { FeedbackSection } from './feedback-section';
 import { GeneralSection } from './general-section';
 import { OfflineSection } from './offline-section';
@@ -40,6 +42,7 @@ export default function NiloSettingsModal({
     ...(isAuthenticated && {
       workspace: { title: t('settings.sections.workspace'), content: <WorkspaceSection /> },
       members: { title: t('settings.sections.members'), content: <MembersSection /> },
+      calendars: { title: t('settings.sections.calendars'), content: <CalendarsSection /> },
     }),
     feedback: { title: t('settings.sections.feedback'), content: <FeedbackSection /> },
   };
@@ -62,7 +65,11 @@ export default function NiloSettingsModal({
     {
       key: 'workspace',
       label: t('settings.groups.workspace'),
-      items: [...item('workspace', RiBuilding2Line), ...item('members', RiTeamLine)],
+      items: [
+        ...item('workspace', RiBuilding2Line),
+        ...item('members', RiTeamLine),
+        ...item('calendars', RiCalendarLine),
+      ],
     },
     {
       key: 'support',

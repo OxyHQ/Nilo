@@ -342,3 +342,81 @@ function splitDay(day: DayNumber): { year: number; month: number; day: number } 
   const { year, month, date } = ymdOf(day);
   return { year, month, day: date };
 }
+
+// ---------------------------------------------------------------------------
+// Exceptions
+// ---------------------------------------------------------------------------
+
+/** The most exceptions a series keeps: the latest ones, when a feed lists more. */
+export const MAX_EXCEPTIONS = 1500;
+
+/**
+ * How far an exception may sit from the occurrence it removes. A timed series
+ * keeps its wall-clock time in the reader's zone, which can put an occurrence
+ * an hour or two from the instant the feed named (a zone with other summer-time
+ * dates than the event's); occurrences are at least a day apart, so six hours
+ * cannot reach the next one.
+ */
+const EXCEPTION_REACH_MS = 6 * 60 * 60 * 1000;
+
+/** A series' exceptions: the occurrences it does not have (RFC 5545 EXDATE). */
+export interface SeriesExceptions {
+  days: ReadonlySet<DayNumber>;
+  /** Ascending. */
+  instants: readonly number[];
+}
+
+/** Exceptions as stored: `YYYY-MM-DD` days and ISO instants, comma-separated, ascending. */
+export function formatExceptions(tokens: readonly string[]): string {
+  const valid = tokens.filter(
+    (t) => (/^\d{4}-\d{2}-\d{2}$/.test(t) || !Number.isNaN(Date.parse(t))) && !t.includes(','),
+  );
+  return [...new Set(valid)].sort().slice(-MAX_EXCEPTIONS).join(',');
+}
+
+/** The exceptions a stored value holds, or null for none. */
+export function parseExceptions(text: string | null | undefined): SeriesExceptions | null {
+  if (!text) return null;
+  const days = new Set<DayNumber>();
+  const instants: number[] = [];
+  for (const token of text.split(',')) {
+    const trimmed = token.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      const day = dayNumberOfIso(trimmed);
+      if (!Number.isNaN(day)) days.add(day);
+    } else if (trimmed !== '') {
+      const ms = Date.parse(trimmed);
+      if (!Number.isNaN(ms)) instants.push(ms);
+    }
+  }
+  if (days.size === 0 && instants.length === 0) return null;
+  return { days, instants: instants.sort((a, b) => a - b) };
+}
+
+/**
+ * Whether the occurrence starting at `start` (a day for an all-day series, ms
+ * for a timed one) is one of the exceptions.
+ */
+export function isException(
+  exceptions: SeriesExceptions,
+  allDay: boolean,
+  start: number,
+  timeZone: string,
+): boolean {
+  if (allDay) {
+    return (
+      exceptions.days.has(start) ||
+      exceptions.instants.some((ms) => Math.floor(ms / DAY_MS) === start)
+    );
+  }
+  if (exceptions.days.has(localDayNumber(start, timeZone))) return true;
+  const { instants } = exceptions;
+  let low = 0;
+  let high = instants.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if ((instants[mid] as number) < start - EXCEPTION_REACH_MS) low = mid + 1;
+    else high = mid;
+  }
+  return low < instants.length && (instants[low] as number) <= start + EXCEPTION_REACH_MS;
+}

@@ -311,6 +311,8 @@ describe('columns', () => {
         'archived',
         // Its properties and own views not to be changed (`routes/databases.ts`).
         'locked',
+        // Kept by a calendar subscription: read-only to everyone (`lib/page-access.ts`).
+        'read_only',
         'created_at',
         'updated_at',
       ]),

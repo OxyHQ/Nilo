@@ -4,6 +4,7 @@ import {
   type BaseRole,
   baseRole,
   effectivePageRole,
+  readOnlyCapped,
   rolesForPages,
   type TeamspaceStanding,
   type Viewer,
@@ -172,8 +173,34 @@ describe('rolesForPages', () => {
 
   it('places the rows of a database in no page where the database lives', () => {
     const pages = [{ ...page('row', null), databaseId: 'db' }];
-    const homes = new Map([['db', { parentPageId: null, teamspaceId: null, ownerId: 'me' }]]);
+    const homes = new Map([
+      ['db', { parentPageId: null, teamspaceId: null, ownerId: 'me', readOnly: false }],
+    ]);
     expect(rolesForPages(pages, viewer('viewer'), [], homes).get('row')).toBe('admin');
     expect(rolesForPages(pages, viewer('owner', {}, 'other'), [], homes).has('row')).toBe(false);
+  });
+
+  it('caps every role on a read-only database, its rows and their subpages at viewer', () => {
+    const pages = [
+      { ...page('row', null), databaseId: 'db' },
+      { ...page('sub', 'row'), databaseId: null },
+    ];
+    const homes = new Map([
+      ['db', { parentPageId: null, teamspaceId: null, ownerId: 'me', readOnly: true }],
+    ]);
+    const roles = rolesForPages(pages, viewer('owner'), [{ pageId: 'row', role: 'admin' }], homes);
+    expect(roles.get('row')).toBe('viewer');
+    expect(roles.get('sub')).toBe('viewer');
+    expect(readOnlyCapped('owner', true)).toBe('viewer');
+    expect(readOnlyCapped('viewer', true)).toBe('viewer');
+    expect(readOnlyCapped(null, true)).toBeNull();
+    expect(readOnlyCapped('editor', false)).toBe('editor');
+    expect(
+      effectivePageRole({
+        base: { role: 'owner', passesRestricted: true },
+        chain: [{ id: 'row', restricted: true, database: { readOnly: true } }],
+        grants: [],
+      }),
+    ).toBe('viewer');
   });
 });

@@ -270,3 +270,68 @@ describe('failures', () => {
     await expect(offline.calendar.listCalendars()).rejects.toBeInstanceOf(NiloNetworkError);
   });
 });
+
+describe('subscriptions', () => {
+  const subscription = {
+    id: 'cal-2',
+    calendarId: 'cal-2',
+    workspaceId: 'ws-1',
+    name: 'Work',
+    host: 'calendar.google.com',
+    status: 'ok',
+    lastError: null,
+    lastHttpStatus: null,
+    eventCount: 12,
+    simplified: 0,
+    timeZone: 'Europe/Paris',
+    lastAttemptAt: '2026-11-01T10:00:00.000Z',
+    lastSuccessAt: '2026-11-01T10:00:00.000Z',
+    lastChangeAt: '2026-11-01T10:00:00.000Z',
+    nextRefreshAt: '2026-11-01T10:30:00.000Z',
+    createdAt: '2026-11-01T10:00:00.000Z',
+  };
+
+  it('subscribes, lists, refreshes, renames and unsubscribes', async () => {
+    const { fetch, sent } = fakeFetch((request) => {
+      if (request.method === 'DELETE') return new Response(null, { status: 204 });
+      if (request.method === 'GET' && request.url.endsWith('/calendar/subscriptions')) {
+        return json({ items: [subscription], nextCursor: null });
+      }
+      return json(
+        subscription,
+        request.method === 'POST' && !request.url.endsWith('/refresh') ? 201 : 200,
+      );
+    });
+    const nilo = createNiloClient({ baseURL: 'https://api.nilo.test', fetch });
+    const made = await nilo.calendar.subscribe({
+      url: 'webcal://calendar.google.com/calendar/ical/x/basic.ics',
+      timeZone: 'Europe/Paris',
+    });
+    expect(made.host).toBe('calendar.google.com');
+    expect((await nilo.calendar.listSubscriptions()).map((s) => s.id)).toEqual(['cal-2']);
+    await nilo.calendar.refreshSubscription('cal-2');
+    await nilo.calendar.updateSubscription('cal-2', { name: 'Work (Google)' });
+    await nilo.calendar.unsubscribe('cal-2');
+    expect(sent.map((r) => `${r.method} ${r.url.replace('https://api.nilo.test', '')}`)).toEqual([
+      'POST /calendar/subscriptions',
+      'GET /calendar/subscriptions',
+      'POST /calendar/subscriptions/cal-2/refresh',
+      'PATCH /calendar/subscriptions/cal-2',
+      'DELETE /calendar/subscriptions/cal-2',
+    ]);
+    expect(sent[3]?.body).toEqual({ name: 'Work (Google)' });
+  });
+
+  it('refuses a subscription without a URL before sending it', async () => {
+    const { fetch, sent } = fakeFetch(() => json(subscription));
+    const nilo = createNiloClient({ baseURL: 'https://api.nilo.test', fetch });
+    await expect(nilo.calendar.subscribe({ url: '' })).rejects.toBeInstanceOf(NiloValidationError);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('reads a calendar from an API older than subscriptions as not subscribed', async () => {
+    const { fetch } = fakeFetch(() => json(calendar));
+    const nilo = createNiloClient({ baseURL: 'https://api.nilo.test', fetch });
+    expect((await nilo.calendar.getCalendar('cal-1')).subscribed).toBe(false);
+  });
+});

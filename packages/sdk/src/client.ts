@@ -32,6 +32,13 @@ import {
   calendarImportResultSchema,
   calendarListSchema,
   calendarSchema,
+  type CalendarSubscription,
+  type CalendarSubscriptionCreate,
+  calendarSubscriptionCreateSchema,
+  calendarSubscriptionListSchema,
+  calendarSubscriptionSchema,
+  type CalendarSubscriptionUpdate,
+  calendarSubscriptionUpdateSchema,
   type NiloWorkspace,
   niloWorkspaceSchema,
 } from '@oxy.so/nilo-contracts';
@@ -358,6 +365,65 @@ export function createNiloClient(options: NiloClientOptions) {
         { ...opts, body: input },
       );
       return parse(calendarImportResultSchema, answer);
+    },
+
+    /** The caller's calendar subscriptions, in `workspaceId` when one is named. */
+    async listSubscriptions(
+      query: { workspaceId?: string } = {},
+      opts: RequestOptions = {},
+    ): Promise<CalendarSubscription[]> {
+      const answer = await request('GET', '/calendar/subscriptions', { ...opts, query });
+      return parse(calendarSubscriptionListSchema, answer).items;
+    },
+
+    async getSubscription(id: string, opts: RequestOptions = {}): Promise<CalendarSubscription> {
+      const answer = await request('GET', `/calendar/subscriptions/${segment(id, 'id')}`, opts);
+      return parse(calendarSubscriptionSchema, answer);
+    },
+
+    /**
+     * Subscribe to a calendar's secret iCal URL (`https://` or `webcal://`):
+     * a new read-only calendar Nilo keeps in step with it. The URL is never
+     * given back.
+     */
+    async subscribe(
+      input: CalendarSubscriptionCreate,
+      opts: RequestOptions = {},
+    ): Promise<CalendarSubscription> {
+      checked(calendarSubscriptionCreateSchema, input);
+      const answer = await request('POST', '/calendar/subscriptions', { ...opts, body: input });
+      return parse(calendarSubscriptionSchema, answer);
+    },
+
+    async updateSubscription(
+      id: string,
+      patch: CalendarSubscriptionUpdate,
+      opts: RequestOptions = {},
+    ): Promise<CalendarSubscription> {
+      checked(calendarSubscriptionUpdateSchema, patch);
+      const answer = await request('PATCH', `/calendar/subscriptions/${segment(id, 'id')}`, {
+        ...opts,
+        body: patch,
+      });
+      return parse(calendarSubscriptionSchema, answer);
+    },
+
+    /** Read the feed now (at most once a minute); a feed that failed is the answer's `status`. */
+    async refreshSubscription(
+      id: string,
+      opts: RequestOptions = {},
+    ): Promise<CalendarSubscription> {
+      const answer = await request(
+        'POST',
+        `/calendar/subscriptions/${segment(id, 'id')}/refresh`,
+        opts,
+      );
+      return parse(calendarSubscriptionSchema, answer);
+    },
+
+    /** Unsubscribe: the subscribed calendar and its events are deleted. */
+    async unsubscribe(id: string, opts: RequestOptions = {}): Promise<void> {
+      await request('DELETE', `/calendar/subscriptions/${segment(id, 'id')}`, opts);
     },
   };
 
