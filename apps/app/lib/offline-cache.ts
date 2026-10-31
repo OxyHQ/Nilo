@@ -3,10 +3,10 @@
  * those it keeps on the device to stand up without a connection.
  *
  * The SDK owns this (`OxyProvider`'s `accountQueries`): every query is the
- * account's, dropped from memory when the account changes; the shell below is
- * written to the device under that account alone, deleted on any sign-out,
- * and restored before anything renders. Everything else stays in memory, so a
- * root added later and forgotten here is at worst kept for its own account.
+ * account's, dropped from memory when the account changes. Queries are
+ * written to the device under that account alone unless their root is
+ * explicitly memory-only. The shell below is kept long enough to stand up
+ * offline; a new root is also persisted unless excluded here.
  */
 import type { AccountQueriesConfig } from '@oxy.so/services/ui';
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
@@ -25,7 +25,7 @@ export const SHELL_ROOTS = [
   'page',
 ] as const;
 
-/** The account's, but never written to the device: blocks, comments, search, AI output… */
+/** The account's, but never written to the device: blocks, comments, search, AI output and file URLs. */
 export const MEMORY_ONLY_ROOTS = [
   'breadcrumb-neighbors',
   'ai',
@@ -34,6 +34,7 @@ export const MEMORY_ONLY_ROOTS = [
   'comments',
   'database',
   'embed-preview',
+  'file-url',
   'form-link',
   'forms',
   'member-profiles',
