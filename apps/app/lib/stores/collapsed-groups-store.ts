@@ -6,6 +6,23 @@ import type { ViewGroupKey } from '../types/databases';
 /** The views whose collapsed groups a device remembers: the most recent ones. */
 const MAX_VIEWS = 200;
 
+// Serialize persistence with account-boundary cleanup: an older write must not
+// complete after the empty state has been written for the next account.
+let pendingStorage: Promise<void> = Promise.resolve();
+function inStorageOrder<T>(operation: () => Promise<T>): Promise<T> {
+  const result = pendingStorage.then(operation);
+  pendingStorage = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+const storage = {
+  getItem: (name: string) => inStorageOrder(() => AsyncStorage.getItem(name)),
+  setItem: (name: string, value: string) => inStorageOrder(() => AsyncStorage.setItem(name, value)),
+  removeItem: (name: string) => inStorageOrder(() => AsyncStorage.removeItem(name)),
+};
+
 /**
  * The groups a reader collapsed in each view, by view id, on this device: a
  * reader may not change the view (`config.collapsedGroups`, which its editors
@@ -32,9 +49,16 @@ export const useCollapsedGroupsStore = create<CollapsedGroupsState>()(
     }),
     {
       name: 'collapsed-groups',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => storage),
       partialize: (state) => ({ byView: state.byView }),
       version: 1,
     },
   ),
 );
+
+/** Remove account-specific group values after any pending hydration and writes. */
+export async function clearCollapsedGroups(): Promise<void> {
+  // A fresh hydration invalidates any previous in-flight hydration in Zustand.
+  await useCollapsedGroupsStore.persist.rehydrate();
+  await useCollapsedGroupsStore.setState({ byView: {} });
+}

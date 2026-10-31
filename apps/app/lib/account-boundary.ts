@@ -21,6 +21,7 @@ import { pageDocStore } from './editor/doc-store';
 import { offlinePages } from './editor/offline-pages';
 import { withPageSessionsDrained } from './editor/shared-sessions';
 import { unregisterPush } from './push-registration';
+import { clearCollapsedGroups } from './stores/collapsed-groups-store';
 
 const OWNER_KEY = 'nilo:account';
 const SIGNED_OUT = 'signed-out';
@@ -38,6 +39,7 @@ async function clearDevice(client: QueryClient): Promise<void> {
     // Session writes have settled and cannot recreate data after this purge.
     await offlinePages.clear();
     await pageDocStore?.clear().catch(() => undefined);
+    await clearCollapsedGroups();
   });
 }
 
