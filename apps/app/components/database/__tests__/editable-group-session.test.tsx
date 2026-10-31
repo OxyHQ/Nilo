@@ -9,7 +9,24 @@ jest.mock('@/lib/config', () => ({
   __esModule: true,
   default: { apiUrl: 'https://nilo.example' },
 }));
-jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
+let mockServices: OxyServices;
+const mockRuntime = {
+  subscribe: () => () => undefined,
+  getAccountSessionRevision: () => 0,
+  getAccountSessionIdentity: () => ({
+    accountId: mockServices?.session.userId ?? null,
+    sessionId: null,
+    revision: 0,
+  }),
+};
+jest.mock('@oxy.so/services/ui/client', () => ({
+  useOxy: () => ({
+    isAuthenticated: true,
+    user: { id: mockServices?.session.userId },
+    oxyServices: mockServices,
+  }),
+}));
+jest.mock('@oxy.so/services/runtime', () => ({ useOxyRuntime: () => mockRuntime }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 
 const database = {
@@ -48,6 +65,7 @@ it('rejects an editable A callback after A to B to A and keeps current callbacks
   const originalFetch = globalThis.fetch;
   globalThis.fetch = request as typeof fetch;
   const oxy = new OxyServices({ baseURL: 'https://oxy.example' });
+  mockServices = oxy;
   const client = new QueryClient({
     defaultOptions: {
       queries: { gcTime: Infinity },
@@ -123,6 +141,7 @@ it('does not dispatch an A edit after Axios waits and the session becomes B', as
   const originalFetch = globalThis.fetch;
   globalThis.fetch = request as typeof fetch;
   const oxy = new OxyServices({ baseURL: 'https://oxy.example' });
+  mockServices = oxy;
   const client = new QueryClient({
     defaultOptions: {
       queries: { gcTime: Infinity },
@@ -194,6 +213,7 @@ it('leaves B cache untouched when A changes during optimistic preflight', async 
   const originalFetch = globalThis.fetch;
   globalThis.fetch = request as typeof fetch;
   const oxy = new OxyServices({ baseURL: 'https://oxy.example' });
+  mockServices = oxy;
   const client = new QueryClient({
     defaultOptions: {
       queries: { gcTime: Infinity },
@@ -259,6 +279,7 @@ it('keeps an editable callback usable after a same-session token rotation', asyn
   const originalFetch = globalThis.fetch;
   globalThis.fetch = request as typeof fetch;
   const oxy = new OxyServices({ baseURL: 'https://oxy.example' });
+  mockServices = oxy;
   const client = new QueryClient({
     defaultOptions: {
       queries: { gcTime: Infinity },
@@ -298,7 +319,7 @@ it('keeps an editable callback usable after a same-session token rotation', asyn
   }
 });
 
-it('invalidates an old edit when a parent 401 clears its token without advancing the parent epoch', async () => {
+it('invalidates an old edit when a parent 401 clears its token', async () => {
   const { apiSessionContextVersion } =
     require('@/lib/api/session-context') as typeof import('@/lib/api/session-context');
   const request = jest.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
@@ -311,6 +332,7 @@ it('invalidates an old edit when a parent 401 clears its token without advancing
   const originalFetch = globalThis.fetch;
   globalThis.fetch = request as typeof fetch;
   const oxy = new OxyServices({ baseURL: 'https://oxy.example' });
+  mockServices = oxy;
   const client = new QueryClient({
     defaultOptions: {
       queries: { gcTime: Infinity },
@@ -339,13 +361,19 @@ it('invalidates an old edit when a parent 401 clears its token without advancing
     });
     expect(rejected).toBe(true);
     expect(oxy.http.getAccessToken()).toBeNull();
-    expect(oxy.http.getSessionEpoch()).toBe(parentEpoch);
+    expect(oxy.http.getSessionEpoch()).toBeGreaterThan(parentEpoch);
     expect(apiSessionContextVersion()).toBeGreaterThan(linkedContext);
+    const withoutToken = toggle;
+    const nullEpoch = oxy.http.getSessionEpoch();
+    const nullContext = apiSessionContextVersion();
     await act(async () => {
       oxy.session.setAccessToken(tokenFor('ana'));
     });
+    expect(oxy.http.getSessionEpoch()).toBe(nullEpoch);
+    expect(apiSessionContextVersion()).toBeGreaterThan(nullContext);
     await act(async () => {
       oldA();
+      withoutToken();
       await new Promise((resolve) => setTimeout(resolve, 100));
     });
     expect(
@@ -353,6 +381,16 @@ it('invalidates an old edit when a parent 401 clears its token without advancing
     ).toHaveLength(0);
     await act(async () => {
       toggle();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(
+      request.mock.calls.filter(([input]) => String(input).startsWith('https://nilo.example/')),
+    ).toHaveLength(1);
+    await act(async () => {
+      oxy.session.clear();
+    });
+    await act(async () => {
+      withoutToken();
       await new Promise((resolve) => setTimeout(resolve, 100));
     });
     expect(

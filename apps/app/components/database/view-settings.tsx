@@ -101,7 +101,12 @@ export function ViewSettings({ database, view }: ViewSettingsProps) {
   const ofType = (...types: DatabasePropertyType[]) =>
     properties.filter((p) => types.includes(p.type));
 
-  const update = (patch: Omit<Parameters<typeof updateView.mutate>[0], 'databaseId' | 'viewId'>) =>
+  const update = (
+    patch: Omit<
+      Parameters<typeof updateView.mutate>[0],
+      'databaseId' | 'viewId' | 'expectedSession' | 'expectedOwner'
+    >,
+  ) =>
     updateView.mutate(
       { databaseId: database.id, viewId: view.id, ...patch },
       { onError: () => toast.error(t('databases.views.updateFailed')) },

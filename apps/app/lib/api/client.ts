@@ -41,10 +41,13 @@ export function bindApiClient(oxy: OxyServices): void {
   owner = oxy;
   linked = oxy.createLinkedClient({ baseURL: config.apiUrl });
   let epoch = linked.client.getSessionEpoch();
-  unsubscribe = linked.client.addTokenChangeListener(() => {
+  let hasToken = Boolean(linked.client.getAccessToken());
+  unsubscribe = linked.client.addTokenChangeListener((token) => {
     const next = linked?.client.getSessionEpoch();
-    if (next === epoch) return;
+    const nextHasToken = Boolean(token);
+    if (next === epoch && nextHasToken === hasToken) return;
     epoch = next ?? epoch;
+    hasToken = nextHasToken;
     advanceApiSessionContext();
   });
   advanceApiSessionContext();
@@ -61,12 +64,23 @@ export function releaseApiClient(oxy: OxyServices): void {
   advanceApiSessionContext();
 }
 
+/** Whether this exact services instance owns the currently bound transport. */
+export function ownsApiTransport(oxy: OxyServices): boolean {
+  return owner === oxy && linked !== undefined;
+}
+
 /** Send only if the session which owned the action still owns the transport. */
-export function patchForApiSession<T>(url: string, data: unknown, expected: number) {
+export function patchForApiSession<T>(
+  url: string,
+  data: unknown,
+  expected: number,
+  owns?: () => boolean,
+) {
   return apiClient.patch<T>(url, data, {
     env: {
       fetch: (input, init) => {
-        if (apiSessionContextVersion() !== expected) throw new Error('The request session changed');
+        if (apiSessionContextVersion() !== expected || (owns && !owns()))
+          throw new Error('The request session changed');
         return fetchLinked(input, init);
       },
     },

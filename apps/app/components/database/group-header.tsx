@@ -16,9 +16,12 @@ import {
 } from '@oxy.so/bloom/dropdown-menu';
 import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
+import { useOxy } from '@oxy.so/services/ui/client';
+import { useOxyRuntime } from '@oxy.so/services/runtime';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
 import { apiSessionContextVersion, onApiSessionContextChange } from '@/lib/api/session-context';
+import { ownsApiTransport } from '@/lib/api/client';
 import { move, place } from '@/lib/list-order';
 import { useCollapsedGroupsStore } from '@/lib/stores/collapsed-groups-store';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -306,6 +309,8 @@ function useViewGroups(
   actionsFor: (key: ViewGroupKey) => GroupActions | undefined;
 } {
   const { t } = useTranslation();
+  const { user, oxyServices, activeSessionId } = useOxy();
+  const runtime = useOxyRuntime();
   const updateView = useUpdateView();
   const session = React.useSyncExternalStore(
     onApiSessionContextChange,
@@ -315,32 +320,72 @@ function useViewGroups(
   const local = useCollapsedGroupsStore((state) => state.byView[view.id]);
   const generation = useCollapsedGroupsStore((state) => state.generation);
   const setLocal = useCollapsedGroupsStore((state) => state.setCollapsed);
+  const projectedVersion = React.useSyncExternalStore(
+    runtime.subscribe,
+    runtime.getAccountSessionRevision,
+    runtime.getAccountSessionRevision,
+  );
+  const owner = React.useMemo(
+    () => ({
+      userId: user?.id ?? null,
+      sessionId: activeSessionId ?? null,
+      oxyServices,
+      runtime,
+      projectedVersion,
+    }),
+    [user?.id, activeSessionId, oxyServices, runtime, projectedVersion],
+  );
+  const committedOwner = React.useRef<typeof owner | null>(null);
+  React.useLayoutEffect(() => {
+    committedOwner.current = owner;
+    return () => {
+      if (committedOwner.current === owner) committedOwner.current = null;
+    };
+  }, [owner]);
+  const ownsAction = () => {
+    if (committedOwner.current !== owner) return false;
+    if (!owner.oxyServices || !ownsApiTransport(owner.oxyServices)) return false;
+    const bearerSubject = owner.oxyServices?.session?.userId ?? null;
+    const live = owner.runtime.getAccountSessionIdentity();
+    return (
+      owner.userId !== null &&
+      bearerSubject === owner.userId &&
+      live.revision === owner.projectedVersion &&
+      live.accountId === owner.userId &&
+      live.sessionId === owner.sessionId
+    );
+  };
   const saved = view.config?.collapsedGroups ?? [];
   // An editor's collapsing, until the view holds it.
   const [pending, setPending] = React.useState<{
     base: readonly ViewGroupKey[];
     keys: ViewGroupKey[];
     session: number;
+    owner: typeof owner;
   } | null>(null);
   const collapsed: readonly ViewGroupKey[] = editable
-    ? pending && pending.session === session && sameKeys(pending.base, saved)
+    ? pending &&
+      pending.session === session &&
+      pending.owner === owner &&
+      sameKeys(pending.base, saved)
       ? pending.keys
       : saved
     : (local ?? saved);
 
   const save = (config: Partial<ViewConfig>) => {
-    if (session !== apiSessionContextVersion()) return;
+    if (session !== apiSessionContextVersion() || !ownsAction()) return;
     const ranges = view.config?.numberGrouping ? undefined : numberGroupingOf(groups ?? []);
     updateView.mutate(
       {
         databaseId,
         viewId: view.id,
         expectedSession: session,
+        expectedOwner: ownsAction,
         config: { ...view.config, ...(ranges && { numberGrouping: ranges }), ...config },
       },
       {
         onError: () => {
-          if (session === apiSessionContextVersion())
+          if (session === apiSessionContextVersion() && ownsAction())
             toast.error(t('databases.views.updateFailed'));
         },
       },
@@ -348,7 +393,7 @@ function useViewGroups(
   };
 
   const toggle = (key: ViewGroupKey) => {
-    if (editable && session !== apiSessionContextVersion()) return;
+    if (editable && (session !== apiSessionContextVersion() || !ownsAction())) return;
     const next = collapsed.includes(key) ? collapsed.filter((k) => k !== key) : [...collapsed, key];
     if (!editable) {
       // This only guards the reader's local preference, not editor mutations.
@@ -356,7 +401,7 @@ function useViewGroups(
       setLocal(view.id, next);
       return;
     }
-    setPending({ base: saved, keys: next, session });
+    setPending({ base: saved, keys: next, session, owner });
     save({ collapsedGroups: next });
   };
 

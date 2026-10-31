@@ -60,11 +60,18 @@ const subscription = (over: Partial<CalendarSubscription> = {}): CalendarSubscri
 });
 
 let renderer: ReactTestRenderer | undefined;
+let client: QueryClient | undefined;
 const mount = async () => {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: Infinity },
+      mutations: { gcTime: Infinity },
+    },
+  });
+  client = queryClient;
   await act(async () => {
     renderer = create(
-      <QueryClientProvider client={client}>
+      <QueryClientProvider client={queryClient}>
         <BloomTestProviders>
           <CalendarsSection />
         </BloomTestProviders>
@@ -102,6 +109,8 @@ beforeEach(() => {
 afterEach(() => {
   act(() => renderer?.unmount());
   renderer = undefined;
+  client?.clear();
+  client = undefined;
 });
 
 it('lists each subscription with its host, events and when it was updated, never a URL', async () => {
