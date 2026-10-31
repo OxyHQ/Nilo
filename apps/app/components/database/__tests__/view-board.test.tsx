@@ -7,13 +7,25 @@ import { Text } from '@oxy.so/bloom/typography';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 
 // The cells read people, files and rows through the API client and Oxy's session.
+const mockOxyServices = { session: { userId: 'test-user' } };
+const mockRuntime = {
+  subscribe: () => () => undefined,
+  getAccountSessionRevision: () => 0,
+  getAccountSessionIdentity: () => ({ accountId: 'test-user', sessionId: null, revision: 0 }),
+};
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), post: jest.fn() },
+  ownsApiTransport: () => true,
 }));
 jest.mock('@oxy.so/services/ui/client', () => ({
-  useOxy: () => ({ isAuthenticated: false, oxyServices: {} }),
+  useOxy: () => ({
+    isAuthenticated: false,
+    user: { id: 'test-user' },
+    oxyServices: mockOxyServices,
+  }),
 }));
+jest.mock('@oxy.so/services/runtime', () => ({ useOxyRuntime: () => mockRuntime }));
 // A view's groups are saved with it (collapsed, moved, hidden).
 const mockUpdateView = jest.fn();
 jest.mock('@/lib/hooks/use-database-views', () => ({

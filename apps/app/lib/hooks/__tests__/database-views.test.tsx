@@ -84,3 +84,19 @@ it('orders the properties at once, the ones not named after', async () => {
     ids: ['c', 'a'],
   });
 });
+
+it('rejects an owner predicate without a session generation before optimistic or network changes', async () => {
+  const before = detail();
+  await act(async () => {
+    update.mutate({
+      databaseId: 'db',
+      viewId: 'two',
+      name: 'unsafe',
+      expectedOwner: () => true,
+    } as never);
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(detail()).toEqual(before);
+  expect(apiClient.patch).not.toHaveBeenCalled();
+});

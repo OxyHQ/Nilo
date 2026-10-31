@@ -10,16 +10,31 @@ import type { Database, DatabaseRow, DatabaseView, FilterGroup } from '@/lib/typ
 
 const mockPush = jest.fn();
 const mockMutate = jest.fn();
+const mockOxyServices = { session: { userId: 'test-user' } };
+const mockRuntime = {
+  subscribe: () => () => undefined,
+  getAccountSessionRevision: () => 0,
+  getAccountSessionIdentity: () => ({ accountId: 'test-user', sessionId: null, revision: 0 }),
+};
 let mockWidth = 390;
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,
   default: () => ({ width: mockWidth, height: 844, scale: 2, fontScale: 1 }),
 }));
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
-jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { get: jest.fn() } }));
-jest.mock('@oxy.so/services/ui/client', () => ({
-  useOxy: () => ({ isAuthenticated: false, oxyServices: {} }),
+jest.mock('@/lib/api/client', () => ({
+  __esModule: true,
+  default: { get: jest.fn() },
+  ownsApiTransport: () => true,
 }));
+jest.mock('@oxy.so/services/ui/client', () => ({
+  useOxy: () => ({
+    isAuthenticated: false,
+    user: { id: 'test-user' },
+    oxyServices: mockOxyServices,
+  }),
+}));
+jest.mock('@oxy.so/services/runtime', () => ({ useOxyRuntime: () => mockRuntime }));
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
 }));

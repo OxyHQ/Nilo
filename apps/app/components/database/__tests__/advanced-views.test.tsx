@@ -25,6 +25,12 @@ import type {
 const mockPeek = jest.fn((_props: { rowId: string; mode: string; open: boolean }) => null);
 const mockPush = jest.fn();
 const mockUpdateView = jest.fn();
+const mockOxyServices = { session: { userId: 'test-user' } };
+const mockRuntime = {
+  subscribe: () => () => undefined,
+  getAccountSessionRevision: () => 0,
+  getAccountSessionIdentity: () => ({ accountId: 'test-user', sessionId: null, revision: 0 }),
+};
 const mockUpdateRowAsync = jest.fn(async () => undefined);
 const mockCreateRowAsync = jest.fn(async () => undefined);
 const mockHeaderMenu = jest.fn((_props: { move?: { onMove: (by: -1 | 1) => void } }) => null);
@@ -72,10 +78,16 @@ jest.mock('@/lib/hooks/use-view-data', () => ({
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), post: jest.fn() },
+  ownsApiTransport: () => true,
 }));
 jest.mock('@oxy.so/services/ui/client', () => ({
-  useOxy: () => ({ isAuthenticated: false, oxyServices: {} }),
+  useOxy: () => ({
+    isAuthenticated: false,
+    user: { id: 'test-user' },
+    oxyServices: mockOxyServices,
+  }),
 }));
+jest.mock('@oxy.so/services/runtime', () => ({ useOxyRuntime: () => mockRuntime }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock('@/lib/hooks/use-forms', () => ({
   useFormLink: jest.fn(),

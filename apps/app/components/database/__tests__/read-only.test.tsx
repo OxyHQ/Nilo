@@ -8,6 +8,12 @@ import { PropertyCell } from '../property-cell';
 import type { Database, DatabaseRow, DatabaseView, DatabaseViewType } from '@/lib/types/databases';
 
 const mockUpdateRow = jest.fn();
+const mockOxyServices = { session: { userId: 'test-user' } };
+const mockRuntime = {
+  subscribe: () => () => undefined,
+  getAccountSessionRevision: () => 0,
+  getAccountSessionIdentity: () => ({ accountId: 'test-user', sessionId: null, revision: 0 }),
+};
 
 // react-test-renderer supplies native host refs, not DOM scroll owners. Keep the
 // real Screen scope/chrome; viewport geometry is covered by Bloom and browser QA.
@@ -50,10 +56,16 @@ jest.mock('../row-peek', () => ({ RowPeek: () => null }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), post: jest.fn() },
+  ownsApiTransport: () => true,
 }));
 jest.mock('@oxy.so/services/ui/client', () => ({
-  useOxy: () => ({ isAuthenticated: false, oxyServices: {} }),
+  useOxy: () => ({
+    isAuthenticated: false,
+    user: { id: 'test-user' },
+    oxyServices: mockOxyServices,
+  }),
 }));
+jest.mock('@oxy.so/services/runtime', () => ({ useOxyRuntime: () => mockRuntime }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock('@/lib/hooks/use-forms', () => ({
   useFormLink: jest.fn(),
