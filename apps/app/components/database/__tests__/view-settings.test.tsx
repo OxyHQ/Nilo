@@ -20,14 +20,28 @@ import type { Database, DatabaseView } from '@/lib/types/databases';
 
 const Cover = (CoverHeader as unknown as { type: React.ComponentType }).type;
 const mockUpdateView = jest.fn();
+const mockOxyServices = { session: { userId: 'test-user' } };
+const mockRuntime = {
+  subscribe: () => () => undefined,
+  getAccountSessionRevision: () => 0,
+  getAccountSessionIdentity: () => ({ accountId: 'test-user', sessionId: null, revision: 0 }),
+};
 const mockUpdateRow = jest.fn();
 const mockUpdateViewAsync = jest.fn();
 const mockReorder = jest.fn();
 let mockViews: DatabaseView[] = [];
-jest.mock('@oxy.so/services/ui/client', () => ({ useOxy: () => ({ isAuthenticated: true }) }));
+jest.mock('@oxy.so/services/ui/client', () => ({
+  useOxy: () => ({
+    isAuthenticated: true,
+    user: { id: 'test-user' },
+    oxyServices: mockOxyServices,
+  }),
+}));
+jest.mock('@oxy.so/services/runtime', () => ({ useOxyRuntime: () => mockRuntime }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { get: jest.fn(), post: jest.fn() },
+  ownsApiTransport: () => true,
 }));
 jest.mock('@/lib/realtime/socket', () => ({ acquireSocket: jest.fn(), releaseSocket: jest.fn() }));
 jest.mock('@/lib/realtime/use-live-updates', () => ({ useWorkspaceLive: jest.fn() }));

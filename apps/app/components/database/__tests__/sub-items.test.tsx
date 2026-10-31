@@ -1,4 +1,3 @@
-import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { nestSubItems, subItemProperties } from '@/lib/sub-items';
@@ -8,6 +7,25 @@ import { SubItemToggle, NewSubItem } from '../sub-item-controls';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
 
 const mockCreateRow = jest.fn();
+const mockOxyServices = { session: { userId: 'test-user' } };
+const mockRuntime = {
+  subscribe: () => () => undefined,
+  getAccountSessionRevision: () => 0,
+  getAccountSessionIdentity: () => ({ accountId: 'test-user', sessionId: null, revision: 0 }),
+};
+jest.mock('@oxy.so/services/ui/client', () => ({
+  useOxy: () => ({
+    isAuthenticated: true,
+    user: { id: 'test-user' },
+    oxyServices: mockOxyServices,
+  }),
+}));
+jest.mock('@oxy.so/services/runtime', () => ({ useOxyRuntime: () => mockRuntime }));
+jest.mock('@/lib/api/client', () => ({
+  __esModule: true,
+  default: { get: jest.fn() },
+  ownsApiTransport: () => true,
+}));
 // A group of people shows their profiles, which these tests do not read.
 jest.mock('../person-cell', () => ({ PersonChips: () => null }));
 jest.mock('@/lib/hooks/use-view-data', () => ({

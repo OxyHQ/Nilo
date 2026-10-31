@@ -6,11 +6,26 @@ import { ViewCalendar } from '../view-calendar';
 import { ViewTimeline } from '../view-timeline';
 import type { Database, DatabaseView, Filter, FilterGroup } from '@/lib/types/databases';
 
+const mockOxyServices = { session: { userId: 'test-user' } };
+const mockRuntime = {
+  subscribe: () => () => undefined,
+  getAccountSessionRevision: () => 0,
+  getAccountSessionIdentity: () => ({ accountId: 'test-user', sessionId: null, revision: 0 }),
+};
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
-jest.mock('@/lib/api/client', () => ({ __esModule: true, default: { get: jest.fn() } }));
-jest.mock('@oxy.so/services/ui/client', () => ({
-  useOxy: () => ({ isAuthenticated: false, oxyServices: {} }),
+jest.mock('@/lib/api/client', () => ({
+  __esModule: true,
+  default: { get: jest.fn() },
+  ownsApiTransport: () => true,
 }));
+jest.mock('@oxy.so/services/ui/client', () => ({
+  useOxy: () => ({
+    isAuthenticated: false,
+    user: { id: 'test-user' },
+    oxyServices: mockOxyServices,
+  }),
+}));
+jest.mock('@oxy.so/services/runtime', () => ({ useOxyRuntime: () => mockRuntime }));
 // A view's groups are saved with it (collapsed, moved, hidden).
 jest.mock('@/lib/hooks/use-database-views', () => ({
   useUpdateView: () => ({ mutate: jest.fn(), isPending: false }),

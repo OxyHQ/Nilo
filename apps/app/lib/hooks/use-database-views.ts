@@ -33,9 +33,7 @@ interface CreateViewInput {
   order?: number;
 }
 
-interface UpdateViewInput {
-  /** Session of a retained interaction; omitted by callers without a session-bound owner. */
-  expectedSession?: number;
+interface UpdateViewFields {
   databaseId: string;
   viewId: string;
   name?: string;
@@ -51,6 +49,13 @@ interface UpdateViewInput {
   config?: ViewConfig;
   order?: number;
 }
+
+/** An owner predicate must be coupled to a transport session generation. */
+type UpdateViewInput = UpdateViewFields &
+  (
+    | { expectedSession?: undefined; expectedOwner?: undefined }
+    | { expectedSession: number; expectedOwner?: () => boolean }
+  );
 
 interface DeleteViewInput {
   blockId?: string | null;
@@ -144,36 +149,48 @@ function patchCachedView(
   return snapshots;
 }
 
+/** Reject incomplete or stale session ownership before touching cache or transport. */
+function staleViewOwner(expectedSession?: number, expectedOwner?: () => boolean): boolean {
+  return (
+    (expectedOwner !== undefined && expectedSession === undefined) ||
+    (expectedSession !== undefined && expectedSession !== apiSessionContextVersion()) ||
+    (expectedOwner !== undefined && !expectedOwner())
+  );
+}
+
 export function useUpdateView() {
   const queryClient = useQueryClient();
   return useMutation<DatabaseView, Error, UpdateViewInput, Array<[readonly unknown[], unknown]>>({
-    mutationFn: async ({ databaseId, viewId, expectedSession, ...patch }) => {
-      if (expectedSession !== undefined && expectedSession !== apiSessionContextVersion())
+    mutationFn: async ({ databaseId, viewId, expectedSession, expectedOwner, ...patch }) => {
+      if (staleViewOwner(expectedSession, expectedOwner))
         throw new Error('The request session changed');
       const url = API_ROUTES.databases.updateView(databaseId, viewId);
       const res =
         expectedSession === undefined
           ? await apiClient.patch<DatabaseViewResponse>(url, patch)
-          : await patchForApiSession<DatabaseViewResponse>(url, patch, expectedSession);
+          : await patchForApiSession<DatabaseViewResponse>(
+              url,
+              patch,
+              expectedSession,
+              expectedOwner,
+            );
       return res.data.view;
     },
-    onMutate: async ({ databaseId, viewId, expectedSession, ...patch }) => {
-      if (expectedSession !== undefined && expectedSession !== apiSessionContextVersion())
-        return [];
+    onMutate: async ({ databaseId, viewId, expectedSession, expectedOwner, ...patch }) => {
+      if (staleViewOwner(expectedSession, expectedOwner)) return [];
       await queryClient.cancelQueries({
         queryKey: queryKeys.databases.detail(databaseId),
         exact: true,
       });
-      if (expectedSession !== undefined && expectedSession !== apiSessionContextVersion())
-        return [];
+      if (staleViewOwner(expectedSession, expectedOwner)) return [];
       return patchCachedView(queryClient, databaseId, viewId, patch);
     },
-    onError: (_error, { expectedSession }, snapshots) => {
-      if (expectedSession !== undefined && expectedSession !== apiSessionContextVersion()) return;
+    onError: (_error, { expectedSession, expectedOwner }, snapshots) => {
+      if (staleViewOwner(expectedSession, expectedOwner)) return;
       for (const [key, data] of snapshots ?? []) queryClient.setQueryData(key, data);
     },
-    onSuccess: (view, { databaseId, viewId, expectedSession }) => {
-      if (expectedSession !== undefined && expectedSession !== apiSessionContextVersion()) return;
+    onSuccess: (view, { databaseId, viewId, expectedSession, expectedOwner }) => {
+      if (staleViewOwner(expectedSession, expectedOwner)) return;
       const key = view.blockId
         ? queryKeys.databases.blockViews(databaseId, view.blockId)
         : queryKeys.databases.views(databaseId);
