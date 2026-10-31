@@ -1,7 +1,12 @@
 import { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/hooks/query-keys';
 import { teamspaceKeys } from '@/lib/hooks/use-teamspaces';
-import { shareLinkKeys, workspaceKeys, workspaceMemberKeys } from '@/lib/hooks/workspace-keys';
+import {
+  shareLinkKeys,
+  workspaceAdminKeys,
+  workspaceKeys,
+  workspaceMemberKeys,
+} from '@/lib/hooks/workspace-keys';
 import {
   ACCOUNT_QUERIES,
   configureShellQueries,
@@ -54,6 +59,10 @@ it('keeps the specified private roots in memory only', () => {
     queryKeys.forms.public('t'),
     queryKeys.publicPages.detail('s'),
     workspaceMemberKeys.list('w'),
+    workspaceAdminKeys.invites('w'),
+    workspaceAdminKeys.inviteLink('w'),
+    workspaceAdminKeys.invitationPreview('t'),
+    workspaceAdminKeys.linkPreview('t'),
     shareLinkKeys.list('p'),
     shareLinkKeys.public('t'),
     teamspaceKeys.members('t'),
@@ -66,7 +75,7 @@ it('keeps the specified private roots in memory only', () => {
   expect(SHELL_ROOTS.filter((root) => memoryOnly.has(root))).toEqual([]);
 });
 
-it('persists shell data without file URLs or share tokens', async () => {
+it('persists shell data without file or invitation credentials', async () => {
   // Exercise the exact persister shipped by Services 13.0.0; it has no public
   // test entry point. Resolve the package first to respect workspace layouts.
   const persisterPath = require
@@ -121,15 +130,40 @@ it('persists shell data without file URLs or share tokens', async () => {
     url: 'https://example.invalid/synthetic-signed-url',
     expiresAt: 123,
   });
+  client.setQueryData(workspaceAdminKeys.invites('w'), [
+    { url: 'https://example.invalid/invite/synthetic-email-invite' },
+  ]);
+  client.setQueryData(workspaceAdminKeys.inviteLink('w'), {
+    token: 'synthetic-link-token',
+    url: 'https://example.invalid/join/synthetic-link-token',
+  });
+  client.setQueryData(workspaceAdminKeys.invitationPreview('synthetic-invite-preview'), {
+    workspace: { id: 'w' },
+  });
+  client.setQueryData(workspaceAdminKeys.linkPreview('synthetic-link-preview'), {
+    workspace: { id: 'w' },
+  });
   client.setQueryData(queryKeys.pages.detail('p'), { title: 'offline shell' });
   client.setQueryData(workspaceKeys.list, [{ name: 'offline workspace' }]);
   persistence.activate('account-b');
+  expect(client.getQueryData(workspaceAdminKeys.invites('w'))).toBeUndefined();
+  expect(client.getQueryData(workspaceAdminKeys.inviteLink('w'))).toBeUndefined();
+  expect(
+    client.getQueryData(workspaceAdminKeys.invitationPreview('synthetic-invite-preview')),
+  ).toBeUndefined();
+  expect(
+    client.getQueryData(workspaceAdminKeys.linkPreview('synthetic-link-preview')),
+  ).toBeUndefined();
   await written;
   const snapshot = stored.get('oxy_account_queries:account-a');
   expect(snapshot).toContain('offline shell');
   expect(snapshot).toContain('offline workspace');
   expect(snapshot).not.toContain('synthetic-token');
   expect(snapshot).not.toContain('synthetic-signed-url');
+  expect(snapshot).not.toContain('synthetic-email-invite');
+  expect(snapshot).not.toContain('synthetic-link-token');
+  expect(snapshot).not.toContain('synthetic-invite-preview');
+  expect(snapshot).not.toContain('synthetic-link-preview');
   persistence.detach();
   client.clear();
 });
