@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useOxy } from '@oxy.so/services/ui/client';
-import apiClient from '../api/client';
+import apiClient, { patchForApiSession } from '../api/client';
+import { apiSessionContextVersion } from '../api/session-context';
 import { API_ROUTES } from '../api/routes';
 import { queryKeys } from './query-keys';
 import type {
@@ -33,6 +34,8 @@ interface CreateViewInput {
 }
 
 interface UpdateViewInput {
+  /** Session of a retained interaction; omitted by callers without a session-bound owner. */
+  expectedSession?: number;
   databaseId: string;
   viewId: string;
   name?: string;
@@ -144,24 +147,33 @@ function patchCachedView(
 export function useUpdateView() {
   const queryClient = useQueryClient();
   return useMutation<DatabaseView, Error, UpdateViewInput, Array<[readonly unknown[], unknown]>>({
-    mutationFn: async ({ databaseId, viewId, ...patch }) => {
-      const res = await apiClient.patch<DatabaseViewResponse>(
-        API_ROUTES.databases.updateView(databaseId, viewId),
-        patch,
-      );
+    mutationFn: async ({ databaseId, viewId, expectedSession, ...patch }) => {
+      if (expectedSession !== undefined && expectedSession !== apiSessionContextVersion())
+        throw new Error('The request session changed');
+      const url = API_ROUTES.databases.updateView(databaseId, viewId);
+      const res =
+        expectedSession === undefined
+          ? await apiClient.patch<DatabaseViewResponse>(url, patch)
+          : await patchForApiSession<DatabaseViewResponse>(url, patch, expectedSession);
       return res.data.view;
     },
-    onMutate: async ({ databaseId, viewId, ...patch }) => {
+    onMutate: async ({ databaseId, viewId, expectedSession, ...patch }) => {
+      if (expectedSession !== undefined && expectedSession !== apiSessionContextVersion())
+        return [];
       await queryClient.cancelQueries({
         queryKey: queryKeys.databases.detail(databaseId),
         exact: true,
       });
+      if (expectedSession !== undefined && expectedSession !== apiSessionContextVersion())
+        return [];
       return patchCachedView(queryClient, databaseId, viewId, patch);
     },
-    onError: (_error, _input, snapshots) => {
+    onError: (_error, { expectedSession }, snapshots) => {
+      if (expectedSession !== undefined && expectedSession !== apiSessionContextVersion()) return;
       for (const [key, data] of snapshots ?? []) queryClient.setQueryData(key, data);
     },
-    onSuccess: (view, { databaseId, viewId }) => {
+    onSuccess: (view, { databaseId, viewId, expectedSession }) => {
+      if (expectedSession !== undefined && expectedSession !== apiSessionContextVersion()) return;
       const key = view.blockId
         ? queryKeys.databases.blockViews(databaseId, view.blockId)
         : queryKeys.databases.views(databaseId);
