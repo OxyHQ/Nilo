@@ -31,6 +31,8 @@ const storage = {
  */
 interface CollapsedGroupsState {
   byView: Record<string, ViewGroupKey[]>;
+  /** Changes whenever account data is cleared, invalidating older callbacks. */
+  generation: number;
   setCollapsed: (viewId: string, keys: ViewGroupKey[]) => void;
 }
 
@@ -38,6 +40,7 @@ export const useCollapsedGroupsStore = create<CollapsedGroupsState>()(
   persist(
     (set) => ({
       byView: {},
+      generation: 0,
       setCollapsed: (viewId, keys) =>
         set((state) => {
           // The view moves to the end: the oldest go first past the limit.
@@ -60,5 +63,8 @@ export const useCollapsedGroupsStore = create<CollapsedGroupsState>()(
 export async function clearCollapsedGroups(): Promise<void> {
   // A fresh hydration invalidates any previous in-flight hydration in Zustand.
   await useCollapsedGroupsStore.persist.rehydrate();
-  await useCollapsedGroupsStore.setState({ byView: {} });
+  await useCollapsedGroupsStore.setState((state) => ({
+    byView: {},
+    generation: state.generation + 1,
+  }));
 }
