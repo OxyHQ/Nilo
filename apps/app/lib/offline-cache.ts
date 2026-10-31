@@ -50,6 +50,10 @@ export const MEMORY_ONLY_ROOTS = [
   'unsplash',
   'version',
   'versions',
+  'workspace-invitation-preview',
+  'workspace-invite-link',
+  'workspace-invite-link-preview',
+  'workspace-invites',
   'workspace-members',
 ] as const;
 
