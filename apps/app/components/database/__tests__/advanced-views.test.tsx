@@ -1,4 +1,6 @@
 import { ProjectBoard } from '@oxy.so/bloom/project-board';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { QueryClient } from '@tanstack/react-query';
 import type React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Linking, Platform } from 'react-native';
@@ -11,6 +13,7 @@ import { ViewChart } from '../view-chart';
 import { ColumnResizeHandle } from '../column-resize-handle';
 import { type GroupActions, GroupHeader } from '../group-header';
 import { useCollapsedGroupsStore } from '@/lib/stores/collapsed-groups-store';
+import { enterAccount } from '@/lib/account-boundary';
 import type {
   CalculationValues,
   Database,
@@ -28,6 +31,18 @@ const mockHeaderMenu = jest.fn((_props: { move?: { onMove: (by: -1 | 1) => void 
 let mockCalculations: Record<string, { function: string; value: number | null }> = {};
 let mockPoints: { key: string | null; count: number; value: number | null }[] = [];
 let mockCalculationGroups: { key: string | null; calculations: CalculationValues }[] | undefined;
+
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
+jest.mock('@/lib/editor/doc-store', () => ({ pageDocStore: { clear: jest.fn(async () => {}) } }));
+jest.mock('@/lib/editor/offline-pages', () => ({
+  offlinePages: { clear: jest.fn(async () => {}) },
+}));
+jest.mock('@/lib/editor/shared-sessions', () => ({
+  withPageSessionsDrained: (purge: () => Promise<void>) => purge(),
+}));
+jest.mock('@/lib/push-registration', () => ({ unregisterPush: jest.fn(async () => {}) }));
 
 // react-test-renderer supplies native host refs, not DOM scroll owners. Keep the
 // real Screen scope/chrome; viewport geometry is covered by Bloom and browser QA.
@@ -680,6 +695,37 @@ describe('a view’s own groups', () => {
     expect(mockUpdateView).not.toHaveBeenCalled();
     expect(useCollapsedGroupsStore.getState().byView.view).toEqual(['1', '0']);
     expect(text()).not.toContain('Row 1');
+  });
+
+  it('ignores a retained group callback after A to B and A to B to A cleanups', async () => {
+    await AsyncStorage.clear();
+    const client = new QueryClient();
+    await enterAccount(client, 'ana');
+    renderTable({ readOnly: true });
+    const oldA = renderer.root.findAllByType(GroupHeader).find((n) => n.props.groupKey === '0')
+      ?.props.onToggle as () => void;
+    await act(async () => {
+      await enterAccount(client, 'bo');
+    });
+    act(() => oldA());
+    expect(useCollapsedGroupsStore.getState().byView).toEqual({});
+    const currentB = renderer.root.findAllByType(GroupHeader).find((n) => n.props.groupKey === '1')
+      ?.props.onToggle as () => void;
+    act(() => currentB());
+    expect(useCollapsedGroupsStore.getState().byView.view).toEqual(['1']);
+    await act(async () => {
+      await enterAccount(client, 'ana');
+    });
+    act(() => {
+      oldA();
+      currentB();
+    });
+    expect(useCollapsedGroupsStore.getState().byView).toEqual({});
+    const currentA = renderer.root.findAllByType(GroupHeader).find((n) => n.props.groupKey === '0')
+      ?.props.onToggle as () => void;
+    act(() => currentA());
+    expect(useCollapsedGroupsStore.getState().byView.view).toEqual(['0']);
+    client.clear();
   });
 
   it('groups a gallery’s cards in sections and a timeline’s bars in swimlanes', () => {

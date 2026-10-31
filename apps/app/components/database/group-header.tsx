@@ -307,6 +307,7 @@ function useViewGroups(
   const { t } = useTranslation();
   const updateView = useUpdateView();
   const local = useCollapsedGroupsStore((state) => state.byView[view.id]);
+  const generation = useCollapsedGroupsStore((state) => state.generation);
   const setLocal = useCollapsedGroupsStore((state) => state.setCollapsed);
   const saved = view.config?.collapsedGroups ?? [];
   // An editor's collapsing, until the view holds it.
@@ -335,6 +336,8 @@ function useViewGroups(
   const toggle = (key: ViewGroupKey) => {
     const next = collapsed.includes(key) ? collapsed.filter((k) => k !== key) : [...collapsed, key];
     if (!editable) {
+      // This only guards the reader's local preference, not editor mutations.
+      if (generation !== useCollapsedGroupsStore.getState().generation) return;
       setLocal(view.id, next);
       return;
     }
