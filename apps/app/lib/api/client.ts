@@ -1,11 +1,22 @@
 import type { LinkedHttpClient, OxyServices } from '@oxy.so/core';
 import axios from 'axios';
 import config from '../config';
+import { advanceApiSessionContext, apiSessionContextVersion } from './session-context';
+export { onApiSessionContextChange } from './session-context';
 
 let owner: OxyServices | undefined;
 let linked: LinkedHttpClient | undefined;
 let unsubscribe: (() => void) | undefined;
-const contextListeners = new Set<() => void>();
+function fetchLinked(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (!linked) throw new Error('The Oxy provider has not bound the product API');
+  if (typeof FormData !== 'undefined' && init?.body instanceof FormData) {
+    // Fetch owns multipart boundaries, including React Native URI parts.
+    const headers = new Headers(init.headers);
+    headers.delete('content-type');
+    return linked.fetchOptional(input, { ...init, headers });
+  }
+  return linked.fetchOptional(input, init);
+}
 
 /** Keep Axios response/error conventions; Oxy owns session, refresh and origin fencing. */
 const apiClient = axios.create({
@@ -18,16 +29,7 @@ const apiClient = axios.create({
   env: {
     // @ts-expect-error Axios supports null to disable Request construction; its declaration omits null. Preserve replayable JSON for Oxy's shared transport.
     Request: null,
-    fetch: (input, init) => {
-      if (!linked) throw new Error('The Oxy provider has not bound the product API');
-      if (typeof FormData !== 'undefined' && init?.body instanceof FormData) {
-        // Fetch owns multipart boundaries, including React Native URI parts.
-        const headers = new Headers(init.headers);
-        headers.delete('content-type');
-        return linked.fetchOptional(input, { ...init, headers });
-      }
-      return linked.fetchOptional(input, init);
-    },
+    fetch: fetchLinked,
   },
 });
 
@@ -43,9 +45,9 @@ export function bindApiClient(oxy: OxyServices): void {
     const next = linked?.client.getSessionEpoch();
     if (next === epoch) return;
     epoch = next ?? epoch;
-    for (const listener of contextListeners) listener();
+    advanceApiSessionContext();
   });
-  for (const listener of contextListeners) listener();
+  advanceApiSessionContext();
 }
 
 /** Dispose only this provider's binding, without disturbing a newer provider. */
@@ -56,7 +58,19 @@ export function releaseApiClient(oxy: OxyServices): void {
   unsubscribe = undefined;
   linked = undefined;
   owner = undefined;
-  for (const listener of contextListeners) listener();
+  advanceApiSessionContext();
+}
+
+/** Send only if the session which owned the action still owns the transport. */
+export function patchForApiSession<T>(url: string, data: unknown, expected: number) {
+  return apiClient.patch<T>(url, data, {
+    env: {
+      fetch: (input, init) => {
+        if (apiSessionContextVersion() !== expected) throw new Error('The request session changed');
+        return fetchLinked(input, init);
+      },
+    },
+  });
 }
 
 /** Socket handshakes read the same bound session; HTTP never copies its bearer. */
@@ -66,11 +80,5 @@ export function socketAccessToken(signal: AbortSignal): Promise<string> {
 }
 export function hasApiSession(): boolean {
   return Boolean(owner?.session.userId);
-}
-export function onApiSessionContextChange(listener: () => void): () => void {
-  contextListeners.add(listener);
-  return () => {
-    contextListeners.delete(listener);
-  };
 }
 export default apiClient;

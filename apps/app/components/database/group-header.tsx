@@ -18,6 +18,7 @@ import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUpdateView } from '@/lib/hooks/use-database-views';
+import { apiSessionContextVersion, onApiSessionContextChange } from '@/lib/api/session-context';
 import { move, place } from '@/lib/list-order';
 import { useCollapsedGroupsStore } from '@/lib/stores/collapsed-groups-store';
 import { useColorScheme } from '@/lib/useColorScheme';
@@ -306,6 +307,11 @@ function useViewGroups(
 } {
   const { t } = useTranslation();
   const updateView = useUpdateView();
+  const session = React.useSyncExternalStore(
+    onApiSessionContextChange,
+    apiSessionContextVersion,
+    apiSessionContextVersion,
+  );
   const local = useCollapsedGroupsStore((state) => state.byView[view.id]);
   const generation = useCollapsedGroupsStore((state) => state.generation);
   const setLocal = useCollapsedGroupsStore((state) => state.setCollapsed);
@@ -314,26 +320,35 @@ function useViewGroups(
   const [pending, setPending] = React.useState<{
     base: readonly ViewGroupKey[];
     keys: ViewGroupKey[];
+    session: number;
   } | null>(null);
   const collapsed: readonly ViewGroupKey[] = editable
-    ? pending && sameKeys(pending.base, saved)
+    ? pending && pending.session === session && sameKeys(pending.base, saved)
       ? pending.keys
       : saved
     : (local ?? saved);
 
   const save = (config: Partial<ViewConfig>) => {
+    if (session !== apiSessionContextVersion()) return;
     const ranges = view.config?.numberGrouping ? undefined : numberGroupingOf(groups ?? []);
     updateView.mutate(
       {
         databaseId,
         viewId: view.id,
+        expectedSession: session,
         config: { ...view.config, ...(ranges && { numberGrouping: ranges }), ...config },
       },
-      { onError: () => toast.error(t('databases.views.updateFailed')) },
+      {
+        onError: () => {
+          if (session === apiSessionContextVersion())
+            toast.error(t('databases.views.updateFailed'));
+        },
+      },
     );
   };
 
   const toggle = (key: ViewGroupKey) => {
+    if (editable && session !== apiSessionContextVersion()) return;
     const next = collapsed.includes(key) ? collapsed.filter((k) => k !== key) : [...collapsed, key];
     if (!editable) {
       // This only guards the reader's local preference, not editor mutations.
@@ -341,7 +356,7 @@ function useViewGroups(
       setLocal(view.id, next);
       return;
     }
-    setPending({ base: saved, keys: next });
+    setPending({ base: saved, keys: next, session });
     save({ collapsedGroups: next });
   };
 
