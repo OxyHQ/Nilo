@@ -319,6 +319,63 @@ it('keeps an editable callback usable after a same-session token rotation', asyn
   }
 });
 
+it('rejects an old edit after the same session moves to another device', async () => {
+  const tokenForDevice = (deviceId: string, jti: string) =>
+    `eyJhbGciOiJub25lIn0.${Buffer.from(JSON.stringify({ userId: 'ana', sessionId: 'same-session', deviceId, jti, exp: 4102444800 })).toString('base64url')}.sig`;
+  const request = jest.fn(
+    async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response(JSON.stringify({ view }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+  );
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = request as typeof fetch;
+  const oxy = new OxyServices({ baseURL: 'https://oxy.example' });
+  mockServices = oxy;
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Infinity },
+      mutations: { retry: false, gcTime: Infinity },
+    },
+  });
+  let renderer: ReactTestRenderer | undefined;
+  try {
+    oxy.session.setAccessToken(tokenForDevice('device-a', 'old'));
+    bindApiClient(oxy);
+    await act(async () => {
+      renderer = create(
+        <QueryClientProvider client={client}>
+          <Screen />
+        </QueryClientProvider>,
+      );
+    });
+    const oldToggle = toggle;
+    await act(async () => {
+      oxy.session.setAccessToken(tokenForDevice('device-b', 'new'));
+    });
+    await act(async () => {
+      oldToggle();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(request).not.toHaveBeenCalled();
+    await act(async () => {
+      toggle();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(new Headers(request.mock.calls[0]?.[1]?.headers).get('authorization')).toBe(
+      `Bearer ${tokenForDevice('device-b', 'new')}`,
+    );
+  } finally {
+    if (renderer) act(() => renderer?.unmount());
+    releaseApiClient(oxy);
+    oxy.dispose();
+    client.clear();
+    globalThis.fetch = originalFetch;
+  }
+});
+
 it('invalidates an old edit when a parent 401 clears its token', async () => {
   const { apiSessionContextVersion } =
     require('@/lib/api/session-context') as typeof import('@/lib/api/session-context');
