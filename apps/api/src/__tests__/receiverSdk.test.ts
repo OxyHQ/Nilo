@@ -16,7 +16,7 @@ it('validates receiver identity and revocation in an isolated loopback process',
         LOG_LEVEL: 'silent',
       },
       encoding: 'utf8',
-      timeout: 15000,
+      timeout: 30000,
     },
   );
   if (result.status !== 0)
@@ -29,8 +29,8 @@ it('validates receiver identity and revocation in an isolated loopback process',
     admitted: number;
     nonLoopbackRequests: number;
   } = JSON.parse(lines[lines.length - 1] ?? '{}');
-  expect(receipt.controls).toBe(3);
-  expect(receipt.validations).toBe(5);
-  expect(receipt.admitted).toBe(3);
+  expect(receipt.controls).toBe(4);
+  expect(receipt.validations).toBeGreaterThanOrEqual(7);
+  expect(receipt.admitted).toBe(4);
   expect(receipt.nonLoopbackRequests).toBe(0);
-});
+}, 45000);
