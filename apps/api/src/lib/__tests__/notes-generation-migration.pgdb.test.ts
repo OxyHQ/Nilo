@@ -1,9 +1,18 @@
 /** Run the generated DDL in an isolated schema with a real hot-table lock. */
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import postgres from 'postgres';
+import { createTestDatabase, dropTestDatabase } from '@oxy.so/db/testing';
+import { runMigrations } from '@oxy.so/db/migrate';
 import { randomBytes } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { closeTestDb, getTestDb, type TestDatabase } from '../../db/__tests__/testDatabase.js';
+import {
+  closeTestDb,
+  getTestDb,
+  testDatabaseUrl,
+  type TestDatabase,
+} from '../../db/__tests__/testDatabase.js';
 
 let db: TestDatabase;
 const schemaName = `generation_migration_${randomBytes(6).toString('hex')}`;
@@ -16,6 +25,33 @@ afterAll(async () => {
   await closeTestDb();
 });
 describe('notes generation migration', () => {
+  it('applies the full journal once and makes the second migration a no-op', async () => {
+    const databaseUrl = await createTestDatabase({ adminUrl: testDatabaseUrl() });
+    const client = postgres(databaseUrl, { max: 1, onnotice: () => {} });
+    try {
+      const options = {
+        databaseUrl,
+        expectedDatabase: new URL(databaseUrl).pathname.slice(1),
+        migrationsFolder: fileURLToPath(new URL('../../drizzle', import.meta.url)),
+        extensions: [],
+        run: 'all' as const,
+        dryRun: false,
+        logger: { info: () => {}, debug: () => {} },
+      };
+      await runMigrations(options);
+      const before = await client`select count(*)::int as count from drizzle.__drizzle_migrations`;
+      expect(before[0]?.count).toBeGreaterThan(0);
+      const table = await client`select to_regclass('public.notes_sync_generations')::text as name`;
+      expect(table[0]?.name).toBe('notes_sync_generations');
+      await runMigrations(options);
+      const after = await client`select count(*)::int as count from drizzle.__drizzle_migrations`;
+      expect(after[0]?.count).toBe(before[0]?.count);
+    } finally {
+      await client.end();
+      await dropTestDatabase(databaseUrl);
+    }
+  }, 30000);
+
   it('applies and rolls back its actual DDL while workspaces has an exclusive lock', async () => {
     const ddl = readFileSync(
       new URL('../../drizzle/0057_notes_sync_generation.sql', import.meta.url),
