@@ -319,6 +319,81 @@ it('keeps an editable callback usable after a same-session token rotation', asyn
   }
 });
 
+it.each([
+  [
+    'actor',
+    { act: { sub: 'actor-b' }, device_context_id: 'context-a', device_session_id: 'holder-a' },
+  ],
+  [
+    'device context',
+    { act: { sub: 'actor-a' }, device_context_id: 'context-b', device_session_id: 'holder-a' },
+  ],
+  [
+    'device session',
+    { act: { sub: 'actor-a' }, device_context_id: 'context-a', device_session_id: 'holder-b' },
+  ],
+])('rejects a retained edit after a known %s changes', async (_name, nextClaims) => {
+  const token = (claims: Record<string, unknown>, jti: string) =>
+    `eyJhbGciOiJub25lIn0.${Buffer.from(JSON.stringify({ userId: 'ana', sessionId: 'same-session', deviceId: 'device-a', ...claims, jti, exp: 4102444800 })).toString('base64url')}.sig`;
+  const originalClaims = {
+    act: { sub: 'actor-a' },
+    device_context_id: 'context-a',
+    device_session_id: 'holder-a',
+  };
+  const request = jest.fn(
+    async (_input: RequestInfo | URL, _init?: RequestInit) =>
+      new Response(JSON.stringify({ view }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+  );
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = request as typeof fetch;
+  const oxy = new OxyServices({ baseURL: 'https://oxy.example' });
+  mockServices = oxy;
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { gcTime: Infinity },
+      mutations: { retry: false, gcTime: Infinity },
+    },
+  });
+  let renderer: ReactTestRenderer | undefined;
+  try {
+    oxy.session.setAccessToken(token(originalClaims, 'old'));
+    bindApiClient(oxy);
+    await act(async () => {
+      renderer = create(
+        <QueryClientProvider client={client}>
+          <Screen />
+        </QueryClientProvider>,
+      );
+    });
+    const oldToggle = toggle;
+    await act(async () => {
+      oxy.session.setAccessToken(token(nextClaims, 'new'));
+    });
+    await act(async () => {
+      oldToggle();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(request).not.toHaveBeenCalled();
+    await act(async () => {
+      toggle();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(new Headers(request.mock.calls[0]?.[1]?.headers).get('authorization')).toBe(
+      `Bearer ${token(nextClaims, 'new')}`,
+    );
+  } finally {
+    if (renderer) act(() => renderer?.unmount());
+    releaseApiClient(oxy);
+    oxy.dispose();
+    client.clear();
+    globalThis.fetch = originalFetch;
+  }
+});
+
 it('rejects an old edit after the same session moves to another device', async () => {
   const tokenForDevice = (deviceId: string, jti: string) =>
     `eyJhbGciOiJub25lIn0.${Buffer.from(JSON.stringify({ userId: 'ana', sessionId: 'same-session', deviceId, jti, exp: 4102444800 })).toString('base64url')}.sig`;
