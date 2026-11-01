@@ -325,6 +325,44 @@ describe('overlapping workspace reset and notes erasure', () => {
     }
   });
 
+  it('does not take an advisory lock from ordinary note writes', async () => {
+    const user = `${scope}-ordinary-writer`;
+    await api('GET', '/notes/sync', undefined, user);
+    let resume!: () => void;
+    let reached!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const original = maintenanceLock.lockNotesMaintenance;
+    let held = false;
+    const spy = vi
+      .spyOn(maintenanceLock, 'lockNotesMaintenance')
+      .mockImplementation(async (...args) => {
+        await original(...args);
+        if (!held) {
+          held = true;
+          reached();
+          await gate;
+        }
+      });
+    const pending = api('POST', '/notes/erase', { confirm: 'DELETE' }, user);
+    try {
+      await waiting;
+      const id = uuidv7();
+      const created = await api('POST', '/notes', { id, title: 'concurrent' }, user);
+      expect(created.status, JSON.stringify(created.json)).toBe(201);
+      resume();
+      expect((await pending).status).toBe(200);
+      expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(404);
+    } finally {
+      resume();
+      spy.mockRestore();
+    }
+  });
+
   it('releases the maintenance lock after a failed reset', async () => {
     const user = `${scope}-rollback-maintenance`;
     const workspace = (await api('GET', '/workspaces/personal', undefined, user)).json
