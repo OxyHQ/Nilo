@@ -56,3 +56,46 @@ Before any activation, separately verify all replicas' configuration and epoch,
 client distribution and recovery, rollback behavior, orphan cleanup, every
 writer that needs fencing, and real load/lock behavior. A successful disabled
 rollout or the tests in this change do not approve activation.
+
+## Restore and failover prerequisites
+
+These are requirements for a future recovery design, not an implemented
+procedure or permission to enable the experiment:
+
+- A token is the process epoch followed by the stored workspace generation,
+  or by the workspace ID when there is no generation row. Restoring an older
+  database with the same process epoch can therefore make a token from before
+  a later erase or reset compare equal again. Recovery from a backup, point in
+  time, or failover with possible data loss must invalidate the previous epoch
+  before generation-aware traffic resumes. Select a fresh, non-reused epoch
+  with the documented format; its history or uniqueness must not depend solely
+  on the database snapshot being restored. A clean failover with proven
+  continuity and no rollback does not by itself require an epoch change.
+- The epoch is frozen per API process and is not a primary lease. Define and
+  test a way to fence the old primary, its in-flight transactions, workers and
+  API replicas before admitting the new primary; verify that every serving
+  replica has the same fresh epoch. A mixed deployment, split brain, or a stale
+  replica cannot be made safe merely by changing a variable on some processes.
+  Legacy and unguarded requests are still accepted and bypass this comparison.
+- Restore a transactionally consistent database view including workspaces,
+  notes homes, notes, tombstones and generation rows; verify the restored
+  migration ledger and the availability of migration 0057. Determine the
+  recovery point and reconcile acknowledged writes and deletions after it.
+  Rotating the epoch rejects stale guarded writes; it does not remove notes
+  resurrected by restoring an old backup, reconstruct lost erase intents, or
+  reconcile Oxy files and attachments stored outside this database. If the
+  required deletion history is unavailable, the restore cannot be presented as
+  preserving those deletions without a separate verified recovery process.
+- An epoch change can make generation-aware cursors report a reset and pending
+  operations report a conflict. Before allowing client adoption, prove that
+  clients preserve unknown or old outbox entries, local notes and recordings
+  in durable quarantine, offer explicit recovery, and do not silently relabel
+  them with the new epoch. Account for ambiguous requests that may have
+  committed before failover and for operations or attachment uploads outside
+  the fence. The current Noted client does not provide these guarantees.
+- Exercise backup restore and both lossless and rollback failovers in isolated
+  environments: cover an old token that would match the restored generation,
+  the fresh-epoch rejection, full bootstrap and stale cursors, in-flight and
+  legacy writers, split-brain prevention, deletion-history reconciliation,
+  and client recovery. Verify the deployment and operational controls, not
+  only the token comparison, before approving any activation.
