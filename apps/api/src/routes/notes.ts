@@ -282,12 +282,10 @@ router.get('/sync', async (req: Request, res: Response) => {
       req.query.cursor !== '' &&
       cursor.g === undefined
     ) {
-      res
-        .status(409)
-        .json({
-          error: 'A generation-aware bootstrap is required',
-          code: 'NOTES_GENERATION_BOOTSTRAP_REQUIRED',
-        });
+      res.status(409).json({
+        error: 'A generation-aware bootstrap is required',
+        code: 'NOTES_GENERATION_BOOTSTRAP_REQUIRED',
+      });
       return;
     }
     const originalHome = await homeOf(req);
