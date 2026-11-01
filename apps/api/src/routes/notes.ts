@@ -268,8 +268,26 @@ router.get('/sync', async (req: Request, res: Response) => {
     }
     const aware = req.query.generationAware === '1';
     if (aware && !notesGenerationConfig.enabled) throw new NotesGenerationUnavailable();
-    if (aware && cursor.g !== undefined && typeof cursor.g !== 'string') {
+    if (
+      aware &&
+      cursor.g !== undefined &&
+      (typeof cursor.g !== 'string' || !cursor.g || cursor.g.length > 256)
+    ) {
       res.status(400).json({ error: 'Invalid cursor or limit' });
+      return;
+    }
+    if (
+      aware &&
+      req.query.cursor !== undefined &&
+      req.query.cursor !== '' &&
+      cursor.g === undefined
+    ) {
+      res
+        .status(409)
+        .json({
+          error: 'A generation-aware bootstrap is required',
+          code: 'NOTES_GENERATION_BOOTSTRAP_REQUIRED',
+        });
       return;
     }
     const originalHome = await homeOf(req);

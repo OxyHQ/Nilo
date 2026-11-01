@@ -471,6 +471,23 @@ describe('experimental generation-aware notes', () => {
     }
   });
 
+  it('requires an explicit bootstrap instead of continuing a legacy cursor', async () => {
+    const user = `${scope}-legacy-cursor`;
+    const legacy = (await api('GET', '/notes/sync', user)).json as unknown as NotesSyncPage;
+    expect(legacy.cursor).toBeTruthy();
+    const result = await api(
+      'GET',
+      `/notes/sync?generationAware=1&cursor=${encodeURIComponent(legacy.cursor)}`,
+      user,
+    );
+    expect(result.status, JSON.stringify(result.json)).toBe(409);
+    expect(result.json.code).toBe('NOTES_GENERATION_BOOTSTRAP_REQUIRED');
+    const bootstrap = await api('GET', '/notes/sync?generationAware=1', user);
+    expect(bootstrap.status).toBe(200);
+    expect(bootstrap.json.full).toBe(true);
+    expect(typeof bootstrap.json.generation).toBe('string');
+  });
+
   it('rejects a generation header on operations that do not implement the fence', async () => {
     const user = `${scope}-unsupported`;
     const result = await api(

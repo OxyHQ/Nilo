@@ -19,7 +19,10 @@ current. The value is a concurrency identifier, not an authorization secret.
 
 ## What the enabled code covers
 
-An opted-in sync returns a generation; opted-in note POST, PATCH and DELETE
+An opted-in sync without a cursor returns a full bootstrap with a generation.
+An opted-in request carrying a legacy cursor without a generation returns
+`409 NOTES_GENERATION_BOOTSTRAP_REQUIRED`; it does not direct the client to
+erase its local data. Opted-in note POST, PATCH and DELETE
 compare their supplied generation in the same transaction as the write. Reset
 and erase advance the workspace generation in their transactions. Guarded
 writes and those maintenance operations use a workspace row lock in a consistent
