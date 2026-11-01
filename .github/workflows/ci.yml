@@ -93,6 +93,23 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Verify Android device session module autolinking
+        working-directory: apps/app
+        run: |
+          set -o pipefail
+          bunx expo-modules-autolinking resolve --platform android --json | bun -e '
+            const expected = (await Bun.file("package.json").json()).dependencies["@oxy.so/services"];
+            const result = await Bun.stdin.json();
+            const services = result.modules.filter(module => module.packageName === "@oxy.so/services");
+            const deviceModule = services[0]?.projects?.flatMap(project => project.modules)
+              .some(module => module.classifier === "so.oxy.devicesession.OxyDeviceSessionModule");
+            if (services.length !== 1 || services[0].packageVersion !== expected || !deviceModule) {
+              console.error("Android device session module is missing or from an unexpected Services version");
+              process.exit(1);
+            }
+            console.log(`Android device session module resolved from Services ${expected}`);
+          '
+
       - name: Lint (Biome)
         run: bunx biome ci .
 
