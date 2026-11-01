@@ -21,6 +21,7 @@ import { sqlColumnName } from '@oxy.so/db';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { NiloDatabase, PgHandle } from '../db/client.js';
 import { lockNotesMaintenance } from './notes-maintenance-lock.js';
+import { advanceNotesGeneration, notesGenerationConfig } from './notes-generation.js';
 import { reminders } from '../db/schema/collab.js';
 import { type DatabaseSchema, databases, type SelectOption } from '../db/schema/databases.js';
 import {
@@ -293,6 +294,7 @@ export async function updateNote(
   id: string,
   write: NoteWrite,
   actorId: string,
+  afterCommit?: Array<() => void>,
 ): Promise<boolean> {
   const written = await db
     .transaction(async (tx) => {
@@ -310,7 +312,8 @@ export async function updateNote(
     })
     .catch(rejected);
   if (!written) return false;
-  broadcastWritten(id, written.update);
+  if (afterCommit) afterCommit.push(() => broadcastWritten(id, written.update));
+  else broadcastWritten(id, written.update);
   return true;
 }
 
@@ -327,6 +330,7 @@ export async function createNote(
   home: NotesHome,
   input: NoteCreate,
   actorId: string,
+  afterCommit?: Array<() => void>,
 ): Promise<{ id: string; existed: boolean }> {
   const { id: requested, ...write } = input;
   const created = await db
@@ -365,7 +369,8 @@ export async function createNote(
       return { id: page.id, existed: false, update };
     })
     .catch(rejected);
-  broadcastWritten(created.id, created.update);
+  if (afterCommit) afterCommit.push(() => broadcastWritten(created.id, created.update));
+  else broadcastWritten(created.id, created.update);
   return { id: created.id, existed: created.existed };
 }
 
@@ -379,6 +384,7 @@ export async function eraseNotes(
 ): Promise<{ notes: number; folders: number; labels: number }> {
   return db.transaction(async (tx) => {
     await lockNotesMaintenance(tx, home.workspaceId);
+    if (notesGenerationConfig.enabled) await advanceNotesGeneration(tx, home.workspaceId);
     await lockDatabase(tx, home.notes.id, 'update');
     await lockDatabase(tx, home.folders.id, 'update');
     const notesDatabase = await findDatabaseById(tx, home.notes.id);

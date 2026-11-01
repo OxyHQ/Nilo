@@ -231,3 +231,12 @@ export const workspaceInviteLinks = pgTable(
     ),
   ],
 );
+
+/**
+ * Experimental notes epoch. No FK is installed on the hot workspaces table;
+ * removal of orphan rows requires a separate, reviewed cleanup strategy.
+ */
+export const notesSyncGenerations = pgTable('notes_sync_generations', {
+  workspaceId: text().primaryKey(),
+  generation: text().notNull(),
+});

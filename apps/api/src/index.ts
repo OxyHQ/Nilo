@@ -6,7 +6,7 @@ import {
 import { oxyTrustProxy } from '@oxy.so/core/server';
 import express from 'express';
 import http from 'node:http';
-import cors from 'cors';
+import { createApiCors } from './lib/api-cors.js';
 import { allowedOrigins } from './lib/allowed-origins.js';
 import { sql } from 'drizzle-orm';
 import { closeDb, getDb } from './db/client.js';
@@ -127,36 +127,7 @@ app.all(notesMcp.mcpPath, (req, res) => {
 // Internal routes - restricted to known origins
 const corsOrigins = allowedOrigins();
 
-app.use((req, res, next) => {
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl)
-      if (!origin) return callback(null, true);
-
-      if (corsOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Requested-With',
-      'Accept',
-      'Origin',
-      'X-Device-Info',
-      'X-Workspace-Id',
-      'X-Oxy-Edge-Region',
-      'X-Oxy-Activity-Id',
-    ],
-    // Downloads name their file, and rate-limited answers say when to retry.
-    exposedHeaders: ['Content-Disposition', 'Retry-After'],
-    optionsSuccessStatus: 200,
-  })(req, res, next);
-});
+app.use(createApiCors(corsOrigins));
 
 // Allow cross-origin resource loading (fixes ERR_BLOCKED_BY_RESPONSE.NotSameOrigin)
 app.use((_req, res, next) => {
