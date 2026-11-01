@@ -19,7 +19,6 @@ import { workspaces } from '../../db/schema/workspaces.js';
 import {
   closeTestDb,
   getTestDb,
-  getTestClient,
   type TestDatabase,
   testDatabaseUrl,
   testScope,
@@ -389,59 +388,57 @@ describe('overlapping workspace reset and notes erasure', () => {
     }
   });
 
-  it('waits for an erase that already holds the lock before resetting', async () => {
-    const user = `${scope}-erase-first`;
-    const workspace = (await api('GET', '/workspaces/personal', undefined, user)).json
-      .workspace as { id: string; name: string };
-    const id = uuidv7();
-    expect((await api('POST', '/notes', { id, title: 'existing' }, user)).status).toBe(201);
-    let resume!: () => void;
-    let reached!: () => void;
-    const waiting = new Promise<void>((resolve) => {
-      reached = resolve;
-    });
-    const gate = new Promise<void>((resolve) => {
-      resume = resolve;
-    });
-    const original = maintenanceLock.lockNotesMaintenance;
-    let held = false;
-    const spy = vi
-      .spyOn(maintenanceLock, 'lockNotesMaintenance')
-      .mockImplementation(async (...args) => {
-        await original(...args);
-        if (!held) {
-          held = true;
-          reached();
-          await gate;
-        }
+  for (const first of ['erase', 'reset'] as const) {
+    it(`rejects overlapping maintenance while ${first} holds the lock and permits a retry`, async () => {
+      const user = `${scope}-busy-${first}`;
+      const workspace = (await api('GET', '/workspaces/personal', undefined, user)).json
+        .workspace as { id: string; name: string };
+      const id = uuidv7();
+      expect((await api('POST', '/notes', { id, title: 'existing' }, user)).status).toBe(201);
+      let resume!: () => void;
+      let reached!: () => void;
+      const waiting = new Promise<void>((resolve) => {
+        reached = resolve;
       });
-    const pending = api('POST', '/notes/erase', { confirm: 'DELETE' }, user);
-    try {
-      await waiting;
-      const reset = api(
-        'POST',
-        `/workspaces/${workspace.id}/reset`,
-        { confirm: workspace.name },
-        user,
-      );
-      const client = await getTestClient();
-      let blocked = false;
-      for (let attempt = 0; attempt < 100 && !blocked; attempt++) {
-        const rows = await client`select 1 from pg_stat_activity where datname = current_database()
-          and wait_event_type = 'Lock' and query like '%pg_advisory_xact_lock%'`;
-        blocked = rows.length > 0;
-        if (!blocked) await new Promise((resolve) => setTimeout(resolve, 10));
+      const gate = new Promise<void>((resolve) => {
+        resume = resolve;
+      });
+      const original = maintenanceLock.lockNotesMaintenance;
+      let held = false;
+      const spy = vi
+        .spyOn(maintenanceLock, 'lockNotesMaintenance')
+        .mockImplementation(async (...args) => {
+          await original(...args);
+          if (!held) {
+            held = true;
+            reached();
+            await gate;
+          }
+        });
+      const run = (operation: 'erase' | 'reset', name: string) =>
+        operation === 'erase'
+          ? api('POST', '/notes/erase', { confirm: 'DELETE' }, user)
+          : api('POST', `/workspaces/${workspace.id}/reset`, { confirm: name }, user);
+      const pending = run(first, workspace.name);
+      try {
+        await waiting;
+        const other = first === 'erase' ? 'reset' : 'erase';
+        const refused = await run(other, workspace.name);
+        expect(refused.status, JSON.stringify(refused.json)).toBe(409);
+        expect(refused.json.code).toBe('NOTES_MAINTENANCE_IN_PROGRESS');
+        expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(200);
+        resume();
+        expect((await pending).status).toBe(200);
+        const latest = (await api('GET', '/workspaces/personal', undefined, user)).json
+          .workspace as { name: string };
+        expect((await run(other, latest.name)).status).toBe(200);
+        expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(404);
+      } finally {
+        resume();
+        spy.mockRestore();
       }
-      expect(blocked).toBe(true);
-      resume();
-      expect((await pending).status).toBe(200);
-      expect((await reset).status).toBe(200);
-      expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(404);
-    } finally {
-      resume();
-      spy.mockRestore();
-    }
-  });
+    });
+  }
 });
 
 describe('labels', () => {

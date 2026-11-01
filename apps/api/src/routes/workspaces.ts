@@ -1,3 +1,4 @@
+import { NotesMaintenanceBusy } from '../lib/notes-maintenance-lock.js';
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { authenticateToken, oxyClient } from '../middleware/auth.js';
@@ -510,6 +511,10 @@ router.post(
       announceReset(ws.id);
       res.json({ success: true, removed });
     } catch (error: unknown) {
+      if (error instanceof NotesMaintenanceBusy) {
+        res.status(409).json({ error: error.message, code: 'NOTES_MAINTENANCE_IN_PROGRESS' });
+        return;
+      }
       log.general.error({ err: error }, 'Failed to reset workspace');
       res.status(500).json({ error: 'Failed to reset workspace' });
     }
