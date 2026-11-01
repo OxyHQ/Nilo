@@ -17,6 +17,7 @@ import { pageFiles, pages } from '../db/schema/pages.js';
 import { teamspaceMembers, teamspaces } from '../db/schema/teamspaces.js';
 import { workspaceMembers, workspaces, type WorkspaceRole } from '../db/schema/workspaces.js';
 import type { PgHandle } from '../db/client.js';
+import { lockNotesMaintenance } from '../lib/notes-maintenance-lock.js';
 import {
   addTeamspaceMember,
   ensureDefaultTeamspace,
@@ -255,6 +256,7 @@ export async function resetPersonalWorkspace(
 ): Promise<{ pages: number; databases: number }> {
   const { id, ownerId } = workspace;
   return db.transaction(async (tx) => {
+    await lockNotesMaintenance(tx, id);
     const removedPages = await tx
       .delete(pages)
       .where(eq(pages.workspaceId, id))

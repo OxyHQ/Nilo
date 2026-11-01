@@ -19,11 +19,13 @@ import { workspaces } from '../../db/schema/workspaces.js';
 import {
   closeTestDb,
   getTestDb,
+  getTestClient,
   type TestDatabase,
   testDatabaseUrl,
   testScope,
 } from '../../db/__tests__/testDatabase.js';
 import { NOTE_PROPERTY } from '../../lib/databases/system.js';
+import * as maintenanceLock from '../../lib/notes-maintenance-lock.js';
 
 vi.mock('../../middleware/auth.js', () => ({
   authenticateToken: (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -272,6 +274,135 @@ describe('sync', () => {
     expect((await api('POST', `/pages/${note.id}/reminders`, { remindAt })).status).toBe(201);
     const page = await sync(cursor);
     expect(page.notes.find((n) => n.id === note.id)?.reminderAt).toBe(remindAt);
+  });
+});
+
+describe('overlapping workspace reset and notes erasure', () => {
+  it('refuses an erase using a home replaced before the lock and accepts a retry', async () => {
+    const user = `${scope}-old-home`;
+    const workspace = (await api('GET', '/workspaces/personal', undefined, user)).json
+      .workspace as { id: string; name: string };
+    await api('GET', '/notes/sync', undefined, user);
+    let resume!: () => void;
+    let reached!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const original = maintenanceLock.lockNotesMaintenance;
+    let held = false;
+    const spy = vi
+      .spyOn(maintenanceLock, 'lockNotesMaintenance')
+      .mockImplementation(async (...args) => {
+        if (!held) {
+          held = true;
+          reached();
+          await gate;
+        }
+        return original(...args);
+      });
+    const pending = api('POST', '/notes/erase', { confirm: 'DELETE' }, user);
+    try {
+      await waiting;
+      expect(
+        (await api('POST', `/workspaces/${workspace.id}/reset`, { confirm: workspace.name }, user))
+          .status,
+      ).toBe(200);
+      const id = uuidv7();
+      expect((await api('POST', '/notes', { id, title: 'new home' }, user)).status).toBe(201);
+      resume();
+      const result = await pending;
+      expect(result.status, JSON.stringify(result.json)).toBe(409);
+      expect(result.json.code).toBe('NOTES_HOME_CHANGED');
+      expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(200);
+      expect((await api('POST', '/notes/erase', { confirm: 'DELETE' }, user)).status).toBe(200);
+      expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(404);
+    } finally {
+      resume();
+      spy.mockRestore();
+    }
+  });
+
+  it('releases the maintenance lock after a failed reset', async () => {
+    const user = `${scope}-rollback-maintenance`;
+    const workspace = (await api('GET', '/workspaces/personal', undefined, user)).json
+      .workspace as { id: string; name: string };
+    const id = uuidv7();
+    expect((await api('POST', '/notes', { id, title: 'existing' }, user)).status).toBe(201);
+    const original = maintenanceLock.lockNotesMaintenance;
+    const spy = vi
+      .spyOn(maintenanceLock, 'lockNotesMaintenance')
+      .mockImplementationOnce(async (...args) => {
+        await original(...args);
+        throw new Error('force rollback');
+      });
+    try {
+      expect(
+        (await api('POST', `/workspaces/${workspace.id}/reset`, { confirm: workspace.name }, user))
+          .status,
+      ).toBe(500);
+      expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(200);
+      expect((await api('POST', '/notes/erase', { confirm: 'DELETE' }, user)).status).toBe(200);
+      expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(404);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('waits for an erase that already holds the lock before resetting', async () => {
+    const user = `${scope}-erase-first`;
+    const workspace = (await api('GET', '/workspaces/personal', undefined, user)).json
+      .workspace as { id: string; name: string };
+    const id = uuidv7();
+    expect((await api('POST', '/notes', { id, title: 'existing' }, user)).status).toBe(201);
+    let resume!: () => void;
+    let reached!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const original = maintenanceLock.lockNotesMaintenance;
+    let held = false;
+    const spy = vi
+      .spyOn(maintenanceLock, 'lockNotesMaintenance')
+      .mockImplementation(async (...args) => {
+        await original(...args);
+        if (!held) {
+          held = true;
+          reached();
+          await gate;
+        }
+      });
+    const pending = api('POST', '/notes/erase', { confirm: 'DELETE' }, user);
+    try {
+      await waiting;
+      const reset = api(
+        'POST',
+        `/workspaces/${workspace.id}/reset`,
+        { confirm: workspace.name },
+        user,
+      );
+      const client = await getTestClient();
+      let blocked = false;
+      for (let attempt = 0; attempt < 100 && !blocked; attempt++) {
+        const rows = await client`select 1 from pg_stat_activity where datname = current_database()
+          and wait_event_type = 'Lock' and query like '%pg_advisory_xact_lock%'`;
+        blocked = rows.length > 0;
+        if (!blocked) await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      expect(blocked).toBe(true);
+      resume();
+      expect((await pending).status).toBe(200);
+      expect((await reset).status).toBe(200);
+      expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(404);
+    } finally {
+      resume();
+      spy.mockRestore();
+    }
   });
 });
 

@@ -458,6 +458,7 @@ router.post('/erase', async (req: Request, res: Response) => {
     changed(home, home.folders.id);
     res.json({ success: true, erased });
   } catch (error: unknown) {
+    if (await refused(error, res)) return;
     log.general.error({ err: error }, 'Failed to erase notes');
     res.status(500).json({ error: 'Failed to erase notes' });
   }
