@@ -20,6 +20,7 @@ import type {
 import { sqlColumnName } from '@oxy.so/db';
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { NiloDatabase, PgHandle } from '../db/client.js';
+import { lockNotesMaintenance } from './notes-maintenance-lock.js';
 import { reminders } from '../db/schema/collab.js';
 import { type DatabaseSchema, databases, type SelectOption } from '../db/schema/databases.js';
 import {
@@ -377,8 +378,23 @@ export async function eraseNotes(
   home: NotesHome,
 ): Promise<{ notes: number; folders: number; labels: number }> {
   return db.transaction(async (tx) => {
+    await lockNotesMaintenance(tx, home.workspaceId);
     await lockDatabase(tx, home.notes.id, 'update');
     await lockDatabase(tx, home.folders.id, 'update');
+    const notesDatabase = await findDatabaseById(tx, home.notes.id);
+    const foldersDatabase = await findDatabaseById(tx, home.folders.id);
+    if (
+      !notesDatabase ||
+      !foldersDatabase ||
+      notesDatabase.workspaceId !== home.workspaceId ||
+      foldersDatabase.workspaceId !== home.workspaceId
+    ) {
+      throw new NoteRejected(
+        409,
+        'The notes home changed; retry the request',
+        'NOTES_HOME_CHANGED',
+      );
+    }
     const notes = await tx
       .delete(pages)
       .where(eq(pages.databaseId, home.notes.id))

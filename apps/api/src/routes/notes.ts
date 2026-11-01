@@ -42,6 +42,7 @@ import {
 } from '../lib/notes.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { ensurePersonalNotesHome } from '../middleware/workspace.js';
+import { NotesMaintenanceBusy } from '../lib/notes-maintenance-lock.js';
 import {
   findNoteRow,
   labelOptions,
@@ -77,6 +78,10 @@ async function readNote(home: NotesHome, id: string): Promise<Note | null> {
 
 /** Answer a refused write, or report that the error was something else. */
 async function refused(error: unknown, res: Response, home?: NotesHome, id?: string) {
+  if (error instanceof NotesMaintenanceBusy) {
+    res.status(409).json({ error: error.message, code: 'NOTES_MAINTENANCE_IN_PROGRESS' });
+    return true;
+  }
   if (error instanceof z.ZodError) {
     res.status(400).json({ error: 'Invalid input', details: error.errors });
     return true;
@@ -458,6 +463,7 @@ router.post('/erase', async (req: Request, res: Response) => {
     changed(home, home.folders.id);
     res.json({ success: true, erased });
   } catch (error: unknown) {
+    if (await refused(error, res)) return;
     log.general.error({ err: error }, 'Failed to erase notes');
     res.status(500).json({ error: 'Failed to erase notes' });
   }

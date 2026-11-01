@@ -24,6 +24,7 @@ import {
   testScope,
 } from '../../db/__tests__/testDatabase.js';
 import { NOTE_PROPERTY } from '../../lib/databases/system.js';
+import * as maintenanceLock from '../../lib/notes-maintenance-lock.js';
 
 vi.mock('../../middleware/auth.js', () => ({
   authenticateToken: (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -273,6 +274,171 @@ describe('sync', () => {
     const page = await sync(cursor);
     expect(page.notes.find((n) => n.id === note.id)?.reminderAt).toBe(remindAt);
   });
+});
+
+describe('overlapping workspace reset and notes erasure', () => {
+  it('refuses an erase using a home replaced before the lock and accepts a retry', async () => {
+    const user = `${scope}-old-home`;
+    const workspace = (await api('GET', '/workspaces/personal', undefined, user)).json
+      .workspace as { id: string; name: string };
+    await api('GET', '/notes/sync', undefined, user);
+    let resume!: () => void;
+    let reached!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const original = maintenanceLock.lockNotesMaintenance;
+    let held = false;
+    const spy = vi
+      .spyOn(maintenanceLock, 'lockNotesMaintenance')
+      .mockImplementation(async (...args) => {
+        if (!held) {
+          held = true;
+          reached();
+          await gate;
+        }
+        return original(...args);
+      });
+    const pending = api('POST', '/notes/erase', { confirm: 'DELETE' }, user);
+    try {
+      await waiting;
+      expect(
+        (await api('POST', `/workspaces/${workspace.id}/reset`, { confirm: workspace.name }, user))
+          .status,
+      ).toBe(200);
+      const id = uuidv7();
+      expect((await api('POST', '/notes', { id, title: 'new home' }, user)).status).toBe(201);
+      resume();
+      const result = await pending;
+      expect(result.status, JSON.stringify(result.json)).toBe(409);
+      expect(result.json.code).toBe('NOTES_HOME_CHANGED');
+      expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(200);
+      expect((await api('POST', '/notes/erase', { confirm: 'DELETE' }, user)).status).toBe(200);
+      expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(404);
+    } finally {
+      resume();
+      spy.mockRestore();
+    }
+  });
+
+  it('does not take an advisory lock from ordinary note writes', async () => {
+    const user = `${scope}-ordinary-writer`;
+    await api('GET', '/notes/sync', undefined, user);
+    let resume!: () => void;
+    let reached!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const original = maintenanceLock.lockNotesMaintenance;
+    let held = false;
+    const spy = vi
+      .spyOn(maintenanceLock, 'lockNotesMaintenance')
+      .mockImplementation(async (...args) => {
+        await original(...args);
+        if (!held) {
+          held = true;
+          reached();
+          await gate;
+        }
+      });
+    const pending = api('POST', '/notes/erase', { confirm: 'DELETE' }, user);
+    try {
+      await waiting;
+      const id = uuidv7();
+      const created = await api('POST', '/notes', { id, title: 'concurrent' }, user);
+      expect(created.status, JSON.stringify(created.json)).toBe(201);
+      resume();
+      expect((await pending).status).toBe(200);
+      expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(404);
+    } finally {
+      resume();
+      spy.mockRestore();
+    }
+  });
+
+  it('releases the maintenance lock after a failed reset', async () => {
+    const user = `${scope}-rollback-maintenance`;
+    const workspace = (await api('GET', '/workspaces/personal', undefined, user)).json
+      .workspace as { id: string; name: string };
+    const id = uuidv7();
+    expect((await api('POST', '/notes', { id, title: 'existing' }, user)).status).toBe(201);
+    const original = maintenanceLock.lockNotesMaintenance;
+    const spy = vi
+      .spyOn(maintenanceLock, 'lockNotesMaintenance')
+      .mockImplementationOnce(async (...args) => {
+        await original(...args);
+        throw new Error('force rollback');
+      });
+    try {
+      expect(
+        (await api('POST', `/workspaces/${workspace.id}/reset`, { confirm: workspace.name }, user))
+          .status,
+      ).toBe(500);
+      expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(200);
+      expect((await api('POST', '/notes/erase', { confirm: 'DELETE' }, user)).status).toBe(200);
+      expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(404);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  for (const first of ['erase', 'reset'] as const) {
+    it(`rejects overlapping maintenance while ${first} holds the lock and permits a retry`, async () => {
+      const user = `${scope}-busy-${first}`;
+      const workspace = (await api('GET', '/workspaces/personal', undefined, user)).json
+        .workspace as { id: string; name: string };
+      const id = uuidv7();
+      expect((await api('POST', '/notes', { id, title: 'existing' }, user)).status).toBe(201);
+      let resume!: () => void;
+      let reached!: () => void;
+      const waiting = new Promise<void>((resolve) => {
+        reached = resolve;
+      });
+      const gate = new Promise<void>((resolve) => {
+        resume = resolve;
+      });
+      const original = maintenanceLock.lockNotesMaintenance;
+      let held = false;
+      const spy = vi
+        .spyOn(maintenanceLock, 'lockNotesMaintenance')
+        .mockImplementation(async (...args) => {
+          await original(...args);
+          if (!held) {
+            held = true;
+            reached();
+            await gate;
+          }
+        });
+      const run = (operation: 'erase' | 'reset', name: string) =>
+        operation === 'erase'
+          ? api('POST', '/notes/erase', { confirm: 'DELETE' }, user)
+          : api('POST', `/workspaces/${workspace.id}/reset`, { confirm: name }, user);
+      const pending = run(first, workspace.name);
+      try {
+        await waiting;
+        const other = first === 'erase' ? 'reset' : 'erase';
+        const refused = await run(other, workspace.name);
+        expect(refused.status, JSON.stringify(refused.json)).toBe(409);
+        expect(refused.json.code).toBe('NOTES_MAINTENANCE_IN_PROGRESS');
+        expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(200);
+        resume();
+        expect((await pending).status).toBe(200);
+        const latest = (await api('GET', '/workspaces/personal', undefined, user)).json
+          .workspace as { name: string };
+        expect((await run(other, latest.name)).status).toBe(200);
+        expect((await api('GET', `/notes/${id}`, undefined, user)).status).toBe(404);
+      } finally {
+        resume();
+        spy.mockRestore();
+      }
+    });
+  }
 });
 
 describe('labels', () => {
