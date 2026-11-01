@@ -11,6 +11,7 @@ let issuer: Server;
 let receiver: Server;
 let receiverOrigin = '';
 let active = true;
+let unavailable = false;
 let validations = 0;
 let admitted = 0;
 let disposeOxy: (() => void) | undefined;
@@ -71,6 +72,10 @@ async function run(): Promise<void> {
       }
       validations += 1;
       res.setHeader('Content-Type', 'application/json');
+      if (unavailable) {
+        res.writeHead(503).end(JSON.stringify({ error: 'service_unavailable' }));
+        return;
+      }
       res.end(
         JSON.stringify({
           valid: active,
@@ -131,9 +136,21 @@ async function run(): Promise<void> {
       assert.equal(validations, checks + 3);
       assert.equal(admitted, before);
     }
+    // A temporary issuer outage must not be presented as a revoked session.
+    {
+      active = true;
+      unavailable = true;
+      const token = bearer();
+      const before = admitted;
+      assert.equal((await request(token)).status, 503);
+      assert.equal(admitted, before);
+      unavailable = false;
+      assert.equal((await request(token)).status, 200);
+      assert.equal(admitted, before + 1);
+    }
     assert.equal(blockedNetwork, 0);
     process.stdout.write(
-      JSON.stringify({ controls: 3, validations, admitted, nonLoopbackRequests: blockedNetwork }) +
+      JSON.stringify({ controls: 4, validations, admitted, nonLoopbackRequests: blockedNetwork }) +
         '\n',
     );
   } finally {
