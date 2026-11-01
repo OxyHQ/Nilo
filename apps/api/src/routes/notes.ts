@@ -44,6 +44,13 @@ import { authenticateToken } from '../middleware/auth.js';
 import { ensurePersonalNotesHome } from '../middleware/workspace.js';
 import { NotesMaintenanceBusy } from '../lib/notes-maintenance-lock.js';
 import {
+  lockNotesGeneration,
+  notesGenerationConfig,
+  NotesGenerationChanged,
+  NotesGenerationUnavailable,
+} from '../lib/notes-generation.js';
+import { findDatabaseById } from '../repositories/databases.js';
+import {
   findNoteRow,
   labelOptions,
   listFolders,
@@ -58,6 +65,32 @@ import {
 
 const router = Router();
 router.use(authenticateToken);
+// Never silently accept a generation-aware request while the protocol is off.
+router.use((req, res, next) => {
+  if (
+    !notesGenerationConfig.enabled &&
+    (req.get('X-Notes-Generation') !== undefined ||
+      (req.path === '/sync' && req.query.generationAware === '1'))
+  ) {
+    res
+      .status(503)
+      .json({ error: 'Notes generation is unavailable', code: 'NOTES_GENERATION_UNAVAILABLE' });
+    return;
+  }
+  if (notesGenerationConfig.enabled && req.get('X-Notes-Generation') !== undefined) {
+    const supported =
+      (req.method === 'POST' && req.path === '/') ||
+      ((req.method === 'PATCH' || req.method === 'DELETE') && /^\/[^/]+$/.test(req.path));
+    if (!supported) {
+      res.status(400).json({
+        error: 'Generation is not supported for this operation',
+        code: 'NOTES_GENERATION_UNSUPPORTED',
+      });
+      return;
+    }
+  }
+  next();
+});
 
 const idSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 
@@ -68,8 +101,7 @@ async function homeOf(req: Request): Promise<NotesHome> {
   return ensurePersonalNotesHome(req.user?.id as string);
 }
 
-async function readNote(home: NotesHome, id: string): Promise<Note | null> {
-  const db = getDb();
+async function readNote(home: NotesHome, id: string, db: PgHandle = getDb()): Promise<Note | null> {
   const row = await findNoteRow(db, home, id);
   if (!row) return null;
   const [note] = await readNotes(db, home, [row]);
@@ -78,6 +110,14 @@ async function readNote(home: NotesHome, id: string): Promise<Note | null> {
 
 /** Answer a refused write, or report that the error was something else. */
 async function refused(error: unknown, res: Response, home?: NotesHome, id?: string) {
+  if (error instanceof NotesGenerationUnavailable) {
+    res.status(503).json({ error: error.message, code: 'NOTES_GENERATION_UNAVAILABLE' });
+    return true;
+  }
+  if (error instanceof NotesGenerationChanged) {
+    res.status(409).json({ error: error.message, code: 'NOTES_GENERATION_CHANGED' });
+    return true;
+  }
   if (error instanceof NotesMaintenanceBusy) {
     res.status(409).json({ error: error.message, code: 'NOTES_MAINTENANCE_IN_PROGRESS' });
     return true;
@@ -98,8 +138,27 @@ async function refused(error: unknown, res: Response, home?: NotesHome, id?: str
   return false;
 }
 
+/** Reject generation-aware writes before touching their home or data when disabled. */
+function requestGeneration(req: Request): string | undefined {
+  const value = req.get('X-Notes-Generation');
+  if (value === undefined) return undefined;
+  if (!notesGenerationConfig.enabled) throw new NotesGenerationUnavailable();
+  return z.string().min(1).max(256).parse(value);
+}
+
 const changed = (home: NotesHome, databaseId = home.notes.id) =>
   announceChange({ workspaceId: home.workspaceId, databaseId });
+
+/** A failed delivery cannot roll back an already committed guarded write. */
+function notifyCommitted(actions: Array<() => void>): void {
+  for (const action of actions) {
+    try {
+      action();
+    } catch (err: unknown) {
+      log.general.error({ err }, 'Failed to announce a committed note');
+    }
+  }
+}
 
 /** Tell Alia, in the transaction of the change, as Noted's own server did. */
 const noteChanged = (tx: PgHandle, home: NotesHome, noteId: string, change: NoteChange) =>
@@ -148,6 +207,8 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 interface SyncCursor {
+  /** Optional epoch for generation-aware clients. */
+  g?: string;
   /** The notes database the cursor is for: a reset makes a new one, and its cursors start over. */
   d?: string;
   /** Changes at or after this instant; absent for the whole set. */
@@ -205,52 +266,97 @@ router.get('/sync', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Invalid cursor or limit' });
       return;
     }
-    const home = await homeOf(req);
-    const db = getDb();
+    const aware = req.query.generationAware === '1';
+    if (aware && !notesGenerationConfig.enabled) throw new NotesGenerationUnavailable();
+    if (
+      aware &&
+      cursor.g !== undefined &&
+      (typeof cursor.g !== 'string' || !cursor.g || cursor.g.length > 256)
+    ) {
+      res.status(400).json({ error: 'Invalid cursor or limit' });
+      return;
+    }
+    if (
+      aware &&
+      req.query.cursor !== undefined &&
+      req.query.cursor !== '' &&
+      cursor.g === undefined
+    ) {
+      res.status(409).json({
+        error: 'A generation-aware bootstrap is required',
+        code: 'NOTES_GENERATION_BOOTSTRAP_REQUIRED',
+      });
+      return;
+    }
+    const originalHome = await homeOf(req);
+    const buildPage = async (db: PgHandle, home: NotesHome, generation?: string) => {
+      const sameDatabase =
+        (cursor.d === undefined || cursor.d === home.notes.id) &&
+        (generation === undefined || cursor.g === undefined || cursor.g === generation);
+      // A cursor for notes a reset replaced: the client starts over, from nothing.
+      const reset = !sameDatabase;
+      const continuing = sameDatabase && cursor.u !== undefined && cursor.t !== undefined;
+      const end = continuing ? new Date(cursor.t as string) : await syncWatermark(db);
+      let since = sameDatabase && cursor.s ? new Date(cursor.s) : null;
+      if (since && end.getTime() - since.getTime() > PAGE_TOMBSTONE_RETENTION_MS) since = null;
+      const full = since === null;
+      const after = continuing
+        ? { updatedAt: new Date(cursor.u as string), id: cursor.i as string }
+        : null;
 
-    const sameDatabase = cursor.d === undefined || cursor.d === home.notes.id;
-    // A cursor for notes a reset replaced: the client starts over, from nothing.
-    const reset = !sameDatabase;
-    const continuing = sameDatabase && cursor.u !== undefined && cursor.t !== undefined;
-    const end = continuing ? new Date(cursor.t as string) : await syncWatermark(db);
-    let since = sameDatabase && cursor.s ? new Date(cursor.s) : null;
-    if (since && end.getTime() - since.getTime() > PAGE_TOMBSTONE_RETENTION_MS) since = null;
-    const full = since === null;
-    const after = continuing
-      ? { updatedAt: new Date(cursor.u as string), id: cursor.i as string }
-      : null;
+      const fetched = await noteRowsChangedSince(db, home, { since, after, limit: limit.data });
+      const hasMore = fetched.length > limit.data;
+      const rows = hasMore ? fetched.slice(0, limit.data) : fetched;
+      const deleted = since && !after ? await noteTombstonesSince(db, home, since) : [];
 
-    const fetched = await noteRowsChangedSince(db, home, { since, after, limit: limit.data });
-    const hasMore = fetched.length > limit.data;
-    const rows = hasMore ? fetched.slice(0, limit.data) : fetched;
-    const deleted = since && !after ? await noteTombstonesSince(db, home, since) : [];
+      const last = rows[rows.length - 1];
+      const next: SyncCursor =
+        hasMore && last
+          ? {
+              d: home.notes.id,
+              ...(generation !== undefined && { g: generation }),
+              ...(since && { s: since.toISOString() }),
+              u: last.updatedAt.toISOString(),
+              i: last.id,
+              t: end.toISOString(),
+            }
+          : {
+              d: home.notes.id,
+              s: end.toISOString(),
+              ...(generation !== undefined && { g: generation }),
+            };
 
-    const last = rows[rows.length - 1];
-    const next: SyncCursor =
-      hasMore && last
-        ? {
-            d: home.notes.id,
-            ...(since && { s: since.toISOString() }),
-            u: last.updatedAt.toISOString(),
-            i: last.id,
-            t: end.toISOString(),
-          }
-        : { d: home.notes.id, s: end.toISOString() };
-
-    const page: NotesSyncPage = {
-      notes: await readNotes(db, home, rows),
-      deleted,
-      cursor: encodeCursor(next),
-      hasMore,
-      full,
-      reset,
-      ...(!hasMore && {
-        labels: labelOptions(home).map(toLabel),
-        folders: await listFolders(db, home),
-      }),
+      const page: NotesSyncPage = {
+        notes: await readNotes(db, home, rows),
+        deleted,
+        cursor: encodeCursor(next),
+        hasMore,
+        full,
+        reset,
+        ...(generation !== undefined && { generation }),
+        ...(!hasMore && {
+          labels: labelOptions(home).map(toLabel),
+          folders: await listFolders(db, home),
+        }),
+      };
+      return page;
     };
+    const page = aware
+      ? await getDb().transaction(async (tx) => {
+          const generation = await lockNotesGeneration(tx, originalHome.workspaceId, 'share');
+          const notes = await findDatabaseById(tx, originalHome.notes.id);
+          const folders = await findDatabaseById(tx, originalHome.folders.id);
+          if (!notes || !folders) throw new NotesGenerationChanged();
+          return buildPage(tx, { ...originalHome, notes, folders }, generation);
+        })
+      : await buildPage(getDb(), originalHome);
     res.json(page);
   } catch (error: unknown) {
+    if (
+      (error instanceof NotesGenerationUnavailable || error instanceof NotesGenerationChanged) &&
+      (await refused(error, res))
+    )
+      return;
     log.general.error({ err: error }, 'Failed to sync notes');
     res.status(500).json({ error: 'Failed to sync notes' });
   }
@@ -260,16 +366,27 @@ router.get('/sync', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   let home: NotesHome | undefined;
   try {
+    const expected = requestGeneration(req);
     const body = noteCreateSchema.parse(req.body);
     home = await homeOf(req);
     const notesHome = home;
-    const { id, existed } = await getDb().transaction(async (tx) => {
-      const created = await createNote(tx, notesHome, body, req.user?.id as string);
+    const afterCommit: Array<() => void> | undefined = expected === undefined ? undefined : [];
+    const { id, existed, note } = await getDb().transaction(async (tx) => {
+      if (expected !== undefined)
+        await lockNotesGeneration(tx, notesHome.workspaceId, 'share', expected);
+      const created = await createNote(tx, notesHome, body, req.user?.id as string, afterCommit);
       if (!created.existed) await noteChanged(tx, notesHome, created.id, 'created');
-      return created;
+      return {
+        ...created,
+        note: expected === undefined ? undefined : await readNote(notesHome, created.id, tx),
+      };
     });
-    if (!existed) changed(home);
-    res.status(existed ? 200 : 201).json({ note: await readNote(home, id) });
+    if (afterCommit)
+      notifyCommitted(existed ? afterCommit : [...afterCommit, () => changed(notesHome)]);
+    else if (!existed) changed(home);
+    res
+      .status(existed ? 200 : 201)
+      .json({ note: expected === undefined ? await readNote(home, id) : note });
   } catch (error: unknown) {
     if (await refused(error, res, home)) return;
     log.general.error({ err: error }, 'Failed to create a note');
@@ -495,21 +612,35 @@ router.patch('/:id', async (req: Request, res: Response) => {
   let home: NotesHome | undefined;
   let id: string | undefined;
   try {
+    const expected = requestGeneration(req);
     id = z.object({ id: idSchema }).parse(req.params).id;
     const body = noteWriteSchema.parse(req.body);
     home = await homeOf(req);
     const [notesHome, noteId] = [home, id];
-    const updated = await getDb().transaction(async (tx) => {
-      const found = await updateNote(tx, notesHome, noteId, body, req.user?.id as string);
+    const afterCommit: Array<() => void> | undefined = expected === undefined ? undefined : [];
+    const result = await getDb().transaction(async (tx) => {
+      if (expected !== undefined)
+        await lockNotesGeneration(tx, notesHome.workspaceId, 'share', expected);
+      const found = await updateNote(
+        tx,
+        notesHome,
+        noteId,
+        body,
+        req.user?.id as string,
+        afterCommit,
+      );
       if (found) await noteChanged(tx, notesHome, noteId, patchChange(body));
-      return found;
+      const note =
+        expected !== undefined && found ? await readNote(notesHome, noteId, tx) : undefined;
+      return { found, note };
     });
-    if (!updated) {
+    if (!result.found) {
       res.status(404).json({ error: 'Note not found' });
       return;
     }
-    changed(home);
-    res.json({ note: await readNote(home, id) });
+    if (afterCommit) notifyCommitted([...afterCommit, () => changed(notesHome)]);
+    else changed(home);
+    res.json({ note: expected === undefined ? await readNote(home, id) : result.note });
   } catch (error: unknown) {
     if (await refused(error, res, home, id)) return;
     log.general.error({ err: error }, 'Failed to update a note');
@@ -520,9 +651,12 @@ router.patch('/:id', async (req: Request, res: Response) => {
 /** DELETE /notes/:id — for good (the trash is `trashed`); syncing clients get a tombstone. */
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
+    const expected = requestGeneration(req);
     const { id } = z.object({ id: idSchema }).parse(req.params);
     const home = await homeOf(req);
     const deleted = await getDb().transaction(async (tx) => {
+      if (expected !== undefined)
+        await lockNotesGeneration(tx, home.workspaceId, 'share', expected);
       const found = await deleteNote(tx, home, id);
       if (found) await noteChanged(tx, home, id, 'deleted');
       return found;

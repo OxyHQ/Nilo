@@ -91,6 +91,8 @@ export interface NoteFolder {
 
 /** A page of `GET /notes/sync`. */
 export interface NotesSyncPage {
+  /** Present only when generation-aware sync is explicitly requested. */
+  generation?: string;
   notes: Note[];
   /** Notes deleted for good since the cursor. */
   deleted: string[];

@@ -24,6 +24,8 @@ import {
   testScope,
 } from '../../db/__tests__/testDatabase.js';
 import { NOTE_PROPERTY } from '../../lib/databases/system.js';
+import * as notesGeneration from '../../lib/notes-generation.js';
+import { notesSyncGenerations } from '../../db/schema/workspaces.js';
 import * as maintenanceLock from '../../lib/notes-maintenance-lock.js';
 
 vi.mock('../../middleware/auth.js', () => ({
@@ -63,10 +65,16 @@ const USER = `${scope}-user`;
 
 type Json = Record<string, unknown>;
 
-async function api(method: string, path: string, body?: unknown, user = USER) {
+async function api(
+  method: string,
+  path: string,
+  body?: unknown,
+  user = USER,
+  headers: Record<string, string> = {},
+) {
   const res = await fetch(`${base}${path}`, {
     method,
-    headers: { 'content-type': 'application/json', 'x-test-user': user },
+    headers: { 'content-type': 'application/json', 'x-test-user': user, ...headers },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await res.text();
@@ -118,6 +126,101 @@ afterAll(async () => {
   await closeDb();
   await closeTestDb();
   process.env.DATABASE_URL = previousUrl;
+});
+
+describe('generation protocol disabled', () => {
+  it('rejects opt-in before provisioning a home or writing', async () => {
+    const user = `${scope}-disabled-opt-in`;
+    const header = { 'X-Notes-Generation': 'old-token' };
+    const id = uuidv7();
+    for (const [method, path, body] of [
+      ['GET', '/notes/sync?generationAware=1', undefined],
+      ['POST', '/notes', { id, title: 'should not be stored' }],
+      ['PATCH', `/notes/${id}`, { title: 'change' }],
+      ['DELETE', `/notes/${id}`, undefined],
+    ] as const) {
+      const result = await api(method, path, body, user, header);
+      expect(result.status, JSON.stringify(result.json)).toBe(503);
+      expect(result.json.code).toBe('NOTES_GENERATION_UNAVAILABLE');
+    }
+    expect(await db.select().from(workspaces).where(eq(workspaces.ownerId, user))).toEqual([]);
+  });
+
+  it('lets a legacy sync finish while the workspace row is exclusively locked', async () => {
+    const user = `${scope}-legacy-no-row-lock`;
+    expect((await api('GET', '/notes/sync', undefined, user)).status).toBe(200);
+    const workspace = (await api('GET', '/workspaces/personal', undefined, user)).json
+      .workspace as { id: string };
+    let release!: () => void;
+    let reached!: () => void;
+    const held = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const blocker = db.transaction(async (tx) => {
+      await tx
+        .select({ id: workspaces.id })
+        .from(workspaces)
+        .where(eq(workspaces.id, workspace.id))
+        .for('update');
+      reached();
+      await gate;
+    });
+    try {
+      await held;
+      const result = await Promise.race([
+        api('GET', '/notes/sync', undefined, user),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Legacy sync waited for workspace lock')), 1500),
+        ),
+      ]);
+      expect(result.status).toBe(200);
+    } finally {
+      release();
+      await blocker;
+    }
+  });
+
+  it('keeps legacy sync, writes, erase and reset off the new generation lock and table', async () => {
+    const user = `${scope}-disabled-legacy`;
+    const advance = vi
+      .spyOn(notesGeneration, 'advanceNotesGeneration')
+      .mockImplementation(async () => {
+        throw new Error('unexpected generation write');
+      });
+    const lock = vi.spyOn(notesGeneration, 'lockNotesGeneration').mockImplementation(async () => {
+      throw new Error('unexpected generation lock');
+    });
+    try {
+      const first = await api('GET', '/notes/sync', undefined, user);
+      expect(first.status, JSON.stringify(first.json)).toBe(200);
+      expect(first.json).not.toHaveProperty('generation');
+      const workspace = (await api('GET', '/workspaces/personal', undefined, user)).json
+        .workspace as { id: string; name: string };
+      const id = uuidv7();
+      expect((await api('POST', '/notes', { id, title: 'legacy' }, user)).status).toBe(201);
+      expect((await api('PATCH', `/notes/${id}`, { title: 'updated' }, user)).status).toBe(200);
+      expect((await api('DELETE', `/notes/${id}`, undefined, user)).status).toBe(200);
+      expect((await api('POST', '/notes/erase', { confirm: 'DELETE' }, user)).status).toBe(200);
+      expect(
+        (await api('POST', `/workspaces/${workspace.id}/reset`, { confirm: workspace.name }, user))
+          .status,
+      ).toBe(200);
+      expect(advance).not.toHaveBeenCalled();
+      expect(lock).not.toHaveBeenCalled();
+      expect(
+        await db
+          .select()
+          .from(notesSyncGenerations)
+          .where(eq(notesSyncGenerations.workspaceId, workspace.id)),
+      ).toEqual([]);
+    } finally {
+      advance.mockRestore();
+      lock.mockRestore();
+    }
+  });
 });
 
 describe('the first sync', () => {

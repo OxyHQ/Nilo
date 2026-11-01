@@ -25,6 +25,13 @@ NILO_TEST_DATABASE_URL=postgres://nilo:nilo@127.0.0.1:5439/postgres \
 bun run build
 ```
 
+The PostgreSQL suite must use a dedicated test server. Its migration test
+connects to the `postgres` maintenance database and creates and drops a
+separate temporary database, so the role in `NILO_TEST_DATABASE_URL` needs
+`CREATEDB` and permission to connect to `postgres`. The supplied local
+PostgreSQL Compose configuration provides these permissions. Do not point the
+test suite at a production or shared database.
+
 Start from `.env.example`. The only required secret-bearing runtime binding is
 the PostgreSQL `DATABASE_URL`; optional service credentials belong to their
 own non-inference integrations.

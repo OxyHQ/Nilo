@@ -170,3 +170,9 @@ NILO_TEST_DATABASE_URL=postgres://nilo:nilo@127.0.0.1:5439/postgres \
   bun run --filter @nilo/api test:pgdb
 docker compose -f apps/api/docker-compose.postgres.yml down
 ```
+
+Use a dedicated test PostgreSQL server: the suite modifies its test database,
+and its migrator test creates and drops a separate temporary database. The role
+in `NILO_TEST_DATABASE_URL` needs `CREATEDB` and access to the `postgres`
+maintenance database. The supplied Compose configuration grants these
+permissions; never run the suite against a production or shared database.
