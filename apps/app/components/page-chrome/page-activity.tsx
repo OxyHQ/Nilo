@@ -162,6 +162,7 @@ function ActivityPanelContent({ page, onClose }: { page: Page; onClose: () => vo
   return (
     <>
       <Screen
+        scroll="content"
         header={
           <PageHeader
             presentation="navigation"
