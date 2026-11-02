@@ -47,7 +47,7 @@ export default function HomePage() {
 
   if (!isAuthenticated || !currentWorkspaceId || isLoading || !hasPages) {
     return (
-      <Screen className="items-center justify-center px-6">
+      <Screen scroll="content" className="items-center justify-center px-6">
         <View className="max-w-md items-center gap-4">
           <Text className="text-3xl font-semibold text-foreground text-center">Nilo</Text>
           {!isAuthenticated ? (

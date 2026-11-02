@@ -112,7 +112,7 @@ function DatabasePage({ id, viewId }: { id: string; viewId?: string }) {
       }}
     />
   ) : (
-    <Screen header={header()}>
+    <Screen scroll="content" header={header()}>
       <EmptyState description={t('pages.database.noViews')} />
     </Screen>
   );
