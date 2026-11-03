@@ -58,7 +58,7 @@
     "react-native-gesture-handler": "3.3.0",
     "react-native-reanimated": "4.7.1",
     "react-native-keyboard-controller": "1.22.7",
-    "expo": "58.0.19",
+    "expo": "58.0.23",
     "expo-blur": "58.0.5",
     "expo-constants": "58.0.13",
     "expo-file-system": "58.0.11",
@@ -69,14 +69,14 @@
     "@react-native/babel-preset": "0.88.0",
     "@react-native/metro-babel-transformer": "0.88.0",
     "@react-native/metro-config": "0.88.0",
-    "@oxy.so/bloom": "16.5.0",
+    "@oxy.so/bloom": "17.0.0",
     "@oxy.so/contracts": "6.5.0",
-    "@oxy.so/core": "7.13.0",
-    "@oxy.so/services": "14.1.2",
+    "@oxy.so/core": "7.16.0",
+    "@oxy.so/services": "14.3.3",
     "lightningcss": "1.30.1",
     "lightningcss-linux-x64-gnu": "1.30.1",
     "lightningcss-linux-x64-musl": "1.30.1",
-    "@oxy.so/protocol": "1.5.1",
+    "@oxy.so/protocol": "1.6.1",
     "react-native-css": "3.1.0-rc.0",
     "nativewind": "5.0.0-rc.0",
     "@tiptap/pm": "3.31.4",
@@ -102,10 +102,10 @@
     "@tiptap/extension-bubble-menu": "3.31.4"
   },
   "dependencies": {
-    "@oxy.so/bloom": "16.5.0",
+    "@oxy.so/bloom": "17.0.0",
     "@oxy.so/contracts": "6.5.0",
-    "@oxy.so/core": "7.13.0",
-    "@oxy.so/services": "14.1.2"
+    "@oxy.so/core": "7.16.0",
+    "@oxy.so/services": "14.3.3"
   },
   "resolutions": {
     "react-native-css": "3.1.0-rc.0"
