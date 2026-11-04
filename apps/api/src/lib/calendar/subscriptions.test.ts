@@ -12,6 +12,7 @@ import http, { type IncomingHttpHeaders, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type PublicReadOptions, readPublicUrl } from '../public-fetch.js';
+import { SsrfRejection } from '@oxy.so/core/server';
 import {
   DEFAULT_REFRESH_MS,
   FeedUrlError,
@@ -78,7 +79,8 @@ beforeAll(async () => {
       res.writeHead(302, { location: 'https://127.0.0.1/etag.ics' });
       res.end();
     } else if (path === '/to-plain-http') {
-      res.writeHead(302, { location: 'http://feeds.test/etag.ics' });
+      // Leaves the fixture, so the SDK's own guard (`requireHttps`) meets it.
+      res.writeHead(302, { location: 'http://feeds.example/etag.ics' });
       res.end();
     } else if (path === '/hop') {
       res.writeHead(301, { location: '/etag.ics' });
@@ -235,6 +237,32 @@ describe('fetching a feed', () => {
     expect(await fetchFeed(`${FEEDS}/cut.ics`, none, fixtureRead)).toMatchObject({
       error: 'incomplete',
     });
+  });
+
+  it('asks the SDK for https on every hop, and a refused hop is unsafe', async () => {
+    const asked: PublicReadOptions[] = [];
+    const refusing = async (_url: string, options: PublicReadOptions) => {
+      asked.push(options);
+      throw new SsrfRejection('https required: redirect to a non-https url');
+    };
+    expect(await fetchFeed(`${FEEDS}/etag.ics`, none, refusing)).toEqual({
+      kind: 'failed',
+      error: 'unsafe_url',
+      httpStatus: null,
+    });
+    expect(asked[0]?.requireHttps).toBe(true);
+  });
+
+  it('refuses a plain-http hop before connecting, with the real reader', async () => {
+    // A literal public address: only `requireHttps` stops this hop before a connection.
+    expect(
+      await readPublicUrl('http://93.184.216.34/a.ics', {
+        timeoutMs: 1_000,
+        maxBytes: 1,
+        wants: () => false,
+        requireHttps: true,
+      }).catch((error: unknown) => error),
+    ).toBeInstanceOf(SsrfRejection);
   });
 
   it('is unreachable, not unsafe, when the request itself fails', async () => {

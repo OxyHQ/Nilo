@@ -18,6 +18,8 @@ export interface PublicReadOptions {
   maxBytes: number;
   /** Whether to read the body of this answer; when not, it is dropped unread. */
   wants: (status: number, contentType: string) => boolean;
+  /** Refuse (`SsrfRejection`) a URL or any redirect that is not https. */
+  requireHttps?: boolean;
 }
 
 interface PublicAnswer {
@@ -36,14 +38,15 @@ export type PublicRead =
 
 /**
  * GET `url` through the SDK's guard. Throws `SsrfRejection` for a URL (or a
- * redirect) that is not a public http(s) address, and the request's own error
- * when it could not be made.
+ * redirect) that is not a public http(s) address — or not https, with
+ * `requireHttps` — and the request's own error when it could not be made.
  */
 export async function readPublicUrl(url: string, options: PublicReadOptions): Promise<PublicRead> {
   const deadline = Date.now() + options.timeoutMs;
   const { response, status, headers, finalUrl } = await safeFetch(url, {
     headers: options.headers,
     headersTimeoutMs: options.timeoutMs,
+    requireHttps: options.requireHttps,
   });
   const answer = { status, headers, finalUrl };
   if (!options.wants(status, String(headers['content-type'] ?? ''))) {

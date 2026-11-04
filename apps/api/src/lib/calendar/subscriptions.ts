@@ -153,8 +153,9 @@ export function failureDelay(failures: number): number {
 export type FeedReader = (url: string, options: PublicReadOptions) => Promise<PublicRead>;
 
 /**
- * GET the feed, conditionally when validators are known. Never throws. Only
- * an https answer counts: a feed that redirects to plain http is refused.
+ * GET the feed, conditionally when validators are known. Never throws. Every
+ * hop is https: a feed that redirects through plain http is refused before
+ * that request is sent (the SDK's `requireHttps`).
  */
 export async function fetchFeed(
   url: string,
@@ -174,14 +175,12 @@ export async function fetchFeed(
       timeoutMs: FEED_TIMEOUT_MS,
       maxBytes: CALENDAR_IMPORT_MAX_BYTES,
       wants: (status) => status >= 200 && status < 300,
+      requireHttps: true,
     });
   } catch (err: unknown) {
     return err instanceof SsrfRejection
       ? { kind: 'failed', error: 'unsafe_url', httpStatus: null }
       : { kind: 'failed', error: 'unreachable', httpStatus: null };
-  }
-  if (new URL(res.finalUrl).protocol !== 'https:') {
-    return { kind: 'failed', error: 'unsafe_url', httpStatus: null };
   }
   const next: FeedValidators = {
     etag: header(res.headers.etag),
