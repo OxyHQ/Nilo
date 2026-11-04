@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import Svg, { Circle, G, Line, Path, Text as SvgText } from 'react-native-svg';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
+import { formatPercent } from '@oxy.so/bloom/locale';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -384,9 +385,7 @@ function ValueList({
           <Text className="text-xs font-medium text-foreground">{format(point.value)}</Text>
           {total && point.value !== null ? (
             <Text className="text-xs text-muted-foreground">
-              {new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(
-                point.value / total,
-              )}
+              {formatPercent(point.value / total, locale)}
             </Text>
           ) : null}
         </Pressable>

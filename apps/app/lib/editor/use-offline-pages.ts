@@ -1,4 +1,4 @@
-import NetInfo from '@react-native-community/netinfo';
+import { useNetworkStatus } from '@oxy.so/bloom/connection-status';
 import { useOxy } from '@oxy.so/services/ui/client';
 import { useCallback, useEffect, useState } from 'react';
 import { type OfflineEntry, offlinePages } from './offline-pages';
@@ -58,14 +58,8 @@ export function useOfflinePage(
  */
 export function useOfflineSync(): void {
   const { isAuthenticated } = useOxy();
+  const { online } = useNetworkStatus();
   useEffect(() => {
-    if (!isAuthenticated || !offlinePages.supported) return;
-    void refreshPinnedPages();
-    let online = true;
-    return NetInfo.addEventListener((state) => {
-      const next = state.isConnected === true && state.isInternetReachable !== false;
-      if (next && !online) void refreshPinnedPages();
-      online = next;
-    });
-  }, [isAuthenticated]);
+    if (isAuthenticated && online && offlinePages.supported) void refreshPinnedPages();
+  }, [isAuthenticated, online]);
 }
