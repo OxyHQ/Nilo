@@ -1,7 +1,7 @@
 import { NotesMaintenanceBusy } from '../lib/notes-maintenance-lock.js';
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { authenticateToken, oxyClient } from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth.js';
 import { announceReset } from '../collab/live-rooms.js';
 import { ensureNoteDatabases } from '../lib/databases/system.js';
 import {
@@ -21,7 +21,6 @@ import {
 import { deleteGrantsOfUserInWorkspace, listGuestGrants } from '../repositories/pagePermissions.js';
 import {
   acceptPendingInvites,
-  anyPendingInvite,
   deletePendingInvite,
   findLiveInviteLink,
   listPendingInvites,
@@ -52,7 +51,7 @@ import {
 import { log } from '../lib/logger.js';
 import { attachment } from '../lib/attachment.js';
 import { ExportTooLarge, exportPagesZip, fileName, zipExports } from '../lib/export-zip.js';
-import { findUserByEmail, loadMemberProfiles } from '../lib/member-profiles.js';
+import { loadMemberProfiles } from '../lib/member-profiles.js';
 import { createWorkspaceSchema, updateWorkspaceSchema } from '../lib/workspace-input.js';
 
 const router = Router();
@@ -115,57 +114,18 @@ function serializeInviteLink(link: WorkspaceInviteLinkRow) {
   };
 }
 
-/** How long an email read from Oxy is reused, and for how many people at most. */
-const EMAIL_TTL_MS = 60_000;
-const MAX_CACHED_EMAILS = 1000;
-const oxyEmails = new Map<string, { email: string; until: number }>();
-
-/**
- * The caller's email from their Oxy profile, reused for a minute: every list
- * of workspaces asks while an invitation waits anywhere. Null when Oxy cannot
- * say (never cached, so the next list asks again).
- */
-async function oxyEmail(userId: string): Promise<string | null> {
-  const cached = oxyEmails.get(userId);
-  if (cached && cached.until > Date.now()) return cached.email;
-  try {
-    const user = await oxyClient.users.get(userId);
-    const email = typeof user?.email === 'string' && user.email ? user.email : null;
-    oxyEmails.delete(userId);
-    if (email) {
-      if (oxyEmails.size >= MAX_CACHED_EMAILS) {
-        oxyEmails.delete(oxyEmails.keys().next().value as string);
-      }
-      oxyEmails.set(userId, { email, until: Date.now() + EMAIL_TTL_MS });
-    }
-    return email;
-  } catch (err: unknown) {
-    log.general.warn({ err }, 'Could not read the caller email for pending invitations');
-    return null;
-  }
-}
-
 /**
  * Accept the invitations waiting for the caller's email (`docs/access.md`):
- * the session's, or — only while some invitation is waiting somewhere —
- * their Oxy profile's. Never fails the request it runs in: an invitation not
- * accepted now is accepted on the next list.
+ * the address of the Oxy account the session belongs to, as its validation
+ * returned it (`middleware/auth-options.ts`). Never fails the request it runs in: an
+ * invitation not accepted now is accepted on the next list.
  */
 async function acceptInvitesForCaller(req: Request): Promise<void> {
   const userId = req.user?.id;
-  if (!userId) return;
+  const email = req.user?.email;
+  if (!userId || typeof email !== 'string' || !email) return;
   try {
-    const db = getDb();
-    const now = new Date();
-    const onSession = req.user?.email;
-    const email =
-      typeof onSession === 'string' && onSession
-        ? onSession
-        : (await anyPendingInvite(db, now))
-          ? await oxyEmail(userId)
-          : null;
-    if (!email) return;
-    await acceptPendingInvites(db, userId, email, now);
+    await acceptPendingInvites(getDb(), userId, email, new Date());
   } catch (err: unknown) {
     log.general.warn({ err }, 'Accepting pending workspace invitations failed');
   }
@@ -559,12 +519,13 @@ router.get(
 /**
  * POST /api/workspaces/:workspaceId/members
  *
- * Invite someone by email. Admin role or higher. An Oxy account with that
- * email becomes a member now (201 `{ member }`); any other email gets an
+ * Invite someone by email. Admin role or higher. Every email gets an
  * invitation that waits for them (201 `{ pending, invite, email }`), with a
  * link Oxy emails them when invitation email is on (`email`: `sent`,
- * `failed` or `disabled`; `lib/invite-email.ts`). Nilo creates no Oxy account
- * on anyone's behalf.
+ * `failed` or `disabled`; `lib/invite-email.ts`). The answer is the same
+ * whether or not an Oxy account uses that address: Oxy never resolves an email
+ * to an account, so nothing here can say whether one exists. Nilo creates no
+ * Oxy account on anyone's behalf.
  */
 router.post(
   '/:workspaceId/members',
@@ -592,55 +553,25 @@ router.post(
         return;
       }
 
-      const invitee = await findUserByEmail(email);
-      if (!invitee) {
-        // Someone without an Oxy account yet: the invitation waits for them.
-        // Its link (in the email Oxy sends, or shared by hand) accepts it for
-        // whoever opens it signed in, and their first workspace list accepts
-        // it once they have an Oxy account with this email.
-        const invite = await upsertPendingInvite(getDb(), {
-          workspaceId: ws.id,
-          email,
-          role,
-          invitedBy: req.user.id,
-          expiresAt: new Date(Date.now() + WORKSPACE_INVITE_TTL_MS),
-          token: generateLinkToken(),
-        });
-        // After the invitation is committed, and never its failure: an email
-        // that does not leave is reported, and the link is there to share.
-        const emailed = await sendInviteEmail({
-          invite,
-          workspaceName: ws.name,
-          locale: locale ?? acceptLanguage(req),
-        });
-        res.status(201).json({ pending: true, invite: serializeInvite(invite), email: emailed });
-        return;
-      }
-
-      // The LOUD counterpart to the idempotent provisioning path: "already a
-      // member" is an answer this caller must show the user as a 409, not
-      // swallow. `addMember` uses ON CONFLICT DO NOTHING RETURNING so a real
-      // infrastructure failure still propagates to the outer error handler.
-      const result = await addMember(getDb(), {
+      // The invitation's link (in the email Oxy sends, or shared by hand)
+      // accepts it for whoever opens it signed in, and the invitee's next
+      // workspace list accepts it once they are signed in with this email.
+      const invite = await upsertPendingInvite(getDb(), {
         workspaceId: ws.id,
-        userId: invitee.id,
+        email,
         role,
         invitedBy: req.user.id,
+        expiresAt: new Date(Date.now() + WORKSPACE_INVITE_TTL_MS),
+        token: generateLinkToken(),
       });
-
-      if ('duplicate' in result) {
-        res.status(409).json({ error: 'That user is already a member' });
-        return;
-      }
-
-      res.status(201).json({
-        member: {
-          userId: result.member.userId,
-          role: result.member.role,
-          invitedBy: result.member.invitedBy,
-          joinedAt: result.member.joinedAt,
-        },
+      // After the invitation is committed, and never its failure: an email
+      // that does not leave is reported, and the link is there to share.
+      const emailed = await sendInviteEmail({
+        invite,
+        workspaceName: ws.name,
+        locale: locale ?? acceptLanguage(req),
       });
+      res.status(201).json({ pending: true, invite: serializeInvite(invite), email: emailed });
     } catch (error: unknown) {
       log.general.error({ err: error }, 'Failed to invite member');
       res.status(500).json({ error: 'Failed to invite member' });

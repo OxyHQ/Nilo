@@ -1,4 +1,4 @@
-import { oxyClient } from '../middleware/auth.js';
+import { oxy } from '../oxy.js';
 import { log } from './logger.js';
 
 /** The public Oxy profile a member list shows next to each member. */
@@ -21,7 +21,7 @@ export async function loadMemberProfiles(
   const profiles = new Map<string, MemberProfile>();
   if (userIds.length === 0) return profiles;
   try {
-    const users = await oxyClient.users.getMany([...userIds]);
+    const users = await oxy.users.getMany([...userIds]);
     for (const user of users) {
       profiles.set(user.id, {
         id: user.id,
@@ -37,25 +37,4 @@ export async function loadMemberProfiles(
     log.general.warn({ err, count: userIds.length }, 'Member profile lookup failed');
   }
   return profiles;
-}
-
-/**
- * Find an Oxy user by email via the SDK's `users.search` method. Returns
- * the matching user or null. Email match is case-insensitive and exact.
- */
-export async function findUserByEmail(
-  email: string,
-): Promise<{ id: string; email?: string } | null> {
-  try {
-    const response = await oxyClient.users.search(email, { limit: 5 });
-    const target = email.toLowerCase();
-    const hit = response.data.find(
-      (u) => typeof u.email === 'string' && u.email.toLowerCase() === target,
-    );
-    if (!hit) return null;
-    return { id: hit.id, email: hit.email };
-  } catch (err: unknown) {
-    log.general.warn({ err, email }, 'users.search failed looking up a user by email');
-    return null;
-  }
 }

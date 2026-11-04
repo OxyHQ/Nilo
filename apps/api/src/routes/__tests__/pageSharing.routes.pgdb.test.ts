@@ -33,10 +33,23 @@ vi.mock('../../middleware/auth.js', () => ({
     req.user = { id };
     next();
   },
-  oxyClient: {
+}));
+vi.mock('../../oxy.js', () => ({
+  oxy: {
     // Oxy profiles: every user's avatar is a file id derived from their id.
     users: {
       getMany: async (ids: string[]) => ids.map((id) => ({ id, avatar: `avatar-of-${id}` })),
+      // Usernames are the ids here; `down` is Oxy failing, `nobody` no such user.
+      byUsername: async (username: string) => {
+        const { OxyApiError } = await import('@oxy.so/core');
+        if (username === 'down') {
+          throw new OxyApiError('Bad gateway', { status: 502, code: 'BAD_GATEWAY' });
+        }
+        if (username === 'nobody') {
+          throw new OxyApiError('Not found', { status: 404, code: 'NOT_FOUND' });
+        }
+        return { id: username };
+      },
     },
     // The real limiters resolve an optional session through this; anonymous here.
     middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
@@ -326,14 +339,44 @@ describe('who may share what', () => {
     ]);
   });
 
-  it('refuses an email that names no Oxy user, creating nobody', async () => {
+  it('shares with a person by their username, with or without the @', async () => {
     const target = await page(OWNER);
     const res = await api(OWNER, 'POST', `/pages/${target}/permissions`, {
-      email: 'nobody@example.test',
+      username: `@${GUEST}`,
+      role: 'viewer',
+    });
+    expect(res.status, JSON.stringify(res.json)).toBe(200);
+    expect(res.json.grant).toMatchObject({ userId: GUEST, role: 'viewer' });
+    expect((await api(GUEST, 'GET', `/pages/${target}`)).status).toBe(200);
+  });
+
+  it('refuses a username that names no Oxy user, creating nobody', async () => {
+    const target = await page(OWNER);
+    const res = await api(OWNER, 'POST', `/pages/${target}/permissions`, {
+      username: 'nobody',
       role: 'viewer',
     });
     expect(res.status).toBe(404);
     expect(res.json.code).toBe('USER_NOT_FOUND');
+  });
+
+  it('answers 503, not "no such user", when Oxy cannot say', async () => {
+    const target = await page(OWNER);
+    const res = await api(OWNER, 'POST', `/pages/${target}/permissions`, {
+      username: 'down',
+      role: 'viewer',
+    });
+    expect(res.status).toBe(503);
+    expect(res.json.code).toBe('OXY_UNAVAILABLE');
+  });
+
+  it('never shares by email: an email is not a username', async () => {
+    const target = await page(OWNER);
+    const res = await api(OWNER, 'POST', `/pages/${target}/permissions`, {
+      email: 'someone@example.test',
+      role: 'viewer',
+    });
+    expect(res.status).toBe(400);
   });
 
   it('lets a person leave a page shared with them', async () => {

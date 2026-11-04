@@ -67,7 +67,7 @@ process.env.INVITE_EMAILS_ENABLED = 'true';
 process.env.OXYNILO_PUBLIC_URL = 'https://nilo.example.test';
 const { deliverToAlia } = await import('../../event-outbox.js');
 const { sendInviteEmail, inviteEmailIdempotencyKey } = await import('../../../lib/invite-email.js');
-const { resetOxyServiceClientForTests } = await import('../../oxy-service.js');
+const { oxy, oxyApiTransport } = await import('../../../oxy.js');
 try {
   const event = normalizedAppEventSchema.parse({
     eventId: 'event-1',
@@ -119,7 +119,8 @@ try {
   );
   process.stdout.write('NILO_PRODUCER_TRANSPORT_OK\n');
 } finally {
-  resetOxyServiceClientForTests();
+  oxyApiTransport.dispose();
+  oxy.dispose();
   server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
 }

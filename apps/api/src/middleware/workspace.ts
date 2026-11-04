@@ -10,7 +10,7 @@ import {
 } from '../repositories/workspaces.js';
 import { ensureNoteDatabases } from '../lib/databases/system.js';
 import type { NotesHome } from '../repositories/notes.js';
-import { oxyClient } from './auth.js';
+import { oxy } from '../oxy.js';
 import { log } from '../lib/logger.js';
 
 /**
@@ -191,7 +191,7 @@ function defaultPersonalWorkspaceName(
  */
 export async function personalWorkspaceName(userId: string): Promise<string> {
   try {
-    const oxyUser = await oxyClient.users.get(userId);
+    const oxyUser = await oxy.users.get(userId);
     if (oxyUser) {
       return defaultPersonalWorkspaceName({
         username: oxyUser.username,

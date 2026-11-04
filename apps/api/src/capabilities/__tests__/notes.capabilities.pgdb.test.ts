@@ -20,7 +20,9 @@ import { workspaces } from '../../db/schema/workspaces.js';
 
 vi.mock('../../middleware/auth.js', () => ({
   authenticateToken: (_req: unknown, _res: unknown, next: () => void) => next(),
-  oxyClient: {
+}));
+vi.mock('../../oxy.js', () => ({
+  oxy: {
     middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
     users: { get: async () => ({ username: 'ada' }) },
   },

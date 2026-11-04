@@ -10,13 +10,13 @@
 import { appCapabilityCatalogSchema } from '@oxy.so/contracts';
 import { registerCapabilityCatalog } from '@oxy.so/mcp';
 import { NOTES_CAPABILITY_CATALOG } from '../capabilities/notes.catalog.js';
-import { OXY_API_URL, oxyServiceTransport } from '../capabilities/oxy-service.js';
+import { OXY_API_URL, oxyApiTransport } from '../oxy.js';
 
 async function main(): Promise<void> {
   const catalog = appCapabilityCatalogSchema.parse(NOTES_CAPABILITY_CATALOG);
   const { digest } = await registerCapabilityCatalog(catalog, {
     oxyApiUrl: OXY_API_URL,
-    transport: oxyServiceTransport(),
+    transport: oxyApiTransport,
     timeoutMs: 15_000,
   });
   process.stdout.write(

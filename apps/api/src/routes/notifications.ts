@@ -28,7 +28,7 @@ import {
 } from '../lib/notification-service.js';
 import { VAPID_PUBLIC_KEY } from '../lib/web-push.js';
 import { log } from '../lib/logger.js';
-import { assertPublicHttpsUrl } from '../lib/safe-fetch.js';
+import { assertSafePublicUrl } from '@oxy.so/core/server';
 import type { Request, Response } from 'express';
 
 const router = Router();
@@ -238,10 +238,9 @@ router.post('/web-push-subscription', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Subscription keys (p256dh, auth) are required' });
     }
     // The server will POST to this URL: it must be a public push service,
-    // never an address inside the server's network.
-    try {
-      await assertPublicHttpsUrl(endpoint);
-    } catch {
+    // never an address inside the server's network. Checked again, and the
+    // connection pinned, on every send (`lib/notification-service.ts`).
+    if (!endpoint.startsWith('https://') || !(await assertSafePublicUrl(endpoint)).ok) {
       return res.status(400).json({ error: 'Subscription endpoint must be a public https URL' });
     }
 

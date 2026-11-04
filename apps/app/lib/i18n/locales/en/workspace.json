@@ -44,7 +44,6 @@
     "invalidEmail": "Enter a valid email address.",
     "role": "Role",
     "submit": "Send invite",
-    "invited": "Invited %{email} as %{role}",
     "failed": "Failed to invite member",
     "alreadyMember": "That user is already a member of this workspace.",
     "pending": "Invitation saved for %{email} as %{role}. Copy its link from Pending invitations to share it.",

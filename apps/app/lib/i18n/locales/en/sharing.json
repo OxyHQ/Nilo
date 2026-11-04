@@ -68,10 +68,10 @@
   },
   "people": {
     "title": "People with access",
-    "email": "Email address",
+    "username": "Username",
     "inviteRole": "Access for invited person",
     "invite": "Invite",
-    "userNotFound": "No Oxy account uses that email address. Ask them to create an account first.",
+    "userNotFound": "No Oxy account has that username.",
     "inviteFailed": "Could not share this page. Check your access and try again.",
     "invited": "Page shared.",
     "you": "(you)",

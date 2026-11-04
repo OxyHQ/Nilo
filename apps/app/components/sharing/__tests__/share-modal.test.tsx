@@ -61,7 +61,7 @@ jest.mock('@/lib/hooks/use-page-permissions', () => ({
     },
   }),
   useSharedPages: () => ({ data: undefined }),
-  useSharePageByEmail: () => ({ ...mockIdle, mutate: mockInvite }),
+  useSharePageByUsername: () => ({ ...mockIdle, mutate: mockInvite }),
   useUpdatePageAccess: () => ({ ...mockIdle, mutate: jest.fn() }),
   useRemovePageAccess: () => ({ ...mockIdle, mutate: jest.fn() }),
   useSetPageRestricted: () => ({ ...mockIdle, mutate: mockRestrict }),
@@ -102,13 +102,10 @@ it('opens the share dialog with people, general access and the public link', asy
   expect(text()).toContain('sharing.modal.empty');
 
   await act(async () =>
-    byLabel('sharing.people.email', 'onChangeText').props.onChangeText('bo@example.test'),
+    byLabel('sharing.people.username', 'onChangeText').props.onChangeText('@bo'),
   );
   await act(async () => byLabel('sharing.people.invite', 'onPress').props.onPress());
-  expect(mockInvite).toHaveBeenCalledWith(
-    { email: 'bo@example.test', role: 'viewer' },
-    expect.anything(),
-  );
+  expect(mockInvite).toHaveBeenCalledWith({ username: '@bo', role: 'viewer' }, expect.anything());
 
   await act(async () =>
     byLabel('sharing.general.restrict', 'onCheckedChange').props.onCheckedChange(true),
@@ -127,7 +124,7 @@ it('opens the share dialog with people, general access and the public link', asy
 it('keeps the open share dialog and invitation draft when the header changes presentation', async () => {
   await act(async () => byLabel('sharing.button.label', 'onPress').props.onPress());
   await act(async () =>
-    byLabel('sharing.people.email', 'onChangeText').props.onChangeText('draft@example.test'),
+    byLabel('sharing.people.username', 'onChangeText').props.onChangeText('dra'),
   );
   const share = renderer.root.findByType(ShareButton);
   const modal = renderer.root.findByType(ShareModal);
@@ -142,7 +139,7 @@ it('keeps the open share dialog and invitation draft when the header changes pre
     expect(renderer.root.findByType(ShareButton)).toBe(share);
     expect(renderer.root.findByType(ShareModal)).toBe(modal);
     expect(byLabel('sharing.button.label', 'onPress').props.iconOnly).toBe(compact);
-    expect(byLabel('sharing.people.email', 'onChangeText').props.value).toBe('draft@example.test');
+    expect(byLabel('sharing.people.username', 'onChangeText').props.value).toBe('dra');
     expect(text()).toContain('sharing.people.title');
   }
 });

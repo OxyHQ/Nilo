@@ -12,9 +12,13 @@ The member's app does three things (`apps/app/lib/files/upload-page-file.ts`):
 2. It links the file to Nilo: `app` is Nilo's application id
    (`NILO_OXY_APPLICATION_ID` in `@oxy.so/nilo-contracts`), with the page as the entity.
 3. It records the file on the page: `POST /pages/:id/files { fileId, name }`
-   (an editor of the page). The API asks Oxy for a URL. That is how it learns
-   the file is linked to Nilo by its owner, and its type and size as Oxy
-   measured them. It writes a `page_files` row and answers with a first URL.
+   (an editor of the page). The API first asks Oxy whose the file is
+   (`assets.metadataByIds`): only the caller's own `active` file is recorded,
+   and anything else gets the same 422 as a file never linked, so an id
+   learnt from a page cannot be claimed by someone else (503 while Oxy cannot
+   say). It then asks Oxy for a URL. That is how it learns the file is linked
+   to Nilo by its owner, and its type and size as Oxy measured them. It writes
+   a `page_files` row and answers with a first URL.
 
 A block holds the file's id (`content.fileId`), never a URL. A pasted URL
 still goes in `content.url`. A page's icon or cover uploaded the same way is

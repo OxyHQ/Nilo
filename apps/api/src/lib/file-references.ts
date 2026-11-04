@@ -21,7 +21,7 @@
  */
 import { NILO_FILE_ENTITY_TYPE } from '@oxy.so/nilo-contracts';
 import { getDb, type PgHandle } from '../db/client.js';
-import { oxyClient } from '../middleware/auth.js';
+import { oxy } from '../oxy.js';
 import {
   claimReferenceRemovals,
   countUnnamedPageFiles,
@@ -81,7 +81,7 @@ export async function drainReferenceRemovals(
   try {
     // `removed` and `not_found` (already gone — a deleted file, an earlier
     // attempt whose answer was lost) both settle a removal.
-    await oxyClient.assets.references.remove(
+    await oxy.assets.references.remove(
       claimed.map(({ fileId, entityType, entityId }) => ({ fileId, entityType, entityId })),
     );
   } catch (err: unknown) {
@@ -162,7 +162,7 @@ export async function runDailyFileWork(
   // its owner's grant removed: no commit while there is one.
   const dryRun = unnamed > 0;
   try {
-    const result = await oxyClient.assets.references.reconcile(
+    const result = await oxy.assets.references.reconcile(
       NILO_FILE_ENTITY_TYPE,
       pageInventory(db, options.graceMs ?? RECONCILE_GRACE_MS),
       { dryRun },

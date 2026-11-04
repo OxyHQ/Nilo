@@ -2,8 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getMany = vi.fn();
 
-vi.mock('../../middleware/auth.js', () => ({
-  oxyClient: { users: { getMany: (ids: string[]) => getMany(ids) } },
+// `bun test` keeps a module mock for the whole run, so this one is whole
+// enough for the files after it that build the auth middleware.
+vi.mock('../../oxy.js', () => ({
+  oxy: {
+    users: { getMany: (ids: string[]) => getMany(ids) },
+    middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
+  },
 }));
 
 vi.mock('../logger.js', () => ({

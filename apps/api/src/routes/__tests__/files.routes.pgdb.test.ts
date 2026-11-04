@@ -31,7 +31,30 @@ import {
 } from '../../db/__tests__/testDatabase.js';
 
 /** Files their owners linked to Nilo in Oxy, and what Oxy measured. */
-const linked = new Map<string, { mime: string; size: number }>();
+const linked = new Map<
+  string,
+  { mime: string; size: number; owner?: string; status?: 'active' | 'trashed' }
+>();
+/** Oxy's answer about a file's owner, as a first-party service reads it. */
+let metadataDown = false;
+const metadataByIds = vi.fn(async (ids: string[]) => {
+  if (metadataDown) throw Object.assign(new Error('Oxy is down'), { status: 503 });
+  return ids.flatMap((id) => {
+    const file = linked.get(id);
+    return file
+      ? [
+          {
+            id,
+            sha256: 'x',
+            mime: file.mime,
+            size: file.size,
+            status: file.status ?? 'active',
+            ownerUserId: file.owner ?? OWNER,
+          },
+        ]
+      : [];
+  });
+});
 const linkedDownloadUrls = vi.fn(async (ids: string[]) =>
   ids.flatMap((id) => {
     const file = linked.get(id);
@@ -99,10 +122,13 @@ vi.mock('../../middleware/auth.js', () => ({
     req.user = { id };
     next();
   },
-  oxyClient: {
+}));
+vi.mock('../../oxy.js', () => ({
+  oxy: {
     // The real limiters resolve an optional session through this; anonymous here.
     middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
     assets: {
+      metadataByIds: (ids: string[]) => metadataByIds(ids),
       linkedDownloadUrls: (ids: string[]) => linkedDownloadUrls(ids),
       references: {
         remove: (refs: Reference[]) => removeReferences(refs),
@@ -181,7 +207,7 @@ async function imageBlock(pageId: string, fileId: string, user = OWNER): Promise
 /** A file uploaded to Oxy and linked to Nilo by its owner, then recorded on `pageId`. */
 async function attach(pageId: string, user = OWNER): Promise<string> {
   const fileId = uuidv7().replace(/-/g, '').slice(0, 24);
-  linked.set(fileId, { mime: 'image/png', size: 2048 });
+  linked.set(fileId, { mime: 'image/png', size: 2048, owner: user });
   const res = await api(user, 'POST', `/pages/${pageId}/files`, { fileId, name: 'diagram.png' });
   expect(res.status).toBe(201);
   return fileId;
@@ -267,11 +293,53 @@ describe('recording an attachment', () => {
     ).toBe(403);
   });
 
+  it("refuses someone else's file, or one no longer active, as it refuses an unlinked one", async () => {
+    const target = await page('Notes');
+    const theirs = uuidv7().replace(/-/g, '').slice(0, 24);
+    linked.set(theirs, { mime: 'image/png', size: 1, owner: STRANGER });
+    const claimed = await api(OWNER, 'POST', `/pages/${target}/files`, {
+      fileId: theirs,
+      name: 'x',
+    });
+    expect(claimed.status).toBe(422);
+    expect(claimed.json).toEqual({ error: 'This file is not attached to Nilo' });
+    const trashed = uuidv7().replace(/-/g, '').slice(0, 24);
+    linked.set(trashed, { mime: 'image/png', size: 1, status: 'trashed' });
+    expect(
+      (await api(OWNER, 'POST', `/pages/${target}/files`, { fileId: trashed, name: 'x' })).status,
+    ).toBe(422);
+    expect(linkedDownloadUrls).not.toHaveBeenCalledWith([theirs]);
+  });
+
+  it('answers 503, never a refusal, while Oxy cannot say whose a file is', async () => {
+    const target = await page('Notes');
+    const fileId = uuidv7().replace(/-/g, '').slice(0, 24);
+    linked.set(fileId, { mime: 'image/png', size: 1 });
+    metadataDown = true;
+    try {
+      const res = await api(OWNER, 'POST', `/pages/${target}/files`, { fileId, name: 'x' });
+      expect(res.status).toBe(503);
+    } finally {
+      metadataDown = false;
+    }
+    // Nothing was remembered: the next try asks Oxy again and records it.
+    expect((await api(OWNER, 'POST', `/pages/${target}/files`, { fileId, name: 'x' })).status).toBe(
+      201,
+    );
+  });
+
   it('keeps a file in the workspace that recorded it first', async () => {
     const mine = await page('Mine');
     const fileId = await attach(mine);
-    const theirs = await page('Theirs', otherWorkspaceId, STRANGER);
-    const res = await api(STRANGER, 'POST', `/pages/${theirs}/files`, { fileId, name: 'stolen' });
+    const [elsewhere] = await db
+      .insert(workspaces)
+      .values({ name: testScope('files-elsewhere'), ownerId: OWNER })
+      .returning({ id: workspaces.id });
+    await db
+      .insert(workspaceMembers)
+      .values({ workspaceId: elsewhere.id, userId: OWNER, role: 'owner' });
+    const there = await page('There', elsewhere.id);
+    const res = await api(OWNER, 'POST', `/pages/${there}/files`, { fileId, name: 'again' });
     expect(res.status).toBe(409);
   });
 });

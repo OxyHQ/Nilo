@@ -3,7 +3,7 @@
  * INVITE_EMAILS_ENABLED is the operational mail switch; own products need no scope grant.
  * The original invitation/issue idempotency key and user-visible failure handling stay intact.
  */
-import { OXY_API_URL, oxyServiceTransport } from '../capabilities/oxy-service.js';
+import { OXY_API_URL, oxyApiTransport } from '../oxy.js';
 import type { WorkspaceInviteRow } from '../repositories/workspaceInvites.js';
 import { log } from './logger.js';
 import { publicAppUrl } from './public-links.js';
@@ -46,7 +46,7 @@ function resourceName(workspaceName: string): string {
 }
 
 async function post(body: string, key: string): Promise<Response> {
-  return oxyServiceTransport().fetch(`${OXY_API_URL}/apps/invitations/email`, {
+  return oxyApiTransport.fetch(`${OXY_API_URL}/apps/invitations/email`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',

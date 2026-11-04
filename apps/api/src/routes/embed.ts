@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { authenticateToken } from '../middleware/auth.js';
 import { getRedisClient } from '../lib/redis.js';
 import { log } from '../lib/logger.js';
-import { safeFetch } from '../lib/safe-fetch.js';
+import { readPublicUrl } from '../lib/public-fetch.js';
 
 const router = Router();
 
@@ -64,22 +64,23 @@ function detectSource(url: string): string | undefined {
 }
 
 /**
- * The page at `url`, through `safeFetch`: public addresses only, redirects
+ * The page at `url`, through `readPublicUrl`: public addresses only, redirects
  * checked hop by hop, HTML only, bounded in time and size.
  */
 async function fetchWithTimeout(url: string): Promise<{ body: string; finalUrl: string } | null> {
   try {
-    const res = await safeFetch(url, {
+    const read = await readPublicUrl(url, {
       timeoutMs: FETCH_TIMEOUT_MS,
       maxBytes: MAX_HTML_BYTES,
       headers: {
         'user-agent': 'Mozilla/5.0 (compatible; NiloBot/1.0; +https://nilo.so/bot)',
         accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       },
-      accept: (type) => type.toLowerCase().includes('text/html'),
+      wants: (status, type) =>
+        status >= 200 && status < 300 && type.toLowerCase().includes('text/html'),
     });
-    if (res.status < 200 || res.status >= 300 || !res.body) return null;
-    return { body: res.body, finalUrl: res.finalUrl };
+    if (read.kind !== 'ok' || read.body.length === 0) return null;
+    return { body: read.body.toString('utf8'), finalUrl: read.finalUrl };
   } catch (error: unknown) {
     log.general.warn({ err: error, url }, 'embed preview fetch failed');
     return null;

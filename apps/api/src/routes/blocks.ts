@@ -17,7 +17,7 @@ import {
 import { loadPageState, PageDocRejected } from '../lib/page-docs.js';
 import { projectNow } from '../lib/page-projection.js';
 import { rateLimit } from '../lib/rate-limit.js';
-import { safePost, UnsafeUrlError } from '../lib/safe-fetch.js';
+import { SsrfRejection, safeFetch } from '@oxy.so/core/server';
 import { findBlockById } from '../repositories/blocks.js';
 import { isSafeUrl } from '@oxy.so/nilo-contracts';
 import * as Y from 'yjs';
@@ -179,7 +179,9 @@ router.post('/pages/:pageId/blocks/transactions', async (req: Request, res: Resp
  * A button block's webhook, sent by the server: a browser's own request
  * would be stopped by CORS on most endpoints and look failed when it was
  * sent. The URL is the block's as stored — never the caller's — and it goes
- * through `safePost`, so a page cannot aim the server at its own network.
+ * through the SDK's `safeFetch`, so a page cannot aim the server at its own
+ * network. A redirect is not followed: what a POST means after one is the
+ * server's guess, so its status is the answer.
  * Pressing it is an edit of the page's world, so it takes an editor.
  */
 router.post(
@@ -210,17 +212,30 @@ router.post(
         res.status(400).json({ error: 'The button has no webhook', code: 'NO_WEBHOOK' });
         return;
       }
-      const sent = await safePost(
-        url,
-        { event: 'button.pressed', pageId: page.id, blockId: block.id, userId: req.user?.id },
-        { timeoutMs: 8000, headers: { 'user-agent': 'NiloBot/1.0 (+https://nilo.so/bot)' } },
-      );
+      const sent = await safeFetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'user-agent': 'NiloBot/1.0 (+https://nilo.so/bot)',
+        },
+        body: JSON.stringify({
+          event: 'button.pressed',
+          pageId: page.id,
+          blockId: block.id,
+          userId: req.user?.id,
+        }),
+        redirect: 'manual',
+        headersTimeoutMs: 8000,
+      });
+      sent.response.destroy();
       const ok = sent.status >= 200 && sent.status < 300;
       res.status(ok ? 200 : 502).json({ ok, status: sent.status });
     } catch (error: unknown) {
       if (handleZodError(error, res)) return;
-      if (error instanceof UnsafeUrlError) {
-        res.status(400).json({ error: error.message, code: 'UNSAFE_URL' });
+      if (error instanceof SsrfRejection) {
+        res
+          .status(400)
+          .json({ error: 'The webhook is not a public web address', code: 'UNSAFE_URL' });
         return;
       }
       log.general.warn({ err: error }, 'Button webhook failed');

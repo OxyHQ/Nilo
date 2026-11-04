@@ -5,7 +5,7 @@
  * see only the form's fields, never the rows.
  */
 import crypto from 'node:crypto';
-import { type NextFunction, type Request, type Response, Router } from 'express';
+import { type Request, type Response, Router } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -22,7 +22,7 @@ import { NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
 import { log } from '../lib/logger.js';
 import { checkDatabaseAccess } from '../lib/page-access.js';
 import { rateLimit } from '../lib/rate-limit.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, optionalAuthenticateToken } from '../middleware/auth.js';
 import { findDatabaseById } from '../repositories/databases.js';
 import { createRow } from '../lib/databases/rows.js';
 import { nextDatabaseRowOrder } from '../repositories/pages.js';
@@ -165,12 +165,6 @@ router.delete(
   },
 );
 
-/** Signed-in when a token is sent, anonymous otherwise. */
-function optionalAuth(req: Request, res: Response, next: NextFunction) {
-  if (req.headers.authorization) return authenticateToken(req, res, next);
-  next();
-}
-
 /** The open form behind a public token, with its database and the fields it asks for. */
 async function loadPublicForm(req: Request, res: Response) {
   const parsed = tokenSchema.safeParse(req.params.token);
@@ -213,7 +207,7 @@ const describeField = (property: DatabaseProperty) => ({
 router.get(
   '/forms/:token',
   rateLimit('form-read', { max: 120, windowMs: 60_000 }),
-  optionalAuth,
+  optionalAuthenticateToken,
   async (req: Request, res: Response) => {
     try {
       const loaded = await loadPublicForm(req, res);
@@ -236,7 +230,7 @@ router.get(
 router.post(
   '/forms/:token',
   rateLimit('form-submit', { max: 10, windowMs: 60_000 }),
-  optionalAuth,
+  optionalAuthenticateToken,
   async (req: Request, res: Response) => {
     try {
       const body = z.object({ values: z.record(z.unknown()) }).parse(req.body);

@@ -1,31 +1,25 @@
-import { allowedOrigins } from './lib/allowed-origins.js';
+import { socketCors } from './lib/cors.js';
 import { observeEcosystemSocket } from './ecosystemActivity';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import type http from 'node:http';
 import { getRedisClient, getRedisSubClient } from './lib/redis.js';
 import { log } from './lib/logger.js';
-import { oxyClient } from './middleware/auth.js';
+import { oxy } from './oxy.js';
 import { registerLiveRooms } from './collab/live-rooms.js';
 import { registerPageDocs, SOCKET_MAX_MESSAGE_BYTES } from './collab/page-docs.js';
 import { registerPageRooms } from './collab/page-rooms.js';
-
-const ALLOWED_ORIGINS = allowedOrigins();
 
 let io: Server | null = null;
 
 export function initSocket(server: http.Server): Server {
   io = new Server(server, {
-    cors: {
-      origin: ALLOWED_ORIGINS,
-      methods: ['GET', 'POST'],
-      credentials: true,
-    },
+    ...socketCors,
     transports: ['websocket', 'polling'],
     maxHttpBufferSize: SOCKET_MAX_MESSAGE_BYTES,
   });
 
-  io.use(oxyClient.middleware.socket());
+  io.use(oxy.middleware.socket());
 
   // The adapter is what makes a page's room reach members on every task.
   // Attached at once: the ioredis clients are already connecting (no

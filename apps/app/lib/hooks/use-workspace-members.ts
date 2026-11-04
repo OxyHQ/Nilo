@@ -81,17 +81,15 @@ export function useWorkspaceMembers(
 }
 
 /**
- * An invitation's answer: the member, or (for an email with no Oxy account
- * yet) the invitation waiting for them (`pending`).
+ * An invitation's answer: the invitation waiting for the person, whether or
+ * not an Oxy account uses that email (the server cannot tell, by design).
  */
-export type InviteMemberResult =
-  | { pending?: false; member: WorkspaceMember }
-  | {
-      pending: true;
-      invite: { id: string; email: string; role: WorkspaceRole; url: string | null };
-      /** Whether Oxy took the invitation email: `failed` and `disabled` mean share the link. */
-      email: 'sent' | 'failed' | 'disabled';
-    };
+export interface InviteMemberResult {
+  pending: true;
+  invite: { id: string; email: string; role: WorkspaceRole; url: string | null };
+  /** Whether Oxy took the invitation email: `failed` and `disabled` mean share the link. */
+  email: 'sent' | 'failed' | 'disabled';
+}
 
 export function useInviteMember(workspaceId: string) {
   const queryClient = useQueryClient();
@@ -99,12 +97,8 @@ export function useInviteMember(workspaceId: string) {
   return useMutation<InviteMemberResult, Error, InviteMemberInput>({
     mutationFn: async (input) =>
       (await apiClient.post<InviteMemberResult>(membersBase(workspaceId), input)).data,
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({
-        queryKey: result.pending
-          ? workspaceAdminKeys.invites(workspaceId)
-          : workspaceMemberKeys.list(workspaceId),
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: workspaceAdminKeys.invites(workspaceId) });
     },
   });
 }

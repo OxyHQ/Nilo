@@ -1,13 +1,12 @@
-import { createOxyAuthMiddleware, OxyServer, type OxyRequestUser } from '@oxy.so/core/server';
-import { createAwsWorkloadCredentialProvider } from '@oxy.so/core/server/aws';
+import {
+  createOptionalOxyAuth,
+  createOxyAuthMiddleware,
+  type OxyRequestUser,
+} from '@oxy.so/core/server';
 import type { WorkspaceRole } from '../db/schema/workspaces.js';
+import { oxy } from '../oxy.js';
+import { oxyAuthOptions } from './auth-options.js';
 import type { WorkspaceMemberRow, WorkspaceRow } from '../repositories/workspaces.js';
-
-const OXY_API_URL = process.env.OXY_API_URL || 'https://api.oxy.so';
-export const oxyClient = new OxyServer({
-  baseURL: OXY_API_URL,
-  workloadCredentials: createAwsWorkloadCredentialProvider(),
-});
 
 declare global {
   namespace Express {
@@ -26,6 +25,12 @@ declare global {
 }
 
 /** Validate an Oxy session and attach its user context to the request. */
-export const authenticateToken = createOxyAuthMiddleware(oxyClient, {
-  auth: { debug: true },
+export const authenticateToken = createOxyAuthMiddleware(oxy, { auth: oxyAuthOptions });
+
+/**
+ * Signed in when a bearer is sent, anonymous when none is; a bearer that is
+ * sent and does not validate is refused, never read as anonymous.
+ */
+export const optionalAuthenticateToken = createOptionalOxyAuth(oxy, {
+  auth: { ...oxyAuthOptions, strictOptionalBearer: true },
 });

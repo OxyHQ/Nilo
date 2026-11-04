@@ -21,7 +21,9 @@ import {
 
 vi.mock('../../middleware/auth.js', () => ({
   authenticateToken: vi.fn(),
-  oxyClient: { users: { get: async () => null } },
+}));
+vi.mock('../../oxy.js', () => ({
+  oxy: { users: { get: async () => null } },
 }));
 vi.mock('../../socket.js', () => ({ getIO: () => null }));
 vi.mock('../../lib/logger.js', () => ({

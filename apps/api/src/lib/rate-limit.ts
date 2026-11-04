@@ -11,7 +11,8 @@ import { createOxyRateLimit } from '@oxy.so/core/server';
 import type { RequestHandler } from 'express';
 import { MemoryStore, type Store } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
-import { oxyClient } from '../middleware/auth.js';
+import { oxyAuthOptions } from '../middleware/auth-options.js';
+import { oxy } from '../oxy.js';
 import { getRedisClient } from './redis.js';
 
 export type RateLimitScope =
@@ -58,7 +59,8 @@ export function rateLimit(
   scope: RateLimitScope,
   options: { max?: number; anonymousMax?: number; windowMs?: number } = {},
 ): RequestHandler {
-  return createOxyRateLimit(oxyClient, {
+  return createOxyRateLimit(oxy, {
+    auth: oxyAuthOptions,
     ...(options.windowMs !== undefined && { windowMs: options.windowMs }),
     ...(options.max !== undefined && {
       authenticatedMax: options.max,
