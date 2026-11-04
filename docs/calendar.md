@@ -249,7 +249,8 @@ once (`POST …/refresh`), at most once a minute.
 **Fetching safely.** A subscription's URL is user-supplied, so it is fetched
 through `@oxy.so/core`'s `safeFetch` and `readResponseBody`
 (`lib/public-fetch.ts`): `https` only (`webcal://` and `webcals://` are read
-as `https://`; an answer that ends on plain http is refused), the default
+as `https://`; every hop, each redirect included, must be https — the SDK's
+`requireHttps` refuses a plain-http one before it is sent), the default
 port, no credentials in the URL and none sent (no cookies, no
 Authorization); every address a name resolves to must be public, checked by
 the SDK on every hop and the connection pinned to the address it checked; at
