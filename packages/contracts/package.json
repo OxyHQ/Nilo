@@ -40,7 +40,7 @@
     }
   },
   "devDependencies": {
-    "@oxy.so/bloom-editor": "0.7.1",
+    "@oxy.so/bloom-editor": "0.7.2",
     "@oxy.so/bloom-text": "0.1.6"
   },
   "scripts": {
