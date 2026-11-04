@@ -21,6 +21,7 @@
     "start:app": "bun run --filter @nilo/app start",
     "start:api": "bun run --filter @nilo/api start",
     "lint": "biome check .",
+    "i18n:check": "oxy-doctor-i18n --ci",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "android": "bun run --filter @nilo/app android",
@@ -42,7 +43,7 @@
   "author": "",
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
-    "@oxy.so/doctor": "1.5.0",
+    "@oxy.so/doctor": "1.6.0",
     "typescript": "^5.9.3"
   },
   "overrides": {

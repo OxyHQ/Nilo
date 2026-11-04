@@ -114,6 +114,11 @@ jobs:
       - name: Lint (Biome)
         run: bunx biome ci .
 
+      # Translation keys follow ADR 0055: nested identifier segments under a
+      # namespace, every locale shaped like English. Missing translations warn.
+      - name: Translation keys (ADR 0055)
+        run: bun run i18n:check
+
       # Every workspace typechecks; neither the API's bun build nor the Expo
       # export runs tsc, so without these a type error ships silently.
       - name: Typecheck the API
