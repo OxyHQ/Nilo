@@ -8,7 +8,12 @@ const client = {
   fetch: (input: string | URL | Request, init?: RequestInit) => globalThis.fetch(input, init),
 };
 let identity: typeof client | null = client;
+// `bun test` keeps a module mock for the whole run, so this one is whole
+// enough for the files after it that build the auth middleware.
 vi.mock('../../oxy.js', () => ({
+  oxy: {
+    middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
+  },
   OXY_API_URL: 'https://oxy.test',
   oxyApiTransport: {
     fetch: (input: string | URL | Request, init?: RequestInit) => {
