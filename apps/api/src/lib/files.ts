@@ -103,6 +103,7 @@ export async function mintFileUrls(fileIds: readonly string[]): Promise<Map<stri
     if (minted.expiresAt - now > REUSE_MARGIN_MS) out.set(id, minted);
   }
   const missing = ids.filter((id) => !out.has(id));
+  if (missing.length === 0) return out;
   const fresh = new Map<string, MintedFile>();
   // The SDK sends Oxy's batch size per call and throws if any batch fails.
   for (const file of await oxy.assets.linkedDownloadUrls(missing)) {

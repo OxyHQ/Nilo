@@ -117,7 +117,7 @@ function serializeInviteLink(link: WorkspaceInviteLinkRow) {
 /**
  * Accept the invitations waiting for the caller's email (`docs/access.md`):
  * the address of the Oxy account the session belongs to, as its validation
- * returned it (`middleware/auth.ts`). Never fails the request it runs in: an
+ * returned it (`middleware/auth-options.ts`). Never fails the request it runs in: an
  * invitation not accepted now is accepted on the next list.
  */
 async function acceptInvitesForCaller(req: Request): Promise<void> {

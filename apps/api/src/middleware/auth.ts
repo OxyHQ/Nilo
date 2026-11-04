@@ -5,6 +5,7 @@ import {
 } from '@oxy.so/core/server';
 import type { WorkspaceRole } from '../db/schema/workspaces.js';
 import { oxy } from '../oxy.js';
+import { oxyAuthOptions } from './auth-options.js';
 import type { WorkspaceMemberRow, WorkspaceRow } from '../repositories/workspaces.js';
 
 declare global {
@@ -22,16 +23,6 @@ declare global {
     }
   }
 }
-
-/**
- * How every mount here resolves a session — the rate limiters' too, which run
- * first, so a route's own guard finds the request already resolved and keeps
- * it. `loadUser` keeps the profile the validation already returned (no extra
- * round trip): `req.user.email` is the account's own address, which accepts
- * the workspace invitations waiting for it (`routes/workspaces.ts`,
- * `docs/access.md`).
- */
-export const oxyAuthOptions = { loadUser: true };
 
 /** Validate an Oxy session and attach its user context to the request. */
 export const authenticateToken = createOxyAuthMiddleware(oxy, { auth: oxyAuthOptions });

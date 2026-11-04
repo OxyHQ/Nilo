@@ -11,7 +11,7 @@ import { createOxyRateLimit } from '@oxy.so/core/server';
 import type { RequestHandler } from 'express';
 import { MemoryStore, type Store } from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
-import { oxyAuthOptions } from '../middleware/auth.js';
+import { oxyAuthOptions } from '../middleware/auth-options.js';
 import { oxy } from '../oxy.js';
 import { getRedisClient } from './redis.js';
 

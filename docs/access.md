@@ -42,7 +42,7 @@ and keeps the same id. Any other workspace a user needs, they create.
   days), and the answer is the same whether or not an Oxy account uses it —
   Oxy never resolves an email to an account. It becomes a membership on the
   first workspace list of someone signed in with that Oxy email (the address
-  the session's validation returned, `middleware/auth.ts`), or when its own
+  the session's validation returned, `middleware/auth-options.ts`), or when its own
   link (`/invite/<token>`) is opened by anyone signed in, whatever their
   email: Oxy emails that link
   (`invitations:email`), and admins can copy it. Renewing an invitation keeps
