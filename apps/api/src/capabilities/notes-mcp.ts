@@ -9,7 +9,7 @@ import { createCatalogMcpHttpService } from '@oxy.so/mcp';
 import { log } from '../lib/logger.js';
 import { NOTES_CAPABILITY_CATALOG } from './notes.catalog.js';
 import { NOTES_MCP_HANDLERS } from './notes.handlers.js';
-import { OXY_API_URL, oxyServiceTransport } from './oxy-service.js';
+import { OXY_API_URL, oxyApiTransport } from '../oxy.js';
 
 const DEFAULT_ALLOWED_ORIGINS = ['https://chatgpt.com', 'https://claude.ai'] as const;
 
@@ -30,7 +30,7 @@ export function createNotesMcpService() {
     catalog: NOTES_CAPABILITY_CATALOG,
     handlers: NOTES_MCP_HANDLERS,
     authorizationServer: OXY_API_URL,
-    transport: oxyServiceTransport(),
+    transport: oxyApiTransport,
     allowedOrigins: mcpAllowedOrigins(),
     // The person the token was issued to acts on their own notes.
     authorize: async (_input, context) => ({

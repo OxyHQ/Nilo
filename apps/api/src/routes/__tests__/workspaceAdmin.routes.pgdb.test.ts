@@ -46,32 +46,28 @@ vi.mock('../../middleware/auth.js', () => ({
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-    req.user = { id };
+    // As `loadUser` does: the session's own account, with its email.
+    req.user = { id, email: accounts.get(id) };
     next();
   },
-  oxyClient: {
+}));
+vi.mock('../../oxy.js', () => ({
+  oxy: {
     middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
     users: {
       get: async (id: string) => ({ id, username: id, email: accounts.get(id) }),
       getMany: async (ids: string[]) =>
         ids.map((id) => ({ id, username: id, email: accounts.get(id) ?? null })),
-      search: async (email: string) => ({
-        data: [...accounts.entries()]
-          .filter(([, address]) => address.toLowerCase() === email.toLowerCase())
-          .map(([id, address]) => ({ id, email: address })),
-      }),
     },
+  },
+  // Nilo's Oxy service identity, for the invitation email; Oxy itself is the
+  // fetch interception below.
+  OXY_API_URL: 'https://oxy.test',
+  oxyApiTransport: {
+    fetch: (url: string, init?: RequestInit) => globalThis.fetch(url, init),
   },
 }));
 vi.mock('../../socket.js', () => ({ getIO: () => null }));
-// Nilo's Oxy service identity, for the invitation email; Oxy itself is the
-// fetch interception below.
-vi.mock('../../capabilities/oxy-service.js', () => ({
-  OXY_API_URL: 'https://oxy.test',
-  oxyServiceTransport: () => ({
-    fetch: (url: string, init?: RequestInit) => globalThis.fetch(url, init),
-  }),
-}));
 vi.mock('../../lib/logger.js', () => ({
   log: { general: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
 }));
@@ -126,6 +122,9 @@ async function team(name: string): Promise<string> {
       role,
     });
     expect(res.status, JSON.stringify(res.json)).toBe(201);
+    expect(res.json.pending).toBe(true);
+    // Their next workspace list, signed in with that email, accepts it.
+    expect((await api(user, 'GET', '/workspaces')).status).toBe(200);
   }
   return id;
 }

@@ -19,7 +19,7 @@ import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { getDb, type NiloDatabase } from '../db/client.js';
 import { appEventOutbox } from '../db/schema/capabilities.js';
 import { log } from '../lib/logger.js';
-import { oxyServiceClient } from './oxy-service.js';
+import { oxy } from '../oxy.js';
 
 export const EVENT_OUTBOX_MAX_ATTEMPTS = 12;
 export const EVENT_OUTBOX_LEASE_MS = 60_000;
@@ -35,7 +35,7 @@ function aliaApiUrl(): string {
 
 /** Shared product transport owns mint and refresh; the outbox retains its idempotent delivery. */
 export async function deliverToAlia(event: NormalizedAppEvent): Promise<void> {
-  const transport = createAliaTransportForOxyService(oxyServiceClient(), { baseURL: aliaApiUrl() });
+  const transport = createAliaTransportForOxyService(oxy, { baseURL: aliaApiUrl() });
   try {
     const response = await transport.fetch(`${aliaApiUrl()}/webhooks/oxy`, {
       method: 'POST',

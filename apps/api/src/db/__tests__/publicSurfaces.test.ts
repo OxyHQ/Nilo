@@ -37,7 +37,7 @@ describe('the checked-in public surfaces describe routes that exist', () => {
       'utf8',
     );
 
-    expect(serverSocket).toContain('io.use(oxyClient.middleware.socket())');
+    expect(serverSocket).toContain('io.use(oxy.middleware.socket())');
     expect(serverSocket).toContain('socket.data.userId');
     expect(serverSocket).not.toContain("socket.on('subscribe-notifications'");
     expect(clientSocket).toContain('socketAccessToken(signal)');

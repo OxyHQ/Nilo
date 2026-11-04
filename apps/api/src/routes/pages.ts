@@ -42,7 +42,7 @@ import { attachment } from '../lib/attachment.js';
 import { exportContext } from '../lib/export-context.js';
 import { ExportTooLarge, exportPagesZip, zipExports } from '../lib/export-zip.js';
 import { servableFileIds } from '../repositories/pageFiles.js';
-import { safeFetch } from '../lib/safe-fetch.js';
+import { readPublicUrl } from '../lib/public-fetch.js';
 import { log } from '../lib/logger.js';
 import { loadMemberProfiles } from '../lib/member-profiles.js';
 import { rateLimit } from '../lib/rate-limit.js';
@@ -912,11 +912,12 @@ const exportQuerySchema = z.object({
 
 /** An image a PDF embeds: fetched safely, PNG or JPEG, whole, at most 8 MB. */
 async function loadExportImage(url: string): Promise<Buffer | null> {
-  const res = await safeFetch(url, {
+  const read = await readPublicUrl(url, {
+    timeoutMs: 8_000,
     maxBytes: 8 * 1024 * 1024,
-    accept: (type) => /^image\/(png|jpeg)\b/u.test(type),
+    wants: (status, type) => status === 200 && /^image\/(png|jpeg)\b/u.test(type),
   });
-  return res.status === 200 && !res.truncated && res.bytes.length > 0 ? res.bytes : null;
+  return read.kind === 'ok' && read.body.length > 0 ? read.body : null;
 }
 
 /**

@@ -72,7 +72,7 @@ afterEach(() => {
   act(() => renderer?.unmount());
 });
 
-describe('inviting someone without an Oxy account', () => {
+describe('inviting someone by email', () => {
   const pending = {
     pending: true,
     invite: { id: 'i1', email: 'guest@example.org', role: 'editor', url: 'u' },
@@ -98,13 +98,6 @@ describe('inviting someone without an Oxy account', () => {
     await invite({ ...pending, email: 'disabled' });
     expect(mockToast.success).toHaveBeenCalledWith(
       'workspace.invite.pending:guest@example.org|editor',
-    );
-  });
-
-  it('says someone with an Oxy account was added', async () => {
-    await invite({ member: { userId: 'u1' } });
-    expect(mockToast.success).toHaveBeenCalledWith(
-      'workspace.invite.invited:guest@example.org|editor',
     );
   });
 });

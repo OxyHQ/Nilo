@@ -1,24 +1,20 @@
 /**
  * `/_oxy/capabilities/<tool>`: the notes catalog's internal invocation
  * surface, for Alia. A call carries an Oxy capability ticket for exactly this
- * tool and resource; it is verified locally, re-authorised live, run, and
- * audited, whatever the outcome.
+ * tool and resource; it is verified and re-authorised live, checked against
+ * the tool, run, and audited, whatever the outcome.
  */
 import { createHash } from 'node:crypto';
 import { Router, type RequestHandler } from 'express';
 import type { CapabilityTicketClaims, CatalogTool } from '@oxy.so/contracts';
-import {
-  CapabilityTicketError,
-  inputSatisfiesCapabilityLimits,
-  readCapabilityAuthorization,
-} from '@oxy.so/core/server';
+import { inputSatisfiesCapabilityLimits, readCapabilityAuthorization } from '@oxy.so/core/server';
 import { jsonObjectSchemaToZod } from '@oxy.so/mcp';
 
 import {
   auditNotesCapabilityTicket,
-  introspectNotesCapabilityTicket,
   verifyNotesCapabilityTicket,
 } from '../capabilities/capability-authority.js';
+import { capabilityRefusal } from '../capabilities/capability-refusal.js';
 import { IdempotencyConflictError } from '../capabilities/idempotency.js';
 import { NOTES_CAPABILITY_CATALOG } from '../capabilities/notes.catalog.js';
 import { executeNotesTool, NotesCapabilityError } from '../capabilities/notes.handlers.js';
@@ -86,18 +82,20 @@ for (const tool of NOTES_CAPABILITY_CATALOG.tools.filter(({ exposure }) =>
       return;
     }
 
+    // Oxy's signature and its live decision, both, before anything else.
     let claims: CapabilityTicketClaims;
     try {
       claims = await verifyNotesCapabilityTicket(ticket);
     } catch (error) {
-      const code = error instanceof CapabilityTicketError ? error.code : 'jwks_unavailable';
-      response.status(code === 'jwks_unavailable' ? 503 : 401).json({
-        error:
-          code === 'jwks_unavailable'
-            ? 'capability_authority_unavailable'
-            : 'invalid_capability_ticket',
-        code,
-      });
+      const refusal = capabilityRefusal(error);
+      if (refusal === 'unavailable') {
+        log.general.error({ err: error, tool: tool.name }, 'Capability authority unavailable');
+        response.status(503).json({ error: 'capability_authority_unavailable' });
+      } else if (refusal === 'denied') {
+        response.status(403).json({ error: 'capability_revoked_or_denied' });
+      } else {
+        response.status(401).json({ error: 'invalid_capability_ticket' });
+      }
       return;
     }
 
@@ -132,17 +130,6 @@ for (const tool of NOTES_CAPABILITY_CATALOG.tools.filter(({ exposure }) =>
         log.general.error({ err: error, ticketId: claims.jti }, 'Capability limit audit failed');
       });
       response.status(403).json({ error: 'capability_limit_exceeded' });
-      return;
-    }
-
-    try {
-      if (!(await introspectNotesCapabilityTicket(ticket, claims))) {
-        response.status(403).json({ error: 'capability_revoked_or_denied' });
-        return;
-      }
-    } catch (error) {
-      log.general.error({ err: error, ticketId: claims.jti }, 'Capability introspection failed');
-      response.status(503).json({ error: 'capability_authority_unavailable' });
       return;
     }
 

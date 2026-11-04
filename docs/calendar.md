@@ -247,14 +247,14 @@ and backs off: 15 minutes, doubling, to a day. The subscriber can refresh at
 once (`POST …/refresh`), at most once a minute.
 
 **Fetching safely.** A subscription's URL is user-supplied, so it is fetched
-as `safeFetch` fetches (`lib/safe-fetch.ts`) under `FEED_POLICY`: `https` only
-(`webcal://` and `webcals://` are read as `https://`), port 443, no
-credentials in the URL and none sent (no cookies, no Authorization); every
-address a name resolves to must be public (no loopback, private, link-local,
-CGNAT, metadata or reserved range, IPv4-mapped IPv6 included), checked at
-connection time on the address actually used and again on every redirect (at
-most five); at most `CALENDAR_IMPORT_MAX_BYTES` (5 MB) and 20 seconds; at
-most `CALENDAR_IMPORT_MAX_EVENTS` events.
+through `@oxy.so/core`'s `safeFetch` and `readResponseBody`
+(`lib/public-fetch.ts`): `https` only (`webcal://` and `webcals://` are read
+as `https://`; an answer that ends on plain http is refused), the default
+port, no credentials in the URL and none sent (no cookies, no
+Authorization); every address a name resolves to must be public, checked by
+the SDK on every hop and the connection pinned to the address it checked; at
+most `CALENDAR_IMPORT_MAX_BYTES` (5 MB) and 20 seconds; at most
+`CALENDAR_IMPORT_MAX_EVENTS` events.
 
 **The URL is a secret** (whoever holds it reads the calendar). It is stored
 only sealed with AES-256-GCM under `CALENDAR_FEED_KEY`

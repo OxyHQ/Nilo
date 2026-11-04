@@ -65,8 +65,7 @@ export function InviteMemberModal({ control, workspaceId }: InviteMemberModalPro
       {
         onSuccess: (result) => {
           const params = { email: trimmedEmail, role: roleLabel(role) };
-          if (!result.pending) toast.success(t('workspace.invite.invited', params));
-          else if (result.email === 'sent') toast.success(t('workspace.invite.emailed', params));
+          if (result.email === 'sent') toast.success(t('workspace.invite.emailed', params));
           // The invitation is saved either way; without the email, its link
           // (Pending invitations › Copy link) is how they get it.
           else if (result.email === 'failed')

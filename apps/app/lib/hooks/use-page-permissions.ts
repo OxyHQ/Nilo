@@ -60,9 +60,10 @@ export function usePagePermissions(pageId: string) {
     { staleTime: 30_000, retry: false },
   );
 }
-export function useSharePageByEmail(pageId: string) {
+/** Share with an Oxy user by their username (a public profile; never an email). */
+export function useSharePageByUsername(pageId: string) {
   const client = useQueryClient();
-  return useMutation<GrantResponse, Error, { email: string; role: PageGrantRole }>({
+  return useMutation<GrantResponse, Error, { username: string; role: PageGrantRole }>({
     mutationFn: async (input) =>
       (await apiClient.post<GrantResponse>(API_ROUTES.pages.permissions(pageId), input)).data,
     onSuccess: () => invalidatePageAccess(client),

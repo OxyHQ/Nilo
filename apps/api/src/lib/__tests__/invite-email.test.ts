@@ -8,11 +8,13 @@ const client = {
   fetch: (input: string | URL | Request, init?: RequestInit) => globalThis.fetch(input, init),
 };
 let identity: typeof client | null = client;
-vi.mock('../../capabilities/oxy-service.js', () => ({
+vi.mock('../../oxy.js', () => ({
   OXY_API_URL: 'https://oxy.test',
-  oxyServiceTransport: () => {
-    if (!identity) throw new Error('No workload identity');
-    return identity;
+  oxyApiTransport: {
+    fetch: (input: string | URL | Request, init?: RequestInit) => {
+      if (!identity) throw new Error('No workload identity');
+      return identity.fetch(input, init);
+    },
   },
 }));
 const warn = vi.fn();

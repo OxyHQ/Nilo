@@ -68,10 +68,10 @@
   },
   "people": {
     "title": "Personas con acceso",
-    "email": "Dirección de correo",
+    "username": "Nombre de usuario",
     "inviteRole": "Acceso de la persona invitada",
     "invite": "Invitar",
-    "userNotFound": "No hay ninguna cuenta de Oxy con ese correo. Pídele que cree una cuenta primero.",
+    "userNotFound": "Ninguna cuenta de Oxy tiene ese nombre de usuario.",
     "inviteFailed": "No se pudo compartir esta página. Revisa tu acceso e inténtalo de nuevo.",
     "invited": "Página compartida.",
     "you": "(tú)",

@@ -2,8 +2,8 @@
  * Calendar subscriptions: a calendar kept in step with an outside iCalendar
  * feed (`docs/calendar.md`, `db/schema/calendar-subscriptions.ts`).
  *
- * A refresh fetches the feed (https only, every hop checked as `safeFetch`
- * does, bounded in size and time, never with a credential), conditionally
+ * A refresh fetches the feed (https only, every hop checked and pinned by the
+ * SDK's `safeFetch`, bounded in size and time, never with a credential), conditionally
  * when the feed gave validators, and applies a document that changed: events
  * are matched on their UID, a series keeps its EXDATEs and the occurrences
  * its overrides replace as exceptions, an override is an event of its own,
@@ -38,13 +38,8 @@ import { type PageRow, recordTombstones } from '../../repositories/pages.js';
 import { insertRow, parseRowProperties, writePage } from '../databases/row-writes.js';
 import { CALENDAR_PROPERTY } from '../databases/system.js';
 import { log } from '../logger.js';
-import {
-  checkUrl,
-  DEFAULT_FETCH_POLICY,
-  type FetchPolicy,
-  safeFetch,
-  UnsafeUrlError,
-} from '../safe-fetch.js';
+import { SsrfRejection } from '@oxy.so/core/server';
+import { type PublicRead, type PublicReadOptions, readPublicUrl } from '../public-fetch.js';
 import { type CalendarSource, EventWriteError, eventProperties } from './events.js';
 import { feedKeys, openFeedUrl } from './feed-secret.js';
 import {
@@ -69,13 +64,6 @@ export const SWEEP_INTERVAL_MS = 60 * 1000;
 const SWEEP_BATCH = 5;
 const FEED_TIMEOUT_MS = 20_000;
 
-/** Where a feed may be fetched from: public addresses, over https, on its default port. */
-export const FEED_POLICY: FetchPolicy = {
-  ...DEFAULT_FETCH_POLICY,
-  httpsOnly: true,
-  allowPort: (port) => port === '' || port === '443',
-};
-
 const USER_AGENT = 'Nilo-Calendar/1.0 (+https://nilo.so)';
 
 /** The calendar fields of a subscribed calendar: the fixed ids its schema has. */
@@ -90,13 +78,26 @@ const SUBSCRIBED_FIELDS: CalendarFields = {
   uid: CALENDAR_PROPERTY.uid,
 };
 
+/** A subscription URL that is not one: answered as `validation_failed`. */
+export class FeedUrlError extends Error {}
+
 /**
  * The URL a subscription fetches: `webcal://`/`webcals://` read as `https://`,
- * and only a public https URL on its default port; throws `UnsafeUrlError`.
+ * https on its default port, with no credentials; throws `FeedUrlError`.
+ * Where it leads — a public address, on every hop — is checked when it is
+ * fetched (`fetchFeed`).
  */
-export function normalizeFeedUrl(raw: string, policy: FetchPolicy = FEED_POLICY): URL {
+export function normalizeFeedUrl(raw: string): URL {
   const mapped = raw.trim().replace(/^webcals?:\/\//i, 'https://');
-  const url = checkUrl(mapped, policy);
+  let url: URL;
+  try {
+    url = new URL(mapped);
+  } catch {
+    throw new FeedUrlError('Not a URL');
+  }
+  if (url.protocol !== 'https:') throw new FeedUrlError('Only https');
+  if (url.port !== '') throw new FeedUrlError('Only the default port');
+  if (url.username || url.password) throw new FeedUrlError('No credentials in URLs');
   url.hash = '';
   return url;
 }
@@ -148,11 +149,17 @@ export function failureDelay(failures: number): number {
   return Math.min(MAX_REFRESH_MS, MIN_REFRESH_MS * 2 ** doublings);
 }
 
-/** GET the feed, conditionally when validators are known. Never throws. */
+/** Reads a feed: the SDK's guarded GET, or a fixture in tests. */
+export type FeedReader = (url: string, options: PublicReadOptions) => Promise<PublicRead>;
+
+/**
+ * GET the feed, conditionally when validators are known. Never throws. Only
+ * an https answer counts: a feed that redirects to plain http is refused.
+ */
 export async function fetchFeed(
   url: string,
   validators: FeedValidators,
-  policy: FetchPolicy = FEED_POLICY,
+  read: FeedReader = readPublicUrl,
 ): Promise<FeedFetch> {
   const headers: Record<string, string> = {
     accept: 'text/calendar, text/plain;q=0.5, */*;q=0.1',
@@ -160,52 +167,55 @@ export async function fetchFeed(
   };
   if (validators.etag) headers['if-none-match'] = validators.etag;
   if (validators.lastModified) headers['if-modified-since'] = validators.lastModified;
+  let res: PublicRead;
   try {
-    const res = await safeFetch(url, {
-      policy,
+    res = await read(url, {
       headers,
       timeoutMs: FEED_TIMEOUT_MS,
       maxBytes: CALENDAR_IMPORT_MAX_BYTES,
-      maxRedirects: 5,
+      wants: (status) => status >= 200 && status < 300,
     });
-    const next: FeedValidators = {
-      etag: header(res.headers.etag),
-      lastModified: header(res.headers['last-modified']),
-    };
-    const maxAgeMs = freshForMs(res.headers);
-    if (res.status === 304) {
-      return {
-        kind: 'unchanged',
-        validators: {
-          etag: next.etag ?? validators.etag,
-          lastModified: next.lastModified ?? validators.lastModified,
-        },
-        maxAgeMs,
-      };
-    }
-    if (res.status < 200 || res.status >= 300) {
-      return { kind: 'failed', error: 'http_error', httpStatus: res.status };
-    }
-    if (res.truncated) {
-      return {
-        kind: 'failed',
-        error: res.bytes.length >= CALENDAR_IMPORT_MAX_BYTES ? 'too_large' : 'unreachable',
-        httpStatus: res.status,
-      };
-    }
-    if (!looksLikeIcs(res.body)) {
-      return { kind: 'failed', error: 'not_a_calendar', httpStatus: res.status };
-    }
-    if (!isCompleteIcs(res.body)) {
-      return { kind: 'failed', error: 'incomplete', httpStatus: res.status };
-    }
-    return { kind: 'document', body: res.body, validators: next, maxAgeMs };
   } catch (err: unknown) {
-    if (err instanceof UnsafeUrlError) {
-      return { kind: 'failed', error: 'unsafe_url', httpStatus: null };
-    }
-    return { kind: 'failed', error: 'unreachable', httpStatus: null };
+    return err instanceof SsrfRejection
+      ? { kind: 'failed', error: 'unsafe_url', httpStatus: null }
+      : { kind: 'failed', error: 'unreachable', httpStatus: null };
   }
+  if (new URL(res.finalUrl).protocol !== 'https:') {
+    return { kind: 'failed', error: 'unsafe_url', httpStatus: null };
+  }
+  const next: FeedValidators = {
+    etag: header(res.headers.etag),
+    lastModified: header(res.headers['last-modified']),
+  };
+  const maxAgeMs = freshForMs(res.headers);
+  if (res.status === 304) {
+    return {
+      kind: 'unchanged',
+      validators: {
+        etag: next.etag ?? validators.etag,
+        lastModified: next.lastModified ?? validators.lastModified,
+      },
+      maxAgeMs,
+    };
+  }
+  if (res.kind === 'skipped') {
+    return { kind: 'failed', error: 'http_error', httpStatus: res.status };
+  }
+  if (res.kind !== 'ok') {
+    return {
+      kind: 'failed',
+      error: res.kind === 'too_large' ? 'too_large' : 'unreachable',
+      httpStatus: res.status,
+    };
+  }
+  const body = res.body.toString('utf8');
+  if (!looksLikeIcs(body)) {
+    return { kind: 'failed', error: 'not_a_calendar', httpStatus: res.status };
+  }
+  if (!isCompleteIcs(body)) {
+    return { kind: 'failed', error: 'incomplete', httpStatus: res.status };
+  }
+  return { kind: 'document', body, validators: next, maxAgeMs };
 }
 
 // ---------------------------------------------------------------------------
@@ -467,7 +477,6 @@ export function scrubbedError(err: unknown, url: string | null): Record<string, 
 
 export interface RefreshOptions {
   now?: Date;
-  policy?: FetchPolicy;
   /** A fetch already made (the one that validated a new subscription). */
   fetched?: FeedFetch;
 }
@@ -514,11 +523,10 @@ export async function refreshSubscription(
     feedUrl = openFeedUrl(subscription.urlSealed);
     const fetched =
       options.fetched ??
-      (await fetchFeed(
-        feedUrl,
-        { etag: subscription.etag, lastModified: subscription.lastModified },
-        options.policy,
-      ));
+      (await fetchFeed(feedUrl, {
+        etag: subscription.etag,
+        lastModified: subscription.lastModified,
+      }));
     if (fetched.kind === 'failed') return await fail(fetched.error, fetched.httpStatus);
     const succeeded = {
       status: 'ok' as const,

@@ -181,16 +181,6 @@ export async function deletePendingInvite(
   return rows.length > 0;
 }
 
-/** Whether any invitation anywhere is still waiting: when none is, nobody's email is needed. */
-export async function anyPendingInvite(db: PgHandle, now: Date): Promise<boolean> {
-  const rows = await db
-    .select({ id: workspaceInvites.id })
-    .from(workspaceInvites)
-    .where(and(isNull(workspaceInvites.acceptedAt), gt(workspaceInvites.expiresAt, now)))
-    .limit(1);
-  return rows.length > 0;
-}
-
 /**
  * Turn the invitations waiting for `email` into memberships of `userId`, in
  * live workspaces, before they expire. Someone already a member keeps their

@@ -22,9 +22,6 @@ import {
 } from '../../db/__tests__/testDatabase.js';
 
 vi.mock('../../middleware/auth.js', () => ({
-  oxyClient: {
-    middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
-  },
   authenticateToken: (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const id = req.header('x-test-user');
     if (!id) {
@@ -33,6 +30,11 @@ vi.mock('../../middleware/auth.js', () => ({
     }
     req.user = { id };
     next();
+  },
+}));
+vi.mock('../../oxy.js', () => ({
+  oxy: {
+    middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
   },
 }));
 vi.mock('../../lib/logger.js', () => ({

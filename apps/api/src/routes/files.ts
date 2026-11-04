@@ -14,6 +14,7 @@ import { mintFileUrls, toFileUrls } from '../lib/files.js';
 import { log } from '../lib/logger.js';
 import { checkPageAccess } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { oxy } from '../oxy.js';
 import { removedFileIds, setOxyFileStatus } from '../repositories/fileReferences.js';
 import { recordPageFile, servableFileIds } from '../repositories/pageFiles.js';
 import { findPageById } from '../repositories/pages.js';
@@ -64,7 +65,9 @@ export async function respondWithFileUrls(
 
 /**
  * POST /pages/:pageId/files { fileId, name } — record a file the caller has
- * just uploaded to Oxy and linked to Nilo as an attachment of the page.
+ * just uploaded to Oxy and linked to Nilo as an attachment of the page. Oxy
+ * must say the file is the caller's and active (`assets.metadataByIds`); when
+ * it cannot be asked, 503, never a refusal.
  * Answers with what Oxy measured and a first URL, so the uploader sees it at
  * once.
  */
@@ -85,6 +88,14 @@ router.post('/pages/:pageId/files', authenticateToken, async (req: Request, res:
     if (!access) return;
 
     const { fileId, name } = body.data;
+    // Only the uploader's own live file: an id is not proof of ownership, and
+    // Oxy mints a URL for any file linked to Nilo by anyone. The answer is the
+    // same as for a file never linked, so it says nothing about other people's.
+    const [asset] = await oxy.assets.metadataByIds([fileId]);
+    if (!asset || asset.ownerUserId !== req.user?.id || asset.status !== 'active') {
+      res.status(422).json({ error: 'This file is not attached to Nilo' });
+      return;
+    }
     const minted = (await mintFileUrls([fileId])).get(fileId);
     if (!minted) {
       // Not linked to Nilo by its owner (or no such file): Oxy will never serve it.

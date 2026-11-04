@@ -68,6 +68,7 @@ import {
 import { recogniseCalendar } from '../lib/calendar/recognition.js';
 import {
   claimSubscription,
+  FeedUrlError,
   fetchFeed,
   listSubscriptions,
   normalizeFeedUrl,
@@ -95,7 +96,8 @@ import {
   resolvePageAccess,
 } from '../lib/page-access.js';
 import { rateLimit } from '../lib/rate-limit.js';
-import { safeFetch, UnsafeUrlError } from '../lib/safe-fetch.js';
+import { readPublicUrl } from '../lib/public-fetch.js';
+import { SsrfRejection } from '@oxy.so/core/server';
 import { authenticateToken } from '../middleware/auth.js';
 import { ensurePersonalWorkspaceFor } from '../middleware/workspace.js';
 import {
@@ -694,30 +696,34 @@ async function importDocument(body: { ics?: string; url?: string }): Promise<str
     return body.ics;
   }
   const url = (body.url as string).replace(/^webcals?:\/\//i, 'https://');
+  let read: Awaited<ReturnType<typeof readPublicUrl>>;
   try {
-    const fetched = await safeFetch(url, {
+    read = await readPublicUrl(url, {
       maxBytes: CALENDAR_IMPORT_MAX_BYTES,
       timeoutMs: 15_000,
       headers: { accept: 'text/calendar, */*;q=0.5' },
+      wants: (status) => status >= 200 && status < 300,
     });
-    if (fetched.status < 200 || fetched.status >= 300 || !looksLikeIcs(fetched.body)) {
-      throw new CalendarError('import_unreachable', 'The URL did not answer with a calendar', {
-        status: fetched.status,
-      });
-    }
-    if (fetched.truncated) {
-      throw new CalendarError('validation_failed', 'The calendar is too large to import', {
+  } catch (err: unknown) {
+    if (err instanceof SsrfRejection) {
+      throw new CalendarError('validation_failed', 'The URL is not a public web address', {
         field: 'url',
       });
     }
-    return fetched.body;
-  } catch (err: unknown) {
-    if (err instanceof CalendarError) throw err;
-    if (err instanceof UnsafeUrlError) {
-      throw new CalendarError('validation_failed', err.message, { field: 'url' });
-    }
     throw new CalendarError('import_unreachable', 'The URL could not be fetched');
   }
+  if (read.kind === 'too_large') {
+    throw new CalendarError('validation_failed', 'The calendar is too large to import', {
+      field: 'url',
+    });
+  }
+  const text = read.kind === 'ok' ? read.body.toString('utf8') : '';
+  if (!looksLikeIcs(text)) {
+    throw new CalendarError('import_unreachable', 'The URL did not answer with a calendar', {
+      status: read.status,
+    });
+  }
+  return text;
 }
 
 /**
@@ -901,7 +907,7 @@ router.post('/subscriptions', subscribeLimit, async (req: Request, res: Response
     try {
       url = normalizeFeedUrl(body.url);
     } catch (err: unknown) {
-      if (err instanceof UnsafeUrlError) {
+      if (err instanceof FeedUrlError) {
         throw new CalendarError('validation_failed', err.message, { field: 'url' });
       }
       throw err;

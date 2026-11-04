@@ -15,6 +15,7 @@
  * why a user sees nothing.
  */
 
+import { safeFetch } from '@oxy.so/core/server';
 import Expo, { type ExpoPushMessage, type ExpoPushReceiptId } from 'expo-server-sdk';
 import { getDb } from '../db/client.js';
 import {
@@ -66,11 +67,31 @@ export interface SendNotificationOptions {
 
 /** The HTTP statuses a push service uses for "this subscription is dead". */
 const GONE_STATUS_CODES = [410, 404];
+const WEB_PUSH_TIMEOUT_MS = 10_000;
 
-function pushServiceStatusCode(error: unknown): number | undefined {
-  if (typeof error !== 'object' || error === null) return undefined;
-  const statusCode = (error as { statusCode?: unknown }).statusCode;
-  return typeof statusCode === 'number' ? statusCode : undefined;
+/**
+ * Send one Web Push message and answer the push service's status. The
+ * endpoint is a URL the subscriber's browser gave us, so the request goes
+ * through the SDK's `safeFetch` — checked and pinned to a public address now,
+ * at send time — rather than `web-push`'s own client; `web-push` only builds
+ * it (encryption and VAPID).
+ */
+async function sendWebPush(
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
+  payload: string,
+): Promise<number> {
+  const request = webPush.generateRequestDetails(subscription, payload);
+  const sent = await safeFetch(request.endpoint, {
+    method: request.method,
+    headers: Object.fromEntries(
+      Object.entries(request.headers).map(([name, value]) => [name, String(value)]),
+    ),
+    ...(request.body ? { body: request.body } : {}),
+    redirect: 'manual',
+    headersTimeoutMs: WEB_PUSH_TIMEOUT_MS,
+  });
+  sent.response.destroy();
+  return sent.status;
 }
 
 // ── Resolve delivery channels ──────────────────────────────────────
@@ -313,7 +334,7 @@ async function deliverWebPush(userId: string, notification: NotificationRow): Pr
 
   const db = getDb();
   // `keys` is reassembled by the repository out of its two columns. A raw row
-  // would carry `keys: undefined`, which `webPush.sendNotification` reports as
+  // would carry `keys: undefined`, which `webPush.generateRequestDetails` reports as
   // a malformed subscription rather than as a missing column.
   const subscriptions = pushAudience(
     await listActiveWebPushSubscriptions(db, userId),
@@ -333,24 +354,28 @@ async function deliverWebPush(userId: string, notification: NotificationRow): Pr
 
   const results = await Promise.allSettled(
     subscriptions.map(async (sub) => {
+      let status: number;
       try {
-        await webPush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload);
+        status = await sendWebPush(sub, payload);
       } catch (error: unknown) {
-        if (GONE_STATUS_CODES.includes(pushServiceStatusCode(error) ?? 0)) {
-          // Subscription expired or invalid — deactivate
-          await deactivateWebPushSubscriptionById(db, sub.id);
-          log.general.info(
-            { userId, endpoint: sub.endpoint },
-            'Web push subscription expired, deactivated',
-          );
-        } else {
-          log.general.warn(
-            { err: error, userId, endpoint: sub.endpoint },
-            'Web push delivery failed',
-          );
-        }
-        throw error; // Re-throw so Promise.allSettled marks as rejected
+        log.general.warn(
+          { err: error, userId, endpoint: sub.endpoint },
+          'Web push delivery failed',
+        );
+        throw error; // So Promise.allSettled marks it rejected
       }
+      if (status >= 200 && status < 300) return;
+      if (GONE_STATUS_CODES.includes(status)) {
+        // Subscription expired or invalid — deactivate
+        await deactivateWebPushSubscriptionById(db, sub.id);
+        log.general.info(
+          { userId, endpoint: sub.endpoint },
+          'Web push subscription expired, deactivated',
+        );
+      } else {
+        log.general.warn({ status, userId, endpoint: sub.endpoint }, 'Web push delivery refused');
+      }
+      throw new Error(`Push service answered ${status}`);
     }),
   );
 

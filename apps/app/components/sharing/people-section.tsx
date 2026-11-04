@@ -14,7 +14,7 @@ import { memberProfileName } from '@/lib/hooks/use-workspace-members';
 import { hasRole } from '@/lib/hooks/workspace-roles';
 import { canAssignPageRole, canManagePageGrant } from '@/lib/hooks/page-access';
 import {
-  useSharePageByEmail,
+  useSharePageByUsername,
   useUpdatePageAccess,
   useRemovePageAccess,
   type PagePermissions,
@@ -133,16 +133,16 @@ export function PeopleSection({
   onNavigate: () => void;
 }) {
   const { t } = useTranslation();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [role, setRole] = useState<PageGrantRole>('viewer');
-  const invite = useSharePageByEmail(permissions.pageId);
-  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const invite = useSharePageByUsername(permissions.pageId);
+  const valid = username.trim().replace(/^@/, '').length > 0;
   const canManage = hasRole(permissions.role, 'editor');
   const submit = () => {
     if (!valid || invite.isPending || !canAssignPageRole(permissions.role, role)) return;
-    invite.mutate({ email: email.trim(), role }, { onSuccess: () => setEmail('') });
+    invite.mutate({ username: username.trim(), role }, { onSuccess: () => setUsername('') });
   };
-  const unknownEmail =
+  const unknownUser =
     axios.isAxiosError(invite.error) && invite.error.response?.data?.code === 'USER_NOT_FOUND';
   return (
     <View className="gap-3">
@@ -151,15 +151,14 @@ export function PeopleSection({
           <View className="flex-row items-center gap-2 flex-wrap">
             <View className="flex-1 min-w-32">
               <TextFieldInput
-                label={t('sharing.people.email')}
-                placeholder={t('sharing.people.email')}
+                label={t('sharing.people.username')}
+                placeholder={t('sharing.people.username')}
                 editable={!invite.isPending}
-                value={email}
+                value={username}
                 onChangeText={(value) => {
-                  setEmail(value);
+                  setUsername(value);
                   invite.reset();
                 }}
-                keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
                 onSubmitEditing={submit}
@@ -184,7 +183,7 @@ export function PeopleSection({
           </View>
           {invite.isError ? (
             <Text accessibilityRole="alert" className="text-xs text-destructive">
-              {t(unknownEmail ? 'sharing.people.userNotFound' : 'sharing.people.inviteFailed')}
+              {t(unknownUser ? 'sharing.people.userNotFound' : 'sharing.people.inviteFailed')}
             </Text>
           ) : null}
           {invite.isSuccess ? (

@@ -11,12 +11,10 @@
  * expires. A URL is a credential for those minutes: it is never logged.
  */
 import type { FileUrl } from '@oxy.so/nilo-contracts';
-import { oxyClient } from '../middleware/auth.js';
+import { oxy } from '../oxy.js';
 import { log } from './logger.js';
 import { getRedisClient, withRedisTimeout } from './redis.js';
 
-/** Most ids Oxy mints in one call. */
-const OXY_BATCH = 25;
 /** A cached URL is handed out only while it has at least this long left. */
 const REUSE_MARGIN_MS = 60_000;
 const LOCAL_MAX_ENTRIES = 5_000;
@@ -106,16 +104,14 @@ export async function mintFileUrls(fileIds: readonly string[]): Promise<Map<stri
   }
   const missing = ids.filter((id) => !out.has(id));
   const fresh = new Map<string, MintedFile>();
-  for (let i = 0; i < missing.length; i += OXY_BATCH) {
-    const minted = await oxyClient.assets.linkedDownloadUrls(missing.slice(i, i + OXY_BATCH));
-    for (const file of minted) {
-      fresh.set(file.id, {
-        url: file.url,
-        expiresAt: now + file.expiresIn * 1000,
-        mime: file.mime,
-        size: file.size,
-      });
-    }
+  // The SDK sends Oxy's batch size per call and throws if any batch fails.
+  for (const file of await oxy.assets.linkedDownloadUrls(missing)) {
+    fresh.set(file.id, {
+      url: file.url,
+      expiresAt: now + file.expiresIn * 1000,
+      mime: file.mime,
+      size: file.size,
+    });
   }
   if (fresh.size > 0) await writeCache(fresh);
   for (const [id, minted] of fresh) out.set(id, minted);

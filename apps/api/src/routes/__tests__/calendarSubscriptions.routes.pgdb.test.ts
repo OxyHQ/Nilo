@@ -7,8 +7,9 @@
  * calendar and back off, the URL never comes back or reaches the database in
  * the clear, and the SSRF rules hold at the route.
  *
- * The fetch policy is widened for the fixture's loopback address only: every
- * other private address, and http anywhere else, stays refused.
+ * `https://feeds.test` is read from the fixture on loopback; every other
+ * host — a redirect's included — goes through the real reader, the SDK's
+ * guarded `safeFetch`, so every private address stays refused.
  */
 import { randomBytes } from 'node:crypto';
 import http, { type IncomingHttpHeaders, type Server } from 'node:http';
@@ -49,7 +50,9 @@ vi.mock('../../middleware/auth.js', () => ({
     req.user = { id };
     next();
   },
-  oxyClient: {
+}));
+vi.mock('../../oxy.js', () => ({
+  oxy: {
     middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
     users: { get: async () => ({ username: 'ada' }) },
   },
@@ -69,31 +72,33 @@ vi.mock('../../lib/logger.js', () => {
   const record = (...args: unknown[]) => logged.push(args);
   return { log: { general: { info: record, warn: record, error: record, debug: record } } };
 });
-vi.mock('../../lib/safe-fetch.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../lib/safe-fetch.js')>();
-  const fixture = (raw: string) => {
-    try {
-      return new URL(raw).hostname === '127.0.0.1';
-    } catch {
-      return false;
+vi.mock('../../lib/public-fetch.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../lib/public-fetch.js')>();
+  const readPublicUrl = async (
+    url: string,
+    options: import('../../lib/public-fetch.js').PublicReadOptions,
+  ): Promise<import('../../lib/public-fetch.js').PublicRead> => {
+    const target = new URL(url);
+    if (target.hostname !== 'feeds.test') return actual.readPublicUrl(url, options);
+    const res = await fetch(`${feedLoopback}${target.pathname}${target.search}`, {
+      headers: options.headers,
+      redirect: 'manual',
+    });
+    const location = res.headers.get('location');
+    if (res.status >= 300 && res.status < 400 && location) {
+      return readPublicUrl(new URL(location, url).toString(), options);
     }
+    const answer = { status: res.status, headers: Object.fromEntries(res.headers), finalUrl: url };
+    if (!options.wants(res.status, res.headers.get('content-type') ?? '')) {
+      await res.body?.cancel();
+      return { ...answer, kind: 'skipped' };
+    }
+    const body = Buffer.from(await res.arrayBuffer());
+    return body.length > options.maxBytes
+      ? { ...answer, kind: 'too_large' }
+      : { ...answer, kind: 'ok', body };
   };
-  const widened = (policy: import('../../lib/safe-fetch.js').FetchPolicy | undefined) => ({
-    ...(policy ?? actual.DEFAULT_FETCH_POLICY),
-    httpsOnly: false,
-    allowPort: () => true,
-    allowAddress: (address: string) => address === '127.0.0.1' || actual.isPublicAddress(address),
-  });
-  return {
-    ...actual,
-    checkUrl: (raw: string, policy?: import('../../lib/safe-fetch.js').FetchPolicy) =>
-      actual.checkUrl(raw, fixture(raw) ? widened(policy) : policy),
-    safeFetch: (raw: string, options: import('../../lib/safe-fetch.js').SafeFetchOptions = {}) =>
-      actual.safeFetch(
-        raw,
-        fixture(raw) ? { ...options, policy: widened(options.policy) } : options,
-      ),
-  };
+  return { ...actual, readPublicUrl };
 });
 
 process.env.CALENDAR_FEED_KEY = randomBytes(32).toString('base64');
@@ -109,7 +114,9 @@ let db: TestDatabase;
 let server: Server;
 let feedServer: Server;
 let base: string;
-let feedOrigin: string;
+/** What the routes are given; `feedLoopback` is where the fixture really listens. */
+const feedOrigin = 'https://feeds.test';
+let feedLoopback: string;
 let previousUrl: string | undefined;
 
 const scope = testScope('calendar-subscriptions');
@@ -263,7 +270,7 @@ beforeAll(async () => {
   });
   feedServer.listen(0, '127.0.0.1');
   await new Promise<void>((resolve) => feedServer.once('listening', resolve));
-  feedOrigin = `http://127.0.0.1:${(feedServer.address() as AddressInfo).port}`;
+  feedLoopback = `http://127.0.0.1:${(feedServer.address() as AddressInfo).port}`;
 });
 
 afterAll(async () => {
@@ -303,7 +310,7 @@ describe('calendar subscriptions', () => {
     expect(subscription).toMatchObject({
       id: calendarId,
       name: 'Work',
-      host: '127.0.0.1',
+      host: 'feeds.test',
       status: 'ok',
       lastError: null,
       eventCount: 4,

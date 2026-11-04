@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getMany = vi.fn();
 
-vi.mock('../../middleware/auth.js', () => ({
-  oxyClient: { users: { getMany: (ids: string[]) => getMany(ids) } },
+vi.mock('../../oxy.js', () => ({
+  oxy: { users: { getMany: (ids: string[]) => getMany(ids) } },
 }));
 
 vi.mock('../logger.js', () => ({

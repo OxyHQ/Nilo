@@ -5,6 +5,7 @@
  * needs edit access to the page, and nobody hands out more than they hold:
  * `admin` (full access) is granted only by someone with full access.
  */
+import { OxyApiError } from '@oxy.so/core';
 import { Router, type Request, type Response } from 'express';
 import { isLiveEntityId } from '@oxy.so/db';
 import { z } from 'zod';
@@ -13,10 +14,11 @@ import { getDb } from '../db/client.js';
 import { PAGE_GRANT_ROLES, type PageGrantRole } from '../db/schema/collab.js';
 import { compareRoles, hasRole } from '../db/schema/workspaces.js';
 import { log } from '../lib/logger.js';
-import { findUserByEmail, loadMemberProfiles } from '../lib/member-profiles.js';
+import { loadMemberProfiles } from '../lib/member-profiles.js';
 import { sendNotification } from '../lib/notification-service.js';
 import { checkPageAccess, grantReach } from '../lib/page-access.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { oxy } from '../oxy.js';
 import {
   deleteGrant,
   findGrant,
@@ -187,11 +189,21 @@ router.put(
   },
 );
 
+/** An Oxy username as a person types it: `@ada` or `ada`. */
+const usernameSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/^@/, ''))
+  .pipe(z.string().min(1).max(64));
+
 /**
- * POST /pages/:pageId/permissions { email, role }
+ * POST /pages/:pageId/permissions { username, role }
  *
- * Share the page with the Oxy user who has this email. As with workspace
- * invites, no account is created on their behalf: an unknown email is a 404.
+ * Share the page with the Oxy user who has this username — a public profile,
+ * so "no such username" (404 `USER_NOT_FOUND`) reveals nothing private. A
+ * page is never shared by email: Oxy does not resolve an email to an account,
+ * and an answer that did would say whether that person has one. When Oxy
+ * cannot be asked, 503: an outage is not "no such user".
  */
 router.post(
   '/pages/:pageId/permissions',
@@ -199,17 +211,20 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const { pageId } = z.object({ pageId: entityIdSchema }).parse(req.params);
-      const { email, role } = grantSchema
-        .extend({ email: z.string().trim().email() })
-        .parse(req.body);
-      const user = await findUserByEmail(email);
-      if (!user) {
-        res
-          .status(404)
-          .json({ error: 'No Oxy user found with that email', code: 'USER_NOT_FOUND' });
+      const { username, role } = grantSchema.extend({ username: usernameSchema }).parse(req.body);
+      let userId: string;
+      try {
+        userId = (await oxy.users.byUsername(username, { cache: false })).id;
+      } catch (error: unknown) {
+        if (error instanceof OxyApiError && error.status === 404) {
+          res.status(404).json({ error: 'No Oxy user has that username', code: 'USER_NOT_FOUND' });
+          return;
+        }
+        log.general.warn({ err: error }, 'Could not look up a username to share a page');
+        res.status(503).json({ error: 'Oxy is unavailable right now', code: 'OXY_UNAVAILABLE' });
         return;
       }
-      await grantAccess(req, res, pageId, user.id, role);
+      await grantAccess(req, res, pageId, userId, role);
     } catch (error: unknown) {
       if (handleZodError(error, res)) return;
       log.general.error({ err: error }, 'Failed to share page');

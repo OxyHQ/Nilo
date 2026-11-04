@@ -12,14 +12,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 // hoist `vi.mock`: plain constants, mocks registered before a dynamic import.
 const authority = {
   verify: vi.fn(),
-  introspect: vi.fn(),
   audit: vi.fn(async () => {}),
   execute: vi.fn(),
 };
 
+// The verifier is the SDK's (signature + Oxy's live decision); what is tested
+// here is what the route does with each of its outcomes.
 vi.mock('../capability-authority.js', () => ({
   verifyNotesCapabilityTicket: authority.verify,
-  introspectNotesCapabilityTicket: authority.introspect,
   auditNotesCapabilityTicket: authority.audit,
 }));
 vi.mock('../notes.handlers.js', () => ({
@@ -39,6 +39,8 @@ vi.mock('../../lib/logger.js', () => ({
 }));
 
 const { default: capabilitiesRouter } = await import('../../routes/capabilities.js');
+const { CapabilityTicketDenied } = await import('../capability-refusal.js');
+const { CapabilityTicketError } = await import('@oxy.so/core/server');
 
 let server: Server;
 let base: string;
@@ -82,7 +84,6 @@ afterAll(async () => {
 
 beforeEach(() => {
   authority.verify.mockReset();
-  authority.introspect.mockReset();
   authority.audit.mockClear();
   authority.execute.mockReset();
 });
@@ -96,7 +97,6 @@ describe('/_oxy/capabilities', () => {
 
   it('runs the tool for the ticket’s account, and audits the success', async () => {
     authority.verify.mockResolvedValue(claims());
-    authority.introspect.mockResolvedValue(true);
     authority.execute.mockResolvedValue({ note: { id: 'n' } });
     const res = await call(`/readNote?noteId=${claims().resource.resourceId}`, {
       headers: withTicket,
@@ -131,13 +131,40 @@ describe('/_oxy/capabilities', () => {
   });
 
   it('refuses a ticket Oxy no longer stands behind', async () => {
-    authority.verify.mockResolvedValue(claims());
-    authority.introspect.mockResolvedValue(false);
+    authority.verify.mockRejectedValue(new CapabilityTicketDenied('revoked'));
     const res = await call(`/readNote?noteId=${claims().resource.resourceId}`, {
       headers: withTicket,
     });
     expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({ error: 'capability_revoked_or_denied' });
     expect(authority.execute).not.toHaveBeenCalled();
+  });
+
+  it('refuses a ticket that is not Oxy’s, or not for this catalog', async () => {
+    authority.verify.mockRejectedValue(new CapabilityTicketError('invalid_signature', 'forged'));
+    const res = await call(`/readNote?noteId=${claims().resource.resourceId}`, {
+      headers: withTicket,
+    });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: 'invalid_capability_ticket' });
+    expect(authority.execute).not.toHaveBeenCalled();
+  });
+
+  it('answers 503, never a refusal, when Oxy cannot be asked', async () => {
+    authority.verify.mockRejectedValue(new Error('connect ECONNREFUSED'));
+    const res = await call(`/readNote?noteId=${claims().resource.resourceId}`, {
+      headers: withTicket,
+    });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'capability_authority_unavailable' });
+    expect(authority.execute).not.toHaveBeenCalled();
+    // The next call asks again: nothing about the outage was remembered.
+    authority.verify.mockResolvedValue(claims());
+    authority.execute.mockResolvedValue({ note: { id: 'n' } });
+    const again = await call(`/readNote?noteId=${claims().resource.resourceId}`, {
+      headers: withTicket,
+    });
+    expect(again.status).toBe(200);
   });
 
   it('refuses input outside the tool’s schema', async () => {

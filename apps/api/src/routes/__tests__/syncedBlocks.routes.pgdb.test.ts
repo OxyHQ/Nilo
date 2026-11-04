@@ -29,7 +29,9 @@ vi.mock('../../middleware/auth.js', () => ({
     req.user = { id };
     next();
   },
-  oxyClient: {
+}));
+vi.mock('../../oxy.js', () => ({
+  oxy: {
     users: { getMany: async (ids: string[]) => ids.map((id) => ({ id })) },
     middleware: { auth: () => (_req: unknown, _res: unknown, next: () => void) => next() },
   },

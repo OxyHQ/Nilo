@@ -6,8 +6,7 @@ import {
 import { oxyTrustProxy } from '@oxy.so/core/server';
 import express from 'express';
 import http from 'node:http';
-import { createApiCors } from './lib/api-cors.js';
-import { allowedOrigins } from './lib/allowed-origins.js';
+import { apiCors } from './lib/cors.js';
 import { sql } from 'drizzle-orm';
 import { closeDb, getDb } from './db/client.js';
 import { log } from './lib/logger.js';
@@ -124,10 +123,8 @@ app.all(notesMcp.mcpPath, (req, res) => {
   void notesMcp.handleMcp(req, res);
 });
 
-// Internal routes - restricted to known origins
-const corsOrigins = allowedOrigins();
-
-app.use(createApiCors(corsOrigins));
+// Browsers: only the origins `lib/cors.ts` names (the socket admits the same).
+app.use(apiCors);
 
 // Allow cross-origin resource loading (fixes ERR_BLOCKED_BY_RESPONSE.NotSameOrigin)
 app.use((_req, res, next) => {

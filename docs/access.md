@@ -38,11 +38,13 @@ and keeps the same id. Any other workspace a user needs, they create.
 
 ## Joining and leaving a workspace
 
-- Invited by email: an Oxy account with that email becomes a member at once;
-  any other email gets an invitation (`workspace_invites`, 30 days) that
-  becomes a membership on the first workspace list of someone signed in with
-  that Oxy email, or when its own link (`/invite/<token>`) is opened by
-  anyone signed in, whatever their email: Oxy emails that link
+- Invited by email: every email gets an invitation (`workspace_invites`, 30
+  days), and the answer is the same whether or not an Oxy account uses it —
+  Oxy never resolves an email to an account. It becomes a membership on the
+  first workspace list of someone signed in with that Oxy email (the address
+  the session's validation returned, `middleware/auth.ts`), or when its own
+  link (`/invite/<token>`) is opened by anyone signed in, whatever their
+  email: Oxy emails that link
   (`invitations:email`), and admins can copy it. Renewing an invitation keeps
   its link. Admins list and revoke the invitations waiting.
 - The join link (`workspace_invite_links`, one live per workspace) makes
@@ -102,8 +104,10 @@ page.
 ## Sharing
 
 - `GET/POST/PUT/DELETE /pages/:id/permissions…` — list (with inherited grants
-  and profiles), invite by email, change a role, remove or leave. Edit access
-  manages sharing; nobody grants more than they hold.
+  and profiles), share with a person by their Oxy username (a public
+  profile; never by email), change a role, remove or leave. Edit access
+  manages sharing; nobody grants more than they hold. An Oxy that cannot be
+  asked is 503, never "no such user".
 - Share links: read, comment or edit. Opening a comment or edit link while
   signed in (`POST /share/:token/join`) grants that scope, tied to the link;
   revoking the link takes it away.
