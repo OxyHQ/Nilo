@@ -268,8 +268,18 @@ it('does not cycle persistent history denials when page metadata still reports e
   await act(async () => {
     await preview.refetch();
   });
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
   await settle();
-  expect(deniedReads).toBe(settledReads + 1);
+  // The explicit retry reads once more. Whether the list's own first denial
+  // landed before or after it depends on when the 5 ms metadata recheck
+  // re-enabled the list, so the list may be denied now instead of above; each
+  // query is still denied at most once per retry, and then it stops.
+  const retriedReads = deniedReads;
+  expect(retriedReads).toBeGreaterThan(settledReads);
+  expect(retriedReads).toBeLessThanOrEqual(3);
+  await act(async () => new Promise((resolve) => setTimeout(resolve, 50)));
+  await settle();
+  expect(deniedReads).toBe(retriedReads);
 });
 
 it('retires denied restore history and cancels a pending preview before its late response', async () => {

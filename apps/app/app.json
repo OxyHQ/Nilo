@@ -1,16 +1,14 @@
 {
   "expo": {
     "owner": "oxyhq",
-    "name": "Nilo",
     "slug": "nilo",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon-512.png",
     "scheme": "nilo",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "so.oxy.nilo",
       "infoPlist": {
         "UIBackgroundModes": ["remote-notification"]
       }
@@ -22,7 +20,6 @@
         "backgroundColor": "#FFFFFF"
       },
       "googleServicesFile": "./google-services.json",
-      "package": "so.oxy.nilo",
       "predictiveBackGestureEnabled": false
     },
     "web": {
