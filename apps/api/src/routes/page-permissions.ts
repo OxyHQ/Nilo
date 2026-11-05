@@ -38,7 +38,7 @@ const grantSchema = z.object({
 
 function handleZodError(err: unknown, res: Response): boolean {
   if (err instanceof z.ZodError) {
-    res.status(400).json({ error: 'Invalid input', details: err.errors });
+    res.status(400).json({ error: 'Invalid input', details: err.issues });
     return true;
   }
   return false;

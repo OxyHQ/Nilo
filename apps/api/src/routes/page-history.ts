@@ -22,7 +22,7 @@ const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 
 function badInput(error: unknown, res: Response): boolean {
   if (error instanceof z.ZodError) {
-    res.status(400).json({ error: 'Invalid input', details: error.errors });
+    res.status(400).json({ error: 'Invalid input', details: error.issues });
     return true;
   }
   return false;

@@ -106,7 +106,7 @@ function segment(id: string, what: string): string {
   return encodeURIComponent(id);
 }
 
-function checked<T extends z.ZodTypeAny>(schema: T, input: unknown): z.output<T> {
+function checked<T extends z.ZodType>(schema: T, input: unknown): z.output<T> {
   const parsed = schema.safeParse(input);
   if (parsed.success) return parsed.data;
   const issue = parsed.error.issues[0];
@@ -228,7 +228,7 @@ export function createNiloClient(options: NiloClientOptions) {
     return { status: response.status, text, json, headers: response.headers };
   }
 
-  function parse<T extends z.ZodTypeAny>(schema: T, answer: { status: number; json: unknown }) {
+  function parse<T extends z.ZodType>(schema: T, answer: { status: number; json: unknown }) {
     const parsed = schema.safeParse(answer.json);
     if (!parsed.success) {
       throw new NiloResponseError(

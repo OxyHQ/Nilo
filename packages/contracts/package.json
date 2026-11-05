@@ -1,6 +1,6 @@
 {
   "name": "@oxy.so/nilo-contracts",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "The contract shared by Nilo's API and its clients (the Nilo app, Noted, @oxy.so/nilo): block types and content, Markdown conversion, and the /notes and /calendar APIs' shapes.",
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
@@ -21,7 +21,7 @@
     "access": "public"
   },
   "dependencies": {
-    "zod": "^3.24.1"
+    "zod": "^4.6.7"
   },
   "exports": {
     ".": "./src/index.ts",

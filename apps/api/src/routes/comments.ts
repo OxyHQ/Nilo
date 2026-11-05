@@ -91,7 +91,7 @@ const anchorSchema = z
     quote: z.string().min(1).max(MAX_QUOTE_LENGTH),
   })
   .refine((a) => a.end > a.start && a.end - a.start === a.quote.length, {
-    message: 'The quote must be the text between start and end',
+    error: 'The quote must be the text between start and end',
   });
 
 const createBodySchema = z
@@ -102,11 +102,11 @@ const createBodySchema = z
     content: contentInputSchema,
   })
   .refine((body) => !body.anchor || body.blockId, {
-    message: 'An inline comment needs its block',
+    error: 'An inline comment needs its block',
     path: ['anchor'],
   })
   .refine((body) => !body.anchor || !body.parentCommentId, {
-    message: 'A reply is on its thread, not on text',
+    error: 'A reply is on its thread, not on text',
     path: ['anchor'],
   });
 
@@ -297,7 +297,7 @@ async function serializeComments(
 
 function handleZodError(err: unknown, res: Response): boolean {
   if (err instanceof z.ZodError) {
-    res.status(400).json({ error: 'Invalid input', details: err.errors });
+    res.status(400).json({ error: 'Invalid input', details: err.issues });
     return true;
   }
   return false;

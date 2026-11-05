@@ -23,7 +23,7 @@ function parseFilter(value: unknown, path: string[]): Filter {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new z.ZodError([
       {
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path,
         message: 'Filter must be an object',
       },
@@ -34,7 +34,7 @@ function parseFilter(value: unknown, path: string[]): Filter {
     if (typeof raw.propertyId !== 'string' || raw.propertyId.length === 0) {
       throw new z.ZodError([
         {
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           path: [...path, 'propertyId'],
           message: 'propertyId required',
         },
@@ -43,7 +43,7 @@ function parseFilter(value: unknown, path: string[]): Filter {
     if (typeof raw.operator !== 'string' || raw.operator.length === 0) {
       throw new z.ZodError([
         {
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           path: [...path, 'operator'],
           message: 'operator required',
         },
@@ -60,7 +60,7 @@ function parseFilter(value: unknown, path: string[]): Filter {
     if (raw.combinator !== 'and' && raw.combinator !== 'or') {
       throw new z.ZodError([
         {
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           path: [...path, 'combinator'],
           message: 'combinator must be "and" or "or"',
         },
@@ -69,7 +69,7 @@ function parseFilter(value: unknown, path: string[]): Filter {
     if (!Array.isArray(raw.filters)) {
       throw new z.ZodError([
         {
-          code: z.ZodIssueCode.custom,
+          code: 'custom',
           path: [...path, 'filters'],
           message: 'filters must be an array',
         },
@@ -82,7 +82,7 @@ function parseFilter(value: unknown, path: string[]): Filter {
   }
   throw new z.ZodError([
     {
-      code: z.ZodIssueCode.custom,
+      code: 'custom',
       path: [...path, 'kind'],
       message: 'kind must be "condition" or "group"',
     },
@@ -99,24 +99,23 @@ export const filterGroupSchema = z.unknown().transform((raw, ctx): FilterGroup =
   try {
     const parsed = parseFilter(raw, []);
     if (parsed.kind !== 'group') {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+      ctx.issues.push({
+        code: 'custom',
         path: ['kind'],
         message: 'Top-level filter must be a group',
+        input: raw,
       });
       return { kind: 'group', combinator: 'and', filters: [] };
     }
     return parsed;
   } catch (err) {
     if (err instanceof z.ZodError) {
-      for (const issue of err.errors) {
-        ctx.addIssue(issue);
+      // The walker raises only custom issues.
+      for (const { path, message } of err.issues) {
+        ctx.issues.push({ code: 'custom', path, message, input: raw });
       }
     } else {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Invalid filter',
-      });
+      ctx.issues.push({ code: 'custom', message: 'Invalid filter', input: raw });
     }
     return { kind: 'group', combinator: 'and', filters: [] };
   }

@@ -35,7 +35,7 @@ const createShareLinkSchema = z.object({
   scope: z
     .enum(SHARE_LINK_SCOPES as unknown as [ShareLinkScope, ...ShareLinkScope[]])
     .default('read'),
-  expiresAt: z.string().datetime({ offset: true }).nullable().optional(),
+  expiresAt: z.iso.datetime({ offset: true }).nullable().optional(),
 });
 
 /**
@@ -105,7 +105,7 @@ router.post('/pages/:pageId/share', authenticateToken, async (req: Request, res:
 
     const parsed = createShareLinkSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+      res.status(400).json({ error: 'Invalid body', details: z.flattenError(parsed.error) });
       return;
     }
 

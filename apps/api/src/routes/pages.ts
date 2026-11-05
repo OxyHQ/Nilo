@@ -130,7 +130,7 @@ const updatePageSchema = z
     cover: z.string().max(2000).nullable().optional(),
     coverPosition: z.number().min(0).max(100).optional(),
     parentId: entityIdSchema.nullable().optional(),
-    order: z.number().finite().optional(),
+    order: z.number().optional(),
     archived: z.boolean().optional(),
     favorited: z.boolean().optional(),
     /** Open only to the people it is shared with (see `lib/page-access.ts`). */
@@ -145,7 +145,7 @@ const updatePageSchema = z
     locked: z.boolean().optional(),
     // Database row property writes. Keys are propertyIds; shapes are
     // validated per-property type by `parsePropertyValue`.
-    properties: z.record(z.unknown()).optional(),
+    properties: z.record(z.string(), z.unknown()).optional(),
     /**
      * Where the page lives when it is (or becomes) a top-level page: a
      * teamspace, or null for private to its owner.
@@ -153,12 +153,12 @@ const updatePageSchema = z
     teamspaceId: entityIdSchema.nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
-    message: 'At least one field is required',
+    error: 'At least one field is required',
   });
 
 function handleZodError(err: unknown, res: Response): boolean {
   if (err instanceof z.ZodError) {
-    res.status(400).json({ error: 'Invalid input', details: err.errors });
+    res.status(400).json({ error: 'Invalid input', details: err.issues });
     return true;
   }
   return false;

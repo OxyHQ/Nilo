@@ -22,6 +22,7 @@
     "start:api": "bun run --filter @nilo/api start",
     "lint": "biome check .",
     "i18n:check": "oxy-doctor-i18n --ci",
+    "doctor:oxy": "oxy-doctor --ci",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "android": "bun run --filter @nilo/app android",

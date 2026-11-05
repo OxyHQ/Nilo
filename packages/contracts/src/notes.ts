@@ -132,8 +132,8 @@ export const noteBlockSchema = z.object({
   id: z.string().regex(UUID_V7, 'Block ids are UUIDv7'),
   parentBlockId: z.string().regex(UUID_V7).nullable(),
   type: blockTypeSchema,
-  content: z.record(z.unknown()),
-  order: z.number().finite(),
+  content: z.record(z.string(), z.unknown()),
+  order: z.number(),
 });
 
 /** A note's fields as written; every field is optional on a PATCH and absent means unchanged. */
@@ -149,13 +149,13 @@ export const noteWriteSchema = z
     trashed: z.boolean(),
     kind: z.enum(NOTE_KINDS),
     attachments: z.array(idSchema).max(100),
-    reminderAt: z.string().datetime({ offset: true }).nullable(),
-    order: z.number().finite(),
+    reminderAt: z.iso.datetime({ offset: true }).nullable(),
+    order: z.number(),
     /** The note's `updatedAt` this edit was made on; a stale one is answered 409 with the note. */
-    baseUpdatedAt: z.string().datetime({ offset: true }),
+    baseUpdatedAt: z.iso.datetime({ offset: true }),
     /** The app data, written whole, on top of `baseRevision`. */
     appData: z.object({
-      data: z.record(z.unknown()),
+      data: z.record(z.string(), z.unknown()),
       baseRevision: z.number().int().min(0),
     }),
   })

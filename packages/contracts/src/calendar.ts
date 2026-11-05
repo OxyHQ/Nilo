@@ -40,7 +40,9 @@ export const calendarErrorBodySchema = z.object({
   error: z.object({
     code: calendarErrorCodeSchema,
     message: z.string(),
-    details: z.record(z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+    details: z
+      .record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()]))
+      .optional(),
   }),
 });
 export type CalendarErrorBody = z.infer<typeof calendarErrorBodySchema>;
@@ -84,7 +86,7 @@ export function isIsoDay(value: string): boolean {
   return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
 }
 
-const isoInstantSchema = z.string().datetime({ offset: true });
+const isoInstantSchema = z.iso.datetime({ offset: true });
 
 /** An ISO-8601 instant with its offset (`Z` or `±hh:mm`). */
 export function isIsoInstant(value: string): boolean {
@@ -288,7 +290,7 @@ export const calendarEventCreateSchema = z
   .superRefine((input, ctx) => {
     const time = { allDay: input.allDay ?? false, start: input.start, end: input.end };
     for (const issue of eventTimeIssues(time)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [issue.path], message: issue.message });
+      ctx.addIssue({ code: 'custom', path: [issue.path], message: issue.message });
     }
   });
 export type CalendarEventCreate = z.input<typeof calendarEventCreateSchema>;
@@ -314,7 +316,7 @@ export const calendarEventUpdateSchema = z
     uid: eventFields.uid.optional(),
   })
   .strict()
-  .refine((input) => Object.keys(input).length > 0, { message: 'At least one field is required' });
+  .refine((input) => Object.keys(input).length > 0, { error: 'At least one field is required' });
 export type CalendarEventUpdate = z.input<typeof calendarEventUpdateSchema>;
 
 /**
@@ -331,7 +333,7 @@ export const calendarImportRequestSchema = z
   })
   .strict()
   .refine((input) => (input.ics === undefined) !== (input.url === undefined), {
-    message: 'Send exactly one of ics and url',
+    error: 'Send exactly one of ics and url',
   });
 export type CalendarImportRequest = z.input<typeof calendarImportRequestSchema>;
 
@@ -355,7 +357,7 @@ export const niloWorkspaceSchema = z
     isPersonal: z.boolean(),
     role: z.enum(CALENDAR_ROLES).nullable(),
   })
-  .passthrough();
+  .loose();
 export type NiloWorkspace = z.infer<typeof niloWorkspaceSchema>;
 
 // ---------------------------------------------------------------------------

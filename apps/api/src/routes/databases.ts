@@ -309,7 +309,7 @@ const updateDatabaseSchema = z
     locked: z.boolean().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
-    message: 'At least one field is required',
+    error: 'At least one field is required',
   });
 
 const addPropertySchema = propertySchema;
@@ -321,12 +321,12 @@ const updatePropertySchema = z
     config: propertyConfigSchema.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
-    message: 'At least one field is required',
+    error: 'At least one field is required',
   });
 
 const createRowSchema = z.object({
   title: z.string().max(2000).optional(),
-  properties: z.record(z.unknown()).optional(),
+  properties: z.record(z.string(), z.unknown()).optional(),
   /** A row template of this database to start from (its values, icon, cover and content). */
   templateId: entityIdSchema.optional(),
   /** Create the row as a template ("New template"): never listed among the rows. */
@@ -362,9 +362,9 @@ const groupKeysSchema = z
 /** A number's ranges: of `step`, from `from` up to `to`, at most `MAX_NUMBER_GROUPS` of them. */
 const numberGroupingSchema = z
   .object({
-    from: z.number().finite(),
-    to: z.number().finite(),
-    step: z.number().finite().positive(),
+    from: z.number(),
+    to: z.number(),
+    step: z.number().positive(),
   })
   .strict()
   .refine((g) => g.to > g.from, 'A range ends above where it starts')
@@ -396,7 +396,7 @@ const viewConfigSchema = z.object({
   fit: z.enum(['cover', 'contain']).optional(),
   openIn: z.enum(OPEN_ROW_MODES).optional(),
   columnWidths: z
-    .record(z.number().int().min(MIN_COLUMN_WIDTH).max(MAX_COLUMN_WIDTH))
+    .record(z.string(), z.number().int().min(MIN_COLUMN_WIDTH).max(MAX_COLUMN_WIDTH))
     .refine((widths) => Object.keys(widths).length <= MAX_VIEW_PROPERTIES, 'Too many columns')
     .optional(),
   propertyOrder: z
@@ -405,7 +405,7 @@ const viewConfigSchema = z.object({
     .refine(uniqueIds, 'Each property once')
     .optional(),
   calculations: z
-    .record(z.enum(CALCULATION_FUNCTIONS))
+    .record(z.string(), z.enum(CALCULATION_FUNCTIONS))
     .refine((fns) => Object.keys(fns).length <= MAX_VIEW_PROPERTIES, 'Too many calculations')
     .optional(),
   chart: z
@@ -448,10 +448,10 @@ const updateViewSchema = z
     frozenProperties: z.array(z.string()).optional(),
     pageSize: z.number().int().min(1).max(500).optional(),
     config: viewConfigSchema.optional(),
-    order: z.number().finite().optional(),
+    order: z.number().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
-    message: 'At least one field is required',
+    error: 'At least one field is required',
   });
 
 const createViewSchema = z.object({
@@ -475,7 +475,7 @@ const createViewSchema = z.object({
   frozenProperties: z.array(z.string()).optional(),
   pageSize: z.number().int().min(1).max(500).optional(),
   config: viewConfigSchema.optional(),
-  order: z.number().finite().optional(),
+  order: z.number().optional(),
 });
 
 const listDatabasesQuerySchema = z.object({
@@ -509,7 +509,7 @@ const viewRowsQuerySchema = z.object({
 
 function handleZodError(err: unknown, res: Response): boolean {
   if (err instanceof z.ZodError) {
-    res.status(400).json({ error: 'Invalid input', details: err.errors });
+    res.status(400).json({ error: 'Invalid input', details: err.issues });
     return true;
   }
   return false;

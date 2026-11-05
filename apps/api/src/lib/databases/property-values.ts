@@ -12,13 +12,13 @@ import type { DatabasePropertyType } from '../../db/schema/databases.js';
  * caller to skip writing the field.
  */
 const textValueSchema = z.object({ text: z.string().max(50_000) });
-const numberValueSchema = z.object({ number: z.number().finite().nullable() });
+const numberValueSchema = z.object({ number: z.number().nullable() });
 const selectValueSchema = z.object({ optionId: z.string().nullable() });
 const multiSelectValueSchema = z.object({ optionIds: z.array(z.string()) });
 const statusValueSchema = z.object({ optionId: z.string().nullable() });
 const dateValueSchema = z.object({
-  start: z.string().datetime().nullable(),
-  end: z.string().datetime().nullable().optional(),
+  start: z.iso.datetime().nullable(),
+  end: z.iso.datetime().nullable().optional(),
   includeTime: z.boolean().optional(),
 });
 const personValueSchema = z.object({ userIds: z.array(z.string()) });
@@ -30,7 +30,7 @@ const personValueSchema = z.object({ userIds: z.array(z.string()) });
 const fileValueSchema = z
   .object({
     name: z.string(),
-    url: z.string().url().optional(),
+    url: z.url().optional(),
     fileId: z.string().min(1).max(200).optional(),
   })
   .refine(

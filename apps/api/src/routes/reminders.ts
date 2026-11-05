@@ -20,14 +20,14 @@ const entityIdSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 const MAX_AHEAD_MS = 5 * 366 * 24 * 60 * 60 * 1000;
 
 const createSchema = z.object({
-  remindAt: z.string().datetime({ offset: true }),
+  remindAt: z.iso.datetime({ offset: true }),
   blockId: entityIdSchema.nullable().optional(),
   note: z.string().trim().max(500).nullable().optional(),
 });
 
 function badInput(error: unknown, res: Response): boolean {
   if (error instanceof z.ZodError) {
-    res.status(400).json({ error: 'Invalid input', details: error.errors });
+    res.status(400).json({ error: 'Invalid input', details: error.issues });
     return true;
   }
   return false;
