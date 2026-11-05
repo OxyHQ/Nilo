@@ -98,6 +98,20 @@ Last verified: 2026-09-13.
   return to Node, revert the change that made this switch: it moved the
   Dockerfile and the migrator command together, and they must stay together.
 
+## Native releases and OTA updates
+
+`.github/workflows/android-release.yml` calls oxy's reusable
+`android-release.yml` on Oxy's build machine on every push to main: it builds a
+signed AAB + APK of `apps/app` as the GitHub release `android-v<version>` only
+when that `version` has none yet. The build number is derived from `version`
+(`@oxy.so/app-preset` 6). `.github/workflows/publish-update.yml` publishes the
+OTA update to channel `production` with `oxy-ship` over GitHub trusted
+publishing (oxy ADR 0057, no secret); its file name is the registered trusted
+publisher, so do not rename it. A native change is a `version` bump; JS-only
+changes ship as OTA under the same version. Both workflows take the build env
+from `apps/app/eas.json`'s `production` profile, which therefore holds the
+production `EXPO_PUBLIC_*` values (API origin, Oxy client id, web origin).
+
 ## Offline on iOS and Android
 
 Pages kept offline (their Yjs documents, in SQLite: `docs/collaboration.md`)
