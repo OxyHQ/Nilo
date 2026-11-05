@@ -13,7 +13,7 @@ import { type ActivityCursor, listPageActivity } from '../repositories/pageActiv
 const router = Router();
 const idSchema = z.string().refine(isLiveEntityId, 'Invalid id');
 const cursorSchema = z
-  .object({ pageId: idSchema, createdAt: z.string().datetime(), id: idSchema })
+  .object({ pageId: idSchema, createdAt: z.iso.datetime(), id: idSchema })
   .strict();
 const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
@@ -54,7 +54,7 @@ router.get('/pages/:id/activity', authenticateToken, async (req: Request, res: R
     res.json(result);
   } catch (error: unknown) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Invalid input', details: error.errors });
+      res.status(400).json({ error: 'Invalid input', details: error.issues });
       return;
     }
     log.general.error({ err: error }, 'Failed to list page activity');

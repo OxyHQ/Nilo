@@ -179,7 +179,7 @@ export const pages = pgTable(
     lastEditedBy: text(),
     /**
      * Sibling ordering. `double precision`, not an integer: `PATCH
-     * /api/pages/:id` accepts `z.number().finite()`, so a client may write a
+     * /api/pages/:id` accepts any finite `z.number()`, so a client may write a
      * fractional order to insert between two neighbours without renumbering.
      *
      * No `isfinite` CHECK: the route's zod schema is the only validator on

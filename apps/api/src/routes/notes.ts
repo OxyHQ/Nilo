@@ -123,7 +123,7 @@ async function refused(error: unknown, res: Response, home?: NotesHome, id?: str
     return true;
   }
   if (error instanceof z.ZodError) {
-    res.status(400).json({ error: 'Invalid input', details: error.errors });
+    res.status(400).json({ error: 'Invalid input', details: error.issues });
     return true;
   }
   if (error instanceof NoteRejected) {

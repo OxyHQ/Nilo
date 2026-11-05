@@ -23,5 +23,5 @@ export const updateWorkspaceSchema = z
     avatar: avatarSchema,
   })
   .refine((val) => val.name !== undefined || val.avatar !== undefined, {
-    message: 'Provide at least one of: name, avatar',
+    error: 'Provide at least one of: name, avatar',
   });

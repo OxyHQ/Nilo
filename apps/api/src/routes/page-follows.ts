@@ -26,7 +26,7 @@ for (const method of ['get', 'put', 'delete'] as const) {
       res.json({ following: await isFollowing(db, id, userId) });
     } catch (error: unknown) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: 'Invalid input', details: error.errors });
+        res.status(400).json({ error: 'Invalid input', details: error.issues });
         return;
       }
       log.general.error({ err: error }, 'Failed to change following');

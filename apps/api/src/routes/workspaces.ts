@@ -59,7 +59,7 @@ const router = Router();
 // Members can be invited as any role except `owner`: a workspace has one
 // owner, who hands it over with `POST /:id/transfer`.
 const inviteMemberSchema = z.object({
-  email: z.string().trim().email(),
+  email: z.string().trim().pipe(z.email()),
   role: z.enum(INVITABLE_WORKSPACE_ROLES),
   /** The inviter's language (BCP 47), for the invitation email. */
   locale: z
@@ -257,7 +257,7 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
 
     const parsed = createWorkspaceSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+      res.status(400).json({ error: 'Invalid body', details: z.flattenError(parsed.error) });
       return;
     }
 
@@ -365,7 +365,7 @@ router.patch(
 
       const parsed = updateWorkspaceSchema.safeParse(req.body);
       if (!parsed.success) {
-        res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+        res.status(400).json({ error: 'Invalid body', details: z.flattenError(parsed.error) });
         return;
       }
 
@@ -541,7 +541,7 @@ router.post(
 
       const parsed = inviteMemberSchema.safeParse(req.body);
       if (!parsed.success) {
-        res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+        res.status(400).json({ error: 'Invalid body', details: z.flattenError(parsed.error) });
         return;
       }
 
@@ -599,7 +599,7 @@ router.patch(
 
       const parsed = updateMemberSchema.safeParse(req.body);
       if (!parsed.success) {
-        res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+        res.status(400).json({ error: 'Invalid body', details: z.flattenError(parsed.error) });
         return;
       }
 
@@ -776,7 +776,7 @@ router.get(
       res.send(Buffer.from(zip.bytes));
     } catch (error: unknown) {
       if (error instanceof z.ZodError) {
-        res.status(400).json({ error: 'Invalid input', details: error.errors });
+        res.status(400).json({ error: 'Invalid input', details: error.issues });
         return;
       }
       if (error instanceof ExportTooLarge) {
@@ -898,7 +898,7 @@ router.post(
       }
       const parsed = inviteLinkSchema.safeParse(req.body ?? {});
       if (!parsed.success) {
-        res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+        res.status(400).json({ error: 'Invalid body', details: z.flattenError(parsed.error) });
         return;
       }
       const link = await replaceInviteLink(
@@ -938,7 +938,7 @@ router.patch(
       }
       const parsed = inviteLinkRoleSchema.safeParse(req.body);
       if (!parsed.success) {
-        res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+        res.status(400).json({ error: 'Invalid body', details: z.flattenError(parsed.error) });
         return;
       }
       const link = await setLiveInviteLinkRole(getDb(), req.workspaceDoc.id, parsed.data.role);
@@ -1003,7 +1003,7 @@ router.post(
       }
       const parsed = transferSchema.safeParse(req.body);
       if (!parsed.success) {
-        res.status(400).json({ error: 'Invalid body', details: parsed.error.flatten() });
+        res.status(400).json({ error: 'Invalid body', details: z.flattenError(parsed.error) });
         return;
       }
       const toUserId = parsed.data.userId;

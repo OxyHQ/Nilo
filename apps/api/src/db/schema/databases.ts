@@ -543,7 +543,7 @@ export const databaseViews = pgTable(
     config: jsonb().$type<ViewConfig>().notNull().default({}),
     /**
      * `double precision`, NOT an integer or a bigint, and both halves of that
-     * matter. `createViewSchema.order` is `z.number().finite()` — fractional
+     * matter. `createViewSchema.order` is a finite `z.number()` — fractional
      * orders are accepted by the API today, and an `integer` column would
      * round one silently. And `postgres.js` decodes `bigint`/`int8` as a
      * STRING while drizzle types it `number`, so `max(order) + 1` on an int8

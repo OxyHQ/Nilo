@@ -685,7 +685,7 @@ export function compileView(
 /** `created_at` exactly, to the microsecond, for the cursor. */
 const createdAtText = sql<string>`to_char(${pages.createdAt} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
 
-const keyValueSchema = z.union([z.number().finite(), z.string(), z.null()]);
+const keyValueSchema = z.union([z.number(), z.string(), z.null()]);
 const instantSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/u)

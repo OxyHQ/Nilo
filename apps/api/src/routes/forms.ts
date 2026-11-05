@@ -48,7 +48,7 @@ const FORM_TYPES = new Set<DatabasePropertyType>([
 
 function badInput(error: unknown, res: Response): boolean {
   if (error instanceof z.ZodError) {
-    res.status(400).json({ error: 'Invalid input', details: error.errors });
+    res.status(400).json({ error: 'Invalid input', details: error.issues });
     return true;
   }
   return false;
@@ -233,7 +233,7 @@ router.post(
   optionalAuthenticateToken,
   async (req: Request, res: Response) => {
     try {
-      const body = z.object({ values: z.record(z.unknown()) }).parse(req.body);
+      const body = z.object({ values: z.record(z.string(), z.unknown()) }).parse(req.body);
       const loaded = await loadPublicForm(req, res);
       if (!loaded) return;
       const allowed = new Set(loaded.fields.map((f) => f.id));

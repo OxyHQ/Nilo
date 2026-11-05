@@ -196,7 +196,7 @@ const imageContentSchema = z.object({
   fileId: z.string().optional(),
   caption: z.string().optional(),
   alt: z.string().optional(),
-  width: z.number().finite().positive().optional(),
+  width: z.number().positive().optional(),
   alignment: imageAlignmentSchema.optional(),
   ...styleFields,
 });
@@ -268,9 +268,9 @@ const columnContentSchema = z.object({
  * `y` (the canvas's own units, which may be negative) with a `width`.
  */
 const canvasNoteContentSchema = z.object({
-  x: z.number().finite().default(0),
-  y: z.number().finite().default(0),
-  width: z.number().finite().min(160).max(2400).default(360),
+  x: z.number().default(0),
+  y: z.number().default(0),
+  width: z.number().min(160).max(2400).default(360),
   ...styleFields,
 });
 
@@ -461,7 +461,7 @@ export function normalizeContent(type: BlockType, content: unknown): BlockConten
 }
 
 /** Every type's content schema, for deriving defaults and allowed fields. */
-function schemaFor(type: BlockType): z.AnyZodObject {
+function schemaFor(type: BlockType): z.ZodObject {
   switch (type) {
     case 'heading_1':
     case 'heading_2':

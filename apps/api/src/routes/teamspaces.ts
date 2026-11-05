@@ -65,7 +65,7 @@ const updateSchema = z
     privacy: z.enum(TEAMSPACE_PRIVACIES).optional(),
     archived: z.boolean().optional(),
   })
-  .refine((data) => Object.keys(data).length > 0, { message: 'At least one field is required' });
+  .refine((data) => Object.keys(data).length > 0, { error: 'At least one field is required' });
 
 function serializeTeamspace(t: TeamspaceRow, role: string | null) {
   return {
@@ -123,7 +123,7 @@ function refuse(res: Response, error: string): void {
 
 function fail(res: Response, error: unknown, what: string): void {
   if (error instanceof z.ZodError) {
-    res.status(400).json({ error: 'Invalid input', details: error.errors });
+    res.status(400).json({ error: 'Invalid input', details: error.issues });
     return;
   }
   log.general.error({ err: error }, `Failed to ${what}`);

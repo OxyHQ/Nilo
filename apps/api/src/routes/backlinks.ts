@@ -85,7 +85,7 @@ router.get('/pages/:id/backlinks', authenticateToken, async (req: Request, res: 
     res.json({ backlinks });
   } catch (error: unknown) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({ error: 'Invalid input', details: error.errors });
+      res.status(400).json({ error: 'Invalid input', details: error.issues });
       return;
     }
     log.general.error({ err: error }, 'Failed to list backlinks');
