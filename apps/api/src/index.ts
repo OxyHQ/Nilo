@@ -29,7 +29,7 @@ import remindersRouter from './routes/reminders.js';
 import notesRouter from './routes/notes.js';
 import calendarRouter from './routes/calendar.js';
 import capabilitiesRouter from './routes/capabilities.js';
-import { createNotesMcpService } from './capabilities/notes-mcp.js';
+import { createNotesMcpService, mountNotesMcp } from './capabilities/notes-mcp.js';
 import { startEventOutboxWorker, stopEventOutboxWorker } from './capabilities/event-outbox.js';
 import importRouter from './routes/import.js';
 import backlinksRouter from './routes/backlinks.js';
@@ -115,13 +115,7 @@ initSocket(server);
 // The notes MCP server owns its raw body, its exact host, its OAuth challenge
 // and its origins: mounted before CORS and the body parser, so neither can
 // weaken or consume a protocol request.
-const notesMcp = createNotesMcpService();
-app.all(notesMcp.protectedResourceMetadataPath, (req, res) => {
-  notesMcp.handleProtectedResourceMetadata(req, res);
-});
-app.all(notesMcp.mcpPath, (req, res) => {
-  void notesMcp.handleMcp(req, res);
-});
+mountNotesMcp(app, createNotesMcpService());
 
 // Browsers: only the origins `lib/cors.ts` names (the socket admits the same).
 app.use(apiCors);
