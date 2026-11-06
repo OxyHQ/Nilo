@@ -29,7 +29,7 @@
         "@oxy.so/contracts": "6.12.0",
         "@oxy.so/core": "7.30.0",
         "@oxy.so/db": "1.4.0",
-        "@oxy.so/mcp": "1.4.1",
+        "@oxy.so/mcp": "1.4.2",
         "@oxy.so/nilo-contracts": "workspace:*",
         "@socket.io/redis-adapter": "^8.3.0",
         "drizzle-orm": "^0.45.2",
@@ -876,7 +876,7 @@
 
     "@oxy.so/doctor": ["@oxy.so/doctor@1.7.0", "", { "dependencies": { "semver": "^7.7.4" }, "bin": { "oxy-doctor": "src/cli.mjs", "oxy-doctor-i18n": "src/i18n-cli.mjs", "oxy-emulator-preflight": "src/emulator-preflight.mjs", "oxy-doctor-expo-android": "src/expo-android.mjs" } }, "sha512-g/xbx4YK59fOWqsJw2CyZSMR/NQyzi8vASxHTUNnIx5TVA762R+33PKqazeUeRB+DudcnLEKnIFDcs4EsImwhg=="],
 
-    "@oxy.so/mcp": ["@oxy.so/mcp@1.4.1", "", { "dependencies": { "@modelcontextprotocol/sdk": "^1.32.2", "@oxy.so/contracts": "^6.5.0", "zod": "^4.6.7" } }, "sha512-xE7qEMOClukImw5DKqjyZRsFZvC5SDmpu+EBdhepasVyIHccaSgFsumWJJ6GwrMTph6YdNy7cUgJ23POXXowFQ=="],
+    "@oxy.so/mcp": ["@oxy.so/mcp@1.4.2", "", { "dependencies": { "@modelcontextprotocol/sdk": "^1.32.2", "@oxy.so/contracts": "^6.14.0", "zod": "^4.6.7" } }, "sha512-msmeHTLvfys25fnVizcAxEzD6lcZwbi7E3t2m2dDRSWq1BYzkHTNVy2KrJ0CVlJ+I94bdvKCVOT8XaOA3pQmhQ=="],
 
     "@oxy.so/nilo": ["@oxy.so/nilo@workspace:packages/sdk"],
 
