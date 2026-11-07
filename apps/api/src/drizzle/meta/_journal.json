@@ -407,6 +407,20 @@
       "when": 1793517887934,
       "tag": "0057_notes_sync_generation",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1794080603375,
+      "tag": "0058_memories_system_database",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794080604375,
+      "tag": "0059_memories_system_database_validate",
+      "breakpoints": true
     }
   ]
 }
