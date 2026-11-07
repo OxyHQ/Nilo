@@ -191,7 +191,12 @@ export const NILO_CAPABILITY_CATALOG: AppCapabilityCatalog = {
           properties: {
             query: { type: 'string', maxLength: 500 },
             kind: memoryFields.kind,
-            tags: memoryFields.tags,
+            // A GET carries scalars only: several tags go in one comma-separated string.
+            tags: {
+              type: 'string',
+              maxLength: 500,
+              description: 'Tags to match, comma-separated.',
+            },
             minImportance: memoryFields.importance,
             includeArchived: { type: 'boolean' },
             limit: { type: 'integer', minimum: 1, maximum: 50 },
