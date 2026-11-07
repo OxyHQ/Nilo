@@ -204,7 +204,8 @@ export const NILO_CAPABILITY_CATALOG: AppCapabilityCatalog = {
           required: ['memories'],
           additionalProperties: false,
         },
-        invocation: { method: 'GET', path: '/_oxy/capabilities/recallMemories' },
+        // POST: a GET input can only be a scalar, and a recall filters by a list of tags.
+        invocation: { method: 'POST', path: '/_oxy/capabilities/recallMemories' },
       },
       ['nilo_account', 'memory'],
       'memories.read',
