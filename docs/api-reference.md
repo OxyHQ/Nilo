@@ -158,6 +158,13 @@ the catalog after each healthy rollout.
 - Events for Alia (`note_changed`, `reminder`) are queued with the change in
   `app_event_outbox` and delivered at least once to Alia's `/webhooks/oxy`.
 
+## Agent memories
+
+Agent memories are the `memories` system database of the personal workspace,
+served to AI agents as MCP tools at `https://mcp.nilo.so` (`recallMemories`,
+`remember`, `updateMemory`, `forgetMemory`), not as REST routes
+(`docs/memories.md`).
+
 ## Calendar
 
 Calendars are databases with a calendar view, events their rows; the

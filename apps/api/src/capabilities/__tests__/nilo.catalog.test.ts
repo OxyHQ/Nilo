@@ -10,12 +10,40 @@ describe('Nilo capability catalog', () => {
     expect(NILO_CAPABILITY_CATALOG.externalMcp?.resource).not.toContain('noted');
   });
 
-  it('exposes only read tools over MCP in this version', () => {
+  it('exposes the page tools read-only and the memory tools under memory scopes', () => {
     const mcp = tools.filter((tool) => tool.exposure.includes('mcp'));
-    expect(mcp.map((tool) => tool.name).sort()).toEqual(['listPages', 'readPage', 'searchPages']);
+    expect(mcp.map((tool) => tool.name).sort()).toEqual([
+      'forgetMemory',
+      'listPages',
+      'readPage',
+      'recallMemories',
+      'remember',
+      'searchPages',
+      'updateMemory',
+    ]);
     for (const tool of mcp) {
-      expect(tool.effect).toBe('read');
-      expect(tool.requiredCapabilities).toEqual(['pages.read']);
+      const memory = /emember|Memor/.test(tool.name);
+      if (!memory) {
+        expect(tool.effect).toBe('read');
+        expect(tool.requiredCapabilities).toEqual(['pages.read']);
+      } else if (tool.effect === 'read') {
+        expect(tool.requiredCapabilities).toEqual(['memories.read']);
+      } else {
+        expect(tool.requiredCapabilities).toEqual(['memories.write']);
+      }
+    }
+  });
+
+  it('makes every memory write retry-safe', () => {
+    for (const tool of tools.filter((t) => t.effect === 'write')) {
+      expect(tool.idempotency).toBe('required');
+      expect(tool.inputSchema.required).toContain('idempotencyKey');
+    }
+  });
+
+  it('keeps the memory tools off the internal route, which serves only the notes catalog', () => {
+    for (const tool of tools.filter((t) => /emember|Memor/.test(t.name))) {
+      expect(tool.exposure).toEqual(['mcp']);
     }
   });
 });

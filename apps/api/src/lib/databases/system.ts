@@ -95,6 +95,60 @@ export const CALENDAR_PROPERTY = {
   timeZone: 'event_time_zone',
 } as const;
 
+/**
+ * The property ids of `memories`, an account's long-term memory for AI agents
+ * (`docs/memories.md`): a memory is a row, its one-sentence fact the title and
+ * its detail a text property, so the owner reads, edits and deletes it like
+ * any other row.
+ */
+export const MEMORY_PROPERTY = {
+  name: NAME_PROPERTY_ID,
+  detail: 'memory_detail',
+  kind: 'memory_kind',
+  tags: 'memory_tags',
+  source: 'memory_source',
+  importance: 'memory_importance',
+  pinned: 'memory_pinned',
+  lastUsed: 'memory_last_used',
+  /** Hash of the normalised title: the same fact is stored once. */
+  fingerprint: 'memory_fingerprint',
+} as const;
+
+/** What a memory is about; the owner may add kinds of their own. */
+export const MEMORY_KINDS: { id: string; name: string; color: SelectColor }[] = [
+  { id: 'preference', name: 'Preference', color: 'purple' },
+  { id: 'fact', name: 'Fact', color: 'blue' },
+  { id: 'episode', name: 'Episode', color: 'orange' },
+  { id: 'procedure', name: 'Procedure', color: 'green' },
+  { id: 'project', name: 'Project', color: 'yellow' },
+];
+
+function memorySchema(): DatabaseSchema {
+  return {
+    properties: [
+      { id: MEMORY_PROPERTY.name, name: 'Memory', type: 'text' },
+      { id: MEMORY_PROPERTY.detail, name: 'Detail', type: 'text' },
+      {
+        id: MEMORY_PROPERTY.kind,
+        name: 'Kind',
+        type: 'select',
+        config: { options: MEMORY_KINDS.map((o) => ({ ...o })) },
+      },
+      { id: MEMORY_PROPERTY.tags, name: 'Tags', type: 'multi_select', config: { options: [] } },
+      { id: MEMORY_PROPERTY.source, name: 'Source', type: 'text' },
+      { id: MEMORY_PROPERTY.importance, name: 'Importance', type: 'number' },
+      { id: MEMORY_PROPERTY.pinned, name: 'Pinned', type: 'checkbox' },
+      {
+        id: MEMORY_PROPERTY.lastUsed,
+        name: 'Last used',
+        type: 'date',
+        config: { includeTime: true },
+      },
+      { id: MEMORY_PROPERTY.fingerprint, name: 'Fingerprint', type: 'text' },
+    ],
+  };
+}
+
 /** The colours a new calendar's events can take, in Nilo's palette. */
 const CALENDAR_COLOR_OPTIONS: { id: string; name: string; color: SelectColor }[] = [
   { id: 'blue', name: 'Blue', color: 'blue' },
@@ -230,6 +284,17 @@ const SYSTEM_PROPERTIES: Record<SystemDatabaseKey, Record<string, { optionsEdita
     [CALENDAR_PROPERTY.color]: { optionsEditable: true },
     [CALENDAR_PROPERTY.recurrence]: { optionsEditable: false },
     [CALENDAR_PROPERTY.uid]: { optionsEditable: false },
+  },
+  memories: {
+    [MEMORY_PROPERTY.name]: { optionsEditable: false },
+    [MEMORY_PROPERTY.detail]: { optionsEditable: false },
+    [MEMORY_PROPERTY.kind]: { optionsEditable: true },
+    [MEMORY_PROPERTY.tags]: { optionsEditable: true },
+    [MEMORY_PROPERTY.source]: { optionsEditable: false },
+    [MEMORY_PROPERTY.importance]: { optionsEditable: false },
+    [MEMORY_PROPERTY.pinned]: { optionsEditable: false },
+    [MEMORY_PROPERTY.lastUsed]: { optionsEditable: false },
+    [MEMORY_PROPERTY.fingerprint]: { optionsEditable: false },
   },
 };
 
@@ -391,6 +456,22 @@ export async function ensureCalendarDatabase(
     icon: '📅',
     schema: calendarSchema(),
     views: addCalendarView,
+  }));
+}
+
+/**
+ * The personal workspace's memory database, made on first use. Private to the
+ * owner; it opens on a table, and agents reach it only through the memory
+ * tools (`capabilities/memories.ts`).
+ */
+export async function ensureMemoryDatabase(
+  db: PgHandle,
+  workspace: { id: string; ownerId: string },
+): Promise<DatabaseRecord> {
+  return ensureSystemDatabase(db, workspace, 'memories', () => ({
+    name: 'Memories',
+    icon: '🧠',
+    schema: memorySchema(),
   }));
 }
 
