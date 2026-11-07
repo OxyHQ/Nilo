@@ -34,9 +34,7 @@ export const databaseAutomations = pgTable(
   },
   (t) => [
     // The executor: the enabled automations of the database a row was written to.
-    index('database_automations_database_idx')
-      .on(t.databaseId)
-      .where(sql`${t.enabled}`),
+    index('database_automations_database_idx').on(t.databaseId).where(sql`${t.enabled}`),
     check(
       'database_automations_last_status',
       sql`${t.lastStatus} is null or ${t.lastStatus} in ('ok', 'failed')`,
