@@ -18,10 +18,14 @@ export type CatalogMcpLane = Pick<
 export function mountCatalogMcp(app: Express, mcp: CatalogMcpLane, resource: string): void {
   const mcpHost = new URL(resource).host;
   const onMcpHost = (host: string | undefined) => host?.toLowerCase() === mcpHost;
-  app.all(mcp.protectedResourceMetadataPath, (req, res) => {
+  // Several lanes share one API app, so each answers only on its own host; any other
+  // host passes through to the next lane (and, last, to the wrong-host refusal in index.ts).
+  app.all(mcp.protectedResourceMetadataPath, (req, res, next) => {
+    if (!onMcpHost(req.headers.host)) return next();
     mcp.handleProtectedResourceMetadata(req, res);
   });
-  app.all(mcp.mcpPath, (req, res) => {
+  app.all(mcp.mcpPath, (req, res, next) => {
+    if (!onMcpHost(req.headers.host)) return next();
     void mcp.handleMcp(req, res);
   });
   app.all('/', (req, res, next) => {

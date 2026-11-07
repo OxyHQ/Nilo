@@ -62,6 +62,13 @@ function get(
 }
 
 describe('mountCatalogMcp', () => {
+  it('serves /mcp only on its own host; another host passes through', async () => {
+    const onHost = await get('/mcp', MCP_HOST);
+    expect(onHost.status).toBe(401);
+    const elsewhere = await get('/mcp', 'api.nilo.so');
+    expect(elsewhere.status).toBe(404);
+  });
+
   it('answers the bare MCP host root with the OAuth challenge, not the welcome JSON', async () => {
     const res = await get('/', MCP_HOST);
     expect(res.status).toBe(401);
