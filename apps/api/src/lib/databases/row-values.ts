@@ -3,6 +3,7 @@
  * options as their names, dates as dates, people and relations as lists.
  * Formulas may read other formulas; a cycle is an error, not a hang.
  */
+import { type VerificationValue, verificationState } from '@oxy.so/nilo-contracts';
 import type { DatabaseProperty, DatabaseSchema } from '../../db/schema/databases.js';
 import type { PageRow } from '../../repositories/pages.js';
 import { evaluateFormula, FormulaError, type FormulaValue } from './formula.js';
@@ -64,6 +65,8 @@ export function rowFormulaContext(
         return rollups.get(property.id) ?? null;
       case 'button':
         return null;
+      case 'verification':
+        return verificationState(value as Partial<VerificationValue>);
       case 'formula': {
         // A formula reading a broken one is broken too (a cycle marks them all).
         const result = evaluate(property);

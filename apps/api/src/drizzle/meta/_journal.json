@@ -407,6 +407,20 @@
       "when": 1793517887934,
       "tag": "0057_notes_sync_generation",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1794078533712,
+      "tag": "0058_page_verification",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794078549588,
+      "tag": "0059_page_verification_validate",
+      "breakpoints": true
     }
   ]
 }

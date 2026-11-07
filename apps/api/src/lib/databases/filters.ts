@@ -1,4 +1,8 @@
-import { acceptsFilterOperator } from '@oxy.so/nilo-contracts';
+import {
+  acceptsFilterOperator,
+  type VerificationValue,
+  verificationState,
+} from '@oxy.so/nilo-contracts';
 import { z } from 'zod';
 import type {
   DatabaseProperty,
@@ -208,6 +212,13 @@ export function evaluateFilter(
   const prop = propertyById.get(filter.propertyId);
   if (!prop) return true; // Unknown property — don't filter out the row.
   const value = readPropertyValue(row, prop);
+  if (prop.type === 'verification') {
+    // Compared as the state it reads (`expired` is derived from the expiry, never stored).
+    const state = verificationState(value as Partial<VerificationValue>);
+    if (filter.operator === 'is') return state === filter.value;
+    if (filter.operator === 'is_not') return state !== filter.value;
+    return true;
+  }
   return evaluateCondition(filter.operator, value, filter.value, valueType(prop, value));
 }
 

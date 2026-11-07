@@ -88,7 +88,7 @@ describe('databases_property_types', () => {
   it('accepts every value in DATABASE_PROPERTY_TYPES', async () => {
     // The positive control for the rejections below: if the CHECK rejected
     // everything, or the insert path were broken, this fails first.
-    expect(DATABASE_PROPERTY_TYPES.length).toBe(21);
+    expect(DATABASE_PROPERTY_TYPES.length).toBe(22);
     for (const type of DATABASE_PROPERTY_TYPES) {
       await expect(
         insertRawSchema(`{"properties":[{"id":"p","name":"P","type":"${type}"}]}`),

@@ -30,6 +30,10 @@ export const DATABASE_PROPERTY_TYPES = [
   'unique_id',
   // A button in each row that runs its actions (open a link, set a value, add a row).
   'button',
+  // Whether a page is a source of truth someone stands behind: verified (for a
+  // while, or until removed), expired, or never verified. Written only by the
+  // verify route, which stamps who and when.
+  'verification',
 ] as const;
 export type DatabasePropertyType = (typeof DATABASE_PROPERTY_TYPES)[number];
 
@@ -108,7 +112,36 @@ export const FILTER_OPERATORS_BY_TYPE: Readonly<Record<DatabasePropertyType, rea
   formula: EMPTINESS,
   // A button holds no value: nothing to filter on.
   button: [],
+  // Compared as the state it reads: verified, expired or unverified.
+  verification: ['is', 'is_not'],
 };
+
+/** What a verification property reads: `expired` is `verified` past its expiry, never stored. */
+export const VERIFICATION_STATES = ['verified', 'expired', 'unverified'] as const;
+export type VerificationState = (typeof VERIFICATION_STATES)[number];
+
+/** How long a verification lasts, in days; `null` is until someone removes it. */
+export const VERIFICATION_EXPIRY_DAYS = [7, 30, 90] as const;
+
+/** A verification as stored on a row: who stood behind the page, when, and until when. */
+export interface VerificationValue {
+  state: 'verified' | 'unverified';
+  verifiedBy: string | null;
+  verifiedAt: string | null;
+  expiresAt: string | null;
+}
+
+/** The state a stored verification reads as at `now`. */
+export function verificationState(
+  value: Partial<VerificationValue> | null | undefined,
+  now: Date = new Date(),
+): VerificationState {
+  if (value?.state !== 'verified') return 'unverified';
+  if (typeof value.expiresAt === 'string' && Date.parse(value.expiresAt) <= now.getTime()) {
+    return 'expired';
+  }
+  return 'verified';
+}
 
 /**
  * Whether a filter on a property of `type` may use `operator`. A formula or a
@@ -392,6 +425,7 @@ export const CALCULATIONS_BY_TYPE: Readonly<
   formula: [...EMPTINESS_COUNTS, ...NUMERIC],
   rollup: [...EMPTINESS_COUNTS, ...NUMERIC],
   button: ['count_all'],
+  verification: ['count_all'],
 };
 
 export function acceptsCalculation(type: DatabasePropertyType, fn: string): boolean {

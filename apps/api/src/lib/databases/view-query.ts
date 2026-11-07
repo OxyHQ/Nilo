@@ -290,6 +290,30 @@ function dateAccessor(ms: SQL, empty: SQL, includeTime: SQL): Accessor {
   };
 }
 
+/**
+ * A verification reads as `verified`, `expired` (verified past its expiry) or
+ * `unverified` (also a row that never had one): never empty, compared as that
+ * state, sorted verified, expired, unverified.
+ */
+function verificationAccessor(stored: SQL): Accessor {
+  const verified = sql`coalesce(${asText(sql`${stored} -> 'state'`)} = 'verified', false)`;
+  const expiry = sql`${stored} -> 'expiresAt'`;
+  const expired = sql`(${verified} and jsonb_typeof(${expiry}) = 'string' and ${dateMs(expiry)} <= extract(epoch from now()) * 1000)`;
+  const state = sql`(case when not ${verified} then 'unverified' when ${expired} then 'expired' else 'verified' end)`;
+  return {
+    empty: sql`false`,
+    test(operator, value) {
+      if (operator === 'is') return sql`${state} = ${String(value)}::text`;
+      if (operator === 'is_not') return sql`${state} <> ${String(value)}::text`;
+      return null;
+    },
+    key: {
+      expr: sql`(case ${state} when 'verified' then 0 when 'expired' then 1 else 2 end)::float8`,
+      kind: 'number',
+    },
+  };
+}
+
 export function accessorFor(property: DatabaseProperty): Accessor {
   if (property.id === 'name' && property.type === 'text') return textAccessor(null);
   const stored = sql`(${pages.properties} -> ${property.id}::text)`;
@@ -355,6 +379,8 @@ export function accessorFor(property: DatabaseProperty): Accessor {
         },
       };
     }
+    case 'verification':
+      return verificationAccessor(stored);
     // A button holds no value: always empty, never matched, sorted as nothing.
     case 'button':
       return {

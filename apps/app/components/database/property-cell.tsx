@@ -3,6 +3,7 @@ import { ComputedCell } from './computed-cell';
 import { ContactCell, ContactLink } from './contact-cell';
 import { DateCell } from './date-cell';
 import { ButtonCell } from './button-cell';
+import { VerificationCell, VerificationChip } from './verification-cell';
 import { FilesCell, FilesChips } from './files-cell';
 import { PersonCell, PersonChips } from './person-cell';
 import * as React from 'react';
@@ -71,6 +72,13 @@ export function PropertyCell({
     return <ComputedCell property={property} value={value} />;
   if (property.type === 'button')
     return <ButtonCell property={property} rowId={rowId} readOnly={readOnly} />;
+  // A card shows the state; the cell elsewhere opens the verify choices.
+  if (property.type === 'verification')
+    return variant === 'card' ? (
+      <VerificationChip value={value} />
+    ) : (
+      <VerificationCell property={property} value={value} rowId={rowId} readOnly={readOnly} />
+    );
   // A card previews its row and opens it when pressed: only its pickers edit in place.
   if (readOnly || (variant === 'card' && SHOWN_ON_CARDS.has(property.type)))
     return <PropertyValueText property={property} value={value} rowId={rowId} />;
@@ -254,6 +262,8 @@ function PropertyValueText({
           targetDatabaseId={property.config?.targetDatabaseId}
         />
       );
+    case 'verification':
+      return <VerificationChip value={value} />;
     default:
       return <DerivedCell value={value} variant="card" />;
   }

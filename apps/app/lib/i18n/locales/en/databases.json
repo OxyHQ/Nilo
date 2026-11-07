@@ -58,7 +58,8 @@
     "lastEditedBy": "Last edited by",
     "formula": "Formula",
     "uniqueId": "ID",
-    "button": "Button"
+    "button": "Button",
+    "verification": "Verification"
   },
   "properties": {
     "property": "Property",
@@ -687,5 +688,20 @@
     "invalidUrl": "Use a link that starts with http://, https:// or mailto:.",
     "failed": "The button could not finish.",
     "running": "Running…"
+  },
+  "verification": {
+    "configure": "Edit verification",
+    "defaultExpiry": "Default duration",
+    "states": {
+      "verified": "Verified",
+      "expired": "Expired",
+      "unverified": "Unverified"
+    },
+    "verifyFor": "Verify for %{count} days",
+    "verifyForever": "Verify until removed",
+    "remove": "Remove verification",
+    "expires": "Expires %{date}",
+    "noExpiry": "Verified until removed",
+    "failed": "Couldn't update the verification"
   }
 }

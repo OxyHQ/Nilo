@@ -23,6 +23,7 @@ import searchRouter from './routes/search.js';
 import teamspacesRouter from './routes/teamspaces.js';
 import publishRouter from './routes/publish.js';
 import pageHistoryRouter from './routes/page-history.js';
+import pageVerificationRouter from './routes/page-verification.js';
 import pageActivityRouter from './routes/page-activity.js';
 import navigationRouter from './routes/navigation.js';
 import remindersRouter from './routes/reminders.js';
@@ -41,6 +42,7 @@ import syncedBlocksRouter from './routes/synced-blocks.js';
 import formsRouter from './routes/forms.js';
 import pageFollowsRouter from './routes/page-follows.js';
 import { startReminderSweep, stopReminderSweep } from './lib/reminders.js';
+import { startVerificationSweep, stopVerificationSweep } from './lib/verifications.js';
 import { feedKeyMalformed } from './lib/calendar/feed-secret.js';
 import {
   startCalendarSubscriptionSweep,
@@ -176,6 +178,7 @@ app.use(shareLinksRouter);
 app.use(inviteLinksRouter);
 app.use(publishRouter);
 app.use(pageHistoryRouter);
+app.use(pageVerificationRouter);
 app.use(pageActivityRouter);
 app.use(navigationRouter);
 app.use(remindersRouter);
@@ -287,6 +290,7 @@ getDb()
     server.listen(PORT, '0.0.0.0', () => {
       log.general.info({ port: PORT }, 'API server listening');
       startReminderSweep();
+      startVerificationSweep();
       startProjectionSweep();
       startEventOutboxWorker();
       startFileReferenceWork();
@@ -339,6 +343,7 @@ getDb()
       process.exitCode = 1;
 
       stopReminderSweep();
+      stopVerificationSweep();
       stopProjectionSweep();
       stopEventOutboxWorker();
       stopFileReferenceWork();

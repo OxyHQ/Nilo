@@ -270,6 +270,8 @@ export const NOTIFICATION_TYPES = [
   'page_edited',
   /** Someone added the user to a person property of a database row. */
   'assigned',
+  /** A page the user verified has expired (or is about to): it needs verifying again. */
+  'verification_expired',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -508,6 +510,35 @@ export const reminders = pgTable(
     index('reminders_user_remind_idx').on(t.userId, t.remindAt),
     index('reminders_page_idx').on(t.pageId),
     index('reminders_block_idx').on(t.blockId),
+  ],
+);
+
+/* ────────────────────────── page verifications ────────────────────────── */
+
+/**
+ * The expiry of a verified page's verification, kept beside the row's own
+ * `properties` value (which is what readers and filters use) so the expiry
+ * sweep (`lib/verifications.ts`) finds what is due by index instead of
+ * scanning every row's JSON. Written only with the verification itself, by the
+ * verify route; `notifiedAt` is stamped when the person who verified is told.
+ */
+export const pageVerifications = pgTable(
+  'page_verifications',
+  {
+    pageId: text()
+      .notNull()
+      .references(() => pages.id, { onDelete: 'cascade' }),
+    /** The verification property's id in the page's database. */
+    propertyId: text().notNull(),
+    /** Oxy user id of whoever verified the page: told when it expires. */
+    verifiedBy: text().notNull(),
+    expiresAt: timestamptz().notNull(),
+    notifiedAt: timestamptz(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.pageId, t.propertyId] }),
+    // The sweep: verifications by expiry, while nobody was told.
+    index('page_verifications_due_idx').on(t.expiresAt).where(sql`${t.notifiedAt} is null`),
   ],
 );
 

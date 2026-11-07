@@ -3,6 +3,7 @@
  * the CSVs of a Notion export) and writing a database's rows out (export).
  */
 import { randomUUID } from 'node:crypto';
+import { type VerificationValue, verificationState } from '@oxy.so/nilo-contracts';
 import {
   type DatabaseProperty,
   type DatabasePropertyType,
@@ -277,6 +278,8 @@ export function databaseToTable(
         return row.createdAt.toISOString();
       case 'last_edited_time':
         return row.updatedAt.toISOString();
+      case 'verification':
+        return verificationState(value as Partial<VerificationValue>);
       default:
         return '';
     }

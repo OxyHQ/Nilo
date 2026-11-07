@@ -13,6 +13,7 @@ export const API_ROUTES = {
     version: (id: string, versionId: string) => `/pages/${id}/versions/${versionId}`,
     restoreVersion: (id: string, versionId: string) => `/pages/${id}/versions/${versionId}/restore`,
     reminders: (id: string) => `/pages/${id}/reminders`,
+    verification: (id: string) => `/pages/${id}/verification`,
     shared: '/pages/shared',
     recent: '/pages/recent',
     visit: (id: string) => `/pages/${id}/visit`,

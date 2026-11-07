@@ -109,6 +109,8 @@ export interface PropertyConfig {
   prefix?: string;
   /** A button's actions, run in order when it is pressed. */
   actions?: ButtonAction[];
+  /** A verification's default lifetime in days (absent: until someone removes it). */
+  defaultExpiryDays?: number;
 }
 
 export interface DatabaseProperty {

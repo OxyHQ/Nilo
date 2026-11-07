@@ -141,6 +141,8 @@ export interface PropertyConfig {
   prefix?: string;
   // button: what it does when pressed, in order
   actions?: ButtonAction[];
+  // verification: how long a new verification lasts in days (absent: until removed)
+  defaultExpiryDays?: number;
 }
 
 export interface DatabaseProperty {
