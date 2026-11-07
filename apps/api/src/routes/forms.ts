@@ -16,6 +16,7 @@ import {
   databaseForms,
   databaseViews,
 } from '../db/schema/databases.js';
+import { runAutomations } from '../lib/databases/automations.js';
 import { normalizeIncomingProperties } from '../lib/databases/create.js';
 import { invalidReference } from '../lib/databases/property-references.js';
 import { NAME_PROPERTY_ID } from '../lib/databases/schema-defaults.js';
@@ -255,7 +256,7 @@ router.post(
         res.status(400).json({ error: 'The first field is required', field: NAME_PROPERTY_ID });
         return;
       }
-      await createRow(loaded.db, loaded.database, {
+      const row = await createRow(loaded.db, loaded.database, {
         workspaceId: loaded.database.workspaceId,
         parentId: null,
         title,
@@ -263,6 +264,14 @@ router.post(
         ownerId: req.user?.id ?? `form:${loaded.form.id}`,
         order: await nextDatabaseRowOrder(loaded.db, loaded.database.id),
         properties: stored,
+      });
+      // A submission adds a page: the database's automations see it as any other.
+      void runAutomations({
+        database: loaded.database,
+        row,
+        before: {},
+        created: true,
+        depth: 0,
       });
       announceChange({ databaseId: loaded.database.id });
       res.status(201).json({ ok: true });

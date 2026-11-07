@@ -17,6 +17,7 @@ jest.mock('expo-router', () => ({
   usePathname: () => '/db/db',
 }));
 jest.mock('../database-chrome', () => ({ DatabaseChromePickers: () => null }));
+jest.mock('../automations-dialog', () => ({ AutomationsDialog: () => null }));
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
   default: { post: jest.fn(), delete: jest.fn() },

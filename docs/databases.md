@@ -51,6 +51,55 @@ option ids. A computed property becoming a stored one keeps what it showed.
 The views' filters on the property go (their operators and values were the old
 type's); the Name is always text.
 
+## Verification
+
+A `verification` property says who stands behind a page and until when. It
+reads as **verified**, **expired** (verified past `expiresAt`, derived when it
+is read, never stored) or **unverified** (also a row that never had one), and
+is filtered (`is` / `is_not`), sorted (verified, expired, unverified) and
+exported to CSV as that state. Its value is `{ state, verifiedBy, verifiedAt,
+expiresAt }`, written **only** by `POST /pages/:id/verification` (`verify`
+for 7, 30 or 90 days or until removed, or `unverify`; editor role), which
+stamps the caller and now: a direct write of the property is refused as
+computed. `config.defaultExpiryDays` is the lifetime when the request names
+none. `page_verifications` keeps each expiring verification's expiry beside the
+row, so the sweep (`lib/verifications.ts`, hourly, `FOR UPDATE SKIP LOCKED`)
+finds what is due by index and sends `verification_expired` to whoever
+verified the page, when they can still open it. The built-in **Wiki** template
+is a database with an owner, a verification (90 days by default) and tags.
+
+## Automations
+
+A database's automations (`database_automations`, `lib/databases/automations.ts`)
+run when its rows change: **a page is added** (`row_added`: a new row, a form
+submission, a calendar event; never a template) or **a property is edited**
+(`property_edited`, optionally only when it becomes an exact stored value). A
+computed property, a button or a verification is never edited by anyone, so none
+can start one. Actions run in order, up to five: **set a property** of the row,
+**notify** the people a person property names (only those who can open the row;
+notification type `automation`), **send a webhook** (public https only, through
+the SDK's `safeFetch`, no redirects), or **add a page** to this or another
+database of the workspace.
+
+`rowWritten` hands every committed row write to the executor; it runs after the
+commit, never fails the write, and records the outcome on the automation
+(`lastRunAt`, `lastStatus`, `lastError`). An automation acts as its creator:
+saving a change to its trigger or actions, or switching it on, makes the saver
+its creator, and one whose creator can no longer edit the database is switched
+off with that as its error. What an action writes is itself a row write, so
+automations can start each other up to `MAX_AUTOMATION_DEPTH` (3), and no
+further. Creating, changing and deleting them takes full access (`admin`),
+because they send data out and act for the database.
+
+A webhook is a POST of `{ event: 'automation.triggered', automationId,
+databaseId, trigger, row: { id, title, properties }, at }` with
+`x-nilo-delivery` (a fresh id) and `x-nilo-signature: t=<unix seconds>,v1=<hex
+HMAC-SHA256 of "t.body">` made with the automation's `secret`, which the create
+answer returns once. There is no retry: a failed delivery is the automation's
+`lastError`. Recurring triggers are not built yet: they need a scheduler that is
+safe across API instances (claim due rows `FOR UPDATE SKIP LOCKED`, as the
+reminder sweep does).
+
 ## Relations
 
 A relation points at rows of a target database (`{ pageIds }`). With

@@ -13,6 +13,7 @@ export const API_ROUTES = {
     version: (id: string, versionId: string) => `/pages/${id}/versions/${versionId}`,
     restoreVersion: (id: string, versionId: string) => `/pages/${id}/versions/${versionId}/restore`,
     reminders: (id: string) => `/pages/${id}/reminders`,
+    verification: (id: string) => `/pages/${id}/verification`,
     shared: '/pages/shared',
     recent: '/pages/recent',
     visit: (id: string) => `/pages/${id}/visit`,
@@ -100,5 +101,8 @@ export const API_ROUTES = {
     viewCalculations: (id: string, viewId: string) =>
       `/databases/${id}/views/${viewId}/calculations`,
     viewChart: (id: string, viewId: string) => `/databases/${id}/views/${viewId}/chart`,
+    automations: (id: string) => `/databases/${id}/automations`,
+    automation: (id: string, automationId: string) =>
+      `/databases/${id}/automations/${automationId}`,
   },
 } as const;

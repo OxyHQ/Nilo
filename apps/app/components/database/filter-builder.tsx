@@ -1,4 +1,4 @@
-import { FILTER_OPERATORS_BY_TYPE } from '@oxy.so/nilo-contracts';
+import { FILTER_OPERATORS_BY_TYPE, VERIFICATION_STATES } from '@oxy.so/nilo-contracts';
 import { resultPropertyFromRows } from '@/lib/formula-results';
 import * as React from 'react';
 import { View } from 'react-native';
@@ -509,6 +509,17 @@ function ConditionValueInput({
       return (
         <ChoiceChips
           choices={(property.config?.options ?? []).map((o) => ({ value: o.id, label: o.name }))}
+          value={value}
+          onChange={onChange}
+        />
+      );
+    case 'verification':
+      return (
+        <ChoiceChips
+          choices={VERIFICATION_STATES.map((state) => ({
+            value: state,
+            label: t(`databases.verification.states.${state}`),
+          }))}
           value={value}
           onChange={onChange}
         />

@@ -11,7 +11,9 @@ export interface Notification {
     | 'comment_reply'
     | 'page_shared'
     | 'reminder'
-    | 'assigned';
+    | 'assigned'
+    | 'verification_expired'
+    | 'automation';
   title: string;
   body: string;
   status: 'pending' | 'sent' | 'read' | 'dismissed';

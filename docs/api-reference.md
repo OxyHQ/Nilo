@@ -65,7 +65,9 @@ model, credential, conversation or chat-completion route.
   history (effective editor role required for list, detail and restore:
   `GET /pages/:id/versions[/:versionId]`,
   `POST …/versions/:versionId/restore`), reminders
-  (`GET/POST /pages/:id/reminders`, `GET /reminders`, `DELETE /reminders/:id`).
+  (`GET/POST /pages/:id/reminders`, `GET /reminders`, `DELETE /reminders/:id`),
+  verification (`POST /pages/:id/verification`, editor role: `{ action:
+  'verify' | 'unverify', propertyId, expiresInDays? }`; see `databases.md`).
 - Activity: `GET /pages/:id/activity?limit=20&cursor=…` (effective editor role
   required). Persisted changes are separate from snapshots; see
   [Page activity](page-activity.md) for capture scope, pagination and schema privacy.
@@ -113,7 +115,9 @@ list takes `viewId`, `search`, `pageSize` and the previous page's opaque
 `cursor`, and returns `rows`, `total`, `cursor` and `view`), views
 (`GET/POST /databases/:id/views[?blockId]`, `PATCH/DELETE …/views/:viewId`),
 `GET /databases/:id/templates`, `GET /databases/:id/export?format=csv`,
-`POST /databases/import/csv`, forms (`GET/PUT/DELETE
+`POST /databases/import/csv`, automations (`GET/POST /databases/:id/automations`,
+`PATCH/DELETE …/automations/:automationId`; full access to write, and the
+create answer carries the webhook `secret` once), forms (`GET/PUT/DELETE
 /databases/:id/views/:viewId/form`, public `GET/POST /forms/:token`).
 
 ## Notes (Noted)

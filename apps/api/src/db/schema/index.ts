@@ -27,3 +27,4 @@ export * from './capabilities.js';
 export * from './files.js';
 export * from './page-activity.js';
 export * from './calendar-subscriptions.js';
+export * from './automations.js';

@@ -49,6 +49,8 @@ const COMPUTED_TYPES: ReadonlySet<DatabasePropertyType> = new Set([
   'unique_id',
   // Holds no value at all: it runs its actions.
   'button',
+  // Written only by the verify route, which stamps who verified and when.
+  'verification',
 ]);
 
 /** Whether the server computes a type's values (or a button: none) rather than storing what clients write. */

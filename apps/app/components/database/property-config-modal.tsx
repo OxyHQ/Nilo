@@ -61,6 +61,8 @@ import { NAME_PROPERTY_ID, SELECT_COLORS, STATUS_GROUP_IDS } from '@/lib/types/d
 import { statusGroups } from '@/lib/status-groups';
 import { DateSettings, NumberSettings, RollupSettings } from './property-settings';
 import { ButtonSettings } from './button-settings';
+import { VerificationSettings } from './verification-settings';
+import { RiShieldCheckLine } from '@oxy.so/bloom/icons/RiShieldCheckLine';
 import { SettingSelect } from './view-settings';
 import { SELECT_CHIP_HUE } from './select-color';
 import {
@@ -127,6 +129,8 @@ function propertyTypeLabel(type: DatabasePropertyType): string {
       return i18n.t('databases.propertyTypes.formula');
     case 'button':
       return i18n.t('databases.propertyTypes.button');
+    case 'verification':
+      return i18n.t('databases.propertyTypes.verification');
   }
 }
 
@@ -152,6 +156,7 @@ const PROPERTY_TYPE_ICONS: Record<DatabasePropertyType, BloomIconComponent> = {
   last_edited_by: RiAccountCircleLine,
   formula: RiFunctions,
   button: RiCursorLine,
+  verification: RiShieldCheckLine,
 };
 
 /** The settings each type has besides its name, by the menu item that opens them. */
@@ -166,6 +171,7 @@ const CONFIG_LABELS: Partial<Record<DatabasePropertyType, string>> = {
   date: 'databases.dateFormat.title',
   rollup: 'databases.rollup.configure',
   button: 'databases.button.configure',
+  verification: 'databases.verification.configure',
 };
 
 /**
@@ -411,6 +417,8 @@ export function PropertyHeaderMenu({
           <RollupSettings database={database} property={property} onDone={close} />
         ) : property.type === 'button' ? (
           <ButtonSettings database={database} property={property} onDone={close} />
+        ) : property.type === 'verification' ? (
+          <VerificationSettings databaseId={database.id} property={property} onDone={close} />
         ) : (
           <SelectOptionsEditor property={property} database={database} onDone={close} />
         )
@@ -780,6 +788,7 @@ const ADDABLE_TYPES: DatabasePropertyType[] = [
   'created_by',
   'last_edited_by',
   'button',
+  'verification',
 ];
 
 export function AddPropertyButton({ database, onAdded }: AddPropertyButtonProps) {

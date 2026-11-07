@@ -159,6 +159,8 @@ export function parsePropertyValue(
     case 'unique_id':
     // A button holds no value: it runs its actions.
     case 'button':
+    // Written only by the verify route, which stamps who verified and when.
+    case 'verification':
       return null;
   }
 }

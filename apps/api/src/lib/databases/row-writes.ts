@@ -18,6 +18,7 @@ import {
   type UpdatePageInput,
   updatePage,
 } from '../../repositories/pages.js';
+import { runAutomations } from './automations.js';
 import { notifyAssigned } from './assignments.js';
 import { parsePropertyValue, serializeParsedValue } from './property-values.js';
 import { syncRelations } from './relations.js';
@@ -138,6 +139,10 @@ export function rowWritten(input: {
   propertiesChanged: boolean;
   /** The workspace room too: the page tree changed (a title, the trash). */
   workspace?: boolean;
+  /** The row was just added: what `row_added` automations wait for. */
+  created?: boolean;
+  /** How many automations deep this write is; absent for a person's. */
+  automationDepth?: number;
 }): void {
   if (input.propertiesChanged) {
     void notifyAssigned({
@@ -146,6 +151,15 @@ export function rowWritten(input: {
       before: input.before,
       after: input.row.properties,
       actorId: input.actorId,
+    });
+  }
+  if (input.propertiesChanged || input.created) {
+    void runAutomations({
+      database: input.database,
+      row: input.row,
+      before: input.before,
+      created: input.created === true,
+      depth: input.automationDepth ?? 0,
     });
   }
   announceChange({

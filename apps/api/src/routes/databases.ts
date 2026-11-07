@@ -17,6 +17,7 @@ import {
   MAX_COLUMN_WIDTH,
   MIN_COLUMN_WIDTH,
   OPEN_ROW_MODES,
+  VERIFICATION_EXPIRY_DAYS,
   viewIsEditable,
 } from '@oxy.so/nilo-contracts';
 import { z } from 'zod';
@@ -273,6 +274,14 @@ const propertyConfigSchema = z
       .optional(),
     /** A button's actions, run in order when it is pressed. */
     actions: z.array(buttonActionSchema).min(1).max(MAX_BUTTON_ACTIONS).optional(),
+    /** A verification's default lifetime in days (absent: until someone removes it). */
+    defaultExpiryDays: z
+      .union([
+        z.literal(VERIFICATION_EXPIRY_DAYS[0]),
+        z.literal(VERIFICATION_EXPIRY_DAYS[1]),
+        z.literal(VERIFICATION_EXPIRY_DAYS[2]),
+      ])
+      .optional(),
   })
   .strict();
 
@@ -1710,7 +1719,14 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
       req.user?.id ?? null,
     );
 
-    rowWritten({ database: db, row, before: {}, actorId: userId, propertiesChanged: true });
+    rowWritten({
+      database: db,
+      row,
+      before: {},
+      actorId: userId,
+      propertiesChanged: true,
+      created: true,
+    });
     res.status(201).json({ row: serializeRow(row, { derived }) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;

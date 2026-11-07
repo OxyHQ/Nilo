@@ -87,6 +87,26 @@ export {
   type NiloWorkspace,
   niloWorkspaceSchema,
 } from './calendar';
+export {
+  AUTOMATION_ACTION_KINDS,
+  AUTOMATION_TRIGGER_KINDS,
+  type Automation,
+  type AutomationAction,
+  type AutomationActionKind,
+  type AutomationInput,
+  type AutomationPatch,
+  type AutomationRecipients,
+  type AutomationTrigger,
+  type AutomationTriggerKind,
+  automationActionSchema,
+  automationInputSchema,
+  automationPatchSchema,
+  automationTriggerSchema,
+  MAX_AUTOMATION_ACTIONS,
+  MAX_AUTOMATION_DEPTH,
+  MAX_AUTOMATIONS_PER_DATABASE,
+  triggerFires,
+} from './automations';
 export { MAX_DOC_UPDATE_BYTES } from './collab';
 export {
   acceptsCalculation,
@@ -123,6 +143,11 @@ export {
   numberGroupRange,
   type NumberRanges,
   numberRanges,
+  VERIFICATION_EXPIRY_DAYS,
+  VERIFICATION_STATES,
+  type VerificationState,
+  type VerificationValue,
+  verificationState,
   SECTIONED_VIEWS,
   VIEW_GROUP_CONFIG_KEYS,
   withoutGroupKeys,

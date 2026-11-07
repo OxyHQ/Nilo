@@ -17,6 +17,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { databaseChangeError } from '@/lib/database-errors';
 import { useExportDatabase } from '@/lib/hooks/use-page-transfer';
 import { saveExport } from '@/lib/save-export';
+import { AutomationsDialog } from './automations-dialog';
 import { DatabaseChromePickers } from './database-chrome';
 
 /**
@@ -43,6 +44,7 @@ export function DatabaseActionsMenu({
   const deleteDatabase = useDeleteDatabase();
   const iconPicker = useDialogControl();
   const coverPicker = useDialogControl();
+  const automations = useDialogControl();
   const database = data?.database;
   const subItems = database ? subItemProperties(database) : null;
   const locked = database?.locked ?? false;
@@ -142,6 +144,13 @@ export function DatabaseActionsMenu({
               <DropdownMenuItem disabled={updateDatabase.isPending} onPress={toggleLock}>
                 {t(locked ? 'databases.lock.unlock' : 'databases.lock.lock')}
               </DropdownMenuItem>
+              <DropdownMenuItem
+                // Whoever sets one up sends data and acts for the database: full access.
+                disabled={!data || !['admin', 'owner'].includes(data.role)}
+                onPress={() => automations.open()}
+              >
+                {t('databases.automations.title')}
+              </DropdownMenuItem>
               <DropdownMenuItem onPress={() => iconPicker.open()}>
                 {t('databases.chrome.changeIcon')}
               </DropdownMenuItem>
@@ -180,6 +189,7 @@ export function DatabaseActionsMenu({
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+      {editable ? <AutomationsDialog databaseId={databaseId} control={automations} /> : null}
       {editable ? (
         <DatabaseChromePickers
           databaseId={databaseId}

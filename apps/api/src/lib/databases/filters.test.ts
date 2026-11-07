@@ -12,6 +12,7 @@ const PROPERTIES: DatabaseProperty[] = [
   { id: 'done', name: 'Done', type: 'checkbox' },
   { id: 'id', name: 'ID', type: 'unique_id' },
   { id: 'total', name: 'Total', type: 'formula' },
+  { id: 'checked', name: 'Verification', type: 'verification' },
 ];
 const byId = new Map(PROPERTIES.map((p) => [p.id, p]));
 const condition = (propertyId: string, operator: string, value?: unknown): Filter => ({
@@ -82,5 +83,27 @@ describe('invalidCondition', () => {
 
   it('refuses a property the database does not have', () => {
     expect(invalidCondition(group(condition('ghost', 'is_empty')), byId)).not.toBeNull();
+  });
+});
+
+describe('evaluateFilter on a verification', () => {
+  const past = new Date(Date.now() - 86_400_000).toISOString();
+  const future = new Date(Date.now() + 86_400_000).toISOString();
+  const verified = (expiresAt: string | null) => ({
+    checked: { state: 'verified', verifiedBy: 'u', verifiedAt: past, expiresAt },
+  });
+
+  it('reads verified, expired and unverified from the expiry, never stored', () => {
+    expect(passes(condition('checked', 'is', 'verified'), verified(null))).toBe(true);
+    expect(passes(condition('checked', 'is', 'verified'), verified(future))).toBe(true);
+    expect(passes(condition('checked', 'is', 'expired'), verified(past))).toBe(true);
+    expect(passes(condition('checked', 'is', 'verified'), verified(past))).toBe(false);
+  });
+
+  it('counts a row that was never verified, or whose verification was removed, as unverified', () => {
+    const unverified = condition('checked', 'is', 'unverified');
+    expect(passes(unverified, {})).toBe(true);
+    expect(passes(unverified, { checked: { state: 'unverified', expiresAt: null } })).toBe(true);
+    expect(passes(condition('checked', 'is_not', 'unverified'), {})).toBe(false);
   });
 });
