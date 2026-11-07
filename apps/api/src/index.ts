@@ -30,7 +30,10 @@ import notesRouter from './routes/notes.js';
 import calendarRouter from './routes/calendar.js';
 import capabilitiesRouter from './routes/capabilities.js';
 import { createNotesMcpService } from './capabilities/notes-mcp.js';
-import { mountNotesMcp } from './capabilities/notes-mcp-mount.js';
+import { mountCatalogMcp } from './capabilities/catalog-mcp-mount.js';
+import { createNiloMcpService } from './capabilities/nilo-mcp.js';
+import { NILO_CAPABILITY_CATALOG } from './capabilities/nilo.catalog.js';
+import { NOTES_CAPABILITY_CATALOG } from './capabilities/notes.catalog.js';
 import { startEventOutboxWorker, stopEventOutboxWorker } from './capabilities/event-outbox.js';
 import importRouter from './routes/import.js';
 import backlinksRouter from './routes/backlinks.js';
@@ -116,7 +119,8 @@ initSocket(server);
 // The notes MCP server owns its raw body, its exact host, its OAuth challenge
 // and its origins: mounted before CORS and the body parser, so neither can
 // weaken or consume a protocol request.
-mountNotesMcp(app, createNotesMcpService());
+mountCatalogMcp(app, createNotesMcpService(), NOTES_CAPABILITY_CATALOG.externalMcp?.resource ?? '');
+mountCatalogMcp(app, createNiloMcpService(), NILO_CAPABILITY_CATALOG.externalMcp?.resource ?? '');
 
 // Browsers: only the origins `lib/cors.ts` names (the socket admits the same).
 app.use(apiCors);

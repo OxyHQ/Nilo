@@ -2,7 +2,7 @@ import { request as httpRequest } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { mountNotesMcp, type NotesMcpLane } from '../notes-mcp-mount.js';
+import { mountCatalogMcp, type CatalogMcpLane } from '../catalog-mcp-mount.js';
 
 const MCP_HOST = 'mcp.noted.oxy.so';
 let server: import('node:http').Server;
@@ -12,7 +12,7 @@ beforeAll(async () => {
   const app = express();
   // Routing only: the lane answers an unauthenticated call with the challenge, as the
   // real transport does (@oxy.so/mcp covers the challenge itself).
-  const lane: NotesMcpLane = {
+  const lane: CatalogMcpLane = {
     protectedResourceMetadataPath: '/.well-known/oauth-protected-resource/mcp',
     mcpPath: '/mcp',
     handleProtectedResourceMetadata: (_req, res) => {
@@ -25,7 +25,7 @@ beforeAll(async () => {
       res.end('{}');
     },
   };
-  mountNotesMcp(app, lane);
+  mountCatalogMcp(app, lane, `https://${MCP_HOST}`);
   // The API's own root answers the public welcome JSON; the MCP host must not reach it.
   app.get('/', (_req, res) => {
     res.json({ message: 'Nilo API' });
@@ -61,7 +61,7 @@ function get(
   });
 }
 
-describe('mountNotesMcp', () => {
+describe('mountCatalogMcp', () => {
   it('answers the bare MCP host root with the OAuth challenge, not the welcome JSON', async () => {
     const res = await get('/', MCP_HOST);
     expect(res.status).toBe(401);
