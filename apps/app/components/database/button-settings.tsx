@@ -205,14 +205,14 @@ export function ButtonSettings({ database, property, onDone }: ButtonSettingsPro
 }
 
 /** An "edit a property" action: which property, and the value it gets, in that property's editor. */
-function SetPropertyAction({
+export function SetPropertyAction({
   action,
   settable,
   onChange,
 }: {
   action: Extract<ButtonAction, { kind: 'set_property' }>;
   settable: DatabaseProperty[];
-  onChange: (next: ButtonAction) => void;
+  onChange: (next: Extract<ButtonAction, { kind: 'set_property' }>) => void;
 }) {
   const { t } = useTranslation();
   const target = settable.find((p) => p.id === action.propertyId);

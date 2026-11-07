@@ -703,5 +703,39 @@
     "expires": "Expires %{date}",
     "noExpiry": "Verified until removed",
     "failed": "Couldn't update the verification"
+  },
+  "automations": {
+    "title": "Automations",
+    "description": "Do something when pages are added or edited.",
+    "empty": "No automations yet.",
+    "add": "New automation",
+    "edit": "Edit %{name}",
+    "delete": "Delete %{name}",
+    "enabled": "%{name} on or off",
+    "name": "Name",
+    "trigger": "When",
+    "triggers": {
+      "row_added": "A page is added",
+      "property_edited": "A property is edited"
+    },
+    "property": "Property",
+    "onlyWhen": "Only when it becomes a value",
+    "doThis": "Do this",
+    "action": "Action",
+    "addAction": "Add action",
+    "actions": {
+      "set_property": "Edit a property",
+      "notify": "Notify people",
+      "webhook": "Send a webhook",
+      "create_row": "Add a page"
+    },
+    "editedSummary": "%{property} is edited",
+    "notifyWho": "Notify the people in",
+    "message": "Message (optional)",
+    "webhookUrl": "Webhook address",
+    "invalidUrl": "A webhook needs a public https address.",
+    "secretHint": "“%{name}” signs its webhooks with this secret (x-nilo-signature). It is shown only now:",
+    "lastFailed": "Last run failed: %{error}",
+    "failed": "Couldn't save the automation"
   }
 }

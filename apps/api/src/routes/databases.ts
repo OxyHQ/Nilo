@@ -1719,7 +1719,14 @@ router.post('/:id/rows', async (req: Request, res: Response) => {
       req.user?.id ?? null,
     );
 
-    rowWritten({ database: db, row, before: {}, actorId: userId, propertiesChanged: true });
+    rowWritten({
+      database: db,
+      row,
+      before: {},
+      actorId: userId,
+      propertiesChanged: true,
+      created: true,
+    });
     res.status(201).json({ row: serializeRow(row, { derived }) });
   } catch (error: unknown) {
     if (handleZodError(error, res)) return;

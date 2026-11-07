@@ -101,5 +101,8 @@ export const API_ROUTES = {
     viewCalculations: (id: string, viewId: string) =>
       `/databases/${id}/views/${viewId}/calculations`,
     viewChart: (id: string, viewId: string) => `/databases/${id}/views/${viewId}/chart`,
+    automations: (id: string) => `/databases/${id}/automations`,
+    automation: (id: string, automationId: string) =>
+      `/databases/${id}/automations/${automationId}`,
   },
 } as const;

@@ -272,6 +272,8 @@ export const NOTIFICATION_TYPES = [
   'assigned',
   /** A page the user verified has expired (or is about to): it needs verifying again. */
   'verification_expired',
+  /** A database automation told the user about a row (its `notify` action). */
+  'automation',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

@@ -42,6 +42,8 @@ const TYPE_ICONS: Record<Notification['type'], typeof RiMessage2Line> = {
   comment_reply: RiMessage2Line,
   page_comment: RiMessage2Line,
   assigned: RiUserAddLine,
+  verification_expired: RiNotification3Line,
+  automation: RiNotification3Line,
 };
 
 const PRIORITY_COLORS: Record<Notification['priority'], string> = {

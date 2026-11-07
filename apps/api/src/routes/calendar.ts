@@ -487,6 +487,7 @@ router.post('/events', async (req: Request, res: Response) => {
       before: {},
       actorId: userId,
       propertiesChanged: true,
+      created: true,
     });
     res.status(201).json(eventOf(source, row));
   } catch (error: unknown) {

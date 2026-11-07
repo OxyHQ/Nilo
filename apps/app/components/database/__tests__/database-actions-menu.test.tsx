@@ -24,6 +24,7 @@ jest.mock('expo-router', () => ({
   usePathname: () => '/db/db',
 }));
 jest.mock('../database-chrome', () => ({ DatabaseChromePickers: () => null }));
+jest.mock('../automations-dialog', () => ({ AutomationsDialog: () => null }));
 jest.mock('@/lib/hooks/use-page-transfer', () => ({ useExportDatabase: () => ({}) }));
 jest.mock('@/lib/save-export', () => ({ saveExport: jest.fn() }));
 jest.mock('@oxy.so/bloom/toast', () => ({ toast: { error: jest.fn(), success: jest.fn() } }));
