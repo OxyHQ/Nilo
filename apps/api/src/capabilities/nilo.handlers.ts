@@ -117,6 +117,13 @@ const translated = (error: unknown): never => {
 function stringList(input: Input, key: string): string[] | undefined {
   const value = input[key];
   if (value === undefined) return undefined;
+  // A GET query carries scalars only, so a list arrives as "a,b".
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
   if (!Array.isArray(value) || value.some((v) => typeof v !== 'string')) {
     invalid(`${key} must be a list of strings`);
   }
