@@ -1,5 +1,7 @@
+import { appCapabilityCatalogSchema } from '@oxy.so/contracts';
 import { describe, expect, it } from 'vitest';
 import { NILO_CAPABILITY_CATALOG } from '../nilo.catalog.js';
+import { NOTES_CAPABILITY_CATALOG } from '../notes.catalog.js';
 
 describe('Nilo capability catalog', () => {
   const tools = NILO_CAPABILITY_CATALOG.tools;
@@ -45,5 +47,15 @@ describe('Nilo capability catalog', () => {
     for (const tool of tools.filter((t) => /emember|Memor/.test(t.name))) {
       expect(tool.exposure).toEqual(['mcp']);
     }
+  });
+
+  // Oxy refuses a catalog its own schema rejects at registration, which runs after the
+  // rollout (`register-capability-catalog.ts`): a catalog that fails here fails the deploy.
+  it.each([
+    ['nilo', NILO_CAPABILITY_CATALOG],
+    ['noted', NOTES_CAPABILITY_CATALOG],
+  ])('is a catalog Oxy accepts: %s', (_name, catalog) => {
+    const parsed = appCapabilityCatalogSchema.safeParse(catalog);
+    expect(parsed.success ? [] : parsed.error.issues).toEqual([]);
   });
 });
