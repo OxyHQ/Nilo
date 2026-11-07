@@ -290,6 +290,63 @@ Qué no funciona hoy, y para quién.
   },
   {
     kind: 'database',
+    key: 'wiki',
+    icon: '📖',
+    words: {
+      en: {
+        title: 'Wiki',
+        description:
+          'Pages with an owner and tags, verified for a while so readers know to trust them.',
+        schema: {
+          properties: [
+            { id: 'name', name: 'Page', type: 'text' },
+            { id: 'owner', name: 'Owner', type: 'person' },
+            {
+              id: 'verification',
+              name: 'Verification',
+              type: 'verification',
+              config: { defaultExpiryDays: 90 },
+            },
+            {
+              id: 'tags',
+              name: 'Tags',
+              type: 'multi_select',
+              config: {
+                options: options(['Guide', 'blue'], ['Policy', 'purple'], ['How-to', 'green']),
+              },
+            },
+          ],
+        },
+      },
+      es: {
+        title: 'Wiki',
+        description:
+          'Páginas con responsable y etiquetas, verificadas por un tiempo para que se pueda confiar en ellas.',
+        schema: {
+          properties: [
+            { id: 'name', name: 'Página', type: 'text' },
+            { id: 'owner', name: 'Responsable', type: 'person' },
+            {
+              id: 'verification',
+              name: 'Verificación',
+              type: 'verification',
+              config: { defaultExpiryDays: 90 },
+            },
+            {
+              id: 'tags',
+              name: 'Etiquetas',
+              type: 'multi_select',
+              config: {
+                options: options(['Guía', 'blue'], ['Política', 'purple'], ['Cómo hacer', 'green']),
+              },
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
+    kind: 'database',
     key: 'reading-list',
     icon: '📚',
     words: {

@@ -2,6 +2,7 @@ import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
 import { cn } from '@/lib/utils';
 import { toast } from '@oxy.so/bloom/toast';
 import { PageInfo } from './page-info';
+import { PageVerificationBadge } from './page-verification-badge';
 import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import { RiGlobalLine } from '@oxy.so/bloom/icons/RiGlobalLine';
@@ -284,6 +285,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
             ) : null}
           </View>
         ) : null}
+        {page.databaseId ? <PageVerificationBadge page={page} /> : null}
         {contentReadOnly ? (
           <Text
             accessibilityRole="header"

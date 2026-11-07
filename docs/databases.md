@@ -51,6 +51,23 @@ option ids. A computed property becoming a stored one keeps what it showed.
 The views' filters on the property go (their operators and values were the old
 type's); the Name is always text.
 
+## Verification
+
+A `verification` property says who stands behind a page and until when. It
+reads as **verified**, **expired** (verified past `expiresAt`, derived when it
+is read, never stored) or **unverified** (also a row that never had one), and
+is filtered (`is` / `is_not`), sorted (verified, expired, unverified) and
+exported to CSV as that state. Its value is `{ state, verifiedBy, verifiedAt,
+expiresAt }`, written **only** by `POST /pages/:id/verification` (`verify`
+for 7, 30 or 90 days or until removed, or `unverify`; editor role), which
+stamps the caller and now: a direct write of the property is refused as
+computed. `config.defaultExpiryDays` is the lifetime when the request names
+none. `page_verifications` keeps each expiring verification's expiry beside the
+row, so the sweep (`lib/verifications.ts`, hourly, `FOR UPDATE SKIP LOCKED`)
+finds what is due by index and sends `verification_expired` to whoever
+verified the page, when they can still open it. The built-in **Wiki** template
+is a database with an owner, a verification (90 days by default) and tags.
+
 ## Relations
 
 A relation points at rows of a target database (`{ pageIds }`). With
