@@ -1,5 +1,5 @@
 {
-  "id": "fba68446-e7f3-4863-b87b-d8c7f00da6c3",
+  "id": "dde99004-e06c-4a26-a4d6-fce65aafde12",
   "prevId": "07754487-e310-43ea-aa20-cbc5d7fb2eb0",
   "version": "7",
   "dialect": "postgresql",
@@ -2708,11 +2708,11 @@
       "checkConstraints": {
         "databases_system_key": {
           "name": "databases_system_key",
-          "value": "\"databases\".\"system_key\" in ('notes', 'note_folders', 'calendar')"
+          "value": "\"databases\".\"system_key\" in ('notes', 'note_folders', 'calendar', 'memories')"
         },
         "databases_property_types": {
           "name": "databases_property_types",
-          "value": "not jsonb_path_exists(\"databases\".\"properties_schema\", '$.properties[*].type ? (!(@ == \"text\" || @ == \"number\" || @ == \"select\" || @ == \"multi_select\" || @ == \"status\" || @ == \"date\" || @ == \"person\" || @ == \"files\" || @ == \"checkbox\" || @ == \"url\" || @ == \"email\" || @ == \"phone\" || @ == \"relation\" || @ == \"rollup\" || @ == \"created_time\" || @ == \"last_edited_time\" || @ == \"created_by\" || @ == \"last_edited_by\" || @ == \"formula\" || @ == \"unique_id\" || @ == \"button\" || @ == \"verification\"))')"
+          "value": "not jsonb_path_exists(\"databases\".\"properties_schema\", '$.properties[*].type ? (!(@ == \"text\" || @ == \"number\" || @ == \"select\" || @ == \"multi_select\" || @ == \"status\" || @ == \"date\" || @ == \"person\" || @ == \"files\" || @ == \"checkbox\" || @ == \"url\" || @ == \"email\" || @ == \"phone\" || @ == \"relation\" || @ == \"rollup\" || @ == \"created_time\" || @ == \"last_edited_time\" || @ == \"created_by\" || @ == \"last_edited_by\" || @ == \"formula\" || @ == \"unique_id\" || @ == \"button\"))')"
         },
         "databases_properties_schema_shape": {
           "name": "databases_properties_schema_shape",
@@ -3219,7 +3219,7 @@
       "checkConstraints": {
         "notifications_type": {
           "name": "notifications_type",
-          "value": "\"notifications\".\"type\" in ('mention', 'comment_reply', 'page_shared', 'reminder', 'page_comment', 'page_edited', 'assigned', 'verification_expired')"
+          "value": "\"notifications\".\"type\" in ('mention', 'comment_reply', 'page_shared', 'reminder', 'page_comment', 'page_edited', 'assigned')"
         },
         "notifications_status": {
           "name": "notifications_status",
@@ -3436,88 +3436,6 @@
           "value": "\"page_permissions\".\"role\" in ('viewer', 'commenter', 'editor', 'admin')"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.page_verifications": {
-      "name": "page_verifications",
-      "schema": "",
-      "columns": {
-        "page_id": {
-          "name": "page_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "property_id": {
-          "name": "property_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "verified_by": {
-          "name": "verified_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notified_at": {
-          "name": "notified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "page_verifications_due_idx": {
-          "name": "page_verifications_due_idx",
-          "columns": [
-            {
-              "expression": "expires_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"page_verifications\".\"notified_at\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "page_verifications_page_id_pages_id_fk": {
-          "name": "page_verifications_page_id_pages_id_fk",
-          "tableFrom": "page_verifications",
-          "tableTo": "pages",
-          "columnsFrom": [
-            "page_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "page_verifications_page_id_property_id_pk": {
-          "name": "page_verifications_page_id_property_id_pk",
-          "columns": [
-            "page_id",
-            "property_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.push_tokens": {

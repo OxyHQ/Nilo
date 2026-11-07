@@ -1,6 +1,6 @@
 {
-  "id": "37509b17-b709-4825-b800-f59ec08c46a8",
-  "prevId": "9120e938-6f78-40c3-b719-75d3f5c3c26f",
+  "id": "6cc1528f-df15-4065-afc2-7d8e986c68e5",
+  "prevId": "221b7e10-2812-4d06-a5cf-c86e0c04c2f8",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2708,7 +2708,7 @@
       "checkConstraints": {
         "databases_system_key": {
           "name": "databases_system_key",
-          "value": "\"databases\".\"system_key\" in ('notes', 'note_folders', 'calendar')"
+          "value": "\"databases\".\"system_key\" in ('notes', 'note_folders', 'calendar', 'memories')"
         },
         "databases_property_types": {
           "name": "databases_property_types",
@@ -3219,7 +3219,7 @@
       "checkConstraints": {
         "notifications_type": {
           "name": "notifications_type",
-          "value": "\"notifications\".\"type\" in ('mention', 'comment_reply', 'page_shared', 'reminder', 'page_comment', 'page_edited', 'assigned', 'verification_expired')"
+          "value": "\"notifications\".\"type\" in ('mention', 'comment_reply', 'page_shared', 'reminder', 'page_comment', 'page_edited', 'assigned', 'verification_expired', 'automation')"
         },
         "notifications_status": {
           "name": "notifications_status",

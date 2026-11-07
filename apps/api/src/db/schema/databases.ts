@@ -333,7 +333,7 @@ function jsonPathAnyOf(values: readonly string[]): string {
  * or retyped, and the databases cannot be deleted, because the apps read them
  * by those ids.
  */
-export const SYSTEM_DATABASE_KEYS = ['notes', 'note_folders', 'calendar'] as const;
+export const SYSTEM_DATABASE_KEYS = ['notes', 'note_folders', 'calendar', 'memories'] as const;
 export type SystemDatabaseKey = (typeof SYSTEM_DATABASE_KEYS)[number];
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 {
-  "id": "db36cdfc-4955-4272-af81-01cefe90d785",
-  "prevId": "37509b17-b709-4825-b800-f59ec08c46a8",
+  "id": "c34266c8-f14c-4835-b048-5786ca16dad8",
+  "prevId": "6cc1528f-df15-4065-afc2-7d8e986c68e5",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -89,9 +89,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "workspace_invite_links_live_key": {
           "name": "workspace_invite_links_live_key",
@@ -104,25 +104,25 @@
             }
           ],
           "isUnique": true,
-          "where": "\"workspace_invite_links\".\"revoked_at\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"workspace_invite_links\".\"revoked_at\" is null",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "workspace_invite_links_workspace_id_workspaces_id_fk": {
           "name": "workspace_invite_links_workspace_id_workspaces_id_fk",
           "tableFrom": "workspace_invite_links",
-          "tableTo": "workspaces",
           "columnsFrom": [
             "workspace_id"
           ],
+          "tableTo": "workspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -214,10 +214,10 @@
             }
           ],
           "isUnique": true,
-          "where": "\"workspace_invites\".\"accepted_at\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"workspace_invites\".\"accepted_at\" is null",
+          "concurrently": false
         },
         "workspace_invites_pending_email_idx": {
           "name": "workspace_invites_pending_email_idx",
@@ -230,10 +230,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"workspace_invites\".\"accepted_at\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"workspace_invites\".\"accepted_at\" is null",
+          "concurrently": false
         },
         "workspace_invites_token_key": {
           "name": "workspace_invites_token_key",
@@ -246,24 +246,24 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "workspace_invites_workspace_id_workspaces_id_fk": {
           "name": "workspace_invites_workspace_id_workspaces_id_fk",
           "tableFrom": "workspace_invites",
-          "tableTo": "workspaces",
           "columnsFrom": [
             "workspace_id"
           ],
+          "tableTo": "workspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -356,9 +356,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "workspace_members_user_joined_idx": {
           "name": "workspace_members_user_joined_idx",
@@ -377,24 +377,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "workspace_members_workspace_id_workspaces_id_fk": {
           "name": "workspace_members_workspace_id_workspaces_id_fk",
           "tableFrom": "workspace_members",
-          "tableTo": "workspaces",
           "columnsFrom": [
             "workspace_id"
           ],
+          "tableTo": "workspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -482,9 +482,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "unique_personal_workspace_per_owner": {
           "name": "unique_personal_workspace_per_owner",
@@ -497,10 +497,10 @@
             }
           ],
           "isUnique": true,
-          "where": "\"workspaces\".\"is_personal\"",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"workspaces\".\"is_personal\"",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -562,24 +562,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "teamspace_members_teamspace_id_teamspaces_id_fk": {
           "name": "teamspace_members_teamspace_id_teamspaces_id_fk",
           "tableFrom": "teamspace_members",
-          "tableTo": "teamspaces",
           "columnsFrom": [
             "teamspace_id"
           ],
+          "tableTo": "teamspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -689,9 +689,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "teamspaces_one_default_per_workspace": {
           "name": "teamspaces_one_default_per_workspace",
@@ -704,25 +704,25 @@
             }
           ],
           "isUnique": true,
-          "where": "\"teamspaces\".\"is_default\"",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"teamspaces\".\"is_default\"",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "teamspaces_workspace_id_workspaces_id_fk": {
           "name": "teamspaces_workspace_id_workspaces_id_fk",
           "tableFrom": "teamspaces",
-          "tableTo": "workspaces",
           "columnsFrom": [
             "workspace_id"
           ],
+          "tableTo": "workspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -828,9 +828,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "blocks_parent_block_idx": {
           "name": "blocks_parent_block_idx",
@@ -843,83 +843,83 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "blocks_segments_path_idx": {
           "name": "blocks_segments_path_idx",
           "columns": [
             {
               "expression": "(\"content\" -> 'segments') jsonb_path_ops",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "gin",
-          "with": {}
+          "concurrently": false
         },
         "blocks_link_to_page_idx": {
           "name": "blocks_link_to_page_idx",
           "columns": [
             {
               "expression": "(\"content\" ->> 'pageId')",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": false,
-          "where": "\"blocks\".\"type\" = 'link_to_page'",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"blocks\".\"type\" = 'link_to_page'",
+          "concurrently": false
         },
         "blocks_text_fts_idx": {
           "name": "blocks_text_fts_idx",
           "columns": [
             {
               "expression": "to_tsvector('nilo_search'::regconfig, coalesce(\"content\" ->> 'text', ''))",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "gin",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "blocks_page_id_pages_id_fk": {
           "name": "blocks_page_id_pages_id_fk",
           "tableFrom": "blocks",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "blocks_parent_block_id_blocks_id_fk": {
           "name": "blocks_parent_block_id_blocks_id_fk",
           "tableFrom": "blocks",
-          "tableTo": "blocks",
           "columnsFrom": [
             "parent_block_id"
           ],
+          "tableTo": "blocks",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -976,15 +976,15 @@
         "page_app_data_page_id_pages_id_fk": {
           "name": "page_app_data_page_id_pages_id_fk",
           "tableFrom": "page_app_data",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -1062,25 +1062,25 @@
             }
           ],
           "isUnique": false,
-          "where": "\"page_docs\".\"dirty_since\" is not null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"page_docs\".\"dirty_since\" is not null",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "page_docs_page_id_pages_id_fk": {
           "name": "page_docs_page_id_pages_id_fk",
           "tableFrom": "page_docs",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1138,24 +1138,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "page_favorites_page_id_pages_id_fk": {
           "name": "page_favorites_page_id_pages_id_fk",
           "tableFrom": "page_favorites",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -1238,24 +1238,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "page_files_workspace_id_workspaces_id_fk": {
           "name": "page_files_workspace_id_workspaces_id_fk",
           "tableFrom": "page_files",
-          "tableTo": "workspaces",
           "columnsFrom": [
             "workspace_id"
           ],
+          "tableTo": "workspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1311,24 +1311,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "page_tombstones_database_id_databases_id_fk": {
           "name": "page_tombstones_database_id_databases_id_fk",
           "tableFrom": "page_tombstones",
-          "tableTo": "databases",
           "columnsFrom": [
             "database_id"
           ],
+          "tableTo": "databases",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1391,24 +1391,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "page_updates_page_id_pages_id_fk": {
           "name": "page_updates_page_id_pages_id_fk",
           "tableFrom": "page_updates",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1477,24 +1477,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "page_versions_page_id_pages_id_fk": {
           "name": "page_versions_page_id_pages_id_fk",
           "tableFrom": "page_versions",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -1545,9 +1545,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "page_visits_page_idx": {
           "name": "page_visits_page_idx",
@@ -1560,24 +1560,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "page_visits_page_id_pages_id_fk": {
           "name": "page_visits_page_id_pages_id_fk",
           "tableFrom": "page_visits",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -1814,9 +1814,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "pages_workspace_archived_idx": {
           "name": "pages_workspace_archived_idx",
@@ -1835,9 +1835,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "pages_database_archived_created_idx": {
           "name": "pages_database_archived_created_idx",
@@ -1862,9 +1862,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "pages_database_rows_idx": {
           "name": "pages_database_rows_idx",
@@ -1889,10 +1889,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"pages\".\"archived\" = false and \"pages\".\"template\" = false",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"pages\".\"archived\" = false and \"pages\".\"template\" = false",
+          "concurrently": false
         },
         "pages_database_updated_idx": {
           "name": "pages_database_updated_idx",
@@ -1917,9 +1917,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "pages_parent_idx": {
           "name": "pages_parent_idx",
@@ -1932,9 +1932,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "pages_publish_slug_key": {
           "name": "pages_publish_slug_key",
@@ -1947,9 +1947,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "pages_workspace_favorited_idx": {
           "name": "pages_workspace_favorited_idx",
@@ -1962,10 +1962,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"pages\".\"favorited\"",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"pages\".\"favorited\"",
+          "concurrently": false
         },
         "pages_properties_gin_idx": {
           "name": "pages_properties_gin_idx",
@@ -1978,9 +1978,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "gin",
-          "with": {}
+          "concurrently": false
         },
         "pages_teamspace_idx": {
           "name": "pages_teamspace_idx",
@@ -1993,106 +1993,106 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "pages_title_fts_idx": {
           "name": "pages_title_fts_idx",
           "columns": [
             {
               "expression": "to_tsvector('nilo_search'::regconfig, \"title\")",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "gin",
-          "with": {}
+          "concurrently": false
         },
         "pages_title_trgm_idx": {
           "name": "pages_title_trgm_idx",
           "columns": [
             {
               "expression": "nilo_fold(\"title\") gin_trgm_ops",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "gin",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "pages_workspace_id_workspaces_id_fk": {
           "name": "pages_workspace_id_workspaces_id_fk",
           "tableFrom": "pages",
-          "tableTo": "workspaces",
           "columnsFrom": [
             "workspace_id"
           ],
+          "tableTo": "workspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "pages_parent_id_pages_id_fk": {
           "name": "pages_parent_id_pages_id_fk",
           "tableFrom": "pages",
-          "tableTo": "pages",
           "columnsFrom": [
             "parent_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "pages_teamspace_id_teamspaces_id_fk": {
           "name": "pages_teamspace_id_teamspaces_id_fk",
           "tableFrom": "pages",
-          "tableTo": "teamspaces",
           "columnsFrom": [
             "teamspace_id"
           ],
+          "tableTo": "teamspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "pages_archived_with_pages_id_fk": {
           "name": "pages_archived_with_pages_id_fk",
           "tableFrom": "pages",
-          "tableTo": "pages",
           "columnsFrom": [
             "archived_with"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "pages_database_id_databases_id_fk": {
           "name": "pages_database_id_databases_id_fk",
           "tableFrom": "pages",
-          "tableTo": "databases",
           "columnsFrom": [
             "database_id"
           ],
+          "tableTo": "databases",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -2189,9 +2189,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "database_forms_token_key": {
           "name": "database_forms_token_key",
@@ -2204,9 +2204,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "database_forms_database_idx": {
           "name": "database_forms_database_idx",
@@ -2219,37 +2219,37 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "database_forms_view_id_database_views_id_fk": {
           "name": "database_forms_view_id_database_views_id_fk",
           "tableFrom": "database_forms",
-          "tableTo": "database_views",
           "columnsFrom": [
             "view_id"
           ],
+          "tableTo": "database_views",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "database_forms_database_id_databases_id_fk": {
           "name": "database_forms_database_id_databases_id_fk",
           "tableFrom": "database_forms",
-          "tableTo": "databases",
           "columnsFrom": [
             "database_id"
           ],
+          "tableTo": "databases",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -2389,9 +2389,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "database_views_database_order_idx": {
           "name": "database_views_database_order_idx",
@@ -2416,37 +2416,37 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "database_views_database_id_databases_id_fk": {
           "name": "database_views_database_id_databases_id_fk",
           "tableFrom": "database_views",
-          "tableTo": "databases",
           "columnsFrom": [
             "database_id"
           ],
+          "tableTo": "databases",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "database_views_block_id_blocks_id_fk": {
           "name": "database_views_block_id_blocks_id_fk",
           "tableFrom": "database_views",
-          "tableTo": "blocks",
           "columnsFrom": [
             "block_id"
           ],
+          "tableTo": "blocks",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -2592,9 +2592,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "databases_workspace_archived_updated_idx": {
           "name": "databases_workspace_archived_updated_idx",
@@ -2619,9 +2619,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "databases_parent_page_idx": {
           "name": "databases_parent_page_idx",
@@ -2634,9 +2634,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "databases_workspace_system_key": {
           "name": "databases_workspace_system_key",
@@ -2655,51 +2655,51 @@
             }
           ],
           "isUnique": true,
-          "where": "\"databases\".\"system_key\" is not null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"databases\".\"system_key\" is not null",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "databases_workspace_id_workspaces_id_fk": {
           "name": "databases_workspace_id_workspaces_id_fk",
           "tableFrom": "databases",
-          "tableTo": "workspaces",
           "columnsFrom": [
             "workspace_id"
           ],
+          "tableTo": "workspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "databases_teamspace_id_teamspaces_id_fk": {
           "name": "databases_teamspace_id_teamspaces_id_fk",
           "tableFrom": "databases",
-          "tableTo": "teamspaces",
           "columnsFrom": [
             "teamspace_id"
           ],
+          "tableTo": "teamspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "databases_parent_page_id_pages_id_fk": {
           "name": "databases_parent_page_id_pages_id_fk",
           "tableFrom": "databases",
-          "tableTo": "pages",
           "columnsFrom": [
             "parent_page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
@@ -2708,7 +2708,7 @@
       "checkConstraints": {
         "databases_system_key": {
           "name": "databases_system_key",
-          "value": "\"databases\".\"system_key\" in ('notes', 'note_folders', 'calendar')"
+          "value": "\"databases\".\"system_key\" in ('notes', 'note_folders', 'calendar', 'memories')"
         },
         "databases_property_types": {
           "name": "databases_property_types",
@@ -2756,15 +2756,15 @@
         "comment_reactions_comment_id_comments_id_fk": {
           "name": "comment_reactions_comment_id_comments_id_fk",
           "tableFrom": "comment_reactions",
-          "tableTo": "comments",
           "columnsFrom": [
             "comment_id"
           ],
+          "tableTo": "comments",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -2898,9 +2898,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "comments_block_resolved_created_idx": {
           "name": "comments_block_resolved_created_idx",
@@ -2925,9 +2925,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "comments_parent_created_idx": {
           "name": "comments_parent_created_idx",
@@ -2946,9 +2946,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "comments_workspace_idx": {
           "name": "comments_workspace_idx",
@@ -2961,9 +2961,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "comments_author_idx": {
           "name": "comments_author_idx",
@@ -2976,63 +2976,63 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "comments_workspace_id_workspaces_id_fk": {
           "name": "comments_workspace_id_workspaces_id_fk",
           "tableFrom": "comments",
-          "tableTo": "workspaces",
           "columnsFrom": [
             "workspace_id"
           ],
+          "tableTo": "workspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "comments_page_id_pages_id_fk": {
           "name": "comments_page_id_pages_id_fk",
           "tableFrom": "comments",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "comments_block_id_blocks_id_fk": {
           "name": "comments_block_id_blocks_id_fk",
           "tableFrom": "comments",
-          "tableTo": "blocks",
           "columnsFrom": [
             "block_id"
           ],
+          "tableTo": "blocks",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         },
         "comments_parent_comment_id_fk": {
           "name": "comments_parent_comment_id_fk",
           "tableFrom": "comments",
-          "tableTo": "comments",
           "columnsFrom": [
             "parent_comment_id"
           ],
+          "tableTo": "comments",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -3140,8 +3140,8 @@
           "primaryKey": false,
           "notNull": false,
           "generated": {
-            "as": "case when \"notifications\".\"status\" = 'dismissed' then \"notifications\".\"created_at\" end",
-            "type": "stored"
+            "type": "stored",
+            "as": "case when \"notifications\".\"status\" = 'dismissed' then \"notifications\".\"created_at\" end"
           }
         }
       },
@@ -3169,9 +3169,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "notifications_user_unread_idx": {
           "name": "notifications_user_unread_idx",
@@ -3190,10 +3190,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"notifications\".\"status\" in ('pending', 'sent')",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"notifications\".\"status\" in ('pending', 'sent')",
+          "concurrently": false
         },
         "notifications_dismissed_reap_idx": {
           "name": "notifications_dismissed_reap_idx",
@@ -3206,10 +3206,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"notifications\".\"dismissed_reap_at\" is not null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"notifications\".\"dismissed_reap_at\" is not null",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3276,24 +3276,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "page_follows_page_id_pages_id_fk": {
           "name": "page_follows_page_id_pages_id_fk",
           "tableFrom": "page_follows",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -3371,9 +3371,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "page_permissions_share_link_idx": {
           "name": "page_permissions_share_link_idx",
@@ -3386,37 +3386,37 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "page_permissions_page_id_pages_id_fk": {
           "name": "page_permissions_page_id_pages_id_fk",
           "tableFrom": "page_permissions",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "page_permissions_share_link_id_share_links_id_fk": {
           "name": "page_permissions_share_link_id_share_links_id_fk",
           "tableFrom": "page_permissions",
-          "tableTo": "share_links",
           "columnsFrom": [
             "share_link_id"
           ],
+          "tableTo": "share_links",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -3485,25 +3485,25 @@
             }
           ],
           "isUnique": false,
-          "where": "\"page_verifications\".\"notified_at\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"page_verifications\".\"notified_at\" is null",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "page_verifications_page_id_pages_id_fk": {
           "name": "page_verifications_page_id_pages_id_fk",
           "tableFrom": "page_verifications",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -3607,9 +3607,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "push_tokens_token_idx": {
           "name": "push_tokens_token_idx",
@@ -3622,9 +3622,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3709,10 +3709,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"reminders\".\"sent_at\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"reminders\".\"sent_at\" is null",
+          "concurrently": false
         },
         "reminders_user_remind_idx": {
           "name": "reminders_user_remind_idx",
@@ -3731,9 +3731,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "reminders_page_idx": {
           "name": "reminders_page_idx",
@@ -3746,9 +3746,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "reminders_block_idx": {
           "name": "reminders_block_idx",
@@ -3761,37 +3761,37 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "reminders_page_id_pages_id_fk": {
           "name": "reminders_page_id_pages_id_fk",
           "tableFrom": "reminders",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "reminders_block_id_blocks_id_fk": {
           "name": "reminders_block_id_blocks_id_fk",
           "tableFrom": "reminders",
-          "tableTo": "blocks",
           "columnsFrom": [
             "block_id"
           ],
+          "tableTo": "blocks",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
@@ -3874,9 +3874,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "share_links_page_revoked_created_idx": {
           "name": "share_links_page_revoked_created_idx",
@@ -3901,24 +3901,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "share_links_page_id_pages_id_fk": {
           "name": "share_links_page_id_pages_id_fk",
           "tableFrom": "share_links",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -4013,9 +4013,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4128,9 +4128,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "feedback_status_idx": {
           "name": "feedback_status_idx",
@@ -4143,9 +4143,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "feedback_type_idx": {
           "name": "feedback_type_idx",
@@ -4158,9 +4158,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4262,9 +4262,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "app_event_outbox_pending_idx": {
           "name": "app_event_outbox_pending_idx",
@@ -4277,10 +4277,10 @@
             }
           ],
           "isUnique": false,
-          "where": "\"app_event_outbox\".\"processed_at\" is null and \"app_event_outbox\".\"failed_at\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"app_event_outbox\".\"processed_at\" is null and \"app_event_outbox\".\"failed_at\" is null",
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4367,9 +4367,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "capability_executions_created_at_idx": {
           "name": "capability_executions_created_at_idx",
@@ -4382,9 +4382,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4462,9 +4462,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4564,9 +4564,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4678,24 +4678,24 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "page_activity_page_id_pages_id_fk": {
           "name": "page_activity_page_id_pages_id_fk",
           "tableFrom": "page_activity",
-          "tableTo": "pages",
           "columnsFrom": [
             "page_id"
           ],
+          "tableTo": "pages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -4872,9 +4872,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "calendar_subscriptions_owner_idx": {
           "name": "calendar_subscriptions_owner_idx",
@@ -4893,9 +4893,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "calendar_subscriptions_owner_url": {
           "name": "calendar_subscriptions_owner_url",
@@ -4914,37 +4914,37 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "calendar_subscriptions_database_id_databases_id_fk": {
           "name": "calendar_subscriptions_database_id_databases_id_fk",
           "tableFrom": "calendar_subscriptions",
-          "tableTo": "databases",
           "columnsFrom": [
             "database_id"
           ],
+          "tableTo": "databases",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "calendar_subscriptions_workspace_id_workspaces_id_fk": {
           "name": "calendar_subscriptions_workspace_id_workspaces_id_fk",
           "tableFrom": "calendar_subscriptions",
-          "tableTo": "workspaces",
           "columnsFrom": [
             "workspace_id"
           ],
+          "tableTo": "workspaces",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -5060,25 +5060,25 @@
             }
           ],
           "isUnique": false,
-          "where": "\"database_automations\".\"enabled\"",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"database_automations\".\"enabled\"",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "database_automations_database_id_databases_id_fk": {
           "name": "database_automations_database_id_databases_id_fk",
           "tableFrom": "database_automations",
-          "tableTo": "databases",
           "columnsFrom": [
             "database_id"
           ],
+          "tableTo": "databases",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -5095,10 +5095,10 @@
   },
   "enums": {},
   "schemas": {},
+  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},
