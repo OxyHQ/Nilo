@@ -121,6 +121,14 @@ initSocket(server);
 // weaken or consume a protocol request.
 mountCatalogMcp(app, createNotesMcpService(), NOTES_CAPABILITY_CATALOG.externalMcp?.resource ?? '');
 mountCatalogMcp(app, createNiloMcpService(), NILO_CAPABILITY_CATALOG.externalMcp?.resource ?? '');
+// A /mcp request on a host no MCP lane owns is refused, never served by the API.
+app.all('/mcp', (_req, res) => {
+  res.status(421).json({
+    jsonrpc: '2.0',
+    error: { code: -32000, message: 'Request was sent to the wrong resource host.' },
+    id: null,
+  });
+});
 
 // Browsers: only the origins `lib/cors.ts` names (the socket admits the same).
 app.use(apiCors);
