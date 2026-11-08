@@ -754,6 +754,10 @@
       "4": "jueves",
       "5": "viernes",
       "6": "sábado"
-    }
+    },
+    "notifyMode": "Avisar a",
+    "modeProperty": "Las personas de una propiedad",
+    "modePeople": "Estas personas",
+    "notifyPeople": "Elige a quién avisar"
   }
 }

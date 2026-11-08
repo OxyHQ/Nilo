@@ -4,6 +4,7 @@ import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { RiPencilLine } from '@oxy.so/bloom/icons/RiPencilLine';
 import { Button } from '@oxy.so/bloom/button';
+import { Chip } from '@oxy.so/bloom/chip';
 import { Dialog, type DialogControlProps } from '@oxy.so/bloom/dialog';
 import { Switch } from '@oxy.so/bloom/switch';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
@@ -27,6 +28,7 @@ import {
   useUpdateAutomation,
 } from '@/lib/hooks/use-database-automations';
 import { useDatabase, useDatabases } from '@/lib/hooks/use-databases';
+import { memberProfileName, useWorkspaceMembers } from '@/lib/hooks/use-workspace-members';
 import type { Database, DatabaseProperty, PropertyValue } from '@/lib/types/databases';
 import { SetPropertyAction } from './button-settings';
 import { DatabaseCellScopeProvider } from './cell-scope';
@@ -53,10 +55,50 @@ const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 
 /** The kinds of action a schedule can take: it has no page to edit or look up. */
 const SCHEDULE_ACTIONS = AUTOMATION_ACTION_KINDS.filter(
-  (k) => k === 'webhook' || k === 'create_row',
+  (k) => k === 'webhook' || k === 'create_row' || k === 'notify',
 );
 
 type ScheduleTrigger = Extract<AutomationTrigger, { kind: 'schedule' }>;
+
+/** The people of the workspace a notification goes to, toggled one by one. */
+function PeopleChips({
+  workspaceId,
+  value,
+  onChange,
+}: {
+  workspaceId: string;
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const { t } = useTranslation();
+  const { data: members = [] } = useWorkspaceMembers(workspaceId);
+  return (
+    <View className="gap-1">
+      <Text className="text-xs text-muted-foreground">
+        {t('databases.automations.notifyPeople')}
+      </Text>
+      <View className="flex-row flex-wrap gap-1">
+        {members.map((m) => (
+          <Chip
+            key={m.userId}
+            size="sm"
+            role="checkbox"
+            selected={value.includes(m.userId)}
+            onPress={() =>
+              onChange(
+                value.includes(m.userId)
+                  ? value.filter((id) => id !== m.userId)
+                  : [...value, m.userId],
+              )
+            }
+          >
+            {memberProfileName(m) ?? m.userId}
+          </Chip>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 function describeSchedule(
   trigger: ScheduleTrigger,
@@ -71,9 +113,14 @@ function describeSchedule(
     : t('databases.automations.dailyAt', { hour });
 }
 
-function newAction(kind: AutomationAction['kind'], database: Database): AutomationAction {
+function newAction(
+  kind: AutomationAction['kind'],
+  database: Database,
+  scheduled = false,
+): AutomationAction {
   if (kind === 'webhook') return { kind, url: '' };
   if (kind === 'create_row') return { kind };
+  if (kind === 'notify' && scheduled) return { kind, to: { kind: 'people', userIds: [] } };
   if (kind === 'notify') {
     const person = database.schema.properties.find((p) => p.type === 'person');
     return { kind, to: { kind: 'property', propertyId: person?.id ?? '' } };
@@ -260,6 +307,7 @@ function AutomationForm({
       (a) =>
         (a.kind === 'set_property' && (!a.propertyId || a.value == null)) ||
         (a.kind === 'notify' && a.to.kind === 'property' && !a.to.propertyId) ||
+        (a.kind === 'notify' && a.to.kind === 'people' && a.to.userIds.length === 0) ||
         (a.kind === 'webhook' && !isSafeUrl(a.url)),
     );
   const pending = create.isPending || update.isPending;
@@ -305,7 +353,12 @@ function AutomationForm({
               setTrigger({ kind: 'schedule', every: 'day', hour: 9 });
               // Nothing to edit or look up on a page: keep only what a schedule can do.
               setActions((list) => {
-                const kept = list.filter((a) => a.kind === 'webhook' || a.kind === 'create_row');
+                const kept = list.filter(
+                  (a) =>
+                    a.kind === 'webhook' ||
+                    a.kind === 'create_row' ||
+                    (a.kind === 'notify' && a.to.kind === 'people'),
+                );
                 return kept.length > 0 ? kept : [newAction('create_row', database)];
               });
             } else {
@@ -398,7 +451,14 @@ function AutomationForm({
                     label: t(`databases.automations.actions.${kind}`),
                   }))}
                   onChange={(kind) =>
-                    change(index, newAction(kind as AutomationAction['kind'], database))
+                    change(
+                      index,
+                      newAction(
+                        kind as AutomationAction['kind'],
+                        database,
+                        trigger.kind === 'schedule',
+                      ),
+                    )
                   }
                 />
               </View>
@@ -421,14 +481,43 @@ function AutomationForm({
             ) : null}
             {action.kind === 'notify' ? (
               <>
-                <SettingSelect
-                  label={t('databases.automations.notifyWho')}
-                  value={action.to.kind === 'property' ? action.to.propertyId : ''}
-                  options={people.map((p) => ({ value: p.id, label: p.name }))}
-                  onChange={(propertyId) =>
-                    change(index, { ...action, to: { kind: 'property', propertyId } })
-                  }
-                />
+                {trigger.kind !== 'schedule' ? (
+                  <SettingSelect
+                    label={t('databases.automations.notifyMode')}
+                    value={action.to.kind}
+                    options={[
+                      { value: 'property', label: t('databases.automations.modeProperty') },
+                      { value: 'people', label: t('databases.automations.modePeople') },
+                    ]}
+                    onChange={(kind) =>
+                      change(index, {
+                        ...action,
+                        to:
+                          kind === 'people'
+                            ? { kind: 'people', userIds: [] }
+                            : { kind: 'property', propertyId: people[0]?.id ?? '' },
+                      })
+                    }
+                  />
+                ) : null}
+                {action.to.kind === 'people' ? (
+                  <PeopleChips
+                    workspaceId={database.workspaceId}
+                    value={action.to.userIds}
+                    onChange={(userIds) =>
+                      change(index, { ...action, to: { kind: 'people', userIds } })
+                    }
+                  />
+                ) : (
+                  <SettingSelect
+                    label={t('databases.automations.notifyWho')}
+                    value={action.to.propertyId}
+                    options={people.map((p) => ({ value: p.id, label: p.name }))}
+                    onChange={(propertyId) =>
+                      change(index, { ...action, to: { kind: 'property', propertyId } })
+                    }
+                  />
+                )}
                 <TextFieldInput
                   size="sm"
                   label={t('databases.automations.message')}

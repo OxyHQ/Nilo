@@ -754,6 +754,10 @@
       "4": "Thursday",
       "5": "Friday",
       "6": "Saturday"
-    }
+    },
+    "notifyMode": "Notify",
+    "modeProperty": "The people in a property",
+    "modePeople": "These people",
+    "notifyPeople": "Choose who to notify"
   }
 }
