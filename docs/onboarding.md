@@ -60,6 +60,10 @@ and scroll contract.
 
 Boards and canvases use `Screen scroll="none"` so their own viewport fills the
 remaining space. Database pagination uses `ScreenScrollView.onEndReached`.
+The table's horizontal owner is Bloom `ScrollArea`, wrapped once with React Native's
+`Animated.createAnimatedComponent` so its existing `Animated.event` still drives
+frozen columns. Do not replace that event with a Reanimated handler or add local
+focus scrolling: Bloom owns focus visibility and the scrollbar.
 
 Navigation uses `PageHeader presentation="navigation"`: Bloom owns its height,
 insets and contextual control density without changing the normal `md` size.

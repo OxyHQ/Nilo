@@ -550,6 +550,24 @@ describe('a table’s frozen columns', () => {
       .map((n) => n.props.testID)
       .filter(Boolean);
     expect(moved).toEqual(['table-title-header', 'table-header-notes']);
+    const scroll = renderer.root.findAll(
+      (n) =>
+        typeof n.type === 'string' && n.props.horizontal && typeof n.props.onScroll === 'function',
+    )[0];
+    expect(scroll).toBeDefined();
+    act(() =>
+      scroll?.props.onScroll({
+        nativeEvent: {
+          contentOffset: { x: 73, y: 0 },
+          layoutMeasurement: { width: 320, height: 500 },
+          contentSize: { width: 900, height: 500 },
+        },
+      }),
+    );
+    const pinned = renderer.root
+      .findAllByType(Animated.View)
+      .find((n) => n.props.testID === 'table-title-header');
+    expect(pinned?.props.style.transform[0].translateX.__getValue()).toBe(73);
   });
 
   it('freeze nothing when the view freezes nothing', () => {

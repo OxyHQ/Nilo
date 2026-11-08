@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Animated, Platform, Pressable, View } from 'react-native';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { useDialogControl } from '@oxy.so/bloom/dialog';
+import { ScrollArea } from '@oxy.so/bloom/layout';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
 import { toast } from '@oxy.so/bloom/toast';
@@ -50,6 +51,9 @@ interface ViewTableProps {
   hasMore?: boolean;
 }
 
+// Keep RN Animated.event attached to the native ScrollView ref. Reanimated's
+// animatedHandler would change the pinned columns' existing animation owner.
+const AnimatedScrollArea = Animated.createAnimatedComponent(ScrollArea);
 const ADD_COLUMN_WIDTH = 60;
 /** The drag payload of a column header (web). */
 const COLUMN_DRAG_TYPE = 'application/x-nilo-column';
@@ -337,12 +341,7 @@ export function ViewTable({
     });
 
   return (
-    <Animated.ScrollView
-      horizontal
-      showsHorizontalScrollIndicator
-      onScroll={onScroll}
-      scrollEventThrottle={16}
-    >
+    <AnimatedScrollArea horizontal onScroll={onScroll} scrollEventThrottle={16}>
       <View>
         {/* header row */}
         <Animated.View style={{ minWidth: tableWidth }}>
@@ -483,7 +482,7 @@ export function ViewTable({
           ? renderFooter(computed.data?.calculations, 'table-footer')
           : null}
       </View>
-    </Animated.ScrollView>
+    </AnimatedScrollArea>
   );
 }
 
