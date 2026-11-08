@@ -1,0 +1,12 @@
+{
+  "presetVersion": "6.5.1",
+  "beforeRemovingLocalOptIn": {
+    "typedRoutes": true,
+    "noxcturnalTransformWorker": true
+  },
+  "afterRemovingLocalOptIn": {
+    "typedRoutes": true
+  },
+  "cwd": "apps/app",
+  "command": "NODE_ENV=development bunx expo config --type public --json"
+}

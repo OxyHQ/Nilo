@@ -93,6 +93,7 @@ interface DatabaseHeaderProps {
   /** A reader's: the title, the views and the database's settings are shown, not edited. */
   readOnly?: boolean;
   accessory?: React.ReactNode;
+  viewActions?: React.ReactNode;
 }
 
 export function DatabaseHeader({
@@ -102,6 +103,7 @@ export function DatabaseHeader({
   onSelectView,
   readOnly = false,
   accessory,
+  viewActions,
 }: DatabaseHeaderProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
@@ -212,31 +214,25 @@ export function DatabaseHeader({
           />
         }
         accessory={
-          <>
-            <Toolbar
-              actions={
-                !readOnly && !locked ? (
-                  <Button
-                    appearance="plain"
-                    size="xs"
-                    onPress={() => setNewViewOpen(true)}
-                    leadingIcon={RiAddLine}
-                  >
-                    {t('databases.views.new')}
-                  </Button>
-                ) : undefined
-              }
-            >
-              <DatabaseViewTabs
-                database={database}
-                views={views}
-                activeViewId={activeViewId}
-                onSelectView={onSelectView}
-                readOnly={readOnly}
+          <Toolbar actions={viewActions} testID="database-view-toolbar">
+            <DatabaseViewTabs
+              database={database}
+              views={views}
+              activeViewId={activeViewId}
+              onSelectView={onSelectView}
+              readOnly={readOnly}
+            />
+            {!readOnly && !locked ? (
+              <Button
+                iconOnly
+                appearance="plain"
+                accessibilityLabel={t('databases.views.new')}
+                onPress={() => setNewViewOpen(true)}
+                leadingIcon={RiAddLine}
               />
-            </Toolbar>
+            ) : null}
             {accessory}
-          </>
+          </Toolbar>
         }
       />
       <NewViewPicker

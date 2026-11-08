@@ -51,6 +51,13 @@ discussions must preserve the mounted document editor and header overlays.
 
 `PageHeader` owns header placement and measures its accessory (view tabs and
 `Toolbar`). `ScreenScrollView` binds content to that screen's scroll owner.
+Full-page databases use a single joined `AppShellPanels` panel, preserving the
+same surface owner as documents. View tabs, add-view, search, filter, sort and
+property tools share one `Toolbar`; its actions slot keeps New visible while
+the tools scroll horizontally. Row count and fetch status live in the Screen
+bottom bar, outside the header bands. Inline databases retain their own tools
+and scroll contract.
+
 Boards and canvases use `Screen scroll="none"` so their own viewport fills the
 remaining space. Database pagination uses `ScreenScrollView.onEndReached`.
 
