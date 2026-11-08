@@ -101,6 +101,49 @@ export async function runAutomations(event: RowEvent): Promise<void> {
   }
 }
 
+/** Pauses between a webhook's attempts; a test sets them to zero. */
+export const webhookRetry = { delaysMs: [1_000, 5_000] };
+
+/**
+ * POST a signed webhook, trying again after a pause when the receiver is down
+ * (a network error, a 429 or a 5xx). Any other answer is final. Retries run in
+ * this process: a restart in the middle drops them, and the run records the
+ * last failure.
+ */
+async function deliverWebhook(url: string, secret: string, body: string, at: Date): Promise<void> {
+  const delivery = randomUUID();
+  let failure = '';
+  for (let attempt = 0; attempt <= webhookRetry.delaysMs.length; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, webhookRetry.delaysMs[attempt - 1]));
+    try {
+      const sent = await safeFetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'user-agent': 'NiloBot/1.0 (+https://nilo.so/bot)',
+          // The same delivery id on every attempt, so a receiver can de-duplicate.
+          'x-nilo-delivery': delivery,
+          'x-nilo-signature': signWebhook(secret, body, at),
+        },
+        body,
+        redirect: 'manual',
+        headersTimeoutMs: 8000,
+      });
+      sent.response.destroy();
+      if (sent.status >= 200 && sent.status < 300) return;
+      failure = `The webhook answered ${sent.status}`;
+      if (sent.status !== 429 && sent.status < 500) throw new Error(failure);
+    } catch (err: unknown) {
+      // A refused address or a final answer will not change by waiting.
+      if (err instanceof SsrfRejection || (err instanceof Error && err.message === failure)) {
+        throw err;
+      }
+      failure = err instanceof Error ? err.message : String(err);
+    }
+  }
+  throw new Error(failure);
+}
+
 async function runOne(automation: AutomationRow, event: RowEvent): Promise<void> {
   const db = getDb();
   const record = async (status: 'ok' | 'failed', error: string | null, enabled?: boolean) => {
@@ -212,22 +255,7 @@ async function runAction(
         },
         at: now.toISOString(),
       });
-      const sent = await safeFetch(action.url, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'user-agent': 'NiloBot/1.0 (+https://nilo.so/bot)',
-          'x-nilo-delivery': randomUUID(),
-          'x-nilo-signature': signWebhook(automation.secret, body, now),
-        },
-        body,
-        redirect: 'manual',
-        headersTimeoutMs: 8000,
-      });
-      sent.response.destroy();
-      if (sent.status < 200 || sent.status >= 300) {
-        throw new Error(`The webhook answered ${sent.status}`);
-      }
+      await deliverWebhook(action.url, automation.secret, body, now);
       return;
     }
     case 'create_row': {
