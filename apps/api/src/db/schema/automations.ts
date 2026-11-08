@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, index, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, jsonb, pgTable, text } from 'drizzle-orm/pg-core';
 import { createdAt, generatedId, timestamptz, updatedAt } from '@oxy.so/db';
 import type { AutomationAction, AutomationTrigger } from '@oxy.so/nilo-contracts';
 import { databases } from './databases.js';
@@ -45,5 +45,29 @@ export const databaseAutomations = pgTable(
       'database_automations_last_status',
       sql`${t.lastStatus} is null or ${t.lastStatus} in ('ok', 'failed')`,
     ),
+  ],
+);
+
+/**
+ * A webhook the receiver did not take yet, waiting for its next try
+ * (`lib/webhook-retries.ts`). `attempt` counts the tries made through the queue.
+ */
+export const automationWebhookRetries = pgTable(
+  'automation_webhook_retries',
+  {
+    id: generatedId(),
+    automationId: text()
+      .notNull()
+      .references(() => databaseAutomations.id, { onDelete: 'cascade' }),
+    url: text().notNull(),
+    body: text().notNull(),
+    deliveryId: text().notNull(),
+    attempt: integer().notNull().default(0),
+    nextAttemptAt: timestamptz().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('automation_webhook_retries_due_idx').on(t.nextAttemptAt),
+    index('automation_webhook_retries_automation_idx').on(t.automationId),
   ],
 );

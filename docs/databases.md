@@ -97,9 +97,12 @@ databaseId, trigger, row: { id, title, properties }, at }` with
 receiver can de-duplicate) and `x-nilo-signature: t=<unix seconds>,v1=<hex
 HMAC-SHA256 of "t.body">` made with the automation's `secret`, which the create
 answer returns once. A receiver that is down (a network error, 429 or 5xx) is tried
-again after 1 s and 5 s, in the API process: a restart in between drops the
-retries. Any other answer, or a refused address, is final. A failed delivery is
-the automation's `lastError`.
+again after 1 s and 5 s; if it is still down the delivery is queued
+(`automation_webhook_retries`) and a sweep every minute tries it again after 1
+minute, 10 minutes and 1 hour, with the same delivery id and a fresh signature
+timestamp, then gives up. The queue is in Postgres, so a restart loses nothing.
+Any other answer, or a refused address, is final. The failure is the
+automation's `lastError`; a later queued delivery does not change it.
 
 A `schedule` trigger runs every day, or every week on a weekday, at an hour in
 UTC. It belongs to no page, so its actions are only a webhook, a notification to
