@@ -93,10 +93,13 @@ because they send data out and act for the database.
 
 A webhook is a POST of `{ event: 'automation.triggered', automationId,
 databaseId, trigger, row: { id, title, properties }, at }` with
-`x-nilo-delivery` (a fresh id) and `x-nilo-signature: t=<unix seconds>,v1=<hex
+`x-nilo-delivery` (one id per delivery, the same on every attempt, so a
+receiver can de-duplicate) and `x-nilo-signature: t=<unix seconds>,v1=<hex
 HMAC-SHA256 of "t.body">` made with the automation's `secret`, which the create
-answer returns once. There is no retry: a failed delivery is the automation's
-`lastError`. Recurring triggers are not built yet: they need a scheduler that is
+answer returns once. A receiver that is down (a network error, 429 or 5xx) is tried
+again after 1 s and 5 s, in the API process: a restart in between drops the
+retries. Any other answer, or a refused address, is final. A failed delivery is
+the automation's `lastError`. Recurring triggers are not built yet: they need a scheduler that is
 safe across API instances (claim due rows `FOR UPDATE SKIP LOCKED`, as the
 reminder sweep does).
 

@@ -100,6 +100,8 @@ const sent = vi.hoisted(() => ({
   fail: false,
   webhooks: [] as Array<{ url: string; headers: Record<string, string>; body: string }>,
   webhookStatus: 200,
+  /** Statuses to answer first, in order; then `webhookStatus`. */
+  webhookQueue: [] as number[],
 }));
 vi.mock('../lib/notification-service.js', () => ({
   sendNotification: async (n: Record<string, unknown>) => {
@@ -111,7 +113,10 @@ vi.mock('@oxy.so/core/server', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@oxy.so/core/server')>()),
   safeFetch: async (url: string, init: { headers: Record<string, string>; body: string }) => {
     sent.webhooks.push({ url, headers: init.headers, body: init.body });
-    return { status: sent.webhookStatus, response: { destroy: () => {} } };
+    return {
+      status: sent.webhookQueue.shift() ?? sent.webhookStatus,
+      response: { destroy: () => {} },
+    };
   },
 }));
 
@@ -144,7 +149,7 @@ import databaseAutomationsRouter from './database-automations.js';
 import pagesRouter from './pages.js';
 import pageVerificationRouter from './page-verification.js';
 import { notifyExpiredVerifications } from '../lib/verifications.js';
-import { runAutomations, signWebhook } from '../lib/databases/automations.js';
+import { webhookRetry, runAutomations, signWebhook } from '../lib/databases/automations.js';
 import { pageVerifications } from '../db/schema/collab.js';
 import { databaseAutomations } from '../db/schema/automations.js';
 
@@ -246,6 +251,7 @@ beforeAll(async () => {
   // The route resolves its own handle through `getDb()`, which reads
   // DATABASE_URL. Pointed at the same database the fixtures are seeded in, and
   // restored afterwards — `process.env` is shared with every sibling file.
+  webhookRetry.delaysMs = [0, 0];
   originalDatabaseUrl = process.env.DATABASE_URL;
   process.env.DATABASE_URL = process.env.NILO_TEST_DATABASE_URL;
 
@@ -534,6 +540,42 @@ describe('the automation executor', () => {
       expect(row.lastError).toContain('500');
     });
     sent.webhookStatus = 200;
+  });
+
+  it('retries a webhook whose receiver is down, but not one that refuses it', async () => {
+    const { databaseId } = await seedDatabase();
+    currentDb = databaseId;
+    try {
+      const created = await api('POST', automationPath(databaseId), {
+        name: 'Retry',
+        trigger: { kind: 'row_added' },
+        actions: [{ kind: 'webhook', url: 'https://example.com/retry' }],
+      });
+      const automationId = idOf(created.body.automation);
+      const status = async () =>
+        (
+          await db
+            .select()
+            .from(databaseAutomations)
+            .where(eq(databaseAutomations.id, automationId))
+        )[0];
+      const attempts = () => sent.webhooks.filter((w) => w.body.includes(automationId));
+
+      sent.webhookQueue = [503, 503];
+      await addRow(databaseId, 'Flaky');
+      await vi.waitFor(async () => expect((await status()).lastStatus).toBe('ok'));
+      expect(attempts()).toHaveLength(3);
+      expect(new Set(attempts().map((w) => w.headers['x-nilo-delivery'])).size).toBe(1);
+
+      sent.webhooks.length = 0;
+      sent.webhookQueue = [404];
+      await addRow(databaseId, 'Refused');
+      await vi.waitFor(async () => expect((await status()).lastStatus).toBe('failed'));
+      expect(attempts()).toHaveLength(1);
+      expect((await status()).lastError).toContain('404');
+    } finally {
+      sent.webhookQueue = [];
+    }
   });
 
   it('turns itself off when its creator can no longer edit the database', async () => {
