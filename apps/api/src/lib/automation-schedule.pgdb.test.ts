@@ -88,8 +88,8 @@ describe('the schedule sweep', () => {
     await vi.waitFor(async () => expect(await rowTitles()).toEqual(['Daily standup']));
     const after = await current();
     expect(after?.lastStatus).toBe('ok');
-    expect(after?.nextRunAt && after.nextRunAt.getTime() > now.getTime()).toBe(true);
-    expect(after?.nextRunAt && after.nextRunAt.getUTCHours()).toBe(9);
+    expect(after?.nextRunAt?.getTime() ?? 0).toBeGreaterThan(now.getTime());
+    expect(after?.nextRunAt?.getUTCHours()).toBe(9);
 
     // Not due again until then.
     await runDueAutomations(db, now);
@@ -126,7 +126,7 @@ describe('the schedule sweep', () => {
       );
       expect(mine).toHaveLength(1);
       expect(mine[0]?.body).toBe('Standup time');
-      expect((mine[0]?.data as { pageId?: string }).pageId).toBeUndefined();
+      expect((mine[0]?.data as { pageId?: string } | undefined)?.pageId).toBeUndefined();
     });
   });
 });

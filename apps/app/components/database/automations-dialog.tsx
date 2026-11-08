@@ -52,7 +52,9 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
 
 /** The kinds of action a schedule can take: it has no page to edit or look up. */
-const SCHEDULE_ACTIONS = AUTOMATION_ACTION_KINDS.filter((k) => k === 'webhook' || k === 'create_row');
+const SCHEDULE_ACTIONS = AUTOMATION_ACTION_KINDS.filter(
+  (k) => k === 'webhook' || k === 'create_row',
+);
 
 type ScheduleTrigger = Extract<AutomationTrigger, { kind: 'schedule' }>;
 
@@ -108,11 +110,11 @@ export function AutomationsDialog({
         : a.trigger.kind === 'schedule'
           ? t('databases.automations.scheduleSummary', { when: describeSchedule(a.trigger, t) })
           : t('databases.automations.editedSummary', {
-            property:
-              database?.schema.properties.find(
-                (p) => a.trigger.kind === 'property_edited' && p.id === a.trigger.propertyId,
-              )?.name ?? '?',
-          });
+              property:
+                database?.schema.properties.find(
+                  (p) => a.trigger.kind === 'property_edited' && p.id === a.trigger.propertyId,
+                )?.name ?? '?',
+            });
     return `${trigger} → ${a.actions.map((x) => t(`databases.automations.actions.${x.kind}`)).join(', ')}`;
   };
 
@@ -388,7 +390,10 @@ function AutomationForm({
                 <SettingSelect
                   label={t('databases.automations.action')}
                   value={action.kind}
-                  options={(trigger.kind === 'schedule' ? SCHEDULE_ACTIONS : AUTOMATION_ACTION_KINDS).map((kind) => ({
+                  options={(trigger.kind === 'schedule'
+                    ? SCHEDULE_ACTIONS
+                    : AUTOMATION_ACTION_KINDS
+                  ).map((kind) => ({
                     value: kind,
                     label: t(`databases.automations.actions.${kind}`),
                   }))}
