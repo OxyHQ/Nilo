@@ -105,6 +105,8 @@ export {
   MAX_AUTOMATION_ACTIONS,
   MAX_AUTOMATION_DEPTH,
   MAX_AUTOMATIONS_PER_DATABASE,
+  nextScheduledRun,
+  scheduleActionProblem,
   triggerFires,
 } from './automations';
 export { MAX_DOC_UPDATE_BYTES } from './collab';

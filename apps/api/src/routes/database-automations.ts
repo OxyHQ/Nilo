@@ -13,6 +13,8 @@ import {
   automationPatchSchema,
   isSafeUrl,
   MAX_AUTOMATIONS_PER_DATABASE,
+  nextScheduledRun,
+  scheduleActionProblem,
 } from '@oxy.so/nilo-contracts';
 import { and, asc, count, eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -30,6 +32,11 @@ import { findDatabaseById } from '../repositories/databases.js';
  * What the schemas validate, as the contract's own types: zod infers an
  * action's required `to` as optional, so the boundary says what it checked.
  */
+/** When a schedule that is on is next due. */
+function nextRun(trigger: AutomationTrigger, enabled: boolean): Date | null {
+  return enabled && trigger.kind === 'schedule' ? nextScheduledRun(trigger, new Date()) : null;
+}
+
 interface AutomationBody {
   name: string;
   enabled?: boolean;
@@ -47,6 +54,8 @@ async function refusal(
   trigger: AutomationTrigger | undefined,
   actions: AutomationAction[] | undefined,
 ): Promise<string | null> {
+  const scheduleProblem = scheduleActionProblem(trigger, actions);
+  if (scheduleProblem) return scheduleProblem;
   const property = (id: string) => schema.properties.find((p) => p.id === id);
   if (trigger?.kind === 'property_edited') {
     const watched = property(trigger.propertyId);
@@ -170,6 +179,7 @@ router.post(
           trigger: body.trigger,
           actions: body.actions,
           createdBy: req.user?.id as string,
+          nextRunAt: nextRun(body.trigger, body.enabled ?? true),
           secret,
         })
         .returning();
@@ -213,12 +223,18 @@ router.patch(
         res.status(404).json({ error: 'Automation not found' });
         return;
       }
-      const problem = await refusal(
-        database.propertiesSchema,
-        database.workspaceId,
-        body.trigger,
-        body.actions,
-      );
+      const problem =
+        (await refusal(
+          database.propertiesSchema,
+          database.workspaceId,
+          body.trigger,
+          body.actions,
+        )) ??
+        // Changing one half of the pair must leave the pair sound.
+        scheduleActionProblem(
+          body.trigger ?? (current.trigger as AutomationTrigger),
+          body.actions ?? (current.actions as AutomationAction[]),
+        );
       if (problem) {
         res.status(400).json({ error: problem, code: 'INVALID_AUTOMATION' });
         return;
@@ -233,6 +249,13 @@ router.patch(
           ...(body.trigger !== undefined && { trigger: body.trigger }),
           ...(body.actions !== undefined && { actions: body.actions }),
           ...(takesOver && { createdBy: req.user?.id as string }),
+          // A schedule is due at its next occurrence from now; anything else has none.
+          ...((body.trigger !== undefined || body.enabled !== undefined) && {
+            nextRunAt: nextRun(
+              body.trigger ?? (current.trigger as AutomationTrigger),
+              body.enabled ?? current.enabled,
+            ),
+          }),
           // Switched back on, it starts without the failure that stopped it.
           ...(body.enabled === true && { lastStatus: null, lastError: null }),
         })

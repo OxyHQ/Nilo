@@ -99,9 +99,17 @@ HMAC-SHA256 of "t.body">` made with the automation's `secret`, which the create
 answer returns once. A receiver that is down (a network error, 429 or 5xx) is tried
 again after 1 s and 5 s, in the API process: a restart in between drops the
 retries. Any other answer, or a refused address, is final. A failed delivery is
-the automation's `lastError`. Recurring triggers are not built yet: they need a scheduler that is
-safe across API instances (claim due rows `FOR UPDATE SKIP LOCKED`, as the
-reminder sweep does).
+the automation's `lastError`.
+
+A `schedule` trigger runs every day, or every week on a weekday, at an hour in
+UTC. It belongs to no page, so its actions are only a webhook, a notification to
+named people (`notify` with `to.kind: 'people'`; the app offers webhook and add
+a page) or a new page; `set_property` and notifying a person property are
+refused. `next_run_at` holds when each is due. A sweep every minute
+(`lib/automation-schedule.ts`) claims what is due with `FOR UPDATE SKIP LOCKED`,
+so API instances never take the same one, and moves it to its next occurrence
+counted from now: a sweep that was down runs it once, not once per missed
+occurrence. Switching a schedule off clears `next_run_at`; switching it on sets it.
 
 ## Relations
 

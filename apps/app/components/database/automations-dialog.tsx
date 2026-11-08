@@ -48,6 +48,29 @@ const NOT_EDITED = new Set([
   'verification',
 ]);
 
+const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
+const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6];
+
+/** The kinds of action a schedule can take: it has no page to edit or look up. */
+const SCHEDULE_ACTIONS = AUTOMATION_ACTION_KINDS.filter(
+  (k) => k === 'webhook' || k === 'create_row',
+);
+
+type ScheduleTrigger = Extract<AutomationTrigger, { kind: 'schedule' }>;
+
+function describeSchedule(
+  trigger: ScheduleTrigger,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  const hour = `${String(trigger.hour).padStart(2, '0')}:00 UTC`;
+  return trigger.every === 'week'
+    ? t('databases.automations.weeklyAt', {
+        day: t(`databases.automations.weekdays.${trigger.weekday ?? 0}`),
+        hour,
+      })
+    : t('databases.automations.dailyAt', { hour });
+}
+
 function newAction(kind: AutomationAction['kind'], database: Database): AutomationAction {
   if (kind === 'webhook') return { kind, url: '' };
   if (kind === 'create_row') return { kind };
@@ -84,12 +107,14 @@ export function AutomationsDialog({
     const trigger =
       a.trigger.kind === 'row_added'
         ? t('databases.automations.triggers.row_added')
-        : t('databases.automations.editedSummary', {
-            property:
-              database?.schema.properties.find(
-                (p) => a.trigger.kind === 'property_edited' && p.id === a.trigger.propertyId,
-              )?.name ?? '?',
-          });
+        : a.trigger.kind === 'schedule'
+          ? t('databases.automations.scheduleSummary', { when: describeSchedule(a.trigger, t) })
+          : t('databases.automations.editedSummary', {
+              property:
+                database?.schema.properties.find(
+                  (p) => a.trigger.kind === 'property_edited' && p.id === a.trigger.propertyId,
+                )?.name ?? '?',
+            });
     return `${trigger} → ${a.actions.map((x) => t(`databases.automations.actions.${x.kind}`)).join(', ')}`;
   };
 
@@ -275,14 +300,62 @@ function AutomationForm({
             value: kind,
             label: t(`databases.automations.triggers.${kind}`),
           }))}
-          onChange={(kind) =>
-            setTrigger(
-              kind === 'row_added'
-                ? { kind }
-                : { kind: 'property_edited', propertyId: watchable[0]?.id ?? '' },
-            )
-          }
+          onChange={(kind) => {
+            if (kind === 'schedule') {
+              setTrigger({ kind: 'schedule', every: 'day', hour: 9 });
+              // Nothing to edit or look up on a page: keep only what a schedule can do.
+              setActions((list) => {
+                const kept = list.filter((a) => a.kind === 'webhook' || a.kind === 'create_row');
+                return kept.length > 0 ? kept : [newAction('create_row', database)];
+              });
+            } else {
+              setTrigger(
+                kind === 'row_added'
+                  ? { kind }
+                  : { kind: 'property_edited', propertyId: watchable[0]?.id ?? '' },
+              );
+            }
+          }}
         />
+        {trigger.kind === 'schedule' ? (
+          <>
+            <SettingSelect
+              label={t('databases.automations.every')}
+              value={trigger.every}
+              options={[
+                { value: 'day', label: t('databases.automations.everyDay') },
+                { value: 'week', label: t('databases.automations.everyWeek') },
+              ]}
+              onChange={(every) =>
+                setTrigger(
+                  every === 'week'
+                    ? { kind: 'schedule', every, hour: trigger.hour, weekday: 1 }
+                    : { kind: 'schedule', every: 'day', hour: trigger.hour },
+                )
+              }
+            />
+            {trigger.every === 'week' ? (
+              <SettingSelect
+                label={t('databases.automations.weekday')}
+                value={String(trigger.weekday ?? 1)}
+                options={WEEKDAYS.map((d) => ({
+                  value: String(d),
+                  label: t(`databases.automations.weekdays.${d}`),
+                }))}
+                onChange={(weekday) => setTrigger({ ...trigger, weekday: Number(weekday) })}
+              />
+            ) : null}
+            <SettingSelect
+              label={t('databases.automations.hour')}
+              value={String(trigger.hour)}
+              options={HOURS.map((h) => ({
+                value: String(h),
+                label: `${String(h).padStart(2, '0')}:00 UTC`,
+              }))}
+              onChange={(hour) => setTrigger({ ...trigger, hour: Number(hour) })}
+            />
+          </>
+        ) : null}
         {trigger.kind === 'property_edited' ? (
           <>
             <SettingSelect
@@ -317,7 +390,10 @@ function AutomationForm({
                 <SettingSelect
                   label={t('databases.automations.action')}
                   value={action.kind}
-                  options={AUTOMATION_ACTION_KINDS.map((kind) => ({
+                  options={(trigger.kind === 'schedule'
+                    ? SCHEDULE_ACTIONS
+                    : AUTOMATION_ACTION_KINDS
+                  ).map((kind) => ({
                     value: kind,
                     label: t(`databases.automations.actions.${kind}`),
                   }))}

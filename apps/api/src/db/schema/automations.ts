@@ -25,6 +25,8 @@ export const databaseAutomations = pgTable(
     createdBy: text().notNull(),
     /** Signs the automation's webhooks (`x-nilo-signature`); the receiver's to verify with. */
     secret: text().notNull(),
+    /** When a `schedule` automation is next due; null for the others and while it is off. */
+    nextRunAt: timestamptz(),
     lastRunAt: timestamptz(),
     /** `ok` or `failed`; null before the first run. */
     lastStatus: text(),
@@ -35,6 +37,10 @@ export const databaseAutomations = pgTable(
   (t) => [
     // The executor: the enabled automations of the database a row was written to.
     index('database_automations_database_idx').on(t.databaseId).where(sql`${t.enabled}`),
+    // The schedule sweep: what is due, soonest first.
+    index('database_automations_due_idx')
+      .on(t.nextRunAt)
+      .where(sql`${t.enabled} and ${t.nextRunAt} is not null`),
     check(
       'database_automations_last_status',
       sql`${t.lastStatus} is null or ${t.lastStatus} in ('ok', 'failed')`,

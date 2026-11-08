@@ -6,7 +6,7 @@
 import { z } from 'zod';
 
 /** What starts an automation. */
-export const AUTOMATION_TRIGGER_KINDS = ['row_added', 'property_edited'] as const;
+export const AUTOMATION_TRIGGER_KINDS = ['row_added', 'property_edited', 'schedule'] as const;
 export type AutomationTriggerKind = (typeof AUTOMATION_TRIGGER_KINDS)[number];
 
 export type AutomationTrigger =
@@ -16,7 +16,13 @@ export type AutomationTrigger =
    * A property of a row was edited, to anything or, with `equals`, to exactly
    * that stored value (`{ optionId }` for a status, `{ checked: true }`…).
    */
-  | { kind: 'property_edited'; propertyId: string; equals?: unknown };
+  | { kind: 'property_edited'; propertyId: string; equals?: unknown }
+  /**
+   * Every day, or every week on `weekday` (0 is Sunday), at `hour` UTC. It
+   * belongs to no row, so what it does cannot name one: only a webhook, a
+   * notification to named people, or a new page.
+   */
+  | { kind: 'schedule'; every: 'day' | 'week'; hour: number; weekday?: number };
 
 /** What an automation does, in order. */
 export const AUTOMATION_ACTION_KINDS = ['set_property', 'notify', 'webhook', 'create_row'] as const;
@@ -61,6 +67,17 @@ export const automationTriggerSchema = z.discriminatedUnion('kind', [
       equals: z.unknown().optional(),
     })
     .strict(),
+  z
+    .object({
+      kind: z.literal('schedule'),
+      every: z.enum(['day', 'week']),
+      hour: z.number().int().min(0).max(23),
+      weekday: z.number().int().min(0).max(6).optional(),
+    })
+    .strict()
+    .refine((t) => (t.every === 'week') === (t.weekday !== undefined), {
+      message: 'A weekly schedule names its weekday, a daily one does not',
+    }),
 ]);
 
 const recipientsSchema = z.discriminatedUnion('kind', [
@@ -122,10 +139,43 @@ export function triggerFires(
   trigger: AutomationTrigger,
   event: { created: boolean; before: Record<string, unknown>; after: Record<string, unknown> },
 ): boolean {
+  if (trigger.kind === 'schedule') return false;
   if (trigger.kind === 'row_added') return event.created;
   if (event.created) return false;
   const was = JSON.stringify(event.before[trigger.propertyId] ?? null);
   const is = JSON.stringify(event.after[trigger.propertyId] ?? null);
   if (was === is) return false;
   return trigger.equals === undefined || JSON.stringify(trigger.equals) === is;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The first moment strictly after `from` that `trigger` (a schedule) is due. */
+export function nextScheduledRun(
+  trigger: Extract<AutomationTrigger, { kind: 'schedule' }>,
+  from: Date,
+): Date {
+  const at = new Date(from);
+  at.setUTCMinutes(0, 0, 0);
+  at.setUTCHours(trigger.hour);
+  while (at.getTime() <= from.getTime()) at.setTime(at.getTime() + DAY_MS);
+  if (trigger.every === 'week') {
+    while (at.getUTCDay() !== trigger.weekday) at.setTime(at.getTime() + DAY_MS);
+  }
+  return at;
+}
+
+/** What is wrong with `actions` under `trigger` (no row to act on), or null. */
+export function scheduleActionProblem(
+  trigger: AutomationTrigger | undefined,
+  actions: AutomationAction[] | undefined,
+): string | null {
+  if (trigger?.kind !== 'schedule') return null;
+  for (const action of actions ?? []) {
+    if (action.kind === 'set_property') return 'A schedule has no page to edit';
+    if (action.kind === 'notify' && action.to.kind === 'property') {
+      return 'A schedule can only notify named people';
+    }
+  }
+  return null;
 }
