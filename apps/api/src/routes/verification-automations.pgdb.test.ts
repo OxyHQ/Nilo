@@ -149,9 +149,10 @@ import databaseAutomationsRouter from './database-automations.js';
 import pagesRouter from './pages.js';
 import pageVerificationRouter from './page-verification.js';
 import { notifyExpiredVerifications } from '../lib/verifications.js';
+import { runDueWebhookRetries } from '../lib/webhook-retries.js';
 import { webhookRetry, runAutomations, signWebhook } from '../lib/databases/automations.js';
 import { pageVerifications } from '../db/schema/collab.js';
-import { databaseAutomations } from '../db/schema/automations.js';
+import { automationWebhookRetries, databaseAutomations } from '../db/schema/automations.js';
 
 let db: TestDatabase;
 let originalDatabaseUrl: string | undefined;
@@ -573,6 +574,34 @@ describe('the automation executor', () => {
       await vi.waitFor(async () => expect((await status()).lastStatus).toBe('failed'));
       expect(attempts()).toHaveLength(1);
       expect((await status()).lastError).toContain('404');
+
+      // Down for every quick try: queued, and delivered by a later sweep with the same id.
+      sent.webhooks.length = 0;
+      sent.webhookQueue = [503, 503, 503];
+      const queued = () =>
+        db
+          .select()
+          .from(automationWebhookRetries)
+          .where(eq(automationWebhookRetries.automationId, automationId));
+      await addRow(databaseId, 'Outage');
+      await vi.waitFor(async () => expect(await queued()).toHaveLength(1));
+      expect(attempts()).toHaveLength(3);
+      expect((await status()).lastStatus).toBe('failed');
+      expect(await runDueWebhookRetries(db)).toBe(0); // not due yet
+      await runDueWebhookRetries(db, new Date(Date.now() + 2 * 60_000));
+      expect(attempts()).toHaveLength(4);
+      expect(new Set(attempts().map((w) => w.headers['x-nilo-delivery'])).size).toBe(1);
+      expect(await queued()).toHaveLength(0);
+
+      // Still down on the queued try: it waits for the next one.
+      sent.webhooks.length = 0;
+      sent.webhookQueue = [503, 503, 503, 503];
+      await addRow(databaseId, 'Longer outage');
+      await vi.waitFor(async () => expect(await queued()).toHaveLength(1));
+      await runDueWebhookRetries(db, new Date(Date.now() + 2 * 60_000));
+      const [waiting] = await queued();
+      expect(waiting.attempt).toBe(1);
+      expect(waiting.nextAttemptAt.getTime()).toBeGreaterThan(Date.now() + 5 * 60_000);
     } finally {
       sent.webhookQueue = [];
     }
