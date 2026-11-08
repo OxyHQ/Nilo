@@ -17,6 +17,7 @@ import { databases } from '../../db/schema/databases.js';
 import { pages } from '../../db/schema/pages.js';
 import { workspaces } from '../../db/schema/workspaces.js';
 import { ensurePersonalNotesHome } from '../../middleware/workspace.js';
+import { listViewsByDatabase } from '../../repositories/databases.js';
 import { createPage } from '../../repositories/pages.js';
 
 vi.mock('../../middleware/auth.js', () => ({
@@ -258,5 +259,26 @@ describe('memory tools', () => {
       .from(pages)
       .where(eq(pages.databaseId, system[0]?.id as string));
     expect(rows.length).toBeGreaterThan(0);
+  });
+
+  it('opens on a Memories view: pinned first, then the most important, fingerprint hidden', async () => {
+    const home = await ensurePersonalNotesHome(USER);
+    const [system] = await db
+      .select({ id: databases.id })
+      .from(databases)
+      .where(and(eq(databases.workspaceId, home.workspaceId), eq(databases.systemKey, 'memories')));
+    const views = await listViewsByDatabase(db, system?.id as string);
+    const defaults = views.filter((view) => view.isDefault);
+    expect(defaults).toHaveLength(1);
+    expect(defaults[0]).toMatchObject({
+      name: 'Memories',
+      type: 'table',
+      sorts: [
+        { propertyId: 'memory_pinned', direction: 'desc' },
+        { propertyId: 'memory_importance', direction: 'desc' },
+      ],
+      hiddenProperties: ['memory_fingerprint'],
+    });
+    expect(views.map((view) => view.name)).toContain('All');
   });
 });

@@ -472,6 +472,7 @@ export async function ensureMemoryDatabase(
     name: 'Memories',
     icon: '🧠',
     schema: memorySchema(),
+    views: addMemoriesView,
   }));
 }
 
@@ -538,6 +539,31 @@ async function addCalendarView(
     order: -1,
   });
   await demoteOtherDefaultViews(db, calendarId, view.id);
+}
+
+/**
+ * What the person opens the memories on: pinned first, then the most important, with the
+ * dedupe fingerprint out of sight. The plain table stays beside it as "All".
+ */
+async function addMemoriesView(db: PgHandle, memoriesId: string): Promise<void> {
+  const view = await insertDatabaseView(db, {
+    databaseId: memoriesId,
+    name: 'Memories',
+    type: 'table',
+    isDefault: true,
+    filters: { kind: 'group', combinator: 'and', filters: [] },
+    sorts: [
+      { propertyId: MEMORY_PROPERTY.pinned, direction: 'desc' },
+      { propertyId: MEMORY_PROPERTY.importance, direction: 'desc' },
+    ],
+    groupBy: null,
+    hiddenProperties: [MEMORY_PROPERTY.fingerprint],
+    frozenProperties: [],
+    pageSize: 50,
+    config: {},
+    order: -1,
+  });
+  await demoteOtherDefaultViews(db, memoriesId, view.id);
 }
 
 /** A gallery of the notes not archived, pinned first: how Noted shows them. */
