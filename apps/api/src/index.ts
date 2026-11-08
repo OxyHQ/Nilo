@@ -33,7 +33,9 @@ import calendarRouter from './routes/calendar.js';
 import capabilitiesRouter from './routes/capabilities.js';
 import { createNotesMcpService } from './capabilities/notes-mcp.js';
 import { mountCatalogMcp } from './capabilities/catalog-mcp-mount.js';
+import { createMemoriesMcpService } from './capabilities/memories-mcp.js';
 import { createNiloMcpService } from './capabilities/nilo-mcp.js';
+import { MEMORIES_CAPABILITY_CATALOG } from './capabilities/memories.catalog.js';
 import { NILO_CAPABILITY_CATALOG } from './capabilities/nilo.catalog.js';
 import { NOTES_CAPABILITY_CATALOG } from './capabilities/notes.catalog.js';
 import { startEventOutboxWorker, stopEventOutboxWorker } from './capabilities/event-outbox.js';
@@ -124,6 +126,11 @@ initSocket(server);
 // weaken or consume a protocol request.
 mountCatalogMcp(app, createNotesMcpService(), NOTES_CAPABILITY_CATALOG.externalMcp?.resource ?? '');
 mountCatalogMcp(app, createNiloMcpService(), NILO_CAPABILITY_CATALOG.externalMcp?.resource ?? '');
+mountCatalogMcp(
+  app,
+  createMemoriesMcpService(),
+  MEMORIES_CAPABILITY_CATALOG.externalMcp?.resource ?? '',
+);
 // A /mcp request on a host no MCP lane owns is refused, never served by the API.
 app.all('/mcp', (_req, res) => {
   res.status(421).json({

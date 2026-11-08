@@ -165,7 +165,8 @@ the catalog after each healthy rollout.
 ## Agent memories
 
 Agent memories are the `memories` system database of the personal workspace,
-served to AI agents as MCP tools at `https://mcp.nilo.so` (`recallMemories`,
+served to AI agents as MCP tools at `https://mcp.memory.nilo.so`, a server of their own apart from the pages
+one at `https://mcp.nilo.so` (`recallMemories`,
 `remember`, `updateMemory`, `forgetMemory`), not as REST routes
 (`docs/memories.md`).
 
