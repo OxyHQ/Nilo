@@ -6,57 +6,23 @@
  */
 import { blocksToMarkdown, blocksToTree, type NoteBlock } from '@oxy.so/nilo-contracts';
 import type { CatalogToolHandler, CatalogToolHandlers } from '@oxy.so/mcp';
-import { announceChange } from '../collab/live-rooms.js';
 import { getDb, type PgHandle } from '../db/client.js';
-import { ensureMemoryDatabase, findSystemDatabase } from '../lib/databases/system.js';
-import {
-  forgetMemory,
-  type MemoryHome,
-  MemoryRejected,
-  recallMemories,
-  remember,
-  updateMemory,
-} from '../lib/memories.js';
-import { executeIdempotently } from './idempotency.js';
+import { findSystemDatabase } from '../lib/databases/system.js';
 import type { PageRow } from '../repositories/pages.js';
 import { findPageById, listPages } from '../repositories/pages.js';
 import { loadNoteParts, type NotesHome } from '../repositories/notes.js';
 import { ensurePersonalNotesHome } from '../middleware/workspace.js';
 import { NILO_CAPABILITY_CATALOG } from './nilo.catalog.js';
+import {
+  limitOf,
+  NiloCapabilityError,
+  optionalString,
+  requiredString,
+  type Input,
+  type ToolExecutor,
+} from './tool-input.js';
 
-export class NiloCapabilityError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly status: number,
-  ) {
-    super(message);
-    this.name = 'NiloCapabilityError';
-  }
-}
-
-type Input = Readonly<Record<string, unknown>>;
-type ToolExecutor = (input: Input, userId: string) => Promise<Record<string, unknown>>;
-
-const DEFAULT_LIMIT = 50;
-
-function invalid(message: string): never {
-  throw new NiloCapabilityError('invalid_input', message, 400);
-}
-
-function requiredString(input: Input, key: string): string {
-  const value = input[key];
-  if (typeof value !== 'string' || value.length === 0) invalid(`${key} is required`);
-  return value;
-}
-
-function optionalString(input: Input, key: string): string | undefined {
-  const value = input[key];
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
-}
-
-const limitOf = (input: Input, fallback = DEFAULT_LIMIT) =>
-  typeof input.limit === 'number' ? input.limit : fallback;
+export { NiloCapabilityError };
 
 /** A page as an agent reads its listing: identity and placement, never a body. */
 function agentPage(page: PageRow): Record<string, unknown> {
@@ -96,114 +62,7 @@ async function workspaceHome(userId: string): Promise<NotesHome & { memoriesId: 
   };
 }
 
-// ── Memory tools (`docs/memories.md`) ────────────────────────────────
-
-async function memoryHome(userId: string): Promise<MemoryHome> {
-  const home = await ensurePersonalNotesHome(userId);
-  const memories = await ensureMemoryDatabase(getDb() as PgHandle, {
-    id: home.workspaceId,
-    ownerId: home.ownerId,
-  });
-  return { workspaceId: home.workspaceId, ownerId: home.ownerId, memories };
-}
-
-const translated = (error: unknown): never => {
-  if (error instanceof MemoryRejected) {
-    throw new NiloCapabilityError(error.code.toLowerCase(), error.message, error.status);
-  }
-  throw error;
-};
-
-function stringList(input: Input, key: string): string[] | undefined {
-  const value = input[key];
-  if (value === undefined) return undefined;
-  if (!Array.isArray(value) || value.some((v) => typeof v !== 'string')) {
-    invalid(`${key} must be a list of strings`);
-  }
-  return value as string[];
-}
-
-/** The memory fields an agent may write, as one object. */
-function memoryFields(input: Input) {
-  return {
-    ...(typeof input.title === 'string' && { title: input.title }),
-    ...(typeof input.detail === 'string' && { detail: input.detail }),
-    ...(typeof input.kind === 'string' && { kind: input.kind }),
-    ...(typeof input.importance === 'number' && { importance: input.importance }),
-    ...(typeof input.pinned === 'boolean' && { pinned: input.pinned }),
-    ...(stringList(input, 'tags') !== undefined && { tags: stringList(input, 'tags') }),
-  };
-}
-
-/** One effectful memory call, once per idempotency key, clients told afterwards. */
-async function memoryEffect<Result extends Record<string, unknown>>(
-  tool: string,
-  input: Input,
-  userId: string,
-  run: (tx: PgHandle, home: MemoryHome) => Promise<Result>,
-): Promise<Result> {
-  const home = await memoryHome(userId);
-  const execution = await executeIdempotently({
-    accountId: userId,
-    tool,
-    idempotencyKey: requiredString(input, 'idempotencyKey'),
-    request: input,
-    execute: (tx) => run(tx, home).catch(translated),
-  });
-  if (!execution.replayed) {
-    announceChange({ workspaceId: home.workspaceId, databaseId: home.memories.id });
-  }
-  return execution.result;
-}
-
-const MEMORY_EXECUTORS: Record<string, ToolExecutor> = {
-  async recallMemories(input, userId) {
-    const home = await memoryHome(userId);
-    const minImportance = typeof input.minImportance === 'number' ? input.minImportance : undefined;
-    return {
-      memories: await recallMemories(getDb() as PgHandle, home, {
-        query: optionalString(input, 'query'),
-        kind: optionalString(input, 'kind'),
-        tags: stringList(input, 'tags'),
-        minImportance,
-        includeArchived: input.includeArchived === true,
-        limit: limitOf(input, 20),
-      }),
-    };
-  },
-
-  remember: (input, userId) =>
-    memoryEffect('remember', input, userId, async (tx, home) => {
-      const source = optionalString(input, 'source') ?? 'mcp';
-      const fields = memoryFields(input);
-      if (!fields.title) invalid('title is required');
-      const { memory, existed } = await remember(tx, home, {
-        ...fields,
-        title: fields.title,
-        source,
-      });
-      return { memory: memory as unknown as Record<string, unknown>, existed };
-    }),
-
-  updateMemory: (input, userId) =>
-    memoryEffect('updateMemory', input, userId, async (tx, home) => ({
-      memory: (await updateMemory(
-        tx,
-        home,
-        requiredString(input, 'memoryId'),
-        memoryFields(input),
-      )) as unknown as Record<string, unknown>,
-    })),
-
-  forgetMemory: (input, userId) =>
-    memoryEffect('forgetMemory', input, userId, (tx, home) =>
-      forgetMemory(tx, home, requiredString(input, 'memoryId'), input.hard === true),
-    ),
-};
-
 const TOOL_EXECUTORS: Record<string, ToolExecutor> = {
-  ...MEMORY_EXECUTORS,
-
   async listPages(input, userId) {
     const home = await workspaceHome(userId);
     const parent = optionalString(input, 'parentId');

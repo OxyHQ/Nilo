@@ -33,6 +33,7 @@ vi.mock('../../lib/logger.js', () => ({
   log: { general: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } },
 }));
 
+const { executeMemoryTool } = await import('../memories.handlers.js');
 const { executeNiloTool, NiloCapabilityError } = await import('../nilo.handlers.js');
 
 let db: TestDatabase;
@@ -56,12 +57,12 @@ type MemoryOut = {
 };
 
 const save = async (user: string, input: Record<string, unknown>) =>
-  (await executeNiloTool('remember', { idempotencyKey: key(), ...input }, user)) as {
+  (await executeMemoryTool('remember', { idempotencyKey: key(), ...input }, user)) as {
     memory: MemoryOut;
     existed: boolean;
   };
 const recall = async (user: string, input: Record<string, unknown> = {}) =>
-  ((await executeNiloTool('recallMemories', input, user)).memories as MemoryOut[]).map(
+  ((await executeMemoryTool('recallMemories', input, user)).memories as MemoryOut[]).map(
     (m) => m.title,
   );
 
@@ -116,8 +117,8 @@ describe('memory tools', () => {
 
   it('replays a retried write instead of repeating it', async () => {
     const input = { idempotencyKey: key(), title: 'Drinks coffee black' };
-    const a = (await executeNiloTool('remember', input, USER)) as { existed: boolean };
-    const b = (await executeNiloTool('remember', input, USER)) as { existed: boolean };
+    const a = (await executeMemoryTool('remember', input, USER)) as { existed: boolean };
+    const b = (await executeMemoryTool('remember', input, USER)) as { existed: boolean };
     expect(a.existed).toBe(false);
     expect(b.existed).toBe(false);
     expect((await recall(USER, { query: 'coffee' })).length).toBe(1);
@@ -125,9 +126,9 @@ describe('memory tools', () => {
 
   it('rejects a reused key with different input', async () => {
     const idempotencyKey = key();
-    await executeNiloTool('remember', { idempotencyKey, title: 'First' }, USER);
+    await executeMemoryTool('remember', { idempotencyKey, title: 'First' }, USER);
     await expect(
-      executeNiloTool('remember', { idempotencyKey, title: 'Second' }, USER),
+      executeMemoryTool('remember', { idempotencyKey, title: 'Second' }, USER),
     ).rejects.toThrow();
   });
 
@@ -156,14 +157,14 @@ describe('memory tools', () => {
 
   it('updates a memory and refuses to make two say the same thing', async () => {
     const { memory } = await save(USER, { title: 'Works at Oxy', importance: 3 });
-    const updated = (await executeNiloTool(
+    const updated = (await executeMemoryTool(
       'updateMemory',
       { idempotencyKey: key(), memoryId: memory.id, importance: 5, pinned: true, kind: 'fact' },
       USER,
     )) as { memory: MemoryOut };
     expect(updated.memory).toMatchObject({ importance: 5, pinned: true, kind: 'Fact' });
     await expect(
-      executeNiloTool(
+      executeMemoryTool(
         'updateMemory',
         { idempotencyKey: key(), memoryId: memory.id, title: 'Lives in Madrid' },
         USER,
@@ -182,7 +183,7 @@ describe('memory tools', () => {
 
   it('archives a forgotten memory, which saying it again restores, and deletes on request', async () => {
     const { memory } = await save(USER, { title: 'Owns a red bike' });
-    const archived = await executeNiloTool(
+    const archived = await executeMemoryTool(
       'forgetMemory',
       { idempotencyKey: key(), memoryId: memory.id },
       USER,
@@ -198,7 +199,7 @@ describe('memory tools', () => {
     expect(restored.memory.archived).toBe(false);
     expect(await recall(USER, { query: 'bike' })).toEqual(['Owns a red bike']);
 
-    const gone = await executeNiloTool(
+    const gone = await executeMemoryTool(
       'forgetMemory',
       { idempotencyKey: key(), memoryId: memory.id, hard: true },
       USER,
@@ -213,14 +214,14 @@ describe('memory tools', () => {
     expect(await recall(USER, { query: 'private' })).toEqual(['My private fact']);
     expect(await recall(OTHER, { query: 'private' })).toEqual(['Their private fact']);
     await expect(
-      executeNiloTool(
+      executeMemoryTool(
         'updateMemory',
         { idempotencyKey: key(), memoryId: mine.memory.id, title: 'Hijacked' },
         OTHER,
       ),
     ).rejects.toMatchObject({ code: 'memory_not_found', status: 404 });
     await expect(
-      executeNiloTool(
+      executeMemoryTool(
         'forgetMemory',
         { idempotencyKey: key(), memoryId: mine.memory.id, hard: true },
         OTHER,

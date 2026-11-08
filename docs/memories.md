@@ -2,7 +2,8 @@
 
 Every personal workspace can hold the account's long-term memory for AI agents:
 the `memories` system database, made on first use. Agents (Alia, or any MCP
-client) read and write it through Nilo's MCP server at `https://mcp.nilo.so`.
+client) read and write it through their own MCP server at `https://mcp.memory.nilo.so`,
+apart from the one for the workspace's pages (`https://mcp.nilo.so`).
 The owner sees it as an ordinary table: filter it, edit a memory, pin one, or
 delete it. Nothing an agent remembers is hidden from the person it is about.
 Code: `apps/api/src/lib/memories.ts`, `apps/api/src/capabilities/nilo.handlers.ts`,
@@ -32,7 +33,10 @@ A workspace reset empties it; the next tool call makes it again.
 
 ## Tools
 
-Served by the Nilo catalog (`nilo.catalog.ts`), MCP only. Nilo's internal
+Served by their own catalog, `nilo-memories` (`memories.catalog.ts`), MCP only. Nilo has
+three MCP lanes, one host each: Noted's notes, the workspace's pages (`nilo`,
+read-only, `pages.read`) and these memories. A client connected to one never
+sees the tools of another, and asks for memory scopes on its own. Nilo's internal
 capability route serves the notes catalog, so Alia reaches these through MCP.
 
 | Tool | Scope | Does |
@@ -67,7 +71,7 @@ change.
 
 ## Dependencies outside this repo
 
-- Oxy must issue the `memories.read` and `memories.write` scopes for the `nilo`
+- Oxy must issue the `memories.read` and `memories.write` scopes for the `nilo-memories`
   catalog (the MCP transport demands each tool's `requiredCapabilities` as the
   token's scopes) and the catalog must be registered again
   (`apps/api/src/scripts/register-capability-catalog.ts`), as for any catalog
