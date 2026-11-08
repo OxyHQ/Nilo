@@ -34,7 +34,8 @@ type AutomationRow = typeof databaseAutomations.$inferSelect;
 
 interface RowEvent {
   database: { id: string; workspaceId: string };
-  row: PageRow;
+  /** The row that fired it; null for a schedule, which has none. */
+  row: PageRow | null;
   before: PageProperties;
   /** The row was just added. */
   created: boolean;
@@ -69,7 +70,7 @@ export function signWebhook(secret: string, body: string, at: Date): string {
 /** Run what `event` triggers; resolves when every automation has run. Never throws. */
 export async function runAutomations(event: RowEvent): Promise<void> {
   try {
-    if (event.row.template) return;
+    if (!event.row || event.row.template) return;
     const db = getDb();
     const automations = await db
       .select()
@@ -84,13 +85,13 @@ export async function runAutomations(event: RowEvent): Promise<void> {
       triggerFires(a.trigger as AutomationTrigger, {
         created: event.created,
         before: event.before,
-        after: event.row.properties,
+        after: event.row?.properties ?? {},
       }),
     );
     if (fired.length === 0) return;
     if (event.depth >= MAX_AUTOMATION_DEPTH) {
       log.general.warn(
-        { databaseId: event.database.id, rowId: event.row.id },
+        { databaseId: event.database.id, rowId: event.row?.id },
         'Automations stopped: they trigger each other too deep',
       );
       return;
@@ -187,6 +188,7 @@ async function runAction(
   switch (action.kind) {
     case 'set_property': {
       const database = await findDatabaseById(db, event.database.id);
+      if (!event.row) throw new Error('A schedule has no page to edit');
       const page = await findPageById(db, event.row.id);
       if (!database || !page || page.archived) return;
       if (page.locked) throw new Error('The page is locked');
@@ -220,21 +222,21 @@ async function runAction(
       const ids =
         action.to.kind === 'people'
           ? action.to.userIds
-          : peopleIn(event.row.properties[action.to.propertyId]);
+          : peopleIn(event.row?.properties[action.to.propertyId]);
       for (const userId of new Set(ids)) {
         // Only people who can open the row hear about it.
-        if (!(await resolvePageAccess(db, userId, event.row.id))) continue;
+        if (event.row && !(await resolvePageAccess(db, userId, event.row.id))) continue;
         await sendNotification({
           userId,
           type: 'automation',
-          title: event.row.title || 'Untitled',
+          title: event.row?.title || automation.name,
           body: action.message || automation.name,
           priority: 'normal',
           data: {
-            pageId: event.row.id,
+            ...(event.row && { pageId: event.row.id }),
             databaseId: event.database.id,
             automationId: automation.id,
-            workspaceId: event.row.workspaceId,
+            workspaceId: event.row?.workspaceId ?? event.database.workspaceId,
           },
         });
       }
@@ -248,7 +250,7 @@ async function runAction(
         automationId: automation.id,
         databaseId: event.database.id,
         trigger: (automation.trigger as AutomationTrigger).kind,
-        row: {
+        row: event.row && {
           id: event.row.id,
           title: event.row.title,
           properties: event.row.properties,
@@ -289,4 +291,27 @@ async function runAction(
 function peopleIn(value: unknown): string[] {
   const ids = (value as { userIds?: unknown } | null | undefined)?.userIds;
   return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [];
+}
+
+/**
+ * Run a `schedule` automation that is due: no row, so depth 0 and nothing to
+ * compare. Records the outcome like any run; never throws.
+ */
+export async function runScheduledAutomation(automation: AutomationRow): Promise<void> {
+  try {
+    const database = await findDatabaseById(getDb(), automation.databaseId);
+    if (!database || database.archived) return;
+    await runOne(automation, {
+      database: { id: database.id, workspaceId: database.workspaceId },
+      row: null,
+      before: {},
+      created: false,
+      depth: 0,
+    });
+  } catch (err: unknown) {
+    log.general.error(
+      { err, automationId: automation.id },
+      'Running a scheduled automation failed',
+    );
+  }
 }

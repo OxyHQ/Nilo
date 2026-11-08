@@ -2,6 +2,8 @@ import { createHmac } from 'node:crypto';
 import {
   type AutomationTrigger,
   automationInputSchema,
+  nextScheduledRun,
+  scheduleActionProblem,
   triggerFires,
 } from '@oxy.so/nilo-contracts';
 import { describe, expect, it } from 'vitest';
@@ -96,5 +98,69 @@ describe('signWebhook', () => {
     const expected = createHmac('sha256', 'secret').update(`${t}.{"a":1}`).digest('hex');
     expect(signWebhook('secret', '{"a":1}', at)).toBe(`t=${t},v1=${expected}`);
     expect(signWebhook('other', '{"a":1}', at)).not.toBe(signWebhook('secret', '{"a":1}', at));
+  });
+});
+
+describe('schedules', () => {
+  const daily = { kind: 'schedule', every: 'day', hour: 9 } as const;
+  const weekly = { kind: 'schedule', every: 'week', weekday: 1, hour: 9 } as const;
+
+  it('is due at the next hour of the day, strictly after now', () => {
+    expect(nextScheduledRun(daily, new Date('2026-11-07T08:30:00Z')).toISOString()).toBe(
+      '2026-11-07T09:00:00.000Z',
+    );
+    expect(nextScheduledRun(daily, new Date('2026-11-07T09:00:00Z')).toISOString()).toBe(
+      '2026-11-08T09:00:00.000Z',
+    );
+    expect(nextScheduledRun(daily, new Date('2026-11-07T23:59:59Z')).toISOString()).toBe(
+      '2026-11-08T09:00:00.000Z',
+    );
+  });
+
+  it('is due on its weekday when weekly (2026-11-07 is a Saturday; weekday 1 is Monday)', () => {
+    expect(nextScheduledRun(weekly, new Date('2026-11-07T12:00:00Z')).toISOString()).toBe(
+      '2026-11-09T09:00:00.000Z',
+    );
+    expect(nextScheduledRun(weekly, new Date('2026-11-09T09:00:00Z')).toISOString()).toBe(
+      '2026-11-16T09:00:00.000Z',
+    );
+  });
+
+  it('a weekly schedule names its weekday and a daily one does not', () => {
+    const parse = (trigger: unknown) =>
+      automationInputSchema.safeParse({
+        name: 'x',
+        trigger,
+        actions: [{ kind: 'create_row' }],
+      }).success;
+    expect(parse(daily)).toBe(true);
+    expect(parse(weekly)).toBe(true);
+    expect(parse({ kind: 'schedule', every: 'week', hour: 9 })).toBe(false);
+    expect(parse({ kind: 'schedule', every: 'day', hour: 9, weekday: 1 })).toBe(false);
+    expect(parse({ kind: 'schedule', every: 'day', hour: 24 })).toBe(false);
+  });
+
+  it('never fires on a row write, and has nothing to edit or look up on a page', () => {
+    expect(triggerFires(daily, event(true, {}, {}))).toBe(false);
+    expect(
+      scheduleActionProblem(daily, [{ kind: 'set_property', propertyId: 'a', value: 1 }]),
+    ).not.toBeNull();
+    expect(
+      scheduleActionProblem(daily, [
+        { kind: 'notify', to: { kind: 'property', propertyId: 'who' } },
+      ]),
+    ).not.toBeNull();
+    expect(
+      scheduleActionProblem(daily, [
+        { kind: 'notify', to: { kind: 'people', userIds: ['u'] } },
+        { kind: 'webhook', url: 'https://example.com' },
+        { kind: 'create_row' },
+      ]),
+    ).toBeNull();
+    expect(
+      scheduleActionProblem({ kind: 'row_added' }, [
+        { kind: 'set_property', propertyId: 'a', value: 1 },
+      ]),
+    ).toBeNull();
   });
 });

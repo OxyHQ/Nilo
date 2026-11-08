@@ -43,6 +43,7 @@ import syncedBlocksRouter from './routes/synced-blocks.js';
 import formsRouter from './routes/forms.js';
 import pageFollowsRouter from './routes/page-follows.js';
 import { startReminderSweep, stopReminderSweep } from './lib/reminders.js';
+import { startAutomationSchedule, stopAutomationSchedule } from './lib/automation-schedule.js';
 import { startVerificationSweep, stopVerificationSweep } from './lib/verifications.js';
 import { feedKeyMalformed } from './lib/calendar/feed-secret.js';
 import {
@@ -293,6 +294,7 @@ getDb()
       log.general.info({ port: PORT }, 'API server listening');
       startReminderSweep();
       startVerificationSweep();
+      startAutomationSchedule();
       startProjectionSweep();
       startEventOutboxWorker();
       startFileReferenceWork();
@@ -346,6 +348,7 @@ getDb()
 
       stopReminderSweep();
       stopVerificationSweep();
+      stopAutomationSchedule();
       stopProjectionSweep();
       stopEventOutboxWorker();
       stopFileReferenceWork();

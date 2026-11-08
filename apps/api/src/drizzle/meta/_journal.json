@@ -435,6 +435,13 @@
       "when": 1794088631025,
       "tag": "0061_page_verification_and_automations_validate",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1794101111005,
+      "tag": "0062_automation_schedule",
+      "breakpoints": true
     }
   ]
 }

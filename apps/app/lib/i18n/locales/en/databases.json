@@ -716,7 +716,8 @@
     "trigger": "When",
     "triggers": {
       "row_added": "A page is added",
-      "property_edited": "A property is edited"
+      "property_edited": "A property is edited",
+      "schedule": "On a schedule"
     },
     "property": "Property",
     "onlyWhen": "Only when it becomes a value",
@@ -736,6 +737,23 @@
     "invalidUrl": "A webhook needs a public https address.",
     "secretHint": "“%{name}” signs its webhooks with this secret (x-nilo-signature). It is shown only now:",
     "lastFailed": "Last run failed: %{error}",
-    "failed": "Couldn't save the automation"
+    "failed": "Couldn't save the automation",
+    "every": "Repeat",
+    "everyDay": "Every day",
+    "everyWeek": "Every week",
+    "weekday": "Day",
+    "hour": "Time (UTC)",
+    "dailyAt": "Every day at %{hour}",
+    "weeklyAt": "Every %{day} at %{hour}",
+    "scheduleSummary": "%{when}",
+    "weekdays": {
+      "0": "Sunday",
+      "1": "Monday",
+      "2": "Tuesday",
+      "3": "Wednesday",
+      "4": "Thursday",
+      "5": "Friday",
+      "6": "Saturday"
+    }
   }
 }
