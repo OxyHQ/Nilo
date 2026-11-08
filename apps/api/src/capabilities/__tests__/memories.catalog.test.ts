@@ -28,8 +28,10 @@ describe('Memories capability catalog', () => {
       expect(tool.requiredCapabilities).toEqual([
         tool.effect === 'read' ? 'memories.read' : 'memories.write',
       ]);
-      // The internal capability route serves only the notes catalog.
-      expect(tool.exposure).toEqual(['mcp']);
+      // Alia reaches them as a first-party app (the internal route) and clients over MCP.
+      expect(tool.exposure).toEqual(['internal', 'mcp']);
+      // A person's memories are Alia's to use, never an agent's.
+      expect(tool.actors).toEqual(['alia']);
     }
   });
 

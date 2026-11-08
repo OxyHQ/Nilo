@@ -36,8 +36,15 @@ A workspace reset empties it; the next tool call makes it again.
 Served by their own catalog, `nilo-memories` (`memories.catalog.ts`), MCP only. Nilo has
 three MCP lanes, one host each: Noted's notes, the workspace's pages (`nilo`,
 read-only, `pages.read`) and these memories. A client connected to one never
-sees the tools of another, and asks for memory scopes on its own. Nilo's internal
-capability route serves the notes catalog, so Alia reaches these through MCP.
+sees the tools of another, and asks for memory scopes on its own.
+
+**Alia is the person's memory's first-party client.** The tools are also `internal`
+with `actors: ['alia']`: Alia lists them from Oxy's registry with her other app
+tools (Inbox, Mention…) and calls them through `/_oxy/capabilities/<tool>` with an
+Oxy capability ticket, no consent screen. The route serves the three catalogs of
+this API (notes, pages, memories) as lanes, each with its own audience, app id and
+executor; a ticket for one never runs a tool of another. Agents other than Alia do
+not get these tools. Third-party MCP clients use the MCP server and its OAuth scopes.
 
 | Tool | Scope | Does |
 |---|---|---|
