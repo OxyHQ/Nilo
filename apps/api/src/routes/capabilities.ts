@@ -138,8 +138,17 @@ function serve(lane: Lane, tool: CatalogTool): void {
       return;
     }
 
+    // Alia sends the retry-safety key as the `Idempotency-Key` header, one per tool call and the
+    // same on a retry of that call, and the body is whatever the model wrote. The header is the
+    // key when there is one: a key the model made up can repeat across two deliberate calls, and
+    // a model that leaves it out would be refused by the schema although the call is well formed.
+    const headerKey = request.header('idempotency-key');
     const rawInput =
-      tool.invocation.method === 'GET' ? queryInputFor(tool, request.query) : request.body;
+      tool.invocation.method === 'GET'
+        ? queryInputFor(tool, request.query)
+        : tool.idempotency === 'required' && headerKey
+          ? { ...(request.body as Record<string, unknown> | undefined), idempotencyKey: headerKey }
+          : request.body;
     const parsedInput = parseInput.safeParse(rawInput);
     if (!parsedInput.success) {
       response.status(400).json({ error: 'capability_input_schema_mismatch' });
