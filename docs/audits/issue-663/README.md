@@ -72,14 +72,14 @@ is a source-derived composition study, not browser evidence or implementation.
   width equal to viewport width. The table retains its separate horizontal content.
 - A search draft and the exact input DOM node survive 390 → 320 → 1440.
 - At 320, actual Tab traversal reaches New view, Search, Filter, Sort,
-  Add property, New and Row templates. **Full visibility is not established:**
+  Add property, New and Row templates. In this historical 17.19.3 capture,
+  **full visibility was not established:**
   after 300ms settling per Tab, Search occupies x=188.48–220.48 and Sort
   x=158.27–226.19, while the scroll clip ends at x=201.80. Both remain partially
   clipped despite being inside the browser viewport. A real horizontal wheel
   delta of 50 moves Search to x=138.48–170.48, fully inside the clip. See
   [focused Search](after/database-search-focus-320.png) and
-  [after wheel](after/database-search-wheel-320.png). This shared toolbar/scroll
-  owner needs follow-up; no local breakpoint workaround was added.
+  [after wheel](after/database-search-wheel-320.png).
 - Read-only, editor permissions, view URL selection and settings remain covered
   by the database test suites. These renderer tests stub only the compositor's
   DOM observer boundary; the captures exercise the real compositor.
@@ -88,12 +88,31 @@ is a source-derived composition study, not browser evidence or implementation.
   probes do not establish keyboard entry into every formatting control, stable
   Apply targeting, remote edits/read-only cancellation, undo, virtual anchor
   collision handling, or native/link href behavior. No editor source changed.
-- A separate table limitation is recorded: focus can land on the Effort column
-  outside the visible horizontal viewport at 320. This is not a toolbar failure;
-  its scroll/viewport owner needs diagnosis before repair.
+- The separate table limitation in the old package baseline was that focus could
+  land on the Effort column outside the visible horizontal viewport at 320.
+  Its repair and published-package acceptance are recorded below.
 - Dark captures are visual observations, not contrast certification. Physical
   Android, iPhone, large text, native keyboard and release performance are not
   established by these browser captures. iPhone validation is deferred by user.
+
+## Published Bloom 17.24.0 acceptance
+
+On 2026-11-09, reran both browser harnesses against published Bloom 17.24.0 and
+app-preset 6.6.0 from source `bb56fcd2b241afcd857adcc147e4c9fc8f859fc3`, using
+Chromium 146, DPR 1, synthetic account/API responses and the offline seeded Yjs
+document. The workspace run captured 17 frames with no browser errors or
+unexpected requests. Search draft and DOM identity survive 390 → 320 → 1440;
+all tested visible toolbar stops fit their scroll clip at 320, and horizontal
+wheel input scrolls the toolbar without losing the draft. The full report and
+captures are in [published workspace evidence](published-17.24.0/workspace/).
+
+The separate table-focus run captured 320px and 390px with no browser errors or
+unexpected requests. Tab reaches the Effort header fully inside the horizontal
+clip at both widths (320: x=145..320; 390: x=215..390); a 100px horizontal wheel
+moves the table while document scroll remains unchanged. See
+[table-focus report and captures](published-17.24.0/table-focus/). This proves
+published web behavior only; it does not establish native focus or Android
+device behavior.
 
 ## Reproduction
 
