@@ -29,6 +29,25 @@ jest.mock('@oxy.so/bloom/screen', () => {
       React.createElement(actual.Screen, { ...props, scroll: 'content' }),
   };
 });
+// Native test-renderer host refs cannot run the compositor's DOM observers.
+// The browser harness verifies the real panel, scroll ownership and geometry.
+jest.mock('@oxy.so/bloom/app-shell', () => {
+  const React = jest.requireActual('react');
+  return {
+    AppShellPanels: ({
+      layout,
+    }: {
+      layout: { panels: { id: string; content: React.ReactNode }[] };
+    }) =>
+      React.createElement(
+        React.Fragment,
+        null,
+        ...layout.panels.map((panel) =>
+          React.createElement(React.Fragment, { key: panel.id }, panel.content),
+        ),
+      ),
+  };
+});
 jest.mock('@/lib/hooks/use-route-workspace', () => ({ useRouteWorkspace: jest.fn() }));
 jest.mock('@/lib/realtime/socket', () => ({ acquireSocket: jest.fn(), releaseSocket: jest.fn() }));
 jest.mock('@/lib/realtime/use-live-updates', () => ({ useWorkspaceLive: jest.fn() }));
@@ -196,7 +215,8 @@ function render(role: WorkspaceRole) {
 const newView = () =>
   renderer.root.findAll(
     (node) =>
-      node.props.children === 'databases.views.new' && typeof node.props.onPress === 'function',
+      node.props.accessibilityLabel === 'databases.views.new' &&
+      typeof node.props.onPress === 'function',
   );
 const title = () => renderer.root.findAllByType(TextInput)[0];
 

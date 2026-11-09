@@ -31,7 +31,7 @@ import { RelatedRowsProvider } from './relation-cell';
 
 interface DatabaseViewContainerProps {
   /** Route identity and view tabs, composed into the screen header. */
-  renderHeader?: (accessory: React.ReactNode) => React.ReactNode;
+  renderHeader?: (tools: React.ReactNode, actions: React.ReactNode) => React.ReactNode;
   database: Database;
   view: DatabaseView;
   rows: DatabaseRow[];
@@ -134,25 +134,13 @@ export function DatabaseViewContainer({
   const viewEditable = !viewsReadOnly && viewIsEditable(database, view);
   const schemaEditable = !readOnly && !locked;
 
+  const actions =
+    view.type !== 'form' && !readOnly && !viewsReadOnly ? (
+      <NewRowMenu databaseId={database.id} />
+    ) : null;
   const tools =
     view.type === 'form' ? null : (
-      <Toolbar
-        actions={!readOnly && !viewsReadOnly ? <NewRowMenu databaseId={database.id} /> : null}
-        accessory={
-          <>
-            {total !== undefined ? (
-              <Text className="px-4 py-1 text-xs text-muted-foreground">
-                {t('databases.rows.total', { count: total })}
-              </Text>
-            ) : null}
-            {isFetchingMore ? (
-              <Text accessibilityLiveRegion="polite" className="px-4 text-xs text-muted-foreground">
-                {t('common.loading')}
-              </Text>
-            ) : null}
-          </>
-        }
-      >
+      <>
         <ViewSearch viewId={view.id} />
         {viewEditable ? (
           <>
@@ -161,7 +149,22 @@ export function DatabaseViewContainer({
           </>
         ) : null}
         {schemaEditable && !viewsReadOnly ? <AddPropertyButton database={database} /> : null}
-      </Toolbar>
+      </>
+    );
+  const status =
+    view.type === 'form' || (total === undefined && !isFetchingMore) ? undefined : (
+      <>
+        {total !== undefined ? (
+          <Text className="px-4 py-1 text-xs text-muted-foreground">
+            {t('databases.rows.total', { count: total })}
+          </Text>
+        ) : null}
+        {isFetchingMore ? (
+          <Text accessibilityLiveRegion="polite" className="px-4 text-xs text-muted-foreground">
+            {t('common.loading')}
+          </Text>
+        ) : null}
+      </>
     );
 
   return (
@@ -169,11 +172,15 @@ export function DatabaseViewContainer({
       <OpenRowProvider view={view}>
         <Screen
           scroll={view.type === 'board' ? 'none' : 'auto'}
+          bottomBar={status}
           header={
             renderHeader ? (
-              renderHeader(tools)
+              renderHeader(tools, actions)
             ) : tools ? (
-              <PageHeader safeArea={false} accessory={tools} />
+              <PageHeader
+                safeArea={false}
+                accessory={<Toolbar actions={actions}>{tools}</Toolbar>}
+              />
             ) : undefined
           }
         >

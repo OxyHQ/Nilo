@@ -82,3 +82,6 @@ Perplexity_files/
 
 # Locally packed Bloom packages, until @oxy.so/bloom-text and @oxy.so/bloom-editor are on npm.
 .local-packages/
+
+# Temporary design previews
+.superdesign/tmp/

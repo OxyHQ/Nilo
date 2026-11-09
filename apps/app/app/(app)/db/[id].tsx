@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { View } from 'react-native';
+import { AppShellPanels } from '@oxy.so/bloom/app-shell';
 import { Screen } from '@oxy.so/bloom/screen';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
@@ -84,7 +85,7 @@ function DatabasePage({ id, viewId }: { id: string; viewId?: string }) {
   // The caller's role on the database, as the API reports it: a reader sees it, an editor edits it.
   const readOnly = !hasRole(data.role, 'editor');
 
-  const header = (accessory?: React.ReactNode) => (
+  const header = (accessory?: React.ReactNode, viewActions?: React.ReactNode) => (
     <DatabaseHeader
       database={data.database}
       views={views}
@@ -92,10 +93,11 @@ function DatabasePage({ id, viewId }: { id: string; viewId?: string }) {
       onSelectView={(v) => router.setParams({ v })}
       readOnly={readOnly}
       accessory={accessory}
+      viewActions={viewActions}
     />
   );
 
-  return selectedView ? (
+  const content = selectedView ? (
     <DatabaseViewContainer
       renderHeader={header}
       database={data.database}
@@ -115,5 +117,16 @@ function DatabasePage({ id, viewId }: { id: string; viewId?: string }) {
     <Screen scroll="content" header={header()}>
       <EmptyState description={t('pages.database.noViews')} />
     </Screen>
+  );
+  return (
+    <AppShellPanels
+      layout={{
+        mode: 'split',
+        flow: 'bounded',
+        appearance: 'joined',
+        activePanel: 'database',
+        panels: [{ id: 'database', span: 1, content }],
+      }}
+    />
   );
 }
