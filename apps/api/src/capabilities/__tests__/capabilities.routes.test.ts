@@ -289,4 +289,45 @@ describe('/_oxy/capabilities: the memories lane', () => {
     expect((await send('0190a0b0-0000-7000-8000-0000000000bb')).status).toBe(403);
     expect((await send(memoryId)).status).toBe(200);
   });
+
+  it('takes the retry-safety key from the Idempotency-Key header, as Alia sends it', async () => {
+    authority.verify.mockResolvedValue(
+      memoryClaims({ tool: 'remember', capabilities: ['memories.write'] }),
+    );
+    authority.executeMemory.mockResolvedValue({ memory: {}, existed: false });
+    const send = (body: unknown, headers: Record<string, string>) =>
+      call('/remember', { method: 'POST', headers, body: JSON.stringify(body) });
+
+    // No key in the body at all: the header supplies it, and the schema is satisfied.
+    const bare = await send(
+      { title: 'Likes oat milk' },
+      { ...withTicket, 'idempotency-key': 'h-1' },
+    );
+    expect(bare.status).toBe(200);
+    expect(authority.executeMemory).toHaveBeenLastCalledWith(
+      'remember',
+      { title: 'Likes oat milk', idempotencyKey: 'h-1' },
+      'user-1',
+    );
+
+    // A key the model invented loses to the per-call header.
+    await send(
+      { idempotencyKey: 'made-up', title: 'Likes oat milk' },
+      { ...withTicket, 'idempotency-key': 'h-2' },
+    );
+    expect(authority.executeMemory).toHaveBeenLastCalledWith(
+      'remember',
+      { title: 'Likes oat milk', idempotencyKey: 'h-2' },
+      'user-1',
+    );
+
+    // Without the header the body's key stands (MCP clients, older callers); without either, 400.
+    await send({ idempotencyKey: 'body-key', title: 'x' }, withTicket);
+    expect(authority.executeMemory).toHaveBeenLastCalledWith(
+      'remember',
+      { idempotencyKey: 'body-key', title: 'x' },
+      'user-1',
+    );
+    expect((await send({ title: 'x' }, withTicket)).status).toBe(400);
+  });
 });
