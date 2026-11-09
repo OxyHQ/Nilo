@@ -14,13 +14,28 @@ const authority = {
   verify: vi.fn(),
   audit: vi.fn(async () => {}),
   execute: vi.fn(),
+  executeMemory: vi.fn(),
 };
 
 // The verifier is the SDK's (signature + Oxy's live decision); what is tested
 // here is what the route does with each of its outcomes.
 vi.mock('../capability-authority.js', () => ({
-  verifyNotesCapabilityTicket: authority.verify,
-  auditNotesCapabilityTicket: authority.audit,
+  verifyCapabilityTicket: authority.verify,
+  auditCapabilityTicket: authority.audit,
+}));
+// The lanes' executors reach the database; what is tested here is the route.
+vi.mock('../memories.handlers.js', () => ({ executeMemoryTool: authority.executeMemory }));
+vi.mock('../nilo.handlers.js', () => ({ executeNiloTool: vi.fn() }));
+vi.mock('../tool-input.js', () => ({
+  NiloCapabilityError: class extends Error {
+    constructor(
+      readonly code: string,
+      message: string,
+      readonly status: number,
+    ) {
+      super(message);
+    }
+  },
 }));
 vi.mock('../notes.handlers.js', () => ({
   executeNotesTool: authority.execute,
@@ -86,6 +101,7 @@ beforeEach(() => {
   authority.verify.mockReset();
   authority.audit.mockClear();
   authority.execute.mockReset();
+  authority.executeMemory.mockReset();
 });
 
 describe('/_oxy/capabilities', () => {
@@ -184,5 +200,134 @@ describe('an unexpected failure', () => {
     });
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: 'capability_execution_failed' });
+  });
+});
+
+describe('/_oxy/capabilities: the memories lane', () => {
+  const memoryClaims = (overrides: Partial<CapabilityTicketClaims> = {}) =>
+    claims({
+      aud: 'oxy-nilo-api',
+      tool: 'recallMemories',
+      capabilities: ['memories.read'],
+      resource: {
+        appId: 'nilo-memories',
+        resourceType: 'nilo_account',
+        resourceId: 'user-1',
+        effectiveAccountId: 'user-1',
+      },
+      ...overrides,
+    });
+  const recall = (body: unknown = { query: 'coffee' }) =>
+    call('/recallMemories', {
+      method: 'POST',
+      headers: withTicket,
+      body: JSON.stringify(body),
+    });
+
+  it('runs a memory tool for the ticket’s account and audits the success', async () => {
+    authority.verify.mockResolvedValue(memoryClaims());
+    authority.executeMemory.mockResolvedValue({ memories: [] });
+    const res = await recall();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ memories: [] });
+    expect(authority.executeMemory).toHaveBeenCalledWith(
+      'recallMemories',
+      { query: 'coffee' },
+      'user-1',
+    );
+    expect(authority.execute).not.toHaveBeenCalled();
+  });
+
+  it('refuses a ticket of another app, another account or another capability', async () => {
+    authority.verify.mockResolvedValue(
+      memoryClaims({
+        resource: {
+          appId: 'noted',
+          resourceType: 'nilo_account',
+          resourceId: 'user-1',
+          effectiveAccountId: 'user-1',
+        },
+      }),
+    );
+    expect((await recall()).status).toBe(403);
+    authority.verify.mockResolvedValue(
+      memoryClaims({
+        resource: {
+          appId: 'nilo-memories',
+          resourceType: 'nilo_account',
+          resourceId: 'user-2',
+          effectiveAccountId: 'user-1',
+        },
+      }),
+    );
+    expect((await recall()).status).toBe(403);
+    authority.verify.mockResolvedValue(memoryClaims({ capabilities: ['pages.read'] }));
+    expect((await recall()).status).toBe(403);
+    expect(authority.executeMemory).not.toHaveBeenCalled();
+  });
+
+  it('ties a memory-scoped ticket to the memory it names', async () => {
+    const memoryId = '0190a0b0-0000-7000-8000-0000000000aa';
+    const ticket = memoryClaims({
+      tool: 'updateMemory',
+      capabilities: ['memories.write'],
+      resource: {
+        appId: 'nilo-memories',
+        resourceType: 'memory',
+        resourceId: memoryId,
+        effectiveAccountId: 'user-1',
+      },
+    });
+    authority.verify.mockResolvedValue(ticket);
+    authority.executeMemory.mockResolvedValue({ memory: {} });
+    const send = (id: string) =>
+      call('/updateMemory', {
+        method: 'PATCH',
+        headers: withTicket,
+        body: JSON.stringify({ idempotencyKey: 'k', memoryId: id, title: 'T' }),
+      });
+    expect((await send('0190a0b0-0000-7000-8000-0000000000bb')).status).toBe(403);
+    expect((await send(memoryId)).status).toBe(200);
+  });
+
+  it('takes the retry-safety key from the Idempotency-Key header, as Alia sends it', async () => {
+    authority.verify.mockResolvedValue(
+      memoryClaims({ tool: 'remember', capabilities: ['memories.write'] }),
+    );
+    authority.executeMemory.mockResolvedValue({ memory: {}, existed: false });
+    const send = (body: unknown, headers: Record<string, string>) =>
+      call('/remember', { method: 'POST', headers, body: JSON.stringify(body) });
+
+    // No key in the body at all: the header supplies it, and the schema is satisfied.
+    const bare = await send(
+      { title: 'Likes oat milk' },
+      { ...withTicket, 'idempotency-key': 'h-1' },
+    );
+    expect(bare.status).toBe(200);
+    expect(authority.executeMemory).toHaveBeenLastCalledWith(
+      'remember',
+      { title: 'Likes oat milk', idempotencyKey: 'h-1' },
+      'user-1',
+    );
+
+    // A key the model invented loses to the per-call header.
+    await send(
+      { idempotencyKey: 'made-up', title: 'Likes oat milk' },
+      { ...withTicket, 'idempotency-key': 'h-2' },
+    );
+    expect(authority.executeMemory).toHaveBeenLastCalledWith(
+      'remember',
+      { title: 'Likes oat milk', idempotencyKey: 'h-2' },
+      'user-1',
+    );
+
+    // Without the header the body's key stands (MCP clients, older callers); without either, 400.
+    await send({ idempotencyKey: 'body-key', title: 'x' }, withTicket);
+    expect(authority.executeMemory).toHaveBeenLastCalledWith(
+      'remember',
+      { idempotencyKey: 'body-key', title: 'x' },
+      'user-1',
+    );
+    expect((await send({ title: 'x' }, withTicket)).status).toBe(400);
   });
 });

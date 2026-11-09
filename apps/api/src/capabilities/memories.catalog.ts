@@ -2,9 +2,10 @@
  * The agent-memory catalog: the account's `memories` database as tools that Alia and MCP clients
  * (`mcp.memory.nilo.so`) call (`docs/memories.md`). It is its own catalog and MCP server, apart
  * from the workspace's pages (`nilo.catalog.ts`), so a client asks for memory access on its own
- * and never sees page tools by accident. MCP only: Nilo's internal capability route serves the
- * notes catalog, so Alia reaches these through the MCP server. Every tool acts only on the
- * `memories` database of the personal workspace of the account the token was issued to.
+ * and never sees page tools by accident. Alia reaches them as a first-party app, through
+ * Nilo's internal capability route (`routes/capabilities.ts`) with an Oxy ticket and no
+ * consent; other clients through the MCP server. Every tool acts only on the `memories`
+ * database of the personal workspace of the account the call is for.
  */
 import type { AppCapabilityCatalog, CatalogTool } from '@oxy.so/contracts';
 
@@ -59,7 +60,9 @@ function recallTool(input: ToolInput, resourceTypes: string[]): CatalogTool {
     effect: 'read',
     idempotency: 'none',
     rollback: 'none',
-    exposure: ['mcp'],
+    exposure: ['internal', 'mcp'],
+    // Alia only: a person's memories are hers to read and write, never an agent's.
+    actors: ['alia'],
     limitKeys: [],
   };
 }
@@ -77,7 +80,9 @@ function memoryWriteTool(
     effect: 'write',
     idempotency: 'required',
     rollback: options.rollback,
-    exposure: ['mcp'],
+    exposure: ['internal', 'mcp'],
+    // Alia only: a person's memories are hers to read and write, never an agent's.
+    actors: ['alia'],
     limitKeys: [],
   };
 }
@@ -92,7 +97,7 @@ const memoryOutput = {
 export const MEMORIES_CAPABILITY_CATALOG: AppCapabilityCatalog = {
   schemaVersion: '1',
   appId: 'nilo-memories',
-  version: '1.0.0',
+  version: '1.1.0',
   audience: 'oxy-nilo-api',
   internalBaseUrl: 'https://api.nilo.so',
   externalMcp: { resource: 'https://mcp.memory.nilo.so' },

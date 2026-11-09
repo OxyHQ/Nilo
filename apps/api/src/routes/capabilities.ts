@@ -1,42 +1,83 @@
 /**
- * `/_oxy/capabilities/<tool>`: the notes catalog's internal invocation
- * surface, for Alia. A call carries an Oxy capability ticket for exactly this
+ * `/_oxy/capabilities/<tool>`: the internal invocation surface of Nilo's
+ * catalogs (notes, pages, memories), for Alia. A call carries an Oxy capability ticket for exactly this
  * tool and resource; it is verified and re-authorised live, checked against
  * the tool, run, and audited, whatever the outcome.
  */
 import { createHash } from 'node:crypto';
 import { Router, type RequestHandler } from 'express';
-import type { CapabilityTicketClaims, CatalogTool } from '@oxy.so/contracts';
+import type { AppCapabilityCatalog, CapabilityTicketClaims, CatalogTool } from '@oxy.so/contracts';
 import { inputSatisfiesCapabilityLimits, readCapabilityAuthorization } from '@oxy.so/core/server';
 import { jsonObjectSchemaToZod } from '@oxy.so/mcp';
 
 import {
-  auditNotesCapabilityTicket,
-  verifyNotesCapabilityTicket,
+  auditCapabilityTicket,
+  verifyCapabilityTicket,
 } from '../capabilities/capability-authority.js';
 import { capabilityRefusal } from '../capabilities/capability-refusal.js';
 import { IdempotencyConflictError } from '../capabilities/idempotency.js';
+import { MEMORIES_CAPABILITY_CATALOG } from '../capabilities/memories.catalog.js';
+import { executeMemoryTool } from '../capabilities/memories.handlers.js';
+import { NILO_CAPABILITY_CATALOG } from '../capabilities/nilo.catalog.js';
+import { executeNiloTool } from '../capabilities/nilo.handlers.js';
 import { NOTES_CAPABILITY_CATALOG } from '../capabilities/notes.catalog.js';
 import { executeNotesTool, NotesCapabilityError } from '../capabilities/notes.handlers.js';
 import { queryInputFor } from '../capabilities/query-input.js';
+import { NiloCapabilityError } from '../capabilities/tool-input.js';
 import { log } from '../lib/logger.js';
 
 const router = Router();
 
+type Input = Readonly<Record<string, unknown>>;
+
+/**
+ * One catalog served here: who signs its tickets (its audience and app id), which
+ * resource a ticket may name, and what runs the tool. A refusal of the tool's own
+ * is told apart from a crash by `refusalOf`.
+ */
+interface Lane {
+  catalog: AppCapabilityCatalog;
+  /** The resource types, besides the account, a ticket may name, and the input that must match each. */
+  resourceInputs: Readonly<Record<string, string>>;
+  execute(tool: string, input: Input, accountId: string): Promise<Record<string, unknown>>;
+  refusalOf(error: unknown): { status: number; code: string } | null;
+}
+
+const LANES: readonly Lane[] = [
+  {
+    catalog: NOTES_CAPABILITY_CATALOG,
+    resourceInputs: { note: 'noteId', label: 'labelId' },
+    execute: executeNotesTool,
+    refusalOf: (error) => (error instanceof NotesCapabilityError ? error : null),
+  },
+  {
+    catalog: NILO_CAPABILITY_CATALOG,
+    resourceInputs: { page: 'pageId' },
+    execute: executeNiloTool,
+    refusalOf: (error) => (error instanceof NiloCapabilityError ? error : null),
+  },
+  {
+    catalog: MEMORIES_CAPABILITY_CATALOG,
+    resourceInputs: { memory: 'memoryId' },
+    execute: executeMemoryTool,
+    refusalOf: (error) => (error instanceof NiloCapabilityError ? error : null),
+  },
+];
+
 function resourceMatches(
+  lane: Lane,
   claims: CapabilityTicketClaims,
   tool: CatalogTool,
-  input: Readonly<Record<string, unknown>>,
+  input: Input,
 ): boolean {
   const resource = claims.resource;
-  if (resource.appId !== NOTES_CAPABILITY_CATALOG.appId) return false;
+  if (resource.appId !== lane.catalog.appId) return false;
   if (!tool.resourceTypes.includes(resource.resourceType)) return false;
-  if (resource.resourceType === NOTES_CAPABILITY_CATALOG.accountResourceType) {
+  if (resource.resourceType === lane.catalog.accountResourceType) {
     return resource.resourceId === resource.effectiveAccountId;
   }
-  if (resource.resourceType === 'note') return input.noteId === resource.resourceId;
-  if (resource.resourceType === 'label') return input.labelId === resource.resourceId;
-  return false;
+  const inputKey = lane.resourceInputs[resource.resourceType];
+  return inputKey !== undefined && input[inputKey] === resource.resourceId;
 }
 
 function registerRoute(tool: CatalogTool, run: RequestHandler): void {
@@ -69,9 +110,7 @@ function registerRoute(tool: CatalogTool, run: RequestHandler): void {
   }
 }
 
-for (const tool of NOTES_CAPABILITY_CATALOG.tools.filter(({ exposure }) =>
-  exposure.includes('internal'),
-)) {
+function serve(lane: Lane, tool: CatalogTool): void {
   const parseInput = jsonObjectSchemaToZod(tool.inputSchema);
   const parseOutput = tool.outputSchema ? jsonObjectSchemaToZod(tool.outputSchema) : null;
 
@@ -85,7 +124,7 @@ for (const tool of NOTES_CAPABILITY_CATALOG.tools.filter(({ exposure }) =>
     // Oxy's signature and its live decision, both, before anything else.
     let claims: CapabilityTicketClaims;
     try {
-      claims = await verifyNotesCapabilityTicket(ticket);
+      claims = await verifyCapabilityTicket(lane.catalog, ticket);
     } catch (error) {
       const refusal = capabilityRefusal(error);
       if (refusal === 'unavailable') {
@@ -99,8 +138,17 @@ for (const tool of NOTES_CAPABILITY_CATALOG.tools.filter(({ exposure }) =>
       return;
     }
 
+    // Alia sends the retry-safety key as the `Idempotency-Key` header, one per tool call and the
+    // same on a retry of that call, and the body is whatever the model wrote. The header is the
+    // key when there is one: a key the model made up can repeat across two deliberate calls, and
+    // a model that leaves it out would be refused by the schema although the call is well formed.
+    const headerKey = request.header('idempotency-key');
     const rawInput =
-      tool.invocation.method === 'GET' ? queryInputFor(tool, request.query) : request.body;
+      tool.invocation.method === 'GET'
+        ? queryInputFor(tool, request.query)
+        : tool.idempotency === 'required' && headerKey
+          ? { ...(request.body as Record<string, unknown> | undefined), idempotencyKey: headerKey }
+          : request.body;
     const parsedInput = parseInput.safeParse(rawInput);
     if (!parsedInput.success) {
       response.status(400).json({ error: 'capability_input_schema_mismatch' });
@@ -110,8 +158,12 @@ for (const tool of NOTES_CAPABILITY_CATALOG.tools.filter(({ exposure }) =>
     const capabilityMatches = tool.requiredCapabilities.every((required) =>
       claims.capabilities.includes(required),
     );
-    if (claims.tool !== tool.name || !capabilityMatches || !resourceMatches(claims, tool, input)) {
-      void auditNotesCapabilityTicket({
+    if (
+      claims.tool !== tool.name ||
+      !capabilityMatches ||
+      !resourceMatches(lane, claims, tool, input)
+    ) {
+      void auditCapabilityTicket({
         ticket,
         result: { status: 'denied', code: 'capability_scope_mismatch' },
         rollbackSupported: tool.rollback === 'supported',
@@ -122,7 +174,7 @@ for (const tool of NOTES_CAPABILITY_CATALOG.tools.filter(({ exposure }) =>
       return;
     }
     if (!inputSatisfiesCapabilityLimits(tool.name, input, claims.limits)) {
-      void auditNotesCapabilityTicket({
+      void auditCapabilityTicket({
         ticket,
         result: { status: 'denied', code: 'capability_limit_exceeded' },
         rollbackSupported: tool.rollback === 'supported',
@@ -140,9 +192,9 @@ for (const tool of NOTES_CAPABILITY_CATALOG.tools.filter(({ exposure }) =>
       : undefined;
 
     try {
-      const result = await executeNotesTool(tool.name, input, claims.resource.effectiveAccountId);
+      const result = await lane.execute(tool.name, input, claims.resource.effectiveAccountId);
       const output = parseOutput ? parseOutput.parse(result) : result;
-      await auditNotesCapabilityTicket({
+      await auditCapabilityTicket({
         ticket,
         result: { status: 'succeeded' },
         rollbackSupported: tool.rollback === 'supported',
@@ -152,19 +204,15 @@ for (const tool of NOTES_CAPABILITY_CATALOG.tools.filter(({ exposure }) =>
       });
       response.json(output);
     } catch (error) {
-      const status =
-        error instanceof NotesCapabilityError
-          ? error.status
-          : error instanceof IdempotencyConflictError
-            ? 409
-            : 500;
-      const code =
-        error instanceof NotesCapabilityError
-          ? error.code
-          : error instanceof IdempotencyConflictError
-            ? 'idempotency_conflict'
-            : 'capability_execution_failed';
-      await auditNotesCapabilityTicket({
+      const own = lane.refusalOf(error);
+      const conflict = error instanceof IdempotencyConflictError;
+      const status = own ? own.status : conflict ? 409 : 500;
+      const code = own
+        ? own.code
+        : conflict
+          ? 'idempotency_conflict'
+          : 'capability_execution_failed';
+      await auditCapabilityTicket({
         ticket,
         result: { status: 'failed', code },
         rollbackSupported: tool.rollback === 'supported',
@@ -184,6 +232,12 @@ for (const tool of NOTES_CAPABILITY_CATALOG.tools.filter(({ exposure }) =>
       response.status(status).json({ error: code });
     }
   });
+}
+
+for (const lane of LANES) {
+  for (const tool of lane.catalog.tools.filter(({ exposure }) => exposure.includes('internal'))) {
+    serve(lane, tool);
+  }
 }
 
 export default router;

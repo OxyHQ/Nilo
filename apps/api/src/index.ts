@@ -46,6 +46,7 @@ import formsRouter from './routes/forms.js';
 import pageFollowsRouter from './routes/page-follows.js';
 import { startReminderSweep, stopReminderSweep } from './lib/reminders.js';
 import { startAutomationSchedule, stopAutomationSchedule } from './lib/automation-schedule.js';
+import { startWebhookRetries, stopWebhookRetries } from './lib/webhook-retries.js';
 import { startVerificationSweep, stopVerificationSweep } from './lib/verifications.js';
 import { feedKeyMalformed } from './lib/calendar/feed-secret.js';
 import {
@@ -302,6 +303,7 @@ getDb()
       startReminderSweep();
       startVerificationSweep();
       startAutomationSchedule();
+      startWebhookRetries();
       startProjectionSweep();
       startEventOutboxWorker();
       startFileReferenceWork();
@@ -356,6 +358,7 @@ getDb()
       stopReminderSweep();
       stopVerificationSweep();
       stopAutomationSchedule();
+      stopWebhookRetries();
       stopProjectionSweep();
       stopEventOutboxWorker();
       stopFileReferenceWork();

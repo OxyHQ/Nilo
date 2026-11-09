@@ -442,6 +442,13 @@
       "when": 1794101111005,
       "tag": "0062_automation_schedule",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1794172317269,
+      "tag": "0063_automation_webhook_retries",
+      "breakpoints": true
     }
   ]
 }

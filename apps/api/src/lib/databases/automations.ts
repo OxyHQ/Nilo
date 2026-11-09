@@ -28,6 +28,7 @@ import { findPageById, type PageRow } from '../../repositories/pages.js';
 import { log } from '../logger.js';
 import { sendNotification } from '../notification-service.js';
 import { resolveDatabaseRole, resolvePageAccess } from '../page-access.js';
+import { queueWebhookRetry } from '../webhook-retries.js';
 import { insertRow, parseRowProperties, rowWritten, writePage } from './row-writes.js';
 
 type AutomationRow = typeof databaseAutomations.$inferSelect;
@@ -105,43 +106,63 @@ export async function runAutomations(event: RowEvent): Promise<void> {
 /** Pauses between a webhook's attempts; a test sets them to zero. */
 export const webhookRetry = { delaysMs: [1_000, 5_000] };
 
+/** The outcome of one POST: delivered, refused for good, or worth trying again. */
+type Attempt = { kind: 'ok' } | { kind: 'final' | 'again'; error: string };
+
+/** One signed POST. A network error, a 429 or a 5xx can be tried again; any other answer is final. */
+export async function attemptWebhook(
+  url: string,
+  secret: string,
+  body: string,
+  delivery: string,
+): Promise<Attempt> {
+  try {
+    const sent = await safeFetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'user-agent': 'NiloBot/1.0 (+https://nilo.so/bot)',
+        // The same delivery id on every attempt, so a receiver can de-duplicate.
+        'x-nilo-delivery': delivery,
+        'x-nilo-signature': signWebhook(secret, body, new Date()),
+      },
+      body,
+      redirect: 'manual',
+      headersTimeoutMs: 8000,
+    });
+    sent.response.destroy();
+    if (sent.status >= 200 && sent.status < 300) return { kind: 'ok' };
+    const error = `The webhook answered ${sent.status}`;
+    return { kind: sent.status === 429 || sent.status >= 500 ? 'again' : 'final', error };
+  } catch (err: unknown) {
+    // A refused address will not change by waiting.
+    if (err instanceof SsrfRejection) throw err;
+    return { kind: 'again', error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 /**
- * POST a signed webhook, trying again after a pause when the receiver is down
- * (a network error, a 429 or a 5xx). Any other answer is final. Retries run in
- * this process: a restart in the middle drops them, and the run records the
- * last failure.
+ * POST a signed webhook, trying again after a pause when the receiver is down.
+ * What still fails after the quick tries is queued (`webhook-retries.ts`) for
+ * later ones, so a restart or an outage of minutes does not lose it; the run
+ * records the failure meanwhile.
  */
-async function deliverWebhook(url: string, secret: string, body: string, at: Date): Promise<void> {
+async function deliverWebhook(
+  automationId: string,
+  url: string,
+  secret: string,
+  body: string,
+): Promise<void> {
   const delivery = randomUUID();
   let failure = '';
   for (let attempt = 0; attempt <= webhookRetry.delaysMs.length; attempt++) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, webhookRetry.delaysMs[attempt - 1]));
-    try {
-      const sent = await safeFetch(url, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'user-agent': 'NiloBot/1.0 (+https://nilo.so/bot)',
-          // The same delivery id on every attempt, so a receiver can de-duplicate.
-          'x-nilo-delivery': delivery,
-          'x-nilo-signature': signWebhook(secret, body, at),
-        },
-        body,
-        redirect: 'manual',
-        headersTimeoutMs: 8000,
-      });
-      sent.response.destroy();
-      if (sent.status >= 200 && sent.status < 300) return;
-      failure = `The webhook answered ${sent.status}`;
-      if (sent.status !== 429 && sent.status < 500) throw new Error(failure);
-    } catch (err: unknown) {
-      // A refused address or a final answer will not change by waiting.
-      if (err instanceof SsrfRejection || (err instanceof Error && err.message === failure)) {
-        throw err;
-      }
-      failure = err instanceof Error ? err.message : String(err);
-    }
+    const result = await attemptWebhook(url, secret, body, delivery);
+    if (result.kind === 'ok') return;
+    failure = result.error;
+    if (result.kind === 'final') throw new Error(failure);
   }
+  await queueWebhookRetry(getDb(), { automationId, url, body, deliveryId: delivery });
   throw new Error(failure);
 }
 
@@ -257,7 +278,7 @@ async function runAction(
         },
         at: now.toISOString(),
       });
-      await deliverWebhook(action.url, automation.secret, body, now);
+      await deliverWebhook(automation.id, action.url, automation.secret, body);
       return;
     }
     case 'create_row': {
