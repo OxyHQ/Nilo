@@ -140,3 +140,14 @@ The harness is a manual browser audit tool, not an extra CI test script.
 Validation: app typecheck; 27 database suites / 158 tests; repository lint (pre-existing warnings
 remain); check:ci-wiring; normal production `build:app` export with explicit HTTPS
 fixture origin. The generated sitemap date is restored after build.
+
+## Current published Bloom 17.50.0 acceptance
+
+On 2026-11-10, reran the workspace browser harness against published Bloom
+17.50.0 in the current Nilo worktree. The 17-state capture has no browser errors
+or unexpected external requests. At 320px, all exercised toolbar and table
+header keyboard stops fit their scroll clips; Search and the same search input
+node survive 390 → 320 → 1440, and database-neighbor arrow navigation restores
+focus after Escape. See [current browser evidence](current-17.50.0-20261110/).
+This establishes browser behavior only; native and iPhone validation remain
+pending.

@@ -71,7 +71,7 @@
     "@react-native/babel-preset": "0.88.0",
     "@react-native/metro-babel-transformer": "0.88.0",
     "@react-native/metro-config": "0.88.0",
-    "@oxy.so/bloom": "17.31.0",
+    "@oxy.so/bloom": "17.50.0",
     "@oxy.so/contracts": "6.24.0",
     "@oxy.so/core": "7.47.1",
     "@oxy.so/services": "14.19.0",
@@ -104,7 +104,7 @@
     "@tiptap/extension-bubble-menu": "3.31.4"
   },
   "dependencies": {
-    "@oxy.so/bloom": "17.31.0",
+    "@oxy.so/bloom": "17.50.0",
     "@oxy.so/contracts": "6.24.0",
     "@oxy.so/core": "7.47.1",
     "@oxy.so/services": "14.19.0"
