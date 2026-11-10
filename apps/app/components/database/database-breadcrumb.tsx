@@ -7,15 +7,23 @@ import type { Database } from '@/lib/types/databases';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { IdentityPopover } from '@/components/page-chrome/identity-popover';
 import { BreadcrumbNeighbors } from '@/components/page-chrome/breadcrumb-neighbors';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 
 interface DatabaseBreadcrumbProps {
   database: Pick<Database, 'id' | 'workspaceId' | 'parentPageId' | 'name' | 'icon'>;
   onRename?: (title: string) => Promise<unknown>;
   onChooseIcon?: () => void;
+  /** The adjacent PageHeader title already names the current database. */
+  hideCurrentLabel?: boolean;
 }
 
 /** Page ancestry is authorized by the API; current metadata belongs to the database query. */
-export function DatabaseBreadcrumb({ database, onRename, onChooseIcon }: DatabaseBreadcrumbProps) {
+export function DatabaseBreadcrumb({
+  database,
+  onRename,
+  onChooseIcon,
+  hideCurrentLabel = false,
+}: DatabaseBreadcrumbProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const { data, isError } = useBreadcrumb(database.parentPageId, database.workspaceId);
@@ -48,6 +56,8 @@ export function DatabaseBreadcrumb({ database, onRename, onChooseIcon }: Databas
       <BreadcrumbItem
         current
         trigger={onRename && onChooseIcon ? <PopoverTrigger asChild /> : undefined}
+        accessibilityLabel={database.name.trim() || t('databases.untitledDatabase')}
+        icon={hideCurrentLabel ? RiArrowDownSLine : undefined}
         hoverMenu={{
           label: t('pages.navigation.neighbors'),
           content: ({ open }) => (
@@ -58,9 +68,11 @@ export function DatabaseBreadcrumb({ database, onRename, onChooseIcon }: Databas
             />
           ),
         }}
-        leading={<IconDisplay value={database.icon} size={16} showPlaceholder />}
+        leading={
+          hideCurrentLabel ? null : <IconDisplay value={database.icon} size={16} showPlaceholder />
+        }
       >
-        {database.name.trim() || t('databases.untitledDatabase')}
+        {hideCurrentLabel ? undefined : database.name.trim() || t('databases.untitledDatabase')}
       </BreadcrumbItem>
     </Breadcrumb>
   );
