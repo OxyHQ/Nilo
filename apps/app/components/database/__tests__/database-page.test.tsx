@@ -6,6 +6,7 @@ import { BloomTestProviders } from '@/test-support/bloom-providers';
 import DatabaseRoute from '../../../app/(app)/db/[id]';
 import { DatabaseActionsMenu } from '../database-actions-menu';
 import { DatabaseHeader } from '../database-header';
+import { DatabaseBreadcrumb } from '../database-breadcrumb';
 import { DatabaseViewContainer } from '../database-view';
 import { PropertyCell } from '../property-cell';
 import type { Database, DatabaseRow, DatabaseView } from '@/lib/types/databases';
@@ -223,6 +224,7 @@ const title = () => renderer.root.findAllByType(TextInput)[0];
 it('opens the view named by a shared URL and writes tab choices to the URL', () => {
   mockViewId = 'second';
   render('viewer');
+  expect(renderer.root.findByType(DatabaseBreadcrumb).props.hideCurrentLabel).toBe(true);
   expect(renderer.root.findByType(DatabaseViewContainer).props.view.id).toBe('second');
   act(() => renderer.root.findByType(DatabaseHeader).props.onSelectView('view'));
   expect(mockSetParams).toHaveBeenCalledWith({ v: 'view' });

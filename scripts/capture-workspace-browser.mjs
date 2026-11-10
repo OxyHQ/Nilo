@@ -336,6 +336,20 @@ await context.route('**/*', async (route) => {
       if (path === `/databases/${database.id}/automations`) return json({ automations: [] });
       if (path === '/notifications/unread-count') return json({ count: 0 });
       if (path === '/databases') return json({ databases: [database] });
+      if (path === `/databases/${database.id}/neighbors`)
+        return json({
+          items: [
+            {
+              kind: 'database',
+              id: 'baseline-neighbor-database',
+              title: 'Planning',
+              icon: null,
+              href: '/db/baseline-neighbor-database',
+              current: false,
+            },
+          ],
+          nextCursor: null,
+        });
       if (path === `/databases/${database.id}`)
         return json({ database, views: [view], role: 'owner' });
       if (path === `/databases/${database.id}/views`) return json({ views: [view] });
@@ -474,6 +488,37 @@ try {
     await capture(`database-populated-${width}`);
   }
   if (process.env.INTERACTIONS === '1') {
+    const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb' });
+    const currentCrumb = breadcrumb.getByRole('button', { name: 'Projects', exact: true });
+    const currentCrumbText = (await currentCrumb.innerText()).trim();
+    const titleInputs = await page
+      .locator('input,textarea')
+      .evaluateAll(
+        (nodes) => nodes.map((node) => node.value).filter((value) => value === 'Projects').length,
+      );
+    assert.equal(currentCrumbText, '', 'Breadcrumb does not repeat the visible page title');
+    assert.equal(titleInputs, 1, 'The current database has one editable visible title');
+    report.checks.databaseTitleNotDuplicated = { currentCrumbText, titleInputs };
+    await currentCrumb.focus();
+    assert.equal(
+      await currentCrumb.evaluate((node) => node === document.activeElement),
+      true,
+      'Current database breadcrumb is keyboard focusable',
+    );
+    await page.keyboard.press('ArrowDown');
+    const sibling = page.getByRole('menuitem', { name: 'Planning', exact: true });
+    await sibling.waitFor({ state: 'visible' });
+    const siblingFocused = await sibling.evaluate((node) => node === document.activeElement);
+    assert.equal(siblingFocused, true, 'ArrowDown moves browser focus into sibling navigation');
+    report.checks.databaseNeighborsArrowNavigation = {
+      currentCrumbAccessibleName: await currentCrumb.getAttribute('aria-label'),
+      siblingVisible: await sibling.isVisible(),
+      siblingFocused,
+    };
+    await page.keyboard.press('Escape');
+    report.checks.databaseNeighborsFocusRestored = await currentCrumb.evaluate(
+      (node) => node === document.activeElement,
+    );
     const toolbar = page.getByTestId('database-view-toolbar');
     await toolbar.getByRole('button', { name: 'Search', exact: true }).click();
     const search = page.getByRole('textbox', { name: 'Search this view', exact: true });

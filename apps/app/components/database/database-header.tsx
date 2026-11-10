@@ -150,6 +150,7 @@ export function DatabaseHeader({
         title={
           <DatabaseBreadcrumb
             database={database}
+            hideCurrentLabel
             onRename={
               !readOnly
                 ? (name) => updateDatabase.mutateAsync({ id: database.id, name })

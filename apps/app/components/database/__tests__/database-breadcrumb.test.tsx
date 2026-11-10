@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AxiosError, type AxiosResponse } from 'axios';
 import { Breadcrumb, type BreadcrumbItemProps } from '@oxy.so/bloom/breadcrumb';
+import { RiArrowDownSLine } from '@oxy.so/bloom/icons/RiArrowDownSLine';
 import { PopoverTrigger } from '@oxy.so/bloom/popover';
 import { IdentityPopover } from '@/components/page-chrome/identity-popover';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
@@ -37,11 +38,12 @@ let client: QueryClient;
 function tree(
   current = database,
   actions: { onRename?: (title: string) => Promise<unknown>; onChooseIcon?: () => void } = {},
+  hideCurrentLabel = false,
 ) {
   return (
     <QueryClientProvider client={client}>
       <BloomTestProviders>
-        <DatabaseBreadcrumb database={current} {...actions} />
+        <DatabaseBreadcrumb database={current} hideCurrentLabel={hideCurrentLabel} {...actions} />
       </BloomTestProviders>
     </QueryClientProvider>
   );
@@ -108,6 +110,22 @@ it('shows only the database at workspace root and never invents a workspace dest
   await mount({ ...database, parentPageId: null, name: ' ', icon: null });
   expect(titles()).toEqual(['databases.untitledDatabase']);
   expect(apiClient.get).not.toHaveBeenCalled();
+});
+
+it('hides a duplicated current title while keeping its accessible name and neighbor menu', async () => {
+  await act(async () => {
+    renderer = create(tree(database, {}, true));
+  });
+  await settle();
+  expect(titles()).toEqual(['Shared parent', undefined]);
+  const current = crumbs().at(-1);
+  expect(current?.props).toMatchObject({
+    current: true,
+    accessibilityLabel: 'Projects',
+    icon: RiArrowDownSLine,
+    leading: null,
+  });
+  expect(current?.props.hoverMenu?.label).toBe('pages.navigation.neighbors');
 });
 
 it('keeps current metadata visible during loading and failed ancestry reads', async () => {
