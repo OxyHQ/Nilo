@@ -121,7 +121,7 @@ in a subscribed calendar (below); there are no single-occurrence edits.
 ## API
 
 Every route needs an Oxy session (`Authorization: Bearer`). Responses follow
-Oxy's API conventions (`~/Oxy/docs/api-conventions.md`): no envelope, lists
+Oxy's API conventions ([api conventions](https://github.com/OxyHQ/oxy/blob/main/docs/engineering/api-conventions.md)): no envelope, lists
 are `{ items, nextCursor }`, errors are `{ error: { code, message, details? } }`
 with a code from `CALENDAR_ERROR_CODES` — the shared ones plus
 `not_a_calendar` (422), `locked` (423) and `import_unreachable` (422). A
@@ -308,7 +308,7 @@ are sent and every answer is parsed with it.
 import { createNiloClient, NiloApiError } from '@oxy.so/nilo';
 
 // One linked client per backend, as every Oxy app does
-// (`~/Oxy/docs/session-architecture.md`): its fetch carries the session's
+// ([session architecture](https://github.com/OxyHQ/oxy/blob/main/docs/SESSION-ARCHITECTURE.md)): its fetch carries the session's
 // bearer and refreshes it on a 401; the session stays in Oxy's SDK.
 const linked = oxyServices.createLinkedClient({ baseURL: NILO_API_URL });
 const nilo = createNiloClient({ baseURL: NILO_API_URL, fetch: linked.fetch });
@@ -343,7 +343,7 @@ It ships its TypeScript source, like `@oxy.so/nilo-contracts`, for bundlers
 (Metro, Vite, Bun). It is `private` until its first release. Its calendar contract is on npm from
 `@oxy.so/nilo-contracts` 0.3.0, so publishing it is flipping `private` off,
 once the owner has set up its npm trusted publisher
-(`~/Oxy/docs/npm-releases.md`).
+([npm releases](https://github.com/OxyHQ/oxy/blob/main/docs/npm-releases.md)).
 
 Tests: `packages/sdk/src/client.test.ts` (unit), and
 `e2e/calendar-sdk.test.ts`, the SDK against the real routes on PostgreSQL.
