@@ -4,7 +4,7 @@ One-shot operations on the member's own text — improve the writing, fix
 spelling and grammar, make it shorter or longer, simplify, summarize,
 translate — on a block (its menu's "Ask AI") or the whole page ("Summarize
 with AI"). They have no conversation, memory or tools, so they take the
-one-shot path (`~/Oxy/docs/kaana-inference.md`):
+one-shot path ([Kaana inference rules](https://github.com/OxyHQ/Kaana/blob/main/docs/inference-rules.md)):
 
 ```text
 Nilo app -> Oxy inference edge (api.oxy.so/v1) -> Kaana -> provider

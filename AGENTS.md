@@ -1,87 +1,72 @@
-# Nilo — Project Conventions
+# Nilo
 
-Nilo is Oxy's document and database workspace. The monorepo contains
-the Expo app in `apps/app/` and the Express API in `apps/api/`.
-
-Universal standards and Oxy-wide gotchas live in
-`~/Oxy/AGENTS.md`. Documentation belongs in `docs/`, history in git, and status
-in issues. This file holds only rules, commands, and pointers. Budget: under
-8 KB.
-
-## Runtime boundaries
-
-- PostgreSQL through Drizzle is the only application database. `DATABASE_URL`
-  is required and the API verifies it before listening. Never add another
-  database, an in-memory database fallback, or a second persistence path.
-- Nilo owns workspace documents, databases, collaboration, uploads,
-  notifications, and feedback. It does not own inference routing, provider
-  adapters, provider health, model catalogues, or provider credentials.
-- Provider credentials live only in Kaana's encrypted PostgreSQL store. They
-  must never enter Nilo source, environment variables, database tables,
-  logs, bundles, or deploy configuration.
-- One-shot product operations use `Nilo -> Oxy -> Kaana`. Conversations,
-  memory, tools and agents use `Nilo -> Alia -> Oxy -> Kaana`. Nilo never
-  calls Kaana directly. Kaana's canonical signed origin is exclusively
-  `https://kaana.ai`.
-- Do not add local chat-completion, Clarity compatibility, provider execution,
-  or developer provider-key routes. Adding a new workspace feature must not
-  weaken `inferenceBoundary.test.ts` or `inferenceBoundary.pgdb.test.ts`.
-
-- Oxy's references to Nilo's files are released by triggers on `page_files`
-  and `pages` (`apps/api/src/db/triggers.ts`, `docs/files.md`), which
-  drizzle-kit does not know: a migration that rebuilds either table recreates
-  them. `page_files.page_id` names the Oxy reference and must never become a
-  foreign key again. The daily reconciliation commits, and a removed owner
-  reference cannot be recreated: a reference the inventory cannot list must
-  hold the commit back, as an attachment naming no page does.
-
-## Product vocabulary
-
-Use page, block, database, view, workspace, member, and collaboration. Do not
-reuse legacy chat vocabulary for workspace concepts.
-
-## UI composition
-
-Before UI work, read Bloom's [UI architecture](https://github.com/OxyHQ/Bloom/blob/main/docs/ui-architecture.mdx)
-(`../Bloom/docs/ui-architecture.mdx` locally) and `docs/onboarding.md`.
-Use actual Bloom components and its compositor; Nilo supplies product data,
-permissions and actions. Improve missing shared behavior in Bloom. Normal
-application sizing is `md`; Surface owns material and containers own scrolling.
-Preserve approved Bloom visuals while comparing Notion's behavior and appearance.
+Oxy's document and database workspace: Expo app (`apps/app`), Express API
+(`apps/api`), shared `packages/contracts` and `packages/sdk`, Bun monorepo.
 
 ## Commands
 
-npm releases: merging a version bump to main publishes it (`release-packages.yml`, Oxy's
-shared workflow, OIDC, once CI passed on that commit); a package's gates are CI. Never publish
-from a laptop — `~/Oxy/docs/npm-releases.md`.
-
 ```bash
 bun install
-bun run lint
-bun run check:bun-pin   # packageManager is the one bun pin; image and workflows obey it
+bun run dev                     # api + app; or dev:api / dev:app
+bun run lint                    # Biome; fix with bun run lint:fix
+bun run --filter @nilo/api typecheck
 bun run --filter @nilo/api test
-bun run --filter @nilo/api test:bun   # same suite under Bun, the production runtime
+bun run --filter @nilo/api test:bun    # same suite under Bun, the production runtime
 NILO_TEST_DATABASE_URL=postgres://nilo:nilo@127.0.0.1:5439/postgres \
   bun run --filter @nilo/api test:pgdb
+bun run --filter @nilo/app test
 bun run test:worker
-bun run check:ci-wiring
-NILO_TEST_DATABASE_URL=postgres://nilo:nilo@127.0.0.1:5439/postgres \
-  bun run check:api-entrypoints
+bun run check:ci-wiring && bun run check:bun-pin
 bun run build:api
 EXPO_PUBLIC_API_URL=https://api.example.test bun run build:app
 ```
 
-Formatting and linting are Biome only (root `biome.json`, no ESLint or
-Prettier): `bun run lint` checks the whole repo, as CI's `biome ci .` does;
-`bun run format` rewrites formatting. Formatting-only commits go in
-`.git-blame-ignore-revs`.
+`apps/api/docker-compose.postgres.yml` starts the test Postgres.
 
-Every `test*`/`check*`/`typecheck` script must be run by `ci.yml`;
-`check:ci-wiring` enforces it. A boot or migration failure must exit non-zero: never defer a
-fatal exit to an unref'd timer, and `check:api-entrypoints` executes the built
-artefacts under bun, the image's runtime, to hold that.
+## Map
 
-Commit manifest and `bun.lock` changes together. The web export requires an
-explicit HTTPS `EXPO_PUBLIC_API_URL`; there is no implicit production API
-hostname. Local development may still use an explicit HTTP origin.
-Deployment state and migration commands are documented in `docs/deployment.md`.
+- `docs/index.mdx`: product and architecture docs (access, search, files, deployment).
+- `docs/agent-rules/`: rules for agents ([inference boundary](docs/agent-rules/inference-boundary.md), [build and CI](docs/agent-rules/build-and-ci.md)).
+- `apps/api/src/db/triggers.ts`: hand-written triggers drizzle-kit does not know.
+
+## Conventions
+
+- Use page, block, database, view, workspace, member, collaboration; never legacy chat vocabulary. Why: the product vocabulary is the contract with users and the SDK.
+- UI composes Bloom components and its compositor; Nilo supplies data, permissions and actions. Missing shared behaviour goes into Bloom. Normal sizing is `md`. Read [Bloom UI architecture](https://github.com/OxyHQ/Bloom/blob/main/docs/ui-architecture.mdx), [Bloom app conventions](https://github.com/OxyHQ/Bloom/blob/main/docs/app-conventions.mdx) and `docs/onboarding.md` first.
+- Lists use the shared `{ items, nextCursor }` shape: [API conventions](https://github.com/OxyHQ/oxy/blob/main/docs/engineering/api-conventions.md).
+- Id shapes and migrations follow [Postgres and Drizzle](https://github.com/OxyHQ/oxy/blob/main/docs/postgres-and-drizzle.md).
+- Biome is the only formatter and linter (no ESLint, no Prettier); CI runs `biome ci .`.
+
+## Boundaries
+
+Never:
+- Add a database other than PostgreSQL/Drizzle, or an in-memory fallback. Why: one persistence path.
+- Put provider credentials in Nilo source, env, tables, logs, bundles or deploy config; they live only in Kaana.
+- Call Kaana directly or add chat-completion, provider-execution or provider-key routes. Why: Nilo -> Oxy -> Kaana (one-shot) or Nilo -> Alia -> Oxy -> Kaana. Canonical origin is `https://kaana.ai`.
+- Make `page_files.page_id` a foreign key, or rebuild `page_files`/`pages` without recreating their triggers. Why: Oxy file references depend on them.
+- Publish to npm from a laptop. Merging a version bump to main publishes it ([npm releases](https://github.com/OxyHQ/oxy/blob/main/docs/npm-releases.md)).
+
+Ask first: a new workspace feature touching inference, uploads or file references.
+Details: [inference boundary](docs/agent-rules/inference-boundary.md).
+
+## Testing
+
+- API change: `typecheck`, `test`, and `test:pgdb` when SQL or migrations changed.
+- App change: `bun run --filter @nilo/app test` and `bun run lint`.
+- Scripts, workflows or boot code: `check:ci-wiring`, `check:api-entrypoints` (needs `NILO_TEST_DATABASE_URL`).
+- Done means lint and the relevant tests pass and the inference boundary tests are untouched. Rules for CI wiring: [build and CI](docs/agent-rules/build-and-ci.md).
+
+## Pull requests
+
+- Commit manifest and `bun.lock` together; keep formatting-only commits separate (`.git-blame-ignore-revs`).
+- Deploy and migration commands: `docs/deployment.md`. CI is the gate: `bun run check:ci-wiring` ensures every test script runs there.
+
+## Secrets
+
+`DATABASE_URL` and `NILO_TEST_DATABASE_URL` come from the environment; never print or commit them. The web export needs an explicit HTTPS `EXPO_PUBLIC_API_URL`.
+
+## Links
+
+[Oxy engineering standards](https://github.com/OxyHQ/oxy/blob/main/docs/engineering/standards.md) · [gate writing](https://github.com/OxyHQ/oxy/blob/main/docs/engineering/gate-writing.md) · [build and runtime traps](https://github.com/OxyHQ/oxy/blob/main/docs/engineering/build-and-runtime-traps.md) · [agent team workflow](https://github.com/OxyHQ/oxy/blob/main/docs/engineering/agent-team-workflow.md)
+
+Owner: @NateIsern (CODEOWNERS). Last reviewed: 2026-11-11.
