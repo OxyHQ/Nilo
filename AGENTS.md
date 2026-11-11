@@ -3,7 +3,7 @@
 Nilo is Oxy's document and database workspace. The monorepo contains
 the Expo app in `apps/app/` and the Express API in `apps/api/`.
 
-Universal standards live in `~/AGENTS.md`, and Oxy-wide gotchas live in
+Universal standards and Oxy-wide gotchas live in
 `~/Oxy/AGENTS.md`. Documentation belongs in `docs/`, history in git, and status
 in issues. This file holds only rules, commands, and pointers. Budget: under
 8 KB.
