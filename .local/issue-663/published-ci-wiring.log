@@ -1,0 +1,2 @@
+$ bun scripts/check-ci-wiring.ts
+14 test/check/typecheck scripts are all run by .github/workflows/ci.yml, and 3 test file(s) outside apps/api/src/, apps/app/, e2e/, packages/sdk/ are all named by a root script.

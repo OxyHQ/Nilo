@@ -1,0 +1,1 @@
+Use existing Bloom md components, semantic colors and shared Surface rounding/material. Keep approved sidebar, outer gutter and navigation gap. Database hierarchy: breadcrumb, title, single views/tools/New band, dense table. No app-owned pixel breakpoint or shrunken controls. References are composition guides, not a replacement theme.

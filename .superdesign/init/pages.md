@@ -1,0 +1,1910 @@
+- /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/app/(app)/db/[id].tsx
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/catalogs.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/ai.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/alia.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/commandPalette.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/comments.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/common.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/databases.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/editor.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/errors.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/feedback.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/home.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/keyboardShortcuts.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/login.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/nav.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/notifications.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/pages.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/settings.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/sharing.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/sidebar.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/trash.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/welcome.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/workspace.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/ai.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/alia.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/commandPalette.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/comments.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/common.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/databases.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/editor.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/errors.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/feedback.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/home.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/keyboardShortcuts.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/login.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/nav.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/notifications.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/pages.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/settings.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/sharing.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/sidebar.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/trash.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/welcome.json
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/workspace.json
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/i18n-store.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/error-message.ts
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/use-live-updates.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/socket.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/config.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api-origin.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/session-context.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/session-context.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/config.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/workspace-store.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-keys.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/time-zone.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/visible-dates-store.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/view-search-store.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-header.tsx
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-actions-menu.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/sub-items.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/database-errors.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-transfer.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/export-formats.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/page-transfer.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/save-export.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/automations-dialog.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/button-actions.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-automations.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-keys.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/button-settings.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/button-actions.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/database-errors.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/relation-cell.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/computed-cell.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/contact-cell.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/date-cell.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/button-cell.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/button-actions.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/verification-cell.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-verification.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/files-cell.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/upload-page-file.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-upload.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/upload-page-file.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/person-cell.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-people.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/number-format.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/select-color.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-settings.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/session-context.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-properties.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-label.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-groups.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-settings.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-chrome.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-picker.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-value.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-display.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/use-cover-media.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-value.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-image-upload.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/error-message.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/upload-page-file.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-upload.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-picker.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/emoji-data.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-icons.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-value.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-image-upload.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-order.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/use-cover-media.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-breadcrumb.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/use-live-updates.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/create-query.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-icons.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-value.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/identity-popover.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/breadcrumb-neighbors.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-breadcrumb-neighbors.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/use-live-updates.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-chrome.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-settings.tsx (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-view.tsx
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-form.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/forms/form-fields.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/forms.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/reminder-time.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/build-share-url.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/forms.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-forms.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/forms.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/new-row-menu.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-row-templates.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-table.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/sub-items.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/sub-item-controls.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-view-data.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/view-search-store.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/time-zone.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-groups.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-properties.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-config-modal.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/relation-settings.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/formula-editor.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/fonts.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/formula-functions.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/formula-results.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/computed-cell.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/unique-id-editor.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/status-groups.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-settings.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/database-errors.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/number-format.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-settings.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/button-settings.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/verification-settings.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-settings.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-settings.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/select-color.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/database-errors.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/calculation-cell.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/calculations.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/number-format.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/column-resize-handle.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-properties.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-header.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/session-context.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/collapsed-groups-store.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-groups.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-label.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/person-cell.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/select-color.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-label.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-board.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/board-groups.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/status-groups.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-groups.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/card-layout.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-display.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-value.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-properties.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/select-color.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-header.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-label.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-gallery.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-groups.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/card-layout.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-header.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-label.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-list.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/sub-items.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/sub-item-controls.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-properties.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-header.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-calendar.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/visible-dates-store.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/visible-dates.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-timeline.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/visible-dates-store.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/visible-dates.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-header.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/filter-builder.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/formula-results.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/sort-builder.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-config-modal.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-search.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/view-search-store.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-chart.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/chart-geometry.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-view-data.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/calculations.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-label.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/row-peek-provider.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/row-peek.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/slash-items.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/database-picker.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/search-picker-dialog.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/mention-search.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/date-mentions.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-permissions.ts
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/create-query.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/presence-avatars.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/editor-presentation.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/fonts.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/presence.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/use-page-editor.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/ids.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/socket.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/offline-pages.ts
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store.ts
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store-types.ts
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store-types.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/offline-files.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/page-session.ts
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store-types.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/presence-focus.ts
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/use-page-editor.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/shared-sessions.ts
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/socket.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store-types.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/offline-pages.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/page-session.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/use-page-editor.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-comments.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-search-block.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/dom-ids.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/run-command.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-indicator.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/sync-block.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/editor-extras.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/build-share-url.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/code-highlight.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/upload-page-file.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/embedded-editor.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/dom-ids.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/insert-blocks.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/synced-blocks.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/synced-blocks.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/use-page-editor.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-synced-blocks.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/create-query.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-picker.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/comments/anchor.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/dom-ids.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/insert-blocks.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/synced-blocks.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-synced-blocks.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/member-profile-card.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/embedded-editor.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/synced-block-picker.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/synced-blocks.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-synced-blocks.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/mention-search.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/search-picker-dialog.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor-context.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/use-page-editor.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/editor-presentation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/ai-dialog.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/ai/actions.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/ai/use-ai.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/ai/actions.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/canvas.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/markdown-blocks.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/markdown-blocks.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/presence.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/comments/anchor.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-comments.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-indicator.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/use-editor-mentions.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-permissions.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/search.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/mention-search.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/open-target.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/editor-extras.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/renderers.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/audio-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-parts.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/use-draft.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-players.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/media-source.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-upload.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/bookmark-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/embed-preview.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-parts.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/breadcrumb-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/button-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/error-message.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/workspace-store.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/page-picker.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/search-picker-dialog.tsx (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-search.ts
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/search-filters.ts
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/search.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/create-query.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/use-draft.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/child-page-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-indicator.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/column-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/columns-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/columns.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/run-command.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/utils.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-menu-button.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/utils.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/embed-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-parts.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/equation-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/use-draft.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/file-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-upload.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/inline-database-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-inline-database-views.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor-context.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-header.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-actions-menu.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-view.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/image-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/utils.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-parts.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-menu-button.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/image-layout.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-upload.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/link-to-page-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/workspace-store.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/page-picker.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/mermaid-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/use-draft.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/pdf-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-parts.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/sync-block.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/table-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/run-command.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/table.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/utils.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-menu-button.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/table-row.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/video-block.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-parts.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-players.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-upload.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/callout-icon.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-icons.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/dom-ids.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/editor-extras.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-canvas.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/canvas.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/ai-dialog.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/ai/use-ai.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor-context.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/page-access.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-permissions.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/row-properties-panel.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/relation-cell.tsx (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-route-workspace.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/workspace-store.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+- /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/app/(app)/p/[pageId].tsx
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor-context.tsx
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/use-live-updates.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/socket.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/config.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api-origin.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/session-context.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/session-context.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/config.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/workspace-store.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-keys.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/create-query.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/catalogs.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/ai.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/alia.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/commandPalette.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/comments.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/common.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/databases.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/editor.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/errors.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/feedback.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/home.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/keyboardShortcuts.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/login.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/nav.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/notifications.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/pages.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/settings.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/sharing.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/sidebar.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/trash.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/welcome.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/en/workspace.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/ai.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/alia.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/commandPalette.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/comments.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/common.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/databases.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/editor.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/errors.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/feedback.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/home.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/keyboardShortcuts.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/login.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/nav.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/notifications.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/pages.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/settings.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/sharing.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/sidebar.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/trash.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/welcome.json
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/locales/es/workspace.json
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/i18n-store.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/use-page-editor.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/ids.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/socket.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/offline-pages.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store-types.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store-types.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/offline-files.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/page-session.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store-types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/presence-focus.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/use-page-editor.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/shared-sessions.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/socket.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store-types.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/offline-pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/page-session.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/editor-presentation.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/fonts.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/ai-dialog.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/ai/actions.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/ai/use-ai.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/ai/actions.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/canvas.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/markdown-blocks.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/markdown-blocks.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/presence.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/use-page-editor.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/comments/anchor.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-comments.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-indicator.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor.tsx
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/slash-items.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/database-picker.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/use-live-updates.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/search-picker-dialog.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/mention-search.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/date-mentions.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-keys.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-permissions.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/create-query.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/presence-avatars.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/editor-presentation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/presence.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/use-page-editor.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-comments.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-search-block.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/dom-ids.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/run-command.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-indicator.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/sync-block.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/editor-extras.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/build-share-url.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/code-highlight.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/upload-page-file.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/embedded-editor.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/dom-ids.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/insert-blocks.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/synced-blocks.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/synced-blocks.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/use-page-editor.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-synced-blocks.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/create-query.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-picker.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/emoji-data.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-icons.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-value.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-image-upload.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/error-message.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/upload-page-file.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-upload.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/upload-page-file.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/comments/anchor.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/dom-ids.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/insert-blocks.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/synced-blocks.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-synced-blocks.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/member-profile-card.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/embedded-editor.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/synced-block-picker.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/synced-blocks.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-synced-blocks.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/mention-search.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/search-picker-dialog.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor-context.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/use-editor-mentions.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-permissions.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/search.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/mention-search.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/open-target.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/editor-extras.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/renderers.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/audio-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-parts.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/use-draft.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-players.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/media-source.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-upload.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/bookmark-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/embed-preview.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-parts.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/breadcrumb-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/button-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/error-message.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/workspace-store.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/page-picker.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-icons.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-value.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/search-picker-dialog.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-search.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/search-filters.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/search.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/create-query.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/use-draft.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/child-page-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-indicator.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/column-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/columns-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/columns.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/run-command.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/utils.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-menu-button.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/utils.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/embed-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-parts.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/equation-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/use-draft.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/file-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-upload.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/inline-database-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-inline-database-views.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/session-context.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor-context.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-header.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-actions-menu.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/sub-items.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/database-errors.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-transfer.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/export-formats.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/page-transfer.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/save-export.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/automations-dialog.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/button-actions.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-automations.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/button-settings.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/button-actions.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/database-errors.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/relation-cell.tsx
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/time-zone.ts
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/visible-dates-store.ts
+                        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/view-search-store.ts
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/computed-cell.tsx
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/contact-cell.tsx
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/date-cell.tsx
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/button-cell.tsx
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/button-actions.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/verification-cell.tsx
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-verification.ts
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/files-cell.tsx
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/upload-page-file.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-upload.tsx (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/person-cell.tsx
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-people.ts
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/number-format.ts
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/select-color.ts
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-settings.tsx
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-properties.ts
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-label.ts
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-groups.ts
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts (shared)
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts (shared)
+                      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-settings.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-chrome.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-picker.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-value.ts
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-display.tsx
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/use-cover-media.tsx
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+                    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-value.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-image-upload.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-picker.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-order.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/use-cover-media.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-breadcrumb.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/identity-popover.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/breadcrumb-neighbors.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-breadcrumb-neighbors.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/use-live-updates.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-chrome.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-settings.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-actions-menu.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/database-view.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-form.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/forms/form-fields.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/forms.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/reminder-time.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/build-share-url.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/forms.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-forms.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/forms.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/new-row-menu.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-row-templates.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-table.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/sub-items.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/sub-item-controls.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-view-data.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/view-search-store.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/time-zone.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-groups.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-properties.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-config-modal.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/relation-settings.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/formula-editor.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/fonts.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/formula-functions.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/formula-results.ts
+                  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/computed-cell.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/unique-id-editor.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/status-groups.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-settings.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/database-errors.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/number-format.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-settings.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/button-settings.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/verification-settings.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-settings.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-settings.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/select-color.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-properties.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/database-errors.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/calculation-cell.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/calculations.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/number-format.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/column-resize-handle.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-properties.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-header.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/session-context.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/collapsed-groups-store.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-groups.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-label.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/person-cell.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/select-color.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-label.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-board.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/board-groups.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/status-groups.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-groups.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/card-layout.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-display.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-value.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-properties.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/select-color.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-header.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-label.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-gallery.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-groups.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/card-layout.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-header.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-label.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-list.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/sub-items.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/sub-item-controls.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/view-properties.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-header.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-calendar.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/visible-dates-store.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/visible-dates.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-timeline.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/visible-dates-store.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/visible-dates.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-header.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/filter-builder.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/formula-results.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/date-values.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/sort-builder.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-views.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/list-order.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-config-modal.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-search.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/view-search-store.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/view-chart.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/chart-geometry.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-view-data.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/calculations.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/group-label.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/row-peek-provider.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/open-row.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/row-peek.tsx
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor-context.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/page-access.ts
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-permissions.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/row-properties-panel.tsx
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+                - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/cell-scope.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/relation-cell.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-database-rows.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/image-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/utils.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-parts.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-menu-button.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/image-layout.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-upload.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/link-to-page-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/workspace-store.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/page-picker.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/mermaid-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/use-draft.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/pdf-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-parts.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/sync-block.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/table-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/run-command.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/table.ts
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/utils.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-menu-button.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/table-row.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/video-block.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/block-parts.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-players.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/media-upload.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/callout-icon.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-icons.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/dom-ids.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/editor-extras.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-canvas.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/canvas.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/ai-dialog.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/ai/use-ai.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/index.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/share-button.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/share-modal.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/publish-section.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-extras.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/config.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/block-tree.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/create-query.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-history-access.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/build-share-url.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/fonts.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-share-links.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/config.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-permissions.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-keys.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/build-share-url.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/error-message.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-permissions.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/people-section.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/page-access.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-permissions.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/page-role-picker.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/page-access.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-permissions.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/general-access.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/page-access.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-permissions.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/people-section.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/share-modal.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/build-share-url.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-panel.tsx
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/realtime/use-live-updates.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-comments.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-composer.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/mention-picker.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspace-members.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-thread.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-reactions.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-comments.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/emoji-data.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-comments.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-content.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/utils.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-composer.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-quote.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor-context.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/comments/anchor.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/dom-ids.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/i18n/index.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/comment-quote.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/comments/thread-order.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-comments.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/comments/use-thread-order.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-comments.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/comments/thread-order.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-activity.tsx
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-activity.ts
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-history-access.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/activity-changes.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/property-cell.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-history-dialog.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/shared-block-renderer.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/block-text.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/date-mentions.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-extras.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/open-target.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/files/file-urls.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/callout-icon.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/fonts.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/utils.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/block-tree.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/types.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/audio-block.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/bookmark-block.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/embed-block.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/equation-block.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/mermaid-block.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/pdf-block.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/video-block.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/code-view.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/code-highlight.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/fonts.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/image-block.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/editor/blocks/file-block.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/columns.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-extras.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-member-profiles.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-time.ts
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/index.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-chrome.tsx
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/fonts.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/utils.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-info.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/create-query.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-verification-badge.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/verification-cell.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/useColorScheme.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/breadcrumb.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-breadcrumb-path.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/identity-popover.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/breadcrumb-neighbors.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/use-cover-media.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-picker.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/favorite-button.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/copy-page-link-button.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/use-copy-page-link.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/build-share-url.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-picker.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor-context.tsx (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-actions-menu.tsx
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/error-message.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-follow.ts
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/save-export.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-history-dialog.tsx (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/reminders/reminder-dialog.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-extras.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/reminder-time.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/reminders/reminder-list.tsx
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-extras.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/sharing/use-copy-page-link.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/ai-page-action.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor-context.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/ai/use-ai.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/canvas-switch.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-editor/page-editor-context.tsx (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/canvas.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/offline-switch.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/use-offline-pages.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/offline-pages.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/offline-sync.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/base64.ts
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/doc-store-types.ts (shared)
+              - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/editor/offline-pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/export-formats.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-transfer.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-history-access.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/import-pages-dialog.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/error-message.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-page-transfer.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/move-to-dialog.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-teamspaces.ts
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-keys.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+            - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/error-message.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+        - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/trashed-page.tsx
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/error-message.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+          - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+      - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-activity.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-display.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-display.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/breadcrumb.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/favorite-button.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/page-actions-menu.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/trashed-page.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-picker.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-picker.tsx (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-value.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/icon-value.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-value.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/page-chrome/cover-value.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/components/database/row-properties-panel.tsx (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/hooks/useTranslation.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-pages.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-route-workspace.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/workspace-store.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-workspaces.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-comments.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-databases.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/use-track-recent-page.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/client.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/api/routes.ts (shared)
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/recent-visits.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/stores/ui-store.ts
+    - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/query-keys.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/workspace-roles.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/hooks/page-access.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/databases.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/utils.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/pages.ts (shared)
+  - /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app/lib/types/comments.ts (shared)

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "/db/[id]": {
+      "targetKind": "existing-ui",
+      "projectId": "9319e866-ce44-48b5-b260-d81794da01ec",
+      "baselineDraftId": "f26d368c-b228-429e-b5fc-d1eced2e9fb6",
+      "activeDraftId": "f26d368c-b228-429e-b5fc-d1eced2e9fb6",
+      "designSystemPath": ".superdesign/design-system.md",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "apps/app/components/database/database-header.tsx",
+        "apps/app/components/database/database-view.tsx",
+        "apps/app/components/database/view-table.tsx",
+        ".superdesign/init/components.md",
+        ".superdesign/init/theme.md"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "29ee88a1905d229ff5185e729948f3ce78fa802ed4752275f4c4ca39353c2edd",
+        "apps/app/components/database/database-header.tsx": "ac5d3847c01a95ad58082a020bb59210fa7014cb79505abf89cedef96fda6d08",
+        "apps/app/components/database/database-view.tsx": "362eee50d6915b1093d1b7d430492908065d56ba44414e93dc7466c9b6f7a396",
+        "apps/app/components/database/view-table.tsx": "1b0cdbebced1b4ac9b28cb5779a2fafbc33f630ce281fb5cf36b817e63495364",
+        ".superdesign/init/components.md": "749922abbdf24537a0579acdc9f8d6046a74f9a442f46a93329a0f3e782be718",
+        ".superdesign/init/theme.md": "45537d8e624156e20acd438a9dd1e3edc64538bf4d7842713aae56a68f8f09c3"
+      },
+      "referenceIds": ["b1a14815-fdaa-4b98-9ccd-cfc4646460cb"],
+      "components": [
+        {
+          "name": "DatabaseNavigation",
+          "id": "e6d2af77-c067-4fb5-a156-021d75045e94",
+          "sourcePath": "apps/app/components/database/database-header.tsx"
+        }
+      ],
+      "drafts": {
+        "f26d368c-b228-429e-b5fc-d1eced2e9fb6": {
+          "title": "Projects Database - Consolidated Toolbar",
+          "visualDirection": "Preserve Bloom material; merge view and tool rows; status below content",
+          "currentVersion": 2
+        }
+      },
+      "updatedAt": "2026-11-08T07:22:18.679649+00:00"
+    }
+  }
+}

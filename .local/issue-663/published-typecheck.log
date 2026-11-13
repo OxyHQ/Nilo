@@ -1,0 +1,5 @@
+@nilo/app typecheck: ../../node_modules/@oxy.so/services/src/ui/hooks/useSurfaceHeader.ts(77,9): error TS2339: Property 'accessibilityLabel' does not exist on type 'HeaderAction | (Omit<HeaderAction, "label" | "id"> & { id?: string | undefined; accessibilityLabel: string; })'.
+@nilo/app typecheck:   Property 'accessibilityLabel' does not exist on type 'HeaderAction'.
+@nilo/app typecheck: ../../node_modules/@oxy.so/services/src/ui/hooks/useSurfaceHeader.ts(77,34): error TS2339: Property 'accessibilityLabel' does not exist on type 'HeaderAction | (Omit<HeaderAction, "label" | "id"> & { id?: string | undefined; accessibilityLabel: string; })'.
+@nilo/app typecheck:   Property 'accessibilityLabel' does not exist on type 'HeaderAction'.
+@nilo/app typecheck: Exited with code 2

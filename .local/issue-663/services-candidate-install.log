@@ -1,0 +1,10 @@
+bun install v1.4.3 (c6da4a4d3)
+Resolving dependencies
+Resolved, downloaded and extracted [184]
+Saved lockfile
+
++ @oxy.so/contracts@6.22.0
++ @oxy.so/core@7.44.0
++ @oxy.so/services@/home/nate/Oxy/oxy/.worktrees/issue-663-services-actions/.local/services-14.15.3-candidate.tgz
+
+6 packages installed [4.22s]

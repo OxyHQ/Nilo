@@ -1,0 +1,358 @@
+$ biome check .
+.local/reproduce-editor-434-focus.mjs:2:8 lint/correctness/noUnusedImports  FIXABLE  ━━━━━━━━━━━━━━━
+
+  ! This import is unused.
+  
+    1 │ // Nilo routes with local-only account/API fixtures and a seeded offline document.
+  > 2 │ import assert from 'node:assert/strict';
+      │        ^^^^^^
+    3 │ import { createRequire } from 'node:module';
+    4 │ import { execFileSync } from 'node:child_process';
+  
+  i Unused imports might be the result of an incomplete refactoring.
+  
+  i Unsafe fix: Remove the unused imports.
+  
+      1     │ - //·Nilo·routes·with·local-only·account/API·fixtures·and·a·seeded·offline·document.
+      2     │ - import·assert·from·'node:assert/strict';
+          1 │ + 
+      3   2 │   import { createRequire } from 'node:module';
+      4   3 │   import { execFileSync } from 'node:child_process';
+  
+
+.local/reproduce-editor-434-focus.mjs:141:1 lint/style/useConst  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! This let declares a variable that is only assigned once.
+  
+    139 │   updatedAt: date,
+    140 │ }));
+  > 141 │ let empty = false;
+        │ ^^^
+    142 │ const report = {
+    143 │   sourceSha: execFileSync('git', ['-C', consumer, 'rev-parse', 'HEAD'], {
+  
+  i 'empty' is never reassigned.
+  
+    139 │   updatedAt: date,
+    140 │ }));
+  > 141 │ let empty = false;
+        │     ^^^^^
+    142 │ const report = {
+    143 │   sourceSha: execFileSync('git', ['-C', consumer, 'rev-parse', 'HEAD'], {
+  
+  i Safe fix: Use const instead.
+  
+    139 139 │     updatedAt: date,
+    140 140 │   }));
+    141     │ - let·empty·=·false;
+        141 │ + const·empty·=·false;
+    142 142 │   const report = {
+    143 143 │     sourceSha: execFileSync('git', ['-C', consumer, 'rev-parse', 'HEAD'], {
+  
+
+.local/reproduce-editor-434.mjs:2:8 lint/correctness/noUnusedImports  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━
+
+  ! This import is unused.
+  
+    1 │ // Nilo routes with local-only account/API fixtures and a seeded offline document.
+  > 2 │ import assert from 'node:assert/strict';
+      │        ^^^^^^
+    3 │ import { createRequire } from 'node:module';
+    4 │ import { execFileSync } from 'node:child_process';
+  
+  i Unused imports might be the result of an incomplete refactoring.
+  
+  i Unsafe fix: Remove the unused imports.
+  
+      1     │ - //·Nilo·routes·with·local-only·account/API·fixtures·and·a·seeded·offline·document.
+      2     │ - import·assert·from·'node:assert/strict';
+          1 │ + 
+      3   2 │   import { createRequire } from 'node:module';
+      4   3 │   import { execFileSync } from 'node:child_process';
+  
+
+.local/reproduce-editor-434.mjs:141:1 lint/style/useConst  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! This let declares a variable that is only assigned once.
+  
+    139 │   updatedAt: date,
+    140 │ }));
+  > 141 │ let empty = false;
+        │ ^^^
+    142 │ const report = {
+    143 │   sourceSha: execFileSync('git', ['-C', consumer, 'rev-parse', 'HEAD'], {
+  
+  i 'empty' is never reassigned.
+  
+    139 │   updatedAt: date,
+    140 │ }));
+  > 141 │ let empty = false;
+        │     ^^^^^
+    142 │ const report = {
+    143 │   sourceSha: execFileSync('git', ['-C', consumer, 'rev-parse', 'HEAD'], {
+  
+  i Safe fix: Use const instead.
+  
+    139 139 │     updatedAt: date,
+    140 140 │   }));
+    141     │ - let·empty·=·false;
+        141 │ + const·empty·=·false;
+    142 142 │   const report = {
+    143 143 │     sourceSha: execFileSync('git', ['-C', consumer, 'rev-parse', 'HEAD'], {
+  
+
+apps/api/src/lib/databases/formula.ts:360:49 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! The comma operator is disallowed.
+  
+    358 │     return text((Array.isArray(list) ? list : [list]).map(toText).join(separator));
+    359 │   },
+  > 360 │   lower: (args, run) => (arity('lower', args, 1), toText(run(args[0] as Node)).toLowerCase()),
+        │                                                 ^
+    361 │   upper: (args, run) => (arity('upper', args, 1), toText(run(args[0] as Node)).toUpperCase()),
+    362 │   contains: (args, run) => {
+  
+  i Its use is often confusing and obscures side effects.
+  
+
+apps/api/src/lib/databases/formula.ts:361:49 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! The comma operator is disallowed.
+  
+    359 │   },
+    360 │   lower: (args, run) => (arity('lower', args, 1), toText(run(args[0] as Node)).toLowerCase()),
+  > 361 │   upper: (args, run) => (arity('upper', args, 1), toText(run(args[0] as Node)).toUpperCase()),
+        │                                                 ^
+    362 │   contains: (args, run) => {
+    363 │     arity('contains', args, 2);
+  
+  i Its use is often confusing and obscures side effects.
+  
+
+apps/api/src/lib/databases/formula.ts:393:51 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! The comma operator is disallowed.
+  
+    391 │     return args[2] ? value.slice(start, toNumber(run(args[2]), 'slice()')) : value.slice(start);
+    392 │   },
+  > 393 │   format: (args, run) => (arity('format', args, 1), toText(run(args[0] as Node))),
+        │                                                   ^
+    394 │   toNumber: (args, run) => {
+    395 │     arity('toNumber', args, 1);
+  
+  i Its use is often confusing and obscures side effects.
+  
+
+apps/api/src/lib/databases/formula.ts:407:28 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! The comma operator is disallowed.
+  
+    405 │   },
+    406 │   floor: (args, run) => (
+  > 407 │     arity('floor', args, 1), Math.floor(toNumber(run(args[0] as Node), 'floor()'))
+        │                            ^
+    408 │   ),
+    409 │   ceil: (args, run) => (
+  
+  i Its use is often confusing and obscures side effects.
+  
+
+apps/api/src/lib/databases/formula.ts:410:27 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! The comma operator is disallowed.
+  
+    408 │   ),
+    409 │   ceil: (args, run) => (
+  > 410 │     arity('ceil', args, 1), Math.ceil(toNumber(run(args[0] as Node), 'ceil()'))
+        │                           ^
+    411 │   ),
+    412 │   abs: (args, run) => (arity('abs', args, 1), Math.abs(toNumber(run(args[0] as Node), 'abs()'))),
+  
+  i Its use is often confusing and obscures side effects.
+  
+
+apps/api/src/lib/databases/formula.ts:412:45 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! The comma operator is disallowed.
+  
+    410 │     arity('ceil', args, 1), Math.ceil(toNumber(run(args[0] as Node), 'ceil()'))
+    411 │   ),
+  > 412 │   abs: (args, run) => (arity('abs', args, 1), Math.abs(toNumber(run(args[0] as Node), 'abs()'))),
+        │                                             ^
+    413 │   sqrt: (args, run) => (
+    414 │     arity('sqrt', args, 1), Math.sqrt(toNumber(run(args[0] as Node), 'sqrt()'))
+  
+  i Its use is often confusing and obscures side effects.
+  
+
+apps/api/src/lib/databases/formula.ts:414:27 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! The comma operator is disallowed.
+  
+    412 │   abs: (args, run) => (arity('abs', args, 1), Math.abs(toNumber(run(args[0] as Node), 'abs()'))),
+    413 │   sqrt: (args, run) => (
+  > 414 │     arity('sqrt', args, 1), Math.sqrt(toNumber(run(args[0] as Node), 'sqrt()'))
+        │                           ^
+    415 │   ),
+    416 │   pow: (args, run) => (
+  
+  i Its use is often confusing and obscures side effects.
+  
+
+apps/api/src/lib/databases/formula.ts:417:26 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! The comma operator is disallowed.
+  
+    415 │   ),
+    416 │   pow: (args, run) => (
+  > 417 │     arity('pow', args, 2),
+        │                          ^
+    418 │     toNumber(run(args[0] as Node), 'pow()') ** toNumber(run(args[1] as Node), 'pow()')
+    419 │   ),
+  
+  i Its use is often confusing and obscures side effects.
+  
+
+apps/api/src/lib/databases/formula.ts:428:51 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! The comma operator is disallowed.
+  
+    426 │       .flatMap((a) => [run(a)].flat())
+    427 │       .reduce<number>((total, v) => total + toNumber(v, 'sum()'), 0),
+  > 428 │   now: (args, _run, ctx) => (arity('now', args, 0), ctx.now()),
+        │                                                   ^
+    429 │   today: (args, _run, ctx) => {
+    430 │     arity('today', args, 0);
+  
+  i Its use is often confusing and obscures side effects.
+  
+
+apps/api/src/lib/databases/formula.ts:466:27 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! The comma operator is disallowed.
+  
+    464 │   },
+    465 │   year: (args, run) => (
+  > 466 │     arity('year', args, 1), toDate(run(args[0] as Node), 'year()').getUTCFullYear()
+        │                           ^
+    467 │   ),
+    468 │   month: (args, run) => (
+  
+  i Its use is often confusing and obscures side effects.
+  
+
+apps/api/src/lib/databases/formula.ts:469:28 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! The comma operator is disallowed.
+  
+    467 │   ),
+    468 │   month: (args, run) => (
+  > 469 │     arity('month', args, 1), toDate(run(args[0] as Node), 'month()').getUTCMonth() + 1
+        │                            ^
+    470 │   ),
+    471 │   day: (args, run) => (arity('day', args, 1), toDate(run(args[0] as Node), 'day()').getUTCDate()),
+  
+  i Its use is often confusing and obscures side effects.
+  
+
+apps/api/src/lib/databases/formula.ts:471:45 lint/complexity/noCommaOperator ━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! The comma operator is disallowed.
+  
+    469 │     arity('month', args, 1), toDate(run(args[0] as Node), 'month()').getUTCMonth() + 1
+    470 │   ),
+  > 471 │   day: (args, run) => (arity('day', args, 1), toDate(run(args[0] as Node), 'day()').getUTCDate()),
+        │                                             ^
+    472 │ };
+    473 │ 
+  
+  i Its use is often confusing and obscures side effects.
+  
+
+apps/api/src/repositories/blocks.ts:8:33 lint/correctness/noUnusedImports  FIXABLE  ━━━━━━━━━━━━━━━━
+
+  ! Several of these imports are unused.
+  
+     6 │  */
+     7 │ 
+   > 8 │ import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+       │                                 ^^^^^^
+     9 │ import { qualified, sqlColumnName, uuidv7 } from '@oxy.so/db';
+    10 │ import type { PgHandle } from '../db/client.js';
+  
+  i Unused imports might be the result of an incomplete refactoring.
+  
+  i Unsafe fix: Remove the unused imports.
+  
+    8 │ import·{·and,·asc,·eq,·inArray,·isNull,·sql·}·from·'drizzle-orm';
+      │                                 --------                         
+
+apps/api/src/repositories/blocks.ts:9:10 lint/correctness/noUnusedImports  FIXABLE  ━━━━━━━━━━━━━━━━
+
+  ! Several of these imports are unused.
+  
+     8 │ import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+   > 9 │ import { qualified, sqlColumnName, uuidv7 } from '@oxy.so/db';
+       │          ^^^^^^^^^
+    10 │ import type { PgHandle } from '../db/client.js';
+    11 │ import { blocks, type BlockContent, type BlockType } from '../db/schema/pages.js';
+  
+  i Unused imports might be the result of an incomplete refactoring.
+  
+  i Unsafe fix: Remove the unused imports.
+  
+    9 │ import·{·qualified,·sqlColumnName,·uuidv7·}·from·'@oxy.so/db';
+      │          -----------                                          
+
+apps/api/src/repositories/fileReferences.ts:8:24 lint/correctness/noUnusedImports  FIXABLE  ━━━━━━━━━━
+
+  ! Several of these imports are unused.
+  
+     6 │  * sends back.
+     7 │  */
+   > 8 │ import { and, asc, eq, gt, inArray, isNotNull, isNull, lt, lte, ne, or, sql } from 'drizzle-orm';
+       │                        ^^^^^^^^^^^^^^^^^^^^^^
+     9 │ import { PAGE_FILE_PREFIX } from '@oxy.so/nilo-contracts';
+    10 │ import type { PgHandle } from '../db/client.js';
+  
+  i Unused imports might be the result of an incomplete refactoring.
+  
+  i Unsafe fix: Remove the unused imports.
+  
+    8 │ import·{·and,·asc,·eq,·gt,·inArray,·isNotNull,·isNull,·lt,·lte,·ne,·or,·sql·}·from·'drizzle-orm';
+      │                        ----         -----------                                                  
+
+scripts/verify-table-focus-browser.mjs:141:1 lint/style/useConst  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! This let declares a variable that is only assigned once.
+  
+    139 │   updatedAt: date,
+    140 │ }));
+  > 141 │ let empty = false;
+        │ ^^^
+    142 │ const report = {
+    143 │   sourceSha: execFileSync('git', ['-C', consumer, 'rev-parse', 'HEAD'], {
+  
+  i 'empty' is never reassigned.
+  
+    139 │   updatedAt: date,
+    140 │ }));
+  > 141 │ let empty = false;
+        │     ^^^^^
+    142 │ const report = {
+    143 │   sourceSha: execFileSync('git', ['-C', consumer, 'rev-parse', 'HEAD'], {
+  
+  i Safe fix: Use const instead.
+  
+    139 139 │     updatedAt: date,
+    140 140 │   }));
+    141     │ - let·empty·=·false;
+        141 │ + const·empty·=·false;
+    142 142 │   const report = {
+    143 143 │     sourceSha: execFileSync('git', ['-C', consumer, 'rev-parse', 'HEAD'], {
+  
+
+The number of diagnostics exceeds the limit allowed. Use --max-diagnostics to increase it.
+Diagnostics not shown: 48.
+Checked 903 files in 619ms. No fixes applied.
+Found 68 warnings.

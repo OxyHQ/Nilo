@@ -1,0 +1,22 @@
+{
+  "original": "pass",
+  "transformed": "attempted to use private field on non-instance",
+  "packages": {
+    "@oxy.so/app-preset": {
+      "version": "6.6.0",
+      "path": "/home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/node_modules/@oxy.so/app-preset/package.json"
+    },
+    "@expo/metro-config": {
+      "version": "58.0.21",
+      "path": "/home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/node_modules/@expo/metro-config/package.json"
+    },
+    "noxcturnal": {
+      "version": "0.1.11",
+      "path": "/home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/node_modules/noxcturnal/package.json"
+    },
+    "@tanstack/query-core": {
+      "version": "5.103.3",
+      "path": "/home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/node_modules/@tanstack/query-core/package.json"
+    }
+  }
+}

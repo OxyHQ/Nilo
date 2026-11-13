@@ -1,0 +1,41 @@
+{
+  "status": "complete",
+  "result": {
+    "status": "complete",
+    "code": "var _classPrivateFieldLooseBase2 = (() => {\n\tvar s = {\n\t\tclassPrivateFieldLooseBase: function(e, r) {\n\t\t\tfunction i(a, l) {\n\t\t\t\tif (!{}.hasOwnProperty.call(a, l)) throw new TypeError(\"attempted to use private field on non-instance\");\n\t\t\t\treturn a;\n\t\t\t}\n\t\t\te.exports = i, e.exports.__esModule = !0, e.exports.default = e.exports;\n\t\t},\n\t\tclassPrivateFieldLooseKey: function(e, r) {\n\t\t\tvar i = 0;\n\t\t\tfunction a(l) {\n\t\t\t\treturn \"__private_\" + i++ + \"_\" + l;\n\t\t\t}\n\t\t\te.exports = a, e.exports.__esModule = !0, e.exports.default = e.exports;\n\t\t}\n\t}, o = {};\n\tfunction t(e) {\n\t\tif (o[e]) return o[e].exports;\n\t\tvar r = o[e] = { exports: {} };\n\t\treturn s[e](r, t), r.exports;\n\t}\n\treturn {\n\t\tclassPrivateFieldLooseBase: t(\"classPrivateFieldLooseBase\"),\n\t\tclassPrivateFieldLooseKey: t(\"classPrivateFieldLooseKey\")\n\t};\n})();\nfunction _classPrivateFieldLooseBase(s, o, t) {\n\treturn t && s == null ? s : _classPrivateFieldLooseBase2.classPrivateFieldLooseBase(s, o);\n}\nvar _construct2 = (() => {\n\tvar p = {\n\t\tisNativeReflectConstruct: function(e, r) {\n\t\t\tfunction t() {\n\t\t\t\ttry {\n\t\t\t\t\tvar n = !Boolean.prototype.valueOf.call(Reflect.construct(Boolean, [], function() {}));\n\t\t\t\t} catch (c) {}\n\t\t\t\treturn (e.exports = t = function() {\n\t\t\t\t\treturn !!n;\n\t\t\t\t}, e.exports.__esModule = !0, e.exports.default = e.exports)();\n\t\t\t}\n\t\t\te.exports = t, e.exports.__esModule = !0, e.exports.default = e.exports;\n\t\t},\n\t\tsetPrototypeOf: function(e, r) {\n\t\t\tfunction t(n, c) {\n\t\t\t\treturn e.exports = t = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function(s, f) {\n\t\t\t\t\treturn s.__proto__ = f, s;\n\t\t\t\t}, e.exports.__esModule = !0, e.exports.default = e.exports, t(n, c);\n\t\t\t}\n\t\t\te.exports = t, e.exports.__esModule = !0, e.exports.default = e.exports;\n\t\t},\n\t\tconstruct: function(e, r) {\n\t\t\tvar t = r(\"isNativeReflectConstruct\"), n = r(\"setPrototypeOf\");\n\t\t\tfunction c(s, f, x) {\n\t\t\t\tif (t()) return Reflect.construct.apply(null, arguments);\n\t\t\t\tvar l = [null];\n\t\t\t\tl.push.apply(l, f);\n\t\t\t\tvar a = new (s.bind.apply(s, l))();\n\t\t\t\treturn x && n(a, x.prototype), a;\n\t\t\t}\n\t\t\te.exports = c, e.exports.__esModule = !0, e.exports.default = e.exports;\n\t\t}\n\t}, o = {};\n\tfunction u(e) {\n\t\tif (o[e]) return o[e].exports;\n\t\tvar r = o[e] = { exports: {} };\n\t\treturn p[e](r, u), r.exports;\n\t}\n\treturn { construct: u(\"construct\") };\n})();\nfunction _construct(p, o, u) {\n\treturn _construct2.construct(p, o, u);\n}\nclass Base {}\nvar Observer = ((__nox_super_29_159) => {\n\t\"use strict\";\n\tvar _read = _classPrivateFieldLooseBase2.classPrivateFieldLooseKey(\"__private__Class_read\");\n\tvar _result = _classPrivateFieldLooseBase2.classPrivateFieldLooseKey(\"__private__Class_result\");\n\tvar _privateMethod = function() {\n\t\tif (new.target) throw new TypeError(\"Class methods cannot be invoked with 'new'\");\n\t\treturn _classPrivateFieldLooseBase(this, _result)[_result];\n\t};\n\tfunction _initialize() {\n\t\tObject.defineProperty(this, _read, { value: _privateMethod });\n\t\tObject.defineProperty(this, _result, {\n\t\t\twritable: true,\n\t\t\tvalue: void 0\n\t\t});\n\t}\n\tconst _Class = function _Class() {\n\t\tif (!new.target) throw new TypeError(\"Cannot call a class as a function\");\n\t\tvar _this = _construct(Object.getPrototypeOf(_Class), [], new.target || _Class);\n\t\t(function() {\n\t\t\t_initialize.call(this);\n\t\t}).call(_this);\n\t\tvar _result = (function() {\n\t\t\t_classPrivateFieldLooseBase(this, _result)[_result] = [];\n\t\t}).apply(_this, arguments);\n\t\tif (_result !== void 0) {\n\t\t\tif (typeof _result === \"object\" && _result !== null || typeof _result === \"function\") return _result;\n\t\t\tthrow new TypeError(\"Derived constructors may only return object or undefined\");\n\t\t}\n\t\treturn _this;\n\t};\n\tObject.defineProperty(_Class, \"name\", {\n\t\tvalue: \"Observer\",\n\t\tconfigurable: true\n\t});\n\tif (__nox_super_29_159 !== null && typeof __nox_super_29_159 !== \"function\") throw new TypeError(\"Super expression must either be null or a function\");\n\t_Class.prototype = Object.create(__nox_super_29_159 && __nox_super_29_159.prototype, { constructor: {\n\t\tvalue: _Class,\n\t\twritable: true,\n\t\tconfigurable: true\n\t} });\n\tif (Object.setPrototypeOf) Object.setPrototypeOf(_Class, __nox_super_29_159);\n\telse _Class.__proto__ = __nox_super_29_159;\n\tObject.defineProperty(_Class.prototype, \"read\", {\n\t\tvalue: Object.defineProperty(function() {\n\t\t\tif (new.target) throw new TypeError(\"Class methods cannot be invoked with 'new'\");\n\t\t\treturn _classPrivateFieldLooseBase(this, _read)[_read]();\n\t\t}, \"name\", {\n\t\t\tvalue: \"read\",\n\t\t\tconfigurable: true\n\t\t}),\n\t\twritable: true,\n\t\tconfigurable: true\n\t});\n\tObject.defineProperty(_Class, \"prototype\", { writable: false });\n\treturn _Class;\n})(Base);\nglobalThis.observed = new Observer().read();\n",
+    "map": {
+      "mappings": "A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;A;AAAA,MAAM,KAAK,CAAC;AAAE,IAAI,aAAW;;2FAAiI;CAAjI,8FAAiI;CAA3D,qBAAK,WAAE;EAAP,gFAA4B;EAApB,OAAOA,yCAAW,CAAC,CAAPC;CAAQ;CAAlG;EAAsE,2DAA4B;EAA7E;;;EAAO;CAAqG;CAAjI,eAAyC,SAAzCC,SAA2C;EAA3C,wEAAiI;EAAjI,YAA4CC,uCAAM,GAAN,CAAM,GAAN,oBAAM;EAAlD;wBAAiI;IAAC,CAAlID,UAAiI;EAAjI;GAAoD,yCAAW,CAAC,CAAPD,WAAQ,CAAC;EAA+D,EAAC,CAAlIC,sBAAiI;EAAjI;;iFAAiI;;EAAjI;CAAoE;CAApE;;;CAAiI;CAAjI,qJAAiI;CAAjI;;;;CAAiI;CAAjI,2EAAiI;MAAjI;;+BAAwG,WAAE;GAAN,gFAA2B;GAApB,OAAOE,uCAAS,CAAC,CAALC,MAAK,CAAC;EAAE,GAA/H;;;EAAiI;EAAjIH;;CAAiI;CAAjI,6DAAiI;CAAjI;AAAiI,EAAC,CAApH,IAAmH;AAAG,WAAW,WAAW,IAAI,SAAS,CAAC,CAAC,KAAK;A",
+      "names": [
+        "this.#result",
+        "#result",
+        "class extends Base { #result; constructor(){super();this.#result=[];} #read(){return this.#result;} read(){return this.#read();} }",
+        "super()",
+        "this.#read",
+        "#read"
+      ]
+    },
+    "functionMap": {
+      "names": [
+        "Base",
+        "<global>",
+        "Observer",
+        "Observer#constructor",
+        "<anonymous>",
+        "Observer#read"
+      ],
+      "mappings": "AAA,aC,gBC,8BC,uCD,CE,6BF,CG,4BH,ED"
+    },
+    "metadata": {
+      "nativeHelpers": ["classPrivateFieldLooseBase", "classPrivateFieldLooseKey", "construct"],
+      "hasCjsExports": false,
+      "dependencies": [],
+      "dependencyMapName": "_dependencyMap",
+      "metroRequireName": "require",
+      "metroImportDefaultName": "$$_IMPORT_DEFAULT",
+      "metroImportAllName": "$$_IMPORT_ALL"
+    },
+    "diagnostics": []
+  },
+  "dependencies": [],
+  "dependencyMapName": "_dependencyMap"
+}

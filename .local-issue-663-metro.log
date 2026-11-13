@@ -1,0 +1,361 @@
+[app.config] ./google-services.json is missing: this Android build has no push notifications.
+Starting project at /home/nate/Oxy/Nilo/.worktrees/issue-663-baseline/apps/app
+[app.config] ./google-services.json is missing: this Android build has no push notifications.
+[app.config] ./google-services.json is missing: this Android build has no push notifications.
+[app.config] ./google-services.json is missing: this Android build has no push notifications.
+[app.config] ./google-services.json is missing: this Android build has no push notifications.
+Expo Autolinking module resolution enabled
+Starting Metro Bundler
+
+[app.config] ./google-services.json is missing: this Android build has no push notifications.
+[app.config] ./google-services.json is missing: this Android build has no push notifications.
+[app.config] ./google-services.json is missing: this Android build has no push notifications.
+[app.config] ./google-services.json is missing: this Android build has no push notifications.
+[app.config] ./google-services.json is missing: this Android build has no push notifications.
+Waiting on http://localhost:8128
+
+19 packages may need updating. Run npx expo install --check for details.
+Logs for your project will appear below.
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:1283591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| [app.config] ./google-services.json is missing: this Android build has no push notifications.
+Web Bundled 9898ms apps/app/index.web.tsx (4755 modules)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  2026-11-08T07:36:12.579Z WARN commitSession: device-set registration failed {"component": "OxyContext", "method": "commitSession"} [OxyApiError: Fixture does not register devices]
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 131ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:36:17.115Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 128ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:36:19.239Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 249ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  2026-11-08T07:37:18.927Z WARN commitSession: device-set registration failed {"component": "OxyContext", "method": "commitSession"} [OxyApiError: Fixture does not register devices]
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 124ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  LOG  2026-11-08T07:37:25.142Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 120ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:37:27.537Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 104ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  LOG  2026-11-08T07:37:29.808Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:37:31.823Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web  LOG  2026-11-08T07:37:36.829Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 105ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  2026-11-08T07:38:33.028Z WARN commitSession: device-set registration failed {"component": "OxyContext", "method": "commitSession"} [OxyApiError: Fixture does not register devices]
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 100ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  LOG  2026-11-08T07:38:38.411Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 103ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:38:40.523Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 115ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  LOG  2026-11-08T07:38:42.988Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 117ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  2026-11-08T07:40:03.583Z WARN commitSession: device-set registration failed {"component": "OxyContext", "method": "commitSession"} [OxyApiError: Fixture does not register devices]
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 100ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  LOG  2026-11-08T07:40:09.174Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 104ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:40:11.242Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 105ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:40:13.843Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 115ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  2026-11-08T07:40:15.726Z WARN commitSession: device-set registration failed {"component": "OxyContext", "method": "commitSession"} [OxyApiError: Fixture does not register devices]
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 112ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:40:20.285Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 107ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:40:22.247Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 6264ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  2026-11-08T07:44:43.924Z WARN commitSession: device-set registration failed {"component": "OxyContext", "method": "commitSession"} [OxyApiError: Fixture does not register devices]
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 104ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  LOG  2026-11-08T07:44:49.262Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 102ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:44:51.335Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 100ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:44:53.937Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 224ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  2026-11-08T07:45:04.708Z WARN commitSession: device-set registration failed {"component": "OxyContext", "method": "commitSession"} [OxyApiError: Fixture does not register devices]
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 103ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  LOG  2026-11-08T07:45:11.100Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 97ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:45:13.196Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 99ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  LOG  2026-11-08T07:45:15.671Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 209ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  2026-11-08T07:45:49.651Z WARN commitSession: device-set registration failed {"component": "OxyContext", "method": "commitSession"} [OxyApiError: Fixture does not register devices]
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 104ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web  LOG  2026-11-08T07:45:59.939Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web Bundled 100ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  LOG  2026-11-08T07:46:01.727Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 103ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  LOG  2026-11-08T07:46:04.370Z DEBUG device-secret mint failed (transient) — keeping secret {"component": "sessionColdBoot", "method": "device-secret-mint"}
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 243ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  2026-11-08T08:07:27.388Z WARN commitSession: device-set registration failed {"component": "OxyContext", "method": "commitSession"} [OxyApiError: Fixture does not register devices]
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 134ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  2026-11-08T08:08:42.315Z WARN commitSession: device-set registration failed {"component": "OxyContext", "method": "commitSession"} [OxyApiError: Fixture does not register devices]
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 143ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  2026-11-08T09:21:24.496Z WARN commitSession: device-set registration failed {"component": "OxyContext", "method": "commitSession"} [OxyApiError: Fixture does not register devices]
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
+Web Bundled 119ms apps/app/index.web.tsx (1 module)
+Web  INFO  %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+Web  WARN  [expo-notifications] Listening to push token changes is not yet fully supported on web. Adding a listener will have no effect.
+Web  WARN  Require cycle: components/database/database-view.tsx -> components/database/row-peek-provider.tsx -> components/database/row-peek.tsx -> components/page-editor/page-editor.tsx -> components/page-editor/renderers.tsx -> components/editor/blocks/inline-database-block.tsx -> components/database/database-view.tsx
+
+Require cycles are allowed, but can result in uninitialized values. Consider refactoring to remove the need for a cycle.
+Web  WARN  `unstable_settings.initialRouteName` is deprecated. Use `unstable_settings.anchor` instead.
+Web  WARN  2026-11-08T09:22:19.701Z WARN commitSession: device-set registration failed {"component": "OxyContext", "method": "commitSession"} [OxyApiError: Fixture does not register devices]
+Web  WARN  [expo-notifications] Emitting notifications is not yet fully supported on web. Adding a listener will have no effect.
