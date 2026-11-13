@@ -1,0 +1,82 @@
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.startBlockDrag = startBlockDrag;
+var _commands = require("../model/commands.js");
+var _schema = require("../model/schema.js");
+var _blockDom = require("./block-dom.js");
+const THRESHOLD = 4;
+
+/** The block under a point and where a drop there would land. */
+function dropTarget(store, prefix, x, y) {
+  const found = (0, _blockDom.blockElementAt)(document.elementFromPoint(x, y), prefix, id => store.doc.blocks[id] !== undefined);
+  const block = found && store.doc.blocks[found.id];
+  if (!found || !block) return null;
+  const {
+    element,
+    id: target
+  } = found;
+  // Measure the block's own row, not its children below it.
+  const row = element.firstElementChild ?? element;
+  const rect = row.getBoundingClientRect();
+  const ratio = (y - rect.top) / Math.max(rect.height, 1);
+  if ((0, _schema.acceptsChildren)(store.schema, block) && ratio > 0.3 && ratio < 0.7 && y <= rect.bottom) {
+    return {
+      target,
+      position: 'inside'
+    };
+  }
+  return {
+    target,
+    position: ratio < 0.5 ? 'before' : 'after'
+  };
+}
+
+/**
+ * Web: drag a block (or the selected blocks it belongs to) by its gutter
+ * handle. The pointer is followed on the window; a drop runs `moveBlocks`.
+ * Under the threshold it stays a click, which opens the block menu.
+ */
+function startBlockDrag(store, ui, id, start, prefix) {
+  const startX = start.x;
+  const startY = start.y;
+  const selected = ui.get().selectedBlocks;
+  const ids = selected.includes(id) ? selected : [id];
+  let dragging = false;
+  const onMove = e => {
+    if (!dragging) {
+      if (Math.hypot(e.pageX - startX, e.pageY - startY) < THRESHOLD) return;
+      dragging = true;
+      document.body.style.cursor = 'grabbing';
+    }
+    e.preventDefault();
+    const drop = dropTarget(store, prefix, e.clientX, e.clientY);
+    ui.set({
+      drag: {
+        ids,
+        target: drop?.target ?? null,
+        position: drop?.position ?? 'after'
+      }
+    });
+  };
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    document.body.style.cursor = '';
+    const drag = ui.get().drag;
+    if (dragging && drag?.target) {
+      store.sealHistory();
+      store.run(c => (0, _commands.moveBlocks)(c, drag.ids, drag.target, drag.position));
+    }
+    // Cleared after the click this pointerup produces, so the handle's press
+    // handler can tell a drag from a click.
+    setTimeout(() => ui.set({
+      drag: null
+    }), 0);
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+}
+//# sourceMappingURL=drag.web.js.map

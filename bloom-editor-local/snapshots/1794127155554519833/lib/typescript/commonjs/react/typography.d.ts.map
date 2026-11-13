@@ -1,0 +1,1 @@
+{"version":3,"file":"typography.d.ts","sourceRoot":"","sources":["../../../../src/react/typography.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,oBAAoB,CAAC;AACxD,OAAO,KAAK,EAAE,WAAW,EAAE,MAAM,SAAS,CAAC;AAE3C,sFAAsF;AACtF,wBAAgB,YAAY,CAAC,IAAI,EAAE,MAAM,EAAE,KAAK,EAAE,WAAW,GAAG,aAAa,CAS5E;AAoBD,6DAA6D;AAC7D,wBAAgB,YAAY,CAAC,IAAI,EAAE,MAAM,GAAG,MAAM,CAKjD"}

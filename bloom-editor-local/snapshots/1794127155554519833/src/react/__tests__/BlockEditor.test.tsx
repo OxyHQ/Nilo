@@ -1,0 +1,920 @@
+/**
+ * @jest-environment jsdom
+ */
+import { act, type ReactElement } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { documentFromSnapshot, EditorStore, type BlockSnapshot } from '../../model';
+import { editText, moveBlocks } from '../../model/commands';
+import { BlockEditor, EditorSurface, type BlockEditorProps } from '../BlockEditor';
+import { EditorController, useEditorController } from '../controller';
+import { BlockDecorations } from '../decorations';
+import { EditorToolbar } from '../EditorToolbar';
+import { selectBlocks } from '../block-selection';
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+let root: Root | null = null;
+let host: HTMLElement | null = null;
+
+function mount(element: ReactElement): HTMLElement {
+  host = document.createElement('div');
+  document.body.appendChild(host);
+  root = createRoot(host);
+  act(() => root?.render(element));
+  return host;
+}
+
+afterEach(() => {
+  act(() => root?.unmount());
+  host?.remove();
+  root = null;
+  host = null;
+  document.body.innerHTML = '';
+});
+
+function makeStore(blocks: BlockSnapshot[]) {
+  let n = 0;
+  return new EditorStore({
+    document: documentFromSnapshot(blocks, () => `b${++n}`),
+    newId: () => `n${++n}`,
+  });
+}
+
+const PARAGRAPHS: BlockSnapshot[] = [
+  { type: 'paragraph', text: [{ text: 'Hello world' }] },
+  { type: 'paragraph', text: [{ text: 'Second' }] },
+];
+
+function Editor(props: Omit<BlockEditorProps, 'slashItems'> & { toolbar?: boolean }) {
+  const controller = useEditorController(props.store);
+  return (
+    <>
+      <BlockEditor slashItems={[]} controller={controller} {...props} />
+      {props.toolbar ? <EditorToolbar controller={controller} /> : null}
+    </>
+  );
+}
+
+/** Text drawn over the blocks (not in an input), with its computed background. */
+function drawnPieces(container: HTMLElement): { text: string; background: string }[] {
+  return Array.from(container.querySelectorAll('[aria-hidden="true"] span'))
+    .filter((el) => el.children.length === 0 && el.textContent)
+    .map((el) => ({
+      text: el.textContent ?? '',
+      background: (el as HTMLElement).style.backgroundColor,
+    }));
+}
+
+describe('domIdPrefix', () => {
+  it('ids every block row with the default prefix', () => {
+    const store = makeStore(PARAGRAPHS);
+    mount(<Editor store={store} />);
+    expect(document.getElementById('bloom-block-b1')).not.toBeNull();
+    expect(document.getElementById('bloom-block-b2')).not.toBeNull();
+  });
+
+  it('gives two surfaces showing the same block different ids', () => {
+    const store = makeStore(PARAGRAPHS);
+    mount(
+      <>
+        <Editor store={store} />
+        <Editor store={store} domIdPrefix="synced-" />
+      </>,
+    );
+    expect(document.querySelectorAll('[id="bloom-block-b1"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[id="synced-b1"]')).toHaveLength(1);
+    const ids = Array.from(document.querySelectorAll('[id]')).map((el) => el.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('destination variants in block and slash menus', () => {
+  const slashItems: BlockEditorProps['slashItems'] = [
+    {
+      id: 'heading',
+      label: 'Heading',
+      group: 'basic',
+      action: { kind: 'block', type: 'heading_1' },
+    },
+    {
+      id: 'toggle-heading',
+      label: 'Toggle heading',
+      group: 'basic',
+      action: { kind: 'block', type: 'heading_1', props: { toggleable: true, expanded: true } },
+    },
+  ];
+  function choose(label: string) {
+    const item = Array.from(
+      document.querySelectorAll<HTMLElement>('[role="menuitem"], [role="option"]'),
+    ).find((element) => element.textContent === label);
+    expect(item).toBeDefined();
+    act(() => item?.click());
+  }
+
+  it('changes a same-type toggle heading through the real block menu and undoes the entire change', () => {
+    const store = makeStore([
+      {
+        type: 'heading_1',
+        text: [{ text: 'Parent' }],
+        props: { toggleable: true, expanded: true },
+        children: [{ type: 'paragraph', text: [{ text: 'Child' }] }],
+      },
+    ]);
+    const before = store.doc;
+    const controller = new EditorController(store);
+    mount(<BlockEditor store={store} controller={controller} slashItems={slashItems} />);
+    act(() => controller.ui.set({ blockMenu: 'b1' }));
+    choose('Heading');
+    expect(store.doc.blocks.b1?.props.toggleable).toBe(false);
+    expect(store.doc.root).toEqual(['b1', 'b2']);
+    act(() => {
+      store.undo();
+    });
+    expect(store.doc).toEqual(before);
+  });
+
+  it.each(['block', 'slash'] as const)(
+    'keeps children when choosing a toggle heading from the %s menu',
+    (menu) => {
+      const store = makeStore([
+        {
+          type: 'toggle',
+          text: [{ text: menu === 'slash' ? '/' : 'Parent' }],
+          props: { expanded: true },
+          children: [{ type: 'paragraph', text: [{ text: 'Child' }] }],
+        },
+      ]);
+      const before = store.doc;
+      const controller = new EditorController(store);
+      mount(<BlockEditor store={store} controller={controller} slashItems={slashItems} />);
+      act(() =>
+        controller.ui.set(
+          menu === 'block'
+            ? { blockMenu: 'b1' }
+            : { slash: { blockId: 'b1', slashAt: 0, query: '', highlighted: 0 } },
+        ),
+      );
+      choose('Toggle heading');
+      expect(store.doc.root).toEqual(['b1']);
+      expect(store.doc.blocks.b1?.type).toBe('heading_1');
+      expect(store.doc.blocks.b1?.props.toggleable).toBe(true);
+      expect(store.doc.blocks.b1?.children).toEqual(['b2']);
+      expect(store.doc.blocks.b2?.parent).toBe('b1');
+      act(() => {
+        store.undo();
+      });
+      expect(store.doc).toEqual(before);
+    },
+  );
+});
+
+describe('text-range decorations', () => {
+  it('draws highlights and a named caret over a block that is not being edited', () => {
+    const store = makeStore(PARAGRAPHS);
+    const decorations = new BlockDecorations();
+    const container = mount(<Editor store={store} decorations={decorations} />);
+    expect(drawnPieces(container)).toEqual([]);
+
+    act(() =>
+      decorations.set(
+        new Map([
+          [
+            'b1',
+            {
+              ranges: [
+                {
+                  start: 6,
+                  end: 11,
+                  background: 'rgb(255, 230, 150)',
+                  caret: { color: 'rgb(200, 0, 0)', label: 'Ana' },
+                },
+              ],
+            },
+          ],
+        ]),
+      ),
+    );
+    const pieces = drawnPieces(container);
+    expect(pieces.filter((p) => p.text !== '\u200b')).toEqual([
+      { text: 'Hello ', background: '' },
+      { text: 'world', background: 'rgb(255, 230, 150)' },
+      { text: 'Ana', background: 'rgb(200, 0, 0)' },
+    ]);
+    // The caret: a span of no width whose left border is the caret colour.
+    const caret = Array.from(container.querySelectorAll('span')).find(
+      (el) => (el as HTMLElement).style.borderLeftColor === 'rgb(200, 0, 0)',
+    );
+    expect(caret?.textContent).toBe('\u200bAna');
+    // No edge for a decoration without a colour.
+    const row = document.getElementById('bloom-block-b1') as HTMLElement;
+    expect(row.style.borderLeftWidth).toBe('');
+  });
+
+  it('keeps the edge of a decoration with a colour', () => {
+    const store = makeStore(PARAGRAPHS);
+    const decorations = new BlockDecorations();
+    decorations.set(new Map([['b2', { color: 'rgb(0, 0, 200)', label: 'Ben is editing' }]]));
+    mount(<Editor store={store} decorations={decorations} />);
+    const row = document.getElementById('bloom-block-b2') as HTMLElement;
+    expect(getComputedStyle(row).borderLeftColor).toBe('rgb(0, 0, 200)');
+  });
+});
+
+describe('text-range decorations while editing (web)', () => {
+  const original = Range.prototype.getClientRects;
+  afterEach(() => {
+    Range.prototype.getClientRects = original;
+  });
+
+  it('measures them on the input and draws them over it', async () => {
+    // jsdom lays nothing out: each character is 10px wide on a 16px line.
+    Range.prototype.getClientRects = function getClientRects(this: Range) {
+      const width = (this.endOffset - this.startOffset) * 10;
+      return [{ left: this.startOffset * 10, top: 2, width, height: 16 }] as unknown as DOMRectList;
+    };
+    const store = makeStore(PARAGRAPHS);
+    const decorations = new BlockDecorations();
+    decorations.set(
+      new Map([
+        [
+          'b1',
+          {
+            ranges: [
+              {
+                start: 6,
+                end: 11,
+                background: 'rgb(255, 230, 150)',
+                caret: { color: 'rgb(200, 0, 0)', label: 'Ana' },
+              },
+            ],
+          },
+        ],
+      ]),
+    );
+    const container = mount(<Editor store={store} decorations={decorations} />);
+    const input = container.querySelector('[data-testid="block-input-b1"]') as Element;
+    act(() => {
+      input.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    // Not drawn as text any more: the input is being edited.
+    expect(drawnPieces(container)).toEqual([]);
+    const painted = (color: string) =>
+      (Array.from(container.querySelectorAll('div')) as HTMLElement[]).find(
+        (el) => el.style.backgroundColor === color,
+      );
+    const highlight = painted('rgb(255, 230, 150)');
+    expect(highlight?.style.left).toBe('60px');
+    expect(highlight?.style.width).toBe('50px');
+    const caret = painted('rgb(200, 0, 0)');
+    // At the end of the range, centred on it.
+    expect(caret?.style.left).toBe('109px');
+    expect(caret?.textContent).toBe('Ana');
+    // The highlight is under the input's text, the caret over it.
+    const order = (el: Element | undefined) =>
+      el ? input.compareDocumentPosition(el) : Number.NaN;
+    expect(order(highlight) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(order(caret) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe('formatActions', () => {
+  it('offers the app’s actions while text is selected, with that selection', () => {
+    const store = makeStore(PARAGRAPHS);
+    const pressed: unknown[] = [];
+    const comment = { id: 'comment', label: 'Comment', onPress: (s: unknown) => pressed.push(s) };
+    let controllerRef: ReturnType<typeof useEditorController> | null = null;
+    function WithToolbar() {
+      const controller = useEditorController(store);
+      controllerRef = controller;
+      return (
+        <>
+          <BlockEditor
+            store={store}
+            slashItems={[]}
+            controller={controller}
+            formatActions={[comment]}
+          />
+          <EditorToolbar controller={controller} />
+        </>
+      );
+    }
+    mount(<WithToolbar />);
+    const controller = controllerRef as unknown as ReturnType<typeof useEditorController>;
+    act(() => {
+      controller.ui.set({ focused: 'b1' });
+      store.setSelection({ kind: 'text', blockId: 'b1', start: 2, end: 2 });
+    });
+    expect(document.querySelector('[aria-label="Comment"]')).toBeNull();
+
+    act(() => store.setSelection({ kind: 'text', blockId: 'b1', start: 0, end: 5 }));
+    const button = document.querySelector('[aria-label="Comment"]') as HTMLElement;
+    expect(button).not.toBeNull();
+    expect(button.textContent).toBe('Comment');
+    act(() => button.click());
+    expect(pressed).toEqual([{ blockId: 'b1', start: 0, end: 5 }]);
+  });
+});
+
+describe('confirmRemove', () => {
+  function keyDown(key: string) {
+    act(() => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
+      );
+    });
+  }
+
+  function setup(confirmRemove: BlockEditorProps['confirmRemove']) {
+    const store = makeStore(PARAGRAPHS);
+    let controllerRef: ReturnType<typeof useEditorController> | null = null;
+    function Host() {
+      const controller = useEditorController(store);
+      controllerRef = controller;
+      return (
+        <BlockEditor
+          store={store}
+          slashItems={[]}
+          controller={controller}
+          confirmRemove={confirmRemove}
+        />
+      );
+    }
+    mount(<Host />);
+    const controller = controllerRef as unknown as ReturnType<typeof useEditorController>;
+    act(() => selectBlocks(controller.ui, ['b1', 'b2']));
+    return { store, ui: controller.ui };
+  }
+
+  it('asks before Backspace removes selected blocks, and keeps them on a no', () => {
+    const confirm = jest.fn(() => false);
+    const { store, ui } = setup(confirm);
+    keyDown('Backspace');
+    expect(confirm).toHaveBeenCalledWith(['b1', 'b2']);
+    expect(store.doc.root).toEqual(['b1', 'b2']);
+    expect(ui.get().selectedBlocks).toEqual(['b1', 'b2']);
+  });
+
+  it('removes them once the answer resolves true, asking once meanwhile', async () => {
+    let answer: (value: boolean) => void = () => {};
+    const confirm = jest.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const { store, ui } = setup(confirm);
+    keyDown('Delete');
+    keyDown('Delete');
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(store.doc.root).toEqual(['b1', 'b2']);
+    await act(async () => answer(true));
+    expect(store.doc.root.every((id) => id !== 'b1' && id !== 'b2')).toBe(true);
+    expect(ui.get().selectedBlocks).toEqual([]);
+  });
+
+  it.each(['cut', 'delete', 'unmount'] as const)(
+    'does not remove after pending %s loses its editing capability',
+    async (kind) => {
+      let answer!: (value: boolean) => void;
+      const pending = new Promise<boolean>((resolve) => {
+        answer = resolve;
+      });
+      const store = makeStore(PARAGRAPHS);
+      const controller = new EditorController(store);
+      const editor = (readOnly: boolean) => (
+        <BlockEditor
+          store={store}
+          controller={controller}
+          slashItems={[]}
+          readOnly={readOnly}
+          confirmRemove={() => pending}
+        />
+      );
+      mount(editor(false));
+      act(() => selectBlocks(controller.ui, ['b1', 'b2']));
+      if (kind === 'cut') {
+        const data = new Map<string, string>();
+        const event = new Event('cut', { bubbles: true, cancelable: true });
+        Object.defineProperty(event, 'clipboardData', {
+          value: {
+            setData: (type: string, value: string) => data.set(type, value),
+            getData: (type: string) => data.get(type) ?? '',
+          },
+        });
+        act(() => {
+          document.activeElement?.dispatchEvent(event);
+        });
+        expect(data.get('text/plain')).toBe('Hello world\nSecond\n');
+      } else keyDown('Delete');
+      const before = store.doc;
+      act(() => root?.render(kind === 'unmount' ? null : editor(true)));
+      await act(async () => {
+        answer(true);
+        await pending;
+      });
+      expect(store.doc).toBe(before);
+      expect(store.doc.root).toEqual(['b1', 'b2']);
+    },
+  );
+  it('copies on cut but removes only once agreed', () => {
+    const confirm = jest.fn(() => false);
+    const { store } = setup(confirm);
+    const data = new Map<string, string>();
+    const event = new Event('cut', { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(event, 'clipboardData', {
+      value: {
+        setData: (type: string, value: string) => data.set(type, value),
+        getData: (type: string) => data.get(type) ?? '',
+      },
+    });
+    act(() => {
+      document.activeElement?.dispatchEvent(event);
+    });
+    expect(data.get('text/plain')?.trim().split(/\n+/)).toEqual(['Hello world', 'Second']);
+    expect(confirm).toHaveBeenCalledWith(['b1', 'b2']);
+    expect(store.doc.root).toEqual(['b1', 'b2']);
+  });
+
+  it('asks before the block menu deletes', () => {
+    const confirm = jest.fn(() => true);
+    const { store, ui } = setup(confirm);
+    act(() => ui.set({ blockMenu: 'b1' }));
+    const remove = Array.from(document.querySelectorAll('[role="menuitem"]')).find(
+      (el) => el.textContent === 'Delete',
+    ) as HTMLElement;
+    act(() => remove.click());
+    expect(confirm).toHaveBeenCalledWith(['b1', 'b2']);
+    expect(store.doc.root.includes('b1')).toBe(false);
+  });
+});
+
+describe('onPasteText', () => {
+  function paste(target: Element, text: string, html: string) {
+    const event = new Event('paste', { bubbles: true, cancelable: true }) as ClipboardEvent;
+    Object.defineProperty(event, 'clipboardData', {
+      value: {
+        items: [],
+        files: [],
+        getData: (type: string) =>
+          type === 'text/html' ? html : type === 'text/plain' ? text : '',
+      },
+    });
+    act(() => {
+      target.dispatchEvent(event);
+    });
+    return event;
+  }
+
+  it('lets the app take a paste before the editor does', () => {
+    const store = makeStore(PARAGRAPHS);
+    const onPasteText = jest.fn(() => true);
+    mount(<Editor store={store} onPasteText={onPasteText} />);
+    const input = document.querySelector('[data-testid="block-input-b1"]') as Element;
+    const event = paste(input, 'https://example.com', '<a href="https://example.com">x</a>');
+    expect(onPasteText).toHaveBeenCalledWith({
+      text: 'https://example.com',
+      html: '<a href="https://example.com">x</a>',
+      blockId: 'b1',
+    });
+    expect(event.defaultPrevented).toBe(true);
+    expect(store.doc.root).toEqual(['b1', 'b2']);
+  });
+
+  it('leaves the paste to the editor when the app does not take it', () => {
+    const store = makeStore(PARAGRAPHS);
+    const onPasteText = jest.fn(() => false);
+    mount(<Editor store={store} onPasteText={onPasteText} />);
+    const input = document.querySelector('[data-testid="block-input-b2"]') as Element;
+    const event = paste(input, 'plain words', '');
+    expect(onPasteText).toHaveBeenCalledWith({ text: 'plain words', blockId: 'b2' });
+    // Plain text is the input's to paste.
+    expect(event.defaultPrevented).toBe(false);
+
+    const html = paste(input, 'Title', '<h2>Title</h2><p>Body</p>');
+    expect(html.defaultPrevented).toBe(true);
+    expect(store.doc.root.length).toBeGreaterThan(2);
+  });
+});
+
+describe('clipboard ownership', () => {
+  function clipboard(target: EventTarget, kind: 'copy' | 'cut') {
+    const data = new Map<string, string>();
+    const event = new Event(kind, { bubbles: true, cancelable: true }) as ClipboardEvent;
+    const setData = jest.fn((type: string, value: string) => data.set(type, value));
+    Object.defineProperty(event, 'clipboardData', {
+      value: { setData, getData: (type: string) => data.get(type) ?? '' },
+    });
+    act(() => {
+      target.dispatchEvent(event);
+    });
+    return { data, event, setData };
+  }
+
+  it.each([
+    ['copy', 'input'],
+    ['cut', 'input'],
+    ['copy', 'textarea'],
+    ['cut', 'textarea'],
+    ['copy', 'contenteditable'],
+    ['cut', 'contenteditable'],
+  ] as const)('leaves %s in an external %s alone after a block selection', (kind, field) => {
+    const store = makeStore(PARAGRAPHS);
+    const controller = new EditorController(store);
+    const confirmRemove = jest.fn(() => true);
+    const container = mount(
+      <>
+        <BlockEditor
+          store={store}
+          controller={controller}
+          slashItems={[]}
+          confirmRemove={confirmRemove}
+        />
+        {field === 'input' ? (
+          <input data-testid="external" defaultValue="External text" />
+        ) : field === 'textarea' ? (
+          <textarea data-testid="external" defaultValue="External text" />
+        ) : (
+          <div data-testid="external" contentEditable suppressContentEditableWarning>
+            External text
+          </div>
+        )}
+      </>,
+    );
+    act(() => selectBlocks(controller.ui, ['b1']));
+    const input = container.querySelector<HTMLInputElement>('[data-testid="external"]')!;
+    act(() => {
+      input.focus();
+      if ('select' in input) input.select();
+    });
+    const before = store.getSnapshot();
+    const { data, event } = clipboard(input, kind);
+    expect(data.size).toBe(0);
+    expect(event.defaultPrevented).toBe(false);
+    expect(confirmRemove).not.toHaveBeenCalled();
+    expect(store.getSnapshot()).toBe(before);
+  });
+
+  it.each(['copy', 'cut'] as const)(
+    'only the focused editor handles %s when both retain selections',
+    (kind) => {
+      const first = makeStore(PARAGRAPHS);
+      const second = makeStore([{ type: 'paragraph', text: [{ text: 'Other editor' }] }]);
+      const a = new EditorController(first);
+      const b = new EditorController(second);
+      const confirmA = jest.fn(() => true);
+      const confirmB = jest.fn(() => true);
+      mount(
+        <>
+          <BlockEditor store={first} controller={a} slashItems={[]} confirmRemove={confirmA} />
+          <BlockEditor
+            store={second}
+            controller={b}
+            slashItems={[]}
+            domIdPrefix="second-"
+            confirmRemove={confirmB}
+          />
+        </>,
+      );
+      act(() => selectBlocks(a.ui, ['b1']));
+      act(() => selectBlocks(b.ui, ['b1']));
+      const before = first.getSnapshot();
+      const { data, setData } = clipboard(document.getElementById('second-b1')!, kind);
+      expect(setData).toHaveBeenCalledTimes(1);
+      expect(data.get('text/plain')?.trim()).toBe('Other editor');
+      expect(first.getSnapshot()).toBe(before);
+      expect(confirmA).not.toHaveBeenCalled();
+      expect(confirmB).toHaveBeenCalledTimes(kind === 'cut' ? 1 : 0);
+      if (kind === 'cut') {
+        expect(second.doc.blocks.b1).toBeUndefined();
+        act(() => second.undo());
+        expect(second.doc.blocks.b1?.text).toEqual([{ text: 'Other editor' }]);
+      }
+    },
+  );
+
+  it('moves keyboard focus to the whole-block selection without refocusing for unrelated UI changes', () => {
+    const store = makeStore(PARAGRAPHS);
+    const controller = new EditorController(store);
+    const container = mount(
+      <>
+        <BlockEditor store={store} controller={controller} slashItems={[]} />
+        <input />
+      </>,
+    );
+    act(() => selectBlocks(controller.ui, ['b1']));
+    const owner = container.querySelector('[data-bloom-editor-surface]');
+    expect(owner).not.toBeNull();
+    expect(document.activeElement).toBe(owner);
+    const { data } = clipboard(document.activeElement!, 'copy');
+    expect(data.get('text/plain')?.trim()).toBe('Hello world');
+    const input = container.querySelector('input')!;
+    act(() => input.focus());
+    act(() => controller.ui.set({ blockMenu: null }));
+    expect(document.activeElement).toBe(input);
+    expect(clipboard(document, 'cut').event.defaultPrevented).toBe(false);
+    expect(store.doc.blocks.b1).toBeDefined();
+  });
+  it('does not let an enclosing editor intercept a nested editor cut', () => {
+    const first = makeStore(PARAGRAPHS);
+    const second = makeStore([{ type: 'paragraph', text: [{ text: 'Nested text' }] }]);
+    const outer = new EditorController(first),
+      inner = new EditorController(second);
+    const confirmOuter = jest.fn(() => true);
+    mount(
+      <EditorSurface store={first} controller={outer} slashItems={[]} confirmRemove={confirmOuter}>
+        <BlockEditor store={second} controller={inner} slashItems={[]} domIdPrefix="inner-" />
+      </EditorSurface>,
+    );
+    act(() => selectBlocks(outer.ui, ['b1']));
+    act(() => selectBlocks(inner.ui, ['b1']));
+    const before = first.getSnapshot();
+    const result = clipboard(document.activeElement!, 'cut');
+    expect(result.data.get('text/plain')?.trim()).toBe('Nested text');
+    expect(first.getSnapshot()).toBe(before);
+    expect(confirmOuter).not.toHaveBeenCalled();
+    expect(second.doc.blocks.b1).toBeUndefined();
+  });
+
+  it('does not reclaim focus from an external field when callbacks change', () => {
+    const store = makeStore(PARAGRAPHS);
+    const controller = new EditorController(store);
+    const ui = () => (
+      <>
+        <BlockEditor
+          store={store}
+          controller={controller}
+          slashItems={[]}
+          confirmRemove={() => true}
+        />
+        <input />
+      </>
+    );
+    const container = mount(ui());
+    act(() => selectBlocks(controller.ui, ['b1']));
+    const input = container.querySelector('input')!;
+    act(() => input.focus());
+    act(() => root?.render(ui()));
+    expect(document.activeElement).toBe(input);
+    expect(clipboard(input, 'cut').data.size).toBe(0);
+    expect(store.doc.blocks.b1).toBeDefined();
+  });
+  it.each(['input', 'textarea', '', 'true', 'plaintext-only'])(
+    'preserves clipboard in a custom renderer field (%s)',
+    (editable) => {
+      const store = makeStore(PARAGRAPHS);
+      const controller = new EditorController(store);
+      const container = mount(
+        <EditorSurface store={store} controller={controller} slashItems={[]}>
+          {editable === 'input' ? (
+            <input data-testid="field" />
+          ) : editable === 'textarea' ? (
+            <textarea data-testid="field" />
+          ) : (
+            <div data-testid="field" tabIndex={-1} />
+          )}
+        </EditorSurface>,
+      );
+      const field = container.querySelector<HTMLElement>('[data-testid="field"]')!;
+      if (editable !== 'input' && editable !== 'textarea')
+        field.setAttribute('contenteditable', editable);
+      act(() => selectBlocks(controller.ui, ['b1']));
+      act(() => field.focus());
+      expect(document.activeElement).toBe(field);
+      const before = store.getSnapshot();
+      for (const kind of ['copy', 'cut'] as const) {
+        expect(clipboard(field, kind).event.defaultPrevented).toBe(false);
+      }
+      expect(store.getSnapshot()).toBe(before);
+    },
+  );
+});
+
+describe('whole-block Cut safety', () => {
+  function setup(
+    blocks: BlockSnapshot[],
+    confirmation: BlockEditorProps['confirmRemove'] = () => true,
+  ) {
+    const store = makeStore(blocks);
+    const controller = new EditorController(store);
+    const onClipboardError = jest.fn();
+    const confirmRemove = jest.fn(confirmation);
+    mount(
+      <BlockEditor
+        store={store}
+        controller={controller}
+        slashItems={[]}
+        onClipboardError={onClipboardError}
+        confirmRemove={confirmRemove}
+      />,
+    );
+    act(() => selectBlocks(controller.ui, store.doc.root));
+    return { store, controller, onClipboardError, confirmRemove };
+  }
+  function cut(
+    data: {
+      setData: (type: string, value: string) => void;
+      getData: (type: string) => string;
+    } | null,
+  ) {
+    const event = new Event('cut', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', { value: data });
+    act(() => {
+      document.activeElement?.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(true);
+  }
+  it.each([false, true])('keeps an attached image and its selection (mixed=%s)', (mixed) => {
+    const state = setup([
+      ...(mixed ? [{ type: 'paragraph', text: [{ text: 'Keep this too' }] }] : []),
+      { type: 'image', props: { fileId: 'attachment' } },
+    ]);
+    const before = state.store.getSnapshot();
+    const selected = state.controller.ui.get().selectedBlocks;
+    const setData = jest.fn();
+    cut({ setData, getData: () => '' });
+    expect(setData).not.toHaveBeenCalled();
+    expect(state.onClipboardError).toHaveBeenCalledWith('unsupported-cut');
+    expect(state.confirmRemove).not.toHaveBeenCalled();
+    expect(state.store.getSnapshot()).toBe(before);
+    expect(state.controller.ui.get().selectedBlocks).toBe(selected);
+  });
+  it.each(['throw', 'noop', 'missing'] as const)(
+    'preserves reversible text too when the clipboard writer is %s',
+    (failure) => {
+      const state = setup(PARAGRAPHS);
+      const before = state.store.getSnapshot();
+      const selected = state.controller.ui.get().selectedBlocks;
+      cut(
+        failure === 'missing'
+          ? null
+          : {
+              setData: () => {
+                if (failure === 'throw') throw new Error('Refused');
+              },
+              getData: () => '',
+            },
+      );
+      expect(state.onClipboardError).toHaveBeenCalledWith('write-failed');
+      expect(state.confirmRemove).not.toHaveBeenCalled();
+      expect(state.store.getSnapshot()).toBe(before);
+      expect(state.controller.ui.get().selectedBlocks).toBe(selected);
+    },
+  );
+  it.each(['text', 'order', 'parent', 'unchanged'] as const)(
+    'revalidates a copied selection after asynchronous confirmation: %s',
+    async (change) => {
+      let confirm!: (value: boolean) => void;
+      const answer = new Promise<boolean>((resolve) => {
+        confirm = resolve;
+      });
+      const state = setup(
+        [...PARAGRAPHS, { type: 'toggle', text: [{ text: 'Destination' }] }],
+        () => answer,
+      );
+      act(() => selectBlocks(state.controller.ui, ['b1']));
+      const data = new Map<string, string>();
+      cut({
+        setData: (type, value) => {
+          data.set(type, value);
+        },
+        getData: (type) => data.get(type) ?? '',
+      });
+      expect(data.get('text/plain')).toBe('Hello world\n');
+      expect(state.store.doc.blocks.b1).toBeDefined();
+      act(() => {
+        const ctx = state.store.context();
+        if (change === 'text')
+          state.store.dispatch(editText(ctx, 'b1', [{ text: 'Remote edit' }]), 'remote');
+        if (change === 'order')
+          state.store.dispatch(moveBlocks(ctx, ['b1'], 'b2', 'after'), 'remote');
+        if (change === 'parent')
+          state.store.dispatch(moveBlocks(ctx, ['b1'], 'b3', 'inside'), 'remote');
+      });
+      const beforeConfirm = state.store.doc;
+      const selected = state.controller.ui.get().selectedBlocks;
+      await act(async () => {
+        confirm(true);
+        await answer;
+      });
+      if (change === 'unchanged') {
+        expect(state.store.doc.blocks.b1).toBeUndefined();
+        expect(state.onClipboardError).not.toHaveBeenCalled();
+      } else {
+        expect(state.store.doc).toBe(beforeConfirm);
+        expect(state.controller.ui.get().selectedBlocks).toEqual(selected);
+        expect(state.onClipboardError).toHaveBeenCalledWith('changed-cut');
+      }
+      expect(data.get('text/plain')).toBe('Hello world\n');
+    },
+  );
+  it('cuts supported blocks only after a confirmed write and remains undoable', () => {
+    const state = setup(PARAGRAPHS);
+    const before = state.store.doc;
+    const clipboard = new Map<string, string>();
+    cut({
+      setData: (type, value) => {
+        clipboard.set(type, value);
+      },
+      getData: (type) => clipboard.get(type) ?? '',
+    });
+    expect(clipboard.get('text/plain')).toBe('Hello world\nSecond\n');
+    expect(state.onClipboardError).not.toHaveBeenCalled();
+    expect(state.confirmRemove).toHaveBeenCalledTimes(1);
+    expect(state.store.doc.blocks.b1).toBeUndefined();
+    const undo = new KeyboardEvent('keydown', {
+      key: 'z',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      document.activeElement?.dispatchEvent(undo);
+    });
+    expect(undo.defaultPrevented).toBe(true);
+    expect(state.store.doc).toEqual(before);
+  });
+});
+
+describe('surface keyboard ownership after deletion', () => {
+  function key(target: EventTarget, value: string, ctrlKey = false) {
+    const event = new KeyboardEvent('keydown', {
+      key: value,
+      ctrlKey,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      target.dispatchEvent(event);
+    });
+    return event;
+  }
+  it('undoes deletion of the last block even though its block selection is now empty', () => {
+    const store = makeStore([{ type: 'paragraph', text: [{ text: 'Only block' }] }]);
+    const before = store.doc;
+    const controller = new EditorController(store);
+    const container = mount(<BlockEditor store={store} controller={controller} slashItems={[]} />);
+    const surface = container.querySelector<HTMLElement>('[data-bloom-editor-surface]');
+    if (!surface) throw new Error('Missing surface');
+    act(() => selectBlocks(controller.ui, ['b1']));
+    key(surface, 'Delete');
+    expect(store.doc.blocks.b1).toBeUndefined();
+    expect(controller.ui.get().selectedBlocks).toEqual([]);
+    expect(key(surface, 'z', true).defaultPrevented).toBe(true);
+    expect(store.doc).toEqual(before);
+  });
+  it('leaves another input or dialog in charge of undo despite retained block selections', () => {
+    const store = makeStore(PARAGRAPHS);
+    const controller = new EditorController(store);
+    const container = mount(
+      <>
+        <BlockEditor store={store} controller={controller} slashItems={[]} />
+        <div role="dialog">
+          <input data-testid="dialog-input" />
+        </div>
+      </>,
+    );
+    const undo = jest.spyOn(store, 'undo');
+    act(() => selectBlocks(controller.ui, ['b1']));
+    const input = container.querySelector<HTMLInputElement>('input');
+    if (!input) throw new Error('Missing input');
+    act(() => input.focus());
+    expect(key(input, 'z', true).defaultPrevented).toBe(false);
+    expect(undo).not.toHaveBeenCalled();
+  });
+  it('only undoes the focused editor and never a read-only surface', () => {
+    const first = makeStore(PARAGRAPHS);
+    const second = makeStore(PARAGRAPHS);
+    const a = new EditorController(first);
+    const b = new EditorController(second);
+    const draw = (readOnly = false) => (
+      <>
+        <BlockEditor store={first} controller={a} slashItems={[]} />
+        <BlockEditor
+          store={second}
+          controller={b}
+          slashItems={[]}
+          domIdPrefix="second-"
+          readOnly={readOnly}
+        />
+      </>
+    );
+    const container = mount(draw());
+    const undoA = jest.spyOn(first, 'undo');
+    const undoB = jest.spyOn(second, 'undo');
+    act(() => {
+      selectBlocks(a.ui, ['b1']);
+      selectBlocks(b.ui, ['b1']);
+    });
+    const surface = container.querySelectorAll<HTMLElement>('[data-bloom-editor-surface]')[1];
+    if (!surface) throw new Error('Missing second surface');
+    key(surface, 'z', true);
+    expect(undoA).not.toHaveBeenCalled();
+    expect(undoB).toHaveBeenCalledTimes(1);
+    act(() => root?.render(draw(true)));
+    expect(key(surface, 'z', true).defaultPrevented).toBe(false);
+    expect(undoB).toHaveBeenCalledTimes(1);
+  });
+});

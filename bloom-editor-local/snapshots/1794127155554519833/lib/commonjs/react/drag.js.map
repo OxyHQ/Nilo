@@ -1,0 +1,1 @@
+{"version":3,"names":["startBlockDrag","_store","_ui","_id","_start","_prefix"],"sourceRoot":"../../../src","sources":["react/drag.ts"],"mappings":";;;;;;AAIA;AACO,SAASA,cAAcA,CAC5BC,MAAmB,EACnBC,GAAY,EACZC,GAAY,EACZC,MAAgC,EAChCC,OAAe,EACT,CAAC","ignoreList":[]}
