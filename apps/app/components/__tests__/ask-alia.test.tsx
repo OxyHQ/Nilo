@@ -11,10 +11,10 @@ jest.mock('@oxy.so/services/ui/client', () => ({
 jest.mock('@/hooks/useTranslation', () => ({
   useTranslation: () => ({ t: (key: string) => key, locale: 'en' }),
 }));
-jest.mock('@alia.onl/sdk', () => {
+jest.mock('@gemies/sdk', () => {
   const React = require('react');
   return {
-    AliaChatSheet: React.forwardRef((props: Record<string, unknown>, ref: React.Ref<unknown>) => {
+    GemieChatSheet: React.forwardRef((props: Record<string, unknown>, ref: React.Ref<unknown>) => {
       React.useImperativeHandle(ref, () => ({ present: mockPresent }));
       return React.createElement('AliaSheetFixture', props);
     }),

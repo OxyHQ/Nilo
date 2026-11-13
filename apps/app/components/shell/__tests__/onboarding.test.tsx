@@ -14,7 +14,7 @@ const mockControl = { open: jest.fn(), close: jest.fn() };
 jest.mock('@oxy.so/services/ui/client', () => ({
   useOxy: () => ({ isAuthenticated: mockAuthenticated, user: { id: 'me' } }),
 }));
-jest.mock('@alia.onl/sdk/avatar', () => ({ AliaAvatarIcon: () => null }));
+jest.mock('@gemies/sdk/avatar', () => ({ GemieAvatarIcon: () => null }));
 jest.mock('@oxy.so/bloom/dialog', () => ({
   useDialogControl: () => mockControl,
   Dialog: () => null,

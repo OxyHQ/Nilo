@@ -157,8 +157,8 @@ Socket handshakes resolve fresh credentials through the linked client; an accoun
 change cancels pending handshakes before reconnecting under the new session.
 Noted's existing Nilo session and workspace-room wire contract is unchanged.
 
-The event outbox uses `@alia.onl/server` 1.2's product transport and the canonical
-Alia service audience. Deploy Alia's compatible reader before this producer;
+The event outbox uses `@gemies/server`'s product transport and the canonical
+service audience (`GEMIES_SERVICE_AUDIENCE`). Deploy Alia's compatible reader before this producer;
 publishing its SDK alone does not prove the reader is live. Invitation delivery
 uses the platform transport and preserves its saved invitation, original
 idempotency key, mail switch and recipient limits. Temporary AWS credentials

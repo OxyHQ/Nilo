@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Linking, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
-import { AliaAvatarIcon } from '@alia.onl/sdk/avatar';
+import { GemieAvatarIcon } from '@gemies/sdk/avatar';
 import { AppShell } from '@oxy.so/bloom/app-shell';
 import { Button, LinkButton } from '@oxy.so/bloom/button';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
@@ -30,7 +30,7 @@ import { useOnboarding } from './use-onboarding';
 
 /** The `SidebarNavItem` icon slot hands over a size; Alia's mark takes it as its box. */
 function AliaGlyph({ width, height }: { width?: number; height?: number }) {
-  return <AliaAvatarIcon width={width} height={height} />;
+  return <GemieAvatarIcon width={width} height={height} />;
 }
 
 /** Which navigation row the route is. */
