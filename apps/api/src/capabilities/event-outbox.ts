@@ -11,7 +11,7 @@
  * The worker resolves temporary workload credentials when delivering. Unless
  * `APP_EVENT_OUTBOX_WORKER_ENABLED=false`, failures remain queued for the next lease.
  */
-import { createAliaTransportForOxyService } from '@alia.onl/server';
+import { createGemieTransportForOxyService } from '@gemies/server';
 import { randomBytes } from 'node:crypto';
 import { hostname } from 'node:os';
 import { type NormalizedAppEvent, normalizedAppEventSchema } from '@oxy.so/contracts';
@@ -29,15 +29,15 @@ const MAX_RECORDED_ERROR_LENGTH = 500;
 
 export type EventDelivery = (event: NormalizedAppEvent) => Promise<void>;
 
-function aliaApiUrl(): string {
-  return (process.env.ALIA_API_URL ?? 'https://api.gemies.ai').replace(/\/$/, '');
+function gemiesApiUrl(): string {
+  return (process.env.GEMIES_API_URL ?? 'https://api.gemies.ai').replace(/\/$/, '');
 }
 
 /** Shared product transport owns mint and refresh; the outbox retains its idempotent delivery. */
 export async function deliverToAlia(event: NormalizedAppEvent): Promise<void> {
-  const transport = createAliaTransportForOxyService(oxy, { baseURL: aliaApiUrl() });
+  const transport = createGemieTransportForOxyService(oxy, { baseURL: gemiesApiUrl() });
   try {
-    const response = await transport.fetch(`${aliaApiUrl()}/webhooks/oxy`, {
+    const response = await transport.fetch(`${gemiesApiUrl()}/webhooks/oxy`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'idempotency-key': event.eventId },
       body: JSON.stringify(event),

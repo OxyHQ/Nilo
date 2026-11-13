@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { ALIA_SERVICE_AUDIENCE } from '@alia.onl/server';
+import { GEMIES_SERVICE_AUDIENCE } from '@gemies/server';
 import { normalizedAppEventSchema } from '@oxy.so/contracts';
 
 // Run in a separate Bun process: other runtime tests deliberately mock OxyServer.
@@ -62,7 +62,7 @@ const address = server.address();
 assert.ok(address && typeof address !== 'string');
 const baseURL = `http://127.0.0.1:${address.port}`;
 process.env.OXY_API_URL = baseURL;
-process.env.ALIA_API_URL = baseURL;
+process.env.GEMIES_API_URL = baseURL;
 process.env.INVITE_EMAILS_ENABLED = 'true';
 process.env.OXYNILO_PUBLIC_URL = 'https://nilo.example.test';
 const { deliverToAlia } = await import('../../event-outbox.js');
@@ -93,7 +93,7 @@ try {
     deliveries.map((entry) => entry.body),
     [event, event],
   );
-  assert.ok(deliveries.every((entry) => entry.audience === ALIA_SERVICE_AUDIENCE));
+  assert.ok(deliveries.every((entry) => entry.audience === GEMIES_SERVICE_AUDIENCE));
   const invite = {
     id: 'invite-1',
     workspaceId: 'workspace-1',
@@ -112,8 +112,8 @@ try {
   assert.deepEqual(
     minted.map(({ audience, protocolVersion }) => ({ audience, protocolVersion })),
     [
-      { audience: ALIA_SERVICE_AUDIENCE, protocolVersion: 2 },
-      { audience: ALIA_SERVICE_AUDIENCE, protocolVersion: 2 },
+      { audience: GEMIES_SERVICE_AUDIENCE, protocolVersion: 2 },
+      { audience: GEMIES_SERVICE_AUDIENCE, protocolVersion: 2 },
       { audience: 'oxy-api', protocolVersion: 2 },
     ],
   );

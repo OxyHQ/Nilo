@@ -1,4 +1,4 @@
-import { AliaChatSheet, type AliaChatSheetRef } from '@alia.onl/sdk';
+import { GemieChatSheet, type GemieChatSheetRef } from '@gemies/sdk';
 import { useAuth } from '@oxy.so/services/ui/client';
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useRef } from 'react';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -17,7 +17,7 @@ const AskAliaContext = createContext<(() => void) | null>(null);
 export function AskAliaRoot({ children }: { children: ReactNode }) {
   const { t, locale } = useTranslation();
   const { canUsePrivateApi, signIn } = useAuth();
-  const chatRef = useRef<AliaChatSheetRef>(null);
+  const chatRef = useRef<GemieChatSheetRef>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `t` is a new function every render; the locale is what changes the text.
   const welcomeSuggestions = useMemo(
@@ -38,7 +38,7 @@ export function AskAliaRoot({ children }: { children: ReactNode }) {
     <AskAliaContext value={askAlia}>
       {children}
       {canUsePrivateApi && (
-        <AliaChatSheet
+        <GemieChatSheet
           ref={chatRef}
           clientContext={t('alia.clientContext')}
           welcomeSuggestions={welcomeSuggestions}

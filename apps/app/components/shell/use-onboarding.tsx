@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { View } from 'react-native';
-import { AliaAvatarIcon } from '@alia.onl/sdk/avatar';
+import { GemieAvatarIcon } from '@gemies/sdk/avatar';
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
 import { Item } from '@oxy.so/bloom/item';
 import type { SidebarOnboardingCardProps, SidebarOnboardingStep } from '@oxy.so/bloom/sidebar';
@@ -87,7 +87,7 @@ export function useOnboarding(workspaceId: string | null) {
       ready
         ? {
             title: t('sidebar.welcome.title'),
-            leading: <AliaAvatarIcon width={20} height={20} />,
+            leading: <GemieAvatarIcon width={20} height={20} />,
             steps,
             onPress: () => {
               setDrawerOpen(false);
