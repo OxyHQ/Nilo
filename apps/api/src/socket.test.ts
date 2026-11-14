@@ -2,9 +2,16 @@ import { Buffer } from 'node:buffer';
 import http from 'node:http';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { io as connectSocket, type Socket as ClientSocket } from 'socket.io-client';
+import { startEcosystemTraffic } from '@oxy.so/core/server';
 import type { Server as SocketServer } from 'socket.io';
 import { initSocket } from './socket.js';
 
+// The handle the API holds where the process does not publish.
+const traffic = startEcosystemTraffic({
+  service: 'nilo',
+  ready: () => false,
+  env: { OXY_ECOSYSTEM_ACTIVITY_ENABLED: 'false' },
+});
 const originalFetch = globalThis.fetch;
 const clients: ClientSocket[] = [];
 let httpServer: http.Server;
@@ -68,7 +75,7 @@ function waitForConnectError(client: ClientSocket): Promise<Error> {
 
 beforeEach(async () => {
   httpServer = http.createServer();
-  socketServer = initSocket(httpServer);
+  socketServer = initSocket(httpServer, traffic);
   await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve));
   const address = httpServer.address();
   if (!address || typeof address === 'string') {
