@@ -35,6 +35,7 @@ EXPO_PUBLIC_API_URL=https://api.example.test bun run build:app
 - UI composes Bloom components and its compositor; Nilo supplies data, permissions and actions. Missing shared behaviour goes into Bloom. Normal sizing is `md`. Read [Bloom UI architecture](https://github.com/OxyHQ/Bloom/blob/main/docs/ui-architecture.mdx), [Bloom app conventions](https://github.com/OxyHQ/Bloom/blob/main/docs/app-conventions.mdx) and `docs/onboarding.md` first.
 - Lists use the shared `{ items, nextCursor }` shape: [API conventions](https://github.com/OxyHQ/oxy/blob/main/docs/engineering/api-conventions.md).
 - Id shapes and migrations follow [Postgres and Drizzle](https://github.com/OxyHQ/oxy/blob/main/docs/postgres-and-drizzle.md).
+- First-party never asks people for permissions: this app acts for a person with `actingFor` on what oxy's first-party registry declares (oxy ADR 0066); permissions, scopes and consent are only for third parties.
 - Biome is the only formatter and linter (no ESLint, no Prettier); CI runs `biome ci .`.
 
 ## Boundaries
