@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /*
- * Runs under vitest AND `bun test` (see `ecosystemActivity.test.ts`): the mocks
+ * Runs under vitest AND `bun test` (see the `test:bun` script): the mocks
  * are plain constants registered before a dynamic import of the module.
  */
 const client = {

@@ -1,5 +1,5 @@
 import { socketCors } from './lib/cors.js';
-import { observeEcosystemSocket } from './ecosystemActivity';
+import type { EcosystemTraffic } from '@oxy.so/core/server';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import type http from 'node:http';
@@ -12,7 +12,7 @@ import { registerPageRooms } from './collab/page-rooms.js';
 
 let io: Server | null = null;
 
-export function initSocket(server: http.Server): Server {
+export function initSocket(server: http.Server, traffic: EcosystemTraffic): Server {
   io = new Server(server, {
     ...socketCors,
     transports: ['websocket', 'polling'],
@@ -36,7 +36,7 @@ export function initSocket(server: http.Server): Server {
   }
 
   io.on('connection', (socket) => {
-    observeEcosystemSocket(socket);
+    traffic.observeSocket(socket);
     const userId: unknown = socket.data.userId;
     if (typeof userId === 'string') {
       socket.join(`user:${userId}`);

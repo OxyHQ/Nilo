@@ -1,9 +1,5 @@
-import {
-  ecosystemActivityMiddleware,
-  startEcosystemActivity,
-  stopEcosystemActivity,
-} from './ecosystemActivity';
-import { oxyTrustProxy } from '@oxy.so/core/server';
+import { oxyTrustProxy, startEcosystemTraffic } from '@oxy.so/core/server';
+import { createAwsWorkloadCredentialProvider } from '@oxy.so/core/server/aws';
 import express from 'express';
 import http from 'node:http';
 import { apiCors } from './lib/cors.js';
@@ -90,7 +86,6 @@ const app = express();
 // two let a DNS-only caller choose its own address. Rate limits key on it
 // (`lib/rate-limit.ts`). Set first, before anything that can read `req.ip`.
 app.set('trust proxy', oxyTrustProxy);
-app.use(ecosystemActivityMiddleware);
 const PORT = parseInt(process.env.PORT || '4001', 10);
 
 // Create the HTTP server.
@@ -120,8 +115,15 @@ server.on('connection', (socket) => {
   socket.setKeepAlive(true, 60000);
 });
 
-startEcosystemActivity(() => server.listening);
-initSocket(server);
+// First middleware, so every request is observed. The handle is inert where the
+// process does not publish (AWS_REGION, or OXY_ECOSYSTEM_ACTIVITY_ENABLED).
+const traffic = startEcosystemTraffic({
+  service: 'nilo',
+  ready: () => server.listening,
+  workloadCredentials: createAwsWorkloadCredentialProvider(),
+});
+app.use(traffic.observeHttp);
+initSocket(server, traffic);
 
 // The notes MCP server owns its raw body, its exact host, its OAuth challenge
 // and its origins: mounted before CORS and the body parser, so neither can
@@ -398,7 +400,7 @@ getDb()
         log.general.info('Postgres pool closed');
 
         clearTimeout(forceTimeout);
-        await stopEcosystemActivity();
+        await traffic.stop();
         log.general.info('Graceful shutdown complete');
         process.exit(0);
       } catch (error) {
