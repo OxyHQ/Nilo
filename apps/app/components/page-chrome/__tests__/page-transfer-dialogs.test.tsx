@@ -87,6 +87,7 @@ jest.mock('@oxy.so/bloom/screen', () => ({
       {bottomBar}
     </>
   ),
+  ScreenContent: ({ children }: { children: React.ReactNode }) => children,
   ScreenScrollView: ({ children, ...props }: { children: React.ReactNode }) => {
     const { ScrollView } = require('react-native');
     return <ScrollView {...props}>{children}</ScrollView>;

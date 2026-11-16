@@ -11,8 +11,8 @@ interface PeekState {
 
 /**
  * The rows a view opens (`useOpenRow`): in a side peek (a panel beside the
- * view on a wide screen) or a centre peek (over it), each a bottom sheet on a
- * phone, or as their own page, as the view says (`config.openIn`). A row
+ * view on a wide screen) or a centre peek (over it), each using Bloom's compact
+ * detail surface on a phone, or as their own page, as the view says (`config.openIn`). A row
  * opened from a relation opens the same way.
  */
 export function OpenRowProvider({

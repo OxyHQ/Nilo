@@ -1,9 +1,8 @@
 import { useTranslation } from '@/hooks/useTranslation';
 import * as React from 'react';
-import { View } from 'react-native';
 import { Button } from '@oxy.so/bloom/button';
 import { Loading } from '@oxy.so/bloom/loading';
-import { Text } from '@oxy.so/bloom/typography';
+import { DetailDialogSection, DetailDialogSectionGroup } from '@oxy.so/bloom/dialog';
 import type { Database, DatabaseRow, PropertyValue } from '@/lib/types/databases';
 import { useDatabaseRow, useUpdateRow } from '@/lib/hooks/use-database-rows';
 import { PropertyCell } from './property-cell';
@@ -28,13 +27,14 @@ export function RowPropertiesPanel({ database, row, readOnly = false }: RowPrope
 
   const onChange = React.useCallback(
     (propertyId: string, value: PropertyValue) => {
+      if (readOnly) return;
       updateRow.mutate({
         databaseId: database.id,
         rowId: row.id,
         properties: { [propertyId]: value },
       });
     },
-    [database.id, row.id, updateRow],
+    [database.id, row.id, updateRow, readOnly],
   );
 
   // The Name property is the title above this panel; every other one is
@@ -43,41 +43,36 @@ export function RowPropertiesPanel({ database, row, readOnly = false }: RowPrope
 
   return (
     <DatabaseCellScopeProvider databaseId={database.id}>
-      <View className="gap-2">
+      <DetailDialogSectionGroup>
         {properties.map((property) => (
-          <View key={property.id} className="flex-row items-start gap-3">
-            <View className="w-36">
-              <Text className="text-xs text-muted-foreground py-1">{property.name}</Text>
-            </View>
-            <View className="flex-1">
-              {property.type === 'formula' && !computedRow ? (
-                computed.isPending ? (
-                  <Loading variant="inline" accessibilityLabel={t('common.loading')} />
-                ) : computed.isError ? (
-                  <Button
-                    appearance="plain"
-                    className="self-start"
-                    onPress={() => {
-                      void computed.refetch();
-                    }}
-                  >
-                    {t('databases.formula.retry')}
-                  </Button>
-                ) : null
-              ) : (
-                <PropertyCell
-                  property={property}
-                  value={(computedRow ?? row).properties[property.id] ?? null}
-                  variant="panel"
-                  rowId={row.id}
-                  readOnly={readOnly}
-                  onChange={(value) => onChange(property.id, value)}
-                />
-              )}
-            </View>
-          </View>
+          <DetailDialogSection key={property.id} label={property.name}>
+            {property.type === 'formula' && !computedRow ? (
+              computed.isPending ? (
+                <Loading variant="inline" accessibilityLabel={t('common.loading')} />
+              ) : computed.isError ? (
+                <Button
+                  appearance="plain"
+                  className="self-start"
+                  onPress={() => {
+                    void computed.refetch();
+                  }}
+                >
+                  {t('databases.formula.retry')}
+                </Button>
+              ) : null
+            ) : (
+              <PropertyCell
+                property={property}
+                value={(computedRow ?? row).properties[property.id] ?? null}
+                variant="panel"
+                rowId={row.id}
+                readOnly={readOnly}
+                onChange={(value) => onChange(property.id, value)}
+              />
+            )}
+          </DetailDialogSection>
         ))}
-      </View>
+      </DetailDialogSectionGroup>
     </DatabaseCellScopeProvider>
   );
 }

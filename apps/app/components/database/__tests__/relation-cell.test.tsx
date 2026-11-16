@@ -7,6 +7,7 @@ import { RowPropertiesPanel } from '../row-properties-panel';
 import { useDatabaseRow, useRelatedRowSets, useRelatedRows } from '@/lib/hooks/use-database-rows';
 import type { Database, DatabaseRow } from '@/lib/types/databases';
 const mockPush = jest.fn();
+const mockUpdateRow = jest.fn();
 // The cells read people, files and rows through the API client and Oxy's session.
 jest.mock('@/lib/api/client', () => ({
   __esModule: true,
@@ -20,7 +21,7 @@ jest.mock('@/lib/hooks/use-database-rows', () => ({
   useDatabaseRow: jest.fn(),
   useRelatedRows: jest.fn(),
   useRelatedRowSets: jest.fn(),
-  useUpdateRow: () => ({ mutate: jest.fn() }),
+  useUpdateRow: () => ({ mutate: mockUpdateRow }),
 }));
 let renderer: ReactTestRenderer;
 beforeEach(() => jest.clearAllMocks());
@@ -139,6 +140,8 @@ it('the row page uses fresh row-query properties without reloading the editor pa
   expect(useRelatedRows).toHaveBeenCalledWith('target', ['new']);
   expect(useRelatedRows).not.toHaveBeenCalledWith('target', ['old']);
   expect(JSON.stringify(renderer.toJSON())).toContain('New relation');
+  act(() => renderer.root.findByType(PropertyCell).props.onChange({ pageIds: ['blocked'] }));
+  expect(mockUpdateRow).not.toHaveBeenCalled();
 });
 
 it('reads the related rows of every row of a view once, a cell reading only what it lists apart', () => {

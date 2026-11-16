@@ -70,6 +70,20 @@ reading measure and body insets to both title and editor; the page's full-width
 setting selects full content width without changing the structural frame.
 Covers remain outside that reading column. Table, collection, form and canvas
 Screens declare their own kind instead of acquiring document-width constraints.
+
+Database boards use the same `ProjectBoard` canvas, card surface, drag engine and
+`ProjectBoardCardContent` slots as Bloom's Project Board template. Nilo supplies
+opaque rows, configured property visibility/order and persistence callbacks;
+there is no conversion to demo tickets. A title drag handle leaves property and
+move controls independent.
+
+Rows opened from a board or table use the shared `DetailDialog` also used by
+Project Board task details. It owns the inset surface, header, scrolling, close
+behavior and fixed editor toolbar slot. Side and center are view preferences;
+compact widths use the same bounded detail surface. Nilo supplies the database
+name, editable page title, properties, editor and full-page action, retaining
+live page permissions. `PageEditorProvider` surrounds the entire detail so body
+and toolbar share one editor. Canvas rows use the bounded non-scrolling body.
 Full-page databases use a single joined `AppShellPanels` panel, preserving the
 same surface owner as documents. View tabs, add-view, search, filter, sort and
 property tools share one `Toolbar`; its actions slot keeps New visible while
