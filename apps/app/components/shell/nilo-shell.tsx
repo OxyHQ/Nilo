@@ -3,7 +3,7 @@ import { Linking, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { GemieAvatarIcon } from '@gemies/sdk/avatar';
 import { AppShell } from '@oxy.so/bloom/app-shell';
-import { Button, LinkButton } from '@oxy.so/bloom/button';
+import { Button } from '@oxy.so/bloom/button';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { RiHome5Line } from '@oxy.so/bloom/icons/RiHome5Line';
@@ -142,23 +142,25 @@ export function NiloShell({ children }: { children: React.ReactNode }) {
                 {t('login.footerLink')}
               </Button>
               <View className="mt-1 flex-row items-center justify-center gap-1">
-                <LinkButton
+                <Button
+                  appearance="plain"
                   size="xs"
                   linkTone="secondary"
                   underline="rest"
                   onPress={() => void Linking.openURL(PRIVACY_URL)}
                 >
                   {t('sidebar.privacyPolicy')}
-                </LinkButton>
+                </Button>
                 <Text className="text-[10px] text-muted-foreground">·</Text>
-                <LinkButton
+                <Button
+                  appearance="plain"
                   size="xs"
                   linkTone="secondary"
                   underline="rest"
                   onPress={() => void Linking.openURL(TERMS_URL)}
                 >
                   {t('sidebar.termsOfService')}
-                </LinkButton>
+                </Button>
               </View>
             </View>
           ),

@@ -1,8 +1,9 @@
+import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { AppShellPanel, AppShellPanels, useAppShellPanel } from '@oxy.so/bloom/app-shell';
 import { toast } from '@oxy.so/bloom/toast';
-import { Button, CloseButton } from '@oxy.so/bloom/button';
+import { Button } from '@oxy.so/bloom/button';
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Item } from '@oxy.so/bloom/item';
@@ -77,7 +78,11 @@ function HistoryPanel({
             <>
               {actions}
               {!closeOnlyWhenAlone || alone ? (
-                <CloseButton
+                <Button
+                  appearance="outline"
+                  tone="neutral"
+                  iconOnly
+                  leadingIcon={RiCloseLine}
                   onPress={onClose}
                   disabled={disabled}
                   accessibilityLabel={closeLabel}

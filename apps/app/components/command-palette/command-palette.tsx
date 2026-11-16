@@ -1,3 +1,4 @@
+import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { SearchSnippet } from './search-snippet';
 import { SearchStatus } from './search-status';
@@ -8,7 +9,7 @@ import { useRouter } from 'expo-router';
 import { RiTimeLine } from '@oxy.so/bloom/icons/RiTimeLine';
 import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { Avatar } from '@oxy.so/bloom/avatar';
-import { CloseButton } from '@oxy.so/bloom/button';
+import { Button } from '@oxy.so/bloom/button';
 import { Dialog } from '@oxy.so/bloom/dialog';
 import { Divider } from '@oxy.so/bloom/divider';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
@@ -191,7 +192,15 @@ export function CommandPalette() {
               {...keyProps}
             />
           </View>
-          <CloseButton size="sm" accessibilityLabel={t('commandPalette.close')} onPress={close} />
+          <Button
+            appearance="outline"
+            tone="neutral"
+            iconOnly
+            leadingIcon={RiCloseLine}
+            size="sm"
+            accessibilityLabel={t('commandPalette.close')}
+            onPress={close}
+          />
         </View>
         <View className="px-3 pb-2">
           <SearchFilterBar

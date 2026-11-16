@@ -1,8 +1,9 @@
+import { GroupedSection, GroupedSectionItem } from '@oxy.so/bloom/grouped-section';
 import { View } from 'react-native';
 import { Avatar } from '@oxy.so/bloom/avatar';
 import { Button } from '@oxy.so/bloom/button';
 import { RiExternalLinkLine } from '@oxy.so/bloom/icons/RiExternalLinkLine';
-import { SettingsCard, SettingsRow } from '@oxy.so/bloom/settings-modal/modal';
+
 import { getAccountDisplayName } from '@oxy.so/core';
 import { Text } from '@oxy.so/bloom/typography';
 import { useOxy } from '@oxy.so/services/ui/client';
@@ -20,13 +21,19 @@ export function AccountSection() {
 
   if (!isAuthenticated || !user) {
     return (
-      <SettingsCard>
-        <SettingsRow label={t('settings.account.signedOut')}>
-          <Button tone="action" size="sm" onPress={() => afterClose(() => openAccountDialog())}>
-            {t('login.signInButton')}
-          </Button>
-        </SettingsRow>
-      </SettingsCard>
+      <GroupedSection>
+        <GroupedSectionItem
+          wrapControl
+          title={t('settings.account.signedOut')}
+          rightElement={
+            <>
+              <Button tone="action" size="sm" onPress={() => afterClose(() => openAccountDialog())}>
+                {t('login.signInButton')}
+              </Button>
+            </>
+          }
+        />
+      </GroupedSection>
     );
   }
 
@@ -53,22 +60,26 @@ export function AccountSection() {
         </View>
       </View>
 
-      <SettingsCard>
-        <SettingsRow
-          label={t('settings.account.title')}
+      <GroupedSection>
+        <GroupedSectionItem
+          wrapControl
+          title={t('settings.account.title')}
           description={t('settings.account.description')}
-        >
-          <Button
-            appearance="outline"
-            tone="neutral"
-            size="sm"
-            leadingIcon={RiExternalLinkLine}
-            onPress={() => afterClose(() => showBottomSheet?.('ManageAccount'))}
-          >
-            {t('settings.account.manage')}
-          </Button>
-        </SettingsRow>
-      </SettingsCard>
+          rightElement={
+            <>
+              <Button
+                appearance="outline"
+                tone="neutral"
+                size="sm"
+                leadingIcon={RiExternalLinkLine}
+                onPress={() => afterClose(() => showBottomSheet?.('ManageAccount'))}
+              >
+                {t('settings.account.manage')}
+              </Button>
+            </>
+          }
+        />
+      </GroupedSection>
     </View>
   );
 }

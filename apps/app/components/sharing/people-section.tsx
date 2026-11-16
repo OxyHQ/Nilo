@@ -4,7 +4,7 @@ import { useOxy } from '@oxy.so/services/ui/client';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import { Avatar } from '@oxy.so/bloom/avatar';
-import { Button, LinkButton } from '@oxy.so/bloom/button';
+import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { Text } from '@oxy.so/bloom/typography';
@@ -35,7 +35,8 @@ export function InheritedPageLink({
   const router = useRouter();
   const label = t('sharing.people.inherited', { title: data?.page.title || pageId });
   return (
-    <LinkButton
+    <Button
+      appearance="plain"
       accessibilityRole="link"
       accessibilityLabel={label}
       linkTone="secondary"
@@ -47,7 +48,7 @@ export function InheritedPageLink({
       }}
     >
       {label}
-    </LinkButton>
+    </Button>
   );
 }
 

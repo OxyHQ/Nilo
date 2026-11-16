@@ -1,3 +1,4 @@
+import { renderedText } from '@/test-support/rendered-text';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import TrashRoute from '../../../app/(app)/trash';
@@ -66,7 +67,7 @@ const button = (label: string) =>
 
 it('lists a database moved to the trash, and restores it', () => {
   render();
-  expect(JSON.stringify(renderer.toJSON())).toContain('Old tasks');
+  expect(renderedText(renderer)).toContain('Old tasks');
   act(() => button('trash.restoreDatabase:Old tasks')?.props.onPress());
   expect(mockUpdateDatabase).toHaveBeenCalledWith({ id: 'db', archived: false }, expect.anything());
   // Deleting a database for good is the workspace owner's.

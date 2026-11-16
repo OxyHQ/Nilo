@@ -1,6 +1,6 @@
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Button, LinkButton } from '@oxy.so/bloom/button';
+import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
 import { toast } from '@oxy.so/bloom/toast';
@@ -40,7 +40,9 @@ export function ReminderList({ pageId }: { pageId?: string }) {
       {query.data?.reminders.map((reminder) => (
         <View key={reminder.id} className="rounded-xl border border-border p-3 gap-2">
           {!pageId ? (
-            <LinkButton
+            <Button
+              appearance="plain"
+              linkTone="primary"
               className="self-start"
               onPress={() =>
                 router.push({
@@ -56,7 +58,7 @@ export function ReminderList({ pageId }: { pageId?: string }) {
               })}
             >
               {reminder.page?.title || t('pages.untitled')}
-            </LinkButton>
+            </Button>
           ) : null}
           <Text variant="body-regular">{new Date(reminder.remindAt).toLocaleString(locale)}</Text>
           {reminder.note ? <Text variant="body-regular">{reminder.note}</Text> : null}

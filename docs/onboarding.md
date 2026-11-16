@@ -71,6 +71,11 @@ setting selects full content width without changing the structural frame.
 Covers remain outside that reading column. Table, collection, form and canvas
 Screens declare their own kind instead of acquiring document-width constraints.
 
+Bloom 22 uses `Button` and `Button.Group` for actions and `GroupedSection` /
+`GroupedSectionItem` for settings. Setting controls occupy `rightElement` with
+`wrapControl`; labels remain `title`. Do not recreate retired button or settings
+renderers. The editor uses the matching `@oxy.so/bloom-editor` 0.9 release.
+
 Database boards use the same `ProjectBoard` canvas, card surface, drag engine and
 `ProjectBoardCardContent` slots as Bloom's Project Board template. Nilo supplies
 opaque rows, configured property visibility/order and persistence callbacks;

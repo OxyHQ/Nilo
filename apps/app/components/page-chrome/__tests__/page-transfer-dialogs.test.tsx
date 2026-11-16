@@ -1,3 +1,4 @@
+import { renderedText } from '@/test-support/rendered-text';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { ScrollView } from 'react-native';
 import { Dialog } from '@oxy.so/bloom/dialog';
@@ -130,7 +131,7 @@ it('keeps every skipped import path in the dialog flow and opens the imported pa
   mockImport.data = { pages: [{ id: 'imported' }], skipped };
   await mount(<ImportPagesDialog workspaceId="workspace" onClose={jest.fn()} />);
   expectSingleOwner();
-  for (const path of skipped) expect(JSON.stringify(renderer.toJSON())).toContain(path);
+  for (const path of skipped) expect(renderedText(renderer)).toContain(path);
   const open = renderer.root
     .findAllByType(Button)
     .find((node) => node.props.accessibilityRole === 'link');
@@ -235,7 +236,7 @@ it('retains the selected preview after restore failure and retries without dupli
   });
   expect(mockRestore).toHaveBeenCalledTimes(1);
   await act(async () => reject(new Error('transport failed')));
-  expect(JSON.stringify(renderer.toJSON())).toContain('pages.history.restoreFailed');
+  expect(renderedText(renderer)).toContain('pages.history.restoreFailed');
   expect(renderer.root.findByProps({ testID: 'version-preview' }).props.children).toBe('v2');
   expect(mockClose).not.toHaveBeenCalled();
   await act(async () => restoreAction().props.onPress());
@@ -264,7 +265,7 @@ it('does not offer restoration of a failed preview', async () => {
   mockPreviewError = true;
   await mount(<PageHistoryDialog page={page} onClose={jest.fn()} />);
   expect(beginRestore().props.disabled).toBe(true);
-  expect(JSON.stringify(renderer.toJSON())).toContain('pages.history.loadFailed');
+  expect(renderedText(renderer)).toContain('pages.history.loadFailed');
   expect(mockRestore).not.toHaveBeenCalled();
 });
 

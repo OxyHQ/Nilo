@@ -1,10 +1,9 @@
+import { GroupedSection, GroupedSectionItem } from '@oxy.so/bloom/grouped-section';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '@oxy.so/bloom/button';
 import {
-  SettingsCard,
-  SettingsRow,
   SettingsSection,
   SettingsValueField,
   useSettingsSavedToast,
@@ -71,34 +70,44 @@ function WorkspaceSettings({ workspace }: { workspace: Workspace }) {
   return (
     <View className="gap-6">
       <SettingsSection description={canEdit ? undefined : t('settings.workspace.adminOnly')}>
-        <SettingsCard>
-          <SettingsRow
-            label={t('workspace.avatar.label')}
+        <GroupedSection>
+          <GroupedSectionItem
+            wrapControl
+            title={t('workspace.avatar.label')}
             description={t('settings.workspace.avatarDescription')}
-          >
-            <WorkspaceAvatarPicker
-              name={workspace.name}
-              value={workspace.avatar}
-              isPersonal={workspace.isPersonal}
-              ownerId={workspace.ownerId}
-              onChange={(avatar) => save({ avatar })}
-              disabled={!canEdit || update.isPending}
-            />
-          </SettingsRow>
-          <SettingsRow label={t('common.name')}>
-            {canEdit ? (
-              <SettingsTextField
-                key={nameRevision}
-                label={t('common.name')}
-                value={workspace.name}
-                onCommit={commitName}
-                showSavedToast={false}
-              />
-            ) : (
-              <SettingsValueField>{workspace.name}</SettingsValueField>
-            )}
-          </SettingsRow>
-        </SettingsCard>
+            rightElement={
+              <>
+                <WorkspaceAvatarPicker
+                  name={workspace.name}
+                  value={workspace.avatar}
+                  isPersonal={workspace.isPersonal}
+                  ownerId={workspace.ownerId}
+                  onChange={(avatar) => save({ avatar })}
+                  disabled={!canEdit || update.isPending}
+                />
+              </>
+            }
+          />
+          <GroupedSectionItem
+            wrapControl
+            title={t('common.name')}
+            rightElement={
+              <>
+                {canEdit ? (
+                  <SettingsTextField
+                    key={nameRevision}
+                    label={t('common.name')}
+                    value={workspace.name}
+                    onCommit={commitName}
+                    showSavedToast={false}
+                  />
+                ) : (
+                  <SettingsValueField>{workspace.name}</SettingsValueField>
+                )}
+              </>
+            }
+          />
+        </GroupedSection>
       </SettingsSection>
       <WorkspaceExport workspace={workspace} />
       <WorkspaceDangerZone workspace={workspace} />
@@ -125,26 +134,30 @@ function WorkspaceExport({ workspace }: { workspace: Workspace }) {
   };
   return (
     <SettingsSection label={t('settings.workspace.export')}>
-      <SettingsCard>
-        <SettingsRow
-          label={t('settings.workspace.exportLabel')}
+      <GroupedSection>
+        <GroupedSectionItem
+          wrapControl
+          title={t('settings.workspace.exportLabel')}
           description={t('settings.workspace.exportDescription')}
-        >
-          <View className="flex-row gap-2">
-            {(['md', 'html'] as const).map((format) => (
-              <Button
-                key={format}
-                appearance="outline"
-                size="sm"
-                disabled={exportWorkspace.isPending}
-                onPress={() => void run(format)}
-              >
-                {t(format === 'md' ? 'pages.export.markdown' : 'pages.export.html')}
-              </Button>
-            ))}
-          </View>
-        </SettingsRow>
-      </SettingsCard>
+          rightElement={
+            <>
+              <View className="flex-row gap-2">
+                {(['md', 'html'] as const).map((format) => (
+                  <Button
+                    key={format}
+                    appearance="outline"
+                    size="sm"
+                    disabled={exportWorkspace.isPending}
+                    onPress={() => void run(format)}
+                  >
+                    {t(format === 'md' ? 'pages.export.markdown' : 'pages.export.html')}
+                  </Button>
+                ))}
+              </View>
+            </>
+          }
+        />
+      </GroupedSection>
     </SettingsSection>
   );
 }
@@ -168,7 +181,7 @@ function WorkspaceDangerZone({ workspace }: { workspace: Workspace }) {
   if (rows.length === 0) return null;
   return (
     <SettingsSection label={t('settings.workspace.dangerZone')}>
-      <SettingsCard>{rows}</SettingsCard>
+      <GroupedSection>{rows}</GroupedSection>
     </SettingsSection>
   );
 }
@@ -212,22 +225,26 @@ function ResetWorkspaceRow({ workspace }: { workspace: Workspace }) {
   };
 
   return (
-    <SettingsRow
-      label={t('settings.workspace.reset')}
+    <GroupedSectionItem
+      wrapControl
+      title={t('settings.workspace.reset')}
       description={t('settings.workspace.resetDescription')}
-    >
-      <Button
-        appearance="outline"
-        tone="danger"
-        size="sm"
-        loading={reset.isPending}
-        onPress={() => {
-          void handleReset();
-        }}
-      >
-        {t('settings.workspace.resetAction')}
-      </Button>
-    </SettingsRow>
+      rightElement={
+        <>
+          <Button
+            appearance="outline"
+            tone="danger"
+            size="sm"
+            loading={reset.isPending}
+            onPress={() => {
+              void handleReset();
+            }}
+          >
+            {t('settings.workspace.resetAction')}
+          </Button>
+        </>
+      }
+    />
   );
 }
 
@@ -264,21 +281,25 @@ function DeleteWorkspaceRow({ workspace }: { workspace: Workspace }) {
   };
 
   return (
-    <SettingsRow
-      label={t('settings.workspace.delete')}
+    <GroupedSectionItem
+      wrapControl
+      title={t('settings.workspace.delete')}
       description={t('settings.workspace.deleteDescription')}
-    >
-      <Button
-        appearance="outline"
-        tone="danger"
-        size="sm"
-        loading={remove.isPending}
-        onPress={() => {
-          void handleDelete();
-        }}
-      >
-        {t('common.delete')}
-      </Button>
-    </SettingsRow>
+      rightElement={
+        <>
+          <Button
+            appearance="outline"
+            tone="danger"
+            size="sm"
+            loading={remove.isPending}
+            onPress={() => {
+              void handleDelete();
+            }}
+          >
+            {t('common.delete')}
+          </Button>
+        </>
+      }
+    />
   );
 }

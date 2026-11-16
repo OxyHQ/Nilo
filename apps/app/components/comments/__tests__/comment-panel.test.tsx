@@ -1,3 +1,4 @@
+import { renderedText } from '@/test-support/rendered-text';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Select } from '@oxy.so/bloom/select';
 import { SegmentedControl } from '@oxy.so/bloom/segmented-control';
@@ -74,7 +75,7 @@ it('combines status, block and participant filters without losing matching repli
   expect(ids()).toEqual(['resolved']);
   act(() => renderer.root.findByType(Select).props.onValueChange('owner'));
   expect(ids()).toEqual([]);
-  expect(JSON.stringify(renderer.toJSON())).toContain('comments.panel.emptyPerson');
+  expect(renderedText(renderer)).toContain('comments.panel.emptyPerson');
   act(() => renderer.root.findByType(SegmentedControl).props.onValueChange('all'));
   expect(ids()).toEqual(['open']);
 });

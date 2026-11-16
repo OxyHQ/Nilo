@@ -9,7 +9,7 @@ import { RiArrowUpDownLine } from '@oxy.so/bloom/icons/RiArrowUpDownLine';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiDeleteBin6Line } from '@oxy.so/bloom/icons/RiDeleteBin6Line';
 import { Button } from '@oxy.so/bloom/button';
-import { ButtonGroup, ButtonGroupItem } from '@oxy.so/bloom/button-group';
+
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
 import {
   DropdownMenu,
@@ -250,22 +250,22 @@ function SortRow({
         />
       </Select>
 
-      <ButtonGroup size="xs">
-        <ButtonGroupItem
+      <Button.Group size="xs">
+        <Button
           iconOnly
-          checked={sort.direction === 'asc'}
+          pressed={sort.direction === 'asc'}
           accessibilityLabel={t('databases.properties.sortAscending')}
           onPress={() => onChange({ direction: 'asc' })}
           leadingIcon={RiSortAlphabetDesc}
         />
-        <ButtonGroupItem
+        <Button
           iconOnly
-          checked={sort.direction === 'desc'}
+          pressed={sort.direction === 'desc'}
           accessibilityLabel={t('databases.properties.sortDescending')}
           onPress={() => onChange({ direction: 'desc' })}
           leadingIcon={RiSortAlphabetAsc}
         />
-      </ButtonGroup>
+      </Button.Group>
 
       <View className="flex-1" />
       <Button

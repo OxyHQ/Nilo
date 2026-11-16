@@ -1,3 +1,4 @@
+import { renderedText } from '@/test-support/rendered-text';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Animated, Platform } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -158,7 +159,7 @@ function render(node: React.ReactNode) {
     );
   });
 }
-const text = () => JSON.stringify(renderer.toJSON());
+const text = () => renderedText(renderer);
 const setting = (label: string) =>
   renderer.root.findAllByType(SettingSelect).find((s) => s.props.label === label);
 
@@ -492,7 +493,7 @@ describe('view tabs', () => {
     expect(
       renderer.root.findAll((n) => n.props.children === 'databases.views.new' && n.props.onPress),
     ).toHaveLength(0);
-    expect(JSON.stringify(renderer.toJSON())).toContain('databases.lock.badge');
+    expect(renderedText(renderer)).toContain('databases.lock.badge');
   });
 
   it.each([false, true])(

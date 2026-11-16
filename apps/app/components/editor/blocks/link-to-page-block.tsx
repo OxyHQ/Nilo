@@ -2,7 +2,7 @@ import * as React from 'react';
 import { View } from 'react-native';
 import { Link } from 'expo-router';
 import { isEntityId } from '@oxy.so/nilo-contracts';
-import { Button, LinkButton } from '@oxy.so/bloom/button';
+import { Button } from '@oxy.so/bloom/button';
 import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { Text } from '@oxy.so/bloom/typography';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
@@ -76,7 +76,8 @@ export function LinkToPageBlock({ block, onChangeContent, readOnly }: BlockCompo
   const page = pageQuery.data?.page;
   return (
     <Link href={`/p/${pageId}`} asChild>
-      <LinkButton
+      <Button
+        appearance="plain"
         accessibilityRole="link"
         linkTone="text"
         underline="rest"
@@ -92,7 +93,7 @@ export function LinkToPageBlock({ block, onChangeContent, readOnly }: BlockCompo
         }
       >
         {page ? page.title || t('pages.untitled') : t('editor.blocks.loading')}
-      </LinkButton>
+      </Button>
     </Link>
   );
 }

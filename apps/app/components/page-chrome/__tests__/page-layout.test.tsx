@@ -1,3 +1,4 @@
+import { renderedText } from '@/test-support/rendered-text';
 // Activity's requests and interaction are covered by page-activity.test.tsx.
 jest.mock('../page-activity', () => ({ PageActivity: () => null, PageActivityPanel: () => null }));
 jest.mock('@/components/page-chrome/canvas-switch', () => ({ CanvasSwitch: () => null }));
@@ -299,7 +300,7 @@ it('locks title/icon/cover, shows the banner, and unlocks optimistically for edi
   expect(renderer.root.findAllByProps({ accessibilityLabel: 'pages.cover.change' })).toHaveLength(
     0,
   );
-  expect(JSON.stringify(renderer.toJSON())).toContain('pages.lock.banner');
+  expect(renderedText(renderer)).toContain('pages.lock.banner');
   expect(toggle('fullWidth').props.disabled).toBe(false);
   await act(async () => {
     button('pages.lock.unlock').props.onPress();
@@ -312,7 +313,7 @@ it('locks title/icon/cover, shows the banner, and unlocks optimistically for edi
 });
 it('shows the lock banner to viewers without settings or unlock controls', async () => {
   await mount({ ...initial, locked: true }, true);
-  expect(JSON.stringify(renderer.toJSON())).toContain('pages.lock.banner');
+  expect(renderedText(renderer)).toContain('pages.lock.banner');
   expect(button('pages.lock.unlock')).toBeUndefined();
   // No page settings; keeping the page offline is a viewer's to choose too.
   expect(

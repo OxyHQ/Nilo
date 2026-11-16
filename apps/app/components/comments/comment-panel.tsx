@@ -1,8 +1,9 @@
+import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
 import { useCommentsLive } from '@/lib/realtime/use-live-updates';
 import * as React from 'react';
 import { View } from 'react-native';
 import { RiChat3Line } from '@oxy.so/bloom/icons/RiChat3Line';
-import { CloseButton } from '@oxy.so/bloom/button';
+import { Button } from '@oxy.so/bloom/button';
 import { PageHeader } from '@oxy.so/bloom/page-header';
 import { PageFooter } from '@oxy.so/bloom/page-footer';
 import { Screen, ScreenScrollView } from '@oxy.so/bloom/screen';
@@ -136,7 +137,14 @@ export function CommentPanel({
           leading={<RiChat3Line size="sm" fill={colors.foreground} />}
           actions={
             presentation === 'floating' ? undefined : (
-              <CloseButton onPress={onClose} accessibilityLabel={t('comments.panel.close')} />
+              <Button
+                appearance="outline"
+                tone="neutral"
+                iconOnly
+                leadingIcon={RiCloseLine}
+                onPress={onClose}
+                accessibilityLabel={t('comments.panel.close')}
+              />
             )
           }
           accessory={
@@ -189,7 +197,11 @@ export function CommentPanel({
                   <View className="flex-1">
                     <CommentQuote blockId={focusedBlockId ?? null} anchor={quoted} />
                   </View>
-                  <CloseButton
+                  <Button
+                    appearance="outline"
+                    tone="neutral"
+                    iconOnly
+                    leadingIcon={RiCloseLine}
                     onPress={() => onAnchorUsed?.()}
                     accessibilityLabel={t('comments.panel.cancelQuote')}
                   />

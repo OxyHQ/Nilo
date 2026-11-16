@@ -1,3 +1,4 @@
+import { renderedText } from '@/test-support/rendered-text';
 // Activity's requests and interaction are covered by page-activity.test.tsx.
 jest.mock('../page-activity', () => ({ PageActivity: () => null, PageActivityPanel: () => null }));
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
@@ -253,7 +254,7 @@ describe.each(['route', 'peek'] as const)('%s consumer', (surface) => {
     for (let i = 0; i < 6; i++) await tick();
     expect(client.getQueryState(queryKeys.pages.detail(page.id))?.status).toBe('error');
     expect(renderer.root.findAllByType(PageEditor)).toHaveLength(0);
-    expect(JSON.stringify(renderer.toJSON())).toContain(
+    expect(renderedText(renderer)).toContain(
       surface === 'route' ? 'pages.loadFailed' : 'databases.peek.loadFailed',
     );
   });
