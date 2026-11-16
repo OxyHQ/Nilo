@@ -53,6 +53,13 @@ The group's `header` slot spans the document and its adjacent panels inside
 that same Surface. Keep the editor toolbar in the document's own `Screen`;
 do not offset side panels with a guessed header height. Opening or closing
 discussions must preserve the mounted document editor and header overlays.
+Comment drafts, anchored mentions, filters and reply/edit state register with
+Bloom through `usePanelSessionState`, keyed by page, block and comment.
+`usePanelSessionFocus` restores the focused input and caret when the same open
+inspector adapts into a dialog. Closing retains the draft without restoring focus;
+cancelling clears it. Leaving the page disposes its panel session. These explicit
+registrations preserve product state across a portal move; arbitrary local React
+state is not promised to survive a remount.
 
 `PageHeader` owns header placement and measures its accessory (view tabs and
 `Toolbar`). `ScreenScrollView` binds content to that screen's scroll owner.
