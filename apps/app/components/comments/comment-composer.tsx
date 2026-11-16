@@ -9,6 +9,7 @@ import {
 import { RiSendPlaneLine } from '@oxy.so/bloom/icons/RiSendPlaneLine';
 import { Button } from '@oxy.so/bloom/button';
 import { Textarea } from '@oxy.so/bloom/textarea';
+import { usePanelSessionState, usePanelSessionFocus } from '@oxy.so/bloom/app-shell/hooks';
 import { Text } from '@oxy.so/bloom/typography';
 import { MentionPicker } from './mention-picker';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -16,6 +17,8 @@ import type { CommentSegment, MentionSegment } from '@/lib/types/comments';
 
 interface CommentComposerProps {
   workspaceId: string;
+  /** Stable domain identity inside the enclosing panel session. */
+  sessionKey?: string;
   placeholder?: string;
   submitting?: boolean;
   autoFocus?: boolean;
@@ -154,26 +157,49 @@ export function CommentComposer({
   onSubmit,
   onCancel,
   initialSegments,
+  sessionKey: suppliedSessionKey,
 }: CommentComposerProps) {
   const { t } = useTranslation();
   const inputRef = React.useRef<TextInputInstance>(null);
+  const instanceId = React.useId();
+  const sessionKey = suppliedSessionKey ?? instanceId;
+  const focus = usePanelSessionFocus<TextInputInstance>(`${sessionKey}:input`);
+  const setInputRef = React.useCallback(
+    (input: TextInputInstance | null) => {
+      inputRef.current = input;
+      focus.ref(input);
+    },
+    [focus.ref],
+  );
   const initial = React.useMemo(
     () => (initialSegments ? segmentsToText(initialSegments) : { text: '', anchored: [] }),
     [initialSegments],
   );
-  const [text, setText] = React.useState<string>(initial.text);
+  const [text, setText] = usePanelSessionState(`${sessionKey}:text`, initial.text);
   // Selection may arrive in the same batch as text, before React renders it.
-  const textRef = React.useRef(initial.text);
+  const textRef = React.useRef(text);
+  textRef.current = text;
   const dismissedTriggerRef = React.useRef<number | null>(null);
-  const [anchored, setAnchored] = React.useState<Anchored[]>(initial.anchored);
-  const selectionRef = React.useRef<{ start: number; end: number }>({
-    start: initial.text.length,
-    end: initial.text.length,
+  const [anchored, setAnchored] = usePanelSessionState<Anchored[]>(
+    `${sessionKey}:mentions`,
+    initial.anchored,
+  );
+  const [selection, setSelection] = usePanelSessionState(`${sessionKey}:selection`, {
+    start: text.length,
+    end: text.length,
   });
-  const [mentionDraft, setMentionDraft] = React.useState<DraftMentionState | null>(null);
-  const [sending, setSending] = React.useState(false);
-  const [submitFailed, setSubmitFailed] = React.useState(false);
-  const sendingRef = React.useRef(false);
+  const selectionRef = React.useRef(selection);
+  selectionRef.current = selection;
+  const [mentionDraft, setMentionDraft] = usePanelSessionState<DraftMentionState | null>(
+    `${sessionKey}:mention-picker`,
+    null,
+  );
+  const [sending, setSending] = usePanelSessionState(`${sessionKey}:sending`, false);
+  const [submitFailed, setSubmitFailed] = usePanelSessionState(`${sessionKey}:failed`, false);
+  const [visited, setVisited] = usePanelSessionState(`${sessionKey}:visited`, false);
+  React.useEffect(() => setVisited(true), [setVisited]);
+  const sendingRef = React.useRef(sending);
+  sendingRef.current = sending;
   const busy = submitting || sending;
 
   const isEmpty = text.trim().length === 0 && anchored.length === 0;
@@ -194,6 +220,8 @@ export function CommentComposer({
 
   const handleSelectionChange = (e: TextInputSelectionChangeEvent) => {
     selectionRef.current = e.nativeEvent.selection;
+    setSelection(e.nativeEvent.selection);
+    focus.onSelectionChange(e);
     updateMentionDraft(textRef.current);
   };
 
@@ -241,6 +269,7 @@ export function CommentComposer({
     // Move caret to right after the chip + space.
     const newCaret = insertEnd + 1;
     selectionRef.current = { start: newCaret, end: newCaret };
+    setSelection(selectionRef.current);
     // Defer focus / setSelection until the next tick so the new value is applied.
     requestAnimationFrame(() => {
       inputRef.current?.setNativeProps({ selection: { start: newCaret, end: newCaret } });
@@ -249,7 +278,7 @@ export function CommentComposer({
   };
 
   const handleSubmit = async () => {
-    if (isEmpty || submitting || sendingRef.current) return;
+    if (isEmpty || submitting || sending || sendingRef.current) return;
     const segments = buildSegmentsFromAnchored(text, anchored);
     if (segments.length === 0) return;
     sendingRef.current = true;
@@ -260,8 +289,10 @@ export function CommentComposer({
       textRef.current = '';
       dismissedTriggerRef.current = null;
       setText('');
+      setSelection({ start: 0, end: 0 });
       setAnchored([]);
       setMentionDraft(null);
+      setVisited(false);
     } catch {
       setSubmitFailed(true);
     } finally {
@@ -269,6 +300,18 @@ export function CommentComposer({
       setSending(false);
     }
   };
+
+  const handleCancel = () => {
+    setText('');
+    setSelection({ start: 0, end: 0 });
+    setAnchored([]);
+    setMentionDraft(null);
+    setSubmitFailed(false);
+    setVisited(false);
+    onCancel?.();
+  };
+  const cancelRef = React.useRef(handleCancel);
+  cancelRef.current = handleCancel;
 
   // The keydown listener below is attached once per mentionDraft/onCancel, so it
   // calls the latest submit through a ref: a captured `handleSubmit` would see
@@ -297,19 +340,21 @@ export function CommentComposer({
         }
         if (onCancel) {
           e.preventDefault();
-          onCancel();
+          cancelRef.current();
         }
       }
     };
     node.addEventListener('keydown', handler);
     return () => node.removeEventListener('keydown', handler);
-  }, [mentionDraft, onCancel]);
+  }, [mentionDraft, onCancel, setMentionDraft]);
 
   return (
     <View className="gap-2">
       <View>
         <Textarea
-          inputRef={inputRef}
+          inputRef={setInputRef}
+          onFocus={focus.onFocus}
+          onBlur={focus.onBlur}
           value={text}
           onChangeText={handleChangeText}
           onKeyPress={handleKeyPress}
@@ -317,7 +362,7 @@ export function CommentComposer({
           placeholder={placeholder ?? t('comments.composer.placeholder')}
           rows={2}
           autoResize
-          autoFocus={autoFocus}
+          autoFocus={autoFocus && !visited}
           editable={!busy}
         />
         {mentionDraft ? (
@@ -344,7 +389,7 @@ export function CommentComposer({
             <Button
               appearance="subtle"
               size="sm"
-              onPress={onCancel}
+              onPress={handleCancel}
               disabled={busy}
               accessibilityLabel={t('common.cancel')}
             >
