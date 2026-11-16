@@ -68,7 +68,7 @@ the tools scroll horizontally. Row count and fetch status live in the Screen
 bottom bar, outside the header bands. Inline databases retain their own tools
 and scroll contract.
 
-Boards and canvases use `Screen scroll="none"` so their own viewport fills the
+Boards and canvases use `Screen kind="canvas"` so their own viewport fills the
 remaining space. Database pagination uses `ScreenScrollView.onEndReached`.
 The table's horizontal owner is Bloom `ScrollArea`, wrapped once with React Native's
 `Animated.createAnimatedComponent` so its existing `Animated.event` still drives
@@ -197,7 +197,9 @@ Nilo supplies its catalog, icon/upload tabs, authorization and persistence.
 The application establishes `BloomScope size="md"` above its overlay outlet.
 Normal sizing belongs to Bloom's family recipes; do not shrink the whole app
 or add local padding overrides to compensate for a component that ignores the
-scope. Preserve Bloom's shared `Surface` material and rounded presentation.
+scope. Bloom owns each Surface's material and shape: the continuous workspace
+uses joined square regions, while floating dialogs retain their shared rounded
+presentation. Reading padding belongs to `ScreenContent`, inside that structure.
 
 Page actions use `DropdownMenu` with appearance and export submenus. Their
 content must not introduce a fixed-height `ScrollView` inside the floating
