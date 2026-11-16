@@ -6,7 +6,7 @@ import { CloseButton } from '@oxy.so/bloom/button';
 import { PageHeader } from '@oxy.so/bloom/page-header';
 import { PageFooter } from '@oxy.so/bloom/page-footer';
 import { Screen, ScreenScrollView } from '@oxy.so/bloom/screen';
-import { useAppShellPanel } from '@oxy.so/bloom/app-shell/hooks';
+import { useAppShellPanel, usePanelSessionState } from '@oxy.so/bloom/app-shell/hooks';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
 import {
@@ -72,8 +72,11 @@ export function CommentPanel({
   const { colors } = useColorScheme();
   const { t } = useTranslation();
   const { presentation } = useAppShellPanel();
-  const [filter, setFilter] = React.useState<FilterMode>('open');
-  const [personFilter, setPersonFilter] = React.useState({ pageId, id: '' });
+  const [filter, setFilter] = usePanelSessionState<FilterMode>(`comments:${pageId}:filter`, 'open');
+  const [personFilter, setPersonFilter] = usePanelSessionState(`comments:${pageId}:person`, {
+    pageId,
+    id: '',
+  });
   const person = personFilter.pageId === pageId ? personFilter.id : '';
   const { data, isLoading, isError, refetch } = usePageComments(open ? pageId : undefined, true);
   const createMutation = useCreateComment();
@@ -191,6 +194,7 @@ export function CommentPanel({
                 </View>
               ) : null}
               <CommentComposer
+                sessionKey={`comments:${pageId}:${focusedBlockId ?? 'page'}:draft`}
                 workspaceId={workspaceId}
                 placeholder={
                   quoted

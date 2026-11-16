@@ -1,5 +1,5 @@
 import { CommentReactions } from './comment-reactions';
-import * as React from 'react';
+import type * as React from 'react';
 import { View } from 'react-native';
 import { RiCheckLine } from '@oxy.so/bloom/icons/RiCheckLine';
 import { RiCornerDownRightLine } from '@oxy.so/bloom/icons/RiCornerDownRightLine';
@@ -29,6 +29,7 @@ import {
 } from '@/lib/hooks/use-comments';
 import { CommentContentView } from './comment-content';
 import { CommentComposer } from './comment-composer';
+import { usePanelSessionState } from '@oxy.so/bloom/app-shell/hooks';
 import { CommentQuote } from './comment-quote';
 import { useTranslation } from '@/hooks/useTranslation';
 import i18n from '@/lib/i18n';
@@ -70,7 +71,10 @@ export function CommentThread({
 }: CommentThreadProps) {
   const { user } = useOxy();
   const { t } = useTranslation();
-  const [replyOpen, setReplyOpen] = React.useState(false);
+  const [replyOpen, setReplyOpen] = usePanelSessionState(
+    `comment:${thread.root.id}:reply-open`,
+    false,
+  );
   const resolveMutation = useResolveComment();
   const unresolveMutation = useUnresolveComment();
   const deleteMutation = useDeleteComment();
@@ -163,6 +167,7 @@ export function CommentThread({
         replyOpen ? (
           <View className="pl-4">
             <CommentComposer
+              sessionKey={`comment:${thread.root.id}:reply-draft`}
               workspaceId={workspaceId}
               placeholder={t('comments.thread.replyPlaceholder')}
               autoFocus

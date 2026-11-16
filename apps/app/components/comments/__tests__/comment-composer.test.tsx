@@ -1,5 +1,6 @@
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Textarea } from '@oxy.so/bloom/textarea';
+import { AppShell } from '@oxy.so/bloom/app-shell';
 import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { CommentComposer } from '../comment-composer';
 import { MentionPicker } from '../mention-picker';
@@ -165,3 +166,97 @@ it.each(['person@', 'person@example.com', 'Hello person@example.com'])(
     expect(suggestions()).toHaveLength(0);
   },
 );
+
+it('retains text and mention ranges in the panel session when its presentation remounts', async () => {
+  const onSubmit = jest.fn().mockResolvedValue(undefined);
+  const mention = {
+    type: 'mention' as const,
+    kind: 'user' as const,
+    id: 'member-1',
+    originalText: '@Ana',
+  };
+  const fixture = (generation: number, sessionKey = 'page:one:comment') => (
+    <BloomTestProviders>
+      <AppShell
+        panelLayout={{
+          panels: [
+            {
+              id: 'comments',
+              content: (
+                <CommentComposer
+                  key={generation}
+                  sessionKey={sessionKey}
+                  workspaceId="workspace"
+                  initialSegments={[mention, { type: 'text', text: ' hello' }]}
+                  onSubmit={onSubmit}
+                />
+              ),
+            },
+          ],
+        }}
+      />
+    </BloomTestProviders>
+  );
+  act(() => {
+    renderer = create(fixture(0));
+  });
+  act(() => input().props.onChangeText('@Ana hello from draft'));
+  act(() => renderer.update(fixture(1)));
+  expect(input().props.value).toBe('@Ana hello from draft');
+  await act(async () => send()?.props.onPress());
+  expect(onSubmit).toHaveBeenCalledWith([mention, { type: 'text', text: ' hello from draft' }]);
+  expect(input().props.value).toBe('');
+  act(() => renderer.update(fixture(2, 'page:two:comment')));
+  expect(input().props.value).toBe('@Ana hello');
+});
+
+it('keeps an in-flight submission locked across a panel content remount', async () => {
+  let finish: () => void = () => {};
+  const onSubmit = jest.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const fixture = (generation: number) => (
+    <BloomTestProviders>
+      <AppShell
+        panelLayout={{
+          panels: [
+            {
+              id: 'comments',
+              content: (
+                <CommentComposer
+                  key={generation}
+                  sessionKey="pending-comment"
+                  workspaceId="workspace"
+                  initialSegments={[{ type: 'text', text: 'one submission' }]}
+                  onSubmit={onSubmit}
+                />
+              ),
+            },
+          ],
+        }}
+      />
+    </BloomTestProviders>
+  );
+  act(() => {
+    renderer = create(fixture(0));
+  });
+  let pending: Promise<void>;
+  act(() => {
+    pending = send()?.props.onPress();
+  });
+  act(() => renderer.update(fixture(1)));
+  expect(input().props.editable).toBe(false);
+  act(() => {
+    void send()?.props.onPress();
+  });
+  expect(onSubmit).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    finish();
+    await pending;
+  });
+  expect(input().props.value).toBe('');
+  expect(input().props.editable).toBe(true);
+});
