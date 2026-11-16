@@ -260,3 +260,52 @@ it('keeps an in-flight submission locked across a panel content remount', async 
   expect(input().props.value).toBe('');
   expect(input().props.editable).toBe(true);
 });
+
+it.each(['cancel', 'save'] as const)(
+  'starts a new seeded composer lifetime from current segments after %s',
+  async (finish) => {
+    const onCancel = jest.fn();
+    const onSubmit = jest.fn().mockResolvedValue(undefined);
+    const fixture = (visible: boolean, seed: string) => (
+      <BloomTestProviders>
+        <AppShell
+          panelLayout={{
+            panels: [
+              {
+                id: 'comments',
+                content: visible ? (
+                  <CommentComposer
+                    sessionKey="seeded-comment"
+                    workspaceId="workspace"
+                    initialSegments={[{ type: 'text', text: seed }]}
+                    onCancel={onCancel}
+                    onSubmit={onSubmit}
+                  />
+                ) : null,
+              },
+            ],
+          }}
+        />
+      </BloomTestProviders>
+    );
+    act(() => {
+      renderer = create(fixture(true, 'Original text'));
+    });
+    act(() => input().props.onChangeText('Changed draft'));
+    if (finish === 'save') await act(async () => send()?.props.onPress());
+    else
+      act(() =>
+        renderer.root
+          .findAll(
+            (node) =>
+              node.props.accessibilityLabel === 'common.cancel' &&
+              typeof node.props.onPress === 'function',
+            { deep: false },
+          )[0]
+          .props.onPress(),
+      );
+    act(() => renderer.update(fixture(false, 'Server text')));
+    act(() => renderer.update(fixture(true, 'Server text')));
+    expect(input().props.value).toBe('Server text');
+  },
+);
