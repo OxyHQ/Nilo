@@ -35,22 +35,66 @@ passing because it scanned nothing.
 
 ## UI composition
 
-Bloom owns the workspace layout. `NiloShell` supplies navigation and workspace
-actions to `AppShell` and `Sidebar`; individual routes compose their surfaces
-with `AppShellPanels` and `Screen`. Do not put a surface around the entire
-router outlet: a document and its comments are sibling panels.
-The workspace inherits AppShell's normal outer gutter and navigation gap;
-do not flatten the panel against the viewport to imitate a reference header.
-The document and comments use the compositor's `joined` appearance. Their shared
+Bloom owns the workspace layout. `NiloShell` declares `AppShell layout="workspace"`
+and `presentation="continuous"`, supplying navigation and workspace actions.
+Individual routes compose their regions with `AppShellPanels` and `Screen`;
+they inherit the shell's composition policy. Do not put a surface around the
+entire router outlet: a document and its inspectors are sibling regions.
+Continuous presentation fills the available window, with no outer frame or
+navigation gap. Bloom owns the shared surface, square structural joins and
+single dividers; Nilo adds no negative margins, radius overrides or viewport
+measurements. This is the workspace's product presentation, independent of
+whether navigation is inline or compact.
+Documents declare their main role, while comments and activity declare inspector
+roles with controlled open state and localized labels. Role defaults own inspector
+widths; comments and activity share the navigation header presentation instead
+of supplying independent panel geometry. Their shared
 Surface, divider and responsive floating presentation belong to `AppShellPanels`;
 `CommentPanel` supplies its own `Screen` header, scroll content and footer.
 The group's `header` slot spans the document and its adjacent panels inside
 that same Surface. Keep the editor toolbar in the document's own `Screen`;
 do not offset side panels with a guessed header height. Opening or closing
 discussions must preserve the mounted document editor and header overlays.
+Comment drafts, anchored mentions, filters and reply/edit state register with
+Bloom through `usePanelSessionState`, keyed by page, block and comment.
+`usePanelSessionFocus` restores the focused input and caret when the same open
+inspector adapts into a dialog. Closing retains the draft without restoring focus;
+cancelling clears it. Leaving the page disposes its panel session. These explicit
+registrations preserve product state across a portal move; arbitrary local React
+state is not promised to survive a remount.
 
 `PageHeader` owns header placement and measures its accessory (view tabs and
 `Toolbar`). `ScreenScrollView` binds content to that screen's scroll owner.
+Document Screens declare their content kind. `ScreenContent` supplies the shared
+reading measure and body insets to both title and editor; the page's full-width
+setting selects full content width without changing the structural frame.
+Covers remain outside that reading column. Table, collection, form and canvas
+Screens declare their own kind instead of acquiring document-width constraints.
+
+Bloom 22 uses `Button` and `Button.Group` for actions and `GroupedSection` /
+`GroupedSectionItem` for settings. Setting controls occupy `rightElement` with
+`wrapControl`; labels remain `title`. Do not recreate retired button or settings
+renderers. The app, API and contract development dependency use the matching
+`@oxy.so/bloom-editor` 0.9 release. `@oxy.so/nilo-contracts` 0.4.1 accepts that
+release through its optional editor peer; the document model and Yjs format
+remain unchanged.
+
+Database boards use the same `ProjectBoard` canvas, card surface, drag engine and
+`ProjectBoardCardContent` slots as Bloom's Project Board template. Nilo supplies
+opaque rows, configured property visibility/order and persistence callbacks;
+there is no conversion to demo tickets. A title drag handle leaves property and
+move controls independent.
+
+Rows opened from a board or table use the shared `DetailDialog` also used by
+Project Board task details. It owns the inset surface, header, scrolling, close
+behavior and fixed editor toolbar slot. Side and center are view preferences;
+compact widths use the same bounded detail surface. Nilo supplies the database
+name, editable page title, properties, editor and full-page action, retaining
+live page permissions. `PageEditorProvider` surrounds the entire detail so body
+and toolbar share one editor. Bloom owns the dismissal lifecycle: the provider
+stays alive throughout exit, then the completed close releases its collaboration
+session and offline holder. A completion from an older opening cannot release a
+newer row, including a reopened instance of the same row. Canvas rows use the bounded non-scrolling body.
 Full-page databases use a single joined `AppShellPanels` panel, preserving the
 same surface owner as documents. View tabs, add-view, search, filter, sort and
 property tools share one `Toolbar`; its actions slot keeps New visible while
@@ -58,7 +102,7 @@ the tools scroll horizontally. Row count and fetch status live in the Screen
 bottom bar, outside the header bands. Inline databases retain their own tools
 and scroll contract.
 
-Boards and canvases use `Screen scroll="none"` so their own viewport fills the
+Boards and canvases use `Screen kind="canvas"` so their own viewport fills the
 remaining space. Database pagination uses `ScreenScrollView.onEndReached`.
 The table's horizontal owner is Bloom `ScrollArea`, wrapped once with React Native's
 `Animated.createAnimatedComponent` so its existing `Animated.event` still drives
@@ -187,7 +231,9 @@ Nilo supplies its catalog, icon/upload tabs, authorization and persistence.
 The application establishes `BloomScope size="md"` above its overlay outlet.
 Normal sizing belongs to Bloom's family recipes; do not shrink the whole app
 or add local padding overrides to compensate for a component that ignores the
-scope. Preserve Bloom's shared `Surface` material and rounded presentation.
+scope. Bloom owns each Surface's material and shape: the continuous workspace
+uses joined square regions, while floating dialogs retain their shared rounded
+presentation. Reading padding belongs to `ScreenContent`, inside that structure.
 
 Page actions use `DropdownMenu` with appearance and export submenus. Their
 content must not introduce a fixed-height `ScrollView` inside the floating

@@ -1,3 +1,4 @@
+import { renderedText } from '@/test-support/rendered-text';
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { RiPencilLine } from '@oxy.so/bloom/icons/RiPencilLine';
@@ -60,7 +61,7 @@ it('renders the edit icon and translated page title, opens the page, and marks t
     );
   });
   expect(renderer.root.findAllByType(RiPencilLine)).toHaveLength(1);
-  expect(JSON.stringify(renderer.toJSON())).toContain('Roadmap was edited');
+  expect(renderedText(renderer)).toContain('Roadmap was edited');
   expect(usePage).toHaveBeenCalledWith('page');
   act(() =>
     renderer.root

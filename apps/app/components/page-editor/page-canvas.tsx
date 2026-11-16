@@ -25,7 +25,7 @@ import { Platform, Pressable, StyleSheet, View, type ViewInstance } from 'react-
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { Button } from '@oxy.so/bloom/button';
-import { ButtonGroup, ButtonGroupItem } from '@oxy.so/bloom/button-group';
+
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Text } from '@oxy.so/bloom/typography';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -246,40 +246,40 @@ export function PageCanvas(props: SurfaceProps & { store: EditorStore; readOnly:
           </View>
         ) : null}
         <View style={styles.controls}>
-          <ButtonGroup size="sm">
-            <ButtonGroupItem
+          <Button.Group size="sm">
+            <Button
               iconOnly
               accessibilityLabel={t('editor.canvas.zoomOut')}
               onPress={() => zoomBy(1 / 1.25)}
               leadingIcon={RiSubtractLine}
             />
-            <ButtonGroupItem
+            <Button
               accessibilityLabel={t('editor.canvas.resetZoom')}
               onPress={() => setView({ ...viewNow(), scale: 1 })}
             >
               {`${Math.round(zoom * 100)}%`}
-            </ButtonGroupItem>
-            <ButtonGroupItem
+            </Button>
+            <Button
               iconOnly
               accessibilityLabel={t('editor.canvas.zoomIn')}
               onPress={() => zoomBy(1.25)}
               leadingIcon={RiAddLine}
             />
-            <ButtonGroupItem
+            <Button
               iconOnly
               accessibilityLabel={t('editor.canvas.fit')}
               onPress={fit}
               leadingIcon={RiFullscreenLine}
             />
             {!readOnly ? (
-              <ButtonGroupItem
+              <Button
                 iconOnly
                 accessibilityLabel={t('editor.canvas.newNote')}
                 onPress={newNoteInView}
                 leadingIcon={RiStickyNoteLine}
               />
             ) : null}
-          </ButtonGroup>
+          </Button.Group>
         </View>
       </View>
     </EditorSurface>

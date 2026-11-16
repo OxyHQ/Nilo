@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Pressable, View } from 'react-native';
 import {
   ProjectBoard,
+  ProjectBoardCardContent,
   BoardDragHandle,
   type BoardColumn,
   type ControlledProjectBoardProps,
@@ -332,7 +333,7 @@ export function ViewBoard({
 
   return (
     <Screen
-      scroll="none"
+      kind="canvas"
       bottomBar={
         hasMore && onLoadMore ? (
           <Button appearance="subtle" size="sm" onPress={onLoadMore}>
@@ -475,11 +476,11 @@ function BoardCard({
       onPress={onOpen}
       className="overflow-hidden"
     >
-      {preview}
-      <View className="px-3 py-2">
-        <View className="mb-1 flex-row items-start gap-1">
-          {readOnly ? (
-            <Text className="flex-1 text-sm font-medium text-foreground" numberOfLines={2}>
+      <ProjectBoardCardContent
+        preview={preview}
+        header={
+          readOnly ? (
+            <Text variant="body-medium" numberOfLines={2}>
               {title}
             </Text>
           ) : (
@@ -488,24 +489,25 @@ function BoardCard({
               accessibilityLabel={t('databases.board.dragCard', { title })}
               onPress={onOpen}
             >
-              <Text className="text-sm font-medium text-foreground" numberOfLines={2}>
+              <Text variant="body-medium" numberOfLines={2}>
                 {title}
               </Text>
             </BoardDragHandle>
-          )}
-          {!readOnly ? (
+          )
+        }
+        actions={
+          !readOnly ? (
             <Button
               iconOnly
               appearance="plain"
-              size="xs"
-              // The card around the button opens the row.
               stopPropagation
               accessibilityLabel={t('databases.board.moveCard', { title })}
               onPress={onMove}
               leadingIcon={RiArrowLeftRightLine}
             />
-          ) : null}
-        </View>
+          ) : null
+        }
+      >
         <View className="gap-1">
           {properties.map((property) => (
             <View key={property.id} className="flex-row items-center gap-1">
@@ -520,7 +522,7 @@ function BoardCard({
             </View>
           ))}
         </View>
-      </View>
+      </ProjectBoardCardContent>
     </Pressable>
   );
 }

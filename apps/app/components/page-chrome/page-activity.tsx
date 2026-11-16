@@ -1,3 +1,4 @@
+import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
 import { useState } from 'react';
 import { useOxy, useUserById } from '@oxy.so/services/ui/client';
 import { ActivityFeed, type ActivityFeedEntry } from '@oxy.so/bloom/activity-feed';
@@ -5,7 +6,7 @@ import { Tabs, TabsTrigger } from '@oxy.so/bloom/tabs';
 import { RiHistoryLine } from '@oxy.so/bloom/icons/RiHistoryLine';
 import { Avatar } from '@oxy.so/bloom/avatar';
 import { useAppShellPanel } from '@oxy.so/bloom/app-shell/hooks';
-import { Button, CloseButton } from '@oxy.so/bloom/button';
+import { Button } from '@oxy.so/bloom/button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@oxy.so/bloom/hover-card';
 import { Item } from '@oxy.so/bloom/item';
 import { Loading } from '@oxy.so/bloom/loading';
@@ -162,6 +163,7 @@ function ActivityPanelContent({ page, onClose }: { page: Page; onClose: () => vo
   return (
     <>
       <Screen
+        kind="collection"
         scroll="content"
         header={
           <PageHeader
@@ -186,7 +188,14 @@ function ActivityPanelContent({ page, onClose }: { page: Page; onClose: () => vo
                   />
                 ) : null}
                 {presentation === 'floating' ? null : (
-                  <CloseButton accessibilityLabel={t('pages.activity.close')} onPress={onClose} />
+                  <Button
+                    appearance="outline"
+                    tone="neutral"
+                    iconOnly
+                    leadingIcon={RiCloseLine}
+                    accessibilityLabel={t('pages.activity.close')}
+                    onPress={onClose}
+                  />
                 )}
               </>
             }

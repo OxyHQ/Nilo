@@ -22,7 +22,7 @@ import type {
   RowGroup,
 } from '@/lib/types/databases';
 
-const mockPeek = jest.fn((_props: { rowId: string; mode: string; open: boolean }) => null);
+const mockPeek = jest.fn((_props: { rowId: string; mode: string }) => null);
 const mockPush = jest.fn();
 const mockUpdateView = jest.fn();
 const mockOxyServices = { session: { userId: 'test-user' } };
@@ -67,7 +67,7 @@ jest.mock('@oxy.so/bloom/project-board', () => ({
   ProjectBoard: () => null,
 }));
 jest.mock('../row-peek', () => ({
-  RowPeek: (props: { rowId: string; mode: string; open: boolean }) => mockPeek(props),
+  RowPeek: (props: { rowId: string; mode: string }) => mockPeek(props),
 }));
 jest.mock('@/lib/hooks/use-view-data', () => ({
   useViewCalculations: () => ({
@@ -247,7 +247,6 @@ describe('opening a row', () => {
     pressLink('Row 1');
     expect(mockPeek).toHaveBeenLastCalledWith({
       rowId: '1',
-      open: true,
       mode: 'side',
       onClose: expect.any(Function),
       onOpenFullPage: expect.any(Function),

@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import { Link } from 'expo-router';
 import { isEntityId } from '@oxy.so/nilo-contracts';
-import { LinkButton } from '@oxy.so/bloom/button';
+import { Button } from '@oxy.so/bloom/button';
 import { RiFileTextLine } from '@oxy.so/bloom/icons/RiFileTextLine';
 import { Text } from '@oxy.so/bloom/typography';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
@@ -41,7 +41,8 @@ export function ChildPageBlock({ block }: BlockComponentProps) {
   const trashed = page?.archived;
   return (
     <Link href={`/p/${pageId}`} asChild>
-      <LinkButton
+      <Button
+        appearance="plain"
         accessibilityRole="link"
         accessibilityLabel={title}
         linkTone={trashed ? 'secondary' : 'text'}
@@ -66,7 +67,7 @@ export function ChildPageBlock({ block }: BlockComponentProps) {
         }
       >
         {title}
-      </LinkButton>
+      </Button>
     </Link>
   );
 }

@@ -1,15 +1,16 @@
+import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { AppShellPanel, AppShellPanels, useAppShellPanel } from '@oxy.so/bloom/app-shell';
 import { toast } from '@oxy.so/bloom/toast';
-import { Button, CloseButton } from '@oxy.so/bloom/button';
+import { Button } from '@oxy.so/bloom/button';
 import { Dialog, useDialogControl } from '@oxy.so/bloom/dialog';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Item } from '@oxy.so/bloom/item';
 import { Loading } from '@oxy.so/bloom/loading';
 import { PageFooter } from '@oxy.so/bloom/page-footer';
 import { PageHeader } from '@oxy.so/bloom/page-header';
-import { Screen, ScreenScrollView } from '@oxy.so/bloom/screen';
+import { Screen, ScreenContent, ScreenScrollView } from '@oxy.so/bloom/screen';
 import { Text } from '@oxy.so/bloom/typography';
 import { SharedBlockTree } from '@/components/sharing/shared-block-renderer';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -29,6 +30,7 @@ export function historyVersionTime(iso: string, locale: string, unknown: string)
 
 function HistoryPanel({
   title,
+  kind = 'collection',
   subtitle,
   children,
   onBack,
@@ -41,6 +43,7 @@ function HistoryPanel({
   footer,
 }: {
   title: string;
+  kind?: 'collection' | 'document';
   subtitle?: string;
   children: ReactNode;
   onBack?: () => void;
@@ -55,6 +58,7 @@ function HistoryPanel({
   const { alone } = useAppShellPanel();
   return (
     <Screen
+      kind={kind}
       scroll="content"
       navigationScope="isolated"
       bottomBar={footer}
@@ -74,7 +78,11 @@ function HistoryPanel({
             <>
               {actions}
               {!closeOnlyWhenAlone || alone ? (
-                <CloseButton
+                <Button
+                  appearance="outline"
+                  tone="neutral"
+                  iconOnly
+                  leadingIcon={RiCloseLine}
                   onPress={onClose}
                   disabled={disabled}
                   accessibilityLabel={closeLabel}
@@ -174,7 +182,8 @@ export function PageHistoryDialog({
         show={panel}
         testID="history-panels"
       >
-        <AppShellPanel id="versions" width={320} minWidth={240} appearance="plain">
+        {/* biome-ignore lint/a11y/useValidAriaRole: Bloom panel roles describe composition, not ARIA. */}
+        <AppShellPanel id="versions" role="collection" appearance="plain">
           <HistoryPanel
             title={confirmId ? t('pages.history.confirmTitle') : page.title || t('pages.untitled')}
             subtitle={confirmId ? versionTime : t('pages.history.title')}
@@ -278,8 +287,10 @@ export function PageHistoryDialog({
             )}
           </HistoryPanel>
         </AppShellPanel>
-        <AppShellPanel id="preview" minWidth={0} appearance="plain">
+        {/* biome-ignore lint/a11y/useValidAriaRole: Bloom panel roles describe composition, not ARIA. */}
+        <AppShellPanel id="preview" role="detail" appearance="plain">
           <HistoryPanel
+            kind="document"
             title={versionTime}
             onBack={confirmId ? undefined : () => setPanel('versions')}
             backLabel={t('pages.history.back')}
@@ -303,7 +314,7 @@ export function PageHistoryDialog({
           >
             <ScreenScrollView
               key={selectedId}
-              contentContainerClassName="p-6 gap-4"
+              contentContainerClassName="py-6 gap-4"
               testID="history-version-preview"
             >
               {!selectedId ? (
@@ -320,9 +331,10 @@ export function PageHistoryDialog({
                   </Button>
                 </>
               ) : preview.data ? (
-                <View
-                  className="gap-6 self-center w-full"
-                  style={page.fullWidth ? undefined : { maxWidth: 768 }}
+                <ScreenContent
+                  kind="document"
+                  width={page.fullWidth ? 'full' : 'readable'}
+                  className="gap-6"
                 >
                   <Text variant="caption-1-regular" className="text-muted-foreground">
                     {t('pages.history.contentOnly')}
@@ -332,7 +344,7 @@ export function PageHistoryDialog({
                     font={page.font}
                     fileScope={{ kind: 'page', pageId: page.id }}
                   />
-                </View>
+                </ScreenContent>
               ) : null}
             </ScreenScrollView>
           </HistoryPanel>

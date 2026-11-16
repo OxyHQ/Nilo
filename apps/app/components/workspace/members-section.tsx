@@ -1,3 +1,4 @@
+import { GroupedSection, GroupedSectionItem } from '@oxy.so/bloom/grouped-section';
 import React from 'react';
 import { Text as RNText, View } from 'react-native';
 import { useOxy } from '@oxy.so/services/ui/client';
@@ -21,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@oxy.so/bloom/select';
-import { SettingsCard, SettingsRow, SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
+import { SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
 import { confirm } from '@oxy.so/bloom/surfaces';
 import { toast } from '@oxy.so/bloom/toast';
 import { Text } from '@oxy.so/bloom/typography';
@@ -140,8 +141,6 @@ function MemberRow({
     });
   }, [transfer, member.userId, name, t]);
 
-  // A member row carries an avatar, which `SettingsRow` has no slot for, so it
-  // draws the row's geometry itself.
   return (
     <View
       className={cn(
@@ -272,15 +271,18 @@ export function MembersSection() {
           ) : undefined
         }
       >
-        <SettingsCard>
+        <GroupedSection>
           {isLoading ? (
             <View className="py-10 items-center justify-center">
               <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
             </View>
           ) : isError ? (
-            <SettingsRow label={apiErrorMessage(error, t('workspace.members.loadFailed'))} />
+            <GroupedSectionItem
+              wrapControl
+              title={apiErrorMessage(error, t('workspace.members.loadFailed'))}
+            />
           ) : sortedMembers.length === 0 ? (
-            <SettingsRow label={t('workspace.members.empty')} />
+            <GroupedSectionItem wrapControl title={t('workspace.members.empty')} />
           ) : (
             sortedMembers.map((member, idx) => (
               <MemberRow
@@ -294,7 +296,7 @@ export function MembersSection() {
               />
             ))
           )}
-        </SettingsCard>
+        </GroupedSection>
       </SettingsSection>
 
       {currentWorkspaceId && canInvite ? (

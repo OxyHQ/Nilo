@@ -1,3 +1,4 @@
+import { renderedText } from '@/test-support/rendered-text';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { Platform, TextInput } from 'react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -251,7 +252,7 @@ it.each<WorkspaceRole>(['viewer', 'commenter'])(
     const cells = renderer.root.findAllByType(PropertyCell);
     expect(cells.length).toBeGreaterThan(0);
     expect(cells.every((cell) => cell.props.readOnly)).toBe(true);
-    expect(JSON.stringify(renderer.toJSON())).toContain('A project');
+    expect(renderedText(renderer)).toContain('A project');
   },
 );
 

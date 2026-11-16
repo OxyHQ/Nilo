@@ -1,3 +1,4 @@
+import { GroupedSection, GroupedSectionItem } from '@oxy.so/bloom/grouped-section';
 /**
  * Settings › Members, below the member list: the join link, the invitations
  * waiting for an Oxy account, and the workspace's guests (people pages are
@@ -26,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@oxy.so/bloom/select';
-import { SettingsCard, SettingsRow, SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
+import { SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
 import { confirm } from '@oxy.so/bloom/surfaces';
 import { Switch } from '@oxy.so/bloom/switch';
 import { toast } from '@oxy.so/bloom/toast';
@@ -102,42 +103,54 @@ export function InviteLinkSection({ workspaceId }: SectionProps) {
       label={t('workspace.inviteLink.title')}
       description={t('workspace.inviteLink.description')}
     >
-      <SettingsCard>
-        <SettingsRow label={t('workspace.inviteLink.enable')}>
-          {isLoading ? (
-            <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
-          ) : (
-            <Switch
-              checked={Boolean(link)}
-              onCheckedChange={toggle}
-              disabled={update.isPending}
-              accessibilityLabel={t('workspace.inviteLink.enable')}
-            />
-          )}
-        </SettingsRow>
-        <SettingsRow label={t('workspace.inviteLink.role')}>
-          <Select
-            size="sm"
-            value={shownRole}
-            disabled={update.isPending}
-            onValueChange={(value) => {
-              const next = INVITE_LINK_ROLES.find((option) => option === value);
-              if (next) changeRole(next);
-            }}
-          >
-            <SelectTrigger label={t('workspace.inviteLink.role')}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent
-              items={roles}
-              renderItem={(item) => (
-                <SelectItem value={item.value} label={item.label}>
-                  <SelectItemText>{item.label}</SelectItemText>
-                </SelectItem>
+      <GroupedSection>
+        <GroupedSectionItem
+          wrapControl
+          title={t('workspace.inviteLink.enable')}
+          rightElement={
+            <>
+              {isLoading ? (
+                <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
+              ) : (
+                <Switch
+                  checked={Boolean(link)}
+                  onCheckedChange={toggle}
+                  disabled={update.isPending}
+                  accessibilityLabel={t('workspace.inviteLink.enable')}
+                />
               )}
-            />
-          </Select>
-        </SettingsRow>
+            </>
+          }
+        />
+        <GroupedSectionItem
+          wrapControl
+          title={t('workspace.inviteLink.role')}
+          rightElement={
+            <>
+              <Select
+                size="sm"
+                value={shownRole}
+                disabled={update.isPending}
+                onValueChange={(value) => {
+                  const next = INVITE_LINK_ROLES.find((option) => option === value);
+                  if (next) changeRole(next);
+                }}
+              >
+                <SelectTrigger label={t('workspace.inviteLink.role')}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  items={roles}
+                  renderItem={(item) => (
+                    <SelectItem value={item.value} label={item.label}>
+                      <SelectItemText>{item.label}</SelectItemText>
+                    </SelectItem>
+                  )}
+                />
+              </Select>
+            </>
+          }
+        />
         {link ? (
           <View className="flex-row items-center gap-2 py-2.5 pr-2.5">
             <Text className="flex-1 text-xs text-muted-foreground" numberOfLines={1} selectable>
@@ -165,7 +178,7 @@ export function InviteLinkSection({ workspaceId }: SectionProps) {
             </Button>
           </View>
         ) : null}
-      </SettingsCard>
+      </GroupedSection>
     </SettingsSection>
   );
 }
@@ -248,7 +261,7 @@ export function PendingInvitesSection({ workspaceId }: SectionProps) {
       label={t('workspace.pendingInvites.title', { count: invites.length })}
       description={t('workspace.pendingInvites.description')}
     >
-      <SettingsCard>
+      <GroupedSection>
         {invites.map((invite, idx) => (
           <InviteRow
             key={invite.id}
@@ -257,7 +270,7 @@ export function PendingInvitesSection({ workspaceId }: SectionProps) {
             last={idx === invites.length - 1}
           />
         ))}
-      </SettingsCard>
+      </GroupedSection>
     </SettingsSection>
   );
 }
@@ -371,15 +384,18 @@ export function GuestsSection({ workspaceId }: SectionProps) {
       label={t('workspace.guests.title', { count: guests?.length ?? 0 })}
       description={t('workspace.guests.description')}
     >
-      <SettingsCard>
+      <GroupedSection>
         {isLoading ? (
           <View className="py-6 items-center justify-center">
             <Loading variant="spinner" accessibilityLabel={t('common.loading')} />
           </View>
         ) : isError ? (
-          <SettingsRow label={apiErrorMessage(error, t('workspace.guests.loadFailed'))} />
+          <GroupedSectionItem
+            wrapControl
+            title={apiErrorMessage(error, t('workspace.guests.loadFailed'))}
+          />
         ) : !guests || guests.length === 0 ? (
-          <SettingsRow label={t('workspace.guests.empty')} />
+          <GroupedSectionItem wrapControl title={t('workspace.guests.empty')} />
         ) : (
           guests.map((guest, idx) => (
             <GuestRow
@@ -390,7 +406,7 @@ export function GuestsSection({ workspaceId }: SectionProps) {
             />
           ))
         )}
-      </SettingsCard>
+      </GroupedSection>
     </SettingsSection>
   );
 }

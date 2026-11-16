@@ -3,6 +3,9 @@
 Page history uses Bloom's fullscreen Dialog and local AppShellPanels with the
 plain group appearance. The group inherits the Dialog's Surface instead of
 painting a second material behind the joined columns.
+The versions rail and content preview declare collection and detail panel roles,
+using Bloom's shared track sizing. The preview uses document `ScreenContent` for
+its reading measure and insets; the page's full-width preference selects `full`.
 The versions rail and content preview are separate Screen scroll regions; the
 outer Dialog does not add a third scroller. Bloom owns viewport sizing, panel
 collapse, focus and dismissal. Narrow containers show the version list first;

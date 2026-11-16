@@ -54,6 +54,7 @@ jest.mock('@oxy.so/bloom/screen', () => ({
       {bottomBar}
     </>
   ),
+  ScreenContent: ({ children }: { children: React.ReactNode }) => children,
   ScreenScrollView: ({ children }: { children: React.ReactNode }) => children,
 }));
 

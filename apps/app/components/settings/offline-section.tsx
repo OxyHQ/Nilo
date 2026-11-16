@@ -1,7 +1,8 @@
+import { GroupedSection, GroupedSectionItem } from '@oxy.so/bloom/grouped-section';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Button } from '@oxy.so/bloom/button';
-import { SettingsCard, SettingsRow, SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
+import { SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
 import { confirm } from '@oxy.so/bloom/surfaces';
 import { toast } from '@oxy.so/bloom/toast';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -72,13 +73,13 @@ export function OfflineSection() {
         ) : undefined
       }
     >
-      <SettingsCard>
+      <GroupedSection>
         {pages.length === 0 ? (
-          <SettingsRow label={t('settings.offline.empty')} />
+          <GroupedSectionItem wrapControl title={t('settings.offline.empty')} />
         ) : (
           pages.map((page) => <OfflineRow key={page.pageId} page={page} />)
         )}
-      </SettingsCard>
+      </GroupedSection>
     </SettingsSection>
   );
 }
@@ -99,38 +100,42 @@ function OfflineRow({ page }: { page: OfflineEntry }) {
       })
     : t('settings.offline.notSaved');
   return (
-    <SettingsRow
-      label={title}
+    <GroupedSectionItem
+      wrapControl
+      title={title}
       description={[why, formatSize(page.bytes, locale), saved].join(' · ')}
-    >
-      <View className="flex-row items-center gap-1">
-        <Button
-          appearance="plain"
-          tone="neutral"
-          size="sm"
-          accessibilityRole="link"
-          accessibilityLabel={t('settings.offline.open', { title })}
-          onPress={() => {
-            close();
-            router.push(`/p/${page.pageId}`);
-          }}
-        >
-          {t('settings.offline.openOne')}
-        </Button>
-        {pinned ? (
-          <Button
-            appearance="outline"
-            tone="neutral"
-            size="sm"
-            accessibilityLabel={t('settings.offline.remove', { title })}
-            onPress={() => {
-              void offlinePages.setPinned(page.pageId, false);
-            }}
-          >
-            {t('settings.offline.removeOne')}
-          </Button>
-        ) : null}
-      </View>
-    </SettingsRow>
+      rightElement={
+        <>
+          <View className="flex-row items-center gap-1">
+            <Button
+              appearance="plain"
+              tone="neutral"
+              size="sm"
+              accessibilityRole="link"
+              accessibilityLabel={t('settings.offline.open', { title })}
+              onPress={() => {
+                close();
+                router.push(`/p/${page.pageId}`);
+              }}
+            >
+              {t('settings.offline.openOne')}
+            </Button>
+            {pinned ? (
+              <Button
+                appearance="outline"
+                tone="neutral"
+                size="sm"
+                accessibilityLabel={t('settings.offline.remove', { title })}
+                onPress={() => {
+                  void offlinePages.setPinned(page.pageId, false);
+                }}
+              >
+                {t('settings.offline.removeOne')}
+              </Button>
+            ) : null}
+          </View>
+        </>
+      }
+    />
   );
 }

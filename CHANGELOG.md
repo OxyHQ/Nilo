@@ -2,6 +2,12 @@
 
 All notable changes to Nilo (formerly Clarity) are documented here.
 
+## [2026-11-16]
+
+### Compatibility
+
+- `@oxy.so/nilo-contracts` 0.4.1 accepts Bloom Editor 0.8 and 0.9 through its optional editor peer. The app, API and contract development dependency use Editor 0.9, whose document model and Yjs format are unchanged.
+
 ## [2026-03-07]
 
 ### Added

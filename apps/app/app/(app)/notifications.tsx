@@ -1,14 +1,16 @@
+import { GroupedSection, GroupedSectionItem } from '@oxy.so/bloom/grouped-section';
+import { RiCloseLine } from '@oxy.so/bloom/icons/RiCloseLine';
 import { Screen, ScreenScrollView } from '@oxy.so/bloom/screen';
 import { PageAssignedNotification } from '@/components/sharing/page-assigned-notification';
 import { PageEditedNotification } from '@/components/sharing/page-edited-notification';
 import { ReminderList } from '@/components/reminders/reminder-list';
 import { PageSharedNotification } from '@/components/sharing/page-shared-notification';
 import { View, Pressable } from 'react-native';
-import { Button, CloseButton } from '@oxy.so/bloom/button';
+import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
 import { PageHeader } from '@oxy.so/bloom/page-header';
-import { SettingsListGroup, SettingsListItem } from '@oxy.so/bloom/settings-list';
+
 import { Switch } from '@oxy.so/bloom/switch';
 import { Text } from '@oxy.so/bloom/typography';
 import { useRouter } from 'expo-router';
@@ -181,8 +183,8 @@ export default function NotificationsScreen() {
         {showSettings && (
           <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
             <View className="px-6 py-4 border-b border-border">
-              <SettingsListGroup>
-                <SettingsListItem
+              <GroupedSection>
+                <GroupedSectionItem
                   icon={<StatusIcon width={20} height={20} fill={colors.mutedForeground} />}
                   title={t('notifications.pushNotifications')}
                   description={t('notifications.pushDescription')}
@@ -195,7 +197,7 @@ export default function NotificationsScreen() {
                     />
                   }
                 />
-              </SettingsListGroup>
+              </GroupedSection>
               {push?.supported === false && (
                 <View className="mt-3 p-3 rounded-lg bg-muted">
                   <Text className="text-xs text-muted-foreground">
@@ -274,7 +276,11 @@ export default function NotificationsScreen() {
                           <Text className="text-xs text-muted-foreground">
                             {timeAgo(notification.createdAt)}
                           </Text>
-                          <CloseButton
+                          <Button
+                            appearance="outline"
+                            tone="neutral"
+                            iconOnly
+                            leadingIcon={RiCloseLine}
                             size="xs"
                             // The row itself opens the notification.
                             stopPropagation

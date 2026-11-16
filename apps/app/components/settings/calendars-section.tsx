@@ -1,3 +1,4 @@
+import { GroupedSection, GroupedSectionItem } from '@oxy.so/bloom/grouped-section';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -7,7 +8,7 @@ import type { CalendarSubscription, CalendarSubscriptionList } from '@oxy.so/nil
 import { Button } from '@oxy.so/bloom/button';
 import { RiAddLine } from '@oxy.so/bloom/icons/RiAddLine';
 import { RiRefreshLine } from '@oxy.so/bloom/icons/RiRefreshLine';
-import { SettingsCard, SettingsRow, SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
+import { SettingsSection } from '@oxy.so/bloom/settings-modal/modal';
 import { confirm } from '@oxy.so/bloom/surfaces';
 import { TextFieldInput } from '@oxy.so/bloom/text-field';
 import { toast } from '@oxy.so/bloom/toast';
@@ -113,10 +114,11 @@ export function CalendarsSection() {
         label={t('settings.calendars.listTitle')}
         description={t('settings.calendars.where')}
       >
-        <SettingsCard>
+        <GroupedSection>
           {items.length === 0 ? (
-            <SettingsRow
-              label={subscriptions.isLoading ? t('common.loading') : t('settings.calendars.empty')}
+            <GroupedSectionItem
+              wrapControl
+              title={subscriptions.isLoading ? t('common.loading') : t('settings.calendars.empty')}
             />
           ) : (
             items.map((subscription) => (
@@ -127,7 +129,7 @@ export function CalendarsSection() {
               />
             ))
           )}
-        </SettingsCard>
+        </GroupedSection>
       </SettingsSection>
     </View>
   );
@@ -186,50 +188,54 @@ function SubscriptionRow({
     return t('settings.calendars.status.ok', { when: when(s.lastSuccessAt) });
   }
   return (
-    <SettingsRow
-      label={subscription.name}
+    <GroupedSectionItem
+      wrapControl
+      title={subscription.name}
       description={[
         subscription.host,
         t('settings.calendars.events', { count: subscription.eventCount }),
         statusText(subscription),
       ].join(' · ')}
-    >
-      <View className="flex-row items-center gap-1">
-        <Button
-          appearance="plain"
-          tone="neutral"
-          size="sm"
-          accessibilityRole="link"
-          accessibilityLabel={t('settings.calendars.openLabel', { name: subscription.name })}
-          onPress={() => {
-            close();
-            router.push(`/db/${subscription.calendarId}`);
-          }}
-        >
-          {t('settings.calendars.open')}
-        </Button>
-        <Button
-          appearance="plain"
-          tone="neutral"
-          size="sm"
-          iconOnly
-          icon={RiRefreshLine}
-          loading={refresh.isPending}
-          accessibilityLabel={t('settings.calendars.refreshLabel', { name: subscription.name })}
-          onPress={() => refresh.mutate()}
-        />
-        <Button
-          appearance="outline"
-          tone="danger"
-          size="sm"
-          accessibilityLabel={t('settings.calendars.removeLabel', { name: subscription.name })}
-          onPress={() => {
-            void remove();
-          }}
-        >
-          {t('settings.calendars.remove')}
-        </Button>
-      </View>
-    </SettingsRow>
+      rightElement={
+        <>
+          <View className="flex-row items-center gap-1">
+            <Button
+              appearance="plain"
+              tone="neutral"
+              size="sm"
+              accessibilityRole="link"
+              accessibilityLabel={t('settings.calendars.openLabel', { name: subscription.name })}
+              onPress={() => {
+                close();
+                router.push(`/db/${subscription.calendarId}`);
+              }}
+            >
+              {t('settings.calendars.open')}
+            </Button>
+            <Button
+              appearance="plain"
+              tone="neutral"
+              size="sm"
+              iconOnly
+              icon={RiRefreshLine}
+              loading={refresh.isPending}
+              accessibilityLabel={t('settings.calendars.refreshLabel', { name: subscription.name })}
+              onPress={() => refresh.mutate()}
+            />
+            <Button
+              appearance="outline"
+              tone="danger"
+              size="sm"
+              accessibilityLabel={t('settings.calendars.removeLabel', { name: subscription.name })}
+              onPress={() => {
+                void remove();
+              }}
+            >
+              {t('settings.calendars.remove')}
+            </Button>
+          </View>
+        </>
+      }
+    />
   );
 }

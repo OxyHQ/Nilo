@@ -4,11 +4,10 @@ import Head from 'expo-router/head';
 import axios from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
-import { cn } from '@/lib/utils';
 import { Button } from '@oxy.so/bloom/button';
 import { Loading } from '@oxy.so/bloom/loading';
 import { Text } from '@oxy.so/bloom/typography';
-import { Screen, ScreenScrollView } from '@oxy.so/bloom/screen';
+import { Screen, ScreenContent, ScreenScrollView } from '@oxy.so/bloom/screen';
 import { CoverDisplay } from '@/components/page-chrome/cover-display';
 import { IconDisplay } from '@/components/page-chrome/icon-display';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -30,7 +29,7 @@ export default function PublicSitePage() {
     : t(missing ? 'pages.publish.notFound' : 'pages.publish.title');
   return (
     <Screen
-      scroll="auto"
+      kind="document"
       className="flex-1 bg-background"
       style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
     >
@@ -66,12 +65,7 @@ export default function PublicSitePage() {
             position={data.page.coverPosition}
             fileScope={{ kind: 'published', slug, pageId: data.page.id }}
           />
-          <View
-            className={cn(
-              'w-full mx-auto px-6 md:px-10 py-8 gap-5',
-              !data.page.fullWidth && 'max-w-3xl',
-            )}
-          >
+          <ScreenContent width={data.page.fullWidth ? 'full' : 'readable'} className="py-8 gap-5">
             <View
               className="flex-row flex-wrap gap-2"
               accessibilityLabel={t('pages.publish.breadcrumb')}
@@ -137,7 +131,7 @@ export default function PublicSitePage() {
                 ))}
               </View>
             ) : null}
-          </View>
+          </ScreenContent>
         </ScreenScrollView>
       )}
     </Screen>
