@@ -123,12 +123,14 @@ export function CommentPanel({
 
   return (
     <Screen
+      kind="collection"
       scroll="auto"
       active={open}
       bottomBarKeyboardBehavior="follow"
       header={
         <PageHeader
-          presentation="bar"
+          presentation="navigation"
+          border="none"
           safeArea={false}
           title={headerTitle}
           leading={<RiChat3Line size="sm" fill={colors.foreground} />}

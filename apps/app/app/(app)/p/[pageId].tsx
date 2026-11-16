@@ -177,9 +177,6 @@ function PageDetail({
           {
             id: 'comments',
             role: 'inspector',
-            width: 360,
-            minWidth: 280,
-            maxWidth: 480,
             open: commentPanel.open,
             onOpenChange: (open) => {
               if (!open) closeComments();
@@ -201,9 +198,6 @@ function PageDetail({
           {
             id: 'activity',
             role: 'inspector',
-            width: 384,
-            minWidth: 280,
-            maxWidth: 480,
             open: activityOpen,
             onOpenChange: setActivityOpen,
             label: t('pages.activity.title'),

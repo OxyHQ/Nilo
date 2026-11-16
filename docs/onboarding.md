@@ -46,7 +46,9 @@ single dividers; Nilo adds no negative margins, radius overrides or viewport
 measurements. This is the workspace's product presentation, independent of
 whether navigation is inline or compact.
 Documents declare their main role, while comments and activity declare inspector
-roles with controlled open state and localized labels. Their shared
+roles with controlled open state and localized labels. Role defaults own inspector
+widths; comments and activity share the navigation header presentation instead
+of supplying independent panel geometry. Their shared
 Surface, divider and responsive floating presentation belong to `AppShellPanels`;
 `CommentPanel` supplies its own `Screen` header, scroll content and footer.
 The group's `header` slot spans the document and its adjacent panels inside
