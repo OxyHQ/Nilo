@@ -35,13 +35,18 @@ passing because it scanned nothing.
 
 ## UI composition
 
-Bloom owns the workspace layout. `NiloShell` supplies navigation and workspace
-actions to `AppShell` and `Sidebar`; individual routes compose their surfaces
-with `AppShellPanels` and `Screen`. Do not put a surface around the entire
-router outlet: a document and its comments are sibling panels.
-The workspace inherits AppShell's normal outer gutter and navigation gap;
-do not flatten the panel against the viewport to imitate a reference header.
-The document and comments use the compositor's `joined` appearance. Their shared
+Bloom owns the workspace layout. `NiloShell` declares `AppShell layout="workspace"`
+and `presentation="continuous"`, supplying navigation and workspace actions.
+Individual routes compose their regions with `AppShellPanels` and `Screen`;
+they inherit the shell's composition policy. Do not put a surface around the
+entire router outlet: a document and its inspectors are sibling regions.
+Continuous presentation fills the available window, with no outer frame or
+navigation gap. Bloom owns the shared surface, square structural joins and
+single dividers; Nilo adds no negative margins, radius overrides or viewport
+measurements. This is the workspace's product presentation, independent of
+whether navigation is inline or compact.
+Documents declare their main role, while comments and activity declare inspector
+roles with controlled open state and localized labels. Their shared
 Surface, divider and responsive floating presentation belong to `AppShellPanels`;
 `CommentPanel` supplies its own `Screen` header, scroll content and footer.
 The group's `header` slot spans the document and its adjacent panels inside
@@ -51,6 +56,11 @@ discussions must preserve the mounted document editor and header overlays.
 
 `PageHeader` owns header placement and measures its accessory (view tabs and
 `Toolbar`). `ScreenScrollView` binds content to that screen's scroll owner.
+Document Screens declare their content kind. `ScreenContent` supplies the shared
+reading measure and body insets to both title and editor; the page's full-width
+setting selects full content width without changing the structural frame.
+Covers remain outside that reading column. Table, collection, form and canvas
+Screens declare their own kind instead of acquiring document-width constraints.
 Full-page databases use a single joined `AppShellPanels` panel, preserving the
 same surface owner as documents. View tabs, add-view, search, filter, sort and
 property tools share one `Toolbar`; its actions slot keeps New visible while

@@ -62,12 +62,16 @@ it('applies published font and width, ignoring small text and locking', () => {
   expect(renderer.root.findByType(SharedBlockTree).props.font).toBe('serif');
   expect(JSON.stringify(renderer.toJSON())).not.toContain('pages.lock');
   expect(
-    renderer.root.findAllByType(View).some((node) => node.props.className?.includes('max-w-3xl')),
+    renderer.root
+      .findAllByType(View)
+      .some((node) => StyleSheet.flatten(node.props.style)?.maxWidth === 768),
   ).toBe(false);
   mockFullWidth = false;
   act(() => renderer.update(themed(<PublicSitePage />)));
   expect(
-    renderer.root.findAllByType(View).some((node) => node.props.className?.includes('max-w-3xl')),
+    renderer.root
+      .findAllByType(View)
+      .some((node) => StyleSheet.flatten(node.props.style)?.maxWidth === 768),
   ).toBe(true);
 });
 it('uses the page face throughout shared text while preserving the code face', () => {

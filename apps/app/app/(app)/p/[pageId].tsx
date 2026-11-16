@@ -6,7 +6,7 @@ import { RiChat3Line } from '@oxy.so/bloom/icons/RiChat3Line';
 import { Button } from '@oxy.so/bloom/button';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
-import { ScreenScrollView } from '@oxy.so/bloom/screen';
+import { ScreenContent, ScreenScrollView } from '@oxy.so/bloom/screen';
 import type { PageHeaderProps } from '@oxy.so/bloom/page-header';
 import {
   PageEditorProvider,
@@ -27,7 +27,6 @@ import { useTrackRecentPage } from '@/lib/hooks/use-track-recent-page';
 import { hasRole } from '@/lib/hooks/workspace-roles';
 import { pageContentReadOnly } from '@/lib/hooks/page-access';
 import type { DatabaseRow, PropertyValue } from '@/lib/types/databases';
-import { cn } from '@/lib/utils';
 import type { Page } from '@/lib/types/pages';
 import type { CommentAnchor } from '@/lib/types/comments';
 
@@ -177,18 +176,15 @@ function PageDetail({
         panels={[
           {
             id: 'comments',
+            role: 'inspector',
             width: 360,
             minWidth: 280,
             maxWidth: 480,
-            visible: commentPanel.open,
-            floating: {
-              below: 'lg',
-              open: commentPanel.open,
-              onOpenChange: (open) => {
-                if (!open) closeComments();
-              },
-              label: t('comments.panel.title'),
+            open: commentPanel.open,
+            onOpenChange: (open) => {
+              if (!open) closeComments();
             },
+            label: t('comments.panel.title'),
             content: (
               <CommentPanel
                 canComment={hasRole(role, 'commenter')}
@@ -204,16 +200,13 @@ function PageDetail({
           },
           {
             id: 'activity',
+            role: 'inspector',
             width: 384,
             minWidth: 280,
             maxWidth: 480,
-            visible: activityOpen,
-            floating: {
-              below: 'lg',
-              open: activityOpen,
-              onOpenChange: setActivityOpen,
-              label: t('pages.activity.title'),
-            },
+            open: activityOpen,
+            onOpenChange: setActivityOpen,
+            label: t('pages.activity.title'),
             content: (
               <PageActivityPanel
                 page={page}
@@ -227,7 +220,6 @@ function PageDetail({
         readOnly={!canEdit}
         rightHeader={rightHeader}
         onOpenActivity={openActivity}
-        scroll={page.mode === 'canvas' ? 'none' : 'auto'}
         bottomBar={<PageEditorToolbar />}
       >
         {page.archived ? <TrashedPageBanner page={page} canEdit={canEdit} /> : null}
@@ -251,9 +243,7 @@ function PageDetail({
         ) : (
           <ScreenScrollView keyboardShouldPersistTaps="handled">
             <PageHeader page={page} readOnly={!canEdit} />
-            <View
-              className={cn('px-6 md:px-10 w-full mx-auto pt-4', !page.fullWidth && 'max-w-3xl')}
-            >
+            <ScreenContent width={page.fullWidth ? 'full' : 'readable'} className="pt-4">
               <DatabaseRowProperties page={page} readOnly={contentReadOnly} />
               <PageEditor
                 pageId={page.id}
@@ -261,7 +251,7 @@ function PageDetail({
                 readOnly={contentReadOnly}
                 onOpenBlockComments={handleOpenPanel}
               />
-            </View>
+            </ScreenContent>
           </ScreenScrollView>
         )}
       </PageChrome>

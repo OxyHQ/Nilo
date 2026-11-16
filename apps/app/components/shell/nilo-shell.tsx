@@ -245,9 +245,9 @@ export function NiloShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <AppShell
+        layout="workspace"
+        presentation="continuous"
         panels
-        contentMaxWidth="none"
-        scroll="fixed"
         safeArea
         navFrom={SIDEBAR_IN_FLOW_FROM}
         drawerSwipe

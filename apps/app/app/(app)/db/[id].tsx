@@ -114,18 +114,15 @@ function DatabasePage({ id, viewId }: { id: string; viewId?: string }) {
       }}
     />
   ) : (
-    <Screen scroll="content" header={header()}>
+    <Screen kind="table" scroll="content" header={header()}>
       <EmptyState description={t('pages.database.noViews')} />
     </Screen>
   );
   return (
     <AppShellPanels
       layout={{
-        mode: 'split',
-        flow: 'bounded',
-        appearance: 'joined',
         activePanel: 'database',
-        panels: [{ id: 'database', span: 1, content }],
+        panels: [{ id: 'database', role: 'main', content }],
       }}
     />
   );

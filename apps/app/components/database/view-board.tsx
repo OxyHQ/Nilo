@@ -332,7 +332,7 @@ export function ViewBoard({
 
   return (
     <Screen
-      scroll="none"
+      kind="canvas"
       bottomBar={
         hasMore && onLoadMore ? (
           <Button appearance="subtle" size="sm" onPress={onLoadMore}>

@@ -1,5 +1,4 @@
 import { PAGE_FONT_FAMILIES } from '@/lib/fonts';
-import { cn } from '@/lib/utils';
 import { toast } from '@oxy.so/bloom/toast';
 import { PageInfo } from './page-info';
 import { PageVerificationBadge } from './page-verification-badge';
@@ -18,7 +17,7 @@ import {
   PageHeaderTitleInput,
   type PageHeaderProps,
 } from '@oxy.so/bloom/page-header';
-import { Screen, type ScreenProps } from '@oxy.so/bloom/screen';
+import { Screen, ScreenContent, type ScreenProps } from '@oxy.so/bloom/screen';
 import { AppShellPanels, type AppShellPanelDefinition } from '@oxy.so/bloom/app-shell';
 import { useColorScheme } from '@/lib/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -68,7 +67,7 @@ export function PageChrome({
   rightHeader,
   bottomBar,
   panels,
-  scroll = 'auto',
+  scroll,
   readOnly = false,
   onOpenActivity,
 }: PageChromeProps) {
@@ -139,6 +138,7 @@ export function PageChrome({
   );
   const document = (
     <Screen
+      kind={page.mode === 'canvas' ? 'canvas' : 'document'}
       scroll={scroll}
       contentClearance={48}
       bottomBar={bottomBar}
@@ -154,12 +154,9 @@ export function PageChrome({
       {panels ? (
         <AppShellPanels
           layout={{
-            mode: 'split',
-            flow: 'bounded',
-            appearance: 'joined',
             header,
             activePanel: 'document',
-            panels: [{ id: 'document', span: 1, content: document }, ...panels],
+            panels: [{ id: 'document', role: 'main', content: document }, ...panels],
           }}
         />
       ) : (
@@ -237,8 +234,8 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
       }
       testID="page-cover"
     >
-      <View
-        className={cn('px-6 md:px-10 w-full mx-auto', !page.fullWidth && 'max-w-3xl')}
+      <ScreenContent
+        width={page.fullWidth ? 'full' : 'readable'}
         style={{ paddingTop: media.hasCover && page.icon ? 0 : 24 }}
       >
         {contentReadOnly ? (
@@ -330,7 +327,7 @@ export function PageHeader({ page, readOnly = false }: { page: Page; readOnly?: 
           </View>
         ) : null}
         <PageInfo page={page} />
-      </View>
+      </ScreenContent>
     </CoverHeader>
   );
 }

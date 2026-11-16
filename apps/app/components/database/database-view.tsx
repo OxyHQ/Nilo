@@ -171,7 +171,15 @@ export function DatabaseViewContainer({
     <DatabaseCellScopeProvider databaseId={database.id}>
       <OpenRowProvider view={view}>
         <Screen
-          scroll={view.type === 'board' ? 'none' : 'auto'}
+          kind={
+            view.type === 'board'
+              ? 'canvas'
+              : view.type === 'table'
+                ? 'table'
+                : view.type === 'form'
+                  ? 'form'
+                  : 'collection'
+          }
           bottomBar={status}
           header={
             renderHeader ? (
