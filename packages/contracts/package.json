@@ -1,6 +1,6 @@
 {
   "name": "@oxy.so/nilo-contracts",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "The contract shared by Nilo's API and its clients (the Nilo app, Noted, @oxy.so/nilo): block types and content, Markdown conversion, and the /notes and /calendar APIs' shapes.",
   "license": "SEE LICENSE IN LICENSE",
   "repository": {
@@ -28,7 +28,7 @@
     "./editor": "./src/editor.ts"
   },
   "peerDependencies": {
-    "@oxy.so/bloom-editor": ">=0.7.1 <0.8.0",
+    "@oxy.so/bloom-editor": ">=0.7.1 <0.10.0",
     "@oxy.so/bloom-text": ">=0.1.1 <0.2.0"
   },
   "peerDependenciesMeta": {
@@ -40,7 +40,7 @@
     }
   },
   "devDependencies": {
-    "@oxy.so/bloom-editor": "0.8.0",
+    "@oxy.so/bloom-editor": "0.9.0",
     "@oxy.so/bloom-text": "0.1.6"
   },
   "scripts": {

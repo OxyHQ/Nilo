@@ -74,7 +74,10 @@ Screens declare their own kind instead of acquiring document-width constraints.
 Bloom 22 uses `Button` and `Button.Group` for actions and `GroupedSection` /
 `GroupedSectionItem` for settings. Setting controls occupy `rightElement` with
 `wrapControl`; labels remain `title`. Do not recreate retired button or settings
-renderers. The editor uses the matching `@oxy.so/bloom-editor` 0.9 release.
+renderers. The app, API and contract development dependency use the matching
+`@oxy.so/bloom-editor` 0.9 release. `@oxy.so/nilo-contracts` 0.4.1 accepts that
+release through its optional editor peer; the document model and Yjs format
+remain unchanged.
 
 Database boards use the same `ProjectBoard` canvas, card surface, drag engine and
 `ProjectBoardCardContent` slots as Bloom's Project Board template. Nilo supplies
