@@ -197,7 +197,21 @@ export function CommentComposer({
   const [sending, setSending] = usePanelSessionState(`${sessionKey}:sending`, false);
   const [submitFailed, setSubmitFailed] = usePanelSessionState(`${sessionKey}:failed`, false);
   const [visited, setVisited] = usePanelSessionState(`${sessionKey}:visited`, false);
-  React.useEffect(() => setVisited(true), [setVisited]);
+  const lifecycle = React.useRef({ initial, visited });
+  lifecycle.current = { initial, visited };
+  React.useEffect(() => {
+    // A finished/cancelled composer starts from the current authoritative seed
+    // on its next explicit mount. Presentation remounts keep visited=true.
+    if (!lifecycle.current.visited) {
+      const next = lifecycle.current.initial;
+      setText(next.text);
+      setAnchored(next.anchored);
+      setSelection({ start: next.text.length, end: next.text.length });
+      setMentionDraft(null);
+      setSubmitFailed(false);
+    }
+    setVisited(true);
+  }, [setVisited, setText, setAnchored, setSelection, setMentionDraft, setSubmitFailed]);
   const sendingRef = React.useRef(sending);
   sendingRef.current = sending;
   const busy = submitting || sending;
