@@ -99,13 +99,7 @@ async function mount(cached = true, surface: 'route' | 'peek' = 'route') {
           {surface === 'route' ? (
             <PageDetailRoute />
           ) : (
-            <RowPeek
-              rowId={page.id}
-              open
-              mode="side"
-              onClose={jest.fn()}
-              onOpenFullPage={jest.fn()}
-            />
+            <RowPeek rowId={page.id} mode="side" onClose={jest.fn()} onOpenFullPage={jest.fn()} />
           )}
         </QueryClientProvider>
       </BloomTestProviders>,

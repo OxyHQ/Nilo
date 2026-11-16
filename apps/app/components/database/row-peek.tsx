@@ -2,7 +2,7 @@ import * as React from 'react';
 import { View } from 'react-native';
 import { RiExpandDiagonalSLine } from '@oxy.so/bloom/icons/RiExpandDiagonalSLine';
 import { Button } from '@oxy.so/bloom/button';
-import { DetailDialog } from '@oxy.so/bloom/dialog';
+import { DetailDialog, useDialogContext } from '@oxy.so/bloom/dialog';
 import { PageHeaderTitleInput } from '@oxy.so/bloom/page-header';
 import { EmptyState } from '@oxy.so/bloom/empty-state';
 import { Loading } from '@oxy.so/bloom/loading';
@@ -23,7 +23,6 @@ import { RowPropertiesPanel } from './row-properties-panel';
 
 interface RowPeekProps {
   rowId: string;
-  open: boolean;
   /** Beside or centered over the view; Bloom uses its compact detail surface on phones. */
   mode: 'side' | 'center';
   onClose: () => void;
@@ -36,7 +35,7 @@ interface RowPeekProps {
  * editor, over the view it was opened from, with "Open as full page" and
  * close. The page is the row's own: whoever may edit it edits it here.
  */
-export function RowPeek({ rowId, open, mode, onClose, onOpenFullPage }: RowPeekProps) {
+export function RowPeek({ rowId, mode, onClose, onOpenFullPage }: RowPeekProps) {
   const { t } = useTranslation();
   const page = usePage(rowId);
   const record = page.data?.page;
@@ -46,7 +45,7 @@ export function RowPeek({ rowId, open, mode, onClose, onOpenFullPage }: RowPeekP
   return (
     <PageEditorProvider pageId={rowId} readOnly={readOnly}>
       <DetailDialog
-        open={open}
+        startOpen
         onClose={onClose}
         mode={mode}
         label={record?.title || t('databases.untitled')}
@@ -54,15 +53,7 @@ export function RowPeek({ rowId, open, mode, onClose, onOpenFullPage }: RowPeekP
         contentKind={record?.mode === 'canvas' ? 'canvas' : 'document'}
         scrollable={record?.mode !== 'canvas'}
         header={database.data?.database.name || t('databases.untitled')}
-        actions={
-          <Button
-            iconOnly
-            appearance="plain"
-            leadingIcon={RiExpandDiagonalSLine}
-            accessibilityLabel={t('databases.peek.openFull')}
-            onPress={onOpenFullPage}
-          />
-        }
+        actions={<OpenFullPage onOpen={onOpenFullPage} />}
         footer={record ? <PageEditorToolbar /> : undefined}
         footerKeyboardBehavior="follow"
         testID="row-peek"
@@ -76,6 +67,21 @@ export function RowPeek({ rowId, open, mode, onClose, onOpenFullPage }: RowPeekP
         )}
       </DetailDialog>
     </PageEditorProvider>
+  );
+}
+
+/** Keep the shared exit before navigation disposes the editing session. */
+function OpenFullPage({ onOpen }: { onOpen: () => void }) {
+  const { close } = useDialogContext();
+  const { t } = useTranslation();
+  return (
+    <Button
+      iconOnly
+      appearance="plain"
+      leadingIcon={RiExpandDiagonalSLine}
+      accessibilityLabel={t('databases.peek.openFull')}
+      onPress={() => close(onOpen)}
+    />
   );
 }
 

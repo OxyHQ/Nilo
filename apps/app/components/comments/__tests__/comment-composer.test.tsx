@@ -309,3 +309,61 @@ it.each(['cancel', 'save'] as const)(
     expect(input().props.value).toBe('Server text');
   },
 );
+
+it.each(['plain', 'mention'])(
+  'retains the second %s draft after submit and presentation remount',
+  async (kind) => {
+    const onSubmit = jest.fn().mockResolvedValue(undefined);
+    const fixture = (generation: number) => (
+      <BloomTestProviders>
+        <AppShell
+          panelLayout={{
+            panels: [
+              {
+                id: 'comments',
+                content: (
+                  <CommentComposer
+                    key={generation}
+                    sessionKey="second-draft"
+                    workspaceId="workspace"
+                    onSubmit={onSubmit}
+                  />
+                ),
+              },
+            ],
+          }}
+        />
+      </BloomTestProviders>
+    );
+    act(() => {
+      renderer = create(fixture(0));
+    });
+    act(() => change('First comment'));
+    await act(async () => send()?.props.onPress());
+    expect(input().props.value).toBe('');
+    const mention = {
+      type: 'mention',
+      kind: 'user',
+      id: 'member-2',
+      originalText: '@Bea',
+    } as const;
+    if (kind === 'mention') {
+      act(() => {
+        change('@');
+        select(1);
+      });
+      act(() => suggestions()[0].props.onSelect(mention));
+    }
+    const draft = kind === 'mention' ? '@Bea second draft' : 'Second draft';
+    act(() => change(draft));
+    act(() => renderer.update(fixture(1)));
+    expect(input().props.value).toBe(draft);
+    await act(async () => send()?.props.onPress());
+    expect(onSubmit).toHaveBeenNthCalledWith(
+      2,
+      kind === 'mention'
+        ? [mention, { type: 'text', text: ' second draft' }]
+        : [{ type: 'text', text: 'Second draft' }],
+    );
+  },
+);

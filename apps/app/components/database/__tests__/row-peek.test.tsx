@@ -1,3 +1,4 @@
+import type * as React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { DetailDialog } from '@oxy.so/bloom/dialog';
 import { PageHeaderTitleInput } from '@oxy.so/bloom/page-header';
@@ -6,8 +7,13 @@ import { BloomTestProviders } from '@/test-support/bloom-providers';
 import { PageEditor } from '@/components/page-editor/page-editor';
 import type { Page } from '@/lib/types/pages';
 import { RowPeek } from '../row-peek';
+import { OpenRowProvider } from '../row-peek-provider';
+import { useOpenRow } from '../open-row';
 
 const mockUpdate = jest.fn();
+const mockDialogClose = jest.fn();
+const mockAcquireEditor = jest.fn();
+const mockReleaseEditor = jest.fn();
 const mockPage = {
   data: {
     page: { id: 'row', databaseId: 'db', title: 'Plan', mode: 'document', locked: false } as Page,
@@ -32,12 +38,22 @@ jest.mock('../row-properties-panel', () => ({ RowPropertiesPanel: () => null }))
 jest.mock('@/components/page-chrome/icon-display', () => ({ IconDisplay: () => null }));
 jest.mock('@/components/page-editor/page-editor', () => ({ PageEditor: () => null }));
 jest.mock('@/components/page-editor/page-editor-context', () => ({
-  PageEditorProvider: ({ children }: { children: React.ReactNode }) => children,
+  PageEditorProvider: ({ pageId, children }: { pageId: string; children: React.ReactNode }) => {
+    const { useEffect } = jest.requireActual<typeof React>('react');
+    useEffect(() => {
+      mockAcquireEditor(pageId);
+      return () => {
+        mockReleaseEditor(pageId);
+      };
+    }, [pageId]);
+    return children;
+  },
   PageEditorToolbar: () => null,
 }));
 // Bloom owns the modal/scroll rendering; exercise Nilo's live permissions and actions.
 jest.mock('@oxy.so/bloom/dialog', () => ({
   ...jest.requireActual('@oxy.so/bloom/dialog'),
+  useDialogContext: () => ({ close: mockDialogClose }),
   DetailDialog: ({ header, actions, children, footer }: Record<string, React.ReactNode>) => (
     <>
       {header}
@@ -52,7 +68,7 @@ const openFullPage = jest.fn();
 const close = jest.fn();
 const tree = (mode: 'side' | 'center' = 'side') => (
   <BloomTestProviders>
-    <RowPeek rowId="row" open mode={mode} onClose={close} onOpenFullPage={openFullPage} />
+    <RowPeek rowId="row" mode={mode} onClose={close} onOpenFullPage={openFullPage} />
   </BloomTestProviders>
 );
 beforeEach(() => {
@@ -84,6 +100,9 @@ it('keeps row title persistence and full-page navigation in the shared detail', 
     title: 'Updated plan',
   });
   act(() => renderer.root.findByType(Button).props.onPress());
+  expect(openFullPage).not.toHaveBeenCalled();
+  expect(mockDialogClose).toHaveBeenCalledWith(openFullPage);
+  act(() => mockDialogClose.mock.calls[0][0]());
   expect(openFullPage).toHaveBeenCalledTimes(1);
 });
 
@@ -109,3 +128,55 @@ it('keeps a locked canvas read-only inside its bounded detail body', async () =>
   expect(detail.props.footer).toBeTruthy();
   expect(detail.props.footerKeyboardBehavior).toBe('follow');
 });
+
+let openRow: (rowId: string) => void;
+function RowTrigger() {
+  openRow = useOpenRow();
+  return null;
+}
+const mountProvider = () =>
+  act(async () => {
+    renderer = create(
+      <BloomTestProviders>
+        <OpenRowProvider view={{ config: { openIn: 'side_peek' } }}>
+          <RowTrigger />
+        </OpenRowProvider>
+      </BloomTestProviders>,
+    );
+  });
+
+it('retains the row editor for the shared exit and releases it when that exit completes', async () => {
+  await mountProvider();
+  act(() => openRow('row'));
+  const dialog = renderer.root.findByType(DetailDialog);
+  expect(dialog.props.open).toBeUndefined();
+  expect(dialog.props.startOpen).toBe(true);
+  expect(mockAcquireEditor).toHaveBeenCalledWith('row');
+  // The dialog owns the animation. Requesting exit cannot dispose its provider.
+  act(() => mockDialogClose());
+  expect(mockReleaseEditor).not.toHaveBeenCalled();
+  expect(renderer.root.findAllByType(PageEditor)).toHaveLength(1);
+  act(() => dialog.props.onClose());
+  expect(mockReleaseEditor).toHaveBeenCalledTimes(1);
+  expect(mockReleaseEditor).toHaveBeenCalledWith('row');
+  expect(renderer.root.findAllByType(RowPeek)).toHaveLength(0);
+});
+
+it.each(['row', 'another-row'])(
+  'ignores a previous opening exit after opening %s',
+  async (nextRow) => {
+    await mountProvider();
+    act(() => openRow('row'));
+    const oldExit = renderer.root.findByType(DetailDialog).props.onClose;
+    act(() => openRow(nextRow));
+    expect(mockAcquireEditor).toHaveBeenCalledTimes(2);
+    expect(mockReleaseEditor).toHaveBeenCalledTimes(1);
+    const newExit = renderer.root.findByType(DetailDialog).props.onClose;
+    act(() => oldExit());
+    expect(renderer.root.findByType(RowPeek).props.rowId).toBe(nextRow);
+    expect(mockReleaseEditor).toHaveBeenCalledTimes(1);
+    act(() => newExit());
+    expect(renderer.root.findAllByType(RowPeek)).toHaveLength(0);
+    expect(mockReleaseEditor).toHaveBeenCalledTimes(2);
+  },
+);

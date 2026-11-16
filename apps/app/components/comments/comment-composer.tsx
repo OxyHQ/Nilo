@@ -240,6 +240,7 @@ export function CommentComposer({
   };
 
   const handleChangeText = (nextText: string) => {
+    setVisited(true);
     const nextAnchored = reanchor(textRef.current, anchored, nextText);
     textRef.current = nextText;
     dismissedTriggerRef.current = null;
@@ -257,6 +258,7 @@ export function CommentComposer({
 
   const handlePickMention = (mention: MentionSegment) => {
     if (!mentionDraft) return;
+    setVisited(true);
     const caret = selectionRef.current.start;
     const before = text.slice(0, mentionDraft.triggerIndex);
     const after = text.slice(caret);

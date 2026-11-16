@@ -91,7 +91,10 @@ behavior and fixed editor toolbar slot. Side and center are view preferences;
 compact widths use the same bounded detail surface. Nilo supplies the database
 name, editable page title, properties, editor and full-page action, retaining
 live page permissions. `PageEditorProvider` surrounds the entire detail so body
-and toolbar share one editor. Canvas rows use the bounded non-scrolling body.
+and toolbar share one editor. Bloom owns the dismissal lifecycle: the provider
+stays alive throughout exit, then the completed close releases its collaboration
+session and offline holder. A completion from an older opening cannot release a
+newer row, including a reopened instance of the same row. Canvas rows use the bounded non-scrolling body.
 Full-page databases use a single joined `AppShellPanels` panel, preserving the
 same surface owner as documents. View tabs, add-view, search, filter, sort and
 property tools share one `Toolbar`; its actions slot keeps New visible while
