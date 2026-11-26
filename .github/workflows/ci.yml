@@ -284,7 +284,9 @@ jobs:
 
   # lint-and-test's hosted twin in the Seldon race: the same name, services and steps.
   lint-and-test-hosted:
-    name: Lint & Test
+    # The lane's name only while the race is on: unset, this skipped job must not be the newest
+    # check run of a name a branch rule may still require (a skip counts as a pass).
+    name: ${{ vars.CI_SELDON_RACE == 'true' && 'Lint & Test' || 'Lint & Test (seldon twin, off)' }}
     needs: race
     if: ${{ !cancelled() && needs.race.outputs.race == 'true' }}
     runs-on: ubuntu-latest
@@ -298,7 +300,9 @@ jobs:
   # lint-and-test's rescue: reruns it hosted when its Seldon lane failed (the house
   # network drops connections); a genuine failure fails again.
   lint-and-test-rescue:
-    name: Lint & Test
+    # The lane's name only while the race is on: unset, this skipped job must not be the newest
+    # check run of a name a branch rule may still require (a skip counts as a pass).
+    name: ${{ vars.CI_SELDON_RACE == 'true' && 'Lint & Test' || 'Lint & Test (seldon rescue, off)' }}
     needs: lint-and-test
     if: ${{ !cancelled() && needs.lint-and-test.result == 'failure' && vars.CI_SELDON_RACE == 'true' && github.run_attempt == 1 && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && !github.event.pull_request.head.repo.fork }}
     runs-on: ubuntu-latest
@@ -454,7 +458,9 @@ jobs:
 
   # build-web's hosted twin in the Seldon race: the same name and steps.
   build-web-hosted:
-    name: Build Web
+    # The lane's name only while the race is on: unset, this skipped job must not be the newest
+    # check run of a name a branch rule may still require (a skip counts as a pass).
+    name: ${{ vars.CI_SELDON_RACE == 'true' && 'Build Web' || 'Build Web (seldon twin, off)' }}
     needs: [changes, lint-and-test, lint-and-test-hosted, lint-and-test-rescue, race-2]
     if: ${{ needs.race-2.outputs.race == 'true' && !cancelled() && needs.changes.result == 'success' && (needs.lint-and-test.result == 'success' || needs.lint-and-test-hosted.result == 'success' || needs.lint-and-test-rescue.result == 'success') && needs.changes.outputs.app == 'true' }}
     runs-on: ubuntu-latest
@@ -467,7 +473,9 @@ jobs:
   # build-web's rescue: reruns it hosted when its Seldon lane failed (the house
   # network drops connections); a genuine failure fails again.
   build-web-rescue:
-    name: Build Web
+    # The lane's name only while the race is on: unset, this skipped job must not be the newest
+    # check run of a name a branch rule may still require (a skip counts as a pass).
+    name: ${{ vars.CI_SELDON_RACE == 'true' && 'Build Web' || 'Build Web (seldon rescue, off)' }}
     needs: [changes, lint-and-test, lint-and-test-hosted, lint-and-test-rescue, build-web]
     if: ${{ needs.build-web.result == 'failure' && vars.CI_SELDON_RACE == 'true' && github.run_attempt == 1 && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && !github.event.pull_request.head.repo.fork && !cancelled() && needs.changes.result == 'success' && (needs.lint-and-test.result == 'success' || needs.lint-and-test-hosted.result == 'success' || needs.lint-and-test-rescue.result == 'success') && needs.changes.outputs.app == 'true' }}
     runs-on: ubuntu-latest
